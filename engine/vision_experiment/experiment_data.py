@@ -23,6 +23,11 @@ import hdf5io
 import unittest
 
 def check(h, config):
+    '''
+    Check measurement file
+    -Do all expected nodes exist?
+    -Does sync data make sense?
+    '''
     h_opened = False
     error_messages = []
     if not hasattr(h, 'filename'):
@@ -69,6 +74,9 @@ def check(h, config):
 
 ############### Preprocess measurement data ####################
 def read_sync_rawdata(h):
+    '''
+    Reads sync traces
+    '''
     for v in  ['configs_stim', 'sync_and_elphys_data', 'ephys_sync_conversion_factor']:
         if not hasattr(h, v):
             h.load(v)
@@ -81,6 +89,9 @@ def read_sync_rawdata(h):
     return elphys, stim_sync, img_sync
 
 def get_sync_events(h):
+    '''
+    Detects sync events in stimulus and imaging sync traces
+    '''
     elphys, stim_sync, img_sync=read_sync_rawdata(h)
     for v in  ['recording_parameters']:
         if not hasattr(h, v):
@@ -92,6 +103,9 @@ def get_sync_events(h):
     return h.tsync,h.timg
     
 def get_ca_activity(h, mask = None):
+    '''
+    Returns the ca activity curve of the whole recording. The whole recording can be masked
+    '''
     if not hasattr(h, 'raw_data'):
         h.load('raw_data')
     if h.raw_data.shape[1] != 1:
@@ -105,8 +119,7 @@ def get_ca_activity(h, mask = None):
     
 def get_activity_plotdata(h):#TODO rename
     '''
-    Gets overall activity plotting data
-    May return meanimage
+    Gets overall activity and timing information
     '''
     h_opened = False
     if not hasattr(h, 'filename'):
@@ -120,6 +133,9 @@ def get_activity_plotdata(h):#TODO rename
     return tsync, timg[:l], a[:l]
     
 def get_imagedata(h):
+    '''
+    Meanimage, rawdata and scale is returned
+    '''
     h_opened = False
     if not hasattr(h, 'filename'):
         h = hdf5io.Hdf5io(h, filelocking=False)
@@ -136,6 +152,9 @@ def get_imagedata(h):
     return meanimage,copy.deepcopy(h.raw_data), scale
     
 def extract_roi_curve(rawdata, roix, roiy, roisize,roitype,scale):
+    '''
+    Extract a roi curve using provided roi center, roi size
+    '''
     if roitype != 'circle':
         raise NotImplementedError('')
     size=roisize/scale
@@ -148,39 +167,11 @@ def extract_roi_curve(rawdata, roix, roiy, roisize,roitype,scale):
     mask = numpy.asarray(im)
     return get_roi_curves(rawdata, [numpy.nonzero(mask)])[0]
     
-    
-
-def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None, sync_signal_min_amplitude = 1.5):
-    #Find out high and low voltage levels
-    histogram, bin_edges = numpy.histogram(sync_signal, bins = 20)
-    if histogram.max() == histogram[0] or histogram.max() == histogram[-1]:
-        pulses_detected = True
-        low_voltage_level = 0.5 * (bin_edges[0] + bin_edges[1])
-        high_voltage_level = 0.5 * (bin_edges[-1] + bin_edges[-2])
-#        print high_voltage_level - low_voltage_level
-        if high_voltage_level - low_voltage_level  < sync_signal_min_amplitude:
-            pulses_detected = False
-            return stimulus_frame_info, 0, pulses_detected
+def get_roi_curves(rawdata, cell_rois):
+    if rawdata.shape[3]<rawdata.shape[1]:
+        return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
     else:
-        pulses_detected = False
-        return stimulus_frame_info, 0, pulses_detected
-    threshold = 0.5 * (low_voltage_level + high_voltage_level)
-    #detect sync signal rising edges
-    binary_sync = numpy.where(sync_signal < threshold, 0, 1)
-    rising_edges = numpy.where(numpy.diff(binary_sync) > 0, 1, 0)
-    rising_edges_indexes = numpy.nonzero(rising_edges)[0] + 1
-    stimulus_frame_info_with_data_series_index = []
-    if stimulus_frame_info != None:
-        for stimulus_item in stimulus_frame_info:
-            info = stimulus_item
-            try:
-                info['data_series_index'] = rising_edges_indexes[info['counter']]
-            except IndexError:
-                #less pulses detected
-                info['data_series_index'] = -1
-                print 'less trigger pulses were detected'
-            stimulus_frame_info_with_data_series_index.append(info)
-    return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
+        return [numpy.cast['float'](rawdata[:, 0, cell_roi[0], cell_roi[1]]).mean(axis=1) for cell_roi in cell_rois]
 
 #################### Saving/loading data to hdf5 ####################
 def pack_software_environment(experiment_source_code = None):
@@ -216,11 +207,48 @@ def pack_configs(self):
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
     return configs
-
-def load_config(numpy_array):
-    return utils.array2object(numpy_array)
     
-def read_merge_rois(cells, cell_group, region_name, objective_position, objective_origin, z_range, merge_distance):
+def read_machine_config(h):
+    return utils.array2object(h.findvar('machine_config'))
+    
+def read_machine_config_name(h):
+    return read_machine_config(h).__class__.__name__
+    
+#################### End of saving/loading data to hdf5 ####################
+
+def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None, sync_signal_min_amplitude = 1.5):#OBSOLETE
+    #Find out high and low voltage levels
+    histogram, bin_edges = numpy.histogram(sync_signal, bins = 20)
+    if histogram.max() == histogram[0] or histogram.max() == histogram[-1]:
+        pulses_detected = True
+        low_voltage_level = 0.5 * (bin_edges[0] + bin_edges[1])
+        high_voltage_level = 0.5 * (bin_edges[-1] + bin_edges[-2])
+#        print high_voltage_level - low_voltage_level
+        if high_voltage_level - low_voltage_level  < sync_signal_min_amplitude:
+            pulses_detected = False
+            return stimulus_frame_info, 0, pulses_detected
+    else:
+        pulses_detected = False
+        return stimulus_frame_info, 0, pulses_detected
+    threshold = 0.5 * (low_voltage_level + high_voltage_level)
+    #detect sync signal rising edges
+    binary_sync = numpy.where(sync_signal < threshold, 0, 1)
+    rising_edges = numpy.where(numpy.diff(binary_sync) > 0, 1, 0)
+    rising_edges_indexes = numpy.nonzero(rising_edges)[0] + 1
+    stimulus_frame_info_with_data_series_index = []
+    if stimulus_frame_info != None:
+        for stimulus_item in stimulus_frame_info:
+            info = stimulus_item
+            try:
+                info['data_series_index'] = rising_edges_indexes[info['counter']]
+            except IndexError:
+                #less pulses detected
+                info['data_series_index'] = -1
+                print 'less trigger pulses were detected'
+            stimulus_frame_info_with_data_series_index.append(info)
+    return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
+
+def read_merge_rois(cells, cell_group, region_name, objective_position, objective_origin, z_range, merge_distance):#OBSOLETE
     '''
     Reads rois of selected group, performs filtering based on objective position and merge distance
     '''
@@ -251,6 +279,7 @@ def read_merge_rois(cells, cell_group, region_name, objective_position, objectiv
         roi_locations['depth'] = objective_position + objective_origin
         return roi_locations, rois
         
+#OBSOLETE
 def add_auxiliary_rois(rois, roi_pattern_size, objective_position, objective_origin, aux_roi_distance = None, soma_size_ratio = None):
     '''
     aux_roi_distance: fixed distance from soma center
@@ -320,6 +349,7 @@ def add_auxiliary_rois(rois, roi_pattern_size, objective_position, objective_ori
         pass
     return rois_to_roi_locations(expanded_rois, objective_position, objective_origin), expanded_rois
         
+#OBSOLETE
 def rois_to_roi_locations(rois, objective_position, objective_origin):
     roi_locations = []
     for roi in rois:
@@ -329,6 +359,9 @@ def rois_to_roi_locations(rois, objective_position, objective_origin):
     return roi_locations
     
 def read_phys(filename):
+    '''
+    Read traces and metadata from .phys file
+    '''
     import struct
     f =open(filename,  'rb')
     offset = f.read(4)
@@ -356,12 +389,6 @@ def phys2clampfit(filename):
     data = read_phys(filename)
     data = data.flatten('F').reshape(dim1, dim2)
     data.tofile(filename.replace('.phys', 'c.phys'))
-    
-def read_machine_config(h):
-    return utils.array2object(h.findvar('machine_config'))
-    
-def read_machine_config_name(h):
-    return read_machine_config(h).__class__.__name__
     
 class SmrVideoAligner(object):
     def __init__(self, folders, fps = 29.97):
@@ -512,15 +539,8 @@ class SmrVideoAligner(object):
         from skimage import filter
         return numpy.array([filter.threshold_otsu(self._read_frame(files[i])) for i in range(0,len(files))]).mean()
     
-######################### Stimulus frame info manipulating #######################
-
-def get_block_entry_indexes(sfi, block_name):
-    block_start_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_start') and sfi[i]['block_name'] == block_name]
-    block_end_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_end') and sfi[i]['block_name'] == block_name]
-    return block_start_indexes, block_end_indexes
-    
-def images2mip(rawdata, timeseries_dimension = 0):
-    return rawdata.max(axis=timeseries_dimension)
+   
+#################### Not working/abandoned concepts ####################
 
 def detect_cells(rawdata, scale, cell_size):#This concept does not work
     from scipy.ndimage.filters import gaussian_filter,maximum_filter
@@ -591,13 +611,7 @@ def detect_cells(rawdata, scale, cell_size):#This concept does not work
                 #Transform these coordinates back to mip coordinates
                 cell_rois.append(numpy.cast['int']((roi_coordinates.T+offset).T))
     return mip,cell_rois
-    
-def get_roi_curves(rawdata, cell_rois):
-    if rawdata.shape[3]<rawdata.shape[1]:
-        return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
-    else:
-        return [numpy.cast['float'](rawdata[:, 0, cell_roi[0], cell_roi[1]]).mean(axis=1) for cell_roi in cell_rois]
-        
+            
 def get_data_timing(filename):
     from visexpA.engine.datahandlers import matlabfile
     m=matlabfile.MatData(filename.replace('.hdf5', '.mat'))
@@ -677,6 +691,16 @@ def plot_receptive_field_stimulus(organized_blocks,roi_curves, mip):
         merged[:scaled.shape[0], :scaled.shape[1],:] = scaled
         merged[:plotim.shape[0], scaled.shape[1]:,:] = plotim[:,:,:3]
         Image.fromarray(numpy.cast['uint8'](merged)).save(fn)
+        
+
+#################### End of not working/abandoned concepts ####################
+
+#################### Stimulus frame info processing ####################
+
+def get_block_entry_indexes(sfi, block_name):
+    block_start_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_start') and sfi[i]['block_name'] == block_name]
+    block_end_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_end') and sfi[i]['block_name'] == block_name]
+    return block_start_indexes, block_end_indexes
     
 def sfi2signature(sfi):
     '''

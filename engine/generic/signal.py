@@ -206,6 +206,9 @@ def signal2binary(waveform):
 def trigger_indexes(trigger):
     return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>0.5*(trigger.max()-trigger.min()), 1, 0))[0]+1
 
+def images2mip(rawdata, timeseries_dimension = 0):
+    return rawdata.max(axis=timeseries_dimension)
+
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
         #generate test data
