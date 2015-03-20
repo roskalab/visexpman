@@ -2192,9 +2192,10 @@ class Analysis(QtGui.QWidget):
             return
         file_info = os.stat(self.parent.parent.poller.current_datafile)
         h=hdf5io.Hdf5io(self.parent.parent.poller.current_datafile,filelocking=False)
+        h.timing = {'ti': self.poller.ti, 'ts':self.poller.ts}
         h.rois = self.parent.image.roi_info
         h.roi_curves = [experiment_data.extract_roi_curve(self.poller.rawdata, roi_info[1],roi_info[2],roi_info[3],'circle', self.poller.scale)[:self.poller.ti.shape[0]] for roi_info in self.parent.image.roi_info]
-        h.save(['rois','roi_curves'])
+        h.save(['rois','roi_curves','timing'])
         h.close()
         fileop.set_file_dates(self.parent.parent.poller.current_datafile, file_info)
         self.printc('{0} rois are saved'.format(len(h.rois)))
