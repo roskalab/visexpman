@@ -2788,11 +2788,7 @@ class VisexpGuiPoller(Poller):
         self.visualisation_control = gui.CaImagingVisualisationControl(self, self.config, self.parent.central_widget.ca_displays)
         self.toolbox = gui.RetinaTools(self, self.config, self.parent.central_widget.main_widget.toolbox)
         if self.context['variables'].has_key('self.current_datafile'):
-            self.current_datafile = self.context['variables']['self.current_datafile']
-            if self.config.ENABLE_PHYS_FILE_CONVERSION:
-                from visexpman.users.zoltan.legacy import PhysTiff2Hdf5
-                folder=os.path.split(self.current_datafile)[0]
-                self.physconverter=PhysTiff2Hdf5(folder,folder)
+            self.current_datafile = self.context['variables']['self.current_datafile']                
 
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'), self.parent.printc)
@@ -2930,10 +2926,8 @@ class VisexpGuiPoller(Poller):
                 self.update_network_connection_status()
             if not self.phase%15:
                 self.experiment_log.update_suggested_date()
-            if not self.phase%7 and hasattr(self, 'physconverter'):
-                r=self.physconverter.detect_and_convert()
-                if len(r)>0:
-                    self.printc('New file(s) available: {0}'.format(', '.join(r)))
+            if not self.phase%7:
+                pass
             if not self.phase%9:
                 self.experiment_control.check_stimulus_and_imaging_start_timeout()
                 self.experiment_control.check_data_ready_timeout()

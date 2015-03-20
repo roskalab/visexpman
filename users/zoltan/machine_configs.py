@@ -197,7 +197,6 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
                                                 'ND40': 4, 
                                                 }
                         }]
-        self.ENABLE_PHYS_FILE_CONVERSION = True
         self._create_parameters_from_locals(locals())
 
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):

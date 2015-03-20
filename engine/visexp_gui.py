@@ -1066,6 +1066,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def display_warnings(self, warnings):
         for warning in warnings:
+            if 'tiff' in str(warning.message) or 'non-integer' in str(warning.message):
+                continue
             if not introspect.is_test_running():
                 self.notify_user('WARNING', str(warning.message))
             self.log.warning(warning.message, self.source_name)

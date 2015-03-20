@@ -2085,23 +2085,22 @@ class ROITools(QtGui.QGroupBox):
         
 class TraceAnalysis(QtGui.QGroupBox):
     def __init__(self,parent):
-        QtGui.QGroupBox.__init__(self,'Trace    ', parent)
+        QtGui.QGroupBox.__init__(self,'Trace', parent)
         self.normalization = gui.LabeledComboBox(self, 'Normalization',items = ['no', 'dF/F', 'std'])
+        self.normalization.input.setCurrentIndex(2)
         self.baseline_lenght = gui.LabeledInput(self, 'Baseline lenght [s]')
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.baseline_lenght, 0, 0)
         self.layout.addWidget(self.normalization, 0, 1)
         self.setLayout(self.layout)
-        
+                
 class Analysis(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.parent=parent
         self.export2mat = QtGui.QPushButton('Export to mat', self)
-        
         self.roi=ROITools(self)
         self.ta=TraceAnalysis(self)
-        
         self.gw = pyqtgraph.GraphicsLayoutWidget(self)
         self.gw.setBackground((255,255,255))
         self.gw.setFixedHeight(400)
@@ -2129,12 +2128,13 @@ class Analysis(QtGui.QWidget):
         self.connect(self.ta.baseline_lenght.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self, QtCore.SIGNAL('update_image'), self.parent.parent.update_image)
         self.connect(self, QtCore.SIGNAL('printc'), self.parent.parent.printc)
+        self.connect(self, QtCore.SIGNAL('notify_user'), self.parent.parent.notify_user)
         
     def printc(self, text):
         self.emit(QtCore.SIGNAL('printc'), text)
         
     def roi_update(self):
-        self.roi.select.update_items(['{0} {1},{2}@{3}'.format(r[0],r[1],r[2],r[3]) for r in self.parent.image.roi_info])
+        self.roi.select.update_items(['{0} {1:1.0f},{2:1.0f}@{3:1.0f}'.format(r[0],r[1],r[2],r[3]) for r in self.parent.image.roi_info])
         self.roi.select.input.setCurrentIndex(len(self.parent.image.roi_info)-1)
         
     def selected_roi_changed(self):
@@ -2151,7 +2151,11 @@ class Analysis(QtGui.QWidget):
         roi_info=self.parent.image.roi_info[index]
         self.ca = experiment_data.extract_roi_curve(self.poller.rawdata, roi_info[1],roi_info[2],roi_info[3],'circle', self.poller.scale)[:self.poller.ti.shape[0]]
         #normalize
-        baseline_length=float(str(self.ta.baseline_lenght.input.text()))
+        try:
+            baseline_length=float(str(self.ta.baseline_lenght.input.text()))
+        except ValueError:
+            self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Please provide baseline length')
+            return
         normalization_mode = str(self.ta.normalization.input.currentText())
         if normalization_mode == 'no':
             self.normalized = self.ca
@@ -2211,7 +2215,7 @@ class Analysis(QtGui.QWidget):
         
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent):
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':self}, text = 'Poller: self.p')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':self, 'utils':utils, 'fileop': fileop, 'signal':signal, numpy: 'numpy'}, text = 'Poller: self.p, Also available: numpy.utils, fileop, signal')
         
     def set_poller(self, poller):
         self.p=poller
