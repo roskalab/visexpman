@@ -74,7 +74,7 @@ if TEST_os == 'Darwin':
 
 TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/tmp', 'c:\\temp']
 TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/tmp', 'c:\\temp']
-TEST_test_data_folder = ['/mnt/rzws/test_data', 'r:\\test_data']
+TEST_test_data_folder = ['/mnt/rzws/test_data', 'r:\\test_data', '/home/rz/codes/data']
 
 #if TEST_os == 'nt':
 #    TEST_test_data_folder = 'u:\\software_test\\ref_data'

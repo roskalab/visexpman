@@ -201,13 +201,15 @@ def signal2binary(waveform):
     Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)
     '''
     return numpy.where(waveform > numpy.histogram(waveform, bins = 10)[1][-2],  True,  False)
-
     
 def trigger_indexes(trigger):
     return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>0.5*(trigger.max()-trigger.min()), 1, 0))[0]+1
 
 def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
+    
+def time2index(times,timepoint):
+        return numpy.where(times>timepoint)[0][0]
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
