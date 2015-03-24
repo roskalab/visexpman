@@ -17,6 +17,7 @@ import copy
 import multiprocessing
 import tables
 import sys
+import zmq
 
 import experiment_data
 import visexpman.engine
@@ -477,11 +478,20 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.prepare()
             self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
             time.sleep(0.1)
-            self.send({'trigger':'stim started'})
+            
+            if self.machine_config.PLATFORM=='hi_mea':
+                #send start signal
+                self._send_himea_cmd("start")
+            else:
+                self.send({'trigger':'stim started'})
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             self.run()
             self.log.resume()
-            self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            if self.machine_config.PLATFORM=='hi_mea':
+                #send stop signal
+                self._send_himea_cmd("stop")
+            else:
+                self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if not self.abort:
                 self.printl('Stimulation ended, saving data to file')
                 self._save2file()
@@ -579,6 +589,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                             elif len(k3)>max_len:
                                 self.datafile[k1][k2][k3[:max_len]] = self.datafile[k1][k2][k3]
                                 del self.datafile[k1][k2][k3]
+
+        def _send_himea_cmd(self, cmd):
+           if self.config.ENABLE_MEA_START_COMMAND:
+                context = zmq.Context()
+                socket = context.socket(zmq.REQ)
+                socket.connect("tcp://12.0.1.1:75000")
+                socket.send(cmd)
+                socket.recv()#This is blocking!!!
         
         
 class ExperimentControl(object):#OBSOLETE

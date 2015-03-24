@@ -121,11 +121,11 @@ class StimulationScreen(graphics.Screen):
         commands = self.config.KEYS.keys()
         commands.sort()
         for k in commands:
-            self.menu_text+= '{0} - {1}, '.format(self.config.KEYS[k], k)
+            self.menu_text+= '\n{0} - {1} '.format(self.config.KEYS[k], k)
         if self.config.PLATFORM == 'hi_mea' or self.config.PLATFORM == 'standalone':
             ct = 0
             for ec in self.experiment_configs:
-                self.menu_text+= '{0} - {1}, '.format(ct, ec)
+                self.menu_text+= '\n{0} - {1} '.format(ct, ec)
                 ct +=1
             self.experiment_select_commands = map(str, range(ct))
         self.menu_text = self.menu_text[:-2]
@@ -166,7 +166,7 @@ class StimulationScreen(graphics.Screen):
     def _display_bullseye(self):
         if self.show_bullseye:
             if self.bullseye_type == 'L':
-                self.draw_L(self.bullseye_size, self.stim_context['screen_center'])
+                self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, self.stim_context['screen_center'])
             elif self.bullseye_type == 'bullseye':
                 self.render_image(self.bullseye_image, position = self.stim_context['screen_center'], stretch = self.bullseye_stretch_factor*self.bullseye_size)
             elif self.bullseye_type == 'spot':
