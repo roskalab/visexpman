@@ -54,9 +54,10 @@ class TransientAnalysator(object):
         #response size is the mean of the trace when stimulus presented
         response_amplitude = response.mean()
         #quantify transient
-        rise_time_constant = self.calculate_time_constant(response)*tsample
-        fall_time_constant = self.calculate_time_constant(post_response)*tsample
-        post_response_signal_level = post_response.mean()
+        rise_time_constant, response_amplitude = self.calculate_time_constant(response)
+        rise_time_constant*=tsample
+        fall_time_constant, post_response_signal_level = self.calculate_time_constant(post_response)
+        fall_time_constant*=tsample
         #Initial drop
         initial_drop = scaled_trace[:signal.time2index(ti, self.initial_drop_sample_duration)].mean()
         return scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop
@@ -65,7 +66,8 @@ class TransientAnalysator(object):
         x=numpy.arange(numpy.array(trace).shape[0])
         coeff, cov = scipy.optimize.curve_fit(exp,x,trace,p0=[1,1,trace[0]])
         time_constant = coeff[0]
-        return time_constant
+        response_amplitude = coeff[2]
+        return time_constant, response_amplitude
 
 
 class TestCA(unittest.TestCase):
@@ -77,8 +79,8 @@ class TestCA(unittest.TestCase):
         ta=TransientAnalysator(-5, 0, 3, 1)
         ct=0
         for f in self.files:
-            if '023' not in f:
-                continue
+#            if '023' not in f:
+#                continue
             h=hdf5io.Hdf5io(f,filelocking=False)
             rc=h.findvar('roi_curves')
             res = map(ta.calculate_trace_parameters, rc, len(rc)*[h.findvar('timing')])

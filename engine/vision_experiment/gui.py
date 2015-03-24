@@ -2172,7 +2172,7 @@ class Analysis(QtGui.QWidget):
             post_response_duration=float(str(self.ta.post_response_duration.input.text()))
             initial_drop_duration=float(str(self.ta.initial_drop_duration.input.text()))
         except ValueError:
-            self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Please provide baseline start and end')
+            self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Please provide baseline start and end, post response and initial drop durations')
             return
         normalization_mode = str(self.ta.normalization.input.currentText())
         transient_analysis = ca_signal.TransientAnalysator(baseline_start, baseline_end, post_response_duration, initial_drop_duration)
@@ -2188,7 +2188,8 @@ class Analysis(QtGui.QWidget):
         self.plot.setYRange(min(self.normalized), max(self.normalized))
         if hasattr(self,'stimulus_time'):
             self.plot.removeItem(self.stimulus_time)
-        self.stimulus_time = pyqtgraph.LinearRegionItem(self.poller.ts, movable=False)
+        rb=0 if abs(response_amplitude) >3 else 50
+        self.stimulus_time = pyqtgraph.LinearRegionItem(self.poller.ts, movable=False, brush = (rb,100 if abs(response_amplitude) >3 else 50,rb,100))
         self.plot.addItem(self.stimulus_time)
         self.ta.trace_analysis_results.setText(
         'Response size: {0:0.2f} std\nTime constants\nrise {1:0.3f} s\nfall {2:0.3f} s\nPost response {3:0.2f} std\nInitial drop {4:0.2f} std'
