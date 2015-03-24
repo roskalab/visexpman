@@ -77,6 +77,8 @@ class TestCA(unittest.TestCase):
         ta=TransientAnalysator(-5, 0, 3, 1)
         ct=0
         for f in self.files:
+            if '023' not in f:
+                continue
             h=hdf5io.Hdf5io(f,filelocking=False)
             rc=h.findvar('roi_curves')
             res = map(ta.calculate_trace_parameters, rc, len(rc)*[h.findvar('timing')])

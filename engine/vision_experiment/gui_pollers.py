@@ -2713,7 +2713,10 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.averaging.input.text',
                                           'self.parent.central_widget.main_widget.toolbox.bullseye_type.currentIndex',
                                           'self.parent.central_widget.main_widget.toolbox.bullseye_size.input.text',
-                                          'self.parent.central_widget.analysis.ta.baseline_lenght.input.text',
+                                          'self.parent.central_widget.analysis.ta.baseline_start.input.text',
+                                          'self.parent.central_widget.analysis.ta.baseline_end.input.text',
+                                          'self.parent.central_widget.analysis.ta.post_response_duration.input.text',
+                                          'self.parent.central_widget.analysis.ta.initial_drop_duration.input.text',
                                           
                                           ]
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):

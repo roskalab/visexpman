@@ -22,7 +22,7 @@ import PyQt4.Qwt5 as Qwt
 
 import visexpman
 import hdf5io
-from visexpman.engine.vision_experiment import experiment, experiment_data
+from visexpman.engine.vision_experiment import experiment, experiment_data, ca_signal
 from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui,fileop,stringop,introspect,utils,colors,signal
@@ -2086,10 +2086,22 @@ class TraceAnalysis(QtGui.QGroupBox):
         QtGui.QGroupBox.__init__(self,'Trace', parent)
         self.normalization = gui.LabeledComboBox(self, 'Normalization',items = ['no', 'dF/F', 'std'])
         self.normalization.input.setCurrentIndex(2)
-        self.baseline_lenght = gui.LabeledInput(self, 'Baseline lenght [s]')
+        self.baseline_start = gui.LabeledInput(self, 'Baseline start [s]')
+        self.baseline_start.setToolTip('Relative to stimulus start')
+        self.baseline_end = gui.LabeledInput(self, 'Baseline end [s]')
+        self.baseline_end.setToolTip('Relative to stimulus start')
+        self.post_response_duration = gui.LabeledInput(self, 'Post response duration [s]')
+        self.post_response_duration.setToolTip('Duration of interval after stimulation. This part of the trace will be used to quantify how much was the response sustained')
+        self.initial_drop_duration = gui.LabeledInput(self, 'Initial drop duration [s]')
+        self.initial_drop_duration.setToolTip('From the beginning to this time point will be used to determine the initial Ca signal level')
+        self.trace_analysis_results = QtGui.QLabel('', self)
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.baseline_lenght, 0, 0)
-        self.layout.addWidget(self.normalization, 0, 1)
+        self.layout.addWidget(self.trace_analysis_results, 0, 0,3,2)
+        self.layout.addWidget(self.baseline_start, 0, 2)
+        self.layout.addWidget(self.baseline_end, 0, 3)
+        self.layout.addWidget(self.normalization, 0, 4)
+        self.layout.addWidget(self.post_response_duration, 1, 2)
+        self.layout.addWidget(self.initial_drop_duration, 1, 3)
         self.setLayout(self.layout)
                 
 class Analysis(QtGui.QWidget):
@@ -2124,7 +2136,10 @@ class Analysis(QtGui.QWidget):
         self.connect(self.export2mat, QtCore.SIGNAL('clicked()'), self.export)
         self.connect(self.roi.show.input, QtCore.SIGNAL('stateChanged(int)'), self.update_image)
         self.connect(self.ta.normalization.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
-        self.connect(self.ta.baseline_lenght.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self.ta.baseline_start.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self.ta.baseline_end.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self.ta.post_response_duration.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self.ta.initial_drop_duration.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self, QtCore.SIGNAL('update_image'), self.parent.parent.update_image)
         self.connect(self, QtCore.SIGNAL('printc'), self.parent.parent.printc)
         self.connect(self, QtCore.SIGNAL('notify_user'), self.parent.parent.notify_user)
@@ -2151,25 +2166,33 @@ class Analysis(QtGui.QWidget):
         self.ca = experiment_data.extract_roi_curve(self.poller.rawdata, roi_info[1],roi_info[2],roi_info[3],'circle', self.poller.scale)[:self.poller.ti.shape[0]]
         #normalize
         try:
-            baseline_length=float(str(self.ta.baseline_lenght.input.text()))
+            baseline_start=float(str(self.ta.baseline_start.input.text()))
+            baseline_end=float(str(self.ta.baseline_end.input.text()))
+            baseline_length=baseline_end-baseline_start
+            post_response_duration=float(str(self.ta.post_response_duration.input.text()))
+            initial_drop_duration=float(str(self.ta.initial_drop_duration.input.text()))
         except ValueError:
-            self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Please provide baseline length')
+            self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Please provide baseline start and end')
             return
         normalization_mode = str(self.ta.normalization.input.currentText())
+        transient_analysis = ca_signal.TransientAnalysator(baseline_start, baseline_end, post_response_duration, initial_drop_duration)
+        scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop = transient_analysis.calculate_trace_parameters(self.ca, {'ti':self.poller.ti, 'ts': self.poller.ts})
         if normalization_mode == 'no':
             self.normalized = self.ca
         elif normalization_mode == 'dF/F':
             baseline = self.ca[numpy.where(numpy.logical_and(self.poller.ti<self.poller.ts[0],self.poller.ti>self.poller.ts[0]-baseline_length))].mean()
             self.normalized = self.ca / baseline
         elif normalization_mode == 'std':
-            baseline = self.ca[numpy.where(numpy.logical_and(self.poller.ti<self.poller.ts[0],self.poller.ti>self.poller.ts[0]-baseline_length))]
-            self.normalized = (self.ca-baseline.mean())/baseline.std()
+            self.normalized = scaled_trace
         self.curve.setData(self.poller.ti, self.normalized)
         self.plot.setYRange(min(self.normalized), max(self.normalized))
         if hasattr(self,'stimulus_time'):
             self.plot.removeItem(self.stimulus_time)
         self.stimulus_time = pyqtgraph.LinearRegionItem(self.poller.ts, movable=False)
         self.plot.addItem(self.stimulus_time)
+        self.ta.trace_analysis_results.setText(
+        'Response size: {0:0.2f} std\nTime constants\nrise {1:0.3f} s\nfall {2:0.3f} s\nPost response {3:0.2f} std\nInitial drop {4:0.2f} std'
+            .format(response_amplitude, rise_time_constant, fall_time_constant, post_response_signal_level, initial_drop))
         
     def suggest(self):
         self.poller = self.parent.parent.poller
@@ -2180,7 +2203,7 @@ class Analysis(QtGui.QWidget):
         show = self.roi.show.input.checkState()==2
         mi=numpy.zeros((self.poller.meanimage.shape[0],self.poller.meanimage.shape[1],3))
         mi[:,:,1]=self.poller.meanimage
-        if show:
+        if show and hasattr(self, 'suggested_rois'):
             mi[:,:,2]=numpy.where(self.suggested_rois>0,1,0)*self.poller.meanimage.max()*0.2
         self.emit(QtCore.SIGNAL('update_image'), mi,self.poller.scale)
         
