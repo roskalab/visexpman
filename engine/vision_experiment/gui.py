@@ -2085,7 +2085,7 @@ class TraceAnalysis(QtGui.QGroupBox):
     def __init__(self,parent):
         QtGui.QGroupBox.__init__(self,'Trace', parent)
         self.normalization = gui.LabeledComboBox(self, 'Normalization',items = ['no', 'dF/F', 'std'])
-        self.normalization.input.setCurrentIndex(2)
+        self.normalization.input.setCurrentIndex(1)
         self.baseline_start = gui.LabeledInput(self, 'Baseline start [s]')
         self.baseline_start.setToolTip('Relative to stimulus start')
         self.baseline_end = gui.LabeledInput(self, 'Baseline end [s]')
@@ -2170,12 +2170,11 @@ class Analysis(QtGui.QWidget):
             baseline_end=float(str(self.ta.baseline_end.input.text()))
             baseline_length=baseline_end-baseline_start
             post_response_duration=float(str(self.ta.post_response_duration.input.text()))
-            initial_drop_duration=float(str(self.ta.initial_drop_duration.input.text()))
         except ValueError:
             self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Please provide baseline start and end, post response and initial drop durations')
             return
         normalization_mode = str(self.ta.normalization.input.currentText())
-        transient_analysis = ca_signal.TransientAnalysator(baseline_start, baseline_end, post_response_duration, initial_drop_duration)
+        transient_analysis = ca_signal.TransientAnalysator(baseline_start, baseline_end, post_response_duration)
         scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop = transient_analysis.calculate_trace_parameters(self.ca, {'ti':self.poller.ti, 'ts': self.poller.ts})
         if normalization_mode == 'no':
             self.normalized = self.ca
@@ -2188,8 +2187,14 @@ class Analysis(QtGui.QWidget):
         self.plot.setYRange(min(self.normalized), max(self.normalized))
         if hasattr(self,'stimulus_time'):
             self.plot.removeItem(self.stimulus_time)
-        rb=0 if abs(response_amplitude) >3 else 50
-        self.stimulus_time = pyqtgraph.LinearRegionItem(self.poller.ts, movable=False, brush = (rb,100 if abs(response_amplitude) >3 else 50,rb,100))
+        #Color stimulus band depending on response amplitude:
+        if abs(response_amplitude) <3:
+            c=(40,40,40,100)
+        elif abs(response_amplitude) >=3 and abs(response_amplitude) <4:
+            c=(100,40,40,100)
+        elif abs(response_amplitude) >=4:
+            c=(40,100,40,100)
+        self.stimulus_time = pyqtgraph.LinearRegionItem(self.poller.ts, movable=False, brush = c)
         self.plot.addItem(self.stimulus_time)
         self.ta.trace_analysis_results.setText(
         'Response size: {0:0.2f} std\nTime constants\nrise {1:0.3f} s\nfall {2:0.3f} s\nPost response {3:0.2f} std\nInitial drop {4:0.2f} std'

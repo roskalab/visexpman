@@ -17,11 +17,10 @@ def exp(x,tconst, a,b):
     return a*numpy.exp(-tconst*x)+b
 
 class TransientAnalysator(object):
-    def __init__(self, baseline_t_start, baseline_t_end, post_response_duration, initial_drop_sample_duration):
+    def __init__(self, baseline_t_start, baseline_t_end, post_response_duration):
         self.baseline_t_start = baseline_t_start
         self.baseline_t_end = baseline_t_end
         self.post_response_duration = post_response_duration
-        self.initial_drop_sample_duration = initial_drop_sample_duration
         
     def scale_std(self, trace, mean, std):
         return (trace-mean)/std

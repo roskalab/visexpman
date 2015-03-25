@@ -28,6 +28,7 @@ class PhysTiff2Hdf5(object):
         self.maximal_timediff = 3
         self.use_tiff = True
         self.skipped_files = []
+        self.processed_pairs = []
         
     def detect_and_convert(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
@@ -45,7 +46,7 @@ class PhysTiff2Hdf5(object):
         pairs = []
         for pf in processable_physfiles:
             found = [tf for tf in tiffiles if os.path.split(pf.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
-            if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3:
+            if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3 and [pf,found[0]] not in self.processed_pairs:
                 pairs.append([pf, found[0]])
         if len(pairs)>0:
             print 'converting pairs'
@@ -53,7 +54,14 @@ class PhysTiff2Hdf5(object):
                 print p[0]
                 print p[1]
                 print ''
-                
+               
+#        converted=[]
+#        for p in pairs:
+#            try:
+#                converted.append(self.build_hdf5(p[0],p[1], self.outfolder))
+#            except:
+#                pass
+        self.processed_pairs.extend(pairs)
         converted=[self.build_hdf5(p[0],p[1], self.outfolder) for p in pairs]
         return converted
         
@@ -123,6 +131,8 @@ class PhysTiff2Hdf5(object):
             data = f.read()
             data=numpy.array(struct.unpack('>'+''.join(len(data)/4*['f']),data), dtype = numpy.float32)
             nframes = int(data.shape[0]/(sizex*res*(sizey*res-1))/2)
+            if nframes<10:
+                return
             data_=data[:int(2*(sizey*res*(sizex*res-1))*nframes)]
             pixel_per_frame = int(2*(sizex*res)*(sizey*res-1)+4)
             boundaries = numpy.repeat(numpy.arange(nframes)*pixel_per_frame,2)
@@ -241,9 +251,10 @@ if __name__ == '__main__':
                     print 'runtime', time.time()-t0
                     print 'New files', r
             except:
+                
                 import traceback
                 print traceback.format_exc()
-                pdb.set_trace()
+#                pdb.set_trace()
             time.sleep(1.0)
         print 'DONE'
     else:
