@@ -2073,12 +2073,22 @@ class ROITools(QtGui.QGroupBox):
         for w in [self.save,self.suggest]:
             w.setFixedWidth(70)
         self.select = gui.LabeledComboBox(self, 'Select')
+        
+        self.roi_size_label = self.trace_analysis_results = QtGui.QLabel('Roi size [um]', self)
+        self.min_roi_size = gui.LabeledInput(self, 'min')
+        self.max_roi_size = gui.LabeledInput(self, 'max')
+        self.sigma = gui.LabeledInput(self, 'Sigma')
+        
         self.select.input.setFixedWidth(120)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.save, 0, 0)
         self.layout.addWidget(self.suggest, 0, 1)
         self.layout.addWidget(self.show, 0, 2)
         self.layout.addWidget(self.select, 0, 3)
+        self.layout.addWidget(self.roi_size_label, 1, 0)
+        self.layout.addWidget(self.min_roi_size, 1, 1)
+        self.layout.addWidget(self.max_roi_size, 1, 2)
+        self.layout.addWidget(self.sigma, 1, 3)
         self.setLayout(self.layout)
         
 class TraceAnalysis(QtGui.QGroupBox):
@@ -2114,7 +2124,7 @@ class Analysis(QtGui.QWidget):
         self.ta=TraceAnalysis(self)
         self.gw = pyqtgraph.GraphicsLayoutWidget(self)
         self.gw.setBackground((255,255,255))
-        self.gw.setFixedHeight(400)
+        self.gw.setFixedHeight(300)
         self.gw.setAntialiasing(True)
         self.plot=self.gw.addPlot()
         self.plot.enableAutoRange()
@@ -2174,7 +2184,7 @@ class Analysis(QtGui.QWidget):
             self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Please provide baseline start and end, post response and initial drop durations')
             return
         normalization_mode = str(self.ta.normalization.input.currentText())
-        transient_analysis = ca_signal.TransientAnalysator(baseline_start, baseline_end, post_response_duration)
+        transient_analysis = cone_data.TransientAnalysator(baseline_start, baseline_end, post_response_duration)
         scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop = transient_analysis.calculate_trace_parameters(self.ca, {'ti':self.poller.ti, 'ts': self.poller.ts})
         if normalization_mode == 'no':
             self.normalized = self.ca
@@ -2187,13 +2197,15 @@ class Analysis(QtGui.QWidget):
         self.plot.setYRange(min(self.normalized), max(self.normalized))
         if hasattr(self,'stimulus_time'):
             self.plot.removeItem(self.stimulus_time)
-        #Color stimulus band depending on response amplitude:
-        if abs(response_amplitude) <3:
-            c=(40,40,40,100)
-        elif abs(response_amplitude) >=3 and abs(response_amplitude) <4:
-            c=(100,40,40,100)
-        elif abs(response_amplitude) >=4:
-            c=(40,100,40,100)
+        if 0:
+            #Color stimulus band depending on response amplitude:
+            if abs(response_amplitude) <3:
+                c=(40,40,40,100)
+            elif abs(response_amplitude) >=3 and abs(response_amplitude) <4:
+                c=(100,40,40,100)
+            elif abs(response_amplitude) >=4:
+                c=(40,100,40,100)
+        c=(40,40,40,100)
         self.stimulus_time = pyqtgraph.LinearRegionItem(self.poller.ts, movable=False, brush = c)
         self.plot.addItem(self.stimulus_time)
         self.ta.trace_analysis_results.setText(
@@ -2202,7 +2214,15 @@ class Analysis(QtGui.QWidget):
         
     def suggest(self):
         self.poller = self.parent.parent.poller
-        self.suggested_rois = experiment_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)))
+        try:
+            min_ = int(float(str(self.roi.min_roi_size.input.text()))/self.poller.scale)
+            max_ = int(float(str(self.roi.max_roi_size.input.text()))/self.poller.scale)
+            sigma = float(str(self.roi.sigma.input.text()))*max_
+        except ValueError:
+            self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Invalid roi size or sigma parameters')
+            return
+        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)), min_,max_,sigma)        
+        self.suggested_roi_contours = map(cone_data.somaroi2edges, self.suggested_rois)
         self.update_image()
         
     def update_image(self):
@@ -2210,7 +2230,10 @@ class Analysis(QtGui.QWidget):
         mi=numpy.zeros((self.poller.meanimage.shape[0],self.poller.meanimage.shape[1],3))
         mi[:,:,1]=self.poller.meanimage
         if show and hasattr(self, 'suggested_rois'):
-            mi[:,:,2]=numpy.where(self.suggested_rois>0,1,0)*self.poller.meanimage.max()*0.2
+            for r in self.suggested_roi_contours:
+#                coo = cone_data.somaroi2edges(r)
+                coo = r
+                mi[coo[:,0],coo[:,1],0]=self.poller.meanimage.max()*0.5
         self.emit(QtCore.SIGNAL('update_image'), mi,self.poller.scale)
         
     def save(self):

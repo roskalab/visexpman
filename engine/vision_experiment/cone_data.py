@@ -88,12 +88,10 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma):
     centers = signal2.getextrema(im, method = 'regmax')
     wrange = range(minsomaradius, maxsomaradius)
     res = roi.ratio_center_perimeter(signal.scale(im, 0.0, 1.0), centers,  wrange)
-    
     maskcum = numpy.zeros_like(im1)
     c=numpy.zeros_like(im1)
     soma_rois = []
     for i in range(res[1].shape[0]):
-        
         c[res[1][i]['row'],res[1][i]['col']]=p
         roi_radius = 0.5*res[0][i]
         roi_center = res[1][i]

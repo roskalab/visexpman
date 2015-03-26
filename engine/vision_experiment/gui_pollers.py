@@ -2717,6 +2717,9 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.analysis.ta.baseline_end.input.text',
                                           'self.parent.central_widget.analysis.ta.post_response_duration.input.text',
                                           'self.parent.central_widget.analysis.ta.initial_drop_duration.input.text',
+                                          'self.parent.central_widget.analysis.roi.min_roi_size.input.text',
+                                          'self.parent.central_widget.analysis.roi.max_roi_size.input.text',
+                                          'self.parent.central_widget.analysis.roi.sigma.input.text',
                                           
                                           ]
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
