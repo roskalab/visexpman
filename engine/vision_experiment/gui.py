@@ -22,7 +22,7 @@ import PyQt4.Qwt5 as Qwt
 
 import visexpman
 import hdf5io
-from visexpman.engine.vision_experiment import experiment, experiment_data, ca_signal
+from visexpman.engine.vision_experiment import experiment, experiment_data, cone_data
 from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui,fileop,stringop,introspect,utils,colors,signal

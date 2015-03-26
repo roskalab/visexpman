@@ -7,7 +7,9 @@ import scipy.interpolate
 import os.path
 import unittest
 import hdf5io
-from visexpman.engine.generic import utils,fileop,signal
+from visexpA.engine.dataprocessors import roi
+from visexpA.engine.dataprocessors import signal as signal2
+from visexpman.engine.generic import utils,fileop,signal,geometry
 import scipy.optimize
 from pylab import plot,show,figure,title
 
@@ -58,7 +60,7 @@ class TransientAnalysator(object):
         fall_time_constant, post_response_signal_level = self.calculate_time_constant(post_response)
         fall_time_constant*=tsample
         #Initial drop
-        initial_drop = scaled_trace[:signal.time2index(ti, self.initial_drop_sample_duration)].mean()
+        initial_drop = 0
         return scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop
         
     def calculate_time_constant(self, trace):
@@ -67,6 +69,55 @@ class TransientAnalysator(object):
         time_constant = coeff[0]
         response_amplitude = coeff[2]
         return time_constant, response_amplitude
+        
+def find_rois(im1, minsomaradius, maxsomaradius, sigma):
+    '''
+    Dani's algorithm:
+    -gaussian filtering
+    -finding local maximums
+    -estimate circle radius
+    In each circle:
+    -Determine threshold with otsu's method
+    -Segment and select central object
+    '''
+    from scipy.ndimage.filters import gaussian_filter
+    from skimage import filters
+    import scipy.ndimage.measurements
+    p=im1.max()
+    im = gaussian_filter(im1, sigma)
+    centers = signal2.getextrema(im, method = 'regmax')
+    wrange = range(minsomaradius, maxsomaradius)
+    res = roi.ratio_center_perimeter(signal.scale(im, 0.0, 1.0), centers,  wrange)
+    
+    maskcum = numpy.zeros_like(im1)
+    c=numpy.zeros_like(im1)
+    soma_rois = []
+    for i in range(res[1].shape[0]):
+        
+        c[res[1][i]['row'],res[1][i]['col']]=p
+        roi_radius = 0.5*res[0][i]
+        roi_center = res[1][i]
+        mask = geometry.circle_mask(roi_center, roi_radius, im.shape)
+        maskcum+=mask
+        masked = im1*mask
+        th=filters.threshold_otsu(masked)
+        thresholded = numpy.where(masked<th, 0, 1)
+        labeled, nsegments = scipy.ndimage.measurements.label(thresholded)
+        central_segment = numpy.where(labeled==labeled[roi_center[0],roi_center[1]],1,0)
+        if numpy.nonzero(central_segment)[0].shape[0] < 0.9*numpy.nonzero(mask)[0].shape[0]:#Valid roi
+            soma_rois.append(numpy.array(zip(*numpy.nonzero(central_segment))))
+        pass
+    return soma_rois
+    
+def somaroi2edges(soma_roi):
+    edge_pixels = []
+    for i in range(soma_roi.shape[0]):
+        col_diff=abs(soma_roi[:,0]-soma_roi[i][0])
+        row_diff=abs(soma_roi[:,1]-soma_roi[i][1])
+        if sum([(r+c==1 or (r==1 and c== 1)) for r,c in zip(col_diff,row_diff)])<8:
+            edge_pixels.append(soma_roi[i])
+    return numpy.array(edge_pixels)
+
 
 
 class TestCA(unittest.TestCase):
@@ -75,15 +126,12 @@ class TestCA(unittest.TestCase):
         self.files = fileop.listdir_fullpath(os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'trace_analysis'))
         
     def test_01_trace_parameters(self):
-        ta=TransientAnalysator(-5, 0, 3, 1)
+        ta=TransientAnalysator(-5, 0, 3)
         ct=0
         for f in self.files:
-#            if '023' not in f:
-#                continue
             h=hdf5io.Hdf5io(f,filelocking=False)
             rc=h.findvar('roi_curves')
             res = map(ta.calculate_trace_parameters, rc, len(rc)*[h.findvar('timing')])
-            
             for r in res:
                 scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop = r
                 if abs(response_amplitude)<3:
@@ -94,6 +142,15 @@ class TestCA(unittest.TestCase):
                 title('rise_time_constant {0:0.2f}, fall_time_constant {1:0.2f}, response_amplitude {2:0.2f}\npost_response_signal_level: {3:0.2f},initial_drop: {4:0.2f}'.format(rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop))
             h.close()
         show()
+        
+    def test_02_detect_cell(self):
+        for f in self.files:
+            minsomaradius = 5
+            maxsomaradius = 7
+            h=hdf5io.Hdf5io(f,filelocking=False)
+            im1 = h.findvar('raw_data').mean(axis=0)[0]
+            find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius)
+            h.close()
 
     
 if __name__=='__main__':
