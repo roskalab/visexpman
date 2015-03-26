@@ -885,6 +885,15 @@ def point_coordinates(distance, angle, origin):
         x=numpy.cos(angle)*distance+origin['col']
         y=numpy.sin(angle)*distance+origin['row']
         return cr((x,y))
+        
+def circle_mask(center,radius, size):
+    mask=numpy.zeros(size)
+    xcoo,ycoo=numpy.meshgrid(numpy.arange(size[0]), numpy.arange(size[1]))
+    xcoo = xcoo.flatten()
+    ycoo = ycoo.flatten()
+    indexes=numpy.where(numpy.sqrt((xcoo-center[0])**2+(ycoo-center[1])**2)<radius)[0]
+    mask[xcoo[indexes],ycoo[indexes]]=1
+    return mask
     
 def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
     radius_sq = (diameter * 0.5) ** 2
@@ -902,7 +911,7 @@ def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100))
         if active_pixel_mask[i] == 1:
             circle[coords[0][i], coords[1][i]] = color
     return circle 
- 
+    
 def numpy_circles(radii,  centers,  array_size,  colors = None):
     if 0:
         from visexpA.engine.datadisplay.imaged import imshow
@@ -1481,6 +1490,10 @@ class TestGeometry(unittest.TestCase):
         res= rotate_point(cr((1,0)),90, rc((0,0)))
         numpy.testing.assert_almost_equal(res['col'],0)
         numpy.testing.assert_almost_equal(res['row'],1)
+        
+    def test_39_circle_mask(self):
+        from pylab import imshow,show
+        imshow(circle_mask([5,5],5, [20,30]));show()
         
 
 def test_estimate_rotation():
