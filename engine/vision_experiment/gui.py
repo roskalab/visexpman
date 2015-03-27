@@ -2099,6 +2099,7 @@ class ROITools(QtGui.QGroupBox):
         self.prev = QtGui.QPushButton('<<',  self)
         self.select = QtGui.QComboBox(self)
         self.next = QtGui.QPushButton('>>',  self)
+        self.remove = QtGui.QPushButton('Remove',  self)
         for w in [self.save,self.suggest, self.prev, self.next]:
             w.setFixedWidth(70)
         self.roi_size_label = self.trace_analysis_results = QtGui.QLabel('Roi size [um]', self)
@@ -2117,6 +2118,7 @@ class ROITools(QtGui.QGroupBox):
         self.layout.addWidget(self.prev, 1, 0)
         self.layout.addWidget(self.select, 1, 1)
         self.layout.addWidget(self.next, 1, 2)
+        self.layout.addWidget(self.remove, 1, 3)
         self.layout.addWidget(self.roi_size_label, 2, 0)
         self.layout.addWidget(self.min_roi_size, 2, 1)
         self.layout.addWidget(self.max_roi_size, 2, 2)
@@ -2177,6 +2179,7 @@ class Analysis(QtGui.QWidget):
         self.connect(self.roi.suggest, QtCore.SIGNAL('clicked()'), self.suggest)
         self.connect(self.roi.next, QtCore.SIGNAL('clicked()'), self.next_roi)
         self.connect(self.roi.prev, QtCore.SIGNAL('clicked()'), self.prev_roi)
+        self.connect(self.roi.remove, QtCore.SIGNAL('clicked()'), self.remove_roi)
         self.connect(self.roi.save, QtCore.SIGNAL('clicked()'), self.save)
         self.connect(self.export2mat, QtCore.SIGNAL('clicked()'), self.export)
         self.connect(self.roi.show_center.input, QtCore.SIGNAL('stateChanged(int)'), self.update_image)
@@ -2208,6 +2211,11 @@ class Analysis(QtGui.QWidget):
         
     def roi_mouse_selected(self,index):
         self.roi.select.setCurrentIndex(index)
+        
+    def remove_roi(self):
+        x,y=self.parent.image.roi_info[int(self.roi.select.currentIndex())][1:3]
+        self.parent.image.remove_roi(x,y)
+        self.parent.image.update_roi_info()
         
     def selected_roi_changed(self):
         self.poller = self.parent.parent.poller
