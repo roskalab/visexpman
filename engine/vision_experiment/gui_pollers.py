@@ -2706,7 +2706,6 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText',
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.list.selectedIndexes', 
-                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentIndex', 
@@ -2720,6 +2719,7 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.analysis.roi.min_roi_size.input.text',
                                           'self.parent.central_widget.analysis.roi.max_roi_size.input.text',
                                           'self.parent.central_widget.analysis.roi.sigma.input.text',
+                                          'self.parent.central_widget.analysis.roi.threshold_factor.input.text',
                                           
                                           ]
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):

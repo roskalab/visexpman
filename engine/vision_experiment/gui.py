@@ -719,7 +719,7 @@ class ExperimentControl(gui.WidgetControl):
             'experiment_config_source_code' : self._get_updated_experiment_config_file(filename,configname),
             'cell_name': str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text()), 
             'recording_channels' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.get_selected_item_names(), 
-            'enable_scanner_synchronization' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState() == 2, 
+            'enable_scanner_synchronization' : True, 
             'spike_recording':False,#TODO: put checkbox on main_ui
             'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
             'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
@@ -1185,9 +1185,6 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         self.cell_name = gui.LabeledInput(self, 'Cell name')
         self.cell_name.setToolTip('Providing cell name is not mandatory')
         self.cell_name.setFixedWidth(270)
-        self.enable_scanner_synchronization = QtGui.QCheckBox(self)
-        self.enable_scanner_synchronization.setText('Scanner-stimulus synchronization')
-        self.enable_scanner_synchronization.setToolTip('Synchronize stimulation with two photon scanning')
         rec_channels = []
         rec_channels.extend(['Calcium fluorescence, ' + item+' PMT' for item in self.parent().config.PMTS.keys()])
         rec_channels.append('Electrophysiology signal')
@@ -1196,7 +1193,7 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         self.recording_channel.setFixedWidth(270)
         self.recording_channel.setToolTip('Selection of any channels enables calcium or electrophysiology signal recording.\nSelect none of the PMTs for disabling calcium imaging.\nMultiple channels can be also selected.' )
         self.scanning_range = gui.LabeledInput(self, 'Scan range (height, width) [um]')
-        self.scanning_range.setFixedWidth(270)
+        self.scanning_range.setFixedWidth(290)
         self.resolution_label = QtGui.QLabel('Pixel size', self)
         self.resolution_unit = QtGui.QComboBox(self)
         self.resolution_unit.addItems(QtCore.QStringList(['pixel/um', 'um/pixel', 'us']))
@@ -1207,7 +1204,6 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.cell_name, 0, 0, 1, 3)
         self.layout.addWidget(self.recording_channel, 1, 0, 1, 3)
-        self.layout.addWidget(self.enable_scanner_synchronization, 2, 0, 1, 3)
         self.layout.addWidget(self.scanning_range, 3, 0, 1, 3)
         self.layout.addWidget(self.resolution_label, 4, 0)
         self.layout.addWidget(self.resolution_unit, 4, 1)
@@ -2078,6 +2074,7 @@ class ROITools(QtGui.QGroupBox):
         self.min_roi_size = gui.LabeledInput(self, 'min')
         self.max_roi_size = gui.LabeledInput(self, 'max')
         self.sigma = gui.LabeledInput(self, 'Sigma')
+        self.threshold_factor = gui.LabeledInput(self, 'Threshold')
         
         self.select.input.setFixedWidth(120)
         self.layout = QtGui.QGridLayout()
@@ -2089,6 +2086,7 @@ class ROITools(QtGui.QGroupBox):
         self.layout.addWidget(self.min_roi_size, 1, 1)
         self.layout.addWidget(self.max_roi_size, 1, 2)
         self.layout.addWidget(self.sigma, 1, 3)
+        self.layout.addWidget(self.threshold_factor, 1, 4)
         self.setLayout(self.layout)
         
 class TraceAnalysis(QtGui.QGroupBox):
@@ -2218,19 +2216,22 @@ class Analysis(QtGui.QWidget):
             min_ = int(float(str(self.roi.min_roi_size.input.text()))/self.poller.scale)
             max_ = int(float(str(self.roi.max_roi_size.input.text()))/self.poller.scale)
             sigma = float(str(self.roi.sigma.input.text()))*max_
+            threshold_factor = float(str(self.roi.threshold_factor.input.text()))
         except ValueError:
             self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Invalid roi size or sigma parameters')
             return
-        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)), min_,max_,sigma)        
+        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self.suggested_roi_contours = map(cone_data.somaroi2edges, self.suggested_rois)
+        self.last_find_roi_parameters = {'min_roi_size':min_, 'max_roi_size':max_, 'sigma':sigma, 'threshold_factor':threshold_factor}
         self.update_image()
         
     def update_image(self):
+        show_contour = True
         show = self.roi.show.input.checkState()==2
         mi=numpy.zeros((self.poller.meanimage.shape[0],self.poller.meanimage.shape[1],3))
         mi[:,:,1]=self.poller.meanimage
         if show and hasattr(self, 'suggested_rois'):
-            for r in self.suggested_roi_contours:
+            for r in self.suggested_roi_contours if show_contour else self.suggested_rois:
 #                coo = cone_data.somaroi2edges(r)
                 coo = r
                 mi[coo[:,0],coo[:,1],0]=self.poller.meanimage.max()*0.5
@@ -2338,22 +2339,22 @@ class MainWidget(QtGui.QWidget):
         elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
             self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
         self.experiment_options_groupbox.setMaximumWidth(350)
-        self.experiment_options_groupbox.setFixedHeight(380)
+        self.experiment_options_groupbox.setFixedHeight(250)
         self.recording_status = RecordingStatusGroupbox(self)
         self.recording_status.setMaximumWidth(400)
         self.recording_status.setFixedHeight(300)
         self.experiment_parameters = ExperimentParametersGroupBox(self)
         self.experiment_parameters.setMaximumWidth(400)
-        self.experiment_parameters.setFixedHeight(230)
+        self.experiment_parameters.setFixedHeight(250)
         self.experiment_parameters.values.setColumnWidth(0, 200)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
-        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
-        self.layout.addWidget(self.recording_status, 0, 1, 2, 1)
-        self.layout.addWidget(self.experiment_parameters, 2, 1, 1, 1)
-        self.layout.addWidget(self.toolbox, 3, 0, 1, 2)
+        self.layout.addWidget(self.experiment_options_groupbox, 0, 1, 2, 1)
+        self.layout.addWidget(self.recording_status, 2, 1, 2, 1)
+        self.layout.addWidget(self.experiment_parameters, 1, 0, 2, 1)
+        self.layout.addWidget(self.toolbox, 4, 0, 1, 2)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
