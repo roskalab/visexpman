@@ -1241,6 +1241,7 @@ class RetinalToolbox(QtGui.QGroupBox):
         self.grey_level.addItems(QtCore.QStringList(['0 %', '50 %', '100 %']))
         self.grey_level.setFixedWidth(80)
         self.grey_level.setToolTip('Set grey level')
+        self.grey_level.setEditable(True)
         self.bullseye_type = QtGui.QComboBox(self)
         self.bullseye_type.setFixedWidth(100)
         self.bullseye_type.addItems(QtCore.QStringList(['bullseye', 'spot', 'L']))
@@ -1258,13 +1259,16 @@ class RetinalToolbox(QtGui.QGroupBox):
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        widgets_1st_line = [self.filterwheel0, self.filterwheel1, self.grey_level, self.projector_enable]
+        widgets_1st_line = [self.filterwheel0, self.filterwheel1, self.grey_level]
         widgets_2nd_line = [self.bullseye_type, self.bullseye_size, self.bullseye_toggle]
+        widgets_3rd_line = [self.projector_enable]
         for i in range(len(widgets_1st_line)):
             self.layout.addWidget(widgets_1st_line[i], 0, i, 1, 1)
         for i in range(len(widgets_2nd_line)):
             self.layout.addWidget(widgets_2nd_line[i], 1, i, 1, 1)
-        self.layout.addWidget(self.stimulus_centering, 0, max(len(widgets_1st_line), len(widgets_2nd_line)), 2, 2)
+        for i in range(len(widgets_3rd_line)):
+            self.layout.addWidget(widgets_3rd_line[i], 2, i, 1, 1)
+        self.layout.addWidget(self.stimulus_centering, 3, 0, 2, 3)
         self.setLayout(self.layout)
         
 class XYWidget(QtGui.QGroupBox):
@@ -2330,33 +2334,36 @@ class MainWidget(QtGui.QWidget):
         self.create_layout()
         
     def create_widgets(self):
+        leftcolwidth = 360
+        rightcolwidth = 400
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
-        self.experiment_control_groupbox.setMaximumWidth(350)
-        self.experiment_control_groupbox.setFixedHeight(150)
+        self.experiment_control_groupbox.setMaximumWidth(leftcolwidth)
+        self.experiment_control_groupbox.setFixedHeight(140)
         if self.config.PLATFORM == 'elphys_retinal_ca':
             self.experiment_options_groupbox = RetinalExperimentOptionsGroupBox(self)
             self.toolbox = RetinalToolbox(self)
+            self.toolbox.setMaximumWidth(rightcolwidth)
         elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
             self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
-        self.experiment_options_groupbox.setMaximumWidth(350)
-        self.experiment_options_groupbox.setFixedHeight(250)
+        self.experiment_options_groupbox.setMaximumWidth(leftcolwidth)
+        self.experiment_options_groupbox.setFixedHeight(260)
         self.recording_status = RecordingStatusGroupbox(self)
-        self.recording_status.setMaximumWidth(400)
-        self.recording_status.setFixedHeight(300)
+        self.recording_status.setMaximumWidth(rightcolwidth)
+        self.recording_status.setFixedHeight(330)
         self.experiment_parameters = ExperimentParametersGroupBox(self)
-        self.experiment_parameters.setMaximumWidth(400)
-        self.experiment_parameters.setFixedHeight(250)
+        self.experiment_parameters.setMaximumWidth(leftcolwidth)
+        self.experiment_parameters.setFixedHeight(170)
         self.experiment_parameters.values.setColumnWidth(0, 200)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
-        self.layout.addWidget(self.experiment_options_groupbox, 0, 1, 2, 1)
-        self.layout.addWidget(self.recording_status, 2, 1, 2, 1)
-        self.layout.addWidget(self.experiment_parameters, 1, 0, 2, 1)
-        self.layout.addWidget(self.toolbox, 4, 0, 1, 2)
-        self.layout.setRowStretch(10, 5)
-        self.layout.setColumnStretch(5,10)
+        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
+        self.layout.addWidget(self.experiment_parameters, 3, 0, 1, 1)
+        self.layout.addWidget(self.recording_status, 0, 1, 2, 1)
+        self.layout.addWidget(self.toolbox, 2, 1, 2, 1)
+#        self.layout.setRowStretch(10, 5)
+#        self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
 
 class CommonWidget(QtGui.QWidget):#OBSOLETE
