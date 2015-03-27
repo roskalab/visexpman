@@ -71,7 +71,7 @@ class PhysTiff2Hdf5(object):
         if 1:
             for k,v in self.assignments.items():
                 print k
-                self.build_hdf5(k, v[0])
+                self.build_hdf5(k, v[0], self.folder)
         else:
             p=multiprocessing.Pool(processes=14)
             pars = [(k, v[0]) for k, v in self.assignments.items()]
@@ -226,11 +226,11 @@ class PhysTiff2Hdf5(object):
         
 class TestConverter(unittest.TestCase):
     def test_01_phystiff2hdf5(self):
-#        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')
-        p=PhysTiff2Hdf5('/tmp/3','/tmp/3')
-        p.use_tiff=False
-        p.detect_and_convert()
-#        p.convert_old_files()
+        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
+#        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
+        p.use_tiff=not False
+#        p.detect_and_convert()
+        p.convert_old_files()
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data/20150206')
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data')
 #        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')

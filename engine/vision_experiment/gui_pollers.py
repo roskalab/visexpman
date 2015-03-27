@@ -2874,7 +2874,7 @@ class VisexpGuiPoller(Poller):
 
     def display_datafile(self,datafile = None):
         if datafile is None:
-            folder = os.path.split(self.current_datafile)[0] if hasattr(self, 'current_datafile') and os.path.exists(os.path.split(self.current_datafile)[0]) else fileop.get_user_experiment_data_folder(self.config)
+            folder = os.path.split(self.current_datafile)[0] if hasattr(self, 'current_datafile') and self.current_datafile is not None and os.path.exists(os.path.split(self.current_datafile)[0]) else fileop.get_user_experiment_data_folder(self.config)
             self.printc(folder)
             if hasattr(self, 'current_datafile'):
                 self.printc(self.current_datafile)

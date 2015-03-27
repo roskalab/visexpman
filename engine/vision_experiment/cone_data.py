@@ -11,7 +11,7 @@ from visexpA.engine.dataprocessors import roi
 from visexpA.engine.dataprocessors import signal as signal2
 from visexpman.engine.generic import utils,fileop,signal,geometry
 import scipy.optimize
-from pylab import plot,show,figure,title
+from pylab import plot,show,figure,title,imshow,subplot
 
 import warnings
 
@@ -25,6 +25,8 @@ class TransientAnalysator(object):
         self.post_response_duration = post_response_duration
         
     def scale_std(self, trace, mean, std):
+        if std<1e-10:
+            std = 1e-10
         return (trace-mean)/std
 
     def calculate_trace_parameters(self, trace, timing):
@@ -48,6 +50,8 @@ class TransientAnalysator(object):
         baseline=numpy.array(trace[baseline_start:baseline_end])
         #scale trace with baseline's std
         scaled_trace = self.scale_std(trace, baseline.mean(), baseline.std())
+        if numpy.isnan(scaled_trace).any():
+            print scaled_trace.std()
         #Cut out baseline, response and post response traces
         post_response = numpy.array(scaled_trace[response_end:signal.time2index(ti, ts[1]+self.post_response_duration)])
         baseline=numpy.array(scaled_trace[baseline_start:baseline_end])
@@ -65,12 +69,15 @@ class TransientAnalysator(object):
         
     def calculate_time_constant(self, trace):
         x=numpy.arange(numpy.array(trace).shape[0])
-        coeff, cov = scipy.optimize.curve_fit(exp,x,trace,p0=[1,1,trace[0]])
+        try:
+            coeff, cov = scipy.optimize.curve_fit(exp,x,trace,p0=[1,1,trace[0]])
+        except:
+            coeff = [0,0,0]
         time_constant = coeff[0]
         response_amplitude = coeff[2]
         return time_constant, response_amplitude
         
-def find_rois(im1, minsomaradius, maxsomaradius, sigma):
+def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor):
     '''
     Dani's algorithm:
     -gaussian filtering
@@ -99,12 +106,11 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma):
         maskcum+=mask
         masked = im1*mask
         th=filters.threshold_otsu(masked)
-        thresholded = numpy.where(masked<th, 0, 1)
+        thresholded = numpy.where(masked<th*threshold_factor, 0, 1)
         labeled, nsegments = scipy.ndimage.measurements.label(thresholded)
         central_segment = numpy.where(labeled==labeled[roi_center[0],roi_center[1]],1,0)
-        if numpy.nonzero(central_segment)[0].shape[0] < 0.9*numpy.nonzero(mask)[0].shape[0]:#Valid roi
+        if numpy.nonzero(central_segment)[0].shape[0] < 0.95*numpy.nonzero(mask)[0].shape[0]:#Valid roi
             soma_rois.append(numpy.array(zip(*numpy.nonzero(central_segment))))
-        pass
     return soma_rois
     
 def somaroi2edges(soma_roi):
@@ -123,6 +129,7 @@ class TestCA(unittest.TestCase):
         from visexpman.users.test import unittest_aggregator
         self.files = fileop.listdir_fullpath(os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'trace_analysis'))
         
+    @unittest.skip('')
     def test_01_trace_parameters(self):
         ta=TransientAnalysator(-5, 0, 3)
         ct=0
@@ -143,12 +150,28 @@ class TestCA(unittest.TestCase):
         
     def test_02_detect_cell(self):
         for f in self.files:
-            minsomaradius = 5
-            maxsomaradius = 7
+            
+            minsomaradius = 3*2
+            maxsomaradius = 3*3
             h=hdf5io.Hdf5io(f,filelocking=False)
             im1 = h.findvar('raw_data').mean(axis=0)[0]
-            find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius)
+            rois = find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius,1)
+            im=numpy.zeros((im1.shape[0],im1.shape[1], 3))
+            im[:,:,1]=signal.scale(im1,0,1)
+            mi=numpy.copy(im)
+            numpy.random.seed(0)
+            for r in rois:
+                im[r[:,0],r[:,1],0]=numpy.random.random()*0.7+0.3
+                im[r[:,0],r[:,1],2]=numpy.random.random()*0.7+0.3
+            
+            figure(1)
+            subplot(1,2,1)
+            imshow(mi)
+            subplot(1,2,2)
+            imshow(im)
+            show()
             h.close()
+            break
 
     
 if __name__=='__main__':

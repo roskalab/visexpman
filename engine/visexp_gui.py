@@ -996,6 +996,7 @@ class CentralWidget(QtGui.QWidget):
         self.text_out.setReadOnly(True)
         self.text_out.ensureCursorVisible()
         self.text_out.setCursorWidth(5)
+        self.text_out.setMaximumWidth(700)
         self.plot = gui.Plot(self)
         self.browse_data_file_button = QtGui.QPushButton('Display datafile',  self)
         
@@ -1005,7 +1006,7 @@ class CentralWidget(QtGui.QWidget):
         self.save2file = gui_generic.LabeledCheckBox(self, 'Save to file')
         self.averaging = gui_generic.LabeledInput(self, 'Averaging')
         self.analysis = gui.Analysis(self)
-        self.image = gui.ImageMainUI(self,roi_diameter=5)
+        self.image = gui.ImageMainUI(self,roi_diameter=4)
         
         
         self.main_tab.addTab(self.analysis, 'Analysis')
@@ -1016,7 +1017,6 @@ class CentralWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.main_tab, 0, 0, 3, 3)
-#        self.layout.addWidget(self.ca_displays, 0, 3, 1, 1)
         self.layout.addWidget(self.network_status, 3,  0, 1, 2)
         self.layout.addWidget(self.text_out, 4,  0, 1, 2)
         self.layout.addWidget(self.browse_data_file_button, 0, 3, 1, 1)

@@ -29,7 +29,9 @@ from visexpman.engine.generic import gui,fileop,stringop,introspect,utils,colors
 
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
-                
+              
+UNSELECTED_ROI_COLOR = (150,100,100)
+SELECTED_ROI_COLOR = (255,00,0)              
 ############### Common widgets ###############
 class StandardIOWidget(QtGui.QWidget):
     def __init__(self, parent):
@@ -1256,6 +1258,8 @@ class RetinalToolbox(QtGui.QGroupBox):
         self.projector_enable = gui.LabeledCheckBox(self, 'Projector ON')
         self.stimulus_centering = XYWidget(self)
         self.stimulus_centering.setToolTip('Center X, Y of stimulus [um]')
+        self.stimulus_centering.center_x.setFixedWidth(90)
+        self.stimulus_centering.center_y.setFixedWidth(90)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -2028,12 +2032,22 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
             elif int(e.buttons()) == 2:
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             self.update_roi_info()
+        elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2 and hasattr(self, 'roi_info'):
+            self.emit(QtCore.SIGNAL('roi_mouse_selected'), ((numpy.array([[r[1], r[2]] for r in self.roi_info])-numpy.array([p.x()*self.img.scale(), p.y()*self.img.scale()]))**2).sum(axis=1).argmin())
         
-    def add_roi(self,x,y, size=None):
+    def add_roi(self,x,y, size=None, type='rect', mode = ''):
         if size is None:
             size = self.roi_default_diameter
-        roi = pyqtgraph.CircleROI([x-0.5*size, y-0.5*size], [size, size])
-        roi.setPen((255,0,0,255), width=2)
+        if type == 'circle':
+            roi = pyqtgraph.CircleROI([x-0.5*size, y-0.5*size], [size, size])
+        elif type =='point':
+            roi = pyqtgraph.ROI((x,y),size=[0.3,0.3],movable=False,removable=False)
+        elif type == 'rect':
+            if not hasattr(size, '__getitem__'):
+                size = [size,size]
+            roi = pyqtgraph.RectROI((x-0.5*size[0],y-0.5*size[1]),size=size)
+        roi.mode=mode
+        roi.setPen((UNSELECTED_ROI_COLOR[0],UNSELECTED_ROI_COLOR[1],UNSELECTED_ROI_COLOR[2],255), width=2)
         roi.sigRegionChanged.connect(self.update_roi_info)
         self.rois.append(roi)
         self.plot.addItem(self.rois[-1])
@@ -2044,6 +2058,13 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         removable_roi = self.rois[numpy.array(distances).argmin()]
         self.plot.removeItem(removable_roi)
         self.rois.remove(removable_roi)
+    
+    def set_roi_visibility(self,x,y,visibility):
+        distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
+        if len(distances)==0:return
+        selected_roi = self.rois[numpy.array(distances).argmin()]
+        selected_roi.setVisible(visibility)
+        
         
     def update_roi_info(self):
         self.roi_info = [[i, self.rois[i].x(), self.rois[i].y(), self.rois[i].size().x()] for i in range(len(self.rois))]
@@ -2063,34 +2084,44 @@ class ImageMainUI(Image):
     def __init__(self, parent, roi_diameter=10):
         Image.__init__(self, parent, roi_diameter)
         self.connect(self, QtCore.SIGNAL('roi_update'), parent.analysis.roi_update)
+        self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.analysis.roi_mouse_selected)
         
 class ROITools(QtGui.QGroupBox):
     def __init__(self,parent):
         QtGui.QGroupBox.__init__(self,'ROI', parent)
         self.save = QtGui.QPushButton('Save',  self)
         self.suggest = QtGui.QPushButton('Suggest',  self)
-        self.show = gui.LabeledCheckBox(self, 'Show/hide suggested')
-        for w in [self.save,self.suggest]:
+        self.show_label= QtGui.QLabel('Show',self)
+        self.show_center = gui.LabeledCheckBox(self, 'Centers')
+        self.show_center.input.setCheckState(2)
+        self.show_roi = gui.LabeledCheckBox(self, 'ROI')
+        self.show_roi.input.setCheckState(2)
+        self.prev = QtGui.QPushButton('<<',  self)
+        self.select = QtGui.QComboBox(self)
+        self.next = QtGui.QPushButton('>>',  self)
+        for w in [self.save,self.suggest, self.prev, self.next]:
             w.setFixedWidth(70)
-        self.select = gui.LabeledComboBox(self, 'Select')
-        
         self.roi_size_label = self.trace_analysis_results = QtGui.QLabel('Roi size [um]', self)
         self.min_roi_size = gui.LabeledInput(self, 'min')
         self.max_roi_size = gui.LabeledInput(self, 'max')
         self.sigma = gui.LabeledInput(self, 'Sigma')
         self.threshold_factor = gui.LabeledInput(self, 'Threshold')
         
-        self.select.input.setFixedWidth(120)
+        self.select.setFixedWidth(120)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.save, 0, 0)
         self.layout.addWidget(self.suggest, 0, 1)
-        self.layout.addWidget(self.show, 0, 2)
-        self.layout.addWidget(self.select, 0, 3)
-        self.layout.addWidget(self.roi_size_label, 1, 0)
-        self.layout.addWidget(self.min_roi_size, 1, 1)
-        self.layout.addWidget(self.max_roi_size, 1, 2)
-        self.layout.addWidget(self.sigma, 1, 3)
-        self.layout.addWidget(self.threshold_factor, 1, 4)
+        self.layout.addWidget(self.show_label, 0, 2)
+        self.layout.addWidget(self.show_center, 0, 3)
+        self.layout.addWidget(self.show_roi, 0, 4)
+        self.layout.addWidget(self.prev, 1, 0)
+        self.layout.addWidget(self.select, 1, 1)
+        self.layout.addWidget(self.next, 1, 2)
+        self.layout.addWidget(self.roi_size_label, 2, 0)
+        self.layout.addWidget(self.min_roi_size, 2, 1)
+        self.layout.addWidget(self.max_roi_size, 2, 2)
+        self.layout.addWidget(self.sigma, 2, 3)
+        self.layout.addWidget(self.threshold_factor, 2, 4)
         self.setLayout(self.layout)
         
 class TraceAnalysis(QtGui.QGroupBox):
@@ -2142,11 +2173,14 @@ class Analysis(QtGui.QWidget):
         self.layout.setRowStretch(300, 300)
         self.setLayout(self.layout)
         
-        self.connect(self.roi.select.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self.roi.select, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self.roi.suggest, QtCore.SIGNAL('clicked()'), self.suggest)
+        self.connect(self.roi.next, QtCore.SIGNAL('clicked()'), self.next_roi)
+        self.connect(self.roi.prev, QtCore.SIGNAL('clicked()'), self.prev_roi)
         self.connect(self.roi.save, QtCore.SIGNAL('clicked()'), self.save)
         self.connect(self.export2mat, QtCore.SIGNAL('clicked()'), self.export)
-        self.connect(self.roi.show.input, QtCore.SIGNAL('stateChanged(int)'), self.update_image)
+        self.connect(self.roi.show_center.input, QtCore.SIGNAL('stateChanged(int)'), self.update_image)
+        self.connect(self.roi.show_roi.input, QtCore.SIGNAL('stateChanged(int)'), self.update_image)
         self.connect(self.ta.normalization.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self.ta.baseline_start.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self.ta.baseline_end.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
@@ -2160,19 +2194,31 @@ class Analysis(QtGui.QWidget):
         self.emit(QtCore.SIGNAL('printc'), text)
         
     def roi_update(self):
-        self.roi.select.update_items(['{0} {1:1.0f},{2:1.0f}@{3:1.0f}'.format(r[0],r[1],r[2],r[3]) for r in self.parent.image.roi_info])
-        self.roi.select.input.setCurrentIndex(len(self.parent.image.roi_info)-1)
+        self.roi.select.blockSignals(True)
+        self.roi.select.clear()
+        self.roi.select.blockSignals(False)
+        self.roi.select.addItems(QtCore.QStringList(['{0} {1:1.0f},{2:1.0f}@{3:1.0f}'.format(r[0],r[1],r[2],r[3]) for r in self.parent.image.roi_info]))
+        self.roi.select.setCurrentIndex(len(self.parent.image.roi_info)-1)
+        
+    def next_roi(self):
+        self.roi.select.setCurrentIndex(self.roi.select.currentIndex()+1)
+        
+    def prev_roi(self):
+        self.roi.select.setCurrentIndex(self.roi.select.currentIndex()-1)
+        
+    def roi_mouse_selected(self,index):
+        self.roi.select.setCurrentIndex(index)
         
     def selected_roi_changed(self):
         self.poller = self.parent.parent.poller
         if not hasattr(self.poller, 'rawdata'):
             return
-        index=int(self.roi.select.input.currentIndex())
+        index=int(self.roi.select.currentIndex())
         for i in range(len(self.parent.image.rois)):
             if i == index:
-                self.parent.image.rois[i].setPen((255,102,0))
+                self.parent.image.rois[i].setPen(SELECTED_ROI_COLOR)
             else:
-                self.parent.image.rois[i].setPen((255,0,0))
+                self.parent.image.rois[i].setPen(UNSELECTED_ROI_COLOR)
         #Update plot
         roi_info=self.parent.image.roi_info[index]
         self.ca = experiment_data.extract_roi_curve(self.poller.rawdata, roi_info[1],roi_info[2],roi_info[3],'circle', self.poller.scale)[:self.poller.ti.shape[0]]
@@ -2227,18 +2273,26 @@ class Analysis(QtGui.QWidget):
         self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self.suggested_roi_contours = map(cone_data.somaroi2edges, self.suggested_rois)
         self.last_find_roi_parameters = {'min_roi_size':min_, 'max_roi_size':max_, 'sigma':sigma, 'threshold_factor':threshold_factor}
+        #Add rois
+        for r in self.suggested_roi_contours:
+            size=(r.max(axis=0)-r.min(axis=0)+1)*self.poller.scale
+            self.parent.image.add_roi(*(r.min(axis=0)*self.poller.scale+0.5*size), size = size)
         self.update_image()
+        self.parent.image.update_roi_info()
         
     def update_image(self):
+        self.poller = self.parent.parent.poller
         show_contour = True
-        show = self.roi.show.input.checkState()==2
+        show_center = self.roi.show_center.input.checkState()==2
+        show_roi = self.roi.show_roi.input.checkState()==2
         mi=numpy.zeros((self.poller.meanimage.shape[0],self.poller.meanimage.shape[1],3))
         mi[:,:,1]=self.poller.meanimage
-        if show and hasattr(self, 'suggested_rois'):
+        if hasattr(self, 'suggested_rois'):
             for r in self.suggested_roi_contours if show_contour else self.suggested_rois:
-#                coo = cone_data.somaroi2edges(r)
                 coo = r
-                mi[coo[:,0],coo[:,1],0]=self.poller.meanimage.max()*0.5
+                if show_roi:
+                    mi[coo[:,0],coo[:,1],2]=self.poller.meanimage.max()*0.4
+                self.parent.image.set_roi_visibility(*(r.mean(axis=0)*self.poller.scale), visibility = show_center)
         self.emit(QtCore.SIGNAL('update_image'), mi,self.poller.scale)
         
     def save(self):
@@ -2276,11 +2330,10 @@ class Analysis(QtGui.QWidget):
         
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent):
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':self, 'utils':utils, 'fileop': fileop, 'signal':signal, numpy: 'numpy'}, text = 'Poller: self.p, Also available: numpy.utils, fileop, signal')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':self, 'analysis': parent.analysis, 'utils':utils, 'fileop': fileop, 'signal':signal, numpy: 'numpy'}, text = 'Poller: self.p  Also available: analysis, numpy, utils, fileop, signal')
         
     def set_poller(self, poller):
         self.p=poller
-        
         
 class ReceptiveFieldPlots(pyqtgraph.GraphicsLayoutWidget):
     '''
