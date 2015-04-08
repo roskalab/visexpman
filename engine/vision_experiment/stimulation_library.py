@@ -1358,7 +1358,7 @@ class AdvancedStimulation(StimulationHelpers):
             self.show_shape(shape = shape,  pos = trajectories[block], 
                             color = color,  background_color = background_color, 
                             orientation =self.vaf*trajectory_directions[block] , size = size,  
-                            is_block = block_trigger, save_frame_info = False, 
+                            is_block = block_trigger, save_frame_info = True,  #save_frame_info = True might confuse block/repeat detection
                             enable_centering = False)
             if pause > 0:
                 self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)

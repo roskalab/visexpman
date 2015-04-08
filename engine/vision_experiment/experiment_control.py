@@ -590,13 +590,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                                 self.datafile[k1][k2][k3[:max_len]] = self.datafile[k1][k2][k3]
                                 del self.datafile[k1][k2][k3]
 
-        def _send_himea_cmd(self, cmd):
-           if self.config.ENABLE_MEA_START_COMMAND:
-                context = zmq.Context()
-                socket = context.socket(zmq.REQ)
-                socket.connect("tcp://12.0.1.1:75000")
-                socket.send(cmd)
-                socket.recv()#This is blocking!!!
+    def _send_himea_cmd(self, cmd):
+       if self.config.ENABLE_MEA_START_COMMAND:
+            context = zmq.Context()
+            socket = context.socket(zmq.REQ)
+            socket.connect("tcp://12.0.1.1:75000")
+            socket.send(cmd)
+            socket.recv()#This is blocking!!!
         
         
 class ExperimentControl(object):#OBSOLETE

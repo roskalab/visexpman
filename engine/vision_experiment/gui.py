@@ -2065,7 +2065,6 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         selected_roi = self.rois[numpy.array(distances).argmin()]
         selected_roi.setVisible(visibility)
         
-        
     def update_roi_info(self):
         self.roi_info = [[i, self.rois[i].x(), self.rois[i].y(), self.rois[i].size().x()] for i in range(len(self.rois))]
         self.emit(QtCore.SIGNAL('roi_update'))

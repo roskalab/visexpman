@@ -88,7 +88,12 @@ def generate_lut(x, min = 0.0, max = 1.0, gamma = 1.0, brightness = 0.5, contras
     return y
 
 def get_window_title(config):
-    return '{0} - {1} - {2}' .format(config.USER_INTERFACE_NAMES[config.user_interface_name], config.user, config.__class__.__name__) 
+    from visexpman.engine import MachineConfigError
+    if not hasattr(config, 'user_interface_name'):
+        raise MachineConfigError('user_interface_name is missing from config')
+    if not config.USER_INTERFACE_NAMES.has_key(config.user_interface_name):
+        raise MachineConfigError('Unknown application name: {0}' .format(config.user_interface_name))
+    return '{0} - {1} - {2}' .format(config.USER_INTERFACE_NAMES[config.user_interface_name], config.user, config.__class__.__name__)
 
 #== Coordinate geometry ==
 #TODO: check for redundant functions in this section

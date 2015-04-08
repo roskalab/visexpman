@@ -13,7 +13,6 @@ import os.path
 import itertools
 from visexpman.engine.generic import fileop,utils,signal,introspect
 from visexpman.engine.vision_experiment import experiment_data
-from visexpA.engine.datahandlers import importers
 import unittest
 import tempfile
 import time
