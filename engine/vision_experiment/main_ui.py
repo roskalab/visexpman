@@ -57,6 +57,20 @@ class Debug(QtGui.QTabWidget):
         self.addTab(self.log, 'Log')
         self.addTab(self.console, 'Console')
         self.setTabPosition(self.South)
+        
+class FileBrowser(QtGui.QTabWidget):
+    def __init__(self,parent, config):
+        self.parent=parent
+        QtGui.QTabWidget.__init__(self,parent)
+        for k,v in config.items():
+            setattr(self, k, gui.FileTree(self, v[0], [v[1]]))
+            self.addTab(getattr(self, k), stringop.to_title(k))
+            getattr(self, k).doubleClicked.connect(self.file_selected)
+        self.setTabPosition(self.South)
+        self.setToolTip('Double click on file to open')
+        
+    def file_selected(self,index):
+        print str(index.model().filePath(index))
 
 class MainUI(Qt.QMainWindow):
     def __init__(self, context):
@@ -83,14 +97,35 @@ class MainUI(Qt.QMainWindow):
         self.plot = gui.Plot(self)
         self.plot.setMinimumWidth(self.machine_config.GUI['GUI_SIZE']['col']/2)
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
+        self.filebrowser = FileBrowser(self, self.filebrowser_config)
+        self._add_dockable_widget('File Browser', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.filebrowser)
+#        self.filebrowser#doubleClicked.connect(self.test)
+        
+#        self.datafiletree.connect(self.datafiletree.selectionModel(), QtCore.SIGNAL('selectionChanged(QItemSelection, QItemSelection)'), self.datafile_selected)
+        
         self.show()
+        
+        
+        self.timer=QtCore.QTimer()
+        self.timer.start(200)#ms
+        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
+            
+    def check_queue(self):
+        pass
+        
+    def datafile_selected(self,s,d):
+        self.printc(s)
+        self.printc(d)
+        
             
     def init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
-
+        self.filebrowser_config = {'data_file': ['/tmp/rei_data_c', 'hdf5'], 'stimulus_file': ['/tmp', 'py']}#TODO: load from context
+        
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
         
@@ -111,7 +146,7 @@ class MainUI(Qt.QMainWindow):
         text = str(text)
         if not logonly:
             self.text  += utils.timestamp2hms(time.time()) + ' '  + text + '\n'
-            self.textout.update(self.text)
+            self.debug.log.update(self.text)
         loglevels = ['warning', 'error']
         loglevel = [l for l in loglevels if l in text.lower()]
         if len(loglevel)>0:

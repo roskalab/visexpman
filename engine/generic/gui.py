@@ -106,6 +106,25 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         for r in roi_info:
             self.add_roi(r[1]+0.5*r[3],r[2]+0.5*r[3],r[3])
         self.emit(QtCore.SIGNAL('roi_update'))
+        
+class FileTree(QtGui.QTreeView):
+    def __init__(self,parent, root, extensions = []):
+        QtGui.QTreeView.__init__(self,parent)
+        self.model = QtGui.QFileSystemModel()
+        self.setModel(self.model)
+        self.setRootIndex(self.model.setRootPath( root ))
+        filterlist = ['*.'+e for e in extensions]
+        self.model.setNameFilters(QtCore.QStringList(filterlist))
+        self.model.setNameFilterDisables(False)
+        self.hideColumn(2)
+        self.setColumnWidth(0,350)
+        self.setColumnWidth(1,70)
+        self.setColumnWidth(2,100)
+#        self.doubleClicked.connect(self.test)
+#        self.connect(self.selectionModel(), QtCore.SIGNAL('itemClicked(int)'), self.test)
+        
+    def test(self,i):
+        print self.model.filePath(self.currentIndex())
 
 
 class GroupBox(QtGui.QGroupBox):#OBSOLETE
