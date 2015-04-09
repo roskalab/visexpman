@@ -1361,10 +1361,10 @@ class AdvancedStimulation(StimulationHelpers):
                             is_block = block_trigger, save_frame_info = True,  #save_frame_info = True might confuse block/repeat detection
                             enable_centering = False)
             if pause > 0:
-                self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
+                self.show_fullscreen(duration = pause, color = background_color, save_frame_info = True, frame_trigger = True)
             if self.abort:
                 break
-        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = True, frame_trigger = True)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
