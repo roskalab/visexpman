@@ -49,8 +49,8 @@ class SmallApp(QtGui.QWidget):
                 self.poller =  getattr(self.config.SMALLAPP['POLLER_MODULE'], self.config.SMALLAPP['POLLER'])(self, self.config)
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('{2} - {0} - {1}' .format(user if user is not None else '',  config_class_name, self.config.SMALLAPP['NAME'] if self.config is not None else ''))
-        if hasattr(self.config, 'GUI_SIZE'):
-            self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        if hasattr(self.config, 'SIZE'):
+            self.resize(self.config.SIZE['col'], self.config.SIZE['row'])
         else:
             self.resize(800,600)
         if hasattr(self.config, 'GUI_POSITION'):

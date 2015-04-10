@@ -70,7 +70,7 @@ class PhysTiff2Hdf5(object):
         if 1:
             for k,v in self.assignments.items():
                 print k
-                self.build_hdf5(k, v[0], self.folder)
+                self.build_hdf5(k, v[0], None)#self.folder)
         else:
             p=multiprocessing.Pool(processes=14)
             pars = [(k, v[0]) for k, v in self.assignments.items()]
@@ -167,10 +167,10 @@ class PhysTiff2Hdf5(object):
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
         h.sync_and_elphys_data = sync_and_elphys
-        h.ephys_sync_conversion_factor=1
+        h.elphys_sync_conversion_factor=1
         h.phys_metadata = utils.object2array(metadata)
         h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
-        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'ephys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
+        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
         fileop.set_file_dates(filename, id)
         return filename
@@ -225,8 +225,9 @@ class PhysTiff2Hdf5(object):
         
 class TestConverter(unittest.TestCase):
     def test_01_phystiff2hdf5(self):
-        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
 #        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
+#        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
+        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data', '/mnt/rzws/dataslow/rei_data_c2')
         p.use_tiff=not False
 #        p.detect_and_convert()
         p.convert_old_files()

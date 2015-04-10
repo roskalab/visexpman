@@ -73,16 +73,31 @@ def check(h, config):
     return error_messages
 
 ############### Preprocess measurement data ####################
+class CaImagingData(hdf5io.Hdf5io):
+    def __init__(self,filename,filelocking=False):
+        hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
+        
+    def prepare4analysis(self):
+        self.tsync,self.timg = get_sync_events(self)
+        self.meanimage, self.image_scale = get_imagedata(self)
+        self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
+        return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
+        
+    def convert(self,format):
+        '''
+        Supported formats: mat, tiff
+        '''
+
 def read_sync_rawdata(h):
     '''
     Reads sync traces
     '''
-    for v in  ['configs_stim', 'sync_and_elphys_data', 'ephys_sync_conversion_factor']:
+    for v in  ['configs_stim', 'sync_and_elphys_data', 'elphys_sync_conversion_factor']:
         if not hasattr(h, v):
             h.load(v)
     machine_config = h.configs_stim['machine_config']
     sync_and_elphys_data = numpy.cast['float'](h.sync_and_elphys_data)
-    sync_and_elphys_data /= h.ephys_sync_conversion_factor#Scale back to original value
+    sync_and_elphys_data /= h.elphys_sync_conversion_factor#Scale back to original value
     elphys = sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['ELPHYS_INDEXES']]
     stim_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]]
     img_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
@@ -149,7 +164,7 @@ def get_imagedata(h):
         raise NotImplementedError('')
     if h_opened:
         h.close()
-    return meanimage,copy.deepcopy(h.raw_data), scale
+    return meanimage, scale
     
 def extract_roi_curve(rawdata, roix, roiy, roisize,roitype,scale):
     '''
@@ -944,6 +959,10 @@ class TestExperimentData(unittest.TestCase):
         roisize=5
         extract_roi_curve(h.raw_data, roix, roiy, roisize,roitype)
         h.close()
+        
+    def test_10_caimgfile(self):
+        h=CaImagingData(fileop.listdir_fullpath('/mnt/rzws/test_data/datafile')[0],filelocking=False)
+        h.prepare4analysis()
         
 def find_rois(meanimage):
     from skimage import filter

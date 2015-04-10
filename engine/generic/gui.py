@@ -1,7 +1,7 @@
 '''
 generic.gui module has generic gui widgets like labeled widgets. It also contains some gui helper function
 '''
-
+import numpy
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
@@ -45,9 +45,19 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.rois = []
         
-    def set_image(self, image, alpha = 0.8):
+    def set_image(self, image, color_channel=None, alpha = 0.8):
         im=alpha*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
-        im[:,:,:3]=image
+        if len(image.shape) == 2 and color_channel is not None:
+            im[:,:,:3] = 0
+            if color_channel == 'all':
+                for i in range(3):
+                    im[:,:,i] = image
+            elif isinstance(color_channel, int):
+                im[:,:,color_channel] = image
+            else:
+                raise RuntimeError('Invalid image configuration: {0}, {1}'.format(image.shape, color_channel))
+        elif len(image.shape) == 3 and image.shape[2] ==3:
+            im[:,:,:3]=image
         self.img.setImage(im)
         
     def set_scale(self,scale):

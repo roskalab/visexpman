@@ -8,6 +8,7 @@ import pyqtgraph
 import pyqtgraph.console
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop
+from visexpman.engine.vision_experiment import gui_engine
 TOOLBAR_ICON_SIZE = 35
 
 class ToolBar(QtGui.QToolBar):
@@ -25,7 +26,7 @@ class ToolBar(QtGui.QToolBar):
         
     def add_buttons(self):
         icon_folder = os.path.join(os.path.split(__file__)[0],'..','..','data', 'icons')
-        for button in ['start_experiment', 'stop', 'snap', 'exit']:
+        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'exit']:
             a = QtGui.QAction(QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(button))), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
@@ -40,13 +41,12 @@ class PythonConsole(pyqtgraph.console.ConsoleWidget):
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=10):
         gui.Image.__init__(self, parent, roi_diameter)
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(500)
-        self.setMaximumWidth(1000)
-        self.setMaximumHeight(1000)
+        self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
+        self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
         if 0:
             self.connect(self, QtCore.SIGNAL('roi_update'), parent.analysis.roi_update)
             self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.analysis.roi_mouse_selected)
+            
             
 class Debug(QtGui.QTabWidget):
     def __init__(self,parent):
@@ -70,7 +70,18 @@ class FileBrowser(QtGui.QTabWidget):
         self.setToolTip('Double click on file to open')
         
     def file_selected(self,index):
-        print str(index.model().filePath(index))
+        filename = str(index.model().filePath(index))
+        if os.path.isdir(filename): return#Double click on folder is ignored
+        ext = fileop.file_extension(filename)
+        if ext == 'hdf5':
+            function = 'open_datafile'
+            scope = 'analysis'
+        elif ext == 'py':
+            function = 'open_stimulus_file'
+            scope = 'tbd'
+        else:
+            raise NotImplementedError(filename)
+        self.parent.to_engine.put({'function': function, 'args':[filename]})
 
 class MainUI(Qt.QMainWindow):
     def __init__(self, context):
@@ -79,8 +90,9 @@ class MainUI(Qt.QMainWindow):
         Qt.QMainWindow.__init__(self)
         for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
             setattr(self,c,context[c])
-        self.init_variables()
-        self.resize(self.machine_config.GUI['GUI_SIZE']['col'], self.machine_config.GUI['GUI_SIZE']['row'])
+        self._init_variables()
+        self._start_engine()
+        self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         self._set_window_title()
         #Set up toobar
         self.toolbar = ToolBar(self)
@@ -90,22 +102,16 @@ class MainUI(Qt.QMainWindow):
         self._write2statusbar('Application started')
         #Add dockable widgets
         self.debug = Debug(self)
-        self.debug.setMinimumWidth(self.machine_config.GUI['GUI_SIZE']['col']/3)
+        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         self.image = Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         self.plot = gui.Plot(self)
-        self.plot.setMinimumWidth(self.machine_config.GUI['GUI_SIZE']['col']/2)
+        self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.filebrowser = FileBrowser(self, self.filebrowser_config)
         self._add_dockable_widget('File Browser', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.filebrowser)
-#        self.filebrowser#doubleClicked.connect(self.test)
-        
-#        self.datafiletree.connect(self.datafiletree.selectionModel(), QtCore.SIGNAL('selectionChanged(QItemSelection, QItemSelection)'), self.datafile_selected)
-        
         self.show()
-        
-        
         self.timer=QtCore.QTimer()
         self.timer.start(200)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
@@ -114,17 +120,33 @@ class MainUI(Qt.QMainWindow):
             QtCore.QCoreApplication.instance().exec_()
             
     def check_queue(self):
-        pass
-        
-    def datafile_selected(self,s,d):
-        self.printc(s)
-        self.printc(d)
-        
+        while not self.from_engine.empty():
+            msg = self.from_engine.get()
+            if msg.has_key('printc'):
+                self.printc(msg['printc'])
+            elif msg.has_key('show_meanimage'):
+                self.image.set_image(msg['show_meanimage'], color_channel = 1)
+                self.image.set_scale(self.engine.image_scale)
+                self._write2statusbar('File opened')
+            elif msg.has_key('show_suggested_rois'):
+                self.image.set_image(msg['show_suggested_rois'])
+                self.image.set_scale(self.engine.image_scale)
+                self._write2statusbar('Suggested rois displayed')
+                
             
-    def init_variables(self):
+    def _init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
-        self.filebrowser_config = {'data_file': ['/tmp/rei_data_c', 'hdf5'], 'stimulus_file': ['/tmp', 'py']}#TODO: load from context
+        self.filebrowser_config = {'data_file': ['/tmp/rei_data_c2', 'hdf5'], 'stimulus_file': ['/tmp', 'py']}#TODO: load from context
+        
+    def _start_engine(self):
+        self.engine = gui_engine.GUIEngine(self.machine_config)
+        self.to_engine, self.from_engine = self.engine.get_queues()
+        self.engine.start()
+        
+    def _stop_engine(self):
+        self.to_engine.put('terminate')
+        self.engine.join()
         
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
@@ -165,7 +187,11 @@ class MainUI(Qt.QMainWindow):
     def snap_action(self):
         pass
         
+    def find_cells_action(self):
+        self.to_engine.put({'function': 'find_cells', 'args':[]})
+        
     def exit_action(self):
+        self._stop_engine()
         self.close()
         
     def closeEvent(self, e):
@@ -176,6 +202,7 @@ class MainUI(Qt.QMainWindow):
 if __name__ == '__main__':
     import visexpman.engine
     context = visexpman.engine.application_init(user = 'zoltan', config = 'CaImagingTestConfig', user_interface_name = 'main_ui')
+    
     context['logger'].start()
-    MainUI(context=context)
+    m = MainUI(context=context)
     visexpman.engine.stop_application(context)

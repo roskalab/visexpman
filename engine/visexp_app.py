@@ -205,11 +205,15 @@ class StimulationLoop(ServerLoop, StimulationScreen):
 
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
-    gui =  VisionExperimentGui(config=context['machine_config'], 
+    if 0:
+        gui =  VisionExperimentGui(config=context['machine_config'], 
                                                         user_interface_name =context['user_interface_name'], 
                                                         log=context['logger'],
                                                         socket_queues = context['socket_queues'],
                                                         warning = context['warning'])
+    else:
+        from visexpman.engine.vision_experiment import main_ui
+        main_ui.MainUI(context=context)
 
 def run_stim(context, timeout = None):
     stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])

@@ -172,8 +172,8 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         PMTS = {'TOP': {'CHANNEL': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 0,'COLOR': 'RED', 'ENABLE': False}}
     
-        self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
-#        self.GUI['GUI_SIZE'] =  utils.cr((1024,700))
+        self.GUI['SIZE'] =  utils.cr((1280,1024))
+#        self.GUI['SIZE'] =  utils.cr((1024,700))
 #        if os.name == 'nt':
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
 
