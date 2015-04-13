@@ -4,6 +4,17 @@ import numpy
 import os
 import unittest
 
+def latex_float(f, only_exponent=False):
+    '''Converts a python float into latex string, e.g. 0.001 -> 10^-3'''
+    float_str = "{0:.2g}".format(f)
+    if "e" in float_str:
+        base, exponent = float_str.split("e")
+        if only_exponent:
+            return r"10^{{{0}}}".format(int(exponent))
+        return r"{0} \times 10^{{{1}}}".format(base, int(exponent))
+    else:
+        return float_str
+
 def extract_common_string(flist, to_remove=['\)-r\d-']):
     ''' Locates '-rx-' part in filenames (where -rx- mean repetition x) and tries to find filenames that differ
     only in x but otherwise are identical,i.e. these files represent repeated trials of the stimulus. Returns the 
