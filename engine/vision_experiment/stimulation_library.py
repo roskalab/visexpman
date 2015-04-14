@@ -1248,6 +1248,7 @@ class AdvancedStimulation(StimulationHelpers):
                                                                             off_time = off_time)
         if random_order:
             import random
+            random.seed(0)
             random.shuffle(positions)
         self.nrows=nrows
         self.ncolumns=ncolumns
