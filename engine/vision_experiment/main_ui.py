@@ -1,3 +1,4 @@
+import copy
 import time
 import numpy
 import os.path
@@ -111,6 +112,11 @@ class MainUI(Qt.QMainWindow):
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.filebrowser = FileBrowser(self, self.filebrowser_config)
         self._add_dockable_widget('File Browser', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.filebrowser)
+        self.params = gui.ParameterTable(self, self.params_config)
+        self.params.setFixedWidth(300)
+        self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
+        self._add_dockable_widget('Parameters', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.params)
+        self._load_all_parameters()
         self.show()
         self.timer=QtCore.QTimer()
         self.timer.start(200)#ms
@@ -138,6 +144,41 @@ class MainUI(Qt.QMainWindow):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
         self.filebrowser_config = {'data_file': ['/tmp/rei_data_c2', 'hdf5'], 'stimulus_file': ['/tmp', 'py']}#TODO: load from context
+        self.params_config = [
+                {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
+                    {'name': 'Cell detection', 'type': 'group', 'expanded' : False, 'children': [
+                        {'name': 'Minimum cell radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
+                        {'name': 'Maximum cell radius', 'type': 'float', 'value': 4.0, 'siPrefix': True, 'suffix': 'um'},
+                        {'name': 'Sigma', 'type': 'float', 'value': 0.5},
+                        {'name': 'Threshold factor', 'type': 'float', 'value': 1.0}
+                        ]
+                    },
+                    {'name': 'Baseline duration', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
+
+                    
+                    
+                    ]
+                    }]
+
+#                {'name': 'Basic parameter data types', 'type': 'group', 'children': [
+#                {'name': 'Integer', 'type': 'int', 'value': 10},
+#                {'name': 'Float', 'type': 'float', 'value': 10.5, 'step': 0.1},
+#                {'name': 'String', 'type': 'str', 'value': "hi"},
+##                {'name': 'List', 'type': 'list', 'values': [1,2,3], 'value': 2},
+##                {'name': 'Named List', 'type': 'list', 'values': {"one": 1, "two": "twosies", "three": [3,3,3]}, 'value': 2},
+#                {'name': 'Boolean', 'type': 'bool', 'value': True, 'tip': "This is a checkbox"},
+##                {'name': 'Color', 'type': 'color', 'value': "FF0", 'tip': "This is a color button"},
+##                {'name': 'Subgroup', 'type': 'group', 'children': [
+##                    {'name': 'Sub-param 1', 'type': 'int', 'value': 10},
+##                    {'name': 'Sub-param 2', 'type': 'float', 'value': 1.2e6},
+##                ]},
+#            ]},
+#            {'name': 'Numerical Parameter Options', 'type': 'group', 'children': [
+#                {'name': 'Units + SI prefix', 'type': 'float', 'value': 1.2e-6, 'step': 1e-6, 'siPrefix': True, 'suffix': 'V'},
+#                {'name': 'Limits (min=7;max=15)', 'type': 'int', 'value': 11, 'limits': (7, 15), 'default': -6},
+#                {'name': 'DEC stepping', 'type': 'float', 'value': 1.2e6, 'dec': True, 'step': 1, 'siPrefix': True, 'suffix': 'Hz'},
+#        
+#    ]}]
         
     def _start_engine(self):
         self.engine = gui_engine.GUIEngine(self.machine_config)
@@ -160,6 +201,67 @@ class MainUI(Qt.QMainWindow):
         dock.setWidget(widget)
         self.addDockWidget(position, dock)
         dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
+        
+    def _get_parameter_tree(self):
+        nodes = [[children for children in self.params.params.children()]]
+        import itertools
+        while True:
+            nodes.append(list(itertools.chain(*[n.children() for n in nodes[-1]])))
+            if len(nodes[-1])==0: break
+        nodes = list(itertools.chain(*nodes))
+        leafes = [n for n in nodes if len(n.children())==0]
+        paths = []
+        refs = []
+        values = []
+        for l in leafes:
+            value = l.value()
+            name = l.name()
+            path = []
+            ref= copy.deepcopy(l)
+            while True:
+                if ref.parent() is None: break
+                else: 
+                    path.append(ref.name())
+                    ref= ref.parent()
+            path.append('params')
+            path.reverse()
+            paths.append(path)
+            values.append(value)
+            refs.append(l)
+        return values, paths, refs
+
+    def _dump_all_parameters(self):
+#        nodes = [[children for children in self.params.params.children()]]
+#        import itertools
+#        while True:
+#            nodes.append(list(itertools.chain(*[n.children() for n in nodes[-1]])))
+#            if len(nodes[-1])==0: break
+#        nodes = list(itertools.chain(*nodes))
+#        leafes = [n for n in nodes if len(n.children())==0]
+#        for l in leafes:
+#            value = l.value()
+#            name = l.name()
+#            path = []
+#            ref= copy.deepcopy(l)
+#            while True:
+#                if ref.parent() is None: break
+#                else: 
+#                    path.append(ref.name())
+#                    ref= ref.parent()
+#            path.append('params')
+#            path.reverse()
+        values, paths, refs = self._get_parameter_tree()
+        for i in range(len(refs)):
+            self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
+            
+    def _load_all_parameters(self):
+        values, paths, refs = self._get_parameter_tree()
+        paths = ['/'.join(p) for p in paths]
+        for item in self.engine.guidata.to_dict():
+            r = refs[paths.index([p for p in paths if p == item['path']][0])]
+            r.setValue(item['value'])
+            
+            
     
     def printc(self, text, logonly = False):
         '''
@@ -191,8 +293,28 @@ class MainUI(Qt.QMainWindow):
         self.to_engine.put({'function': 'find_cells', 'args':[]})
         
     def exit_action(self):
+        self._dump_all_parameters()
         self._stop_engine()
         self.close()
+    
+    ############# Events #############    
+    def parameter_changed(self, param, changes):
+        for change in changes:
+            #find out tree
+            ref = copy.deepcopy(change[0])
+            tree = []
+            while True:
+                if hasattr(ref, 'name') and callable(getattr(ref, 'name')):
+                    tree.append(getattr(ref, 'name')())
+                    ref = copy.deepcopy(ref.parent())
+                else:
+                    break
+                    
+            tree.reverse()
+            self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
+            
+#        self.printc(changes)
+    
         
     def closeEvent(self, e):
         e.accept()

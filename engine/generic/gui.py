@@ -7,7 +7,14 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 from visexpman.engine.generic import utils,stringop
-
+from pyqtgraph.parametertree import Parameter, ParameterTree
+class ParameterTable(ParameterTree):
+    def __init__(self, parent, params):
+        self.parent = parent
+        ParameterTree.__init__(self, parent, showHeader=False)
+        self.params = Parameter.create(name='params', type='group', children=params)
+        self.setParameters(self.params, showTop=False)
+    
 class TextOut(QtGui.QTextEdit):
     def __init__(self, parent):
         QtGui.QTextEdit.__init__(self, parent)
@@ -24,7 +31,6 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.setBackground((255,255,255))
-#        self.gw.setFixedHeight(300)
         self.setAntialiasing(True)
         self.plot=self.addPlot()
         self.plot.enableAutoRange()
@@ -270,7 +276,7 @@ class PushButtonWithParameter(QtGui.QWidget):
         self.layout.addWidget(self.button, 0, 0)
         self.setLayout(self.layout)
         
-class ParameterTable(QtGui.QTableWidget):
+class ParameterTableOBSOLETE(QtGui.QTableWidget):#Obsolete
     '''
     A special QTable with two columns: first holds the parameter names, the second holds the corresponding parameter values
     '''

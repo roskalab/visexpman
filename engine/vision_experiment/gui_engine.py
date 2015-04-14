@@ -8,7 +8,7 @@ import unittest
 import numpy
 import hdf5io
 from visexpman.engine.vision_experiment import experiment_data, cone_data
-from visexpman.engine.generic import fileop, signal
+from visexpman.engine.generic import fileop, signal,stringop,utils
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):
@@ -20,26 +20,26 @@ class GUIDataItem(object):
         self.p=path
         
 class GUIData(object):
-    def __init__(self,context_filename):
-        self.context_filename = context_filename
-        #TODO: reads data items from context file
-
     def add(self, name, value, path):
-        setattr(self,name,GUIDataItem(name,value,path))#Overwritten if already exists
+        setattr(self,stringop.to_variable_name(name),GUIDataItem(name,value,path))#Overwritten if already exists
 
     def read(self, name = None, path = None, **kwargs):
-        if name is not None and hasattr(self,name):
-            return getattr(self,name).value
+        if name is not None and hasattr(self,stringop.to_variable_name(name)):
+            return getattr(self,stringop.to_variable_name(name)).value
         elif path is not None:
             for v in dir(self):
                 v = getattr(self,v)
                 if isinstance(v, GUIDataItem) and (v.path == path or path in v.path):
                     return v.value
-
-    def save(self,context_filename = None):
-        if context_filename is None:
-            context_filename = self.context_filename
-
+                    
+    def to_dict(self):
+        return [{'name': getattr(self, vn).n, 'value': getattr(self, vn).v, 'path': getattr(self, vn).p} for vn in dir(self) if isinstance(getattr(self, vn), GUIDataItem)]
+        
+    def from_dict(self, data):
+        for item in data:
+            setattr(self, stringop.to_variable_name(item['name']), GUIDataItem(stringop.to_title(item['name']), item['value'], item['path']))
+            
+                    
 class Analysis(object):
     def __init__(self,machine_config):
         self.machine_config = machine_config
@@ -59,10 +59,10 @@ class Analysis(object):
             self.printc('Open datafile first')
             return
         self.printc('Searching for cells, please wait...')
-        min_ = int(2/self.image_scale)
-        max_ = int(3/self.image_scale)
-        sigma = 0.5/self.image_scale
-        threshold_factor = 1.0
+        min_ = int(self.guidata.read('Minimum cell radius')/self.image_scale)
+        max_ = int(self.guidata.read('Maximum cell radius')/self.image_scale)
+        sigma = self.guidata.read('Sigma')/self.image_scale
+        threshold_factor = self.guidata.read('Threshold factor')
         self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self.suggested_roi_contours = map(cone_data.somaroi2edges, self.suggested_rois)
         self.image_w_suggested_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
@@ -86,8 +86,17 @@ class GUIEngine(threading.Thread, Analysis):
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
-        self.guidata = GUIData(fileop.get_context_filename(machine_config))
+        self.context_filename = fileop.get_context_filename(self.machine_config)
+        self.load_context()
         Analysis.__init__(self, machine_config)
+        
+    def load_context(self):
+        self.guidata = GUIData()
+        if os.path.exists(self.context_filename):
+            self.guidata.from_dict(utils.array2object(hdf5io.read_item(self.context_filename, 'guidata', filelocking=False)))
+            
+    def save_context(self):
+        hdf5io.save_item(self.context_filename, 'guidata', utils.object2array(self.guidata.to_dict()), filelocking=False, overwrite=True)
         
     def get_queues(self):
         return self.from_gui, self.to_gui
@@ -110,7 +119,7 @@ class GUIEngine(threading.Thread, Analysis):
                 #parse message
                 if msg.has_key('data'):#expected format: {'data': value, 'path': gui path, 'name': name}
                     self.guidata.add(msg['name'], msg['data'], msg['path'])#Storing gui data
-                elif msg.has_key('read'):#engine might need additional data for executing a certain function
+                elif msg.has_key('read'):#gui might need to read guidata database
                     value = self.guidata.read(**msg)
                     getattr(self, 'to_gui').put(value)
                 elif msg.has_key('function'):#Functions are simply forwarded
@@ -120,6 +129,10 @@ class GUIEngine(threading.Thread, Analysis):
                 import traceback
                 self.printc(traceback.format_exc())
             time.sleep(20e-3)
+        self.close()
+        
+    def close(self):
+        self.save_context()
 
 class TestGUIEngineIF(unittest.TestCase):
     def setUp(self):
@@ -128,7 +141,15 @@ class TestGUIEngineIF(unittest.TestCase):
         self.machine_config = GUITestConfig()
         self.machine_config.user_interface_name = 'main_ui'
         self.machine_config.user = 'test'
+        self.cf=fileop.get_context_filename(self.machine_config)
+        fileop.remove_if_exists(self.cf)
+        if '_03_' in self._testMethodName:
+            guidata = GUIData()
+            guidata.add('Sigma 1', 0.5, 'path/sigma')
+            hdf5io.save_item(self.cf, 'guidata', utils.object2array(guidata.to_dict()), filelocking=False)
         self.engine = GUIEngine(self.machine_config)
+        
+        self.engine.save_context()
         self.from_gui, self.to_gui = self.engine.get_queues()
         self.engine.start()
         
@@ -160,9 +181,16 @@ class TestGUIEngineIF(unittest.TestCase):
         self.assertFalse(self.to_gui.empty())
         self.assertEqual(self.to_gui.get(), function_call)
         
+    def test_03_context(self):
+        self.from_gui.put({'read':None, 'name':'Sigma 1'})
+        time.sleep(self.wait)
+        self.assertFalse(self.to_gui.empty())
+        self.assertEqual(self.to_gui.get(), 0.5)
+        
     def tearDown(self):
         self.from_gui.put('terminate')
         self.engine.join()
+        self.assertTrue(os.path.exists(self.cf))
         
 
 
