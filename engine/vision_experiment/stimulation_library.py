@@ -1305,9 +1305,6 @@ class AdvancedStimulation(StimulationHelpers):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
         return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
-    def moving_grating_stimulus(self):
-        pass
-        
     def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False):
         '''
         Calculates moving shape trajectory and total duration of stimulus
@@ -1319,7 +1316,7 @@ class AdvancedStimulation(StimulationHelpers):
         else:
             shape_size = size
         if shape_starts_from_edge:
-            self.movement = max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) + shape_size
+            self.movement = numpy.sqrt(2)*max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) + shape_size
         else:
             self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
         trajectory_directions = []
@@ -1327,13 +1324,14 @@ class AdvancedStimulation(StimulationHelpers):
         nframes = 0
         for spd in speeds:
             for direction in directions:
+                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                if spd == 0:
+                    raise RuntimeError('Zero speed is not supported')
+                spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                t=utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
                 for rep in range(repetition):
-                    end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
-                    start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
-                    if spd == 0:
-                        raise RuntimeError('Zero speed is not supported')
-                    spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                    trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
+                    trajectories.append(t)
                     nframes += trajectories[-1].shape[0]
                     trajectory_directions.append(direction)
         duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause

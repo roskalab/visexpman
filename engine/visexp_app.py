@@ -190,8 +190,10 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         else:
             #Source code not provided, existing experiment config module is instantiated
             experiment_module = None
-            experiment_config_class = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = parameters['experiment_name'],  
-                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct=False)
+            experiment_config_class=[]
+            for u in [self.machine_config.user, 'common']:
+                experiment_config_class.extend(utils.fetch_classes('visexpman.users.'+ u, classname = parameters['experiment_name'],  
+                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct=False))
             if len(experiment_config_class)==0:
                 from visexpman.engine import ExperimentConfigError
                 raise ExperimentConfigError('{0} user\'s {1} experiment config cannot be fetched or does not exists'
@@ -199,6 +201,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
         #Prepare experiment, run stimulation and save data
+        if parameters.get('stimulus_only', False):#TODO: eliminate prepare
+            self.experiment_config.runnable.prepare()
         getattr(self.experiment_config.runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters
         self.stim_context['last_experiment_stimulus_frame_info'] = self.experiment_config.runnable.stimulus_frame_info
