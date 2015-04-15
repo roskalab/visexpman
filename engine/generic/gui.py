@@ -123,6 +123,13 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
             self.add_roi(r[1]+0.5*r[3],r[2]+0.5*r[3],r[3])
         self.emit(QtCore.SIGNAL('roi_update'))
         
+    def highlight_roi(self, index):
+        for i in range(len(self.rois)):
+            if i == index:
+                self.rois[i].setPen(self.selected_color)
+            else:
+                self.rois[i].setPen(self.unselected_color)
+        
 class FileTree(QtGui.QTreeView):
     def __init__(self,parent, root, extensions = []):
         QtGui.QTreeView.__init__(self,parent)

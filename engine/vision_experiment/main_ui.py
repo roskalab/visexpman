@@ -27,7 +27,7 @@ class ToolBar(QtGui.QToolBar):
         
     def add_buttons(self):
         icon_folder = os.path.join(os.path.split(__file__)[0],'..','..','data', 'icons')
-        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'exit']:
+        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'save_rois', 'export2mat', 'exit']:
             a = QtGui.QAction(QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(button))), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
@@ -121,7 +121,6 @@ class MainUI(Qt.QMainWindow):
         self.timer=QtCore.QTimer()
         self.timer.start(200)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
-        
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -138,8 +137,15 @@ class MainUI(Qt.QMainWindow):
                 self.image.set_image(msg['show_suggested_rois'])
                 self.image.set_scale(self.engine.image_scale)
                 self._write2statusbar('Suggested rois displayed')
-                
+            elif msg.has_key('send_rois'):
+                self.rois = msg['send_rois']
+                for roi in self.rois:
+                    self.image.add_roi(roi['rectangle'][0],roi['rectangle'][1], roi['rectangle'][2])
+                self.current_roi_index = 0
+                self.roi_changed()
+                self.printc('{0} rois are displayed'.format(len(self.rois)))
             
+                
     def _init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
@@ -154,9 +160,6 @@ class MainUI(Qt.QMainWindow):
                         ]
                     },
                     {'name': 'Baseline duration', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
-
-                    
-                    
                     ]
                     }]
 
@@ -168,10 +171,6 @@ class MainUI(Qt.QMainWindow):
 ##                {'name': 'Named List', 'type': 'list', 'values': {"one": 1, "two": "twosies", "three": [3,3,3]}, 'value': 2},
 #                {'name': 'Boolean', 'type': 'bool', 'value': True, 'tip': "This is a checkbox"},
 ##                {'name': 'Color', 'type': 'color', 'value': "FF0", 'tip': "This is a color button"},
-##                {'name': 'Subgroup', 'type': 'group', 'children': [
-##                    {'name': 'Sub-param 1', 'type': 'int', 'value': 10},
-##                    {'name': 'Sub-param 2', 'type': 'float', 'value': 1.2e6},
-##                ]},
 #            ]},
 #            {'name': 'Numerical Parameter Options', 'type': 'group', 'children': [
 #                {'name': 'Units + SI prefix', 'type': 'float', 'value': 1.2e-6, 'step': 1e-6, 'siPrefix': True, 'suffix': 'V'},
@@ -231,25 +230,6 @@ class MainUI(Qt.QMainWindow):
         return values, paths, refs
 
     def _dump_all_parameters(self):
-#        nodes = [[children for children in self.params.params.children()]]
-#        import itertools
-#        while True:
-#            nodes.append(list(itertools.chain(*[n.children() for n in nodes[-1]])))
-#            if len(nodes[-1])==0: break
-#        nodes = list(itertools.chain(*nodes))
-#        leafes = [n for n in nodes if len(n.children())==0]
-#        for l in leafes:
-#            value = l.value()
-#            name = l.name()
-#            path = []
-#            ref= copy.deepcopy(l)
-#            while True:
-#                if ref.parent() is None: break
-#                else: 
-#                    path.append(ref.name())
-#                    ref= ref.parent()
-#            path.append('params')
-#            path.reverse()
         values, paths, refs = self._get_parameter_tree()
         for i in range(len(refs)):
             self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
@@ -260,8 +240,6 @@ class MainUI(Qt.QMainWindow):
         for item in self.engine.guidata.to_dict():
             r = refs[paths.index([p for p in paths if p == item['path']][0])]
             r.setValue(item['value'])
-            
-            
     
     def printc(self, text, logonly = False):
         '''
@@ -292,12 +270,34 @@ class MainUI(Qt.QMainWindow):
     def find_cells_action(self):
         self.to_engine.put({'function': 'find_cells', 'args':[]})
         
+    def previous_roi_action(self):
+        self.current_roi_index -= 1
+        self.roi_changed()
+        
+    def next_roi_action(self):
+        self.current_roi_index += 1
+        self.roi_changed()
+        
+    def delete_roi_action(self):
+        pass
+        
     def exit_action(self):
         self._dump_all_parameters()
         self._stop_engine()
         self.close()
     
-    ############# Events #############    
+    ############# Events #############
+    def roi_changed(self):
+        roi = self.rois[self.current_roi_index]
+        #Highlight roi
+        self.image.highlight_roi(self.current_roi_index)
+                
+       # Continue here!!!!!!!
+        #Update plot
+        
+        
+        
+    
     def parameter_changed(self, param, changes):
         for change in changes:
             #find out tree
@@ -309,13 +309,9 @@ class MainUI(Qt.QMainWindow):
                     ref = copy.deepcopy(ref.parent())
                 else:
                     break
-                    
             tree.reverse()
             self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
-            
-#        self.printc(changes)
-    
-        
+
     def closeEvent(self, e):
         e.accept()
         self.exit_action()

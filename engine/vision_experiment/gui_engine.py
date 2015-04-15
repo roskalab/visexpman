@@ -70,6 +70,16 @@ class Analysis(object):
         for coo in self.suggested_roi_contours:
             self.image_w_suggested_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
         self.to_gui.put({'show_suggested_rois' :self.image_w_suggested_rois})
+        #Calculate roi bounding box
+        self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_roi_contours]
+        self.roi_rectangles = [[sum(r[:2])*0.5*self.image_scale, sum(r[2:])*0.5*self.image_scale, [(r[1]-r[0])*self.image_scale, (r[3]-r[2])*self.image_scale]] for r in self.roi_bounding_boxes]
+        #Extract roi curves
+        self.roi_curves = [self.raw_data[:,:,r[:,0], r[:,1]].mean(axis=2).flatten() for r in self.suggested_rois]
+        self.rois = [{'curve': self.roi_curves[i], 'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))]
+        self.to_gui.put({'send_rois' :self.rois})
+        
+        
+        
     
 class GUIEngine(threading.Thread, Analysis):
     '''
