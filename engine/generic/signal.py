@@ -210,6 +210,10 @@ def images2mip(rawdata, timeseries_dimension = 0):
     
 def time2index(times,timepoint):
         return numpy.where(times>timepoint)[0][0]
+        
+def df_over_f(t, x, tstim, baseline_length):
+    baseline = x[numpy.where(numpy.logical_and(t<tstim,t>tstim-baseline_length))].mean()
+    return x / baseline
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):

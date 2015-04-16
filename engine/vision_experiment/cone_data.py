@@ -88,7 +88,10 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor):
     -Segment and select central object
     '''
     from scipy.ndimage.filters import gaussian_filter
-    from skimage import filters
+    try:
+        from skimage import filters
+    except ImportError:
+        from skimage import filter as filters
     import scipy.ndimage.measurements
     p=im1.max()
     im = gaussian_filter(im1, sigma)

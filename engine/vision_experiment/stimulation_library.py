@@ -615,8 +615,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if display_area_adjusted[0] == 0:            
             display_area_adjusted[0] = self.config.SCREEN_RESOLUTION['col'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['row'] * abs(math.sin(orientation_rad))
             screen_width = self.config.SCREEN_RESOLUTION['col']
+            display_area_adjusted[0] = numpy.sqrt(2)*self.config.SCREEN_RESOLUTION['col']
         if display_area_adjusted[1] == 0:
             display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))        
+            display_area_adjusted[1] = numpy.sqrt(2)*self.config.SCREEN_RESOLUTION['col']
         #calculate vertices of display area
         #angles between diagonals
         alpha = numpy.arctan(display_area_adjusted[1]/display_area_adjusted[0])

@@ -37,6 +37,17 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         self.plot.showGrid(True,True,1.0)
         self.curve = self.plot.plot(pen=(0,0,0))
         
+    def update_curve(self, x, y):
+        self.curve.setData(x, y)
+        self.plot.setYRange(min(y), max(y))
+        
+    def add_linear_region(self, start, end):
+        if hasattr(self,'linear_region'):
+            self.plot.removeItem(self.linear_region)
+        c=(40,40,40,100)
+        self.linear_region = pyqtgraph.LinearRegionItem([start, end], movable=False, brush = c)
+        self.plot.addItem(self.linear_region)
+        
 class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
@@ -77,24 +88,23 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
             elif int(e.buttons()) == 2:
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             self.update_roi_info()
-        elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2 and hasattr(self, 'roi_info'):
-            self.emit(QtCore.SIGNAL('roi_mouse_selected'), ((numpy.array([[r[1], r[2]] for r in self.roi_info])-numpy.array([p.x()*self.img.scale(), p.y()*self.img.scale()]))**2).sum(axis=1).argmin())
+        elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2:
+            self.emit(QtCore.SIGNAL('roi_mouse_selected'), p.x(), p.y())
         
-    def add_roi(self,x,y, size=None, type='rect'):
+    def add_roi(self,x,y, size=None, type='rect', movable = True):
         if size is None:
-            size = self.roi_default_diameter
+            size = [self.roi_default_diameter,self.roi_default_diameter]
         if type == 'circle':
             roi = pyqtgraph.CircleROI([x-0.5*size, y-0.5*size], [size, size])
         elif type =='point':
             roi = pyqtgraph.ROI((x,y),size=[0.3,0.3],movable=False,removable=False)
         elif type == 'rect':
-            if not hasattr(size, '__getitem__'):
-                size = [size,size]
-            roi = pyqtgraph.RectROI((x-0.5*size[0],y-0.5*size[1]),size=size)
+            roi = pyqtgraph.RectROI((x-0.5*size[0],y-0.5*size[1]),size=size, movable = movable)
         roi.setPen((self.unselected_color[0],self.unselected_color[1],self.unselected_color[2],255), width=2)
         roi.sigRegionChanged.connect(self.update_roi_info)
         self.rois.append(roi)
         self.plot.addItem(self.rois[-1])
+        
         
     def remove_roi(self,x,y):
         distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
@@ -102,6 +112,13 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         removable_roi = self.rois[numpy.array(distances).argmin()]
         self.plot.removeItem(removable_roi)
         self.rois.remove(removable_roi)
+        
+    def remove_all_rois(self):
+        for r in self.rois:
+            self.plot.removeItem(r)
+        self.rois = []
+        self.plot.items = [item for item in self.plot.items if not 'ROI' in item.__class__.__name__]
+            
     
     def set_roi_visibility(self,x,y,visibility):
         distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
@@ -113,15 +130,15 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.roi_info = [[i, self.rois[i].x(), self.rois[i].y(), self.rois[i].size().x()] for i in range(len(self.rois))]
         self.emit(QtCore.SIGNAL('roi_update'))
         
-    def load_rois(self,roi_info):
-        scale=1
-        self.roi_info = roi_info
-        for r in self.rois:
-            self.plot.removeItem(r)
-        self.rois=[]
-        for r in roi_info:
-            self.add_roi(r[1]+0.5*r[3],r[2]+0.5*r[3],r[3])
-        self.emit(QtCore.SIGNAL('roi_update'))
+#    def load_rois(self,roi_info):
+#        scale=1
+#        self.roi_info = roi_info
+#        for r in self.rois:
+#            self.plot.removeItem(r)
+#        self.rois=[]
+#        for r in roi_info:
+#            self.add_roi(r[1]+0.5*r[3],r[2]+0.5*r[3],r[3])
+#        self.emit(QtCore.SIGNAL('roi_update'))
         
     def highlight_roi(self, index):
         for i in range(len(self.rois)):

@@ -52,7 +52,8 @@ class Analysis(object):
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
         self.datafile.close()
-        self.to_gui.put({'show_meanimage' :self.meanimage})
+        self.rois=[]
+        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync, self.timg]})
         
     def find_cells(self):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
@@ -72,18 +73,78 @@ class Analysis(object):
         self.to_gui.put({'show_suggested_rois' :self.image_w_suggested_rois})
         #Calculate roi bounding box
         self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_roi_contours]
-        self.roi_rectangles = [[sum(r[:2])*0.5*self.image_scale, sum(r[2:])*0.5*self.image_scale, [(r[1]-r[0])*self.image_scale, (r[3]-r[2])*self.image_scale]] for r in self.roi_bounding_boxes]
-        #Extract roi curves
-        self.roi_curves = [self.raw_data[:,:,r[:,0], r[:,1]].mean(axis=2).flatten() for r in self.suggested_rois]
-        self.rois = [{'curve': self.roi_curves[i], 'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))]
-        self.to_gui.put({'send_rois' :self.rois})
+        self.roi_rectangles = [[sum(r[:2])*0.5, sum(r[2:])*0.5, (r[1]-r[0]), (r[3]-r[2])] for r in self.roi_bounding_boxes]
+        self.raw_roi_curves = [self.raw_data[:,:,r[:,0], r[:,1]].mean(axis=2).flatten() for r in self.suggested_rois]
+        self._pack_roi_info()
+        self.current_roi_index = 0
+        self._normalize_roi_curves()
+        self.display_roi_rectangles()
+        self.display_roi_curve()
         
+    def _pack_roi_info(self):
+        self.rois.extend([{'raw': self.raw_roi_curves[i], 'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))])
         
+    def _normalize_roi_curves(self):
+        baseline_length = self.guidata.read('Baseline lenght')
+        for r in self.rois:
+            r['normalized'] = signal.df_over_f(self.timg, r['raw'], self.tsync[0], baseline_length)
         
+    def display_roi_rectangles(self):
+        self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
+        
+    def display_roi_curve(self):
+        if len(self.rois)>0:
+            self.to_gui.put({'display_roi_curve': [self.timg, self.rois[self.current_roi_index]['normalized'], self.current_roi_index, self.tsync]})
+        
+    def remove_roi_rectangle(self):
+        if len(self.rois)>0:
+            self.to_gui.put({'remove_roi_rectangle' : numpy.array(self.rois[self.current_roi_index]['rectangle'][:2])*self.image_scale})
+        
+    def roi_mouse_selected(self,x,y):
+        if len(self.rois)==0:
+            return
+        roi_centers = numpy.array([r['rectangle'][:2] for r in self.rois])
+        p=numpy.array([x,y])
+        self.current_roi_index = ((roi_centers-p)**2).sum(axis=1).argmin()
+        self.display_roi_curve()
+        
+    def previous_roi(self):
+        self.current_roi_index -= 1
+        if self.current_roi_index==-1:
+            self.current_roi_index=len(self.rois)-1
+        self.display_roi_curve()
+        
+    def next_roi(self):
+        self.current_roi_index += 1
+        if self.current_roi_index==len(self.rois):
+            self.current_roi_index=0
+        self.display_roi_curve()
+        
+    def delete_roi(self):
+        self.remove_roi_rectangle()
+        self.printc('Removing roi: {0}'.format(self.rois[self.current_roi_index]['rectangle']))
+        del self.rois[self.current_roi_index]
+        if len(self.rois)==0:
+            self.current_roi_index = 0
+        elif len(self.rois)<=self.current_roi_index:
+            self.current_roi_index = len(self.rois)-1
+        self.display_roi_curve()
+        
+    def add_manual_roi(self, rectangle):
+        rectangle = numpy.array(rectangle)/self.image_scale
+        rectangle[0] +=0.5*rectangle[2]
+        rectangle[1] +=0.5*rectangle[3]
+        raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
+        self.rois.append({'rectangle': rectangle, 'raw': raw})
+        self.current_roi_index = len(self.rois)-1
+        self._normalize_roi_curves()
+        self.to_gui.put({'fix_roi' : None})
+        self.display_roi_curve()
+        self.printc('Roi added, {0}'.format(rectangle))
     
 class GUIEngine(threading.Thread, Analysis):
     '''
-    GUI engine: receives commands via queue interface from guiand performs the following actions:
+    GUI engine: receives commands via queue interface from gui and performs the following actions:
      - stores data internally
      - initiates actions on gui or in engine
      
@@ -104,6 +165,8 @@ class GUIEngine(threading.Thread, Analysis):
         self.guidata = GUIData()
         if os.path.exists(self.context_filename):
             self.guidata.from_dict(utils.array2object(hdf5io.read_item(self.context_filename, 'guidata', filelocking=False)))
+        else:
+            self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
             
     def save_context(self):
         hdf5io.save_item(self.context_filename, 'guidata', utils.object2array(self.guidata.to_dict()), filelocking=False, overwrite=True)

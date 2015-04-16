@@ -27,7 +27,7 @@ class ToolBar(QtGui.QToolBar):
         
     def add_buttons(self):
         icon_folder = os.path.join(os.path.split(__file__)[0],'..','..','data', 'icons')
-        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'save_rois', 'export2mat', 'exit']:
+        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'exit']:
             a = QtGui.QAction(QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(button))), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
@@ -37,17 +37,16 @@ class ToolBar(QtGui.QToolBar):
         
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent):
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':parent.parent, 'utils':utils, 'fileop': fileop, 'signal':signal, numpy: 'numpy'}, text = 'self: MainUI, numpy, utils, fileop, signal')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':parent.parent, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
         
 class Image(gui.Image):
-    def __init__(self, parent, roi_diameter=10):
+    def __init__(self, parent, roi_diameter=3):
         gui.Image.__init__(self, parent, roi_diameter)
         self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
         self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
+        self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
         if 0:
             self.connect(self, QtCore.SIGNAL('roi_update'), parent.analysis.roi_update)
-            self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.analysis.roi_mouse_selected)
-            
             
 class Debug(QtGui.QTabWidget):
     def __init__(self,parent):
@@ -119,7 +118,7 @@ class MainUI(Qt.QMainWindow):
         self._load_all_parameters()
         self.show()
         self.timer=QtCore.QTimer()
-        self.timer.start(200)#ms
+        self.timer.start(50)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -129,39 +128,54 @@ class MainUI(Qt.QMainWindow):
             msg = self.from_engine.get()
             if msg.has_key('printc'):
                 self.printc(msg['printc'])
-            elif msg.has_key('show_meanimage'):
-                self.image.set_image(msg['show_meanimage'], color_channel = 1)
-                self.image.set_scale(self.engine.image_scale)
+            elif msg.has_key('send_image_data'):
+                self.meanimage, self.image_scale, self.tsync, self.timg = msg['send_image_data']
+                self.image.remove_all_rois()
+                self.image.set_image(self.meanimage, color_channel = 1)
+                self.image.set_scale(self.image_scale)
                 self._write2statusbar('File opened')
             elif msg.has_key('show_suggested_rois'):
-                self.image.set_image(msg['show_suggested_rois'])
-                self.image.set_scale(self.engine.image_scale)
+                self.image_w_suggested_rois = msg['show_suggested_rois']
+                self.image.set_image(self.image_w_suggested_rois )
+            elif msg.has_key('display_roi_rectangles'):
+                self.image.remove_all_rois()
+                [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
                 self._write2statusbar('Suggested rois displayed')
-            elif msg.has_key('send_rois'):
-                self.rois = msg['send_rois']
-                for roi in self.rois:
-                    self.image.add_roi(roi['rectangle'][0],roi['rectangle'][1], roi['rectangle'][2])
-                self.current_roi_index = 0
-                self.roi_changed()
-                self.printc('{0} rois are displayed'.format(len(self.rois)))
+                self.printc('Found {0} rois'.format(len(msg['display_roi_rectangles'])))
+            elif msg.has_key('display_roi_curve'):
+                timg, curve, index, tsync = msg['display_roi_curve']
+                #Highlight roi
+                self.image.highlight_roi(index)
+                #Update plot
+                self.plot.update_curve(timg, curve)
+                self.plot.add_linear_region(*list(tsync))
+            elif msg.has_key('remove_roi_rectangle'):
+                 self.image.remove_roi(*list(msg['remove_roi_rectangle']))
+            elif msg.has_key('fix_roi'):
+                for r in self.image.rois:
+                    r.translatable=False
             
+         
                 
     def _init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
         self.filebrowser_config = {'data_file': ['/tmp/rei_data_c2', 'hdf5'], 'stimulus_file': ['/tmp', 'py']}#TODO: load from context
+#        self.filebrowser_config = {'data_file': ['r:\\temp\\rei_data_c2', 'hdf5'], 'stimulus_file': ['r:\\temp', 'py']}#TODO: load from context
         self.params_config = [
                 {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Cell detection', 'type': 'group', 'expanded' : False, 'children': [
                         {'name': 'Minimum cell radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
-                        {'name': 'Maximum cell radius', 'type': 'float', 'value': 4.0, 'siPrefix': True, 'suffix': 'um'},
-                        {'name': 'Sigma', 'type': 'float', 'value': 0.5},
+                        {'name': 'Maximum cell radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
+                        {'name': 'Sigma', 'type': 'float', 'value': 1.0},
                         {'name': 'Threshold factor', 'type': 'float', 'value': 1.0}
                         ]
                     },
-                    {'name': 'Baseline duration', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
+                    {'name': 'Baseline lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
                     ]
                     }]
+
+
 
 #                {'name': 'Basic parameter data types', 'type': 'group', 'children': [
 #                {'name': 'Integer', 'type': 'int', 'value': 10},
@@ -240,6 +254,7 @@ class MainUI(Qt.QMainWindow):
         for item in self.engine.guidata.to_dict():
             r = refs[paths.index([p for p in paths if p == item['path']][0])]
             r.setValue(item['value'])
+            r.setDefault(item['value'])
     
     def printc(self, text, logonly = False):
         '''
@@ -271,14 +286,28 @@ class MainUI(Qt.QMainWindow):
         self.to_engine.put({'function': 'find_cells', 'args':[]})
         
     def previous_roi_action(self):
-        self.current_roi_index -= 1
-        self.roi_changed()
-        
+        self.to_engine.put({'function': 'previous_roi', 'args':[]})
+
     def next_roi_action(self):
-        self.current_roi_index += 1
-        self.roi_changed()
+        self.to_engine.put({'function': 'next_roi', 'args':[]})
         
     def delete_roi_action(self):
+        self.to_engine.put({'function': 'delete_roi', 'args':[]})
+        
+    def add_roi_action(self):
+        '''
+        Adds (all) manually placed roi(s)
+        '''
+        movable_rois = [r for r in self.image.rois if r.translatable]#Rois manually placed
+        if len(movable_rois)>1:
+            self.printc('Only one manually placed roi can be added!')
+            return
+        roi=movable_rois[0] 
+        rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]
+        self.to_engine.put({'function': 'add_manual_roi', 'args':[rectangle]})
+        
+    def save_rois_action(self):
+        '''Also exports to mat file'''
         pass
         
     def exit_action(self):
@@ -287,16 +316,8 @@ class MainUI(Qt.QMainWindow):
         self.close()
     
     ############# Events #############
-    def roi_changed(self):
-        roi = self.rois[self.current_roi_index]
-        #Highlight roi
-        self.image.highlight_roi(self.current_roi_index)
-                
-       # Continue here!!!!!!!
-        #Update plot
-        
-        
-        
+    def roi_mouse_selected(self,x,y):
+        self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})
     
     def parameter_changed(self, param, changes):
         for change in changes:
@@ -311,11 +332,11 @@ class MainUI(Qt.QMainWindow):
                     break
             tree.reverse()
             self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
+            self.printc('Warining: Curve normalization is not recalculated')
 
     def closeEvent(self, e):
         e.accept()
         self.exit_action()
-    
     
 if __name__ == '__main__':
     import visexpman.engine
