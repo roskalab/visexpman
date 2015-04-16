@@ -1246,7 +1246,7 @@ class RetinalToolbox(QtGui.QGroupBox):
         self.grey_level.setEditable(True)
         self.bullseye_type = QtGui.QComboBox(self)
         self.bullseye_type.setFixedWidth(100)
-        self.bullseye_type.addItems(QtCore.QStringList(['bullseye', 'spot', 'L']))
+        self.bullseye_type.addItems(QtCore.QStringList(['bullseye', 'spot', 'L', 'square']))
         self.bullseye_type.setToolTip('''
         Bullseye: size is the diameter
         L: size corresponds to the longer side. Shape center is the concave vertice of the L

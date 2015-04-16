@@ -498,7 +498,27 @@ class Screen(object):
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         glDrawArrays(GL_POLYGON,  0, 6)
-        glDisableClientState(GL_VERTEX_ARRAY)        
+        glDisableClientState(GL_VERTEX_ARRAY)
+        
+    def draw_square(self, size,position):
+        width = size
+        vertices = numpy.array([
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width],
+                                
+                                
+                                
+                                ])
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glDrawArrays(GL_POLYGON,  0, 6)
+        glDisableClientState(GL_VERTEX_ARRAY) 
         
 def check_keyboard():
     '''
