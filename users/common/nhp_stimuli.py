@@ -7,7 +7,7 @@ NHP_DIRECTIONS = [135, 90, 315, 0, 180, 45, 225, 270,
                270,    90,     0,   315,   180,   135,    45,   225,
                 90,   270,     0,   315,   135,   180,   225,    45]
 
-class NHP2MovingGrating120(experiment.ExperimentConfig):
+class NHP1MovingGrating120(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
         try:
@@ -22,9 +22,9 @@ class NHP2MovingGrating120(experiment.ExperimentConfig):
         self.runnable='NHPMovingGrating'
         self._create_parameters_from_locals(locals())
 
-class NHP1AdoptationStimulus(NHP2MovingGrating120):
+class NHP0AdoptationStimulus(NHP1MovingGrating120):
     def _create_parameters(self):
-        NHP2MovingGrating120._create_parameters(self)
+        NHP1MovingGrating120._create_parameters(self)
         self.VELOCITY = 500.0
         self.ORIENTATIONS = NHP_DIRECTIONS[:8]
         self.STAND_TIME = 1.0
@@ -33,11 +33,11 @@ class NHP1AdoptationStimulus(NHP2MovingGrating120):
         self.runnable='NHPMovingGrating'
         self._create_parameters_from_locals(locals())
         
-class NHP3MovingGrating1200(NHP2MovingGrating120):
+class NHP2MovingGrating1200(NHP1MovingGrating120):
     pass
 
 
-class NHP4FullfieldFlashConf(experiment.ExperimentConfig):
+class NHP3FullfieldFlashConf(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.REPEATS = 5
         self.COLORS = [0.5, 1.0, 0.5, 0.0, 0.5]
@@ -45,7 +45,7 @@ class NHP4FullfieldFlashConf(experiment.ExperimentConfig):
         self.runnable = 'NHPFullfieldFlashExp'
         self._create_parameters_from_locals(locals())
         
-class NHP5MovingBar120(experiment.ExperimentConfig):
+class NHP4MovingBar120(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
         self.SPEEDS = [int(self.__class__.__name__.split('MovingBar')[1])] #um/s
@@ -56,14 +56,14 @@ class NHP5MovingBar120(experiment.ExperimentConfig):
         self.runnable = 'MovingShapeExperiment'        
         self._create_parameters_from_locals(locals())
         
-class NHP6MovingBar1200(NHP5MovingBar120):
+class NHP5MovingBar1200(NHP4MovingBar120):
     pass
 
-class NHP7MarchingSquares(experiment.ExperimentConfig):
+class NHP6MarchingSquares(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
         self.COLORS = [1.0]
-        self.BACKGROUND_COLOR = 0.0
+        self.BACKGROUND_COLOR = 0.5
         self.SHAPE_SIZE = 200.0
         self.ON_TIME = 1.0
         self.OFF_TIME = 1.0
