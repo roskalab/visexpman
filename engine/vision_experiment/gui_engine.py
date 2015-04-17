@@ -1,3 +1,5 @@
+import scipy.io
+import copy
 import cPickle as pickle
 import os
 import os.path
@@ -46,8 +48,9 @@ class Analysis(object):
 
     def open_datafile(self,filename):
         if fileop.parse_recording_filename(filename)['type'] != 'data':
-            self.printc('This file cannot be displayed')
+            self.notify('Warning', 'This file cannot be displayed')
             return
+        self.filename = filename
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
@@ -59,8 +62,12 @@ class Analysis(object):
         
     def find_cells(self):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
-            self.printc('Open datafile first')
+            self.notify('Warning', 'Open datafile first')
             return
+        if len(self.rois)>0:
+            if not self.ask4confirmation('Automatic cell detection will remove current rois. Are you sure?'):
+                return
+        self.rois = []
         self.printc('Searching for cells, please wait...')
         min_ = int(self.guidata.read('Minimum cell radius')/self.image_scale)
         max_ = int(self.guidata.read('Maximum cell radius')/self.image_scale)
@@ -149,6 +156,25 @@ class Analysis(object):
         self.to_gui.put({'fix_roi' : None})
         self.display_roi_curve()
         self.printc('Roi added, {0}'.format(rectangle))
+        
+    def save_rois_and_export(self):
+        file_info = os.stat(self.filename)
+        self.datafile = experiment_data.CaImagingData(self.filename)
+        self.datafile.rois = copy.deepcopy(self.rois)
+        self.datafile.save('rois', overwrite=True)
+        #List main nodes of hdf5 file
+        items = [r._v_name for r in self.datafile.h5f.list_nodes('/')]
+        #Copy data to dictionary
+        data={}
+        for item in items:
+            self.datafile.load(item)
+            data[item]=getattr(self.datafile,item)
+        outfile=self.filename.replace('.hdf5', '.mat')
+        #Write to mat file
+        scipy.io.savemat(outfile, data, oned_as = 'row', long_field_names=True)
+        fileop.set_file_dates(outfile, file_info)
+        self.datafile.close()
+        fileop.set_file_dates(self.filename, file_info)
     
 class GUIEngine(threading.Thread, Analysis):
     '''
@@ -187,6 +213,17 @@ class GUIEngine(threading.Thread, Analysis):
         
     def printc(self,txt):
         self.to_gui.put({'printc':str(txt)})
+        
+    def ask4confirmation(self,message):
+        self.to_gui.put({'ask4confirmation':message})
+        while True:
+            if not self.from_gui.empty():
+                break
+            time.sleep(0.05)
+        return self.from_gui.get()
+        
+    def notify(self,title,message):
+        self.to_gui.put({'notify':{'title': title, 'msg':message}})
     
     def run(self):
         while True:

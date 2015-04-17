@@ -63,7 +63,7 @@ class FileBrowser(QtGui.QTabWidget):
         self.parent=parent
         QtGui.QTabWidget.__init__(self,parent)
         for k,v in config.items():
-            setattr(self, k, gui.FileTree(self, v[0], [v[1]]))
+            setattr(self, k, gui.FileTree(self, v[0], v[1]))
             self.addTab(getattr(self, k), stringop.to_title(k))
             getattr(self, k).doubleClicked.connect(self.file_selected)
         self.setTabPosition(self.South)
@@ -154,13 +154,18 @@ class MainUI(Qt.QMainWindow):
             elif msg.has_key('fix_roi'):
                 for r in self.image.rois:
                     r.translatable=False
+            elif msg.has_key('ask4confirmation'):
+                reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                self.to_engine.put(reply == QtGui.QMessageBox.Yes)
+            elif msg.has_key('notify'):
+                QtGui.QMessageBox.question(self, msg['notify']['title'], msg['notify']['msg'], QtGui.QMessageBox.Ok)
             
          
                 
     def _init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
-        self.filebrowser_config = {'data_file': ['/tmp/rei_data_c2', 'hdf5'], 'stimulus_file': ['/tmp', 'py']}#TODO: load from context
+        self.filebrowser_config = {'data_file': ['/tmp/rei_data_c2', ['hdf5', 'mat']], 'stimulus_file': ['/tmp', ['py']]}#TODO: load from context
 #        self.filebrowser_config = {'data_file': ['r:\\temp\\rei_data_c2', 'hdf5'], 'stimulus_file': ['r:\\temp', 'py']}#TODO: load from context
         self.params_config = [
                 {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
@@ -312,7 +317,7 @@ class MainUI(Qt.QMainWindow):
         
     def save_rois_action(self):
         '''Also exports to mat file'''
-        pass
+        self.to_engine.put({'function': 'save_rois_and_export', 'args':[]})
         
     def exit_action(self):
         self._dump_all_parameters()
