@@ -11,7 +11,7 @@ import numpy
 import os
 import os.path
 import itertools
-from visexpman.engine.generic import fileop,utils,signal,introspect
+from visexpman.engine.generic import fileop,utils,signal,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
@@ -221,6 +221,18 @@ class PhysTiff2Hdf5(object):
         pulses = numpy.concatenate((numpy.zeros(start_of_first_frame), numpy.tile(one_period, nperiods)))
         trigger_signal[:pulses.shape[0]]=pulses
         return trigger_signal
+        
+def phys2mat(filename):
+    if os.path.isdir(filename):
+        filename = fileop.listdir_fullpath(filename)
+    import scipy.io
+    from visexpman.engine.vision_experiment.experiment_data import read_phys
+    for f in filename:
+        data, metadata = read_phys(f)
+        for k in metadata.keys():
+            metadata[stringop.to_variable_name(k)] = metadata[k]
+            del metadata[k]
+        scipy.io.savemat(f.replace('.phys','.mat'), {'data': data, 'metadata': metadata}, oned_as='column')
         
         
 class TestConverter(unittest.TestCase):
