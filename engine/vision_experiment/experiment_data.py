@@ -369,22 +369,26 @@ def get_data_timing(filename):
         sfi = hdf5io.read_item(os.path.split(filename)[0]+'/sfi.hdf5', 'sfi', filelocking=False)
         scale = 1.42624
     imaging_time = imaging_time[:rawdata.shape[2]]
-    block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
-    if 'grating' not in filename.lower():
-        print 'Detect cells'
-        mip,cell_rois = detect_cells(rawdata, scale, 12)
-        roi_curves = get_roi_curves(rawdata, cell_rois)
-    h.quick_analysis = {}
-    if 'grating' not in filename.lower():
-        h.quick_analysis['roi_curves']=roi_curves
-        h.quick_analysis['cell_rois']=cell_rois
-    h.quick_analysis['block_times']=block_times
-    h.quick_analysis['stimulus_parameter_times']=utils.object2array(stimulus_parameter_times)
-    h.quick_analysis['block_info']=block_info
-    h.quick_analysis['organized_blocks']=organized_blocks
-    h.save('quick_analysis')
-    if 'receptive' in filename.lower():
-        plot_receptive_field_stimulus(organized_blocks,roi_curves, mip)
+    try:
+        block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
+        if 'grating' not in filename.lower():
+            print 'Detect cells'
+            mip,cell_rois = detect_cells(rawdata, scale, 12)
+            roi_curves = get_roi_curves(rawdata, cell_rois)
+        h.quick_analysis = {}
+        if 'grating' not in filename.lower():
+            h.quick_analysis['roi_curves']=roi_curves
+            h.quick_analysis['cell_rois']=cell_rois
+        h.quick_analysis['block_times']=block_times
+        h.quick_analysis['stimulus_parameter_times']=utils.object2array(stimulus_parameter_times)
+        h.quick_analysis['block_info']=block_info
+        h.quick_analysis['organized_blocks']=organized_blocks
+        h.save('quick_analysis')
+        if 'receptive' in filename.lower() and 0:
+            plot_receptive_field_stimulus(organized_blocks,roi_curves, mip)
+    except:
+        import traceback
+        print traceback.format_exc()
     h.close()
     
 def plot_receptive_field_stimulus(organized_blocks,roi_curves, mip):
@@ -474,7 +478,10 @@ def stimulus_frame_counter2image_frame_counter(ct, imaging_time, stimulus_time):
     '''
     stimulus frame counter values is converted to image data frame index using timing information
     '''
-    stim_time_value = stimulus_time[ct]
+    try:
+        stim_time_value = stimulus_time[ct]
+    except:
+        stim_time_value = stimulus_time[-1]
     return numpy.where(imaging_time>=stim_time_value)[0][0]
     
 def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):

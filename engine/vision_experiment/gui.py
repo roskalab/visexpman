@@ -2668,21 +2668,27 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         self.setAntialiasing(True)
         self.plots = []
         return
-        self.set_plot_num(3,4)
-        traces = []
-        for i in range(3):
-            traces1 = []
-            for j in range(4):
-                traces1.append({'x':numpy.arange(100), 'y': numpy.sin(numpy.arange(100)/(j+1+i)), 'title': (i,j)})
-            traces.append(traces1)
-        self.addplots(traces)
+#        self.set_plot_num(3,4)
+#        traces = []
+#        for i in range(3):
+#            traces1 = []
+#            for j in range(4):
+#                traces1.append({'x':numpy.arange(100), 'y': numpy.sin(numpy.arange(100)/(j+1+i)), 'title': (i,j)})
+#            traces.append(traces1)
+#        self.addplots(traces)
         
     def addplots(self,traces):
         self.plots = []
         self.clear()
         for r in range(self.nrows):
             for c in range(self.ncols):
-                self.addplot(traces[r][c])
+#                print r,c
+                try:
+                    self.addplot(traces[r][c])
+                except:
+                    pass
+#                    print 'fail'
+                    
             self.nextRow()
         
     def set_plot_num(self,nrows,ncols):

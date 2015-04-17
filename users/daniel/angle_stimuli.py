@@ -7,7 +7,7 @@ class Angle0(experiment.ExperimentConfig):
         ##### IMPORTANT #####
         #If any parameter is changed the experiment duration might also change. The duration has to be measured and FRAGMENT_DURATION parameter needs to be updated.
         self.FRAGMENT_DURATION = 470
-        self.POSITION = utils.rc((500,0))
+        self.POSITION = utils.rc((0, 0))#utils.rc((500,0))
         self.SPEEDS = [400]
         self.LOOM_START_SIZE = 50
         self.LOOMING_SHAPES = ['rect', 'spot', 'triangle', 'star4', 'star5']
@@ -63,7 +63,7 @@ class AngleStimulus(experiment.Experiment):
             block_start = numpy.ones(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*self.experiment_config.PAUSE)*self.experiment_config.LOOM_START_SIZE
             block_end = numpy.ones(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*self.experiment_config.PAUSE)*maxsize
             shape_sizes.append(numpy.concatenate((block_start, ss, block_end)))
-        for bg, col in [[0.0, 1.0], [1.0, 0.0]]:
+        for bg, col in [[0.0, 1.0], [1.0, 0.0]][:1]:
             for shape in self.experiment_config.LOOMING_SHAPES:
                 if self.abort:
                     break
