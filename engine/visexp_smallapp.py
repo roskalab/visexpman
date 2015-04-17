@@ -240,14 +240,21 @@ class ReceptiveFieldPlotter(SmallApp):
         SmallApp.__init__(self)
         self.resize(1300,900)
         self.image = gui.Image(self)
+        self.image.setFixedWidth(500)
+        self.image.setFixedHeight(500)
         self.plots = gui.ReceptiveFieldPlots(self)
+        self.sa = QtGui.QScrollArea()
+        self.sa.setWidget(self.plots)
+        self.sa.setMinimumHeight(1000)
+        self.plots.setMinimumWidth(1800)
+        self.plots.setMinimumHeight(1000)
         self.open_file_button = QtGui.QPushButton('Open file', self)
         self.update_plots_button = QtGui.QPushButton('Update plots', self)
         self.text_out.setMaximumHeight(300)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.open_file_button, 0, 0, 1, 1)
         self.layout.addWidget(self.update_plots_button, 0, 1, 1, 1)
-        self.layout.addWidget(self.plots, 1, 0, 1, 5)
+        self.layout.addWidget(self.sa, 1, 0, 1, 5)
         self.layout.addWidget(self.image, 1, 6, 1, 4)
         self.layout.addWidget(self.text_out, 2, 0, 1, 10)
         self.setLayout(self.layout)
@@ -306,10 +313,10 @@ class ReceptiveFieldPlotter(SmallApp):
             self.notify_user('Warning', 'No roi selected,overall activity is plotted')
         elif len(self.image.rois)==1:
             roipos = self.image.rois[0].pos()
-            roiposx=roipos.x()/self.scale
-            roiposy=roipos.y()/self.scale
-            roisize = self.image.rois[0].size().x()/self.scale
-            mask=numpy.zeros_like(self.meanimage)
+            roiposx=int(roipos.x()/self.scale)
+            roiposy=int(roipos.y()/self.scale)
+            roisize = int(self.image.rois[0].size().x()/self.scale)
+            mask=numpy.zeros_like(self.meanimage, numpy.uint16)
             m=numpy.zeros_like(mask)
             m[roiposx:roiposx+roisize,roiposy:roiposy+roisize]=1
             coo=numpy.nonzero(m)
@@ -317,7 +324,8 @@ class ReceptiveFieldPlotter(SmallApp):
             for cx,cy in zip(coo[0],coo[1]):
                 if (roiposx+0.5*roisize-cx)**2+(roiposy+0.5*roisize-cy)**2<rsq:
                     mask[cx,cy]=1
-            masked = numpy.rollaxis(self.rawdata, 2, 0)[:,:,:,0]*mask
+            masked = numpy.rollaxis(self.rawdata, 2, 0)[:,:,:,0]
+            masked *= mask
             raw_trace =numpy.cast['float'](masked).mean(axis=1).mean(axis=1)
             self.update_image(self.meanimage,mask*self.meanimage.max()*0.7)
         else:
@@ -339,9 +347,11 @@ class ReceptiveFieldPlotter(SmallApp):
         for i in range(len(self.positions)):
             p=self.positions[i]
             plot_color = tuple([int(255*self.colors[i]), 0,0])
-            r=int((self.positions[i]['row']-row_start)/grid_size)
-            c=int((self.positions[i]['col']-col_start)/grid_size)
-            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']), int(p['row']), int(p['col']), int(p['row']))
+            r=int(round((self.positions[i]['row']-row_start)/grid_size))
+            c=int(round((self.positions[i]['col']-col_start)/grid_size))
+            scx=self.machine_config.SCREEN_CENTER['col']
+            scy=self.machine_config.SCREEN_CENTER['row']
+            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']-scx), int(p['row']-scy), int(p['col']-scx), int(p['row']-scy))
             if not traces[r][c].has_key('trace'):
                 traces[r][c]['trace'] = []
             boundaries = self.boundaries[i]
