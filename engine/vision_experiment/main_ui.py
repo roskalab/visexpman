@@ -172,6 +172,7 @@ class MainUI(Qt.QMainWindow):
                         ]
                     },
                     {'name': 'Baseline lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
+                    {'name': 'Background threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
                     ]
                     }]
 
@@ -301,6 +302,9 @@ class MainUI(Qt.QMainWindow):
         movable_rois = [r for r in self.image.rois if r.translatable]#Rois manually placed
         if len(movable_rois)>1:
             self.printc('Only one manually placed roi can be added!')
+            return
+        elif len(movable_rois)==0:
+            self.printc('Put roi first on image!')
             return
         roi=movable_rois[0] 
         rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]

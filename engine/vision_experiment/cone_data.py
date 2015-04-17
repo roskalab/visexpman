@@ -125,7 +125,10 @@ def somaroi2edges(soma_roi):
             edge_pixels.append(soma_roi[i])
     return numpy.array(edge_pixels)
 
-
+def calculate_background(rawdata,threshold=0.1):
+    mi=rawdata.mean(axis=0).mean(axis=0)
+    x,y = numpy.where(mi<mi.max()*threshold)
+    return rawdata[:,:,x,y].mean(axis=2).flatten()
 
 class TestCA(unittest.TestCase):
     def setUp(self):
@@ -175,7 +178,13 @@ class TestCA(unittest.TestCase):
             show()
             h.close()
             break
-
+            
+    def test_03_calculate_background(self):
+        for f in self.files:
+            h=hdf5io.Hdf5io(f,filelocking=False)
+            rawdata=h.findvar('raw_data')
+            calculate_background(rawdata)
+            h.close()
     
 if __name__=='__main__':
     unittest.main()

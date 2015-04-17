@@ -54,6 +54,8 @@ class Analysis(object):
         self.datafile.close()
         self.rois=[]
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync, self.timg]})
+        background_threshold = self.guidata.read('Background threshold')*1e-2
+        self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
         
     def find_cells(self):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
@@ -74,7 +76,7 @@ class Analysis(object):
         #Calculate roi bounding box
         self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_roi_contours]
         self.roi_rectangles = [[sum(r[:2])*0.5, sum(r[2:])*0.5, (r[1]-r[0]), (r[3]-r[2])] for r in self.roi_bounding_boxes]
-        self.raw_roi_curves = [self.raw_data[:,:,r[:,0], r[:,1]].mean(axis=2).flatten() for r in self.suggested_rois]
+        self.raw_roi_curves = [self.raw_data[:,:,r[:,0], r[:,1]].mean(axis=2).flatten()-self.background for r in self.suggested_rois]
         self._pack_roi_info()
         self.current_roi_index = 0
         self._normalize_roi_curves()
@@ -109,18 +111,24 @@ class Analysis(object):
         self.display_roi_curve()
         
     def previous_roi(self):
+        if not hasattr(self, 'current_roi_index'):
+            return
         self.current_roi_index -= 1
         if self.current_roi_index==-1:
             self.current_roi_index=len(self.rois)-1
         self.display_roi_curve()
         
     def next_roi(self):
+        if not hasattr(self, 'current_roi_index'):
+            return
         self.current_roi_index += 1
         if self.current_roi_index==len(self.rois):
             self.current_roi_index=0
         self.display_roi_curve()
         
     def delete_roi(self):
+        if not hasattr(self, 'current_roi_index'):
+            return
         self.remove_roi_rectangle()
         self.printc('Removing roi: {0}'.format(self.rois[self.current_roi_index]['rectangle']))
         del self.rois[self.current_roi_index]
