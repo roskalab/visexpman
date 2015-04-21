@@ -44,6 +44,7 @@ class Image(gui.Image):
         gui.Image.__init__(self, parent, roi_diameter)
         self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
         self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
+        self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
         if 0:
             self.connect(self, QtCore.SIGNAL('roi_update'), parent.analysis.roi_update)
@@ -108,6 +109,7 @@ class MainUI(Qt.QMainWindow):
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         self.plot = gui.Plot(self)
         self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
+        self.plot.plot.setLabels(bottom='sec')
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.filebrowser = FileBrowser(self, self.filebrowser_config)
         self._add_dockable_widget('File Browser', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.filebrowser)

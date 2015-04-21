@@ -149,8 +149,9 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         
 class FileTree(QtGui.QTreeView):
     def __init__(self,parent, root, extensions = []):
+        self.parent=parent
         QtGui.QTreeView.__init__(self,parent)
-        self.model = QtGui.QFileSystemModel()
+        self.model = QtGui.QFileSystemModel(self)
         self.setModel(self.model)
         self.setRootIndex(self.model.setRootPath( root ))
         filterlist = ['*.'+e for e in extensions]

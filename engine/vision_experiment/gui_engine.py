@@ -54,9 +54,15 @@ class Analysis(object):
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
-        self.datafile.close()
-        self.rois=[]
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync, self.timg]})
+        self.rois = self.datafile.findvar('rois')
+        if self.rois is None:
+            self.rois=[]
+        else:
+            self.current_roi_index = 0
+            self.display_roi_rectangles()
+            self.display_roi_curve()
+        self.datafile.close()
         background_threshold = self.guidata.read('Background threshold')*1e-2
         self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
         
