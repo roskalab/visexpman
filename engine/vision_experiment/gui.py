@@ -2682,12 +2682,7 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         self.clear()
         for r in range(self.nrows):
             for c in range(self.ncols):
-#                print r,c
-                try:
-                    self.addplot(traces[r][c])
-                except:
-                    pass
-#                    print 'fail'
+                self.addplot(traces[r][c])
                     
             self.nextRow()
         
@@ -2696,7 +2691,7 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         self.ncols=ncols
         
     def addplot(self,traces):
-        self.plots.append(self.addPlot(title=traces['title']))
+        self.plots.append(self.addPlot(title=traces['title']))#, colspan=10, rowspan=10))
         color_index=0
         for trace in traces['trace']:
             if trace.has_key('color'):
@@ -2706,6 +2701,13 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
             self.plots[-1].plot(trace['x'], trace['y'], pen=c)
             color_index+=1
         self.plots[-1].showGrid(True,True,1.0)
+        c=(30,30,30,100)
+        self.offtime=self.parent().offtime
+        self.ontime=self.parent().ontime
+        linear_region = pyqtgraph.LinearRegionItem([self.offtime*0.5, self.offtime*0.5+self.ontime], movable=False, brush = c)
+        self.plots[-1].addItem(linear_region)
+        self.plots[-1].setMaximumHeight(90)
+        
 
 def update_mouse_files_list(config, current_mouse_files = []):
     new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')

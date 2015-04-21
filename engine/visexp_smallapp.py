@@ -115,7 +115,7 @@ class SmallApp(QtGui.QWidget):
             return True
             
     def ask4filename(self,title, directory, filter):
-        filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)
+        filename = QtGui.QFileDialog.getOpenFileNames(self, title, directory, filter)
         return filename
         
     def notify_user(self, title, message):
@@ -199,26 +199,24 @@ class SerialportPulseGenerator(SmallApp):
 class ReceptiveFieldPlotter(SmallApp):
     def __init__(self):
         SmallApp.__init__(self)
-        self.resize(1300,900)
+        self.resize(1900,900)
         self.image = gui.Image(self)
-        self.image.setFixedWidth(500)
-        self.image.setFixedHeight(500)
         self.plots = gui.Plots(self)
         
-        self.sa = QtGui.QScrollArea()
-        self.sa.setWidget(self.plots)
-        self.sa.setMinimumHeight(1000)
-        self.plots.setMinimumWidth(1800)
-        self.plots.setMinimumHeight(1000)
+        self.plots.setMinimumWidth(1550)
+        self.plots.setMinimumHeight(900)
         
         self.open_file_button = QtGui.QPushButton('Open file', self)
         self.update_plots_button = QtGui.QPushButton('Update plots', self)
+        help='First roi: cell, second roi: background'
+        self.help = QtGui.QLabel(help, self)
         self.text_out.setMaximumHeight(300)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.open_file_button, 0, 0, 1, 1)
         self.layout.addWidget(self.update_plots_button, 0, 1, 1, 1)
-        self.layout.addWidget(self.sa, 1, 0, 1, 5)
-        self.layout.addWidget(self.image, 1, 6, 1, 4)
+        self.layout.addWidget(self.help, 0, 2, 1, 7)
+        self.layout.addWidget(self.plots, 1, 0, 1, 5)
+        self.layout.addWidget(self.image, 1, 6, 1, 2)
         self.layout.addWidget(self.text_out, 2, 0, 1, 10)
         self.setLayout(self.layout)
         self.connect(self.open_file_button, QtCore.SIGNAL('clicked()'),  self.open_file)
@@ -232,9 +230,12 @@ class ReceptiveFieldPlotter(SmallApp):
         self.image.set_image(self.display_image)
         
     def open_file(self):
-        self.filename = str(self.ask4filename('Select data file', fileop.select_folder_exists(['/mnt/databig/debug/recfield', 'v:\\experiment_data', '/tmp', 'c:\\temp\\rec']), '*.hdf5'))
+        self.filenames = self.ask4filename('Select data file', fileop.select_folder_exists(['/mnt/datafast/experiment_data', 'v:\\experiment_data', '/tmp', 'c:\\temp\\rec']), '*.hdf5')
+        self.filenames = map(str, self.filenames)
+        if len(self.filenames)==0:return
+        self.filename = self.filenames[0]
         if not os.path.exists(self.filename):return
-        if 'ReceptiveFieldExploreNew' not in self.filename:
+        if len([fn for fn in self.filenames if 'ReceptiveFieldExploreNew' not in fn])>0:
             self.notify_user('Warning', 'This stimulus is not supported')
             return
         from visexpman.engine.vision_experiment import experiment_data
@@ -254,6 +255,8 @@ class ReceptiveFieldPlotter(SmallApp):
         #Display meanimage
         self.overall_activity = self.rawdata.mean(axis=0).mean(axis=0)[:,0]
         self.meanimage = self.rawdata.mean(axis = 2)[:,:,0]
+        self.image.setFixedWidth(400)
+        self.image.setFixedHeight(int(400*float(self.meanimage.shape[1])/self.meanimage.shape[0]))
         self.update_image(self.meanimage)
         self.image.img.setScale(self.scale)
         #Find repetitions and positions
@@ -263,8 +266,18 @@ class ReceptiveFieldPlotter(SmallApp):
         self.boundaries = []
         for o in self.organized_blocks:
             self.boundaries.append([[r['start'], r['end']  ] for r in o])
+        self.ontime = utils.array2object(idnode['experiment_config']).ON_TIME
+        self.offtime = utils.array2object(idnode['experiment_config']).OFF_TIME
         hh.close()
         self.printc('File opened {0}'.format(self.filename))
+        
+    def get_imaging_time(self, filename):
+        idnode = hdf5io.read_item(filename, '_'.join(os.path.split(filename)[1].replace('.hdf5','').split('_')[-3:]), filelocking=False)
+        import copy
+        self.sd = copy.deepcopy(idnode['sync_data'])
+        #Calculate timing from sync signal
+        self.imaging_time = signal.trigger_indexes(self.sd[:,0])[::2]/self.sync_sample_rate
+        return self.imaging_time
         
     def update_plots(self):
         if not hasattr(self,'filename'):
@@ -274,26 +287,38 @@ class ReceptiveFieldPlotter(SmallApp):
         if len(self.image.rois)==0:
             raw_trace = self.overall_activity
             self.notify_user('Warning', 'No roi selected,overall activity is plotted')
-        elif len(self.image.rois)==1:
-            roipos = self.image.rois[0].pos()
-            roiposx=int(roipos.x()/self.scale)
-            roiposy=int(roipos.y()/self.scale)
-            roisize = int(self.image.rois[0].size().x()/self.scale)
-            mask=numpy.zeros_like(self.meanimage, numpy.uint16)
-            m=numpy.zeros_like(mask)
-            m[roiposx:roiposx+roisize,roiposy:roiposy+roisize]=1
-            coo=numpy.nonzero(m)
-            rsq=(0.5*roisize)**2
-            for cx,cy in zip(coo[0],coo[1]):
-                if (roiposx+0.5*roisize-cx)**2+(roiposy+0.5*roisize-cy)**2<rsq:
-                    mask[cx,cy]=1
-            masked = numpy.rollaxis(self.rawdata, 2, 0)[:,:,:,0]
-            masked *= mask
-#            raw_trace =numpy.cast['float'](masked)
-            raw_trace=masked.mean(axis=1).mean(axis=1)
-            self.update_image(self.meanimage,mask*self.meanimage.max()*0.7)
+        elif len(self.image.rois)==2:
+            raw_traces=[]
+            imaging_times=[]
+            for filename in self.filenames:
+                rawdata = hdf5io.read_item(filename, 'rawdata',filelocking=False)
+                imaging_times.append(self.get_imaging_time(filename))
+                for i in range(2):
+                    roipos = self.image.rois[i].pos()
+                    roiposx=int(roipos.x()/self.scale)
+                    roiposy=int(roipos.y()/self.scale)
+                    roisize = int(self.image.rois[0].size().x()/self.scale)
+                    mask=numpy.zeros_like(self.meanimage, numpy.uint16)
+                    m=numpy.zeros_like(mask)
+                    m[roiposx:roiposx+roisize,roiposy:roiposy+roisize]=1
+                    coo=numpy.nonzero(m)
+                    rsq=(0.5*roisize)**2
+                    for cx,cy in zip(coo[0],coo[1]):
+                        if (roiposx+0.5*roisize-cx)**2+(roiposy+0.5*roisize-cy)**2<rsq:
+                            mask[cx,cy]=1
+                    import copy
+                    masked = numpy.rollaxis(rawdata, 2, 0)[:,:,:,0]
+                    masked *= mask
+    #            raw_trace =numpy.cast['float'](masked)
+                    if i==0:
+                        raw_trace=masked.mean(axis=1).mean(axis=1)
+                        self.update_image(self.meanimage,mask*self.meanimage.max()*0.7)
+                    elif i==1:
+                        background=masked.mean(axis=1).mean(axis=1)
+                raw_trace -=background
+                raw_traces.append(raw_trace)
         else:
-            self.notify_user('Warning', 'More than one roi cannot be handled')
+            self.notify_user('Warning', 'Exactly two rois should be placed: 1. cell, 2. bakcground')
             return
         nrows = len(set([p['row'] for p in self.positions]))
         ncols = len(set([p['col'] for p in self.positions]))
@@ -315,19 +340,24 @@ class ReceptiveFieldPlotter(SmallApp):
             c=int(round((self.positions[i]['col']-col_start)/grid_size))
             scx=self.machine_config.SCREEN_CENTER['col']
             scy=self.machine_config.SCREEN_CENTER['row']
-            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']-scx), int(p['row']-scy), int(p['col']-scx), int(p['row']-scy))
+#            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']-scx), int(p['row']-scy), int(p['col']-scx), int(p['row']-scy))
+            traces[r][c]['title'] = 'utils.cr(({0},{1}))'.format(int(p['col']-scx), int(p['row']-scy))
             if not traces[r][c].has_key('trace'):
                 traces[r][c]['trace'] = []
             boundaries = self.boundaries[i]
             for rep in range(len(boundaries)):
                 boundary=boundaries[rep]
-                y=raw_trace[boundary[0]:boundary[1]]
-                x=self.imaging_time[boundary[0]:boundary[1]]
-                x-=x[0]
-                t = {'x':  x, 'y':y, 'color': plot_color}
-                plotrangemax.append(max(y))
-                plotrangemin.append(min(y))
-                traces[r][c]['trace'].append(t)
+                for rt in range(len(raw_traces)):
+                    y=raw_traces[rt][boundary[0]:boundary[1]]
+                    self.imaging_time = imaging_times[rt]
+                    x=self.imaging_time[boundary[0]:boundary[1]]
+                    x-=x[0]
+                    baseline = y[numpy.where(x<0.5*self.offtime)[0]].mean()
+                    y/=baseline
+                    t = {'x':  x, 'y':y, 'color': plot_color}
+                    plotrangemax.append(max(y))
+                    plotrangemin.append(min(y))
+                    traces[r][c]['trace'].append(t)
         self.plots.set_plot_num(nrows,ncols)
         self.plots.addplots(traces)
         for pp in self.plots.plots:

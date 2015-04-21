@@ -371,12 +371,12 @@ def get_data_timing(filename):
     imaging_time = imaging_time[:rawdata.shape[2]]
     try:
         block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
-        if 'grating' not in filename.lower():
+        if 'grating' not in filename.lower() and 0:
             print 'Detect cells'
             mip,cell_rois = detect_cells(rawdata, scale, 12)
             roi_curves = get_roi_curves(rawdata, cell_rois)
         h.quick_analysis = {}
-        if 'grating' not in filename.lower():
+        if 'grating' not in filename.lower() and 0:
             h.quick_analysis['roi_curves']=roi_curves
             h.quick_analysis['cell_rois']=cell_rois
         h.quick_analysis['block_times']=block_times
