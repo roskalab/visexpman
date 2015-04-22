@@ -102,11 +102,11 @@ class Analysis(object):
         #Calculate roi bounding box
         self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_rois]
         self.roi_rectangles = [[sum(r[:2])*0.5, sum(r[2:])*0.5, (r[1]-r[0]), (r[3]-r[2])] for r in self.roi_bounding_boxes]
-        self.raw_roi_curves = [self.raw_data[:,:,r[:,0], r[:,1]].mean(axis=2).flatten()-self.background for r in self.suggested_rois]
-        self._pack_roi_info()
+        self.rois = [{'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))]
+        self._extract_roi_curves()
+        self._normalize_roi_curves()
         self._roi_area2image()
         self.current_roi_index = 0
-        self._normalize_roi_curves()
         self.display_roi_rectangles()
         self.display_roi_curve()
         
@@ -135,9 +135,6 @@ class Analysis(object):
             if overlapping_pixels>maximal_acceptable_overlap:
                 removeable_rois.extend([roi1, roi2])
         self.suggested_rois = [sr for sr in self.suggested_rois if len([rr for rr in removeable_rois if numpy.array_equal(rr, sr)])==0]
-        
-    def _pack_roi_info(self):#TODO: this shall be eliminated. _extract_roi_curves shall be used instead
-        self.rois.extend([{'raw': self.raw_roi_curves[i], 'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))])
         
     def _extract_roi_curves(self):
         for r in self.rois:
