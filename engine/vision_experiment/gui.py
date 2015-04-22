@@ -2691,7 +2691,7 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         self.ncols=ncols
         
     def addplot(self,traces):
-        self.plots.append(self.addPlot(title=traces['title']))#, colspan=10, rowspan=10))
+        self.plots.append(self.addPlot(title='{0}, {1:.2f}'.format(traces['title'],traces['response_size'])))#, colspan=10, rowspan=10))
         color_index=0
         for trace in traces['trace']:
             if trace.has_key('color'):
@@ -2701,7 +2701,8 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
             self.plots[-1].plot(trace['x'], trace['y'], pen=c)
             color_index+=1
         self.plots[-1].showGrid(True,True,1.0)
-        c=(30,30,30,100)
+        c=(255-255*traces['response_size_scaled'],255-255*traces['response_size_scaled'],255-255*traces['response_size_scaled'],128)
+        
         self.offtime=self.parent().offtime
         self.ontime=self.parent().ontime
         linear_region = pyqtgraph.LinearRegionItem([self.offtime*0.5, self.offtime*0.5+self.ontime], movable=False, brush = c)

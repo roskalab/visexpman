@@ -372,8 +372,8 @@ class VisionExperimentGui(QtGui.QWidget):
             self.xz_line = line
             self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
             #update overwiew
-            image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
             if self.config.SHOW_OVERVIEW:
+                image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             #Update region info
             if scan_regions[selected_region].has_key('add_date'):
@@ -796,10 +796,14 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
     number_of_divisions = 7
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
     division_col = int(numpy.round(float(image_size['row']) / number_of_divisions, -1))
+    if division_col==0:
+        division_col=1
     number_of_divisions_modified = int(float(image_size['row']) / division_col)
     col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions_modified * division_col, number_of_divisions_modified+1)
     col_labels = 10*numpy.floor(0.1 * col_labels)
     division_row = int(numpy.round(float(image_size['col']) / number_of_divisions, -1))
+    if division_row==0:
+        division_row=1
     number_of_divisions_modified = int(float(image_size['col']) / division_row)
     row_labels = numpy.linspace(origin['row'], origin['row'] + number_of_divisions_modified * division_row, number_of_divisions_modified+1)
     row_labels = 10*numpy.floor(0.1 * row_labels)

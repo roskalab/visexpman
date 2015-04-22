@@ -199,11 +199,11 @@ class SerialportPulseGenerator(SmallApp):
 class ReceptiveFieldPlotter(SmallApp):
     def __init__(self):
         SmallApp.__init__(self)
-        self.resize(1900,900)
+        self.resize(2000,900)
         self.image = gui.Image(self)
         self.plots = gui.Plots(self)
         
-        self.plots.setMinimumWidth(1550)
+        self.plots.setMinimumWidth(1600)
         self.plots.setMinimumHeight(900)
         
         self.open_file_button = QtGui.QPushButton('Open file', self)
@@ -230,6 +230,11 @@ class ReceptiveFieldPlotter(SmallApp):
         self.image.set_image(self.display_image)
         
     def open_file(self):
+        if len(self.plots.plots)>0:
+            try:
+                map(self.plots.removeItem, self.plots.plots)
+            except:
+                pass
         self.filenames = self.ask4filename('Select data file', fileop.select_folder_exists(['/mnt/datafast/experiment_data', 'v:\\experiment_data', '/tmp', 'c:\\temp\\rec']), '*.hdf5')
         self.filenames = map(str, self.filenames)
         if len(self.filenames)==0:return
@@ -238,20 +243,21 @@ class ReceptiveFieldPlotter(SmallApp):
         if len([fn for fn in self.filenames if 'ReceptiveFieldExploreNew' not in fn])>0:
             self.notify_user('Warning', 'This stimulus is not supported')
             return
-        from visexpman.engine.vision_experiment import experiment_data
+        
         import copy
         hh=hdf5io.Hdf5io(self.filename,filelocking=False)
         self.rawdata =copy.deepcopy(hh.findvar('rawdata'))
-#        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
-        idnode = hh.findvar('_'.join(os.path.split(self.filename)[1].replace('.hdf5','').split('_')[-3:]))
-        self.sfi = copy.deepcopy(idnode['stimulus_frame_info'])
-        self.sd = copy.deepcopy(idnode['sync_data'])
         self.scale = copy.deepcopy(hh.findvar('image_scale')['row'][0])
-        self.machine_config = utils.array2object(idnode['machine_config'])
-        self.sync_sample_rate = float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE'])
+#        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
+#        idnode = hh.findvar('_'.join(os.path.split(self.filename)[1].replace('.hdf5','').split('_')[-3:]))
+#        self.sfi = copy.deepcopy(idnode['stimulus_frame_info'])
+#        self.sd = copy.deepcopy(idnode['sync_data'])
+        
+#        self.machine_config = utils.array2object(idnode['machine_config'])
+#        self.sync_sample_rate = float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE'])
         #Calculate timing from sync signal
-        self.imaging_time = signal.trigger_indexes(self.sd[:,0])[::2]/self.sync_sample_rate
-        self.stimulus_time = signal.trigger_indexes(self.sd[:,1])[::2]/self.sync_sample_rate
+#        self.imaging_time = signal.trigger_indexes(self.sd[:,0])[::2]/self.sync_sample_rate
+#        self.stimulus_time = signal.trigger_indexes(self.sd[:,1])[::2]/self.sync_sample_rate
         #Display meanimage
         self.overall_activity = self.rawdata.mean(axis=0).mean(axis=0)[:,0]
         self.meanimage = self.rawdata.mean(axis = 2)[:,:,0]
@@ -260,24 +266,34 @@ class ReceptiveFieldPlotter(SmallApp):
         self.update_image(self.meanimage)
         self.image.img.setScale(self.scale)
         #Find repetitions and positions
-        block_times, stimulus_parameter_times,block_info, self.organized_blocks = experiment_data.process_stimulus_frame_info(self.sfi, self.stimulus_time, self.imaging_time)
-        self.positions = [o[0]['sig'][2]['pos'] for o in self.organized_blocks]
-        self.colors = [o[0]['sig'][2]['color'] for o in self.organized_blocks]
-        self.boundaries = []
+#        block_times, stimulus_parameter_times,block_info, self.organized_blocks = experiment_data.process_stimulus_frame_info(self.sfi, self.stimulus_time, self.imaging_time)
+#        self.positions = [o[0]['sig'][2]['pos'] for o in self.organized_blocks]
+#        self.colors = [o[0]['sig'][2]['color'] for o in self.organized_blocks]
+#        self.boundaries = []
+#        for o in self.organized_blocks:
+#            self.boundaries.append([[r['start'], r['end']  ] for r in o])
+        hh.close()
+        self.printc('Files opened {0}'.format(', '.join([os.path.split(f)[1] for f in self.filenames])))
+        
+    def get_positions(self,filename):
+        import copy
+        from visexpman.engine.vision_experiment import experiment_data
+        idnode = hdf5io.read_item(filename, '_'.join(os.path.split(filename)[1].replace('.hdf5','').split('_')[-3:]), filelocking=False)
+        self.machine_config = utils.array2object(idnode['machine_config'])
+        sd = copy.deepcopy(idnode['sync_data'])
+        self.sync_sample_rate = float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE'])
+        stimulus_time = signal.trigger_indexes(sd[:,1])[::2]/self.sync_sample_rate
+        sfi = copy.deepcopy(idnode['stimulus_frame_info'])
+        imaging_time = signal.trigger_indexes(sd[:,0])[::2]/self.sync_sample_rate
+        block_times, stimulus_parameter_times,block_info, self.organized_blocks = experiment_data.process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
+        positions = [o[0]['sig'][2]['pos'] for o in self.organized_blocks]
+        colors = [o[0]['sig'][2]['color'] for o in self.organized_blocks]
+        boundaries = []
         for o in self.organized_blocks:
-            self.boundaries.append([[r['start'], r['end']  ] for r in o])
+            boundaries.append([[r['start'], r['end']  ] for r in o])
         self.ontime = utils.array2object(idnode['experiment_config']).ON_TIME
         self.offtime = utils.array2object(idnode['experiment_config']).OFF_TIME
-        hh.close()
-        self.printc('File opened {0}'.format(self.filename))
-        
-    def get_imaging_time(self, filename):
-        idnode = hdf5io.read_item(filename, '_'.join(os.path.split(filename)[1].replace('.hdf5','').split('_')[-3:]), filelocking=False)
-        import copy
-        self.sd = copy.deepcopy(idnode['sync_data'])
-        #Calculate timing from sync signal
-        self.imaging_time = signal.trigger_indexes(self.sd[:,0])[::2]/self.sync_sample_rate
-        return self.imaging_time
+        return stimulus_time, imaging_time, positions, colors, boundaries
         
     def update_plots(self):
         if not hasattr(self,'filename'):
@@ -288,11 +304,11 @@ class ReceptiveFieldPlotter(SmallApp):
             raw_trace = self.overall_activity
             self.notify_user('Warning', 'No roi selected,overall activity is plotted')
         elif len(self.image.rois)==2:
-            raw_traces=[]
-            imaging_times=[]
+            aggregated_data = []
+            t0=time.time()
             for filename in self.filenames:
                 rawdata = hdf5io.read_item(filename, 'rawdata',filelocking=False)
-                imaging_times.append(self.get_imaging_time(filename))
+                stimulus_time, imaging_time, positions, colors, boundaries = self.get_positions(filename)
                 for i in range(2):
                     roipos = self.image.rois[i].pos()
                     roiposx=int(roipos.x()/self.scale)
@@ -316,10 +332,11 @@ class ReceptiveFieldPlotter(SmallApp):
                     elif i==1:
                         background=masked.mean(axis=1).mean(axis=1)
                 raw_trace -=background
-                raw_traces.append(raw_trace)
+                aggregated_data.append([raw_trace, stimulus_time, imaging_time, positions, colors, boundaries])
         else:
             self.notify_user('Warning', 'Exactly two rois should be placed: 1. cell, 2. bakcground')
             return
+        self.positions = aggregated_data[0][3]
         nrows = len(set([p['row'] for p in self.positions]))
         ncols = len(set([p['col'] for p in self.positions]))
         col_start = min(set([p['col'] for p in self.positions]))
@@ -333,24 +350,23 @@ class ReceptiveFieldPlotter(SmallApp):
             traces.append(traces1)
         plotrangemax=[]
         plotrangemin=[]
-        for i in range(len(self.positions)):
-            p=self.positions[i]
-            plot_color = tuple([int(255*self.colors[i]), 0,0])
-            r=int(round((self.positions[i]['row']-row_start)/grid_size))
-            c=int(round((self.positions[i]['col']-col_start)/grid_size))
-            scx=self.machine_config.SCREEN_CENTER['col']
-            scy=self.machine_config.SCREEN_CENTER['row']
-#            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']-scx), int(p['row']-scy), int(p['col']-scx), int(p['row']-scy))
-            traces[r][c]['title'] = 'utils.cr(({0},{1}))'.format(int(p['col']-scx), int(p['row']-scy))
-            if not traces[r][c].has_key('trace'):
-                traces[r][c]['trace'] = []
-            boundaries = self.boundaries[i]
-            for rep in range(len(boundaries)):
-                boundary=boundaries[rep]
-                for rt in range(len(raw_traces)):
-                    y=raw_traces[rt][boundary[0]:boundary[1]]
-                    self.imaging_time = imaging_times[rt]
-                    x=self.imaging_time[boundary[0]:boundary[1]]
+        for ad in aggregated_data:
+            raw_trace, stimulus_time, imaging_time, positions, colors, boundaries = ad
+            for i in range(len(positions)):
+                p=positions[i]
+                plot_color = tuple([0, 0, int(128*colors[i])])
+                r=int(round((positions[i]['row']-row_start)/grid_size))
+                c=int(round((positions[i]['col']-col_start)/grid_size))
+                scx=self.machine_config.SCREEN_CENTER['col']
+                scy=self.machine_config.SCREEN_CENTER['row']
+    #            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']-scx), int(p['row']-scy), int(p['col']-scx), int(p['row']-scy))
+                traces[r][c]['title'] = 'cr(({0},{1}))'.format(int(p['col']-scx), int(p['row']-scy))
+                if not traces[r][c].has_key('trace'):
+                    traces[r][c]['trace'] = []
+                for rep in range(len(boundaries[i])):
+                    boundary=boundaries[i][rep]
+                    y=raw_trace[boundary[0]:boundary[1]]
+                    x=imaging_time[boundary[0]:boundary[1]]
                     x-=x[0]
                     baseline = y[numpy.where(x<0.5*self.offtime)[0]].mean()
                     y/=baseline
@@ -358,6 +374,30 @@ class ReceptiveFieldPlotter(SmallApp):
                     plotrangemax.append(max(y))
                     plotrangemin.append(min(y))
                     traces[r][c]['trace'].append(t)
+#                #calculate average
+#                y = numpy.array([t['y'] for t in traces[r][c]['trace']]).mean(axis=0)
+#                x = traces[r][c]['trace'][0]['x']
+#                t = {'x':  x, 'y':y, 'color': (255, 0, 0)}
+#                traces[r][c]['trace'].append(t)
+#                traces[r][c]['response_size'] = y[numpy.where(numpy.logical_and(x>self.offtime*0.5, x<self.offtime*0.5+self.ontime))[0]].mean()
+#                response_sizes.append(traces[r][c]['response_size'])
+#        for i in range(len(traces)):
+#            for j in range(len(traces[i])):
+#                traces[i][j]['response_size_scaled'] = (traces[i][j]['response_size'] - min(response_sizes))/(max(response_sizes)-min(response_sizes))
+        response_sizes = []
+        for r in range(len(traces)):
+            for c in range(len(traces[r])):
+                #Calculate mean of repetitions
+                l = min([t['y'].shape[0] for t in traces[r][c]['trace']])
+                y=numpy.array([t['y'][:l] for t in traces[r][c]['trace']]).mean(axis=0)
+                x= traces[r][c]['trace'][0]['x'][:l]
+                t = {'x':  x, 'y':y, 'color': (255, 0, 0)}
+                traces[r][c]['trace'].append(t)
+                traces[r][c]['response_size'] = y[numpy.where(numpy.logical_and(x>self.offtime*0.5, x<self.offtime*0.5+self.ontime))[0]].mean()
+                response_sizes.append(traces[r][c]['response_size'])
+        for r in range(len(traces)):
+            for c in range(len(traces[r])):
+                traces[r][c]['response_size_scaled'] = (traces[r][c]['response_size'] - min(response_sizes))/(max(response_sizes)-min(response_sizes))
         self.plots.set_plot_num(nrows,ncols)
         self.plots.addplots(traces)
         for pp in self.plots.plots:
