@@ -238,8 +238,8 @@ def phys2mat(filename):
 class TestConverter(unittest.TestCase):
     def test_01_phystiff2hdf5(self):
 #        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
-#        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
-        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data', '/mnt/rzws/dataslow/rei_data_c2')
+        p=PhysTiff2Hdf5('/tmp/rei_data','/tmp/rei_data')
+#        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data', '/mnt/rzws/dataslow/rei_data_c2')
         p.use_tiff=not False
 #        p.detect_and_convert()
         p.convert_old_files()

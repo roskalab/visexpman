@@ -45,6 +45,15 @@ class GUIData(object):
 class Analysis(object):
     def __init__(self,machine_config):
         self.machine_config = machine_config
+        
+    def keep_rois(self, keep):
+        if keep:
+            if hasattr(self, 'rois'):
+                self.reference_rois = [{'rectangle': r['rectangle'], 'area' :r.get('area',None)} for r in self.rois]
+                self.reference_roi_filename = copy.deepcopy(self.filename)
+        else:
+            if hasattr(self, 'reference_rois'):
+                del self.reference_rois
 
     def open_datafile(self,filename):
         if fileop.parse_recording_filename(filename)['type'] != 'data':
@@ -55,16 +64,25 @@ class Analysis(object):
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync, self.timg]})
+        background_threshold = self.guidata.read('Background threshold')*1e-2
+        self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
         self.rois = self.datafile.findvar('rois')
-        if self.rois is None:
+        if hasattr(self, 'reference_rois'):
+            #Calculate roi curves
+            self.rois = copy.deepcopy(self.reference_rois)
+            self._extract_roi_curves()
+            self._normalize_roi_curves()
+            self.current_roi_index = 0
+            self.display_roi_rectangles()
+            self.display_roi_curve()
+        elif self.rois is None:#No reference rois, noting is loaded from file
             self.rois=[]
         else:
             self.current_roi_index = 0
             self.display_roi_rectangles()
             self.display_roi_curve()
         self.datafile.close()
-        background_threshold = self.guidata.read('Background threshold')*1e-2
-        self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
+        
         
     def find_cells(self):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
@@ -101,7 +119,6 @@ class Analysis(object):
             self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
         self.to_gui.put({'show_suggested_rois' :self.image_w_rois})
         
-        
     def _filter_rois(self):
         self.suggested_rois = [r for r in self.suggested_rois if min(r[:,0].max()-r[:,0].min(), r[:,1].max()-r[:,1].min())>2]#Roi bounding rectangle's sides are greater than 2 pixel
         #remove overlapping rois
@@ -119,8 +136,17 @@ class Analysis(object):
                 removeable_rois.extend([roi1, roi2])
         self.suggested_rois = [sr for sr in self.suggested_rois if len([rr for rr in removeable_rois if numpy.array_equal(rr, sr)])==0]
         
-    def _pack_roi_info(self):
+    def _pack_roi_info(self):#TODO: this shall be eliminated. _extract_roi_curves shall be used instead
         self.rois.extend([{'raw': self.raw_roi_curves[i], 'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))])
+        
+    def _extract_roi_curves(self):
+        for r in self.rois:
+            if r.has_key('area') and r['area'] is not None:
+                r['raw'] = self.raw_data[:,:,r['area'][:,0], r['area'][:,1]].mean(axis=2).flatten()-self.background
+            elif r.has_key('rectangle'):
+                r['raw'] = self.raw_data[:,:,r['rectangle'][0]-0.5*r['rectangle'][2]: r['rectangle'][0]+0.5*r['rectangle'][2], r['rectangle'][1]-0.5*r['rectangle'][3]: r['rectangle'][1]+0.5*r['rectangle'][3]].mean(axis=2).mean(axis=2).flatten()
+                r['raw'] -= self.background
+        
         
     def _normalize_roi_curves(self):
         baseline_length = self.guidata.read('Baseline lenght')
@@ -190,6 +216,7 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
+        raw -= self.background
         self.rois.append({'rectangle': rectangle, 'raw': raw})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()

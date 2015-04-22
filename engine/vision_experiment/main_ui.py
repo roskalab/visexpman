@@ -46,8 +46,6 @@ class Image(gui.Image):
         self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
-        if 0:
-            self.connect(self, QtCore.SIGNAL('roi_update'), parent.analysis.roi_update)
             
 class Debug(QtGui.QTabWidget):
     def __init__(self,parent):
@@ -77,12 +75,29 @@ class FileBrowser(QtGui.QTabWidget):
         if ext == 'hdf5':
             function = 'open_datafile'
             scope = 'analysis'
+            self.parent.to_engine.put({'function': 'keep_rois', 'args':[self.parent.analysis_helper.keep_rois.input.checkState()==2]})
+            self.parent.analysis_helper.keep_rois.input.setCheckState(0)
         elif ext == 'py':
             function = 'open_stimulus_file'
             scope = 'tbd'
         else:
             raise NotImplementedError(filename)
         self.parent.to_engine.put({'function': function, 'args':[filename]})
+        
+class AnalysisHelper(QtGui.QWidget):
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
+        self.show_rois.input.setCheckState(2)
+        self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
+        self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
+        self.layout = QtGui.QVBoxLayout()
+        self.layout.addStretch(1)
+        self.layout.addWidget(self.show_rois)
+        self.layout.addWidget(self.keep_rois)
+        self.setLayout(self.layout)
+        self.setMaximumHeight(90)
+
 
 class MainUI(Qt.QMainWindow):
     def __init__(self, context):
@@ -119,15 +134,15 @@ class MainUI(Qt.QMainWindow):
         self._add_dockable_widget('Parameters', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.params)
         self._load_all_parameters()
         
-        self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
-        self._add_dockable_widget('Show/hide rois', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.show_rois)
+        self.analysis_helper = AnalysisHelper(self)
+        self._add_dockable_widget('Analysis helper', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.analysis_helper)
         
         self.show()
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         
-        self.connect(self.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
+        self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -149,7 +164,7 @@ class MainUI(Qt.QMainWindow):
                 self.image.remove_all_rois()
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
                 self._write2statusbar('Suggested rois displayed')
-                self.printc('Found {0} rois'.format(len(msg['display_roi_rectangles'])))
+                self.printc('Displaying {0} rois'.format(len(msg['display_roi_rectangles'])))
             elif msg.has_key('display_roi_curve'):
                 timg, curve, index, tsync = msg['display_roi_curve']
                 #Highlight roi
