@@ -27,7 +27,7 @@ class ToolBar(QtGui.QToolBar):
         
     def add_buttons(self):
         icon_folder = os.path.join(os.path.split(__file__)[0],'..','..','data', 'icons')
-        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'exit']:
+        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
             a = QtGui.QAction(QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(button))), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
@@ -118,10 +118,16 @@ class MainUI(Qt.QMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self._add_dockable_widget('Parameters', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.params)
         self._load_all_parameters()
+        
+        self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
+        self._add_dockable_widget('Show/hide rois', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.show_rois)
+        
         self.show()
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        
+        self.connect(self.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -137,8 +143,8 @@ class MainUI(Qt.QMainWindow):
                 self.image.set_scale(self.image_scale)
                 self._write2statusbar('File opened')
             elif msg.has_key('show_suggested_rois'):
-                self.image_w_suggested_rois = msg['show_suggested_rois']
-                self.image.set_image(self.image_w_suggested_rois )
+                self.image_w_rois = msg['show_suggested_rois']
+                self.image.set_image(self.image_w_rois)
             elif msg.has_key('display_roi_rectangles'):
                 self.image.remove_all_rois()
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
@@ -161,6 +167,8 @@ class MainUI(Qt.QMainWindow):
                 self.to_engine.put(reply == QtGui.QMessageBox.Yes)
             elif msg.has_key('notify'):
                 QtGui.QMessageBox.question(self, msg['notify']['title'], msg['notify']['msg'], QtGui.QMessageBox.Ok)
+            elif msg.has_key('delete_all_rois'):
+                self.image.remove_all_rois()
             
          
                 
@@ -321,12 +329,20 @@ class MainUI(Qt.QMainWindow):
         '''Also exports to mat file'''
         self.to_engine.put({'function': 'save_rois_and_export', 'args':[]})
         
+    def delete_all_rois_action(self):
+        self.to_engine.put({'function': 'delete_all_rois', 'args':[]})
+        
     def exit_action(self):
         self._dump_all_parameters()
         self._stop_engine()
         self.close()
     
     ############# Events #############
+    def show_rois_changed(self,state):
+        im = numpy.copy(self.image_w_rois)
+        im[:,:,2] *= state==2
+        self.image.set_image(im)
+        
     def roi_mouse_selected(self,x,y):
         self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})
     

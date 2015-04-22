@@ -80,21 +80,44 @@ class Analysis(object):
         sigma = self.guidata.read('Sigma')/self.image_scale
         threshold_factor = self.guidata.read('Threshold factor')
         self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
-        self.suggested_roi_contours = map(cone_data.somaroi2edges, self.suggested_rois)
-        self.image_w_suggested_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
-        self.image_w_suggested_rois[:,:,1] = self.meanimage
-        for coo in self.suggested_roi_contours:
-            self.image_w_suggested_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
-        self.to_gui.put({'show_suggested_rois' :self.image_w_suggested_rois})
+        self._filter_rois()
         #Calculate roi bounding box
-        self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_roi_contours]
+        self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_rois]
         self.roi_rectangles = [[sum(r[:2])*0.5, sum(r[2:])*0.5, (r[1]-r[0]), (r[3]-r[2])] for r in self.roi_bounding_boxes]
         self.raw_roi_curves = [self.raw_data[:,:,r[:,0], r[:,1]].mean(axis=2).flatten()-self.background for r in self.suggested_rois]
         self._pack_roi_info()
+        self._roi_area2image()
         self.current_roi_index = 0
         self._normalize_roi_curves()
         self.display_roi_rectangles()
         self.display_roi_curve()
+        
+    def _roi_area2image(self):
+        areas = [r['area'] for r in self.rois if r.has_key('area')]
+        contours = map(cone_data.somaroi2edges, areas)
+        self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
+        self.image_w_rois[:,:,1] = self.meanimage
+        for coo in contours:
+            self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
+        self.to_gui.put({'show_suggested_rois' :self.image_w_rois})
+        
+        
+    def _filter_rois(self):
+        self.suggested_rois = [r for r in self.suggested_rois if min(r[:,0].max()-r[:,0].min(), r[:,1].max()-r[:,1].min())>2]#Roi bounding rectangle's sides are greater than 2 pixel
+        #remove overlapping rois
+        import itertools
+        removeable_rois = []
+        for roi1, roi2 in itertools.combinations(self.suggested_rois,2):
+            mask1=numpy.zeros(self.meanimage.shape)
+            mask1[roi1[:,0], roi1[:,1]]=1
+            mask2=numpy.zeros(self.meanimage.shape)
+            mask2[roi2[:,0], roi2[:,1]]=1
+            mask=mask1+mask2
+            overlapping_pixels = numpy.where(mask==2)[0].shape[0]
+            maximal_acceptable_overlap = min(roi1.shape[0], roi2.shape[0])*0.05#5% overlap is allowed
+            if overlapping_pixels>maximal_acceptable_overlap:
+                removeable_rois.extend([roi1, roi2])
+        self.suggested_rois = [sr for sr in self.suggested_rois if len([rr for rr in removeable_rois if numpy.array_equal(rr, sr)])==0]
         
     def _pack_roi_info(self):
         self.rois.extend([{'raw': self.raw_roi_curves[i], 'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))])
@@ -150,6 +173,17 @@ class Analysis(object):
         elif len(self.rois)<=self.current_roi_index:
             self.current_roi_index = len(self.rois)-1
         self.display_roi_curve()
+        self._roi_area2image()
+        
+    def delete_all_rois(self):
+        if not hasattr(self, 'current_roi_index'):
+            return
+        if not self.ask4confirmation('Removing all rois. Are you sure?'):
+            return
+        self.rois = []
+        del self.current_roi_index
+        self.to_gui.put({'delete_all_rois': None})
+        self._roi_area2image()
         
     def add_manual_roi(self, rectangle):
         rectangle = numpy.array(rectangle)/self.image_scale
@@ -181,6 +215,7 @@ class Analysis(object):
         fileop.set_file_dates(outfile, file_info)
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
+        self.printc('ROIs are saved to {0}'.format(self.filename))
     
 class GUIEngine(threading.Thread, Analysis):
     '''

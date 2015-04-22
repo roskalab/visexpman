@@ -118,8 +118,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
             self.plot.removeItem(r)
         self.rois = []
         self.plot.items = [item for item in self.plot.items if not 'ROI' in item.__class__.__name__]
-            
-    
+        
     def set_roi_visibility(self,x,y,visibility):
         distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
         if len(distances)==0:return
