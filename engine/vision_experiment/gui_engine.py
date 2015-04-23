@@ -56,6 +56,7 @@ class Analysis(object):
                 del self.reference_rois
 
     def open_datafile(self,filename):
+        self._check_unsaved_rois()
         if fileop.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
@@ -221,6 +222,14 @@ class Analysis(object):
         self.display_roi_curve()
         self.printc('Roi added, {0}'.format(rectangle))
         
+    def _check_unsaved_rois(self):
+        if not hasattr(self,'filename'):
+            return
+        rois = hdf5io.read_item(self.filename, 'rois', filelocking=False)
+        if (rois is not None and hasattr(self, 'rois') and len(rois)!=len(self.rois)) or (rois is None and len(self.rois)>0):
+            if self.ask4confirmation('Do you want to save unsaved rois?'):
+                self.save_rois_and_export()
+        
     def save_rois_and_export(self):
         file_info = os.stat(self.filename)
         self.datafile = experiment_data.CaImagingData(self.filename)
@@ -240,6 +249,9 @@ class Analysis(object):
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
+        
+    def close_analysis(self):
+        self._check_unsaved_rois()
     
 class GUIEngine(threading.Thread, Analysis):
     '''
@@ -315,6 +327,7 @@ class GUIEngine(threading.Thread, Analysis):
         self.close()
         
     def close(self):
+        self.close_analysis()
         self.save_context()
 
 class TestGUIEngineIF(unittest.TestCase):

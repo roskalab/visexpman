@@ -184,14 +184,12 @@ class MainUI(Qt.QMainWindow):
                 QtGui.QMessageBox.question(self, msg['notify']['title'], msg['notify']['msg'], QtGui.QMessageBox.Ok)
             elif msg.has_key('delete_all_rois'):
                 self.image.remove_all_rois()
-            
-         
                 
     def _init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
-        self.filebrowser_config = {'data_file': ['/tmp/rei_data_c2', ['hdf5', 'mat']], 'stimulus_file': ['/tmp', ['py']]}#TODO: load from context
-#        self.filebrowser_config = {'data_file': ['r:\\temp\\rei_data_c2', 'hdf5'], 'stimulus_file': ['r:\\temp', 'py']}#TODO: load from context
+        self.filebrowser_config = {'data_file': [self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat']], 'stimulus_file': ['/tmp', ['py']]}#TODO: load py files from config or context
+
         self.params_config = [
                 {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Cell detection', 'type': 'group', 'expanded' : False, 'children': [

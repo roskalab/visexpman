@@ -109,6 +109,7 @@ class PhysTiff2Hdf5(object):
         self.build_hdf5(fphys,ftiff)
         
     def build_hdf5(self,fphys,ftiff,folder=None):
+        t0=time.time()
         if self.use_tiff:
             tmptiff = os.path.join(tempfile.gettempdir(), 'temp.tiff')
             if os.path.exists(tmptiff):
@@ -138,6 +139,7 @@ class PhysTiff2Hdf5(object):
             boundaries[1::2]+=pixel_per_frame-4
             rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
             raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,1:,:,:],0,2**16-1))
+        print 'rawdata ok', time.time()-t0
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
         recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+fileop.file_extension(ftiff), ''))
@@ -154,6 +156,7 @@ class PhysTiff2Hdf5(object):
         if sig is None:
             return
         sync_and_elphys[:,4] = sig
+        print 'sync data ok', time.time()-t0
         id = int(os.path.getmtime(fphys))
         if folder is None:
             folder = os.path.join(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
@@ -161,6 +164,7 @@ class PhysTiff2Hdf5(object):
             os.makedirs(folder)
         cellid=os.path.split(ftiff)[1].split('_')[0]
         filename = os.path.join(folder, 'data_{1}_unknownstim_{0}_0.hdf5'.format(id, cellid))
+        print 'saving to file', time.time()-t0
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = raw_data
         h.fphys = fphys
@@ -252,7 +256,7 @@ if __name__ == '__main__':
     if len(sys.argv)==2:
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1])
         p.use_tiff=False
-        print 'Close windows to exit program'
+        print 'Close window to exit program'
         while True:
             try:
                 if os.name != 'nt' and utils.enter_hit():
