@@ -52,8 +52,6 @@ class Polychrome(instrument.Instrument):
             bandwidth = ctypes.c_double(self.bandwidth)
             intensity = ctypes.c_double(float(intensity))
             self.dllref.TILLPolychrome_SetBandwidth(self.handle, bandwidth, intensity)
-
-
     
     def close_instrument(self):
         '''
@@ -65,8 +63,7 @@ class Polychrome(instrument.Instrument):
 from visexpman.engine.vision_experiment import configuration
 class PolyTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):     
-        COORDINATE_SYSTEM='center'   
-        
+        COORDINATE_SYSTEM='center'
         self._create_parameters_from_locals(locals())
             
 class TestPolychrome(unittest.TestCase):

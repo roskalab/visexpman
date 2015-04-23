@@ -1,12 +1,13 @@
 '''
 generic.gui module has generic gui widgets like labeled widgets. It also contains some gui helper function
 '''
+import os.path
 import numpy
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
-from visexpman.engine.generic import utils,stringop
+from visexpman.engine.generic import utils,stringop,fileop
 from pyqtgraph.parametertree import Parameter, ParameterTree
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
@@ -165,6 +166,45 @@ class FileTree(QtGui.QTreeView):
         
     def test(self,i):
         print self.model.filePath(self.currentIndex())
+
+class ArrowButtons(QtGui.QGroupBox):
+    def __init__(self, name, parent):
+        QtGui.QGroupBox.__init__(self, name, parent)
+        self.setAlignment(Qt.Qt.AlignHCenter)
+        config = {'up': 'arrow_up', 'down': 'arrow_down', 'left': 'previous_roi', 'right': 'next_roi'}
+        self.buttons={}
+        for n, picfile in config.items():
+            iconpath = os.path.join(fileop.visexpman_package_path(),'data', 'icons', '{0}.png'.format(picfile) )
+            self.buttons[n] = QtGui.QPushButton(QtGui.QIcon(iconpath), '' ,parent=self)
+            self.buttons[n].setFlat(True)
+            self.buttons[n].setFixedWidth(23)
+            self.buttons[n].setFixedHeight(23)
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.buttons['up'], 0, 1)
+        self.layout.addWidget(self.buttons['down'], 2, 1)
+        self.layout.addWidget(self.buttons['left'], 1, 0)
+        self.layout.addWidget(self.buttons['right'], 1, 2)
+        self.setFixedWidth(86)
+        self.setFixedHeight(86)
+        self.setLayout(self.layout)
+        for k in config.keys():
+            self.connect(self.buttons[k], QtCore.SIGNAL('clicked()'), getattr(self, k))
+        self.connect(self, QtCore.SIGNAL('arrow'), self.arrow_clicked)
+        
+    def up(self):
+        self.emit(QtCore.SIGNAL('arrow'),'up')
+        
+    def down(self):
+        self.emit(QtCore.SIGNAL('arrow'),'down')
+        
+    def left(self):
+        self.emit(QtCore.SIGNAL('arrow'),'left')
+        
+    def right(self):
+        self.emit(QtCore.SIGNAL('arrow'),'right')
+        
+    def arrow_clicked(self, direction):
+        '''User should redefine this'''
 
 
 class GroupBox(QtGui.QGroupBox):#OBSOLETE

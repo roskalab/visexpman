@@ -26,7 +26,7 @@ class ToolBar(QtGui.QToolBar):
         self.setMovable(False)
         
     def add_buttons(self):
-        icon_folder = os.path.join(os.path.split(__file__)[0],'..','..','data', 'icons')
+        icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
         for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
             a = QtGui.QAction(QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(button))), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
@@ -91,12 +91,15 @@ class AnalysisHelper(QtGui.QWidget):
         self.show_rois.input.setCheckState(2)
         self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
         self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
-        self.layout = QtGui.QVBoxLayout()
-        self.layout.addStretch(1)
-        self.layout.addWidget(self.show_rois)
-        self.layout.addWidget(self.keep_rois)
+        self.roi_adjust = gui.ArrowButtons('Shift Rois', self)
+        
+        self.layout = QtGui.QGridLayout()
+#        self.layout.addStretch(1)
+        self.layout.addWidget(self.show_rois,0,0,1,1)
+        self.layout.addWidget(self.keep_rois,1,0,1,1)
+        self.layout.addWidget(self.roi_adjust,0,1,2,2)
         self.setLayout(self.layout)
-        self.setMaximumHeight(90)
+        self.setMaximumHeight(100)
 
 
 class MainUI(Qt.QMainWindow):
@@ -352,9 +355,10 @@ class MainUI(Qt.QMainWindow):
     
     ############# Events #############
     def show_rois_changed(self,state):
-        im = numpy.copy(self.image_w_rois)
-        im[:,:,2] *= state==2
-        self.image.set_image(im)
+        if hasattr(self, 'image_w_rois'):
+            im = numpy.copy(self.image_w_rois)
+            im[:,:,2] *= state==2
+            self.image.set_image(im)
         
     def roi_mouse_selected(self,x,y):
         self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})
