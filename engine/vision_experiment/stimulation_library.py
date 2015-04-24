@@ -934,7 +934,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
-        alltexture=numpy.concatenate((numpy.zeros((self.config.SCREEN_RESOLUTION['col'],1,3)),alltexture))
+        fly_in_out = self.config.BACKGROUND_COLOR[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
+        intensity_profile_length += 2*fly_in_out.shape[0]
+        alltexture=numpy.concatenate((fly_in_out,alltexture,fly_in_out))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
