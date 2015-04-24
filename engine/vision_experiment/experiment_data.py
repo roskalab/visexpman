@@ -11,6 +11,7 @@ import hashlib
 import string
 import shutil
 import tempfile
+import time
 import StringIO
 from PIL import Image,ImageDraw
 
@@ -71,6 +72,12 @@ def check(h, config):
     if h_opened:
         h.close()
     return error_messages
+    
+def get_id(timestamp=None):
+    if timestamp is None:
+        timestamp = time.time()
+    epoch = time.mktime((2014, 01, 01, 0,0,0,0,0,0))
+    return str(int(numpy.round(timestamp-epoch, 2)*100))
 
 ############### Preprocess measurement data ####################
 class CaImagingData(hdf5io.Hdf5io):

@@ -728,7 +728,7 @@ class ExperimentControl(gui.WidgetControl):
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
             'status' : 'queued',
             'state_transition_times':[['queued',time.time()]],#Keeps track of what transitions happened and when
-            'id':str(int(numpy.round(time.time(), 2)*100)), 
+            'id':experiment_data.get_id(time.time()), 
             'save2file' : (self.poller.parent.central_widget.save2file.input.checkState()==2),
             'averaging' : self.poller.parent.central_widget.averaging.input.text()
                            }

@@ -157,7 +157,7 @@ class PhysTiff2Hdf5(object):
             return
         sync_and_elphys[:,4] = sig
         print 'sync data ok', time.time()-t0
-        id = int(os.path.getmtime(fphys))
+        id = experiment_data.get_id(os.path.getmtime(fphys))
         if folder is None:
             folder = os.path.join(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
         if not os.path.exists(folder):
