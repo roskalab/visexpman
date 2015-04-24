@@ -16,6 +16,15 @@ import subprocess, os, signal
 import copy
 import psutil
 
+def get_available_process_cores():
+    '''
+    Returns the number of available processor cores. It is the 75% of all the cores but at least 1
+    '''
+    import multiprocessing
+    multiprocessing.cpu_count()
+    nprocesses = int(multiprocessing.cpu_count()*0.75)
+    return 1 if nprocesses==0 else nprocesses
+
 def get_process_name(pid):
     p = psutil.Process(pid)
     if callable(p.name):

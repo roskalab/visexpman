@@ -10,7 +10,7 @@ import unittest
 import numpy
 import hdf5io
 from visexpman.engine.vision_experiment import experiment_data, cone_data
-from visexpman.engine.generic import fileop, signal,stringop,utils
+from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):
@@ -116,11 +116,8 @@ class Analysis(object):
         self.display_roi_curve()
         
     def _roi_area2image(self):
-        areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and r['area'] is not None]
-        import multiprocessing
-        multiprocessing.cpu_count()
-        nprocesses = int(multiprocessing.cpu_count()*0.75)
-        p=multiprocessing.Pool(1 if nprocesses==0 else nprocesses)
+        areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
+        p=multiprocessing.Pool(introspect.get_available_process_cores())
         contours=p.map(cone_data.area2edges, areas)
         self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
         self.image_w_rois[:,:,1] = self.meanimage
@@ -147,7 +144,7 @@ class Analysis(object):
         
     def _extract_roi_curves(self):
         for r in self.rois:
-            if r.has_key('area') and r['area'] is not None:
+            if r.has_key('area') and hasattr(r['area'], 'dtype'):
                 area = self._clip_area(copy.deepcopy(r['area']))
                 r['raw'] = self.raw_data[:,:,area[:,0], area[:,1]].mean(axis=2).flatten()-self.background
             elif r.has_key('rectangle'):
@@ -229,7 +226,7 @@ class Analysis(object):
         rectangle[1] +=0.5*rectangle[3]
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
         raw -= self.background
-        self.rois.append({'rectangle': rectangle, 'raw': raw})
+        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
         self.to_gui.put({'fix_roi' : None})
@@ -250,7 +247,8 @@ class Analysis(object):
         self.datafile.rois = copy.deepcopy(self.rois)
         if hasattr(self, 'reference_roi_filename'):
             self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
-        self.datafile.save(['rois', 'repetition_link'], overwrite=True)
+            self.datafile.save(['repetition_link'], overwrite=True)
+        self.datafile.save(['rois'], overwrite=True)
         #List main nodes of hdf5 file
         items = [r._v_name for r in self.datafile.h5f.list_nodes('/')]
         #Copy data to dictionary
@@ -267,17 +265,21 @@ class Analysis(object):
         self.printc('ROIs are saved to {0}'.format(self.filename))
         
     def roi_shift(self, h, v):
-        numpy.array([h,v])
         for r in self.rois:
             r['rectangle'][0] += h
             r['rectangle'][1] += v
-            if r.has_key('area') and r['area'] is not None:
+            if r.has_key('area') and hasattr(r['area'], 'dtype'):
                 r['area'] += numpy.array([h,v])
         self._extract_roi_curves()
         self._normalize_roi_curves()
         self._roi_area2image()
         self.display_roi_rectangles()
         self.display_roi_curve()
+        
+    def find_repetitions(self):
+        if not hasattr(self,'filename'):
+            return
+        self.printc('Searching for repetitions, please wait...')
         
     def close_analysis(self):
         self._check_unsaved_rois()

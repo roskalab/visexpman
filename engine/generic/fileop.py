@@ -528,7 +528,13 @@ def parse_recording_filename(filename):
     items['experiment_name'] = fnp[-2-offset]
     return items
         
-        
+def is_recording_filename(filename):
+    try:
+        items = parse_recording_filename(filename)
+        idnum = int(items['id'])
+        return True
+    except:
+        return False
     
     
     

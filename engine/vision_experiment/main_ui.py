@@ -109,16 +109,21 @@ class AnalysisHelper(QtGui.QWidget):
         self.show_rois.input.setCheckState(2)
         self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
         self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
+        self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
+        self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.roi_adjust = RoiShift(self)
-        
         self.layout = QtGui.QGridLayout()
-#        self.layout.addStretch(1)
         self.layout.addWidget(self.show_rois,0,0,1,1)
         self.layout.addWidget(self.keep_rois,1,0,1,1)
         self.layout.addWidget(self.roi_adjust,0,1,2,2)
+        self.layout.addWidget(self.show_repetitions,0,3,1,1)
+        self.layout.addWidget(self.find_repetitions,1,3,1,1)
         self.setLayout(self.layout)
         self.setMaximumHeight(100)
-
+        self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
+        
+    def find_repetitions_clicked(self):
+        self.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
 
 class MainUI(Qt.QMainWindow):
     def __init__(self, context):
@@ -164,6 +169,7 @@ class MainUI(Qt.QMainWindow):
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         
         self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
+        self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repeptitions_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -377,6 +383,9 @@ class MainUI(Qt.QMainWindow):
             im = numpy.copy(self.image_w_rois)
             im[:,:,2] *= state==2
             self.image.set_image(im)
+            
+    def show_repeptitions_changed(self,state):
+        self.printc('TBD')
         
     def roi_mouse_selected(self,x,y):
         self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})

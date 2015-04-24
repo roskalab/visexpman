@@ -5,11 +5,12 @@ This module contains Calcim imaging related analysis functions
 import numpy
 import scipy.interpolate
 import os.path
+import copy
 import unittest
 import hdf5io
 from visexpA.engine.dataprocessors import roi
 from visexpA.engine.dataprocessors import signal as signal2
-from visexpman.engine.generic import utils,fileop,signal,geometry
+from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
 import scipy.optimize
 from pylab import plot,show,figure,title,imshow,subplot
 
@@ -129,6 +130,54 @@ def calculate_background(rawdata,threshold=0.1):
     mi=rawdata.mean(axis=0).mean(axis=0)
     x,y = numpy.where(mi<mi.max()*threshold)
     return rawdata[:,:,x,y].mean(axis=2).flatten()
+    
+def find_repetitions(filename, folder):
+    allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
+    allhdf5files = [f for f in allhdf5files if fileop.is_recording_filename(f)]
+    if filename not in allhdf5files:
+        raise RuntimeError('{0} is not in {1}'.format(filename, folder))
+    ids = [fileop.parse_recording_filename(f)['id'] for f in allhdf5files]
+    if len(ids) != len(set(ids)):
+        import collections
+        duplicates = [x for x, y in collections.Counter(ids).items() if y > 1]
+        raise RuntimeError('Some files are duplicated: {0}'.format([f for f in allhdf5files if stringop.string_in_list(duplicates, f, any_match=True)]))
+    #Identify files that are linked together
+    links = [(f, hdf5io.read_item(f, 'repetition_link', filelocking=False)) for f in allhdf5files]
+    links=dict([[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None])
+    filenameid = fileop.parse_recording_filename(filename)['id']
+    repetitions = [filenameid]
+    remaining_links = copy.deepcopy(links)
+    next_ids = [remaining_links[filenameid]]
+    del remaining_links[filenameid]
+    while True:
+        repetitions.extend(next_ids)
+        next_ids = [remaining_links[next_id] for next_id in next_ids if remaining_links.has_key(next_id)]
+        for ni in next_ids:
+            del remaining_links[ni]
+        if len(next_ids)==0:
+            break
+    #Read roi info from assigned files
+    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
+    #take rectangle center for determining mathcing roi
+    aggregated_rectangles = {}
+    for fn, rois in aggregated_rois.items():
+        aggregated_rectangles[fn] = [r['rectangle'] for r in rois]
+    #Match rois from different repetitions
+    reference = aggregated_rectangles[filename]
+    del aggregated_rectangles[filename]
+    for reference_rect in reference:
+        for fn in aggregated_rectangles.keys():
+            
+            pass
+    pass
+    
+def point_vectors(points):
+    '''
+    Calculate relative position (distance, angle) of a point from each other point
+    '''
+    
+        
+    
 
 class TestCA(unittest.TestCase):
     def setUp(self):
@@ -196,6 +245,9 @@ class TestCA(unittest.TestCase):
         import multiprocessing
         p=multiprocessing.Pool(4)
         res=p.map(area2edges, areas)
+        
+    def test_05_find_repetitions(self):
+        find_repetitions('/home/rz/rzws/experiment_data/test/data_C3_unknownstim_1423066960_0.hdf5', '/home/rz/rzws/experiment_data/test')
     
 if __name__=='__main__':
     unittest.main()
