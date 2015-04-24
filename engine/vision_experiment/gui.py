@@ -2278,7 +2278,7 @@ class Analysis(QtGui.QWidget):
             self.emit(QtCore.SIGNAL('notify_user'), 'WARNING', 'Invalid roi size or sigma parameters')
             return
         self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
-        self.suggested_roi_contours = map(cone_data.somaroi2edges, self.suggested_rois)
+        self.suggested_roi_contours = map(cone_data.area2edges, self.suggested_rois)
         self.last_find_roi_parameters = {'min_roi_size':min_, 'max_roi_size':max_, 'sigma':sigma, 'threshold_factor':threshold_factor}
         #Add rois
         for r in self.suggested_roi_contours:

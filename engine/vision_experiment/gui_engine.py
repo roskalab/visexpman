@@ -69,6 +69,9 @@ class Analysis(object):
         self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
+            if self.rois is not None and len(self.rois)>0:
+                if not self.ask4confirmation('File already contains Rois. These will be overwritten with Rois from previous file. Is thak OK?'):
+                    return
             #Calculate roi curves
             self.rois = copy.deepcopy(self.reference_rois)
             self._extract_roi_curves()
@@ -82,6 +85,7 @@ class Analysis(object):
             self.current_roi_index = 0
             self.display_roi_rectangles()
             self.display_roi_curve()
+            self._roi_area2image()
         self.datafile.close()
         
         
@@ -112,8 +116,12 @@ class Analysis(object):
         self.display_roi_curve()
         
     def _roi_area2image(self):
-        areas = [r['area'] for r in self.rois if r.has_key('area')]
-        contours = map(cone_data.somaroi2edges, areas)
+        areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and r['area'] is not None]
+        import multiprocessing
+        multiprocessing.cpu_count()
+        nprocesses = int(multiprocessing.cpu_count()*0.75)
+        p=multiprocessing.Pool(1 if nprocesses==0 else nprocesses)
+        contours=p.map(cone_data.area2edges, areas)
         self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
         self.image_w_rois[:,:,1] = self.meanimage
         for coo in contours:
@@ -140,11 +148,17 @@ class Analysis(object):
     def _extract_roi_curves(self):
         for r in self.rois:
             if r.has_key('area') and r['area'] is not None:
-                r['raw'] = self.raw_data[:,:,r['area'][:,0], r['area'][:,1]].mean(axis=2).flatten()-self.background
+                area = self._clip_area(copy.deepcopy(r['area']))
+                r['raw'] = self.raw_data[:,:,area[:,0], area[:,1]].mean(axis=2).flatten()-self.background
             elif r.has_key('rectangle'):
                 r['raw'] = self.raw_data[:,:,r['rectangle'][0]-0.5*r['rectangle'][2]: r['rectangle'][0]+0.5*r['rectangle'][2], r['rectangle'][1]-0.5*r['rectangle'][3]: r['rectangle'][1]+0.5*r['rectangle'][3]].mean(axis=2).mean(axis=2).flatten()
                 r['raw'] -= self.background
-        
+                
+    def _clip_area(self,area):
+        for i in range(2):#Make sure that indexing is correct even if area falls outside the image
+            area[:,i] = numpy.where(area[:,i]>=self.raw_data.shape[i+2]-1,self.raw_data.shape[i+2]-1,area[:,i])
+            area[:,i] = numpy.where(area[:,i]<0,0,area[:,i])
+        return area
         
     def _normalize_roi_curves(self):
         baseline_length = self.guidata.read('Baseline lenght')
@@ -234,7 +248,9 @@ class Analysis(object):
         file_info = os.stat(self.filename)
         self.datafile = experiment_data.CaImagingData(self.filename)
         self.datafile.rois = copy.deepcopy(self.rois)
-        self.datafile.save('rois', overwrite=True)
+        if hasattr(self, 'reference_roi_filename'):
+            self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
+        self.datafile.save(['rois', 'repetition_link'], overwrite=True)
         #List main nodes of hdf5 file
         items = [r._v_name for r in self.datafile.h5f.list_nodes('/')]
         #Copy data to dictionary
@@ -249,6 +265,19 @@ class Analysis(object):
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
+        
+    def roi_shift(self, h, v):
+        numpy.array([h,v])
+        for r in self.rois:
+            r['rectangle'][0] += h
+            r['rectangle'][1] += v
+            if r.has_key('area') and r['area'] is not None:
+                r['area'] += numpy.array([h,v])
+        self._extract_roi_curves()
+        self._normalize_roi_curves()
+        self._roi_area2image()
+        self.display_roi_rectangles()
+        self.display_roi_curve()
         
     def close_analysis(self):
         self._check_unsaved_rois()

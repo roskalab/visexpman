@@ -35,6 +35,23 @@ class ToolBar(QtGui.QToolBar):
     def hideEvent(self,e):
         self.setVisible(True)
         
+class RoiShift(gui.ArrowButtons):
+    def __init__(self,parent):
+        gui.ArrowButtons.__init__(self, 'Shift Rois', parent)
+        
+    def arrow_clicked(self, direction):
+        h=0
+        v=0
+        if direction == 'left':
+            h -= 1
+        elif direction == 'right':
+            h += 1
+        elif direction == 'down':
+            v -= 1
+        elif direction == 'up':
+            v += 1
+        self.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
+        
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent):
         pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':parent.parent, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
@@ -86,12 +103,13 @@ class FileBrowser(QtGui.QTabWidget):
         
 class AnalysisHelper(QtGui.QWidget):
     def __init__(self, parent):
+        self.parent = parent
         QtGui.QWidget.__init__(self, parent)
         self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
         self.show_rois.input.setCheckState(2)
         self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
         self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
-        self.roi_adjust = gui.ArrowButtons('Shift Rois', self)
+        self.roi_adjust = RoiShift(self)
         
         self.layout = QtGui.QGridLayout()
 #        self.layout.addStretch(1)

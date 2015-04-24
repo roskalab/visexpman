@@ -116,7 +116,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor):
             soma_rois.append(numpy.array(zip(*numpy.nonzero(central_segment))))
     return soma_rois
     
-def somaroi2edges(soma_roi):
+def area2edges(soma_roi):
     edge_pixels = []
     for i in range(soma_roi.shape[0]):
         col_diff=abs(soma_roi[:,0]-soma_roi[i][0])
@@ -175,7 +175,7 @@ class TestCA(unittest.TestCase):
             imshow(mi)
             subplot(1,2,2)
             imshow(im)
-            show()
+#            show()
             h.close()
             break
             
@@ -185,6 +185,17 @@ class TestCA(unittest.TestCase):
             rawdata=h.findvar('raw_data')
             calculate_background(rawdata)
             h.close()
+            
+    def test_04_area2edges(self):
+        areas = [
+            numpy.array([[ 1, 77],[ 1, 78],[ 1, 79],[ 1, 80],[ 1, 81],[ 1, 82],[ 1, 83],[ 1, 84],[ 1, 85],[ 2, 77],[ 2, 78],[ 2, 79],[ 2, 80],[ 2, 81],
+                    [ 2, 82],[ 2, 83],[ 2, 84],[ 2, 85],[ 3, 77],[ 3, 78],[ 3, 79],[ 3, 80],[ 3, 81],[ 3, 82],[ 3, 83],[ 3, 84],[ 3, 85],[ 4, 78],
+                    [ 4, 79],[ 4, 80],[ 4, 81],[ 4, 82],[ 5, 79],[ 5, 80],[ 5, 81]]),
+            numpy.array([[  1, 144],[  1, 145],[  1, 146],[  1, 147],[  1, 148],[  2, 144],[  2, 145],[  2, 146],[  2, 147],[  2, 148],[  3, 144],
+                        [  3, 145],[  3, 146],[  3, 147],[  4, 145],[  4, 146],[  4, 147],[  4, 148],[  5, 146],[  5, 148]])]
+        import multiprocessing
+        p=multiprocessing.Pool(4)
+        res=p.map(area2edges, areas)
     
 if __name__=='__main__':
     unittest.main()

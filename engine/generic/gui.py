@@ -169,6 +169,7 @@ class FileTree(QtGui.QTreeView):
 
 class ArrowButtons(QtGui.QGroupBox):
     def __init__(self, name, parent):
+        self.parent=parent
         QtGui.QGroupBox.__init__(self, name, parent)
         self.setAlignment(Qt.Qt.AlignHCenter)
         config = {'up': 'arrow_up', 'down': 'arrow_down', 'left': 'previous_roi', 'right': 'next_roi'}
