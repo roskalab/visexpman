@@ -145,19 +145,23 @@ def find_repetitions(filename, folder):
         raise RuntimeError('Some files are duplicated: {0}'.format([f for f in allhdf5files if stringop.string_in_list(duplicates, f, any_match=True)]))
     #Identify files that are linked together
     links = [(f, hdf5io.read_item(f, 'repetition_link', filelocking=False)) for f in allhdf5files]#This takes long, cannot be run in parallel processes
-    links=dict([[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None])
+    links=[[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None]
     filenameid = fileop.parse_recording_filename(filename)['id']
     repetitions = [filenameid]
     remaining_links = copy.deepcopy(links)
-    next_ids = [remaining_links[filenameid]]
-    del remaining_links[filenameid]
+    next_ids = [l for l in remaining_links if filenameid in l]
+    map(remaining_links.remove, next_ids)
+    next_ids = [ni[0 if ni.index(filenameid) == 1 else 1 ] for ni in next_ids]
     while True:
         repetitions.extend(next_ids)
-        next_ids = [remaining_links[next_id] for next_id in next_ids if remaining_links.has_key(next_id)]
-        for ni in next_ids:
-            del remaining_links[ni]
+        #check if any of next_ids can be found in remaining_links
+        next_ids= [[l[0 if l.index(next_id)==1 else 1] for l in remaining_links if next_id in l] for next_id in next_ids]
+        next_ids = [nii for ni in next_ids for nii in ni]#flatten list
+        #remove links containing next_ids from remaining_links
+        remaining_links = [rl for rl in remaining_links if rl[0] not in next_ids and rl[1] not in next_ids]
         if len(next_ids)==0:
             break
+    repetitions = list(set(repetitions))
     #Read roi info from assigned files
     aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
     timing = dict([(f, experiment_data.timing_from_file(f)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
@@ -271,10 +275,11 @@ class TestCA(unittest.TestCase):
         res=p.map(area2edges, areas)
         
     def test_05_find_repetitions(self):
-        fn='/home/rz/rzws/experiment_data/test/data_C3_unknownstim_1423066960_0.hdf5'
-        with introspect.Timer(''):
-            res = find_repetitions(fn, '/home/rz/rzws/experiment_data/test')
-        self.assertEqual(sum([r.has_key('matches') for r in res]),41)
+        fns=['/home/rz/rzws/test_data/find_cone_repetitions/data_C1_unknownstim_1423066846_0.hdf5',
+            '/home/rz/rzws/test_data/find_cone_repetitions/data_C3_unknownstim_1423066960_0.hdf5']
+        for fn in fns:
+            res = find_repetitions(fn, '/home/rz/rzws/test_data/find_cone_repetitions')
+            self.assertGreater(sum([r.has_key('matches') for r in res]),0)
         pass
     
 if __name__=='__main__':

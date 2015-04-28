@@ -388,7 +388,7 @@ class MainUI(Qt.QMainWindow):
             self.image.set_image(im)
             
     def show_repeptitions_changed(self,state):
-        self.printc('TBD')
+        self.to_engine.put({'function': 'display_roi_curve', 'args':[state==2]})
         
     def roi_mouse_selected(self,x,y):
         self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})

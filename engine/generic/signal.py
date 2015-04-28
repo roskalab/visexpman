@@ -222,6 +222,8 @@ def average_of_traces(x,y):
     common_x_min = max([xi.min() for xi in x])
     common_x_max = min([xi.max() for xi in x])
     indexes = numpy.array([numpy.where(numpy.logical_and(x[i]>=common_x_min, x[i]<=common_x_max))[0] for i in range(len(y))])
+    length = min([i.shape[0] for i in indexes])
+    indexes = numpy.array([i[:length] for i in indexes])
     y_average = numpy.array([y[i][indexes[i]] for i in range(len(y))]).mean(axis=0)
     x_average = numpy.array([x[i][indexes[i]] for i in range(len(x))]).mean(axis=0)
     return x_average, y_average
@@ -365,6 +367,14 @@ class TestSignal(unittest.TestCase):
         y=[numpy.arange(10),2*numpy.arange(7), 3*numpy.arange(9)]
         x_, y_ = average_of_traces(x,y)
         self.assertEqual(x_.shape,y_.shape)
+        import hdf5io
+        rois = utils.array2object(hdf5io.read_item('/home/rz/rzws/test_data/trace_avg/trace_avg.hdf5','rois', filelocking=False))
+        x = [hdf5io.read_item('/home/rz/rzws/test_data/trace_avg/trace_avg.hdf5','timg', filelocking=False)]
+        y = [rois[0]['normalized']]
+        x.append(rois[0]['matches']['/mnt/rzws/experiment_data/test/20150310/C1_3371241139/data_C1_unknownstim_1425992998_0.hdf5']['timg'])
+        y.append(rois[0]['matches']['/mnt/rzws/experiment_data/test/20150310/C1_3371241139/data_C1_unknownstim_1425992998_0.hdf5']['normalized'])
+        x_, y_ = average_of_traces(x,y)
+        
     
 
 if __name__=='__main__':
