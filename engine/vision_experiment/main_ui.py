@@ -253,7 +253,7 @@ class MainUI(Qt.QMainWindow):
 #    ]}]
         
     def _start_engine(self):
-        self.engine = gui_engine.GUIEngine(self.machine_config)
+        self.engine = gui_engine.GUIEngine(self.machine_config, self.logger)
         self.to_engine, self.from_engine = self.engine.get_queues()
         self.engine.start()
         
@@ -414,7 +414,7 @@ class MainUI(Qt.QMainWindow):
     
 if __name__ == '__main__':
     import visexpman.engine
-    context = visexpman.engine.application_init(user = 'zoltan', config = 'CaImagingTestConfig', user_interface_name = 'main_ui')
+    context = visexpman.engine.application_init(user = 'zoltan', config = 'CaImagingTestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
     
     context['logger'].start()
     m = MainUI(context=context)

@@ -208,6 +208,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         self.stim_context['last_experiment_stimulus_frame_info'] = self.experiment_config.runnable.stimulus_frame_info
 
 def run_main_ui(context):
+    context['logger'].add_source('engine')
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
     if 0:
         gui =  VisionExperimentGui(config=context['machine_config'], 

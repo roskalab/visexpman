@@ -108,8 +108,7 @@ def application_init(**kwargs):
     log_sources = utils.get_key(kwargs, 'log_sources')
     if log_sources is not None:
         map(logger.add_source, log_sources)
-    else:
-        logger.add_source(machine_config.user_interface_name)
+    logger.add_source(machine_config.user_interface_name)
     #add application specific log sources
     if machine_config.user_interface_name=='ca_imaging' or machine_config.user_interface_name=='main_ui':
         logger.add_source('daq')

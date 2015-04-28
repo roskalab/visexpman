@@ -308,7 +308,9 @@ class Analysis(object):
                 self.rois[i]['matches'] = aggregated_rois[i]['matches']
                 files.extend(self.rois[i]['matches'].keys())
         if len(files)>0:
-            self.printc('Repetitions found in {0}'.format(', ' .join(list(set(files)))))
+            self.printc('Repetitions found in {0} files: {1}'.format(len(list(set(files))), ', ' .join(list(set(files)))))
+        else:
+            self.printc('No repetitions found')
         self._normalize_roi_curves()
         self.display_roi_curve()
         
@@ -325,7 +327,8 @@ class GUIEngine(threading.Thread, Analysis):
      {'command_name': [parameters]}
     '''
 
-    def __init__(self, machine_config):
+    def __init__(self, machine_config, log):
+        self.log=log
         self.machine_config = machine_config
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
@@ -398,6 +401,7 @@ class GUIEngine(threading.Thread, Analysis):
                 elif msg.has_key('function'):#Functions are simply forwarded
                     #Format: {'function: function name, 'args': [], 'kwargs': {}}
                     getattr(self, msg['function'])(*msg['args'])
+                    self.log.info(msg, 'engine')
             except:
                 import traceback
                 self.printc(traceback.format_exc())

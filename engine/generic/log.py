@@ -52,7 +52,6 @@ class LoggerHelper(object):
         elif self.sources.has_key(source):
             q = self.sources[source]
         else:
-            from visexpman.engine import LoggingError
             raise LoggingError('{0} logging source was not added to logger'.format(source))
         if queue is not None:#Message is put to provided queue, this is used for sending log info to remote application's console
             queue.put(entry[-1])
