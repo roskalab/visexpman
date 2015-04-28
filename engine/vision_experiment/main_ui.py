@@ -196,8 +196,11 @@ class MainUI(Qt.QMainWindow):
                 timg, curve, index, tsync = msg['display_roi_curve']
                 #Highlight roi
                 self.image.highlight_roi(index)
-                #Update plot
-                self.plot.update_curve(timg, curve)
+                if isinstance(timg, list) and isinstance(curve, list):
+                    self.plot.update_curves(timg, curve)
+                else:
+                    #Update plot
+                    self.plot.update_curve(timg, curve)
                 self.plot.add_linear_region(*list(tsync))
             elif msg.has_key('remove_roi_rectangle'):
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))

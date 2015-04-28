@@ -94,6 +94,15 @@ class CaImagingData(hdf5io.Hdf5io):
         '''
         Supported formats: mat, tiff
         '''
+        
+def timing_from_file(filename):
+    '''
+    Shortcut for reading/calculating timing information from file
+    '''
+    cd=CaImagingData(filename)
+    tsync,timg, meanimage, image_scale, raw_data = cd.prepare4analysis()
+    cd.close()
+    return tsync,timg
 
 def read_sync_rawdata(h):
     '''

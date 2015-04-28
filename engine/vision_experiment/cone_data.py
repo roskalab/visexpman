@@ -8,9 +8,11 @@ import os.path
 import copy
 import unittest
 import hdf5io
+import itertools
 from visexpA.engine.dataprocessors import roi
 from visexpA.engine.dataprocessors import signal as signal2
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
+from visexpman.engine.vision_experiment import experiment_data
 import scipy.optimize
 from pylab import plot,show,figure,title,imshow,subplot
 
@@ -142,7 +144,7 @@ def find_repetitions(filename, folder):
         duplicates = [x for x, y in collections.Counter(ids).items() if y > 1]
         raise RuntimeError('Some files are duplicated: {0}'.format([f for f in allhdf5files if stringop.string_in_list(duplicates, f, any_match=True)]))
     #Identify files that are linked together
-    links = [(f, hdf5io.read_item(f, 'repetition_link', filelocking=False)) for f in allhdf5files]
+    links = [(f, hdf5io.read_item(f, 'repetition_link', filelocking=False)) for f in allhdf5files]#This takes long, cannot be run in parallel processes
     links=dict([[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None])
     filenameid = fileop.parse_recording_filename(filename)['id']
     repetitions = [filenameid]
@@ -158,26 +160,48 @@ def find_repetitions(filename, folder):
             break
     #Read roi info from assigned files
     aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
+    timing = dict([(f, experiment_data.timing_from_file(f)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
     for fn, rois in aggregated_rois.items():
-        aggregated_rectangles[fn] = [r['rectangle'] for r in rois]
+        aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
     reference = aggregated_rectangles[filename]
+    ref_signatures = point_signature(reference)
     del aggregated_rectangles[filename]
+    matches = []
+    roi_ct = 0
     for reference_rect in reference:
+        ref_sig=find_by_point(reference_rect, ref_signatures)
         for fn in aggregated_rectangles.keys():
-            
-            pass
-    pass
+            signatures = point_signature(aggregated_rectangles[fn])
+            match_list = [compare_signatures(ref_sig, find_by_point(r, signatures)) for r in aggregated_rectangles[fn]]
+            match_weight = max(match_list)
+            if match_weight>len(aggregated_rectangles[fn])*0.7:#Match: if there are at least n exact matches where n can be 70 % of number of rois
+                if not aggregated_rois[filename][roi_ct].has_key('matches'):
+                    aggregated_rois[filename][roi_ct]['matches'] = {}
+                index=numpy.array(match_list).argmax()
+                timg = timing[fn][1]
+                tsync = timing[fn][0]
+                aggregated_rois[filename][roi_ct]['matches'][fn] = {'tsync': tsync, 'timg': timg, 'raw': aggregated_rois[fn][index]['raw'], 'match_weight': match_weight}
+        roi_ct += 1
+    return aggregated_rois[filename]
     
-def point_vectors(points):
+def point_signature(points):
     '''
     Calculate relative position (distance, angle) of a point from each other point
     '''
+    signatures = numpy.array([[p1, p2, (numpy.array(p2)-numpy.array(p1))] for p1, p2 in itertools.combinations(points,2)])
+    return signatures
     
-        
+def find_by_point(p1, signatures):
+    return signatures[numpy.where(numpy.logical_and(signatures[:, :2,0]==p1[0], signatures[:,:2,1]==p1[1]))[0],2,:]
     
+def compare_signatures(sig1, sig2):
+    number_of_matches = 0
+    for sig1i in sig1:
+        number_of_matches += 1 if numpy.where(abs(numpy.array(sig2)-sig1i).sum(axis=1)<1e-9)[0].shape[0] > 0 else 0
+    return number_of_matches
 
 class TestCA(unittest.TestCase):
     def setUp(self):
@@ -247,7 +271,11 @@ class TestCA(unittest.TestCase):
         res=p.map(area2edges, areas)
         
     def test_05_find_repetitions(self):
-        find_repetitions('/home/rz/rzws/experiment_data/test/data_C3_unknownstim_1423066960_0.hdf5', '/home/rz/rzws/experiment_data/test')
+        fn='/home/rz/rzws/experiment_data/test/data_C3_unknownstim_1423066960_0.hdf5'
+        with introspect.Timer(''):
+            res = find_repetitions(fn, '/home/rz/rzws/experiment_data/test')
+        self.assertEqual(sum([r.has_key('matches') for r in res]),41)
+        pass
     
 if __name__=='__main__':
     unittest.main()

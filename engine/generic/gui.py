@@ -36,11 +36,33 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         self.plot=self.addPlot()
         self.plot.enableAutoRange()
         self.plot.showGrid(True,True,1.0)
-        self.curve = self.plot.plot(pen=(0,0,0))
         
     def update_curve(self, x, y):
+        self._clear_curves()
+        self.curve = self.plot.plot(pen=(0,0,0))
         self.curve.setData(x, y)
         self.plot.setYRange(min(y), max(y))
+        
+    def update_curves(self, x, y):
+        self._clear_curves()
+        ncurves = len(x)
+        self.curves = []
+        minimums = []
+        maximums = []
+        for i in range(ncurves):
+            self.curves.append(self.plot.plot(pen=(0,0,0)))
+            self.curves[-1].setData(x[i], y[i])
+            minimums.append(y[i].min())
+            maximums.append(y[i].max())
+        self.plot.setYRange(min(minimums), max(maximums))
+        
+    def _clear_curves(self):
+        if hasattr(self, 'curve'):
+            self.plot.removeItem(self.curve)
+            del self.curve
+        if hasattr(self, 'curves'):
+            map(self.plot.removeItem, self.curves)
+            del self.curves
         
     def add_linear_region(self, start, end):
         if hasattr(self,'linear_region'):

@@ -117,6 +117,7 @@ class Analysis(object):
         
     def _roi_area2image(self):
         areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
+        import multiprocessing
         p=multiprocessing.Pool(introspect.get_available_process_cores())
         contours=p.map(cone_data.area2edges, areas)
         self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
@@ -161,13 +162,31 @@ class Analysis(object):
         baseline_length = self.guidata.read('Baseline lenght')
         for r in self.rois:
             r['normalized'] = signal.df_over_f(self.timg, r['raw'], self.tsync[0], baseline_length)
+            if r.has_key('matches'):
+                for fn in r['matches'].keys():
+                    raw = r['matches'][fn]['raw']
+                    timg = r['matches'][fn]['timg']
+                    t0=r['matches'][fn]['tsync'][0]
+                    r['matches'][fn]['normalized'] = signal.df_over_f(timg, raw, t0, baseline_length)
         
     def display_roi_rectangles(self):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
     def display_roi_curve(self):
         if len(self.rois)>0:
-            self.to_gui.put({'display_roi_curve': [self.timg, self.rois[self.current_roi_index]['normalized'], self.current_roi_index, self.tsync]})
+            if self.rois[self.current_roi_index].has_key('matches'):
+                x=[]
+                y=[]
+                for fn in self.rois[self.current_roi_index]['matches'].keys():
+                    #collect matches, shift matched curve's timing such that sync events fall into the same time
+                    tdiff = self.tsync[0]-self.rois[self.current_roi_index]['matches'][fn]['tsync'][0]
+                    x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
+                    y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
+                x.append(self.timg)
+                y.append(self.rois[self.current_roi_index]['normalized'])
+                self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync]})
+            else:
+                self.to_gui.put({'display_roi_curve': [self.timg, self.rois[self.current_roi_index]['normalized'], self.current_roi_index, self.tsync]})
         
     def remove_roi_rectangle(self):
         if len(self.rois)>0:
@@ -280,6 +299,17 @@ class Analysis(object):
         if not hasattr(self,'filename'):
             return
         self.printc('Searching for repetitions, please wait...')
+        aggregated_rois = cone_data.find_repetitions(self.filename, self.machine_config.EXPERIMENT_DATA_PATH)
+        self.aggregated_rois = aggregated_rois
+        files = []
+        for i in range(len(self.rois)):
+            if aggregated_rois[i].has_key('matches'):
+                self.rois[i]['matches'] = aggregated_rois[i]['matches']
+                files.extend(self.rois[i]['matches'].keys())
+        if len(files)>0:
+            self.printc('Repetitions found in {0}'.format(', ' .join(list(set(files)))))
+        self._normalize_roi_curves()
+        self.display_roi_curve()
         
     def close_analysis(self):
         self._check_unsaved_rois()

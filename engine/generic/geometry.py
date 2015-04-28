@@ -240,7 +240,7 @@ def angle_between_vectors(v1, v2):
         
 def distance_between_points(p1, p2):
     return numpy.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2 + (p1[2] - p2[2]) ** 2)
-
+        
 def vector_length(vector):
     return numpy.sqrt(vector[0] ** 2 + vector[1] ** 2 + vector[2] ** 2)
     
