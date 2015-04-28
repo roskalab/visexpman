@@ -7,7 +7,7 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
-from visexpman.engine.generic import utils,stringop,fileop
+from visexpman.engine.generic import utils,stringop,fileop,signal
 from pyqtgraph.parametertree import Parameter, ParameterTree
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
@@ -43,7 +43,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         self.curve.setData(x, y)
         self.plot.setYRange(min(y), max(y))
         
-    def update_curves(self, x, y):
+    def update_curves(self, x, y, plot_average=False):
         self._clear_curves()
         ncurves = len(x)
         self.curves = []
@@ -54,6 +54,11 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             self.curves[-1].setData(x[i], y[i])
             minimums.append(y[i].min())
             maximums.append(y[i].max())
+        if plot_average:
+            self.curves.append(self.plot.plot())
+            self.curves[-1].setPen((200,0,0), width=3)
+            x_,y_ = signal.average_of_traces(x,y)
+            self.curves[-1].setData(x_, y_)
         self.plot.setYRange(min(minimums), max(maximums))
         
     def _clear_curves(self):

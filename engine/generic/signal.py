@@ -214,6 +214,17 @@ def time2index(times,timepoint):
 def df_over_f(t, x, tstim, baseline_length):
     baseline = x[numpy.where(numpy.logical_and(t<tstim,t>tstim-baseline_length))].mean()
     return x / baseline
+    
+def average_of_traces(x,y):
+    if len(x) != len(y):
+        raise RuntimeError('x and y should have the same length: {0}, {1}'.format(len(x), len(y)))
+    #Find the common x range
+    common_x_min = max([xi.min() for xi in x])
+    common_x_max = min([xi.max() for xi in x])
+    indexes = numpy.array([numpy.where(numpy.logical_and(x[i]>=common_x_min, x[i]<=common_x_max))[0] for i in range(len(y))])
+    y_average = numpy.array([y[i][indexes[i]] for i in range(len(y))]).mean(axis=0)
+    x_average = numpy.array([x[i][indexes[i]] for i in range(len(x))]).mean(axis=0)
+    return x_average, y_average
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -348,6 +359,12 @@ class TestSignal(unittest.TestCase):
     def test_14_trigger_indexes(self):
         trigger = numpy.concatenate((numpy.zeros(2), numpy.ones(10), numpy.zeros(10), numpy.ones(20), numpy.zeros(10)))
         numpy.testing.assert_equal(trigger_indexes(trigger), numpy.array([2, 12, 22, 42]))
+    
+    def test_15_average_of_traces(self):
+        x=[numpy.arange(0,10), numpy.arange(-2,5), numpy.arange(0,9)+0.1]
+        y=[numpy.arange(10),2*numpy.arange(7), 3*numpy.arange(9)]
+        x_, y_ = average_of_traces(x,y)
+        self.assertEqual(x_.shape,y_.shape)
     
 
 if __name__=='__main__':

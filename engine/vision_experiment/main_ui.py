@@ -197,7 +197,7 @@ class MainUI(Qt.QMainWindow):
                 #Highlight roi
                 self.image.highlight_roi(index)
                 if isinstance(timg, list) and isinstance(curve, list):
-                    self.plot.update_curves(timg, curve)
+                    self.plot.update_curves(timg, curve,plot_average = True)
                 else:
                     #Update plot
                     self.plot.update_curve(timg, curve)
