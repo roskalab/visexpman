@@ -1,3 +1,4 @@
+import time
 import scipy.io
 import copy
 import cPickle as pickle
@@ -172,9 +173,9 @@ class Analysis(object):
     def display_roi_rectangles(self):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
-    def display_roi_curve(self):
+    def display_roi_curve(self, show_repetitions=True):
         if len(self.rois)>0:
-            if self.rois[self.current_roi_index].has_key('matches'):
+            if self.rois[self.current_roi_index].has_key('matches') and show_repetitions:
                 x=[]
                 y=[]
                 for fn in self.rois[self.current_roi_index]['matches'].keys():
@@ -339,6 +340,22 @@ class GUIEngine(threading.Thread, Analysis):
             self.guidata.from_dict(utils.array2object(hdf5io.read_item(self.context_filename, 'guidata', filelocking=False)))
         else:
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
+            
+    def dump(self, filename=None):
+        #TODO: include logfile and context file content
+        variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
+                    'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
+                    'aggregated_rois', 'context_filename']
+        dump_data = {}
+        for v in variables:
+            if hasattr(self, v):
+                dump_data[v] = getattr(self,v)
+        dump_data['machine_config'] = self.machine_config.serialize()
+        if filename is None:
+            import tempfile
+            filename = os.path.join(tempfile.gettempdir(), 'dump_{0}.hdf5'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-')))
+        hdf5io.save_item(filename, 'dump_data', utils.object2array(dump_data), filelocking=False)
+        self.printc('All variables dumped to {0}'.format(filename))
             
     def save_context(self):
         hdf5io.save_item(self.context_filename, 'guidata', utils.object2array(self.guidata.to_dict()), filelocking=False, overwrite=True)
