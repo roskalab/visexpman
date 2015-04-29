@@ -181,15 +181,18 @@ def find_repetitions(filename, folder):
             signatures = point_signature(aggregated_rectangles[fn])
             match_list = [compare_signatures(ref_sig, find_by_point(r, signatures)) for r in aggregated_rectangles[fn]]
             match_weight = max(match_list)
-            if match_weight>len(aggregated_rectangles[fn])*0.7:#Match: if there are at least n exact matches where n can be 70 % of number of rois
+            #Take the smaller number of rois as the basis of the comparison with match_weight
+            nrois = min(len(aggregated_rectangles[fn]), len(reference))
+            if match_weight>nrois*0.7:#Match: if there are at least n exact matches where n can be 70 % of number of rois
                 if not aggregated_rois[filename][roi_ct].has_key('matches'):
                     aggregated_rois[filename][roi_ct]['matches'] = {}
                 index=numpy.array(match_list).argmax()
                 timg = timing[fn][1]
                 tsync = timing[fn][0]
-                aggregated_rois[filename][roi_ct]['matches'][fn] = {'tsync': tsync, 'timg': timg, 'raw': aggregated_rois[fn][index]['raw'], 'match_weight': match_weight}
+                aggregated_rois[filename][roi_ct]['matches'][os.path.split(fn)[1]] = {'tsync': tsync, 'timg': timg, 'raw': aggregated_rois[fn][index]['raw'], 'match_weight': match_weight}
         roi_ct += 1
     return aggregated_rois[filename]
+
     
 def point_signature(points):
     '''
@@ -276,11 +279,17 @@ class TestCA(unittest.TestCase):
         
     def test_05_find_repetitions(self):
         fns=['/home/rz/rzws/test_data/find_cone_repetitions/data_C1_unknownstim_1423066846_0.hdf5',
-            '/home/rz/rzws/test_data/find_cone_repetitions/data_C3_unknownstim_1423066960_0.hdf5']
+            '/home/rz/rzws/test_data/find_cone_repetitions/data_C3_unknownstim_1423066960_0.hdf5',
+            '/home/rz/rzws/test_data/find_cone_repetitions/20150206/C2_598299660/data_C2_unknownstim_1423220080_0.hdf5']
         for fn in fns:
+            break
             res = find_repetitions(fn, '/home/rz/rzws/test_data/find_cone_repetitions')
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
-        pass
+        folder = '/home/rz/rzws/dataslow/debug/no_repetitions_found'
+        res = find_repetitions(fileop.listdir_fullpath(folder)[0], folder)
+        self.assertGreater(sum([r.has_key('matches') for r in res]),0)
+        
+        
     
 if __name__=='__main__':
     unittest.main()

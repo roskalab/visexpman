@@ -239,6 +239,7 @@ class Analysis(object):
         del self.current_roi_index
         self.to_gui.put({'delete_all_rois': None})
         self._roi_area2image()
+        self.printc('All rois removed')
         
     def add_manual_roi(self, rectangle):
         rectangle = numpy.array(rectangle)/self.image_scale
@@ -276,6 +277,10 @@ class Analysis(object):
         for item in items:
             self.datafile.load(item)
             data[item]=getattr(self.datafile,item)
+        #Make sure that rois field does not contain None:
+        for r in data['rois']:
+            if r.has_key('area') and r['area'] is None:
+                del r['area']
         outfile=self.filename.replace('.hdf5', '.mat')
         #Write to mat file
         scipy.io.savemat(outfile, data, oned_as = 'row', long_field_names=True)
@@ -358,7 +363,7 @@ class GUIEngine(threading.Thread, Analysis):
             import tempfile
             filename = os.path.join(tempfile.gettempdir(), 'dump_{0}.hdf5'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-')))
         hdf5io.save_item(filename, 'dump_data', utils.object2array(dump_data), filelocking=False)
-        self.printc('All variables dumped to {0}'.format(filename))
+        self.printc('GUI engine dumped to {0}'.format(filename))
             
     def save_context(self):
         hdf5io.save_item(self.context_filename, 'guidata', utils.object2array(self.guidata.to_dict()), filelocking=False, overwrite=True)
@@ -405,8 +410,16 @@ class GUIEngine(threading.Thread, Analysis):
             except:
                 import traceback
                 self.printc(traceback.format_exc())
+                self.dump()
+                self.close_open_files()
             time.sleep(20e-3)
         self.close()
+        
+    def close_open_files(self):
+        if hasattr(self, 'datafile') and self.datafile.h5f.isopen==1:
+            self.datafile.close()
+            self.printc('{0} file is closed'.format(self.datafile.filename))
+            
         
     def close(self):
         self.close_analysis()
