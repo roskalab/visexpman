@@ -254,12 +254,14 @@ class Analysis(object):
         self.display_roi_curve()
         self.printc('Roi added, {0}'.format(rectangle))
         
-    def _check_unsaved_rois(self):
+    def _check_unsaved_rois(self, warning_only=False):
         if not hasattr(self,'filename'):
             return
         rois = hdf5io.read_item(self.filename, 'rois', filelocking=False)
         if (rois is not None and hasattr(self, 'rois') and len(rois)!=len(self.rois)) or (rois is None and len(self.rois)>0):
-            if self.ask4confirmation('Do you want to save unsaved rois?'):
+            if warning_only:
+                print 'Rois are not saved'
+            elif self.ask4confirmation('Do you want to save unsaved rois?'):
                 self.save_rois_and_export()
         
     def save_rois_and_export(self):
@@ -320,7 +322,7 @@ class Analysis(object):
         self.display_roi_curve()
         
     def close_analysis(self):
-        self._check_unsaved_rois()
+        self._check_unsaved_rois(warning_only=True)
     
 class GUIEngine(threading.Thread, Analysis):
     '''
@@ -406,7 +408,8 @@ class GUIEngine(threading.Thread, Analysis):
                 elif msg.has_key('function'):#Functions are simply forwarded
                     #Format: {'function: function name, 'args': [], 'kwargs': {}}
                     getattr(self, msg['function'])(*msg['args'])
-                    self.log.info(msg, 'engine')
+                    if hasattr(self, 'log'):
+                        self.log.info(msg, 'engine')
             except:
                 import traceback
                 self.printc(traceback.format_exc())
@@ -438,11 +441,12 @@ class TestGUIEngineIF(unittest.TestCase):
             guidata = GUIData()
             guidata.add('Sigma 1', 0.5, 'path/sigma')
             hdf5io.save_item(self.cf, 'guidata', utils.object2array(guidata.to_dict()), filelocking=False)
-        self.engine = GUIEngine(self.machine_config)
+        self.engine = GUIEngine(self.machine_config, None)
         
         self.engine.save_context()
         self.from_gui, self.to_gui = self.engine.get_queues()
         self.engine.start()
+        utils.empty_queue(self.to_gui)
         
     def test_01_add_and_read_data(self):
         v = 100
@@ -477,6 +481,17 @@ class TestGUIEngineIF(unittest.TestCase):
         time.sleep(self.wait)
         self.assertFalse(self.to_gui.empty())
         self.assertEqual(self.to_gui.get(), 0.5)
+        
+    def test_04_online_analysis_procedure(self):
+        from visexpman.users.test import unittest_aggregator
+        ref_folder = fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder)
+        files = fileop.listdir_fullpath(os.path.join(ref_folder, 'cone_gui'))
+        protocol_files = [f for f in files if fileop.file_extension(f) == 'txt']
+        protocols = map(self._parse_protocol_files, protocol_files)
+        pass
+        
+    def _parse_protocol_files(self,filename):
+        protocol = [line.split('\t')[1] for line in fileop.read_text_file(filename).split('\n') if 'INFO/engine' in line]
         
     def tearDown(self):
         self.from_gui.put('terminate')

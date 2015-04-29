@@ -406,7 +406,7 @@ class MainUI(Qt.QMainWindow):
                     break
             tree.reverse()
             self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
-            self.printc('Warining: Curve normalization is not recalculated')
+            self.printc('Warning: Curve normalization is not recalculated')
 
     def closeEvent(self, e):
         e.accept()
