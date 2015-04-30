@@ -762,7 +762,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 30000,
+                    'SAMPLE_RATE' : 50000,
                     'AI_CHANNEL' : 'Dev1/ai0:3',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
@@ -819,6 +819,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         FULLSCREEN = not True
         self.COLOR_MASK = [1.0, 1.0, 1.0]
         self.TRIGGER_MES = False
+        self.CONTINUE_STIMULUS_TRIGGER = True
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         self._create_parameters_from_locals(locals())
 

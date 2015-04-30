@@ -291,6 +291,21 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
                 self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
+                if self.config.CONTINUE_STIMULUS_TRIGGER:
+                    time.sleep(0.15)
+                    self.printl('Stimulus duration is : {0} s. Set this value in MES. Press Continue stimulation button after starting AO recording'.format(self.mes_record_time))
+                    while True:
+                        if not self.queues['gui']['in'].empty():
+                            msg = self.queues['gui']['in'].get()
+                            print msg
+                            abort_cmd = 'SOCabort_experimentEOCguiEOP'
+                            continue_cmd = 'SOCcontinueEOCguiEOP'
+                            if msg == abort_cmd:
+                                return False
+                            elif msg == continue_cmd:
+                                break
+                        time.sleep(0.5)
+                    self.printl('Continuing wih stimulation')
                 #TMP0612
                 line_scan_path_on_mes = os.path.join(self.config.EXPERIMENT_DATA_PATH, os.path.split(self.filenames['local_fragments'][fragment_id])[1].replace('.hdf5', '.mat'))
                 if self.config.TRIGGER_MES:

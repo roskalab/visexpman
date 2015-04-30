@@ -62,7 +62,7 @@ class VisionExperimentGui(QtGui.QWidget):
         icon_path = os.path.join(os.path.split(visexpman.__file__)[0],'data','images','grabowsky.png')
         if os.path.exists(icon_path):
             self.setWindowIcon(Qt.QIcon(icon_path))
-        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+#        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
         self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
         self.create_layout()
@@ -82,20 +82,20 @@ class VisionExperimentGui(QtGui.QWidget):
         if self.config.PLATFORM == 'mes' or True:
             self.images_widget = gui.ImagesWidget(self, self.config)
             self.overview_widget = gui.OverviewWidget(self, self.config)
-        self.roi_widget = gui.RoiWidget(self, self.config)
+#        self.roi_widget = gui.RoiWidget(self, self.config)
         self.common_widget = gui.CommonWidget(self, self.config)
         self.helpers_widget = gui.HelpersWidget(self, self.config)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
-        self.main_tab.addTab(self.roi_widget, 'ROI')
+#        self.main_tab.addTab(self.roi_widget, 'ROI')
         self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
         self.main_tab.addTab(self.helpers_widget, 'Helpers')
         self.main_tab.setCurrentIndex(0)
         #Image tab
         if self.config.PLATFORM == 'mes' or True:
-            self.image_tab = QtGui.QTabWidget(self)
-            self.image_tab.addTab(self.images_widget, 'Regions')
-            self.image_tab.addTab(self.overview_widget, 'Overview')
+#            self.image_tab = QtGui.QTabWidget(self)
+            self.main_tab.addTab(self.images_widget, 'Regions')
+            self.main_tab.addTab(self.overview_widget, 'Overview')
         self.standard_io_widget = gui.StandardIOWidget(self, self.config)
         experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
                
@@ -122,13 +122,14 @@ class VisionExperimentGui(QtGui.QWidget):
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
         self.layout.addWidget(self.common_widget, 1, 0, 1, 1)
         self.layout.addWidget(self.standard_io_widget, 2, 0, 1, 1)
-        if self.config.PLATFORM == 'mes' or True:
-            self.layout.addWidget(self.image_tab, 0, 1, 5, 1)
+#        if self.config.PLATFORM == 'mes' or True:
+#            self.layout.addWidget(self.image_tab, 0, 1, 5, 1)
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(2, 1)
         self.setLayout(self.layout)
         
     def init_widget_content(self):
+        return
         self.update_widgets_when_mouse_file_changed(selected_region = self.poller.last_region_name)
         if hasattr(self.poller, 'mouse_file'):
             self.update_mouse_files_combobox(os.path.split(self.poller.mouse_file)[1])#Ensuring that the filename coming from the last session is set
@@ -147,11 +148,11 @@ class VisionExperimentGui(QtGui.QWidget):
     ####### Signals/functions ###############
     def block_widgets(self,  block):
         if not hasattr(self, 'blocked_widgets'):
-            self.blocked_widgets =  [self.main_widget.scan_region_groupbox.select_mouse_file, self.main_tab, 
-                  self.main_widget.scan_region_groupbox.scan_regions_combobox, self.animal_parameters_widget.new_mouse_file_button, 
-                  self.roi_widget.select_cell_combobox, self.roi_widget.cell_filter_name_combobox,  self.roi_widget.cell_filter_combobox, 
-                    self.roi_widget.show_selected_soma_rois_checkbox, self.roi_widget.show_current_soma_roi_checkbox, 
-                    self.roi_widget.show_selected_roi_centers_checkbox, self.roi_widget.cell_group_combobox]
+            self.blocked_widgets =  [self.main_tab, 
+                  self.animal_parameters_widget.new_mouse_file_button]#, 
+#                  self.roi_widget.select_cell_combobox, self.roi_widget.cell_filter_name_combobox,  self.roi_widget.cell_filter_combobox, 
+#                    self.roi_widget.show_selected_soma_rois_checkbox, self.roi_widget.show_current_soma_roi_checkbox, 
+#                    self.roi_widget.show_selected_roi_centers_checkbox, self.roi_widget.cell_group_combobox]
         [w.blockSignals(block) for w in self.blocked_widgets]
 
     def connect_signals(self):
@@ -165,8 +166,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.common_widget.show_xzlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.xzline_checkbox_changed)
         self.connect(self.common_widget.registration_subimage_combobox, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.subimage_parameters_changed)
         
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
-        self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
+#        self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
 
         self.connect_and_map_signal(self.animal_parameters_widget.new_mouse_file_button, 'save_animal_parameters')
         self.connect_and_map_signal(self.animal_parameters_widget.anesthesia_history_groupbox.add_button, 'add_to_anesthesia_history')
@@ -176,17 +177,17 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.graceful_stop_experiment_button, 'graceful_stop_experiment')
         #Data processing
         #ROI
-        self.connect_and_map_signal(self.roi_widget.accept_cell_button, 'accept_cell')
-        self.connect_and_map_signal(self.roi_widget.ignore_cell_button, 'ignore_cell')
-        self.connect_and_map_signal(self.roi_widget.next_button, 'next_cell')
-        self.connect_and_map_signal(self.roi_widget.previous_button, 'previous_cell')
-        self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
-        self.connect(self.roi_widget.cell_filter_name_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filtername_changed)
-        self.connect(self.roi_widget.cell_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filter_changed)
-        self.connect(self.roi_widget.show_selected_soma_rois_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
-        self.connect(self.roi_widget.show_current_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
-        self.connect(self.roi_widget.show_selected_roi_centers_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
-        self.connect(self.roi_widget.cell_group_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_group_changed)
+#        self.connect_and_map_signal(self.roi_widget.accept_cell_button, 'accept_cell')
+#        self.connect_and_map_signal(self.roi_widget.ignore_cell_button, 'ignore_cell')
+#        self.connect_and_map_signal(self.roi_widget.next_button, 'next_cell')
+#        self.connect_and_map_signal(self.roi_widget.previous_button, 'previous_cell')
+#        self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
+#        self.connect(self.roi_widget.cell_filter_name_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filtername_changed)
+#        self.connect(self.roi_widget.cell_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filter_changed)
+#        self.connect(self.roi_widget.show_selected_soma_rois_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+#        self.connect(self.roi_widget.show_current_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+#        self.connect(self.roi_widget.show_selected_roi_centers_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+#        self.connect(self.roi_widget.cell_group_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_group_changed)
         
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
@@ -200,10 +201,10 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
         self.connect_and_map_signal(self.helpers_widget.rebuild_cell_database_button, 'rebuild_cell_database')
 
-        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
-        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.set_state_to_button, 'set_measurement_file_process_state')
-        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.reset_jobhandler_button, 'reset_jobhandler')
-        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.add_id_button, 'add_id')
+#        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
+#        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.set_state_to_button, 'set_measurement_file_process_state')
+#        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.reset_jobhandler_button, 'reset_jobhandler')
+#        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.add_id_button, 'add_id')
 
         #Blocking functions, run by poller
         self.connect_and_map_signal(self.common_widget.read_stage_button, 'read_stage')
@@ -215,16 +216,17 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.common_widget.register_button, 'register')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xy_button, 'save_xy_scan')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xz_button, 'save_xz_scan')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xyt_button, 'save_xyt_scan')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.move_to_button, 'move_to_region')
-        self.connect_and_map_signal(self.roi_widget.create_xz_lines_button, 'create_xz_lines')
-        self.connect_and_map_signal(self.roi_widget.xy_scan_button, 'acquire_xy_scan')
+        self.connect_and_map_signal(self.main_widget.continue_button, 'continue_with_stimulation')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xy_button, 'save_xy_scan')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xz_button, 'save_xz_scan')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xyt_button, 'save_xyt_scan')
+#        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.move_to_button, 'move_to_region')
+#        self.connect_and_map_signal(self.roi_widget.create_xz_lines_button, 'create_xz_lines')
+#        self.connect_and_map_signal(self.roi_widget.xy_scan_button, 'acquire_xy_scan')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.next_depth_button, 'next_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.redo_depth_button, 'redo_experiment')
@@ -245,6 +247,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_mouse_files_combobox(set_to_value = os.path.split(self.poller.mouse_file)[1])
             
     def tab_changed(self, currentIndex):
+        return
         if currentIndex != 1:#If user switched from ROI tab, save cell selections
             self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
@@ -339,6 +342,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.common_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
     def update_animal_parameter_display(self):
+        return
         if hasattr(self.poller, 'animal_parameters'):
             animal_parameters = self.poller.animal_parameters
             if not animal_parameters.has_key('both_channels'):
@@ -354,6 +358,7 @@ class VisionExperimentGui(QtGui.QWidget):
             self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             
     def update_region_names_combobox(self, selected_region = None):
+        return
         #Update combobox containing scan region names
         if hasattr(self.poller.scan_regions, 'keys'):
             region_names = self.poller.scan_regions.keys()
@@ -660,6 +665,7 @@ class VisionExperimentGui(QtGui.QWidget):
             
     ######## GUI widget readers ###############
     def get_current_region_name(self):
+        return 'x'
         return str(self.main_widget.scan_region_groupbox.scan_regions_combobox.currentText())
         
     def get_current_cell_id(self):

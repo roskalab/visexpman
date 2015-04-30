@@ -325,7 +325,7 @@ class ImagesWidget(QtGui.QWidget):
         self.config = config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row'])
+#        self.resize(self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row'])
         
     def create_widgets(self):
         self.image_display = []
@@ -353,7 +353,7 @@ class OverviewWidget(QtGui.QWidget):
         self.config = config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+#        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
         self.image_display = QtGui.QLabel()
@@ -546,24 +546,26 @@ class MainWidget(QtGui.QWidget):
         self.config = config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+#        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
         #MES related
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
+        self.continue_button = QtGui.QPushButton('Continue stimulation', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
-        self.scan_region_groupbox = ScanRegionGroupBox(self)
-        self.measurement_datafile_status_groupbox = MeasurementDatafileStatusGroupbox(self)
+#        self.scan_region_groupbox = ScanRegionGroupBox(self)
+#        self.measurement_datafile_status_groupbox = MeasurementDatafileStatusGroupbox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 2, 4)
 #        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)        
-        self.layout.addWidget(self.scan_region_groupbox, 4, 0, 2, 4)
-        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 6, 2)
+#        self.layout.addWidget(self.scan_region_groupbox, 4, 0, 2, 4)
+#        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 6, 2)
         
         self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
+        self.layout.addWidget(self.continue_button, 9, 1, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -2021,6 +2023,10 @@ class MainPoller(Poller):
             p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
             if os.path.exists(p):
                 os.remove(p)
+                
+    def continue_with_stimulation(self):
+        self.printc('Continue experiment requested')
+        self.queues['stim']['out'].put('SOCcontinueEOCguiEOP')
 
     def start_experiment(self):
         self.printc('Experiment started, please wait')

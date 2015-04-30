@@ -83,15 +83,15 @@ class PolychromeFlash(experiment.Experiment):
                 if self.abort:
                     break
                 self.polychrome.set_wavelength(wavelength)
-                self.polychrome.set_intensity(self.experiment_config.FLASH_AMPLITUDE)
                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
+                self.polychrome.set_intensity(self.experiment_config.FLASH_AMPLITUDE)
                 time.sleep(self.experiment_config.FLASH_DURATION)
                 if self.abort:
                     break
                 #close shutter
 #                self.polychrome.set_wavelength(self.experiment_config.OFF_WAVELENGTH)
-                self.polychrome.set_intensity(0.0)#Takes 114 ms
                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 0)
+                self.polychrome.set_intensity(0.0)#Takes 114 ms
                 self.show_fullscreen(duration = 0,  color = 0, frame_trigger = False)
                 time.sleep(self.experiment_config.PAUSE_BETWEEN_FLASHES)
 #        self.polychrome.set_wavelength(self.experiment_config.OFF_WAVELENGTH)

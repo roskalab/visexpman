@@ -270,6 +270,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self.log_on_flip_message_initial = 'show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(size)  + ', ' + ')'
         self.log_on_flip_message_continous = 'show_shape'
         self._save_stimulus_frame_info(inspect.currentframe())
+        print self.frame_counter
         if os.path.isdir(path):
             for fn in os.listdir(path):
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
@@ -277,6 +278,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self._flip(trigger = False)
         else:
             self._show_image(path,duration,position,flip)
+        print self.frame_counter
         self._save_stimulus_frame_info(inspect.currentframe())
         
     def _show_image(self,path,duration,position,stretch,flip):

@@ -13,6 +13,7 @@ class NaturalMovie(experiment.ExperimentConfig):
 #        self.FILENAME = 'c:\\Data\\stimulated_falco_sound_frames'
         self.FRAME_RATE=60.0
         self.STRETCH = 1.0
+        self.REPEATS = 1
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
         
@@ -158,6 +159,7 @@ class NaturalMovieExperiment(experiment.Experiment):
             raise RuntimeError('This frame rate is not possible')
         else:
             duration = 1.0/self.experiment_config.FRAME_RATE
-        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
-        self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH)
-        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        for rep in range(self.experiment_config.REPEATS):
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+            self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH)
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
