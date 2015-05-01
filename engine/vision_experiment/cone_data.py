@@ -18,8 +18,11 @@ from pylab import plot,show,figure,title,imshow,subplot
 
 import warnings
 
-def exp(x,tconst, a,b):
-    return a*numpy.exp(-tconst*x)+b
+def exp(t,tconst, a,b):
+    return a*numpy.exp(-t/tconst)+b
+    
+def sigmoid(t, t0, sigma,a,b):
+    return a/(1+numpy.exp(-(t-t0)/sigma))+b
 
 class TransientAnalysator(object):
     def __init__(self, baseline_t_start, baseline_t_end, post_response_duration):
@@ -32,7 +35,7 @@ class TransientAnalysator(object):
             std = 1e-10
         return (trace-mean)/std
 
-    def calculate_trace_parameters(self, trace, timing):
+    def calculate_trace_parameters(self, trace, tsync, timg):
         '''
         Calculates: 
         1) Response size in baseline std
@@ -42,33 +45,42 @@ class TransientAnalysator(object):
         5) Difference between pre and post baselines (sustained response)
         
         '''
-        ti=timing['ti']
-        ts=timing['ts']
-        tsample=numpy.diff(ti)[0]
+        #TODO: test for negative responses
+        tsample=numpy.diff(timg)[0]
         #determine indexes of signal boundaries
-        response_start = signal.time2index(ti, ts[0])
-        response_end = signal.time2index(ti, ts[1])
-        baseline_start = signal.time2index(ti, ts[0]+self.baseline_t_start)
-        baseline_end = signal.time2index(ti, ts[0]+self.baseline_t_end)
+        response_start = signal.time2index(timg, tsync[0])
+        response_end = signal.time2index(timg, tsync[1])
+        baseline_start = signal.time2index(timg, tsync[0]+self.baseline_t_start)
+        baseline_end = signal.time2index(timg, tsync[0]+self.baseline_t_end)
         baseline=numpy.array(trace[baseline_start:baseline_end])
-        #scale trace with baseline's std
-        scaled_trace = self.scale_std(trace, baseline.mean(), baseline.std())
-        if numpy.isnan(scaled_trace).any():
-            print scaled_trace.std()
-        #Cut out baseline, response and post response traces
-        post_response = numpy.array(scaled_trace[response_end:signal.time2index(ti, ts[1]+self.post_response_duration)])
-        baseline=numpy.array(scaled_trace[baseline_start:baseline_end])
-        response = numpy.array(scaled_trace[response_start:response_end])
-        #response size is the mean of the trace when stimulus presented
-        response_amplitude = response.mean()
-        #quantify transient
-        rise_time_constant, response_amplitude = self.calculate_time_constant(response)
-        rise_time_constant*=tsample
-        fall_time_constant, post_response_signal_level = self.calculate_time_constant(post_response)
-        fall_time_constant*=tsample
-        #Initial drop
-        initial_drop = 0
-        return scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop
+        end_of_drop = trace[:response_start].argmin()
+        #initial drop quantification
+        #Find minimum between start and stimulus start and take the trace from the beginning till this point
+        initial_drop_trace=trace[:end_of_drop]
+        t=numpy.arange(numpy.array(initial_drop_trace).shape[0])
+        #Fit exp(-t/T) and calculate T
+        try:
+            coeff, cov = scipy.optimize.curve_fit(exp,t,initial_drop_trace,p0=[1,1,initial_drop_trace[-1]])
+        except:
+            coeff = [0]*4
+        T_initial_drop = coeff[0]*tsample
+        #Response waveform quantification
+        #Fit exp(-t/T) to falling part
+        falling_trace = trace[response_end:]
+        t=numpy.arange(numpy.array(falling_trace).shape[0])
+        coeff, cov = scipy.optimize.curve_fit(exp,t,falling_trace,p0=[1,1,falling_trace[-1]])
+        T_falling=coeff[0]*tsample
+        rising_trace = trace[baseline_start:response_end]
+        t=numpy.arange(numpy.array(rising_trace).shape[0])
+        t0=response_start-baseline_start
+        try:
+            coeff, cov = scipy.optimize.curve_fit(sigmoid,t,rising_trace,p0=[t0,1,1,rising_trace.mean()])
+        except:
+            coeff = [0]*4
+        response_rise_sigma = coeff[1]*tsample
+        response_amplitude = sigmoid(t,*coeff)[-1]
+        baseline_mean = baseline.mean()
+        return baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop
         
     def calculate_time_constant(self, trace):
         x=numpy.arange(numpy.array(trace).shape[0])
@@ -215,22 +227,23 @@ class TestCA(unittest.TestCase):
         from visexpman.users.test import unittest_aggregator
         self.files = fileop.listdir_fullpath(os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'trace_analysis'))
         
-    @unittest.skip('')
     def test_01_trace_parameters(self):
         ta=TransientAnalysator(-5, 0, 3)
         ct=0
         for f in self.files:
-            h=hdf5io.Hdf5io(f,filelocking=False)
-            rc=h.findvar('roi_curves')
-            res = map(ta.calculate_trace_parameters, rc, len(rc)*[h.findvar('timing')])
+            h=experiment_data.CaImagingData(f,filelocking=False)
+            rc=[r['raw'] for r in h.findvar('rois')]
+            tsync,timg, meanimage, image_scale, raw_data = h.prepare4analysis()
+            res = map(ta.calculate_trace_parameters, rc, len(rc)*[tsync], len(rc)*[timg])
             for r in res:
-                scaled_trace, rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop = r
-                if abs(response_amplitude)<3:
-                    continue
+                baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop = r
+                trace =rc[res.index(r)]
+#                if abs(response_amplitude)<3:
+#                    continue
                 figure(ct)
                 ct+=1
-                plot(scaled_trace);
-                title('rise_time_constant {0:0.2f}, fall_time_constant {1:0.2f}, response_amplitude {2:0.2f}\npost_response_signal_level: {3:0.2f},initial_drop: {4:0.2f}'.format(rise_time_constant, fall_time_constant, response_amplitude, post_response_signal_level, initial_drop))
+                plot(trace);
+                title('baseline mean {0:0.2f}, response amplitude {1:0.2f}, response_rise_sigma {2:0.2f} s\nT_falling: {3:0.2f} s,initial_drop: {4:0.2f} s'.format(baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop))
             h.close()
         show()
         
