@@ -174,6 +174,7 @@ class Analysis(object):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
     def display_roi_curve(self, show_repetitions=True):
+        #!!!!Continue here with res = map(calculate_trace_parameters, rc, len(rc)*[tsync], len(rc)*[timg], len(rc)*[1])
         if len(self.rois)>0:
             if self.rois[self.current_roi_index].has_key('matches') and show_repetitions:
                 x=[]
