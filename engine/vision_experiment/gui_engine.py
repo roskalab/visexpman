@@ -176,6 +176,7 @@ class Analysis(object):
     def display_roi_curve(self, show_repetitions=True):
         #!!!!Continue here with res = map(calculate_trace_parameters, rc, len(rc)*[tsync], len(rc)*[timg], len(rc)*[1])
         if len(self.rois)>0:
+            baseline_length = self.guidata.read('Baseline lenght')
             if self.rois[self.current_roi_index].has_key('matches') and show_repetitions:
                 x=[]
                 y=[]
@@ -187,8 +188,13 @@ class Analysis(object):
                 x.append(self.timg)
                 y.append(self.rois[self.current_roi_index]['normalized'])
                 self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync]})
+                x_,y_ = signal.average_of_traces(x,y)
             else:
                 self.to_gui.put({'display_roi_curve': [self.timg, self.rois[self.current_roi_index]['normalized'], self.current_roi_index, self.tsync]})
+                x_ = self.timg
+                y_ = self.rois[self.current_roi_index]['normalized']
+            baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop  = cone_data.calculate_trace_parameters(y_, self.tsync, x_, baseline_length)
+            self.to_gui.put({'display_trace_parameters':{'baseline_mean': baseline_mean, 'response_amplitude': response_amplitude, 'T_falling':T_falling, 'T_initial_drop':T_initial_drop}})
         
     def remove_roi_rectangle(self):
         if len(self.rois)>0:
