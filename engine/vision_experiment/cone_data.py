@@ -233,15 +233,25 @@ class TestCA(unittest.TestCase):
             rc=[r['raw'] for r in h.findvar('rois')]
             tsync,timg, meanimage, image_scale, raw_data = h.prepare4analysis()
             res = map(calculate_trace_parameters, rc, len(rc)*[tsync], len(rc)*[timg], len(rc)*[1])
+            response_amplitudes = []
+            response_rise_sigmas = []
+            T_fallings = []
+            T_initial_drops = []
             for r in res:
                 baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop = r
+                response_amplitudes.append(response_amplitude/baseline_mean)
+                response_rise_sigmas.append(response_rise_sigma)
+                T_fallings.append(T_falling)
+                T_initial_drops.append(T_initial_drop)
                 trace =rc[res.index(r)]
 #                if abs(response_amplitude)<3:
 #                    continue
-                figure(ct)
-                ct+=1
-                plot(trace);
-                title('baseline mean {0:0.2f}, response amplitude {1:0.2f}, response_rise_sigma {2:0.2f} s\nT_falling: {3:0.2f} s,initial_drop: {4:0.2f} s'.format(baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop))
+#            figure(ct)
+#            ct+=1
+#            plot(response_amplitudes, 'x');
+#            plot(response_rise_sigmas, T_fallings, 'x');show()
+#            plot(response_rise_sigmas, response_amplitudes, 'x');show()
+#            plot(response_rise_sigmas, T_initial_drops, 'x');show()
             h.close()
 #        show()
         

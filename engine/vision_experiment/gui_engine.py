@@ -199,7 +199,7 @@ class Analysis(object):
                 x_ = self.timg
                 y_ = self.rois[self.current_roi_index]['normalized']
             baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop  = cone_data.calculate_trace_parameters(y_, self.tsync, x_, baseline_length)
-            self.to_gui.put({'display_trace_parameters':{'baseline_mean': baseline_mean, 'response_amplitude': response_amplitude, 'T_falling':T_falling, 'T_initial_drop':T_initial_drop}})
+            self.to_gui.put({'display_trace_parameters':{'response_amplitude': response_amplitude, 'response_falling_time':T_falling, 'initial_drop_time':T_initial_drop, 'response_rise_sigma': response_rise_sigma}})
         
     def remove_roi_rectangle(self):
         if len(self.rois)>0:

@@ -113,11 +113,12 @@ class AnalysisHelper(QtGui.QWidget):
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.roi_adjust = RoiShift(self)
         self.trace_parameters = QtGui.QLabel('', self)
+#        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.show_rois,0,0,1,1)
         self.layout.addWidget(self.keep_rois,1,0,1,1)
         self.layout.addWidget(self.roi_adjust,0,1,2,2)
-        self.layout.addWidget(self.trace_parameters,0,2,1,2)
+        self.layout.addWidget(self.trace_parameters,0,2,2,1)
         self.layout.addWidget(self.show_repetitions,0,3,1,1)
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
         self.setLayout(self.layout)
@@ -217,7 +218,7 @@ class MainUI(Qt.QMainWindow):
             elif msg.has_key('delete_all_rois'):
                 self.image.remove_all_rois()
             elif msg.has_key('display_trace_parameters'):
-                txt='\n'.join(['{0}: {1}'.format(k,v) for k, v in msg['display_trace_parameters'].items()])
+                txt='\n'.join(['{0}: {1}'.format(stringop.to_title(k),'{0}'.format(v)[:4]) for k, v in msg['display_trace_parameters'].items()])
                 self.analysis_helper.trace_parameters.setText(txt)
                 
     def _init_variables(self):
