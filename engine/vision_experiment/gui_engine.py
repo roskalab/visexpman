@@ -9,6 +9,8 @@ import threading
 import Queue
 import unittest
 import numpy
+import shutil
+
 import hdf5io
 from visexpman.engine.vision_experiment import experiment_data, cone_data
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
@@ -51,6 +53,9 @@ class Analysis(object):
         if keep:
             if hasattr(self, 'rois'):
                 self.reference_rois = [{'rectangle': r['rectangle'], 'area' :r.get('area',None)} for r in self.rois]
+                for r in self.reference_rois:
+                    if r['area'] is None:
+                        del r['area']
                 self.reference_roi_filename = copy.deepcopy(self.filename)
         else:
             if hasattr(self, 'reference_rois'):
@@ -355,7 +360,7 @@ class GUIEngine(threading.Thread, Analysis):
         #TODO: include logfile and context file content
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
-                    'aggregated_rois', 'context_filename']
+                    'aggregated_rois', 'context_filename', 'guidata']
         dump_data = {}
         for v in variables:
             if hasattr(self, v):
@@ -408,7 +413,7 @@ class GUIEngine(threading.Thread, Analysis):
                 elif msg.has_key('function'):#Functions are simply forwarded
                     #Format: {'function: function name, 'args': [], 'kwargs': {}}
                     getattr(self, msg['function'])(*msg['args'])
-                    if hasattr(self, 'log'):
+                    if hasattr(self, 'log') and hasattr(self.log, 'info'):
                         self.log.info(msg, 'engine')
             except:
                 import traceback
@@ -484,19 +489,75 @@ class TestGUIEngineIF(unittest.TestCase):
         
     def test_04_online_analysis_procedure(self):
         from visexpman.users.test import unittest_aggregator
-        ref_folder = fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder)
-        files = fileop.listdir_fullpath(os.path.join(ref_folder, 'cone_gui'))
+        import tempfile
+        self._init_guidata()
+        ref_folder = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'cone_gui')
+        self.working_folder = os.path.join(tempfile.gettempdir(), 'guienginetest')
+        self.engine.machine_config.EXPERIMENT_DATA_PATH = self.working_folder
+        shutil.copytree(ref_folder, self.working_folder)
+        files = fileop.listdir_fullpath(self.working_folder)
         protocol_files = [f for f in files if fileop.file_extension(f) == 'txt']
-        protocols = map(self._parse_protocol_files, protocol_files)
-        pass
+        protocols = dict(map(self._parse_protocol_files, protocol_files))
+        for n in protocols.keys():
+            protocol = protocols[n]
+            [self.from_gui.put(p) for p in protocol]
+            resp = []
+            tlast = time.time()
+            while True:
+                if not self.to_gui.empty():
+                    resp.append(self.to_gui.get())
+                    tlast = time.time()
+                if time.time()-tlast>30:#assuming that the execution of any function does not take longer than 30 sec
+                    break
+            printc_messages = [r['printc'] for r in resp if r.has_key('printc')]
+            self.assertEqual([p for p in printc_messages if 'error' in p], [])#No error in printc messages
+            files = [p.split(' ')[-1] for p in printc_messages if 'ROIs are saved to ' in p]
+            #Check if mat files are available
+            self.assertTrue(all([os.path.exists(f.replace('.hdf5', '.mat')) for f in files]))
+            replink_occurences=0
+            for file in files:
+                h=hdf5io.Hdf5io(file,filelocking=False)
+                rois = h.findvar('rois')
+                if 'data_C20_unknownstim_1423227193_0.hdf5' in file and n == 'manual_rois.txt':#Test for all rois removed
+                    self.assertEqual(len(rois), 0)
+                else:
+                    self.assertGreater(len(rois), 0)
+                    #Area key is not available when manual rois are used
+                    self.assertEqual(len([r for r in rois if 'area' in r.keys()]), 0 if n == 'manual_rois.txt' else len(rois))
+                repetition_link = h.findvar('repetition_link')
+                replink_occurences+=len(repetition_link)
+                h.close()
+            self.assertEqual(replink_occurences,len(files))
+            #Check roi matches, all aggregated_rois have one match. It is important that finding repetitions shall take place at the end of the protocol
+            self.assertEqual(abs(numpy.array([len(r['matches']) for r in self.engine.aggregated_rois])-1).sum(),0)
+            
         
     def _parse_protocol_files(self,filename):
         protocol = [line.split('\t')[1] for line in fileop.read_text_file(filename).split('\n') if 'INFO/engine' in line]
+        protocol_cmds = []
+        for i in range(len(protocol)):
+            if '/mnt/rzws/experiment_data/test/' in protocol[i]:
+                path=protocol[i].split('[\'')[1].split('\']')[0]
+                new_path = path.replace('/mnt/rzws/experiment_data/test',self.working_folder).replace('/',os.sep)
+                protocol[i] = protocol[i].replace(path, new_path)
+            exec('cmd='+protocol[i])
+            protocol_cmds.append(cmd)
+        return os.path.split(filename)[1], protocol_cmds
+        
+    def _init_guidata(self):
+        self.engine.guidata.from_dict([{'path': 'params/Analysis/Background threshold', 'name': 'Background Threshold', 'value': 10}, 
+            {'path': 'params/Analysis/Baseline lenght', 'name': 'Baseline Lenght', 'value': 1.0},
+            {'path': 'params/Analysis/Cell detection/Maximum cell radius', 'name': 'Maximum Cell Radius', 'value': 3.0},
+            {'path': 'params/Analysis/Cell detection/Minimum cell radius', 'name': 'Minimum cell radius', 'value': 1.0},
+            {'path': 'params/Analysis/Cell detection/Sigma', 'name': 'Sigma', 'value': 1.0}, 
+            {'path': 'params/Analysis/Cell detection/Threshold factor', 'name': 'Threshold Factor', 'value': 1.0}])
         
     def tearDown(self):
         self.from_gui.put('terminate')
         self.engine.join()
         self.assertTrue(os.path.exists(self.cf))
+        if hasattr(self, 'working_folder') and os.path.exists(self.working_folder):
+            shutil.rmtree(self.working_folder)
         
 
 
