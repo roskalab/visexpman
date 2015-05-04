@@ -87,6 +87,11 @@ class FileBrowser(QtGui.QTabWidget):
         
     def file_selected(self,index):
         filename = str(index.model().filePath(index))
+        #Make compatible filename with win and linux systems
+        filename = filename.replace('/', os.sep)
+        filename = list(filename)
+        filename[0] = filename[0].lower()
+        filename = ''.join(filename)
         if os.path.isdir(filename): return#Double click on folder is ignored
         ext = fileop.file_extension(filename)
         if ext == 'hdf5':
