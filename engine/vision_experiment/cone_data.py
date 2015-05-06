@@ -147,6 +147,16 @@ def calculate_background(rawdata,threshold=0.1):
     x,y = numpy.where(mi<mi.max()*threshold)
     return rawdata[:,:,x,y].mean(axis=2).flatten()
     
+def fast_read(f,vn):
+    import tables
+    h=tables.open_file(f,filelocking=False)
+    if hasattr(h.root,vn):
+        val = getattr(h.root, vn).read()
+    else:
+        val = None
+    h.close()
+    return val
+    
 def find_repetitions(filename, folder):
     allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
     allhdf5files = [f for f in allhdf5files if fileop.is_recording_filename(f)]
@@ -158,7 +168,7 @@ def find_repetitions(filename, folder):
         duplicates = [x for x, y in collections.Counter(ids).items() if y > 1]
         raise RuntimeError('Some files are duplicated: {0}'.format([f for f in allhdf5files if stringop.string_in_list(duplicates, f, any_match=True)]))
     #Identify files that are linked together
-    links = [(f, hdf5io.read_item(f, 'repetition_link', filelocking=False)) for f in allhdf5files]#This takes long, cannot be run in parallel processes
+    links = [(f, fast_read(f, 'repetition_link')) for f in allhdf5files]#This takes long, cannot be run in parallel processes
     links=[[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None]
     filenameid = fileop.parse_recording_filename(filename)['id']
     repetitions = [filenameid]
@@ -175,7 +185,7 @@ def find_repetitions(filename, folder):
         remaining_links = [rl for rl in remaining_links if rl[0] not in next_ids and rl[1] not in next_ids]
         if len(next_ids)==0:
             break
-    repetitions = list(set(repetitions))
+        repetitions = list(set(repetitions))
     #Read roi info from assigned files
     aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
     timing = dict([(f, experiment_data.timing_from_file(f)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
@@ -265,8 +275,7 @@ class TestCA(unittest.TestCase):
             maxsomaradius = 3*3
             h=hdf5io.Hdf5io(f,filelocking=False)
             im1 = h.findvar('raw_data').mean(axis=0)[0]
-            with introspect.Timer(''):
-                rois = find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius,1)
+            rois = find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius,1)
             im=numpy.zeros((im1.shape[0],im1.shape[1], 3))
             im[:,:,1]=signal.scale(im1,0,1)
             mi=numpy.copy(im)
@@ -307,9 +316,9 @@ class TestCA(unittest.TestCase):
             '/home/rz/rzws/test_data/find_cone_repetitions/data_C3_unknownstim_1423066960_0.hdf5',
             '/home/rz/rzws/test_data/find_cone_repetitions/20150206/C2_598299660/data_C2_unknownstim_1423220080_0.hdf5']
         for fn in fns:
-            break
             res = find_repetitions(fn, '/home/rz/rzws/test_data/find_cone_repetitions')
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
+            break
         return
         folder = '/home/rz/rzws/dataslow/debug/no_repetitions_found'
         res = find_repetitions(fileop.listdir_fullpath(folder)[0], folder)
