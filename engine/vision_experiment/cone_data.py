@@ -51,13 +51,16 @@ def calculate_trace_parameters(trace, tsync, timg,baseline_length):
     try:
         coeff, cov = scipy.optimize.curve_fit(exp,t,initial_drop_trace,p0=[1,1,initial_drop_trace[-1]])
     except:
-        coeff = [0]*4
+        coeff = [0]*3
     T_initial_drop = coeff[0]*tsample
     #Response waveform quantification
     #Fit exp(-t/T) to falling part
     falling_trace = trace[response_end:]
     t=numpy.arange(numpy.array(falling_trace).shape[0])
-    coeff, cov = scipy.optimize.curve_fit(exp,t,falling_trace,p0=[1,1,falling_trace[-1]])
+    try:
+        coeff, cov = scipy.optimize.curve_fit(exp,t,falling_trace,p0=[1,1,falling_trace[-1]])
+    except:
+        coeff = [0]*3
     T_falling=coeff[0]*tsample
     rising_trace = trace[baseline_start:response_end]
     t=numpy.arange(numpy.array(rising_trace).shape[0])
@@ -262,7 +265,8 @@ class TestCA(unittest.TestCase):
             maxsomaradius = 3*3
             h=hdf5io.Hdf5io(f,filelocking=False)
             im1 = h.findvar('raw_data').mean(axis=0)[0]
-            rois = find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius,1)
+            with introspect.Timer(''):
+                rois = find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius,1)
             im=numpy.zeros((im1.shape[0],im1.shape[1], 3))
             im[:,:,1]=signal.scale(im1,0,1)
             mi=numpy.copy(im)
@@ -306,6 +310,7 @@ class TestCA(unittest.TestCase):
             break
             res = find_repetitions(fn, '/home/rz/rzws/test_data/find_cone_repetitions')
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
+        return
         folder = '/home/rz/rzws/dataslow/debug/no_repetitions_found'
         res = find_repetitions(fileop.listdir_fullpath(folder)[0], folder)
         self.assertGreater(sum([r.has_key('matches') for r in res]),0)

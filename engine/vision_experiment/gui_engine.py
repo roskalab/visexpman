@@ -121,15 +121,19 @@ class Analysis(object):
         self.display_roi_rectangles()
         self.display_roi_curve()
         
-    def _roi_area2image(self):
+    def _roi_area2image(self, recalculate_contours = True, shiftx = 0, shifty = 0):
         areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
-        import multiprocessing
-        p=multiprocessing.Pool(introspect.get_available_process_cores())
-        contours=p.map(cone_data.area2edges, areas)
-        self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
-        self.image_w_rois[:,:,1] = self.meanimage
-        for coo in contours:
-            self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
+        if recalculate_contours:
+            import multiprocessing
+            p=multiprocessing.Pool(introspect.get_available_process_cores())
+            contours=p.map(cone_data.area2edges, areas)
+            self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
+            self.image_w_rois[:,:,1] = self.meanimage
+            for coo in contours:
+                self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
+        else:
+            self.image_w_rois[:,:,2] = numpy.roll(self.image_w_rois[:,:,2], shiftx, 0)
+            self.image_w_rois[:,:,2] = numpy.roll(self.image_w_rois[:,:,2], shifty, 1)
         self.to_gui.put({'show_suggested_rois' :self.image_w_rois})
         
     def _filter_rois(self):
@@ -179,7 +183,7 @@ class Analysis(object):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
     def display_roi_curve(self):
-        show_repetitions = self.guidata.show_repetitions.v
+        show_repetitions = self.guidata.show_repetitions.v if hasattr(self.guidata, 'show_repetitions') else False
         if hasattr(self, 'rois') and len(self.rois)>0:
             baseline_length = self.guidata.read('Baseline lenght')
             if self.rois[self.current_roi_index].has_key('matches') and show_repetitions:
@@ -302,6 +306,7 @@ class Analysis(object):
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
+        self.printc('Data exported to  {0}'.format(outfile))
         
     def roi_shift(self, h, v):
         for r in self.rois:
@@ -311,7 +316,7 @@ class Analysis(object):
                 r['area'] += numpy.array([h,v])
         self._extract_roi_curves()
         self._normalize_roi_curves()
-        self._roi_area2image()
+        self._roi_area2image(recalculate_contours = False, shiftx = h, shifty = v)
         self.display_roi_rectangles()
         self.display_roi_curve()
         
