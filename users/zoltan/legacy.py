@@ -228,7 +228,7 @@ class PhysTiff2Hdf5(object):
         
 def phys2mat(filename):
     if os.path.isdir(filename):
-        filename = fileop.listdir_fullpath(filename)
+        filename = fileop.find_files_and_folders(filename, extension = 'phys')[1]
     import scipy.io
     from visexpman.engine.vision_experiment.experiment_data import read_phys
     for f in filename:

@@ -8,7 +8,7 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
 
-from visexpman.engine.generic import stringop,utils,gui,signal,fileop
+from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
 from visexpman.engine.vision_experiment import gui_engine
 TOOLBAR_ICON_SIZE = 35
 
@@ -115,6 +115,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
         self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
         self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
+        self.show_repetitions.input.setCheckState(2)
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.roi_adjust = RoiShift(self)
         self.trace_parameters = QtGui.QLabel('', self)
@@ -162,14 +163,15 @@ class MainUI(Qt.QMainWindow):
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.filebrowser = FileBrowser(self, self.filebrowser_config)
         self._add_dockable_widget('File Browser', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.filebrowser)
+        self.analysis_helper = AnalysisHelper(self)
+        self._add_dockable_widget('Analysis helper', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.analysis_helper)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setFixedWidth(300)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self._add_dockable_widget('Parameters', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.params)
         self._load_all_parameters()
         
-        self.analysis_helper = AnalysisHelper(self)
-        self._add_dockable_widget('Analysis helper', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.analysis_helper)
+        
         
         self.show()
         self.timer=QtCore.QTimer()
@@ -322,9 +324,17 @@ class MainUI(Qt.QMainWindow):
         values, paths, refs = self._get_parameter_tree()
         paths = ['/'.join(p) for p in paths]
         for item in self.engine.guidata.to_dict():
-            r = refs[paths.index([p for p in paths if p == item['path']][0])]
-            r.setValue(item['value'])
-            r.setDefault(item['value'])
+            mwname = item['path'].split('/')[0]
+            if mwname == 'params':
+                r = refs[paths.index([p for p in paths if p == item['path']][0])]
+                r.setValue(item['value'])
+                r.setDefault(item['value'])
+            else:
+                ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
+                wname = ref.__class__.__name__.lower()
+                if 'checkbox' in wname:
+                    ref.setCheckState(2 if item['value'] else 0)
+                
     
     def printc(self, text, logonly = False):
         '''
@@ -399,7 +409,8 @@ class MainUI(Qt.QMainWindow):
             self.image.set_image(im)
             
     def show_repeptitions_changed(self,state):
-        self.to_engine.put({'function': 'display_roi_curve', 'args':[state==2]})
+        self.to_engine.put({'data': state==2, 'path': 'analysis_helper/show_repetitions/input', 'name': 'show_repetitions'})
+        self.to_engine.put({'function': 'display_roi_curve', 'args':[]})
         
     def roi_mouse_selected(self,x,y):
         self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})
