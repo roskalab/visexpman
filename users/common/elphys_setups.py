@@ -15,10 +15,11 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         #### paths/data handling ####
         FULLSCREEN = not True
         self.root_folder = 'r:\\production\\rei-setup'
+        self.root_folder = 'd:\\Data\\cone'
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
-        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'datastorage')
+#        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'datastorage')
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
         os.mkdir(CAPTURE_PATH)

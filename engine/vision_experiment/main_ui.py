@@ -232,7 +232,6 @@ class MainUI(Qt.QMainWindow):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
         self.filebrowser_config = {'data_file': [self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat']], 'stimulus_file': ['/tmp', ['py']]}#TODO: load py files from config or context
-
         self.params_config = [
                 {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Cell detection', 'type': 'group', 'expanded' : False, 'children': [

@@ -274,7 +274,7 @@ class Analysis(object):
         if not hasattr(self,'filename'):
             return
         rois = hdf5io.read_item(self.filename, 'rois', filelocking=False)
-        if (rois is not None and hasattr(self, 'rois') and len(rois)!=len(self.rois)) or (rois is None and len(self.rois)>0):
+        if (hasattr(self, 'rois') and rois is not None and len(rois)!=len(self.rois)) or (rois is None and hasattr(self, 'rois') and len(self.rois)>0):
             if warning_only:
                 print 'Rois are not saved'
             elif self.ask4confirmation('Do you want to save unsaved rois?'):
@@ -410,6 +410,7 @@ class GUIEngine(threading.Thread, Analysis):
     def run(self):
         while True:
             try:
+                self.last_run = time.time()#helps determining whether the engine still runs
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()
                     if msg == 'terminate':
