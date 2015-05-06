@@ -41,6 +41,8 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         self._clear_curves()
         self.curve = self.plot.plot(pen=(0,0,0))
         self.curve.setData(x, y)
+        if min(y) == max(y) or numpy.isnan(min(y)) or numpy.isnan(max(y)):
+            return
         self.plot.setYRange(min(y), max(y))
         
     def update_curves(self, x, y, plot_average=False):

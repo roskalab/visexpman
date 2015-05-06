@@ -88,6 +88,8 @@ class CaImagingData(hdf5io.Hdf5io):
         self.tsync,self.timg = get_sync_events(self)
         self.meanimage, self.image_scale = get_imagedata(self)
         self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
+        if self.raw_data.shape[0]<self.timg.shape[0]:
+            self.timg = self.timg[:self.raw_data.shape[0]]
         return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
         
     def convert(self,format):
