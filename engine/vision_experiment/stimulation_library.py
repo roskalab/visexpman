@@ -918,7 +918,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, is_block = False):
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, fly_in=False, fly_out=False, save_frame_info =True, is_block = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
@@ -935,8 +935,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
         fly_in_out = self.config.BACKGROUND_COLOR[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
-        intensity_profile_length += 2*fly_in_out.shape[0]
-        alltexture=numpy.concatenate((fly_in_out,alltexture,fly_in_out))
+        intensity_profile_length += (fly_in+fly_out)*fly_in_out.shape[0]
+        if fly_in:
+            alltexture=numpy.concatenate((fly_in_out,alltexture))
+        if fly_out:
+            alltexture=numpy.concatenate((alltexture,fly_in_out))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
@@ -962,7 +965,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              ])
         glTexCoordPointerf(texture_coordinates)
         ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-#        t0=time.time()
+        t0=time.time()
         texture_pointer = 0
         frame_counter = 0
         self._add_block_start(is_block, 0, 0)
@@ -971,14 +974,17 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
             if end_index > alltexture.shape[0]:
                 end_index -= alltexture.shape[0]
+            if start_index > alltexture.shape[0]:
+                start_index -= alltexture.shape[0]
             if start_index < end_index:
                 texture = alltexture[start_index:end_index]
             else:
-                texture = numpy.zeros_like(texture)
-                texture[:-end_index] = alltexture[start_index:]
-                texture[-end_index:] = alltexture[:end_index]
-            if start_index >= intensity_profile_length:
                 break
+#                texture = numpy.zeros_like(texture)
+#                texture[:-end_index] = alltexture[start_index:]
+#                texture[-end_index:] = alltexture[:end_index]
+#            if start_index >= intensity_profile_length:
+#                break
             texture_pointer += ds
             frame_counter += 1
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -989,8 +995,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
         self._add_block_end(is_block, 0, 1)
-#        dt=(time.time()-t0)
-#        print self.frame_counter/dt,dt,self.frame_counter,texture_pointer
+        dt=(time.time()-t0)
+        #print 'frame rate', frame_counter/dt,'dt', dt,'frame counter', frame_counter,'text pointer', texture_pointer,'all texture size', alltexture.shape[0], 'self.intensity_profile', self.intensity_profile.shape, 'ds', ds
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
