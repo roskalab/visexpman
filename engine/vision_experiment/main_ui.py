@@ -2,6 +2,7 @@ import copy
 import time
 import numpy
 import os.path
+import itertools
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
@@ -11,6 +12,9 @@ import pyqtgraph.console
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
 from visexpman.engine.vision_experiment import gui_engine
 TOOLBAR_ICON_SIZE = 35
+
+def get_icon(name):
+    return QtGui.QIcon(os.path.join(fileop.visexpman_package_path(),'data', 'icons', '{0}.png'.format(name)))
 
 class ToolBar(QtGui.QToolBar):
     '''
@@ -28,10 +32,10 @@ class ToolBar(QtGui.QToolBar):
     def add_buttons(self):
         icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
         for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
-            a = QtGui.QAction(QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(button))), stringop.to_title(button), self)
+            a = QtGui.QAction(get_icon(button), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
-        
+            
     def hideEvent(self,e):
         self.setVisible(True)
         
@@ -105,6 +109,70 @@ class FileBrowser(QtGui.QTabWidget):
         else:
             raise NotImplementedError(filename)
         self.parent.to_engine.put({'function': function, 'args':[filename]})
+       
+
+class TraceParameterPlots(QtGui.QWidget):
+    def __init__(self, distributions):
+        QtGui.QWidget.__init__(self)
+        self.setWindowIcon(get_icon('main_ui'))
+        self.distributions = distributions
+        self.setWindowTitle('Parameter distributions')
+        self.tab = QtGui.QTabWidget(self)
+        self.plots = {}
+        for par1,par2 in itertools.combinations(['rise', 'fall', 'drop', 'amplitude'],2):
+            self.plots['{0}@{1}'.format(par1,par2)] = gui.Plot(self)
+        for k in self.plots.keys():
+            self.tab.addTab(self.plots[k], k)
+        self.tab.setTabPosition(self.tab.South)
+        self.nstd = gui.LabeledInput(self, 'n = ')
+        self.nstd.input.setFixedWidth(50)
+        self.nstd.input.setText('1')
+        self.scale = QtGui.QPushButton('Scale to mean +/- n * std' ,parent=self)
+        self.axis2scale = gui.LabeledComboBox(self, 'axis to scale',['both', 'x', 'y'])
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.tab,0,0,3,4)
+        self.layout.addWidget(self.nstd,4,0,1,1)
+        self.layout.addWidget(self.axis2scale,4,1,1,1)
+        self.layout.addWidget(self.scale,4,2,1,1)
+        self.setLayout(self.layout)
+        self.setGeometry(10,10,700,400)
+        self.update_plots()
+        self.connect(self.scale, QtCore.SIGNAL('clicked()'), self.rescale)
+        self.connect(self.axis2scale.input, QtCore.SIGNAL('currentChanged(int)'), self.rescale)
+        
+    def _plotname2distributionname(self,plotname):
+        if self.distributions.has_key(plotname):
+                ki=plotname
+        else:
+            ki = plotname.split('@')
+            ki.reverse()
+            ki = '@'.join(ki)
+        return ki
+        
+    def update_plots(self):
+        for k in self.plots.keys():
+            ki=self._plotname2distributionname(k)
+            self.plots[k].plot.setLabels(bottom=ki.split('@')[0], left =ki.split('@')[1])
+            x=self.distributions[ki][0]
+            y=self.distributions[ki][1]
+            self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+        
+    def rescale(self):
+        plotname = self.plots.keys()[self.tab.currentIndex()]
+        plot = self.plots[plotname]
+        try:
+            n = float(self.nstd.input.text())
+        except:
+            return
+        x=self.distributions[self._plotname2distributionname(plotname)][0]
+        y=self.distributions[self._plotname2distributionname(plotname)][1]
+        axis2scale = str(self.axis2scale.input.currentText())
+        if axis2scale == 'x' or axis2scale == 'both':
+            mu,std = (x.mean(), n*x.std())
+            plot.plot.setXRange(mu-std, mu+std)
+        if axis2scale == 'y' or axis2scale == 'both':
+            mu,std = (y.mean(), n*y.std())
+            plot.plot.setYRange(mu-std, mu+std)
         
 class AnalysisHelper(QtGui.QWidget):
     def __init__(self, parent):
@@ -117,6 +185,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
         self.show_repetitions.input.setCheckState(2)
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
+        self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameters' ,parent=self)
         self.roi_adjust = RoiShift(self)
         self.trace_parameters = QtGui.QLabel('', self)
 #        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
@@ -127,18 +196,28 @@ class AnalysisHelper(QtGui.QWidget):
         self.layout.addWidget(self.trace_parameters,0,2,2,1)
         self.layout.addWidget(self.show_repetitions,0,3,1,1)
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
+        self.layout.addWidget(self.show_trace_parameter_distribution,2,3,1,1)
         self.setLayout(self.layout)
-        self.setMaximumHeight(100)
+        self.setMaximumHeight(120)
         self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
+        self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
         
     def find_repetitions_clicked(self):
         self.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
+        
+    def show_trace_parameter_distribution_clicked(self):
+        self.parent.to_engine.put({'function': 'display_trace_parameter_distribution', 'args':[]})
 
 class MainUI(Qt.QMainWindow):
     def __init__(self, context):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
         Qt.QMainWindow.__init__(self)
+        self.setWindowIcon(get_icon('main_ui'))
+        if os.path.exists('C:\\Users'):
+            import ctypes
+            myappid = 'visexpman main user interface' # arbitrary string
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
             setattr(self,c,context[c])
         self._init_variables()
@@ -170,8 +249,6 @@ class MainUI(Qt.QMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self._add_dockable_widget('Parameters', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.params)
         self._load_all_parameters()
-        
-        
         
         self.show()
         self.timer=QtCore.QTimer()
@@ -227,6 +304,9 @@ class MainUI(Qt.QMainWindow):
             elif msg.has_key('display_trace_parameters'):
                 txt='\n'.join(['{0}: {1}'.format(stringop.to_title(k),'{0}'.format(v)[:4]) for k, v in msg['display_trace_parameters'].items()])
                 self.analysis_helper.trace_parameters.setText(txt)
+            elif msg.has_key('display_trace_parameter_distributions'):
+                self.tpp = TraceParameterPlots(msg['display_trace_parameter_distributions'])
+                self.tpp.show()
                 
     def _init_variables(self):
         self.text = ''
@@ -234,6 +314,8 @@ class MainUI(Qt.QMainWindow):
         self.filebrowser_config = {'data_file': [self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat']], 'stimulus_file': ['/tmp', ['py']]}#TODO: load py files from config or context
         self.params_config = [
                 {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
+                    {'name': 'Baseline lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
+                    {'name': 'Background threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
                     {'name': 'Cell detection', 'type': 'group', 'expanded' : False, 'children': [
                         {'name': 'Minimum cell radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
                         {'name': 'Maximum cell radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
@@ -241,8 +323,10 @@ class MainUI(Qt.QMainWindow):
                         {'name': 'Threshold factor', 'type': 'float', 'value': 1.0}
                         ]
                     },
-                    {'name': 'Baseline lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
-                    {'name': 'Background threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
+                    {'name': 'Trace statistics', 'type': 'group', 'expanded' : False, 'children': [
+                        {'name': 'Mean of repetitions', 'type': 'bool', 'value': False},
+                        {'name': 'Include all files', 'type': 'bool', 'value': False},
+                        ]},
                     ]
                     }]
 
@@ -314,7 +398,7 @@ class MainUI(Qt.QMainWindow):
             refs.append(l)
         return values, paths, refs
 
-    def _dump_all_parameters(self):
+    def _dump_all_parameters(self):#TODO: rename
         values, paths, refs = self._get_parameter_tree()
         for i in range(len(refs)):
             self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
@@ -396,6 +480,8 @@ class MainUI(Qt.QMainWindow):
         self.to_engine.put({'function': 'delete_all_rois', 'args':[]})
         
     def exit_action(self):
+        if hasattr(self, 'tpp'):
+            self.tpp.close()
         self._dump_all_parameters()
         self._stop_engine()
         self.close()

@@ -37,9 +37,9 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         self.plot.enableAutoRange()
         self.plot.showGrid(True,True,1.0)
         
-    def update_curve(self, x, y):
+    def update_curve(self, x, y, pen=(0,0,0), plotparams = {}):
         self._clear_curves()
-        self.curve = self.plot.plot(pen=(0,0,0))
+        self.curve = self.plot.plot(pen=pen, **plotparams)
         self.curve.setData(x, y)
         if min(y) == max(y) or numpy.isnan(min(y)) or numpy.isnan(max(y)):
             return

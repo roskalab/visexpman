@@ -10,6 +10,7 @@ import Queue
 import unittest
 import numpy
 import shutil
+import itertools
 
 import hdf5io
 from visexpman.engine.vision_experiment import experiment_data, cone_data
@@ -94,7 +95,6 @@ class Analysis(object):
             self._roi_area2image()
         self.datafile.close()
         
-        
     def find_cells(self):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
             self.notify('Warning', 'Open datafile first')
@@ -139,7 +139,6 @@ class Analysis(object):
     def _filter_rois(self):
         self.suggested_rois = [r for r in self.suggested_rois if min(r[:,0].max()-r[:,0].min(), r[:,1].max()-r[:,1].min())>2]#Roi bounding rectangle's sides are greater than 2 pixel
         #remove overlapping rois
-        import itertools
         removeable_rois = []
         for roi1, roi2 in itertools.combinations(self.suggested_rois,2):
             mask1=numpy.zeros(self.meanimage.shape)
@@ -186,24 +185,12 @@ class Analysis(object):
         show_repetitions = self.guidata.show_repetitions.v if hasattr(self.guidata, 'show_repetitions') else False
         if hasattr(self, 'rois') and len(self.rois)>0:
             baseline_length = self.guidata.read('Baseline lenght')
-            if self.rois[self.current_roi_index].has_key('matches') and show_repetitions:
-                x=[]
-                y=[]
-                for fn in self.rois[self.current_roi_index]['matches'].keys():
-                    #collect matches, shift matched curve's timing such that sync events fall into the same time
-                    tdiff = self.tsync[0]-self.rois[self.current_roi_index]['matches'][fn]['tsync'][0]
-                    x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
-                    y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
-                x.append(self.timg)
-                y.append(self.rois[self.current_roi_index]['normalized'])
-                self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync]})
-                x_,y_ = signal.average_of_traces(x,y)
-            else:
-                self.to_gui.put({'display_roi_curve': [self.timg, self.rois[self.current_roi_index]['normalized'], self.current_roi_index, self.tsync]})
-                x_ = self.timg
-                y_ = self.rois[self.current_roi_index]['normalized']
-            baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop  = cone_data.calculate_trace_parameters(y_, self.tsync, x_, baseline_length)
-            self.to_gui.put({'display_trace_parameters':{'response_amplitude': response_amplitude, 'response_falling_time':T_falling, 'initial_drop_time':T_initial_drop, 'response_rise_sigma': response_rise_sigma}})
+            x_, y_, x, y, parameters = self._extract_repetition_data(self.rois[self.current_roi_index])
+            if not show_repetitions or len(x) == 1:
+                x=x[0]
+                y=y[0]
+            self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync]})
+            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
         if len(self.rois)>0:
@@ -309,6 +296,8 @@ class Analysis(object):
         self.printc('Data exported to  {0}'.format(outfile))
         
     def roi_shift(self, h, v):
+        if not hasattr(self, 'rois'):
+            return
         for r in self.rois:
             r['rectangle'][0] += h
             r['rectangle'][1] += v
@@ -337,6 +326,55 @@ class Analysis(object):
             self.printc('No repetitions found')
         self._normalize_roi_curves()
         self.display_roi_curve()
+        
+    def display_trace_parameter_distribution(self):
+        if not hasattr(self, 'rois'):
+            return
+        show_repetitions = self.guidata.show_repetitions.v if hasattr(self.guidata, 'show_repetitions') else False
+        include_all_files = self.guidata.include_all_files.v if hasattr(self.guidata, 'include_all_files') else False
+        baseline_length = self.guidata.read('Baseline lenght')
+        if include_all_files:
+            self.printc('Creating statistics for all files is not supported')
+            return
+        self.printc('Creating statistics from traces, please wait...')
+        allparams = []
+        for r in self.rois:
+            x_, y_, x, y, parameters = self._extract_repetition_data(r)
+            allparams.extend(parameters)
+        self.distributions = {}
+        for par1,par2 in itertools.combinations(allparams[0].keys(),2):
+            self.distributions[par1+'@'+par2] = [[p[par1], p[par2]]for p in allparams]
+            self.distributions[par1+'@'+par2] = numpy.array(self.distributions[par1+'@'+par2]).T
+        self.to_gui.put({'display_trace_parameter_distributions':self.distributions})
+        
+    def _extract_repetition_data(self,roi):
+        '''
+        Extracts the following from a roi:
+        1) parameters for each repetition
+        2) ca signal and time series for each repetition
+        3) Mean of ca signals
+        '''
+        mean_of_repetitions = self.guidata.mean_of_repetitions.v if hasattr(self.guidata, 'mean_of_repetitions') else False
+        baseline_length = self.guidata.read('Baseline lenght')
+        x=[self.timg]
+        y=[roi['normalized']]
+        parameters = []
+        if roi.has_key('matches'):
+            for fn in roi['matches'].keys():
+                #collect matches, shift matched curve's timing such that sync events fall into the same time
+                tdiff = self.tsync[0]-self.rois[self.current_roi_index]['matches'][fn]['tsync'][0]
+                x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
+                y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
+        for i in range(len(x)):
+            baseline_mean, amplitude, rise, fall, drop  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
+            parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
+        x_,y_ = signal.average_of_traces(x,y)
+        parameters_ = {}
+        if mean_of_repetitions:
+            for pn in parameters[0].keys():
+                parameters_[pn] = numpy.array([par[pn] for par in parameters]).mean()
+            parameters = [parameters_]
+        return x_, y_, x, y, parameters
         
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
@@ -540,9 +578,15 @@ class TestGUIEngineIF(unittest.TestCase):
                 repetition_link = h.findvar('repetition_link')
                 replink_occurences+=len(repetition_link)
                 h.close()
+            if n == 'manual_rois.txt':
+                self.assertTrue(hasattr(self.engine, 'distributions'))
+                self.assertEqual(set(numpy.array([k.split('@') for k in self.engine.distributions.keys()]).flatten().tolist()), 4)#Distribution of 4 parameters are created
+                #Each distribution contains two column data
+                numpy.testing.assert_equal(numpy.array([d.shape[0] for d in self.engine.distributions.values()]),2)
             self.assertEqual(replink_occurences,len(files))
             #Check roi matches, all aggregated_rois have one match. It is important that finding repetitions shall take place at the end of the protocol
             self.assertEqual(abs(numpy.array([len(r['matches']) for r in self.engine.aggregated_rois])-1).sum(),0)
+            print n
             
         
     def _parse_protocol_files(self,filename):
@@ -560,10 +604,17 @@ class TestGUIEngineIF(unittest.TestCase):
     def _init_guidata(self):
         self.engine.guidata.from_dict([{'path': 'params/Analysis/Background threshold', 'name': 'Background Threshold', 'value': 10}, 
             {'path': 'params/Analysis/Baseline lenght', 'name': 'Baseline Lenght', 'value': 1.0},
+            {'path': 'params/Analysis/Trace statistics/Include all files', 'name': 'Include All Files', 'value': False}, 
+            {'path': 'params/Analysis/Trace statistics/Mean of repetitions', 'name': 'Mean of repetitions', 'value': True}, 
+            {'path': 'analysis_helper/show_repetitions/input', 'name': 'Show Repetitions', 'value': True}, 
             {'path': 'params/Analysis/Cell detection/Maximum cell radius', 'name': 'Maximum Cell Radius', 'value': 3.0},
             {'path': 'params/Analysis/Cell detection/Minimum cell radius', 'name': 'Minimum cell radius', 'value': 1.0},
             {'path': 'params/Analysis/Cell detection/Sigma', 'name': 'Sigma', 'value': 1.0}, 
             {'path': 'params/Analysis/Cell detection/Threshold factor', 'name': 'Threshold Factor', 'value': 1.0}])
+            
+            
+            
+            
         
     def tearDown(self):
         self.from_gui.put('terminate')

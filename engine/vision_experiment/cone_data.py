@@ -245,6 +245,7 @@ class TestCA(unittest.TestCase):
             h=experiment_data.CaImagingData(f,filelocking=False)
             rc=[r['raw'] for r in h.findvar('rois')]
             tsync,timg, meanimage, image_scale, raw_data = h.prepare4analysis()
+#            with introspect.Timer(''):
             res = map(calculate_trace_parameters, rc, len(rc)*[tsync], len(rc)*[timg], len(rc)*[1])
             response_amplitudes = []
             response_rise_sigmas = []
