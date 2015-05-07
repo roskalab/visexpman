@@ -205,8 +205,10 @@ class PhysTiff2Hdf5(object):
         if frame_rate>30:#Then probably x scanner signal
             frame_rate /= nxlines
             start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000)[0][0]
+            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>2000)[0][-1]
         else:
             start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000)[0][0]
+            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>1000)[0][-1]
         if frame_rate<5 or frame_rate>12:
             pdb.set_trace()
             raise RuntimeError(frame_rate)
@@ -220,7 +222,8 @@ class PhysTiff2Hdf5(object):
             one_period = numpy.concatenate((numpy.ones(nsample_per_period-flyback_duration), numpy.zeros(flyback_duration)))
         except:
             pdb.set_trace()
-        nperiods = (waveform.shape[0]-start_of_first_frame)/nsample_per_period
+#        nperiods = (waveform.shape[0]-start_of_first_frame)/nsample_per_period
+        nperiods = (end_of_last_frame-start_of_first_frame)/nsample_per_period
         trigger_signal = numpy.zeros_like(waveform)
         pulses = numpy.concatenate((numpy.zeros(start_of_first_frame), numpy.tile(one_period, nperiods)))
         trigger_signal[:pulses.shape[0]]=pulses

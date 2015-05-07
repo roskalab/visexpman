@@ -76,8 +76,8 @@ def check(h, config):
 def get_id(timestamp=None):
     if timestamp is None:
         timestamp = time.time()
-    epoch = time.mktime((2014, 01, 01, 0,0,0,0,0,0))
-    return str(int(numpy.round(timestamp-epoch, 2)*100))
+    epoch = time.mktime((2014, 11, 01, 0,0,0,0,0,0))
+    return str(int(numpy.round(timestamp-epoch, 1)*10))
 
 ############### Preprocess measurement data ####################
 class CaImagingData(hdf5io.Hdf5io):
@@ -89,7 +89,7 @@ class CaImagingData(hdf5io.Hdf5io):
         self.meanimage, self.image_scale = get_imagedata(self)
         self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
         if self.raw_data.shape[0]<self.timg.shape[0]:
-            self.timg = self.timg[:self.raw_data.shape[0]]
+            raise RuntimeError('More sync pulses detected than number of frames recorded')
         return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
         
     def convert(self,format):
