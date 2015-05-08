@@ -757,7 +757,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                  'MOVE_TIMEOUT' : 15.0,
                  'DEGREE_PER_USTEP' : degree_factor * numpy.ones(2, dtype = numpy.float)}]
         #=== DAQ ===
-        SYNC_CHANNEL_INDEX = 1
+        SYNC_CHANNEL_INDEX = 3
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -818,8 +818,9 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                             'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig', 'ProjectorFlashConfig']
         FULLSCREEN = not True
         self.COLOR_MASK = [1.0, 1.0, 1.0]
-        self.TRIGGER_MES = False
-        self.CONTINUE_STIMULUS_TRIGGER = True
+        self.TRIGGER_MES =not False
+        self.CONTINUE_STIMULUS_TRIGGER = not True
+        self.MES_RECORD_START_DELAY = 15.0
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         self._create_parameters_from_locals(locals())
 

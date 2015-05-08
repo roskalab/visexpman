@@ -98,6 +98,7 @@ class ExperimentControl(object):
             if context.has_key('experiment_count'):
                 message = '{0} {1}'.format( context['experiment_count'],  message)
             message_to_screen += self.printl(message,  application_log = True) + '\n'
+            time.sleep(0.1)
             self.finished_fragment_index = 0
             for fragment_id in range(self.number_of_fragments):
                 if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
@@ -309,7 +310,7 @@ class ExperimentControl(object):
                 #TMP0612
                 line_scan_path_on_mes = os.path.join(self.config.EXPERIMENT_DATA_PATH, os.path.split(self.filenames['local_fragments'][fragment_id])[1].replace('.hdf5', '.mat'))
                 if self.config.TRIGGER_MES:
-                    self.queues['mes']['out'].put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
+                    self.queues['mes']['out'].put('SOCstart_recordingEOC{0}EOP' .format(int(1000*self.mes_record_time)))
                     if self.mes_record_time>60:
                         time.sleep(10.0)
 #                    if not self.queues['mes']['in'].empty():
@@ -319,7 +320,7 @@ class ExperimentControl(object):
                         if not self.queues['mes']['in'].empty():
                             msg = self.queues['mes']['in'].get()
                             self.printl(msg)
-                            if msg == 'SOCacquire_line_scanEOCstartedEOP':
+                            if msg == 'SOCstart_recordingEOCstartedEOP':
                                 time.sleep(1.0)
                                 break
                             elif 'error' in msg:
@@ -563,6 +564,7 @@ class ExperimentControl(object):
         else:
             experiment_source = utils.file_to_binary_array(inspect.getfile(self.__class__).replace('.pyc', '.py'))
         software_environment = self._pack_software_environment()
+        self.printl('Collecting data')
         data_to_file = {
                                     'sync_data' : analog_input_data, 
                                     'current_fragment' : fragment_id, #deprecated

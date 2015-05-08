@@ -131,6 +131,17 @@ class LedKamill10Config(experiment.ExperimentConfig):
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
         
+class ThermoStimulatorConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 30.0
+        self.NUMBER_OF_FLASHES = 5.0
+        self.FLASH_DURATION = 5.0
+        self.FLASH_AMPLITUDE = 5.0 #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
         
 class LedPre(experiment.PreExperiment):
     def run(self):
