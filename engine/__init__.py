@@ -143,7 +143,7 @@ class TestApplicationInit(unittest.TestCase):
         if hasattr(self, 'context'):
             stop_application(self.context)
         
-    @unittest.skipIf(platform.system()=='Windows' and 'unittest_aggregator' in sys.argv[0],  'Does not work on windows system')
+    #@unittest.skipIf(platform.system()=='Windows' and 'unittest_aggregator' in sys.argv[0],  'Does not work on windows system')
     def test_01_command_line_args(self):
         sys.argv.append('-u test')
         sys.argv.append('-c GUITestConfig')

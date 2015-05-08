@@ -733,7 +733,7 @@ class TestFileops(unittest.TestCase):
         os.remove(self.filename)
         pass
         
-    @unittest.skip('')
+    #@unittest.skip('')
     def test_01_pngsave(self):
         import numpy
         try:
@@ -751,7 +751,7 @@ class TestFileops(unittest.TestCase):
         self.assertTrue((pilconfirm.info['mycomment']==pilpic.info['mycomment']) and (pilconfirm.info['myhash']==pilpic.info['myhash']))
         pass
         
-    @unittest.skip('Starts a process and blocks other tests, needs to be fixed')
+    #@unittest.skip('Starts a process and blocks other tests, needs to be fixed')
     def test_02_copier(self):
         from multiprocessing import Process,Manager
         import threading
