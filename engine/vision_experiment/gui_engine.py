@@ -236,7 +236,7 @@ class Analysis(object):
     def delete_all_rois(self):
         if not hasattr(self, 'current_roi_index'):
             return
-        if not self.ask4confirmation('Removing all rois. Are you sure?'):
+        if not self.unittest and not self.ask4confirmation('Removing all rois. Are you sure?'):
             return
         self.rois = []
         del self.current_roi_index
@@ -389,7 +389,8 @@ class GUIEngine(threading.Thread, Analysis):
      {'command_name': [parameters]}
     '''
 
-    def __init__(self, machine_config, log):
+    def __init__(self, machine_config, log, unittest=False):
+        self.unittest=unittest
         self.log=log
         self.machine_config = machine_config
         threading.Thread.__init__(self)
@@ -463,6 +464,7 @@ class GUIEngine(threading.Thread, Analysis):
                     getattr(self, 'to_gui').put(value)
                 elif msg.has_key('function'):#Functions are simply forwarded
                     #Format: {'function: function name, 'args': [], 'kwargs': {}}
+#                    with introspect.Timer(str(msg)):
                     getattr(self, msg['function'])(*msg['args'])
                     if hasattr(self, 'log') and hasattr(self.log, 'info'):
                         self.log.info(msg, 'engine')
@@ -497,7 +499,7 @@ class TestGUIEngineIF(unittest.TestCase):
             guidata = GUIData()
             guidata.add('Sigma 1', 0.5, 'path/sigma')
             hdf5io.save_item(self.cf, 'guidata', utils.object2array(guidata.to_dict()), filelocking=False)
-        self.engine = GUIEngine(self.machine_config, None)
+        self.engine = GUIEngine(self.machine_config, None, unittest=True)
         
         self.engine.save_context()
         self.from_gui, self.to_gui = self.engine.get_queues()
@@ -544,6 +546,8 @@ class TestGUIEngineIF(unittest.TestCase):
         self._init_guidata()
         ref_folder = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'cone_gui')
         self.working_folder = os.path.join(tempfile.gettempdir(), 'guienginetest')
+        if os.path.exists(self.working_folder):
+            shutil.rmtree(self.working_folder)
         self.engine.machine_config.EXPERIMENT_DATA_PATH = self.working_folder
         shutil.copytree(ref_folder, self.working_folder)
         files = fileop.listdir_fullpath(self.working_folder)
@@ -558,9 +562,12 @@ class TestGUIEngineIF(unittest.TestCase):
                 if not self.to_gui.empty():
                     resp.append(self.to_gui.get())
                     tlast = time.time()
-                if time.time()-tlast>30:#assuming that the execution of any function does not take longer than 30 sec
+                if time.time()-tlast>60:#assuming that the execution of any function does not take longer than 30 sec
                     break
             printc_messages = [r['printc'] for r in resp if r.has_key('printc')]
+            print n
+            for p in printc_messages:
+                print p
             self.assertEqual([p for p in printc_messages if 'error' in p], [])#No error in printc messages
             files = [p.split(' ')[-1] for p in printc_messages if 'ROIs are saved to ' in p]
             #Check if mat files are available
@@ -578,16 +585,23 @@ class TestGUIEngineIF(unittest.TestCase):
                 repetition_link = h.findvar('repetition_link')
                 replink_occurences+=len(repetition_link)
                 h.close()
+            self.assertEqual(replink_occurences,len(files))
             if n == 'manual_rois.txt':
                 self.assertTrue(hasattr(self.engine, 'distributions'))
-                self.assertEqual(set(numpy.array([k.split('@') for k in self.engine.distributions.keys()]).flatten().tolist()), 4)#Distribution of 4 parameters are created
+                self.assertEqual(len(list(set(numpy.array([k.split('@') for k in self.engine.distributions.keys()]).flatten().tolist()))), 4)#Distribution of 4 parameters are created
                 #Each distribution contains two column data
                 numpy.testing.assert_equal(numpy.array([d.shape[0] for d in self.engine.distributions.values()]),2)
-            self.assertEqual(replink_occurences,len(files))
+            elif n == 'automated_roi_detection.txt':
+                self.assertTrue('All rois removed' in printc_messages)
+                self.assertEqual(self.engine.rois, [])
             #Check roi matches, all aggregated_rois have one match. It is important that finding repetitions shall take place at the end of the protocol
-            self.assertEqual(abs(numpy.array([len(r['matches']) for r in self.engine.aggregated_rois])-1).sum(),0)
-            print n
-            
+            try:
+                self.assertEqual(abs(numpy.array([len(r['matches']) for r in self.engine.aggregated_rois])-1).sum(),0)
+            except:
+                import traceback
+                print traceback.format_exc()
+                import pdb
+                pdb.set_trace()
         
     def _parse_protocol_files(self,filename):
         protocol = [line.split('\t')[1] for line in fileop.read_text_file(filename).split('\n') if 'INFO/engine' in line]
@@ -611,10 +625,6 @@ class TestGUIEngineIF(unittest.TestCase):
             {'path': 'params/Analysis/Cell detection/Minimum cell radius', 'name': 'Minimum cell radius', 'value': 1.0},
             {'path': 'params/Analysis/Cell detection/Sigma', 'name': 'Sigma', 'value': 1.0}, 
             {'path': 'params/Analysis/Cell detection/Threshold factor', 'name': 'Threshold Factor', 'value': 1.0}])
-            
-            
-            
-            
         
     def tearDown(self):
         self.from_gui.put('terminate')
