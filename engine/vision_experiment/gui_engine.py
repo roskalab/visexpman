@@ -72,8 +72,7 @@ class Analysis(object):
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync, self.timg]})
-        background_threshold = self.guidata.read('Background threshold')*1e-2
-        self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
+        self._recalculate_background()
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
             if self.rois is not None and len(self.rois)>0:
@@ -94,6 +93,10 @@ class Analysis(object):
             self.display_roi_curve()
             self._roi_area2image()
         self.datafile.close()
+        
+    def _recalculate_background(self):
+        background_threshold = self.guidata.read('Background threshold')*1e-2
+        self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
         
     def find_cells(self):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
@@ -156,10 +159,9 @@ class Analysis(object):
         for r in self.rois:
             if r.has_key('area') and hasattr(r['area'], 'dtype'):
                 area = self._clip_area(copy.deepcopy(r['area']))
-                r['raw'] = self.raw_data[:,:,area[:,0], area[:,1]].mean(axis=2).flatten()-self.background
+                r['raw'] = self.raw_data[:,:,area[:,0], area[:,1]].mean(axis=2).flatten()
             elif r.has_key('rectangle'):
                 r['raw'] = self.raw_data[:,:,r['rectangle'][0]-0.5*r['rectangle'][2]: r['rectangle'][0]+0.5*r['rectangle'][2], r['rectangle'][1]-0.5*r['rectangle'][3]: r['rectangle'][1]+0.5*r['rectangle'][3]].mean(axis=2).mean(axis=2).flatten()
-                r['raw'] -= self.background
                 
     def _clip_area(self,area):
         for i in range(2):#Make sure that indexing is correct even if area falls outside the image
@@ -168,9 +170,11 @@ class Analysis(object):
         return area
         
     def _normalize_roi_curves(self):
+        if not hasattr(self, 'rois'):
+            return
         baseline_length = self.guidata.read('Baseline lenght')
         for r in self.rois:
-            r['normalized'] = signal.df_over_f(self.timg, r['raw'], self.tsync[0], baseline_length)
+            r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tsync[0], baseline_length)
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
@@ -184,7 +188,6 @@ class Analysis(object):
     def display_roi_curve(self):
         show_repetitions = self.guidata.show_repetitions.v if hasattr(self.guidata, 'show_repetitions') else False
         if hasattr(self, 'rois') and len(self.rois)>0:
-            baseline_length = self.guidata.read('Baseline lenght')
             x_, y_, x, y, parameters = self._extract_repetition_data(self.rois[self.current_roi_index])
             if not show_repetitions or len(x) == 1:
                 x=x[0]
@@ -249,7 +252,6 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
-        raw -= self.background
         self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
@@ -330,9 +332,7 @@ class Analysis(object):
     def display_trace_parameter_distribution(self):
         if not hasattr(self, 'rois'):
             return
-        show_repetitions = self.guidata.show_repetitions.v if hasattr(self.guidata, 'show_repetitions') else False
         include_all_files = self.guidata.include_all_files.v if hasattr(self.guidata, 'include_all_files') else False
-        baseline_length = self.guidata.read('Baseline lenght')
         if include_all_files:
             self.printc('Creating statistics for all files is not supported')
             return
@@ -366,7 +366,7 @@ class Analysis(object):
                 x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
                 y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
         for i in range(len(x)):
-            baseline_mean, amplitude, rise, fall, drop  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
+            baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
             parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
         x_,y_ = signal.average_of_traces(x,y)
         parameters_ = {}
@@ -398,6 +398,7 @@ class GUIEngine(threading.Thread, Analysis):
         self.to_gui = Queue.Queue()
         self.context_filename = fileop.get_context_filename(self.machine_config)
         self.load_context()
+        self.widget_status = {}
         Analysis.__init__(self, machine_config)
         
     def load_context(self):
@@ -445,6 +446,37 @@ class GUIEngine(threading.Thread, Analysis):
         
     def notify(self,title,message):
         self.to_gui.put({'notify':{'title': title, 'msg':message}})
+        
+    def update_widget_status(self, status):
+        '''
+        Update widget status
+        
+        Engine shall know whether a pop up window is open or not
+        '''
+        for k,v in status.items():
+            self.widget_status[k]=v
+            
+    def check_parameter_changes(self, parameter_name):
+        '''
+        parameter_name: name of parameter changed
+        Depending on which parameter changed certain things has to be recalculated
+        '''
+        tpp_opened = utils.safe_has_key(self.widget_status, 'tpp') and self.widget_status['tpp']
+        if 'Background threshold' in parameter_name:
+            self._normalize_roi_curves()
+            self.display_roi_curve()
+        elif 'Baseline lenght' in parameter_name:
+            self._normalize_roi_curves()
+            self.display_roi_curve()
+            if tpp_opened:
+                self.display_trace_parameter_distribution()
+        elif 'Include all files' in parameter_name:
+            if tpp_opened:
+                self.display_trace_parameter_distribution()
+        elif 'Mean of repetitions' in parameter_name:
+            self.display_roi_curve()
+            if tpp_opened:
+                self.display_trace_parameter_distribution()
     
     def run(self):
         while True:
@@ -459,6 +491,7 @@ class GUIEngine(threading.Thread, Analysis):
                 #parse message
                 if msg.has_key('data'):#expected format: {'data': value, 'path': gui path, 'name': name}
                     self.guidata.add(msg['name'], msg['data'], msg['path'])#Storing gui data
+                    self.check_parameter_changes(msg['name'])
                 elif msg.has_key('read'):#gui might need to read guidata database
                     value = self.guidata.read(**msg)
                     getattr(self, 'to_gui').put(value)

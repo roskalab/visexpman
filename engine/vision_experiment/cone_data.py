@@ -14,7 +14,7 @@ from visexpA.engine.dataprocessors import signal as signal2
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import scipy.optimize
-from pylab import plot,show,figure,title,imshow,subplot
+from pylab import plot,show,figure,title,imshow,subplot,clf,savefig
 
 import warnings
 
@@ -35,6 +35,7 @@ def calculate_trace_parameters(trace, tsync, timg,baseline_length):
     
     '''
     #TODO: test for negative responses
+    fitted_traces = []
     tsample=numpy.diff(timg)[0]
     #determine indexes of signal boundaries
     response_start = signal.time2index(timg, tsync[0])
@@ -50,6 +51,7 @@ def calculate_trace_parameters(trace, tsync, timg,baseline_length):
     #Fit exp(-t/T) and calculate T
     try:
         coeff, cov = scipy.optimize.curve_fit(exp,t,initial_drop_trace,p0=[1,1,initial_drop_trace[-1]])
+        fitted_traces.append(exp(t,*coeff))
     except:
         coeff = [0]*3
     T_initial_drop = coeff[0]*tsample
@@ -59,6 +61,8 @@ def calculate_trace_parameters(trace, tsync, timg,baseline_length):
     t=numpy.arange(numpy.array(falling_trace).shape[0])
     try:
         coeff, cov = scipy.optimize.curve_fit(exp,t,falling_trace,p0=[1,1,falling_trace[-1]])
+        fitted_traces.append(exp(t,*coeff))
+        fitted_traces[-1] = numpy.concatenate((numpy.ones(response_end)*fitted_traces[-1][0], fitted_traces[-1]))
     except:
         coeff = [0]*3
     T_falling=coeff[0]*tsample
@@ -67,12 +71,14 @@ def calculate_trace_parameters(trace, tsync, timg,baseline_length):
     t0=response_start-baseline_start
     try:
         coeff, cov = scipy.optimize.curve_fit(sigmoid,t,rising_trace,p0=[t0,1,1,rising_trace.mean()])
+        fitted_traces.append(sigmoid(t,*coeff))
+        fitted_traces[-1] = numpy.concatenate((numpy.ones(baseline_start)*fitted_traces[-1][0], fitted_traces[-1]))
     except:
         coeff = [0]*4
     response_rise_sigma = coeff[1]*tsample
     response_amplitude = sigmoid(t,*coeff)[-1]
     baseline_mean = baseline.mean()
-    return baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop
+    return baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop,fitted_traces
 
 class TransientAnalysator(object):
     def __init__(self, baseline_t_start, baseline_t_end):
@@ -192,7 +198,8 @@ def find_repetitions(filename, folder):
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
     for fn, rois in aggregated_rois.items():
-        aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
+        if len(rois)>0:#Skip if link exists but rois do not
+            aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
     reference = aggregated_rectangles[filename]
     ref_signatures = point_signature(reference)
@@ -252,12 +259,19 @@ class TestCA(unittest.TestCase):
             T_fallings = []
             T_initial_drops = []
             for r in res:
-                baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop = r
+                baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop,fitted_traces = r
                 response_amplitudes.append(response_amplitude/baseline_mean)
                 response_rise_sigmas.append(response_rise_sigma)
                 T_fallings.append(T_falling)
                 T_initial_drops.append(T_initial_drop)
                 trace =rc[res.index(r)]
+                if 0:
+                    clf()
+                    plot(trace)
+                    map(plot, fitted_traces)
+                    title('response_amplitude {0}, response_rise_sigma {1},\n T_falling {2}, T_initial_drop {3}' .format(response_amplitude, response_rise_sigma, T_falling, T_initial_drop))
+                    savefig('r:\\temp\\fitting\\{0}_{1}.png'.format(os.path.split(f)[1], res.index(r)),dpi=300)
+                pass
 #                if abs(response_amplitude)<3:
 #                    continue
 #            figure(ct)
@@ -321,8 +335,9 @@ class TestCA(unittest.TestCase):
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
             break
         return
-        folder = '/home/rz/rzws/dataslow/debug/no_repetitions_found'
-        res = find_repetitions(fileop.listdir_fullpath(folder)[0], folder)
+        folder = '/mnt/rzws/experiment_data/test'
+        f='/mnt/rzws/experiment_data/test/data_C7_unknownstim_1423223487_0.hdf5'
+        res = find_repetitions(f, folder)
         self.assertGreater(sum([r.has_key('matches') for r in res]),0)
         
         

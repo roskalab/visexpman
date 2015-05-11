@@ -501,6 +501,7 @@ class MainUI(Qt.QMainWindow):
         self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})
     
     def parameter_changed(self, param, changes):
+        self.send_widget_status()
         for change in changes:
             #find out tree
             ref = copy.deepcopy(change[0])
@@ -513,7 +514,10 @@ class MainUI(Qt.QMainWindow):
                     break
             tree.reverse()
             self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
-            self.printc('Warning: Curve normalization is not recalculated')
+            
+    def send_widget_status(self):
+        if hasattr(self, 'tpp'):
+            self.to_engine.put({'function': 'update_widget_status', 'args': [{'tpp':self.tpp.isVisible()}]})
 
     def closeEvent(self, e):
         e.accept()
