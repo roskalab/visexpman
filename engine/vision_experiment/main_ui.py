@@ -24,14 +24,19 @@ class ToolBar(QtGui.QToolBar):
     def __init__(self, parent):
         self.parent=parent
         QtGui.QToolBar.__init__(self, 'Toolbar', parent)
+#        self.select_stimulus = QtGui.QComboBox(self)
+#        self.select_stimulus.setToolTip('Select stimulus')
+#        self.addWidget(self.select_stimulus)
         self.add_buttons()
         self.setIconSize(QtCore.QSize(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE))
         self.setFloatable(False)
         self.setMovable(False)
+#        self.update_stim_list(['a', 'b'])
+#        self.connect(self.select_stimulus, QtCore.SIGNAL('currentChanged(int)'), self.stimulus_selection_changed)
         
     def add_buttons(self):
         icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
-        for button in ['start_experiment', 'stop', 'snap', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
+        for button in ['start_experiment', 'stop', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
             a = QtGui.QAction(get_icon(button), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
@@ -39,6 +44,40 @@ class ToolBar(QtGui.QToolBar):
     def hideEvent(self,e):
         self.setVisible(True)
         
+#    def update_stim_list(self, items):
+#        self.select_stimulus.blockSignals(True)
+#        self.select_stimulus.clear()
+#        self.select_stimulus.blockSignals(False)
+#        self.select_stimulus.addItems(QtCore.QStringList(items))
+#        
+#    def stimulus_selection_changed(self):
+#        self.parent.to_engine.put({'data': str(self.select_stimulus.currentText()), 'path': 'toolbar/select_stimulus', 'name': 'stimulus'})
+
+class Progressbar(QtGui.QWidget):
+    def __init__(self, maxtime, name = '', autoclose = False):
+        self.maxtime = maxtime
+        self.autoclose = autoclose
+        QtGui.QWidget.__init__(self)
+        self.setWindowTitle(name)
+        self.progressbar = QtGui.QProgressBar(self)
+        self.progressbar.setRange(0, maxtime)
+        self.progressbar.setMinimumWidth(300)
+        self.progressbar.setMinimumHeight(50)
+        self.t0=time.time()
+        self.timer=QtCore.QTimer()
+        self.timer.start(200)#ms
+        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update)
+        
+    def update(self):
+        now=time.time()
+        dt=now-self.t0
+        if dt>self.maxtime:
+            dt = self.maxtime
+            self.timer.stop()
+            if self.autoclose:
+                self.close()
+        self.progressbar.setValue(dt)
+
 class RoiShift(gui.ArrowButtons):
     def __init__(self,parent):
         gui.ArrowButtons.__init__(self, 'Shift Rois', parent)
@@ -100,16 +139,13 @@ class FileBrowser(QtGui.QTabWidget):
         ext = fileop.file_extension(filename)
         if ext == 'hdf5':
             function = 'open_datafile'
-            scope = 'analysis'
             self.parent.to_engine.put({'function': 'keep_rois', 'args':[self.parent.analysis_helper.keep_rois.input.checkState()==2]})
             self.parent.analysis_helper.keep_rois.input.setCheckState(0)
         elif ext == 'py':
             function = 'open_stimulus_file'
-            scope = 'tbd'
         else:
             raise NotImplementedError(filename)
         self.parent.to_engine.put({'function': function, 'args':[filename]})
-       
 
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
@@ -173,7 +209,7 @@ class TraceParameterPlots(QtGui.QWidget):
         if axis2scale == 'y' or axis2scale == 'both':
             mu,std = (y.mean(), n*y.std())
             plot.plot.setYRange(mu-std, mu+std)
-        
+
 class AnalysisHelper(QtGui.QWidget):
     def __init__(self, parent):
         self.parent = parent
@@ -198,7 +234,8 @@ class AnalysisHelper(QtGui.QWidget):
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
         self.layout.addWidget(self.show_trace_parameter_distribution,2,3,1,1)
         self.setLayout(self.layout)
-        self.setMaximumHeight(120)
+        self.setFixedHeight(140)
+        self.setFixedWidth(550)
         self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
         self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
         
@@ -227,34 +264,38 @@ class MainUI(Qt.QMainWindow):
         #Set up toobar
         self.toolbar = ToolBar(self)
         self.addToolBar(self.toolbar)
-        #Set up statusbar
-        self.statusbar = self.statusBar()
-        self._write2statusbar('Application started')
         #Add dockable widgets
         self.debug = Debug(self)
-        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
+#        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
+        
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         self.image = Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         self.plot = gui.Plot(self)
         self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
+        self.plot.setMaximumWidth(self.image.width())
         self.plot.plot.setLabels(bottom='sec')
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
-        self.filebrowser = FileBrowser(self, self.filebrowser_config)
-        self._add_dockable_widget('File Browser', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.filebrowser)
-        self.analysis_helper = AnalysisHelper(self)
-        self._add_dockable_widget('Analysis helper', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.analysis_helper)
-        self.params = gui.ParameterTable(self, self.params_config)
-        self.params.setFixedWidth(300)
-        self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
-        self._add_dockable_widget('Parameters', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.params)
-        self._load_all_parameters()
         
+        self.filebrowser = FileBrowser(self, self.filebrowser_config)
+        self.analysis_helper = AnalysisHelper(self)
+        self.params = gui.ParameterTable(self, self.params_config)
+        self.params.setMaximumWidth(500)
+        self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
+        
+        self.main_tab = QtGui.QTabWidget(self)
+        self.main_tab.addTab(self.params, 'Parameters')
+        self.main_tab.addTab(self.filebrowser, 'File browser')
+        self.main_tab.addTab(self.analysis_helper, 'Analysis')
+        self.main_tab.setCurrentIndex(0)
+        self.main_tab.setTabPosition(self.main_tab.South)
+        
+        self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
+        self._load_all_parameters()
         self.show()
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
-        
         self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
         self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repeptitions_changed)
         if QtCore.QCoreApplication.instance() is not None:
@@ -270,14 +311,12 @@ class MainUI(Qt.QMainWindow):
                 self.image.remove_all_rois()
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
-                self._write2statusbar('File opened')
             elif msg.has_key('show_suggested_rois'):
                 self.image_w_rois = msg['show_suggested_rois']
                 self.image.set_image(self.image_w_rois)
             elif msg.has_key('display_roi_rectangles'):
                 self.image.remove_all_rois()
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
-                self._write2statusbar('Suggested rois displayed')
                 self.printc('Displaying {0} rois'.format(len(msg['display_roi_rectangles'])))
             elif msg.has_key('display_roi_curve'):
                 timg, curve, index, tsync = msg['display_roi_curve']
@@ -307,12 +346,39 @@ class MainUI(Qt.QMainWindow):
             elif msg.has_key('display_trace_parameter_distributions'):
                 self.tpp = TraceParameterPlots(msg['display_trace_parameter_distributions'])
                 self.tpp.show()
+#                self.pb = Progressbar(10)
+#                self.pb.show()
                 
     def _init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
         self.filebrowser_config = {'data_file': [self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat']], 'stimulus_file': ['/tmp', ['py']]}#TODO: load py files from config or context
+        imaging_channels = self.machine_config.PMTS.keys()
+        imaging_channels.append('both')
+        fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
+        fw1.sort()
+        fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
+        fw2.sort()
         self.params_config = [
+                {'name': 'Imaging', 'type': 'group', 'expanded' : True, 'children': [
+                    {'name': 'Cell name', 'type': 'str', 'value': ''},
+                    {'name': 'Scan height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Scan width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Pixel size', 'type': 'float', 'value': 1.0, 'siPrefix': True},
+                    {'name': 'Pixel size unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
+                    {'name': 'Imaging channel', 'type': 'list', 'values': imaging_channels, 'value': imaging_channels[0]},
+                    ]},
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
+                    {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
+                    {'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''},
+                    {'name': 'Grey level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
+                    {'name': 'Projector on', 'type': 'bool', 'value': False},
+                    {'name': 'Bullseye on', 'type': 'bool', 'value': False},
+                    {'name': 'Bullseye size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Bullseye shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye'},
+                    {'name': 'Stimulus center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Stimulus center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                    ]},
                 {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Baseline lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
                     {'name': 'Background threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
@@ -328,9 +394,31 @@ class MainUI(Qt.QMainWindow):
                         {'name': 'Include all files', 'type': 'bool', 'value': False},
                         ]},
                     ]
-                    }]
+                    },
+                    {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
+                        {'name': 'Electrophysiology channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
+                        {'name': 'Electrophysiology sampling rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+                    ]},
+                    {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
+                        {'name': 'Scanner', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Analog input sampling rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
+                            {'name': 'Analog output sampling rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
+                            {'name': 'Scan center x', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                            {'name': 'Scan center y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                            {'name': 'Stimulus flash duty cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
+                            {'name': 'Stimulus flash delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
+                            {'name': 'Enable flyback scan', 'type': 'bool', 'value': False},
+                            {'name': 'Enable phase characteristics', 'type': 'bool', 'value': False},
+                            {'name': 'Scanner position to voltage factor', 'type': 'float', 'value': 0.013},
+                        ]},
+                    ]}
+                    ]
+                
 
 
+
+                                                                        
+                                                                        
 
 #                {'name': 'Basic parameter data types', 'type': 'group', 'children': [
 #                {'name': 'Integer', 'type': 'int', 'value': 10},

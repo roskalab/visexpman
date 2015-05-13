@@ -44,8 +44,17 @@ class GUIData(object):
     def from_dict(self, data):
         for item in data:
             setattr(self, stringop.to_variable_name(item['name']), GUIDataItem(stringop.to_title(item['name']), item['value'], item['path']))
-            
-                    
+
+
+class ExperimentHandler(object):
+    '''
+    Takes care of all microscope, hardware related tasks
+    Handles stimulus files, initiates recording and stimulation, 
+    '''
+    def open_stimulus_file(self, filename):
+        pass
+    
+
 class Analysis(object):
     def __init__(self,machine_config):
         self.machine_config = machine_config
@@ -76,7 +85,7 @@ class Analysis(object):
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
             if self.rois is not None and len(self.rois)>0:
-                if not self.ask4confirmation('File already contains Rois. These will be overwritten with Rois from previous file. Is thak OK?'):
+                if not self.ask4confirmation('File already contains Rois. These will be overwritten with Rois from previous file. Is that OK?'):
                     return
             #Calculate roi curves
             self.rois = copy.deepcopy(self.reference_rois)
@@ -270,8 +279,15 @@ class Analysis(object):
                 self.save_rois_and_export()
         
     def save_rois_and_export(self):
+        if not hasattr(self, 'filename'):
+            return
         file_info = os.stat(self.filename)
         self.datafile = experiment_data.CaImagingData(self.filename)
+        self.datafile.load('rois')
+        if hasattr(self.datafile, 'rois'):
+            if not self.ask4confirmation('File already contains Rois. These will be overwritten. Is that OK?'):
+                self.datafile.close()
+                return
         self.datafile.rois = copy.deepcopy(self.rois)
         if hasattr(self, 'reference_roi_filename'):
             self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
@@ -379,7 +395,7 @@ class Analysis(object):
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
     
-class GUIEngine(threading.Thread, Analysis):
+class GUIEngine(threading.Thread, Analysis, ExperimentHandler):
     '''
     GUI engine: receives commands via queue interface from gui and performs the following actions:
      - stores data internally
