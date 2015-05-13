@@ -9,8 +9,8 @@ import copy
 import unittest
 import hdf5io
 import itertools
-from visexpA.engine.dataprocessors import roi
-from visexpA.engine.dataprocessors import signal as signal2
+#from visexpA.engine.dataprocessors import roi
+#from visexpA.engine.dataprocessors import signal as signal2
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import scipy.optimize
