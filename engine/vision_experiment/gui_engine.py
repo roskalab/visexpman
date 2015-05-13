@@ -51,7 +51,8 @@ class ExperimentHandler(object):
     Takes care of all microscope, hardware related tasks
     Handles stimulus files, initiates recording and stimulation, 
     '''
-    def open_stimulus_file(self, filename):
+    def open_stimulus_file(self, filename, classname):
+        self.printc((filename, classname))
         pass
     
 

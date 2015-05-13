@@ -198,7 +198,10 @@ def parse_stimulation_file(filename):
     if fileop.file_extension(filename) != 'py':
         raise RuntimeError('Files only with py extension can be selected: {0}'.format(filename))
     source_code = fileop.read_text_file(filename)
-    introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
+    try:
+        introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
+    except Exception as e:
+        raise type(e)(e.message + '\r\nFile {0}, line {1}'.format(filename, sys.exc_info()[2].tb_lineno))
     experiment_module = __import__('experiment_module')
     experiment_config_classes = {}
     for c in inspect.getmembers(experiment_module,inspect.isclass):

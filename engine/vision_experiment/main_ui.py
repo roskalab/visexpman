@@ -10,11 +10,97 @@ import pyqtgraph
 import pyqtgraph.console
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
-from visexpman.engine.vision_experiment import gui_engine
+from visexpman.engine.vision_experiment import gui_engine, experiment
 TOOLBAR_ICON_SIZE = 35
 
 def get_icon(name):
     return QtGui.QIcon(os.path.join(fileop.visexpman_package_path(),'data', 'icons', '{0}.png'.format(name)))
+    
+class StimulusTree(pyqtgraph.TreeWidget):
+    def __init__(self,parent, root):
+        self.parent=parent
+        self.root=root
+        pyqtgraph.TreeWidget.__init__(self,parent)
+        self.setColumnCount(1)
+        self.setHeaderLabels(QtCore.QStringList(['Name']))#, 'Date Modified']))
+        self.setMaximumWidth(350)
+        self._populate()
+        self.itemDoubleClicked.connect(self.stimulus_selected)
+        self.itemSelectionChanged.connect(self.get_selected_stimulus)
+        self.timer=QtCore.QTimer()
+        self.timer.start(1000)#ms
+#        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self._populate)
+        
+    def _populate(self):
+        files = fileop.find_files_and_folders(self.root)[1]
+        files = [f for f in files if fileop.file_extension(f) =='py']
+        experiment_configs = []
+        for f in files:
+            try:
+                confnames = experiment.parse_stimulation_file(f).keys()
+                experiment_configs.extend(map(os.path.join, [f]*len(confnames), confnames))
+            except:
+                pass#Ignoring py files with error
+            
+        self.clear()
+        branches = [list(e.replace(self.root, '')[1:].split(os.sep)) for e in experiment_configs]
+        added_items = {}
+        for branch in branches:
+            for level in range(len(branch)):
+                if not added_items.has_key(level):
+                    added_items[level] = []
+                widgets = [w for w in added_items[level] if str(w.text(0)) == branch[level]]
+                if len(widgets)==0:
+                    newwidget=QtGui.QTreeWidgetItem([branch[level]])
+                    if level==0:
+                        self.addTopLevelItem(newwidget)
+                    else:
+                        try:
+                            upper_widget = [w for w in added_items[level-1] if str(w.text(0)) == branch[level-1]][0]
+                        except:
+                            import pdb
+                            pdb.set_trace()
+                        upper_widget.addChild(newwidget)
+                    added_items[level].append(newwidget)
+        
+    def stimulus_selected(self,selected_widget):
+        if self._is_experiment_class(selected_widget):
+            filename, classname = self.filename_from_widget(selected_widget)
+            self.parent.to_engine.put({'function': 'open_stimulus_file', 'args':[filename, classname]})
+        
+    def get_selected_stimulus(self):
+        selected_widget = self.selectedItems()
+        if len(selected_widget)==0:
+            self._give_not_stimulus_selected_warning()
+            return
+        else:
+            selected_widget = selected_widget[0]
+            if self._is_experiment_class(selected_widget):
+                filename, classname = self.filename_from_widget(selected_widget)
+#        self.parent.to_engine.put()
+        
+    def _is_experiment_class(self, widget):
+        return not(widget.parent() is None or str(widget.parent().text(0))[-3:] != '.py')
+        
+    def filename_from_widget(self, widget):
+        if not self._is_experiment_class(widget):
+            self._give_not_stimulus_selected_warning()
+            return
+        next_in_chain = widget
+        items = []
+        while True:
+            if next_in_chain is not None and hasattr(next_in_chain, 'text'):
+                items.append(str(next_in_chain.text(0)))
+                next_in_chain = next_in_chain.parent()
+            else:
+                break
+        classname = str(widget.text(0))
+        filename = os.path.join(self.root, os.sep.join(items))
+        return filename, classname
+        
+    def _give_not_stimulus_selected_warning(self):
+        QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)
+        
 
 class ToolBar(QtGui.QToolBar):
     '''
@@ -44,15 +130,6 @@ class ToolBar(QtGui.QToolBar):
     def hideEvent(self,e):
         self.setVisible(True)
         
-#    def update_stim_list(self, items):
-#        self.select_stimulus.blockSignals(True)
-#        self.select_stimulus.clear()
-#        self.select_stimulus.blockSignals(False)
-#        self.select_stimulus.addItems(QtCore.QStringList(items))
-#        
-#    def stimulus_selection_changed(self):
-#        self.parent.to_engine.put({'data': str(self.select_stimulus.currentText()), 'path': 'toolbar/select_stimulus', 'name': 'stimulus'})
-
 class Progressbar(QtGui.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False):
         self.maxtime = maxtime
@@ -117,15 +194,10 @@ class Debug(QtGui.QTabWidget):
         self.addTab(self.console, 'Console')
         self.setTabPosition(self.South)
         
-class FileBrowser(QtGui.QTabWidget):
-    def __init__(self,parent, config):
-        self.parent=parent
-        QtGui.QTabWidget.__init__(self,parent)
-        for k,v in config.items():
-            setattr(self, k, gui.FileTree(self, v[0], v[1]))
-            self.addTab(getattr(self, k), stringop.to_title(k))
-            getattr(self, k).doubleClicked.connect(self.file_selected)
-        self.setTabPosition(self.South)
+class DataFileBrowser(gui.FileTree):
+    def __init__(self,parent, root, extensions):
+        gui.FileTree.__init__(self,parent, root, extensions)
+        self.doubleClicked.connect(self.file_selected)
         self.setToolTip('Double click on file to open')
         
     def file_selected(self,index):
@@ -141,8 +213,6 @@ class FileBrowser(QtGui.QTabWidget):
             function = 'open_datafile'
             self.parent.to_engine.put({'function': 'keep_rois', 'args':[self.parent.analysis_helper.keep_rois.input.checkState()==2]})
             self.parent.analysis_helper.keep_rois.input.setCheckState(0)
-        elif ext == 'py':
-            function = 'open_stimulus_file'
         else:
             raise NotImplementedError(filename)
         self.parent.to_engine.put({'function': function, 'args':[filename]})
@@ -277,15 +347,17 @@ class MainUI(Qt.QMainWindow):
         self.plot.plot.setLabels(bottom='sec')
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         
-        self.filebrowser = FileBrowser(self, self.filebrowser_config)
+        self.stimulusbrowser = StimulusTree(self, fileop.get_user_module_folder(self.machine_config) )
+        self.datafilebrowser = DataFileBrowser(self, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat'])
         self.analysis_helper = AnalysisHelper(self)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         
         self.main_tab = QtGui.QTabWidget(self)
+        self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        self.main_tab.addTab(self.filebrowser, 'File browser')
+        self.main_tab.addTab(self.datafilebrowser, 'Data Files')
         self.main_tab.addTab(self.analysis_helper, 'Analysis')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -352,7 +424,6 @@ class MainUI(Qt.QMainWindow):
     def _init_variables(self):
         self.text = ''
         self.source_name = '{0}' .format(self.user_interface_name)
-        self.filebrowser_config = {'data_file': [self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat']], 'stimulus_file': ['/tmp', ['py']]}#TODO: load py files from config or context
         imaging_channels = self.machine_config.PMTS.keys()
         imaging_channels.append('both')
         fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
