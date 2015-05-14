@@ -24,14 +24,14 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.setColumnCount(1)
         self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
         self.setMaximumWidth(350)
-        self._populate()
+        self.populate()
         self.itemDoubleClicked.connect(self.stimulus_selected)
         self.itemSelectionChanged.connect(self.get_selected_stimulus)
-        self.timer=QtCore.QTimer()
-        self.timer.start(1000)#ms
+#        self.timer=QtCore.QTimer()
+#        self.timer.start(3000)#ms
 #        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self._populate)
         
-    def _populate(self):
+    def populate(self):
         files = fileop.find_files_and_folders(self.root)[1]
         files = [f for f in files if fileop.file_extension(f) =='py']
         experiment_configs = []
@@ -41,8 +41,10 @@ class StimulusTree(pyqtgraph.TreeWidget):
                 experiment_configs.extend(map(os.path.join, [f]*len(confnames), confnames))
             except:
                 pass#Ignoring py files with error
-            
+        #Clear tree view
+        self.blockSignals(True)
         self.clear()
+        #Populate with files and stimulus classes
         branches = [list(e.replace(self.root, '')[1:].split(os.sep)) for e in experiment_configs]
         added_items = {}
         for branch in branches:
@@ -62,6 +64,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
                             pdb.set_trace()
                         upper_widget.addChild(newwidget)
                     added_items[level].append(newwidget)
+        self.blockSignals(False)
         
     def stimulus_selected(self,selected_widget):
         if self._is_experiment_class(selected_widget):
@@ -73,6 +76,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         Selects stimulus class in file/class tree and expands the tree
         '''
         filename_classname = filename_classname.replace(self.root, '').split(os.sep)[1:]
+        widget_ref = None
         for tli in self.topLevelItems():
             if str(tli.text(0)) == filename_classname[0]:
                 widget_ref = tli
@@ -80,13 +84,16 @@ class StimulusTree(pyqtgraph.TreeWidget):
                 for level in range(1, len(filename_classname)):
                     child_found=False
                     for childi in range(widget_ref.childCount()):
+                        if widget_ref.child(childi) is None:
+                            continue
                         if widget_ref.child(childi).text(0) == filename_classname[level]:
                             widget_ref.setExpanded(True)
                             widget_ref = widget_ref.child(childi)
                             child_found=True
                     if not child_found:
                         return
-        self.setItemSelected(widget_ref, True)
+        if widget_ref is not None:
+            self.setItemSelected(widget_ref, True)
         
     def get_selected_stimulus(self):
         selected_widget = self.selectedItems()
@@ -103,8 +110,8 @@ class StimulusTree(pyqtgraph.TreeWidget):
     def _is_experiment_class(self, widget):
         return not(widget.parent() is None or str(widget.parent().text(0))[-3:] != '.py')
         
-    def filename_from_widget(self, widget):
-        if not self._is_experiment_class(widget):
+    def filename_from_widget(self, widget, give_warning=True):
+        if not self._is_experiment_class(widget) and give_warning:
             self._give_not_stimulus_selected_warning()
             return
         next_in_chain = widget
@@ -132,19 +139,14 @@ class ToolBar(QtGui.QToolBar):
     def __init__(self, parent):
         self.parent=parent
         QtGui.QToolBar.__init__(self, 'Toolbar', parent)
-#        self.select_stimulus = QtGui.QComboBox(self)
-#        self.select_stimulus.setToolTip('Select stimulus')
-#        self.addWidget(self.select_stimulus)
         self.add_buttons()
         self.setIconSize(QtCore.QSize(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE))
         self.setFloatable(False)
         self.setMovable(False)
-#        self.update_stim_list(['a', 'b'])
-#        self.connect(self.select_stimulus, QtCore.SIGNAL('currentChanged(int)'), self.stimulus_selection_changed)
         
     def add_buttons(self):
         icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
-        for button in ['start_experiment', 'stop', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
+        for button in ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
             a = QtGui.QAction(get_icon(button), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
@@ -392,6 +394,7 @@ class MainUI(Qt.QMainWindow):
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
         self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repeptitions_changed)
+        self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -600,6 +603,8 @@ class MainUI(Qt.QMainWindow):
                 wname = ref.__class__.__name__.lower()
                 if 'checkbox' in wname:
                     ref.setCheckState(2 if item['value'] else 0)
+                elif 'qtabwidget' in wname:
+                    ref.setCurrentIndex(item['value'])
                 
     
     def printc(self, text, logonly = False):
@@ -620,13 +625,14 @@ class MainUI(Qt.QMainWindow):
     
     ############# Actions #############
     def start_experiment_action(self):
-        pass
+        self.to_engine.put({'function': 'start_experiment', 'args':[]})
         
     def stop_action(self):
         pass
         
-    def snap_action(self):
-        pass
+    def refresh_stimulus_files_action(self):
+        self.stimulusbrowser.populate()
+        self.printc('Stimulus files and classes are refreshed.')
         
     def find_cells_action(self):
         self.to_engine.put({'function': 'find_cells', 'args':[]})
@@ -697,6 +703,9 @@ class MainUI(Qt.QMainWindow):
                     break
             tree.reverse()
             self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
+            
+    def tab_changed(self,currentIndex):
+        self.to_engine.put({'data': currentIndex, 'path': 'main_tab', 'name': 'Main Tab'})
             
     def send_widget_status(self):
         if hasattr(self, 'tpp'):

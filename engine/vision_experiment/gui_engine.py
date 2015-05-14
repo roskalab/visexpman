@@ -13,7 +13,7 @@ import shutil
 import itertools
 
 import hdf5io
-from visexpman.engine.vision_experiment import experiment_data, cone_data
+from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
 class GUIDataItem(object):
@@ -52,12 +52,23 @@ class ExperimentHandler(object):
     Handles stimulus files, initiates recording and stimulation, 
     '''
     def open_stimulus_file(self, filename, classname):
+        if not os.path.exists(filename):
+            self.printc('{0} does not exists'.format(filename))
+            return
         self.printc('Opening {0} in gedit, scroll to {1}'.format(filename, classname))
         import subprocess
-        
         process = subprocess.Popen(['gedit', filename], shell=self.machine_config.OS != 'Linux')
         
-    
+    def start_experiment(self):
+        cf=self.guidata.read('Selected experiment class')
+        classname=cf.split(os.sep)[-1]
+        filename=os.sep.join(cf.split(os.sep)[:-1])
+        #Find out duration
+        experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = fileop.read_text_file(filename))
+        #TODO: CONTINUE HERE: Calculate and check scan parameters
+        #Pack scanner signals with guidata and add entry to issued commands
+        
+
 
 class Analysis(object):
     def __init__(self,machine_config):

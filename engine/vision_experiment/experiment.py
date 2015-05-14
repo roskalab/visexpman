@@ -184,6 +184,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         else:
             experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
             experiment_class_object = experiment_class(config, experiment_config_class_object)
+    experiment_class_object.prepare()
     if hasattr(experiment_class_object, 'stimulus_duration'):
         return experiment_class_object.stimulus_duration
     else:
@@ -229,7 +230,7 @@ class testExperimentHelpers(unittest.TestCase):
         conf = GUITestConfig()
         conf.user='test'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)
-        self.assertEqual(duration, 10.0)
+        self.assertEqual(duration, 15.0)
         
     def test_03_read_experiment_duration_from_source(self):
         from visexpman.users.test.test_configurations import GUITestConfig
@@ -238,7 +239,7 @@ class testExperimentHelpers(unittest.TestCase):
         source = fileop.read_text_file(os.path.join(fileop.get_user_module_folder(conf), 'test_stimulus.py'))
         conf.user='zoltan'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=source)
-        self.assertEqual(duration, 10.0)
+        self.assertEqual(duration, 15.0)
         self.assertEqual(isinstance(get_experiment_duration('TestCommonExperimentConfig', conf, source=source), float), True)#Testing something from the common folder
         
     def test_04_not_existing_experiment_class(self):
