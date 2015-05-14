@@ -22,7 +22,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.root=root
         pyqtgraph.TreeWidget.__init__(self,parent)
         self.setColumnCount(1)
-        self.setHeaderLabels(QtCore.QStringList(['Name']))#, 'Date Modified']))
+        self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
         self.setMaximumWidth(350)
         self._populate()
         self.itemDoubleClicked.connect(self.stimulus_selected)
@@ -67,6 +67,26 @@ class StimulusTree(pyqtgraph.TreeWidget):
         if self._is_experiment_class(selected_widget):
             filename, classname = self.filename_from_widget(selected_widget)
             self.parent.to_engine.put({'function': 'open_stimulus_file', 'args':[filename, classname]})
+            
+    def select_stimulus(self, filename_classname):
+        '''
+        Selects stimulus class in file/class tree and expands the tree
+        '''
+        filename_classname = filename_classname.replace(self.root, '').split(os.sep)[1:]
+        for tli in self.topLevelItems():
+            if str(tli.text(0)) == filename_classname[0]:
+                widget_ref = tli
+                widget_ref.setExpanded(True)
+                for level in range(1, len(filename_classname)):
+                    child_found=False
+                    for childi in range(widget_ref.childCount()):
+                        if widget_ref.child(childi).text(0) == filename_classname[level]:
+                            widget_ref.setExpanded(True)
+                            widget_ref = widget_ref.child(childi)
+                            child_found=True
+                    if not child_found:
+                        return
+        self.setItemSelected(widget_ref, True)
         
     def get_selected_stimulus(self):
         selected_widget = self.selectedItems()
@@ -77,7 +97,8 @@ class StimulusTree(pyqtgraph.TreeWidget):
             selected_widget = selected_widget[0]
             if self._is_experiment_class(selected_widget):
                 filename, classname = self.filename_from_widget(selected_widget)
-#        self.parent.to_engine.put()
+                self.setHeaderLabels(QtCore.QStringList([classname]))
+                self.parent.to_engine.put({'data': filename+os.sep+classname, 'path': 'stimulusbrowser/Selected experiment class', 'name': 'Selected experiment class'})
         
     def _is_experiment_class(self, widget):
         return not(widget.parent() is None or str(widget.parent().text(0))[-3:] != '.py')
@@ -95,7 +116,8 @@ class StimulusTree(pyqtgraph.TreeWidget):
             else:
                 break
         classname = str(widget.text(0))
-        filename = os.path.join(self.root, os.sep.join(items))
+        items.reverse()
+        filename = os.path.join(self.root, os.sep.join(items[:-1]))
         return filename, classname
         
     def _give_not_stimulus_selected_warning(self):
@@ -571,6 +593,8 @@ class MainUI(Qt.QMainWindow):
                 r = refs[paths.index([p for p in paths if p == item['path']][0])]
                 r.setValue(item['value'])
                 r.setDefault(item['value'])
+            elif mwname == 'stimulusbrowser':
+                self.stimulusbrowser.select_stimulus(item['value'])
             else:
                 ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
                 wname = ref.__class__.__name__.lower()
