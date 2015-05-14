@@ -128,13 +128,13 @@ class Instrument(object):
 #    def __del__(self):        
 #        self.release_instrument()
 
-try:
-    import parallel
-    class InstrumentWithParallel(Instrument, parallel.Parallel):
-        pass
-    parallel_port_ancestors = InstrumentWithParallel
-except ImportError:
-    parallel_port_ancestors = Instrument
+#try:
+#    import parallel
+#    class InstrumentWithParallel(Instrument, parallel.Parallel):
+#        pass
+#    parallel_port_ancestors = InstrumentWithParallel
+#except ImportError:
+parallel_port_ancestors = Instrument
 
 class ParallelPort(parallel_port_ancestors):
     '''

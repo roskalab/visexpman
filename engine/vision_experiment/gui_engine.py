@@ -52,8 +52,11 @@ class ExperimentHandler(object):
     Handles stimulus files, initiates recording and stimulation, 
     '''
     def open_stimulus_file(self, filename, classname):
-        self.printc((filename, classname))
-        pass
+        self.printc('Opening {0} in gedit, scroll to {1}'.format(filename, classname))
+        import subprocess
+        
+        process = subprocess.Popen(['gedit', filename], shell=self.machine_config.OS != 'Linux')
+        
     
 
 class Analysis(object):
