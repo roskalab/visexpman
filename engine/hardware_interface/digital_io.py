@@ -21,7 +21,9 @@ class SerialPortDigitalIO(instrument.Instrument):
         else:
             self.s = [serial.Serial(self.config.DIGITAL_IO_PORT)]
         if os.name != 'nt':
-            self.s.open()
+            for s in self.s:
+                if not s.isOpen():
+                    s.open()
         self.clear_pins()
             
     def clear_pins(self):
