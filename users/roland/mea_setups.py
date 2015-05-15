@@ -27,6 +27,8 @@ class MEAConfig(HiMEAConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         
+        #PLATFORM = 'mc_mea'
+        
         EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['/home/localadmin/tmp'])
         CONTEXT_PATH = self.root_folder
 #        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))

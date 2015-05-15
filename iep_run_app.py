@@ -27,7 +27,19 @@ visexpman.engine.stop_application(context)
 
 
 ## 
-import serial
-s = serial.Serial(context['machine_config'].DIGITAL_IO_PORT)
+#import serial
+#s = [serial.Serial(context['machine_config'].DIGITAL_IO_PORT)]
 
 
+##
+#import serial
+#s = serial.Serial('/dev/ttyS0')
+
+
+##
+import parallel
+p = parallel.Parallel()
+
+for N in range(1,32):
+    print N
+    p.setData(N)
