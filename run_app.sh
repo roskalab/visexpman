@@ -1,5 +1,5 @@
 #!/bin/bash
 
 export PYTHONPATH=~/Software:PYTHONPATH
-./engine/visexp_app.py -u common -c MEAConfig -a stim
+./engine/visexp_app.py -u roland -c MEAConfig -a stim
 

@@ -309,7 +309,7 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         self.ENABLE_FILTERWHEEL = unittest_aggregator.TEST_filterwheel
         return#TODO: rework all these instrument classes
         ENABLE_PARALLEL_PORT = True
-        ENABLE_SHUTTER = True
+        ENABLE_SHUTTER = True 
         FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  unittest_aggregator.TEST_com_port,
                                     'baudrate' : 115200,

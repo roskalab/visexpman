@@ -35,8 +35,8 @@ class MEAConfig(HiMEAConfig):
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True
+        DIGITAL_IO_PORT = '/dev/ttyS0' #'COM5'
         COORDINATE_SYSTEM='center'
-        DIGITAL_IO_PORT = 'COM5'
         FRAME_TRIGGER_PIN = 1
         BLOCK_TRIGGER_PIN = 0 #Roland tried with 2
         self.ENABLE_MEA_START_COMMAND=True#False
