@@ -1,3 +1,4 @@
+#!/usr/bin/python
 '''
 Starter module of all Vision Experiment Manager applications
 
