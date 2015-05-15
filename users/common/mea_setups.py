@@ -23,11 +23,11 @@ class MEAConfig(HiMEAConfig):
         #self.SCALE_5X = 300.0/(26*self.CAMERAPIXEL_PITCH)
         self.SCALE_2000um = 600.0/2000.0
         SCREEN_UM_TO_PIXEL_SCALE = self.SCALE_2000um #self.SCALE_5X
-        self.root_folder = fileop.select_folder_exists(['/mnt/rzws/experiment_data','r:\\experiment_data', '/tmp', 'c:\\temp'])
+        self.root_folder = fileop.select_folder_exists(['/home/localadmin/tmp'])
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         
-        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['v:\\'+time.strftime('%y%m%d{0}data'.format(os.sep)),  'v:\\', 'c:\\temp1'])
+        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['/home/localadmin/tmp'])
         CONTEXT_PATH = self.root_folder
 #        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
 #        os.mkdir(CAPTURE_PATH)
