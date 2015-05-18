@@ -12,9 +12,18 @@ import cv2
 from visexpman.engine.generic import configuration
 from visexpman.engine.generic import fileop
 import tables
+import ctypes
+
+class SPOT_EXPOSURE_STRUCT2(ctypes.Structure):
+    _fields_ = [('dwRedExpDur', ctypes.c_long),
+                    ('dwGreenExpDur', ctypes.c_long),
+                    ('dwBlueExpDur', ctypes.c_long),
+                    ('dwExpDur', ctypes.c_long),
+                    ('nGain', ctypes.c_short)]
+
 
 class VideoCamera(instrument.Instrument):
-    def __init__(self, config,debug=False):
+    def __init__(self, config=None,debug=False):
         self.config = config
         self.debug=debug
         self._init_camera()
@@ -33,6 +42,54 @@ class VideoCamera(instrument.Instrument):
         
     def close(self):
         pass
+        
+class SpotCam(VideoCamera):
+    
+    def error(self,code):
+        print 'Error code', code
+        
+    def _init_camera(self):
+        if os.name != 'nt':
+            raise NotImplementedError('Spot cam is only supported on Windows platform')
+        self.dll = ctypes.WinDLL (os.path.join(fileop.visexpman_package_path(), 'engine', 'external', 'SpotCamProxy.dll'))
+        res=[]
+        res.append(self.dll.SpotStartUp(None))
+        time.sleep(0.5)
+        tmp=ctypes.c_short(1)
+        res.append(self.dll.SpotSetValue(204,ctypes.byref(tmp)))#Select device 1, SPOT_DRIVERDEVICENUMBER
+        time.sleep(0.5)
+        res.append(self.dll.SpotInit())
+        res.append(self.dll.SpotGetValue(221,ctypes.byref(tmp)))#Read exposure timer increment
+        self.exposure_increment = tmp.value
+        exposure_time = 100e-3
+        res.append(self.set_exposure(100e-3))
+        res.append(self.dll.SpotSetValue(103,ctypes.byref(ctypes.c_short(1))))#disable binning: SPOT_BINSIZE
+        res.append(self.dll.SpotSetValue(113,ctypes.byref(ctypes.c_short(8))))#set bit depth to 8 bit, SPOT_BITDEPTH
+        res.append(self.dll.SpotGetValue(153,ctypes.byref(tmp)))#Read image size, #SPOT_ACQUIREDIMAGESIZE
+        self.h=(tmp.value>>16)&0xffff
+        self.w=tmp.value&0xffff
+        res.append(self.dll.SpotClearStatus())
+        if len([r for r in res if r!= 0])>0:
+            raise RuntimeError('Could not initialize camera: {0}'.format(res))
+        self.buffer =ctypes.create_string_buffer(self.h*self.w)
+            
+    def set_exposure(self,exposure_time, gain=1):
+        exposure_ct = int(exposure_time*1e9)/self.exposure_increment
+        return self.dll.SpotSetValue(105,ctypes.byref(SPOT_EXPOSURE_STRUCT2(0,0,0,exposure_ct,gain)))#Set exposure, #SPOT_EXPOSURE2
+        
+    def get_image(self):
+        res = self.dll.SpotGetImage(ctypes.c_short(0),ctypes.c_bool(False), ctypes.c_short(0), ctypes.cast(ref, ctypes.c_void_p),None,None, None)
+        if res!=0:
+            raise RuntimeError('Image could not be acquired, error code: {0}'.format(res))
+        return numpy.fromstring(ref, dtype=numpy.uint8).reshape(self.h,self.w)
+            
+    def close(self):
+        res=[]
+        res.append(self.dll.SpotExit())
+        res.append(self.dll.SpotShutDown())
+        if len([r for r in res if r!= 0])>0:
+            raise RuntimeError('Could not close camera: {0}'.format(res))
+        
 
 class OpenCVCamera(VideoCamera):
     def start(self, recording_length_s, filename):
