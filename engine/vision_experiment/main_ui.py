@@ -10,7 +10,6 @@ import pyqtgraph
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
 from visexpman.engine.vision_experiment import gui_engine, experiment
-TOOLBAR_ICON_SIZE = 35
     
 class StimulusTree(pyqtgraph.TreeWidget):
     def __init__(self,parent, root):
@@ -127,29 +126,6 @@ class StimulusTree(pyqtgraph.TreeWidget):
         QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)
         
 
-class ToolBar(QtGui.QToolBar):
-    '''
-    Toolbar holding the following shortcuts:
-    -experiment start, stop, snap, live start, exit
-    '''
-    def __init__(self, parent):
-        self.parent=parent
-        QtGui.QToolBar.__init__(self, 'Toolbar', parent)
-        self.add_buttons()
-        self.setIconSize(QtCore.QSize(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE))
-        self.setFloatable(False)
-        self.setMovable(False)
-        
-    def add_buttons(self):
-        icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
-        for button in ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
-            a = QtGui.QAction(gui.get_icon(button), stringop.to_title(button), self)
-            a.triggered.connect(getattr(self.parent, button+'_action'))
-            self.addAction(a)
-            
-    def hideEvent(self,e):
-        self.setVisible(True)
-        
 class Progressbar(QtGui.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False):
         self.maxtime = maxtime
@@ -200,16 +176,6 @@ class Image(gui.Image):
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
             
-class Debug(QtGui.QTabWidget):
-    def __init__(self,parent):
-        self.parent=parent
-        QtGui.QTabWidget.__init__(self,parent)
-        self.log = gui.TextOut(self)
-        self.console = gui.PythonConsole(self)
-        self.addTab(self.log, 'Log')
-        self.addTab(self.console, 'Console')
-        self.setTabPosition(self.South)
-        
 class DataFileBrowser(gui.FileTree):
     def __init__(self,parent, root, extensions):
         gui.FileTree.__init__(self,parent, root, extensions)
@@ -341,10 +307,10 @@ class MainUI(gui.VisexpmanMainWindow):
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         self._set_window_title()
         #Set up toobar
-        self.toolbar = ToolBar(self)
+        self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit'])
         self.addToolBar(self.toolbar)
         #Add dockable widgets
-        self.debug = Debug(self)
+        self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
@@ -525,20 +491,7 @@ class MainUI(gui.VisexpmanMainWindow):
     def _stop_engine(self):
         self.to_engine.put('terminate')
         self.engine.join()
-        
-    def _set_window_title(self, animal_file=''):
-        self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
-        
-    def _write2statusbar(self,txt):
-        self.statusbar.showMessage(txt)
-        
-    def _add_dockable_widget(self, title, position, allowed_areas, widget):
-        dock = QtGui.QDockWidget(title, self)
-        dock.setAllowedAreas(allowed_areas)
-        dock.setWidget(widget)
-        self.addDockWidget(position, dock)
-        dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
-        
+
     def _get_parameter_tree(self):
         nodes = [[children for children in self.params.params.children()]]
         import itertools
@@ -695,10 +648,7 @@ class MainUI(gui.VisexpmanMainWindow):
     def send_widget_status(self):
         if hasattr(self, 'tpp'):
             self.to_engine.put({'function': 'update_widget_status', 'args': [{'tpp':self.tpp.isVisible()}]})
-
-    def closeEvent(self, e):
-        e.accept()
-        self.exit_action()
+    
     
 if __name__ == '__main__':
     import visexpman.engine

@@ -30,6 +30,58 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         set_win_icon()
         for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
             setattr(self,c,context[c])
+            
+    def _set_window_title(self, animal_file=''):
+        self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
+        
+    def _add_dockable_widget(self, title, position, allowed_areas, widget):
+        dock = QtGui.QDockWidget(title, self)
+        dock.setAllowedAreas(allowed_areas)
+        dock.setWidget(widget)
+        self.addDockWidget(position, dock)
+        dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
+        
+    def _write2statusbar(self,txt):
+        self.statusbar.showMessage(txt)
+        
+    def closeEvent(self, e):
+        e.accept()
+        self.exit_action()
+        
+class ToolBar(QtGui.QToolBar):
+    '''
+    Toolbar holding the following shortcuts:
+    -experiment start, stop, snap, live start, exit
+    '''
+    def __init__(self, parent, icon_names, toolbar_size = 35):
+        self.icon_names = icon_names
+        self.parent=parent
+        QtGui.QToolBar.__init__(self, 'Toolbar', parent)
+        self.add_buttons()
+        self.setIconSize(QtCore.QSize(toolbar_size, toolbar_size))
+        self.setFloatable(False)
+        self.setMovable(False)
+        
+    def add_buttons(self):
+        icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
+        for button in self.icon_names:
+            a = QtGui.QAction(get_icon(button), stringop.to_title(button), self)
+            a.triggered.connect(getattr(self.parent, button+'_action'))
+            self.addAction(a)
+            
+    def hideEvent(self,e):
+        self.setVisible(True)
+
+        
+class Debug(QtGui.QTabWidget):
+    def __init__(self,parent):
+        self.parent=parent
+        QtGui.QTabWidget.__init__(self,parent)
+        self.log = TextOut(self)
+        self.console = PythonConsole(self)
+        self.addTab(self.log, 'Log')
+        self.addTab(self.console, 'Console')
+        self.setTabPosition(self.South)
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent):
