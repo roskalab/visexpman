@@ -46,6 +46,7 @@ class MEAConfig(HiMEAConfig):
         self.INTENSITIES_550NM = numpy.array([15.6, 17, 20.8, 49, 87, 185, 288, 409, 564, 738, 888])
         self.GAMMA_CORRECTION = numpy.array([numpy.arange(0,1.1,0.1), self.INTENSITIES_425NM]).T
         self._create_parameters_from_locals(locals())
+        ENABLE_PARALLEL_PORT = True
 
 class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):

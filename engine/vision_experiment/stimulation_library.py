@@ -547,7 +547,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, 
-                    part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
+                    part_of_drawing_sequence = False, is_block = False, save_frame_info = True, block_trigger = False):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -711,6 +711,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
 #         pixel_velocity= -1.5/stimulus_profile.shape[0]
 #         n_frames = int(numpy.sqrt(800**2+600**2)/1.5)
         phase = 0
+        if block_trigger:
+            self.block_start()
+            
         for i in range(n_frames):
             phase += pixel_velocities[i]
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
@@ -727,6 +730,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
+        
+        if block_trigger:
+            self.block_end()
+        
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
