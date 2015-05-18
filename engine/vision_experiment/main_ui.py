@@ -7,14 +7,10 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
-import pyqtgraph.console
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
 from visexpman.engine.vision_experiment import gui_engine, experiment
 TOOLBAR_ICON_SIZE = 35
-
-def get_icon(name):
-    return QtGui.QIcon(os.path.join(fileop.visexpman_package_path(),'data', 'icons', '{0}.png'.format(name)))
     
 class StimulusTree(pyqtgraph.TreeWidget):
     def __init__(self,parent, root):
@@ -147,7 +143,7 @@ class ToolBar(QtGui.QToolBar):
     def add_buttons(self):
         icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
         for button in ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']:
-            a = QtGui.QAction(get_icon(button), stringop.to_title(button), self)
+            a = QtGui.QAction(gui.get_icon(button), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
             
@@ -195,11 +191,7 @@ class RoiShift(gui.ArrowButtons):
         elif direction == 'up':
             v += 1
         self.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
-        
-class PythonConsole(pyqtgraph.console.ConsoleWidget):
-    def __init__(self, parent):
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':parent.parent, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
-        
+                
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=3):
         gui.Image.__init__(self, parent, roi_diameter)
@@ -213,7 +205,7 @@ class Debug(QtGui.QTabWidget):
         self.parent=parent
         QtGui.QTabWidget.__init__(self,parent)
         self.log = gui.TextOut(self)
-        self.console = PythonConsole(self)
+        self.console = gui.PythonConsole(self)
         self.addTab(self.log, 'Log')
         self.addTab(self.console, 'Console')
         self.setTabPosition(self.South)
@@ -244,7 +236,7 @@ class DataFileBrowser(gui.FileTree):
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
         QtGui.QWidget.__init__(self)
-        self.setWindowIcon(get_icon('main_ui'))
+        self.setWindowIcon(gui.get_icon('main_ui'))
         self.distributions = distributions
         self.setWindowTitle('Parameter distributions')
         self.tab = QtGui.QTabWidget(self)
@@ -339,18 +331,11 @@ class AnalysisHelper(QtGui.QWidget):
     def show_trace_parameter_distribution_clicked(self):
         self.parent.to_engine.put({'function': 'display_trace_parameter_distribution', 'args':[]})
 
-class MainUI(Qt.QMainWindow):
+class MainUI(gui.VisexpmanMainWindow):
     def __init__(self, context):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
-        Qt.QMainWindow.__init__(self)
-        self.setWindowIcon(get_icon('main_ui'))
-        if os.path.exists('C:\\Users'):
-            import ctypes
-            myappid = 'visexpman main user interface' # arbitrary string
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-        for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
-            setattr(self,c,context[c])
+        gui.VisexpmanMainWindow.__init__(self, context)
         self._init_variables()
         self._start_engine()
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
@@ -533,7 +518,7 @@ class MainUI(Qt.QMainWindow):
 #    ]}]
         
     def _start_engine(self):
-        self.engine = gui_engine.GUIEngine(self.machine_config, self.logger)
+        self.engine = gui_engine.GUIEngine(self.machine_config, self.logger, self.socket_queues)
         self.to_engine, self.from_engine = self.engine.get_queues()
         self.engine.start()
         

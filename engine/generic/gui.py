@@ -7,8 +7,34 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
+import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal
 from pyqtgraph.parametertree import Parameter, ParameterTree
+
+def get_icon(name):
+    return QtGui.QIcon(os.path.join(fileop.visexpman_package_path(),'data', 'icons', '{0}.png'.format(name)))
+    
+def set_win_icon():
+    '''
+    Ensures that icon is visible on win7 taskbar
+    '''
+    if os.path.exists('C:\\Users'):
+        import ctypes
+        myappid = 'visexpman main user interface' # arbitrary string
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        
+        
+class VisexpmanMainWindow(Qt.QMainWindow):
+    def __init__(self, context):
+        Qt.QMainWindow.__init__(self)
+        set_win_icon()
+        for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
+            setattr(self,c,context[c])
+
+class PythonConsole(pyqtgraph.console.ConsoleWidget):
+    def __init__(self, parent):
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':parent.parent, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
+
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
         self.parent = parent
@@ -474,7 +500,7 @@ def update_combo_box_list(self, widget, new_list,  selected_item = None):
     else:
         widget.setCurrentIndex(current_index)
 
-def load_experiment_config_names(config, widget):
+def load_experiment_config_names(config, widget):#OBSOLETE
     '''
     Loads all experiment config names and adds them to a dropdown widget
     OBSOLETE
@@ -494,7 +520,7 @@ def load_experiment_config_names(config, widget):
             pass
     return experiment_config_list
     
-class WidgetControl(object):
+class WidgetControl(object):#OBSOLETE
     def __init__(self, poller, config, widget):
         self.config = config
         self.poller = poller

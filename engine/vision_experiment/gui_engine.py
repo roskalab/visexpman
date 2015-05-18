@@ -14,6 +14,7 @@ import itertools
 
 import hdf5io
 from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
+from visexpman.engine.hardware_interface import queued_socket
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
 class GUIDataItem(object):
@@ -410,7 +411,7 @@ class Analysis(object):
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
     
-class GUIEngine(threading.Thread, Analysis, ExperimentHandler):
+class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, ExperimentHandler):
     '''
     GUI engine: receives commands via queue interface from gui and performs the following actions:
      - stores data internally
@@ -420,16 +421,19 @@ class GUIEngine(threading.Thread, Analysis, ExperimentHandler):
      {'command_name': [parameters]}
     '''
 
-    def __init__(self, machine_config, log, unittest=False):
+    def __init__(self, machine_config, log, socket_queues, unittest=False):
+        self.socket_queues=socket_queues
         self.unittest=unittest
         self.log=log
         self.machine_config = machine_config
+        #queued_socket.QueuedSocketHelpers.__init__(self, self.socket_queues)
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
         self.context_filename = fileop.get_context_filename(self.machine_config)
         self.load_context()
         self.widget_status = {}
+        self.last_periodic = time.time()
         Analysis.__init__(self, machine_config)
         
     def load_context(self):
@@ -532,6 +536,7 @@ class GUIEngine(threading.Thread, Analysis, ExperimentHandler):
                     getattr(self, msg['function'])(*msg['args'])
                     if hasattr(self, 'log') and hasattr(self.log, 'info'):
                         self.log.info(msg, 'engine')
+                self.periodic()
             except:
                 import traceback
                 self.printc(traceback.format_exc())
@@ -539,6 +544,24 @@ class GUIEngine(threading.Thread, Analysis, ExperimentHandler):
                 self.close_open_files()
             time.sleep(20e-3)
         self.close()
+        
+    def periodic(self):
+        return
+        if self.last_run-self.last_periodic>2.0:
+            self.last_periodic=time.time()
+            self.update_network_connection_status()
+            
+        
+    def update_network_connection_status(self):
+        #Check for network connection status
+        self.connected_nodes = ''
+        n_connected = 0
+        n_connections = len(self.socket_queues.keys())
+        for remote_node_name, socket in self.socket_queues.items():
+            if self.ping(timeout=1.0, connection=remote_node_name):
+                self.connected_nodes += remote_node_name + ' '
+                n_connected += 1
+        self.printc('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes))
         
     def close_open_files(self):
         if hasattr(self, 'datafile') and self.datafile.h5f.isopen==1:
@@ -563,7 +586,10 @@ class TestGUIEngineIF(unittest.TestCase):
             guidata = GUIData()
             guidata.add('Sigma 1', 0.5, 'path/sigma')
             hdf5io.save_item(self.cf, 'guidata', utils.object2array(guidata.to_dict()), filelocking=False)
-        self.engine = GUIEngine(self.machine_config, None, unittest=True)
+        import visexpman.engine
+        self.appcontext = visexpman.engine.application_init(user = 'test', config = 'GUITestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
+        self.appcontext['logger'].start()
+        self.engine = GUIEngine(self.machine_config, self.appcontext['logger'], self.appcontext['socket_queues'], unittest=True)
         
         self.engine.save_context()
         self.from_gui, self.to_gui = self.engine.get_queues()
@@ -693,6 +719,8 @@ class TestGUIEngineIF(unittest.TestCase):
     def tearDown(self):
         self.from_gui.put('terminate')
         self.engine.join()
+        import visexpman.engine
+        visexpman.engine.stop_application(self.appcontext)
         self.assertTrue(os.path.exists(self.cf))
         if hasattr(self, 'working_folder') and os.path.exists(self.working_folder):
             shutil.rmtree(self.working_folder)
