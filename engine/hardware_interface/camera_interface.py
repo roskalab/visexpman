@@ -88,10 +88,18 @@ class SpotCam(VideoCamera):
         if len([r for r in res if r!= 0])>0:
             raise RuntimeError('Could not close camera: {0}'.format(res))
         
-class SpotCamAcquisition(command_parser.ProcessLoop):
+class SpotCamAcquisition(command_parser.ProcessLoop, SpotCam):
+    def __init__(self, log=None):
+        SpotCam.__init__(self)
+        command_parser.ProcessLoop.__init__(self, log=log)
+        
     def callback(self):
-        if hasattr(self, 'cmd'):
-            self.response.put(numpy.random.random((1600,1200)))
+        if hasattr(self, 'cmd') and hasattr(self.cmd, 'has_key'):
+            if self.cmd.has_key('exposure'):
+                self.set_exposure(*self.cmd['set_exposure'])
+            elif self.cmd.has_key('get_image'):
+                self.response.put(self.get_image())
+#                self.response.put(numpy.random.random((1600,1200)))
 
 class OpenCVCamera(VideoCamera):
     def start(self, recording_length_s, filename):

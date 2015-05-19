@@ -9,8 +9,8 @@ from visexpman.engine.hardware_interface import camera_interface
 class CaImagingHardwareHandler(object):
     def start_ir_camera_acquisition(self):
         self.camera=camera_interface.SpotCamAcquisition(log=self.logger if hasattr(self, 'logger') else None)
+        self.camera.command.put({'set_exposure':[self.settings['Exposure time'], self.settings['Gain']]})
         self.camera.start()
-        self.camera.command.put('ok')
         self.printc('Camera started')
         
     def stop_ir_camera(self):
@@ -21,7 +21,7 @@ class CaImagingHardwareHandler(object):
             
     def read_ir_image(self):
         if hasattr(self, 'camera') and hasattr(self.camera, 'response') and not self.camera.response.empty():
-            self.camera.command.put('ok')
+            self.camera.command.put({'get_image':''})
             return self.camera.response.get()
             
     def update_settings(self, values, paths, refs):
@@ -48,6 +48,7 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
         self.settings.params.sigTreeStateChanged.connect(self.settings_changed)
         self._add_dockable_widget('Settings', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.settings)
         self.show()
+        self.settings_changed()
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.read_image)
@@ -97,7 +98,7 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
         self.stop_ir_camera()
         self.close()
         
-    def settings_changed(self, param, changes):
+    def settings_changed(self):
         self.update_settings(*self.settings.get_parameter_tree())
             
 if __name__ == '__main__':
