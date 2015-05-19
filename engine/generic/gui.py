@@ -4,6 +4,7 @@ generic.gui module has generic gui widgets like labeled widgets. It also contain
 import os.path
 import numpy
 import time
+import copy
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
@@ -90,7 +91,6 @@ class ToolBar(QtGui.QToolBar):
             
     def hideEvent(self,e):
         self.setVisible(True)
-
         
 class Debug(QtGui.QTabWidget):
     def __init__(self,parent):
@@ -112,6 +112,34 @@ class ParameterTable(ParameterTree):
         ParameterTree.__init__(self, parent, showHeader=False)
         self.params = Parameter.create(name='params', type='group', children=params)
         self.setParameters(self.params, showTop=False)
+        
+    def get_parameter_tree(self):
+        nodes = [[children for children in self.params.children()]]
+        import itertools
+        while True:
+            nodes.append(list(itertools.chain(*[n.children() for n in nodes[-1]])))
+            if len(nodes[-1])==0: break
+        nodes = list(itertools.chain(*nodes))
+        leafes = [n for n in nodes if len(n.children())==0]
+        paths = []
+        refs = []
+        values = []
+        for l in leafes:
+            value = l.value()
+            name = l.name()
+            path = []
+            ref= copy.deepcopy(l)
+            while True:
+                if ref.parent() is None: break
+                else: 
+                    path.append(ref.name())
+                    ref= ref.parent()
+            path.append('params')
+            path.reverse()
+            paths.append(path)
+            values.append(value)
+            refs.append(l)
+        return values, paths, refs
     
 class TextOut(QtGui.QTextEdit):
     def __init__(self, parent):

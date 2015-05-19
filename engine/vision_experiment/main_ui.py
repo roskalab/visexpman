@@ -490,41 +490,13 @@ class MainUI(gui.VisexpmanMainWindow):
         self.to_engine.put('terminate')
         self.engine.join()
 
-    def _get_parameter_tree(self):
-        nodes = [[children for children in self.params.params.children()]]
-        import itertools
-        while True:
-            nodes.append(list(itertools.chain(*[n.children() for n in nodes[-1]])))
-            if len(nodes[-1])==0: break
-        nodes = list(itertools.chain(*nodes))
-        leafes = [n for n in nodes if len(n.children())==0]
-        paths = []
-        refs = []
-        values = []
-        for l in leafes:
-            value = l.value()
-            name = l.name()
-            path = []
-            ref= copy.deepcopy(l)
-            while True:
-                if ref.parent() is None: break
-                else: 
-                    path.append(ref.name())
-                    ref= ref.parent()
-            path.append('params')
-            path.reverse()
-            paths.append(path)
-            values.append(value)
-            refs.append(l)
-        return values, paths, refs
-
     def _dump_all_parameters(self):#TODO: rename
-        values, paths, refs = self._get_parameter_tree()
+        values, paths, refs = self.params.get_parameter_tree()
         for i in range(len(refs)):
             self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
             
     def _load_all_parameters(self):
-        values, paths, refs = self._get_parameter_tree()
+        values, paths, refs = self.params.get_parameter_tree()
         paths = ['/'.join(p) for p in paths]
         for item in self.engine.guidata.to_dict():
             mwname = item['path'].split('/')[0]
