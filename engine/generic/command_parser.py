@@ -4,6 +4,7 @@ import re
 import unittest
 import sys
 import time
+import multiprocessing
 from visexpman.engine.generic import utils, introspect
 from visexpman.engine.hardware_interface import queued_socket
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
@@ -95,6 +96,41 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
             self.send('{0} variable does not exists'.format(varname))
         else:
             setattr(self, varname, value)
+            
+class ProcessLoop(multiprocessing.Process):
+    '''
+    a process with queue interface
+    '''
+    def __init__(self, twait = 10e-3, command = None, response = None, log = None):
+        self.log=log
+        multiprocessing.Process.__init__(self)
+        self.command = multiprocessing.Queue() if command is None else command
+        self.response = multiprocessing.Queue() if response is None else response
+        self.twait=twait
+        
+    def run(self):
+        while True:
+            try:
+                if not self.command.empty():
+                    self.cmd=self.command.get()
+                    if self.cmd=='terminate':
+                        break
+                if self.callback() == 'terminate':
+                    break
+                if hasattr(self, 'cmd'):
+                    del self.cmd
+                time.sleep(self.twait)
+            except:
+                import traceback
+                if hasattr(self.log, 'error'):
+                    self.log.error(traceback.format_exc())
+        if hasattr(self.log, 'info'):
+            self.log.info('{0} terminated'.format(self.__class__.__name__))
+            
+    def callback(self):
+        '''
+        Subclass should overdefine this function
+        '''
 
 class CommandParser(object):
     '''

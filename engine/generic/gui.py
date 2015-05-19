@@ -3,6 +3,7 @@ generic.gui module has generic gui widgets like labeled widgets. It also contain
 '''
 import os.path
 import numpy
+import time
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
@@ -30,6 +31,8 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         set_win_icon()
         for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
             setattr(self,c,context[c])
+        self.text = ''
+        self.source_name = '{0}' .format(self.user_interface_name)
             
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
@@ -43,6 +46,22 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         
     def _write2statusbar(self,txt):
         self.statusbar.showMessage(txt)
+        
+    def printc(self, text, logonly = False):
+        '''
+        text is displayed on console and logged to logfile
+        '''
+        text = str(text)
+        if not logonly:
+            self.text  += utils.timestamp2hms(time.time()) + ' '  + text + '\n'
+            self.debug.log.update(self.text)
+        loglevels = ['warning', 'error']
+        loglevel = [l for l in loglevels if l in text.lower()]
+        if len(loglevel)>0:
+            loglevel = loglevel[0]
+            getattr(self.logger, loglevel)(text.replace('{0}: '.format(loglevel.upper()),''), self.source_name)
+        else:
+            self.logger.info(text, self.source_name)
         
     def closeEvent(self, e):
         e.accept()

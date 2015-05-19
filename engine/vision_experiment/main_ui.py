@@ -398,8 +398,6 @@ class MainUI(gui.VisexpmanMainWindow):
 #                self.pb.show()
                 
     def _init_variables(self):
-        self.text = ''
-        self.source_name = '{0}' .format(self.user_interface_name)
         imaging_channels = self.machine_config.PMTS.keys()
         imaging_channels.append('both')
         fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
@@ -543,23 +541,6 @@ class MainUI(gui.VisexpmanMainWindow):
                     ref.setCheckState(2 if item['value'] else 0)
                 elif 'qtabwidget' in wname:
                     ref.setCurrentIndex(item['value'])
-                
-    
-    def printc(self, text, logonly = False):
-        '''
-        text is displayed on console and logged to logfile
-        '''
-        text = str(text)
-        if not logonly:
-            self.text  += utils.timestamp2hms(time.time()) + ' '  + text + '\n'
-            self.debug.log.update(self.text)
-        loglevels = ['warning', 'error']
-        loglevel = [l for l in loglevels if l in text.lower()]
-        if len(loglevel)>0:
-            loglevel = loglevel[0]
-            getattr(self.logger, loglevel)(text.replace('{0}: '.format(loglevel.upper()),''), self.source_name)
-        else:
-            self.logger.info(text, self.source_name)
     
     ############# Actions #############
     def start_experiment_action(self):

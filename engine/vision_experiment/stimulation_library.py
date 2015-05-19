@@ -100,6 +100,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     frame_info['parameters'][arg] = values[arg]
         self.stimulus_frame_info.append(frame_info)
+        if is_last and self.stimulus_frame_info[-1]['counter']>self.stimulus_frame_info[-2]['counter']:
+            raise RuntimeError('frame counter value cannot decrease: {0}, {1}'.format(*self.stimulus_frame_info[-2:]))
             
     def trigger_pulse(self, pin, width):
         '''

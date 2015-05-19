@@ -9,8 +9,7 @@ import os
 import os.path
 import unittest
 import cv2
-from visexpman.engine.generic import configuration
-from visexpman.engine.generic import fileop
+from visexpman.engine.generic import configuration, fileop, command_parser
 import tables
 import ctypes
 
@@ -44,7 +43,6 @@ class VideoCamera(instrument.Instrument):
         pass
         
 class SpotCam(VideoCamera):
-    
     def error(self,code):
         print 'Error code', code
         
@@ -90,6 +88,10 @@ class SpotCam(VideoCamera):
         if len([r for r in res if r!= 0])>0:
             raise RuntimeError('Could not close camera: {0}'.format(res))
         
+class SpotCamAcquisition(command_parser.ProcessLoop):
+    def callback(self):
+        if hasattr(self, 'cmd'):
+            self.response.put(numpy.random.random((1600,1200)))
 
 class OpenCVCamera(VideoCamera):
     def start(self, recording_length_s, filename):
