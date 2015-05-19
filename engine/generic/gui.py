@@ -13,8 +13,12 @@ import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal
 from pyqtgraph.parametertree import Parameter, ParameterTree
 
-def get_icon(name):
-    return QtGui.QIcon(os.path.join(fileop.visexpman_package_path(),'data', 'icons', '{0}.png'.format(name)))
+def get_icon(name, icon_folder=None):
+    if icon_folder is None:
+        root = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
+    else:
+        root = icon_folder
+    return QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(name)))
     
 def set_win_icon():
     '''
@@ -27,13 +31,15 @@ def set_win_icon():
         
         
 class VisexpmanMainWindow(Qt.QMainWindow):
-    def __init__(self, context):
+    def __init__(self, context = {}):
         Qt.QMainWindow.__init__(self)
         set_win_icon()
-        for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
-            setattr(self,c,context[c])
+        if context != {}:
+            for c in ['machine_config', 'user_interface_name', 'socket_queues', 'warning', 'logger']:
+                setattr(self,c,context[c])
+            self.source_name = '{0}' .format(self.user_interface_name)
         self.text = ''
-        self.source_name = '{0}' .format(self.user_interface_name)
+        
             
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
@@ -73,9 +79,10 @@ class ToolBar(QtGui.QToolBar):
     Toolbar holding the following shortcuts:
     -experiment start, stop, snap, live start, exit
     '''
-    def __init__(self, parent, icon_names, toolbar_size = 35):
+    def __init__(self, parent, icon_names, toolbar_size = 35, icon_folder=None):
         self.icon_names = icon_names
         self.parent=parent
+        self.icon_folder = icon_folder
         QtGui.QToolBar.__init__(self, 'Toolbar', parent)
         self.add_buttons()
         self.setIconSize(QtCore.QSize(toolbar_size, toolbar_size))
@@ -83,9 +90,8 @@ class ToolBar(QtGui.QToolBar):
         self.setMovable(False)
         
     def add_buttons(self):
-        icon_folder = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
         for button in self.icon_names:
-            a = QtGui.QAction(get_icon(button), stringop.to_title(button), self)
+            a = QtGui.QAction(get_icon(button,self.icon_folder), stringop.to_title(button), self)
             a.triggered.connect(getattr(self.parent, button+'_action'))
             self.addAction(a)
             
@@ -103,8 +109,10 @@ class Debug(QtGui.QTabWidget):
         self.setTabPosition(self.South)
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
-    def __init__(self, parent):
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':parent.parent, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
+    def __init__(self, parent, selfw = None):
+        if selfw == None:
+            selfw = parent.parent
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
@@ -113,7 +121,7 @@ class ParameterTable(ParameterTree):
         self.params = Parameter.create(name='params', type='group', children=params)
         self.setParameters(self.params, showTop=False)
         
-    def get_parameter_tree(self):
+    def get_parameter_tree(self, return_dict = False):
         nodes = [[children for children in self.params.children()]]
         import itertools
         while True:
@@ -139,7 +147,13 @@ class ParameterTable(ParameterTree):
             paths.append(path)
             values.append(value)
             refs.append(l)
-        return values, paths, refs
+        if return_dict:
+            res = {}
+            for i in range(len(paths)):
+                res[paths[i][-1]]=values[i]
+            return res
+        else:
+            return values, paths, refs
     
 class TextOut(QtGui.QTextEdit):
     def __init__(self, parent):
