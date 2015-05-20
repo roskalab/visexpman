@@ -29,6 +29,10 @@ class MEAConfig(HiMEAConfig):
         
         #PLATFORM = 'mc_mea'
         
+        #DIGITAL_IO_PORT = '/dev/ttyS0' #'COM5'
+        DIGITAL_IO_PORT = 'parallel port'
+        ENABLE_PARALLEL_PORT = True
+        
         EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['/home/localadmin/tmp'])
         CONTEXT_PATH = self.root_folder
 #        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
@@ -37,7 +41,6 @@ class MEAConfig(HiMEAConfig):
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True
-        DIGITAL_IO_PORT = '/dev/ttyS0' #'COM5'
         COORDINATE_SYSTEM='center'
         FRAME_TRIGGER_PIN = 1
         BLOCK_TRIGGER_PIN = 0 #Roland tried with 2
@@ -46,7 +49,6 @@ class MEAConfig(HiMEAConfig):
         self.INTENSITIES_550NM = numpy.array([15.6, 17, 20.8, 49, 87, 185, 288, 409, 564, 738, 888])
         self.GAMMA_CORRECTION = numpy.array([numpy.arange(0,1.1,0.1), self.INTENSITIES_425NM]).T
         self._create_parameters_from_locals(locals())
-        ENABLE_PARALLEL_PORT = True
 
 class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):

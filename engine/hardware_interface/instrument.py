@@ -142,6 +142,7 @@ class ParallelPort(parallel_port_ancestors):
     '''
     
     def init_instrument(self):
+        print 'instrument.ParallelPort.init_instrument()'
         if self.config.ENABLE_PARALLEL_PORT:
             if self.config.OS=='Windows':
                 dllpath=os.environ['WINDIR'] + '\\system32\\inpout' + ('x64' if self.config.IS64BIT else '32')+'.dll'
@@ -151,10 +152,10 @@ class ParallelPort(parallel_port_ancestors):
                 self.p=windll.inpout32
                 self.outp_func = getattr(self.p, 'Out'+('64' if self.config.IS64BIT else '32'))
             else:
-            
                 try:
                     parallel.Parallel.__init__(self)
-                except WindowsError:
+                    print 'In instrument.ParallelPort: Parallel port initialized'
+                except ImportError: #WindowsError:
                     raise RuntimeError('Parallel port cannot be initialized, \
                                        make sure that parallel port driver is installed and started')
         #Here create the variables that store the status of the IO lines

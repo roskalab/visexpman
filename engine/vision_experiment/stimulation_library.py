@@ -76,6 +76,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.frame_rates.append(self.screen.frame_rate)
         self.check_abort()
 
+    def _flip_and_block_trigger(self, i, n_frames_per_pattern, frame_trigger = True, block_trigger = True):
+        self._flip(frame_trigger)
+        if block_trigger:
+            self.block_trigger_pulse()
+        
+
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
         Saves:
@@ -522,7 +528,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                             3. col
                             4. color channel
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
+        #raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log.info('show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) +', ' + str(box_size) +')',source='stim')
         first_flip = False
         if save_frame_info:
@@ -759,7 +765,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, these will be segmented to frames assuming
         that on each frame the number of shapes are equal.
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
+        #raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log_on_flip_message_initial = 'show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')'
         self.log_on_flip_message_continous = 'show_shapes'
         first_flip = False
@@ -838,6 +844,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 self._flip_and_block_trigger(i, n_frames_per_pattern, True, block_trigger)
+                
+                #if flip:
+                #    self._flip(frame_trigger = frame_trigger, count = count)
+                
                 if self.abort:
                     break
             if self.abort:
@@ -1386,7 +1396,7 @@ class AdvancedStimulation(StimulationHelpers):
         colors: set of colors or intensities to be used
         n_on_pixels: if provided the number of white pixels shown. colors shall be a list of two.
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
+        #raise NotImplementedError('block handling and trigger generation is not implemented')
         #TODO: has to be reworked
         self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())

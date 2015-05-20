@@ -44,10 +44,11 @@ visexpman.engine.stop_application(context)
 ## This works:
 import parallel
 p = parallel.Parallel()
-
+##
 for N in range(1,32):
     print N
     p.setData(N)
+    time.sleep(0.5)
 
 ## Look at the log file:
 c = context['machine_config']
@@ -55,3 +56,13 @@ folder = c.LOG_PATH
 
 import scipy.io
 M = scipy.io.loadmat(folder + 'log_MEAConfig_roland_stim_2015-05-18_09-16-45_NHPMarchingSquares_143193341669.mat')
+
+##
+for k,v in self.datafile.items() :
+     #v
+     for j in v:
+        i         
+        if j is None:
+            print 'n'
+        else:
+            print 'i'
