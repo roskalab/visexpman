@@ -18,7 +18,7 @@ def get_icon(name, icon_folder=None):
         root = os.path.join(fileop.visexpman_package_path(),'data', 'icons')
     else:
         root = icon_folder
-    return QtGui.QIcon(os.path.join(icon_folder, '{0}.png'.format(name)))
+    return QtGui.QIcon(os.path.join(root, '{0}.png'.format(name)))
     
 def set_win_icon():
     '''

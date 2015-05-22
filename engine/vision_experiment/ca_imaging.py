@@ -5,29 +5,49 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph
 from visexpman.engine.generic import utils,gui,signal,fileop
 from visexpman.engine.hardware_interface import camera_interface
+import Queue
+import rpyc
+import cPickle as pickle
+camen=not False
+q=Queue.Queue()
 
 class CaImagingHardwareHandler(object):
     def start_ir_camera_acquisition(self):
-        self.camera=camera_interface.SpotCamAcquisition(log=self.logger if hasattr(self, 'logger') else None)
-        self.camera.command.put({'set_exposure':[self.settings['Exposure time'], self.settings['Gain']]})
-        self.camera.start()
+        self.camera=camera_interface.SpotCam()
+#        self.camera=camera_interface.SpotCamAcquisition()
+        self.camera.set_exposure(self.settings['Exposure time'], self.settings['Gain'])
+        self.camera_running=True
+#        self.camera.command.put({'set_exposure':[self.settings['Exposure time'], self.settings['Gain']]})
+#        self.camera.start()
         self.printc('Camera started')
         
     def stop_ir_camera(self):
-        if hasattr(self, 'camera') and self.camera.is_alive():
-            self.camera.command.put('terminate')
-            self.camera.join(1)
+#        if hasattr(self, 'camera') and self.camera.is_alive():
+#            self.camera.command.put('terminate')
+#            self.camera.join(1)
+        if hasattr(self, 'camera'):
+            self.camera_running=False
+            self.camera.close()
+            del self.camera
             self.printc('Camera stopped')
             
     def read_ir_image(self):
-        if hasattr(self, 'camera') and hasattr(self.camera, 'response') and not self.camera.response.empty():
-            self.camera.command.put({'get_image':''})
-            return self.camera.response.get()
+        if hasattr(self, 'camera'):
+            return self.camera.get_image()
+#        if hasattr(self, 'camera') and hasattr(self.camera, 'response') and not self.camera.response.empty():
+#            self.camera.command.put({'get_image':''})
+#            return self.camera.response.get()
+            
             
     def update_settings(self, values, paths, refs):
         self.settings = {}
         for i in range(len(paths)):
             self.settings[paths[i][-1]]=values[i]
+            
+    def help(self):
+        import rpyc
+        self.c=rpyc.connect('localhost',port = 18861)
+        
 
 class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
     def __init__(self, context):
@@ -50,8 +70,9 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
         self.show()
         self.settings_changed()
         self.timer=QtCore.QTimer()
-        self.timer.start(50)#ms
+        self.timer.start(1200)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.read_image)
+        self.camera_running = False
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -75,12 +96,14 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
         return pc
             
     def read_image(self):
-        im=self.read_ir_image()
-        if im is not None:
-            im*=0.2
-            im+=0.5
-            self.image.img.setImage(im, levels = (0,1))
-            self.image.setFixedWidth(float(im.shape[0])/im.shape[1]*self.image.height())
+        if self.camera_running:
+            self.printc('reading image')
+            im=self.read_ir_image()
+            if im is not None:
+#                im*=0.2
+#                im+=0.5
+                self.image.img.setImage(im, levels = (0,1))
+                self.image.setFixedWidth(float(im.shape[0])/im.shape[1]*self.image.height())
             
     def live_ir_camera_action(self):
         self.start_ir_camera_acquisition()
@@ -100,6 +123,49 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
         
     def settings_changed(self):
         self.update_settings(*self.settings.get_parameter_tree())
+        
+class CameraService(rpyc.Service):
+        
+    def on_connect(self):
+        # code that runs when a connection is created
+        # (to init the serivce, if needed)
+        print 'connect'
+        if camen:
+            self.camera=camera_interface.SpotCam()
+        
+    def exposed_set_exposure(self,e,g):
+        self.camera.set_exposure(e,g)
+        
+    def exposed_get_image(self):
+        return pickle.dumps(self.camera.get_image())
+
+    def on_disconnect(self):
+        # code that runs when the connection has already closed
+        # (to finalize the service, if needed)
+        print 'disconnect'
+        if camen:
+            self.camera.close()
+
+    def exposed_test(self,a): # this is an exposed method
+        print a
+        time.sleep(1)
+        return numpy.random.random((1200,1600))
+        
+    def exposed_stop_server(self):
+        q.put('exit')
+        
+    def __del__(self):
+        print 'close camera'
+        if camen and hasattr(self, 'camera'):
+            self.camera.close()
+        
+def run_camera_server():
+    from rpyc.utils.server import ThreadedServer,Server,OneShotServer
+    while True:
+        t = OneShotServer(CameraService, port = 18861)
+        t.start()
+        if not q.empty() and q.get()=='exit':
+            break
             
 if __name__ == '__main__':
     import visexpman.engine
