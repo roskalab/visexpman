@@ -123,7 +123,8 @@ class NHPBatchConfig(experiment.ExperimentConfig):
         self.MOVING_SPEEDS = [120,1200]
         self.GRATING_PERIOD = 600.0
         self.DIRECTIONS = NHP_DIRECTIONS
-        self.SWEEP_REPETITION = 3/3
+        self.SWEEP_REPETITION = 3
+        self.MEA_RANGE = 1000.0
         
         ### Adoptation ###
         self.ADAPTATION_GRATING_SPEED = 500.0
@@ -200,7 +201,7 @@ class NHPBatch(experiment.Experiment):
                 for center in self._calculate_moving_bar_centers(dir):
                     self.moving_shape(self.experiment_config.MOVING_SHAPE_SIZE, speed, [dir], shape = 'rect', 
                                         color = 1.0, background_color = self.experiment_config.SHAPE_BACKGROUND,
-                                        repetition = self.experiment_config.SWEEP_REPETITION, center = center, block_trigger = True, shape_starts_from_edge=True)
+                                        repetition = 1.0, center = center, block_trigger = True, shape_starts_from_edge=True)
                     if self.abort:
                         break
                 if self.abort:
@@ -214,8 +215,8 @@ class NHPBatch(experiment.Experiment):
     
     def _calculate_moving_bar_centers(self,direction):
         #find out whether the direction of horizontal, vertical or diagonal
-        hpos = self._calculate_moving_bar_positions(self.machine_config.SCREEN_SIZE_UM['col'])
-        vpos = self._calculate_moving_bar_positions(self.machine_config.SCREEN_SIZE_UM['row'])
+        hpos = self._calculate_moving_bar_positions(min(self.machine_config.SCREEN_SIZE_UM['col'], self.experiment_config.MEA_RANGE))
+        vpos = self._calculate_moving_bar_positions(min(self.machine_config.SCREEN_SIZE_UM['row'], self.experiment_config.MEA_RANGE))
         if (direction/45)%2==1:#diagonal
             centers = utils.rc(numpy.array([hpos, numpy.zeros_like(hpos)]).T)
         elif (direction/45)%4==0:#horizontal
