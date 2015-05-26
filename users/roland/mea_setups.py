@@ -23,7 +23,15 @@ class MEAConfig(HiMEAConfig):
         SCREEN_UM_TO_PIXEL_SCALE = self.RETINA_ROOM_SCALE
         
         # Folders & paths:
-        self.root_folder = fileop.select_folder_exists(['/home/localadmin/tmp'])
+        #self.root_folder = fileop.select_folder_exists(['/home/localadmin/tmp'])
+	folder = '/home/localadmin/recordings/'+time.strftime('%y%m%d'.format(os.sep))+'/data/'
+
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+
+	
+	self.root_folder = folder
+	
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         
@@ -32,17 +40,19 @@ class MEAConfig(HiMEAConfig):
         ENABLE_PARALLEL_PORT = True
         # For USB: DIGITAL_IO_PORT = 'COM5'
         
-        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['/home/localadmin/tmp']) #'/links/rolandd/tmp/lightX_stim_logs/'+time.strftime('%y%m%d{0}data'.format(os.sep)), 
+	EXPERIMENT_DATA_PATH = self.root_folder
+        #EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['/home/localadmin/tmp']) #'/links/rolandd/tmp/lightX_stim_logs/'+time.strftime('%y%m%d{0}data'.format(os.sep)), 
         CONTEXT_PATH = self.root_folder
         EXPERIMENT_FILE_FORMAT = 'mat'
 #        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
 #        os.mkdir(CAPTURE_PATH)
         
-        RECORDING_MACHINE_PORT = "12.0.1.1:75000"
+        RECORDING_MACHINE_PORT = "bs-hpws19:75000"
         
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
-        ENABLE_FRAME_CAPTURE = not True
+        ENABLE_FRAME_CAPTURE = not True # save each frame as an image
+	CAPTURE_PATH = self.root_folder
         COORDINATE_SYSTEM='center'
         FRAME_TRIGGER_PIN = 1
         BLOCK_TRIGGER_PIN = 0
