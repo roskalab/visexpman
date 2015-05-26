@@ -50,7 +50,7 @@ class MovingShapeExperiment(experiment.Experiment):
                                     shape_starts_from_edge = True)
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
-
+    
     def run(self):
         self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
                                   speeds = self.experiment_config.SPEEDS,
@@ -77,9 +77,14 @@ class IncreasingSpotExperiment(experiment.Experiment):
     def run(self):
         self.show_fullscreen(color = self.background_color, duration = self.experiment_config.OFF_TIME)
         for color in self.colors:
-            self.increasing_spot(self.experiment_config.SIZES, self.experiment_config.ON_TIME, self.experiment_config.OFF_TIME,
-                    color = color, background_color = self.background_color, pos = utils.rc((0,  0)), block_trigger = True)
-                    
+            self.increasing_spot(   self.experiment_config.SIZES,
+                                    self.experiment_config.ON_TIME,
+                                    self.experiment_config.OFF_TIME,
+                                    color = color,
+                                    background_color = self.background_color,
+                                    pos = utils.rc((0,  0)),
+                                    block_trigger = True)
+
 class FullFieldFlashesExperiment(experiment.Experiment):
     '''
     Expected parameters:
@@ -101,10 +106,10 @@ class FullFieldFlashesExperiment(experiment.Experiment):
             self.background_color = self.experiment_config.BACKGROUND
         
     def run(self):
-        self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,block_trigger=True)
+        self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
         for color in self.colors:
-            self.show_fullscreen(duration=self.experiment_config.ON_TIME,color=color,block_trigger=True)
-            self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,block_trigger=True)
+            self.show_fullscreen(duration=self.experiment_config.ON_TIME,color=color,frame_trigger=True)
+            self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
             
 
 class MovingGrating(experiment.Experiment):
@@ -154,6 +159,7 @@ class MovingGrating(experiment.Experiment):
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
         if hasattr(self.machine_config, 'MAXIMUM_RECORDING_DURATION') and self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
             raise RuntimeError('Stimulus too long')
+        
         self.fragment_durations = self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER 
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.fragment_durations+= self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()
@@ -165,6 +171,7 @@ class MovingGrating(experiment.Experiment):
         self.experiment_specific_data = {}
 
     def run(self, fragment_id = 0):
+        
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus('ff', self.experiment_config.TIMING, colors = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
@@ -181,7 +188,8 @@ class MovingGrating(experiment.Experiment):
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
                 #Show marching grating
                 if orientation != stimulus_unit['orientation']:
-                    self.block_trigger_pulse()
+                    #self.block_trigger_pulse()
+                    self.block_start()
                 orientation = stimulus_unit['orientation']
                 if not is_first_dislayed:
                     is_first_dislayed = True
@@ -316,8 +324,13 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                                             flash_repeat = self.experiment_config.REPEATS,
                                                                             sequence_repeat = self.experiment_config.REPEAT_SEQUENCE,
                                                                             on_time = self.experiment_config.ON_TIME,
-                                                                            off_time = self.experiment_config.OFF_TIME)
-            
+                                                                            off_time = self.experiment_config.OFF_TIME,
+                                                                            overlap = self.experiment_config.OVERLAP)
+        print 'Projected Duration: ' + str(self.stimulus_duration)
+        if hasattr(self.log, 'info'):
+            self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
+
+        
     def run(self):
         self.receptive_field_explore(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None, 
                                     self.experiment_config.ON_TIME,
@@ -329,6 +342,8 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     sequence_repeat = self.experiment_config.REPEAT_SEQUENCE,
                                     background_color = self.experiment_config.BACKGROUND_COLOR, 
                                     shape_colors = self.experiment_config.COLORS, 
-                                    random_order = self.experiment_config.ENABLE_RANDOM_ORDER)
+                                    random_order = self.experiment_config.ENABLE_RANDOM_ORDER,
+                                    overlap = self.experiment_config.OVERLAP if hasattr(self.experiment_config, 'OVERLAP') else [0,0],
+                                    )
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}

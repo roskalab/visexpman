@@ -7,7 +7,7 @@ class MarchingSquares(experiment.ExperimentConfig):
         self.SHAPE = 'rect'
         self.COLORS = [1.0]
         self.BACKGROUND_COLOR = 0.0
-        self.SHAPE_SIZE = 200.0
+        self.SHAPE_SIZE = 80.0 # um
         self.ON_TIME = 1.0
         self.OFF_TIME = 1.0
         self.PAUSE_BEFORE_AFTER = 2.0
@@ -17,17 +17,26 @@ class MarchingSquares(experiment.ExperimentConfig):
         self.runnable='ReceptiveFieldExplore'
         self._create_parameters_from_locals(locals())
 
-class MarchingSquaresGray(experiment.ExperimentConfig):
+# class MarchingSquaresGray(experiment.ExperimentConfig):
+#     def _create_parameters(self):
+#         self.SHAPE = 'rect'
+#         self.COLORS = [1.0, 0.0]
+#         self.BACKGROUND_COLOR = 0.5
+#         self.SHAPE_SIZE = 200.0
+#         self.ON_TIME = 1.0
+#         self.OFF_TIME = 1.0
+#         self.PAUSE_BEFORE_AFTER = 2.0
+#         self.REPEATS = 2
+#         self.REPEAT_SEQUENCE = 1
+#         self.ENABLE_RANDOM_ORDER = False
+#         self.runnable='ReceptiveFieldExplore'
+#         self._create_parameters_from_locals(locals())
+
+class MarchingSquaresGray(MarchingSquares):
+    
     def _create_parameters(self):
-        self.SHAPE = 'rect'
+        
+        super(MarchingSquaresGray2, self)._create_parameters()
+        
         self.COLORS = [1.0, 0.0]
         self.BACKGROUND_COLOR = 0.5
-        self.SHAPE_SIZE = 200.0
-        self.ON_TIME = 1.0
-        self.OFF_TIME = 1.0
-        self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 2
-        self.REPEAT_SEQUENCE = 1
-        self.ENABLE_RANDOM_ORDER = False
-        self.runnable='ReceptiveFieldExplore'
-        self._create_parameters_from_locals(locals())

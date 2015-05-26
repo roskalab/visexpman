@@ -32,11 +32,12 @@ class Pilot01MarchingSquaresLarge(experiment.ExperimentConfig):
         self.NROWS = 7
         self.NCOLUMNS = 7
         self.ON_TIME = 1.0 
-        self.OFF_TIME = 1.0
-        self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 6
+        self.OFF_TIME = 0#1.0
+        self.PAUSE_BEFORE_AFTER = 0 #2.0
+        self.REPEATS = 6-5
         self.REPEAT_SEQUENCE = 1
-        self.ENABLE_RANDOM_ORDER = True
+        self.ENABLE_RANDOM_ORDER = not True
+        self.OVERLAP = [200,200]
         self.runnable='ReceptiveFieldExplore'
         self._create_parameters_from_locals(locals())
 
@@ -74,26 +75,31 @@ class Pilot01WhiteNoiseLarge(experiment.ExperimentConfig):
 # ------------------------------------------------------------------------------
 
 class Pilot01FullField(experiment.ExperimentConfig):
-    self.COLORS = [0.0, 1.0]
-    self.ON_TIME = 2.0
-    self.OFF_TIME = 2.0
-    self.runnable = 'FullFieldFlashesExperiment'
+    
+    def _create_parameters(self):
+        self.COLORS = [0.0, 1.0]
+        self.ON_TIME = 2.0
+        self.OFF_TIME = 2.0
+        self.runnable = 'FullFieldFlashesExperiment'
+        self._create_parameters_from_locals(locals())
+
 
 # ------------------------------------------------------------------------------
 class Pilot01Gratings(experiment.ExperimentConfig):
     
-    self.REPEATS = 5
-    self.NUMBER_OF_BAR_ADVANCE_OVER_POINT  = 5
-    #self.MARCH_TIME = 1
-    #self.GREY_INSTEAD_OF_MARCHING = False
-    #self.NUMBER_OF_MARCHING_PHASES = 
-    self.GRATING_STAND_TIME = 1
-    self.ORIENTATIONS = range(0,360,45)
-    self.WHITE_BAR_WIDTHS
-    self.VELOCITIES = [100, 400, 1600]
-    #self.DUTY_CYCLES = 
-    self.PAUSE_BEFORE_AFTER = 1
-    
-    self.runnable = 'MovingGrating'
-   
-   
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 5
+        self.MARCH_TIME = 1
+        self.GREY_INSTEAD_OF_MARCHING = False
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.GRATING_STAND_TIME = 1.0
+        self.ORIENTATIONS = range(0,360,45)
+        self.WHITE_BAR_WIDTHS = [25, 300]
+        self.VELOCITIES = [100, 400, 1600]
+        self.DUTY_CYCLES = [1]
+        self.PAUSE_BEFORE_AFTER = 1
+        
+        self.runnable = 'MovingGrating'
+        self._create_parameters_from_locals(locals())
+

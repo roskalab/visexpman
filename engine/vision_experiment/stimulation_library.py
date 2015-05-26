@@ -1241,7 +1241,7 @@ class AdvancedStimulation(StimulationHelpers):
         self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, block_trigger = block_trigger, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
-    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
+    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False, overlap = [0,0]):
         '''        
         Aka Marching Squares
     
@@ -1266,7 +1266,8 @@ class AdvancedStimulation(StimulationHelpers):
                                                                             flash_repeat = flash_repeat,
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
-                                                                            off_time = off_time)
+                                                                            off_time = off_time,
+                                                                            overlap = overlap)
         if random_order:
             import random
             random.seed(0)
@@ -1310,20 +1311,23 @@ class AdvancedStimulation(StimulationHelpers):
             ncolumns = int(numpy.floor(display_size['col']/float(shape_size['row'])))
         return shape_size, nrows, ncolumns, display_size, shape_colors, background_color
         
-    def _receptive_field_explore_positions(self,shape_size, nrows, ncolumns):
+    def _receptive_field_explore_positions(self,shape_size, nrows, ncolumns, overlap):
+        if len(overlap) == 1:
+            overlap = [overlap[0],overlap[0]]
+        
         if shape_size.shape == (1, ):
             shape_size = shape_size[0]
         y_dir = 1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
-        first_position = utils.rc_add(self.machine_config.SCREEN_CENTER, utils.rc((shape_size['row']*(0.5*nrows-0.5)*y_dir, shape_size['col']*(0.5*ncolumns-0.5))), '-')
+        first_position = utils.rc_add(self.machine_config.SCREEN_CENTER, utils.rc(((shape_size['row']-overlap[0]*2.0)*(0.5*nrows-0.5)*y_dir, (shape_size['col']-overlap[1]*2.0)*(0.5*ncolumns-0.5))), '-')
         positions = []
         for r in range(nrows):
             for c in range(ncolumns):
-                p=utils.rc_add(first_position, utils.rc((y_dir*r*shape_size['row'], c*shape_size['col'])))
+                p=utils.rc_add(first_position, utils.rc((y_dir*r*(shape_size['row']-overlap[0]*2.0), c*(shape_size['col']-overlap[1]*2.0))))
                 positions.append(p)
         return positions
         
     def receptive_field_explore_durations_and_positions(self, **kwargs):
-        positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
+        positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'], kwargs['overlap'])
         return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
     def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False):

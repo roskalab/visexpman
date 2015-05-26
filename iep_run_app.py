@@ -15,18 +15,18 @@ from visexpman.engine.generic import utils,fileop,introspect
 import hdf5io
 
 import visexpman.engine.visexp_app as app
-##
+
 context = visexpman.engine.application_init(user='roland',
                                   config='MEAConfig',
                                   user_interface_name='stim')
 
-##
-context = visexpman.engine.application_init(user='antonia',
-                                  config='MEASetup',
-                                  user_interface_name='stim')
+#
+#context = visexpman.engine.application_init(user='antonia',
+#                                  config='MEASetup',
+#                                  user_interface_name='stim')
 
 
-##
+#
 app.run_stim(context)
 visexpman.engine.stop_application(context)
 
@@ -55,7 +55,7 @@ c = context['machine_config']
 folder = c.LOG_PATH
 
 import scipy.io
-M = scipy.io.loadmat(folder + 'log_MEAConfig_roland_stim_2015-05-18_09-16-45_NHPMarchingSquares_143193341669.mat')
+M = scipy.io.loadmat(folder + '/' + 'log_MEAConfig_roland_stim_2015-05-20_16-13-48_MarchingSquares_143213124125.mat')
 
 ##
 for k,v in self.datafile.items() :
@@ -66,3 +66,8 @@ for k,v in self.datafile.items() :
             print 'n'
         else:
             print 'i'
+
+
+
+
+
