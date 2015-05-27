@@ -333,7 +333,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                                             sequence_repeat = self.experiment_config.REPEAT_SEQUENCE,
                                                                             on_time = self.experiment_config.ON_TIME,
                                                                             off_time = self.experiment_config.OFF_TIME,
-                                                                            overlap = self.experiment_config.OVERLAP)
+                                                                            overlap = self.experiment_config.OVERLAP if hasattr(self.experiment_config, 'OVERLAP') else [0,0])
         print 'Projected Duration: ' + str(self.stimulus_duration)
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')

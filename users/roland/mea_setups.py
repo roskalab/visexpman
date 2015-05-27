@@ -12,9 +12,9 @@ from visexpman.engine.vision_experiment.configuration import HiMEAConfig
 
 class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
-        FULLSCREEN = True
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([600, 600])
-	SCREEN_EXPECTED_FRAME_RATE = 60
+        SCREEN_EXPECTED_FRAME_RATE = 60
         COLOR_MASK = numpy.array([1.0, 1.0, 1.0])
         PLATFORM = 'hi_mea'
         
@@ -25,14 +25,14 @@ class MEAConfig(HiMEAConfig):
         
         # Folders & paths:
         #self.root_folder = fileop.select_folder_exists(['/home/localadmin/tmp'])
-	folder = '/home/localadmin/recordings/'+time.strftime('%y%m%d'.format(os.sep))+'/data/'
-
+        folder = '/home/localadmin/recordings/'+time.strftime('%y%m%d'.format(os.sep))+'/data/'
+        
         if not os.path.isdir(folder):
             os.makedirs(folder)
-
-	
-	self.root_folder = folder
-	
+        
+        
+        self.root_folder = folder
+        
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         
@@ -41,7 +41,7 @@ class MEAConfig(HiMEAConfig):
         ENABLE_PARALLEL_PORT = True
         # For USB: DIGITAL_IO_PORT = 'COM5'
         
-	EXPERIMENT_DATA_PATH = self.root_folder
+        EXPERIMENT_DATA_PATH = self.root_folder
         #EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['/home/localadmin/tmp']) #'/links/rolandd/tmp/lightX_stim_logs/'+time.strftime('%y%m%d{0}data'.format(os.sep)), 
         CONTEXT_PATH = self.root_folder
         EXPERIMENT_FILE_FORMAT = 'mat'
@@ -53,7 +53,7 @@ class MEAConfig(HiMEAConfig):
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True # save each frame as an image
-	CAPTURE_PATH = self.root_folder
+        CAPTURE_PATH = self.root_folder
         COORDINATE_SYSTEM='center'
         FRAME_TRIGGER_PIN = 1
         BLOCK_TRIGGER_PIN = 0

@@ -1113,7 +1113,7 @@ class ExperimentControl(object):#OBSOLETE
             pass
 
     def _initialize_experiment_log(self):
-        date = utils.date_string()
+        date = utils.short_date_string()
         self.filenames['experiment_log'] = \
             fileop.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.name_tag, date)))
         self.log = log.Log('experiment log' + uuid.uuid4().hex, self.filenames['experiment_log'], write_mode = 'user control', timestamp = 'elapsed_time')

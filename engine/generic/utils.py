@@ -781,6 +781,11 @@ def date_string():
     now = time.localtime()
     return ('{0:0=4}-{1:0=2}-{2:0=2}'.format(now.tm_year,  now.tm_mon, now.tm_mday))
 
+def short_date_string():
+    now = time.localtime()
+    return ('{2:0=2}{1:0=2}{2:0=2}'.format(now.tm_year,  now.tm_mon, now.tm_mday))
+
+
 def truncate_timestamps(list_of_timestamps,  at_position):
     '''From a list of floats representing timestamps, we calculates timestamps 
     with least significant data truncated. E.g. to get timestamps that contain only

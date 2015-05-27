@@ -341,7 +341,7 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         
 class testLogClass():
     def __init__(self, config):
-        self.logfile_path = fileop.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')        
+        self.logfile_path = fileop.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.short_date_string() + '.txt')        
         self.log = logging.getLogger(self.logfile_path)
         self.handler = logging.FileHandler(self.logfile_path)
         formatter = logging.Formatter('%(message)s')
