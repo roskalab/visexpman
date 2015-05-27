@@ -12,7 +12,7 @@ from visexpman.engine.vision_experiment.configuration import HiMEAConfig
 
 class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([600, 600])
         SCREEN_EXPECTED_FRAME_RATE = 60
         COLOR_MASK = numpy.array([1.0, 1.0, 1.0])

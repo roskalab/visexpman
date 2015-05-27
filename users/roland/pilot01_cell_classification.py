@@ -44,7 +44,7 @@ class Pilot01MarchingSquaresLarge(experiment.ExperimentConfig):
 # ------------------------------------------------------------------------------
 class Pilot01WhiteNoiseSmall(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.DURATION = 1.0/600.0 #30.0 #30 min
+        self.DURATION = 30.0 #30 min
         self.PIXEL_SIZE =50.0
         self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False#None
