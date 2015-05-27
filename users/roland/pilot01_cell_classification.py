@@ -44,7 +44,7 @@ class Pilot01MarchingSquaresLarge(experiment.ExperimentConfig):
 # ------------------------------------------------------------------------------
 class Pilot01WhiteNoiseSmall(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.DURATION = 30.0/60.0 #30 min
+        self.DURATION = 1.0/600.0 #30.0 #30 min
         self.PIXEL_SIZE =50.0
         self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False#None
@@ -54,7 +54,7 @@ class Pilot01WhiteNoiseSmall(experiment.ExperimentConfig):
 
 class Pilot01WhiteNoiseMiddle(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.DURATION = 20.0/60.0 #20 min
+        self.DURATION = 20.0 #20 min
         self.PIXEL_SIZE =100.0
         self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False#None
@@ -64,7 +64,7 @@ class Pilot01WhiteNoiseMiddle(experiment.ExperimentConfig):
 
 class Pilot01WhiteNoiseLarge(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.DURATION = 15.0/60.0 #15 min
+        self.DURATION = 15.0 #15 min
         self.PIXEL_SIZE =150.0
         self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False#None
@@ -77,11 +77,11 @@ class Pilot01WhiteNoiseLarge(experiment.ExperimentConfig):
 class Pilot01FullField(experiment.ExperimentConfig):
     
     def _create_parameters(self):
-	self.BACKGROUND = 0.5
+        self.BACKGROUND = 0.5
         self.COLORS = [0.0, 1.0]
         self.ON_TIME = 2.0
         self.OFF_TIME = 1.0
-	self.REPETITIONS = 10
+        self.REPETITIONS = 10
         self.runnable = 'FullFieldFlashesExperiment'
         self._create_parameters_from_locals(locals())
 

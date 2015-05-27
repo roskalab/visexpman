@@ -67,6 +67,17 @@ for k,v in self.datafile.items() :
         else:
             print 'i'
 
+##
+cmd = "start"
+
+import zmq
+
+context = zmq.Context()
+socket = context.socket(zmq.REQ)
+socket.connect("tcp://bs-hpws19:75000")
+socket.send(cmd)
+socket.recv()
+
 
 
 

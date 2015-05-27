@@ -105,17 +105,17 @@ class FullFieldFlashesExperiment(experiment.Experiment):
         else:
             self.background_color = self.experiment_config.BACKGROUND
         if hasattr(self.experiment_config, 'REPETITIONS'):
-	    self.repetitions = self.experiment_config.REPETITIONS
+            self.repetitions = self.experiment_config.REPETITIONS
         else:
-            self.repetitions = 1        
+            self.repetitions = 1
 
     def run(self):
-        for r in range(self.repetitions): 
+        for r in range(self.repetitions):
             self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
             for color in self.colors:
-	     	self.block_start()
+                self.block_start()
                 self.show_fullscreen(duration=self.experiment_config.ON_TIME,color=color,frame_trigger=True)
-		self.block_end()
+                self.block_end()
                 self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
 
             

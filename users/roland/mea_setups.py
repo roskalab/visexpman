@@ -12,8 +12,9 @@ from visexpman.engine.vision_experiment.configuration import HiMEAConfig
 
 class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([600, 600])
+	SCREEN_EXPECTED_FRAME_RATE = 60
         COLOR_MASK = numpy.array([1.0, 1.0, 1.0])
         PLATFORM = 'hi_mea'
         
@@ -56,7 +57,7 @@ class MEAConfig(HiMEAConfig):
         COORDINATE_SYSTEM='center'
         FRAME_TRIGGER_PIN = 1
         BLOCK_TRIGGER_PIN = 0
-        self.ENABLE_MEA_START_COMMAND = False # set True when stim software needs to start the recording
+        self.ENABLE_MEA_START_COMMAND = True # set True when stim software needs to start the recording
         self.INTENSITIES_425NM = numpy.array([0.96, 21, 37.3, 84.5, 127, 263.4, 419, 597, 815, 1080, 1282])
         self.INTENSITIES_550NM = numpy.array([15.6, 17, 20.8, 49, 87, 185, 288, 409, 564, 738, 888])
         self.GAMMA_CORRECTION = numpy.array([numpy.arange(0,1.1,0.1), self.INTENSITIES_425NM]).T
