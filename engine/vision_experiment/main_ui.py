@@ -223,7 +223,7 @@ class TraceParameterPlots(QtGui.QWidget):
         self.layout.addWidget(self.axis2scale,4,1,1,1)
         self.layout.addWidget(self.scale,4,2,1,1)
         self.setLayout(self.layout)
-        self.setGeometry(10,10,700,400)
+        self.setGeometry(50,50,700,400)
         self.update_plots()
         self.connect(self.scale, QtCore.SIGNAL('clicked()'), self.rescale)
         self.connect(self.axis2scale.input, QtCore.SIGNAL('currentChanged(int)'), self.rescale)
