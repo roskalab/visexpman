@@ -193,11 +193,11 @@ class DataFileBrowser(gui.FileTree):
         ext = fileop.file_extension(filename)
         if ext == 'hdf5':
             function = 'open_datafile'
-            self.parent.to_engine.put({'function': 'keep_rois', 'args':[self.parent.analysis_helper.keep_rois.input.checkState()==2]})
-            self.parent.analysis_helper.keep_rois.input.setCheckState(0)
+            self.parent.parent.to_engine.put({'function': 'keep_rois', 'args':[self.parent.parent.analysis_helper.keep_rois.input.checkState()==2]})
+            self.parent.parent.analysis_helper.keep_rois.input.setCheckState(0)
         else:
             raise NotImplementedError(filename)
-        self.parent.to_engine.put({'function': function, 'args':[filename]})
+        self.parent.parent.to_engine.put({'function': function, 'args':[filename]})
 
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
@@ -323,8 +323,17 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         
         self.stimulusbrowser = StimulusTree(self, fileop.get_user_module_folder(self.machine_config) )
-        self.datafilebrowser = DataFileBrowser(self, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat'])
-        self.analysis_helper = AnalysisHelper(self)
+        self.analysis = QtGui.QWidget(self)
+        self.analysis.parent=self
+        
+        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat'])
+        self.analysis_helper = AnalysisHelper(self.analysis)
+        self.analysis.layout = QtGui.QGridLayout()
+        self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
+        self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
+        self.analysis.setLayout(self.analysis.layout)
+        
+        
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
@@ -332,8 +341,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        self.main_tab.addTab(self.datafilebrowser, 'Data Files')
-        self.main_tab.addTab(self.analysis_helper, 'Analysis')
+        self.main_tab.addTab(self.analysis, 'Analysis')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         
