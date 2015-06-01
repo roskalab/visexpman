@@ -302,6 +302,7 @@ class MainUI(gui.VisexpmanMainWindow):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
         gui.VisexpmanMainWindow.__init__(self, context)
+        self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
         self._start_engine()
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])

@@ -146,6 +146,7 @@ class PhysTiff2Hdf5(object):
         recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
         recording_parameters['elphys_sync_sample_rate'] = 10000
         data, metadata = experiment_data.read_phys(fphys)
+        stimulus_name = self.parse_stimulus_name(metadata)
         if float(metadata['Sample Rate'])!=10000:
             raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
         if data.shape[0]!=3:
@@ -163,7 +164,7 @@ class PhysTiff2Hdf5(object):
         if not os.path.exists(folder):
             os.makedirs(folder)
         cellid=os.path.split(ftiff)[1].split('_')[0]
-        filename = os.path.join(folder, 'data_{1}_unknownstim_{0}_0.hdf5'.format(id, cellid))
+        filename = os.path.join(folder, 'data_{1}_{2}_{0}_0.hdf5'.format(id, cellid, stimulus_name))
         print 'saving to file', time.time()-t0
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = raw_data
@@ -179,6 +180,17 @@ class PhysTiff2Hdf5(object):
         fileop.set_file_dates(filename, id)
         return filename
         #TODO: use pool for parallel processing
+        
+    def parse_stimulus_name(self,metadata):
+        if not metadata.has_key('Stimulus file'):
+            return 'unknown'
+        if os.path.exists(metadata['Stimulus file']):
+            m=introspect.import_code(fileop.read_text_file(metadata['Stimulus file']),'experiment_config_module', add_to_sys_modules=1)
+            for cl in dir(m):
+                if getattr(m, cl).__bases__[0].__name__ == 'ExperimentConfig':
+                    return cl
+        else:
+            return os.path.split(metadata['Stimulus file'])[1].replace('.py','')
         
     def sync_signal2block_trigger(self, sig):
         indexes = signal.trigger_indexes(sig)

@@ -401,7 +401,7 @@ def read_phys(filename):
     offset = struct.unpack('>i',offset)[0]
     header= f.read(offset)
     metadata = {}
-    for item in [param.split(':') for param in header.split('\r')]:
+    for item in [param.split(': ') for param in header.split('\r')]:
         if len(item)==2:
             metadata[item[0]] = item[1]
     f.seek(4+offset)
