@@ -1317,7 +1317,7 @@ class AdvancedStimulation(StimulationHelpers):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
         return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
-    def moving_shape_trajectory(self, size, speeds, directions,repetition,center=utils.rc((0,0)), pause=0.0,shape_starts_from_edge=False):
+    def moving_shape_trajectory(self, size, speeds, directions,repetition,center=utils.rc((0,0)), pause=0.0,moving_range=None, shape_starts_from_edge=False):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
@@ -1331,6 +1331,9 @@ class AdvancedStimulation(StimulationHelpers):
             self.movement = numpy.sqrt(2)*max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) + shape_size
         else:
             self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        if moving_range is not None:
+            self.movement = moving_range+ shape_size
+#        print self.movement,directions,speeds
         trajectory_directions = []
         trajectories = []
         nframes = 0
@@ -1352,7 +1355,7 @@ class AdvancedStimulation(StimulationHelpers):
         return trajectories, trajectory_directions, duration
         
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, repetition = 1, center = utils.rc((0,0)), block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=None, pause=0.0, repetition = 1, center = utils.rc((0,0)), block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''
@@ -1363,7 +1366,7 @@ class AdvancedStimulation(StimulationHelpers):
 #        else:
 #            pos_with_offset = pos
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')', source='stim')
-        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,shape_starts_from_edge)
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)

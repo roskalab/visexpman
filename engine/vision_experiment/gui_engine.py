@@ -110,14 +110,20 @@ class Analysis(object):
             self.current_roi_index = 0
             self.display_roi_rectangles()
             self.display_roi_curve()
+            self._roi_area2image()
         elif self.rois is None:#No reference rois, noting is loaded from file
             self.rois=[]
+            self._init_meanimge_w_rois()
         else:
             self.current_roi_index = 0
             self.display_roi_rectangles()
             self.display_roi_curve()
             self._roi_area2image()
         self.datafile.close()
+        
+    def _init_meanimge_w_rois(self):
+        self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
+        self.image_w_rois[:,:,1] = self.meanimage
         
     def _recalculate_background(self):
         background_threshold = self.guidata.read('Background threshold')*1e-2
@@ -155,8 +161,7 @@ class Analysis(object):
             import multiprocessing
             p=multiprocessing.Pool(introspect.get_available_process_cores())
             contours=p.map(cone_data.area2edges, areas)
-            self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
-            self.image_w_rois[:,:,1] = self.meanimage
+            self._init_meanimge_w_rois()
             for coo in contours:
                 self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
         else:
