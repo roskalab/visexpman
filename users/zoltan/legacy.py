@@ -146,7 +146,10 @@ class PhysTiff2Hdf5(object):
         recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
         recording_parameters['elphys_sync_sample_rate'] = 10000
         data, metadata = experiment_data.read_phys(fphys)
-        stimulus_name = self.parse_stimulus_name(metadata)
+        experiment_name = self.parse_stimulus_name(metadata)
+        stimulus_source = fileop.read_text_file(metadata['Stimulus file'])
+        recording_parameters['stimulus_name']=stimulus_name
+        recording_parameters['stimulus_source']=stimulus_source
         if float(metadata['Sample Rate'])!=10000:
             raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
         if data.shape[0]!=3:

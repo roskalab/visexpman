@@ -292,10 +292,10 @@ class AnalysisHelper(QtGui.QWidget):
         self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
         
     def find_repetitions_clicked(self):
-        self.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
+        self.parent.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
         
     def show_trace_parameter_distribution_clicked(self):
-        self.parent.to_engine.put({'function': 'display_trace_parameter_distribution', 'args':[]})
+        self.parent.parent.to_engine.put({'function': 'display_trace_parameter_distribution', 'args':[]})
 
 class MainUI(gui.VisexpmanMainWindow):
     def __init__(self, context):

@@ -177,6 +177,7 @@ def find_repetitions(filename, folder):
     links = [(f, fast_read(f, 'repetition_link')) for f in allhdf5files]#This takes long, cannot be run in parallel processes
     links=[[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None]
     filenameid = fileop.parse_recording_filename(filename)['id']
+    experiment_name = fileop.parse_recording_filename(filename)['experiment_name']
     repetitions = [filenameid]
     remaining_links = copy.deepcopy(links)
     next_ids = [l for l in remaining_links if filenameid in l]
@@ -193,7 +194,7 @@ def find_repetitions(filename, folder):
             break
         repetitions = list(set(repetitions))
     #Read roi info from assigned files
-    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
+    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and experiment_name == fileop.parse_recording_filename(f)['experiment_name']])
     timing = dict([(f, experiment_data.timing_from_file(f)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
