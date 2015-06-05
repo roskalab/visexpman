@@ -128,6 +128,7 @@ class Analysis(object):
     def _recalculate_background(self):
         background_threshold = self.guidata.read('Background threshold')*1e-2
         self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
+        self.background_threshold=background_threshold
         
     def find_cells(self):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
@@ -205,6 +206,9 @@ class Analysis(object):
         baseline_length = self.guidata.read('Baseline lenght')
         for r in self.rois:
             r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tsync[0], baseline_length)
+            r['baseline_length'] = baseline_length
+            r['background'] = self.background
+            r['background_threshold']=self.background_threshold
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
@@ -321,6 +325,8 @@ class Analysis(object):
         for item in items:
             self.datafile.load(item)
             data[item]=getattr(self.datafile,item)
+        data['timg']=self.timg
+        data['tsync']=self.tsync
         #Make sure that rois field does not contain None:
         for r in data['rois']:
             if r.has_key('area') and r['area'] is None:

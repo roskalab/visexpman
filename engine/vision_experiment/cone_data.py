@@ -195,13 +195,18 @@ def find_repetitions(filename, folder):
         repetitions = list(set(repetitions))
     #Read roi info from assigned files
     aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and experiment_name == fileop.parse_recording_filename(f)['experiment_name']])
+    for fn in aggregated_rois.keys():#Remove recordings that do not contain roi
+        if aggregated_rois[fn] is None:
+            del aggregated_rois[fn]
     timing = dict([(f, experiment_data.timing_from_file(f)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
     for fn, rois in aggregated_rois.items():
-        if len(rois)>0:#Skip if link exists but rois do not
+        if len(rois)>0 and rois is not None:#Skip if link exists but rois do not
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
+    if not aggregated_rectangles.has_key(filename):
+        raise RuntimeError('This file does not contain rois. Make sure that rois are saved')
     reference = aggregated_rectangles[filename]
     ref_signatures = point_signature(reference)
     del aggregated_rectangles[filename]
