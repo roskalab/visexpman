@@ -16,6 +16,7 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         FULLSCREEN = not True
         self.root_folder = 'r:\\production\\rei-setup'
         self.root_folder = 'd:\\Data\\cone'
+        self.root_folder = 'q:'
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder

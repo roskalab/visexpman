@@ -220,7 +220,7 @@ def find_repetitions(filename, folder):
             match_weight = max(match_list)
             #Take the smaller number of rois as the basis of the comparison with match_weight
             nrois = min(len(aggregated_rectangles[fn]), len(reference))
-            if match_weight>nrois*0.7:#Match: if there are at least n exact matches where n can be 70 % of number of rois
+            if match_weight>(nrois-1)*0.7:#Match: if there are at least n exact matches where n can be 70 % of number of rois
                 if not aggregated_rois[filename][roi_ct].has_key('matches'):
                     aggregated_rois[filename][roi_ct]['matches'] = {}
                 index=numpy.array(match_list).argmax()

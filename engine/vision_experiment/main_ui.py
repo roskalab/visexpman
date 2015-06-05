@@ -166,7 +166,7 @@ class RoiShift(gui.ArrowButtons):
             v -= 1
         elif direction == 'up':
             v += 1
-        self.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
+        self.parent.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
                 
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=3):
