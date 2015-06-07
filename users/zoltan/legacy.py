@@ -149,6 +149,7 @@ class PhysTiff2Hdf5(object):
         experiment_name = self.parse_stimulus_name(metadata)
         recording_parameters['experiment_name']=experiment_name
         recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if os.path.exists(metadata['Stimulus file']) else ''
+        recording_parameters['experiment_source_file'] = metadata['Stimulus file']
         if float(metadata['Sample Rate'])!=10000:
             raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
         if data.shape[0]!=3:

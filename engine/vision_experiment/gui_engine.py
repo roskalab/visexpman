@@ -260,6 +260,8 @@ class Analysis(object):
     def delete_roi(self):
         if not hasattr(self, 'current_roi_index'):
             return
+        if not self.unittest and not self.ask4confirmation('Removing this ROI. Are you sure?'):
+            return
         self.remove_roi_rectangle()
         self.printc('Removing roi: {0}'.format(self.rois[self.current_roi_index]['rectangle']))
         del self.rois[self.current_roi_index]
