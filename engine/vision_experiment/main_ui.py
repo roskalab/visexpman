@@ -271,7 +271,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
         self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
         self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
-        self.show_repetitions.input.setCheckState(2)
+        self.show_repetitions.input.setCheckState(0)
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameters' ,parent=self)
         self.roi_adjust = RoiShift(self)
