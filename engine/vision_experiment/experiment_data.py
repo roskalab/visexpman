@@ -131,16 +131,15 @@ class CaImagingData(hdf5io.Hdf5io):
             imgarray = self.rawdata2images()
             framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
             fileop.mkdir_notexists(framefolder, remove_if_exists=True)
-            ct=1
+            ct=0
+            resize_factor = 400.0/min(imgarray.shape[1:3]) if min(imgarray.shape[1:3])<400 else 1.0
             for frame in imgarray:
-                fn=os.path.join(framefolder, 'f{0:0=5}.jpeg'.format(ct))
-                frame=128*numpy.ones((480,640,3),dtype=numpy.uint8)
-                Image.fromarray(frame).save(fn)
+                fn=os.path.join(framefolder, 'f{0:0=5}.png'.format(ct))
+                Image.fromarray(frame).resize((int(frame.shape[1]*resize_factor),int(frame.shape[0]*resize_factor))).save(fn)
                 ct+=1
-            fps = 1.0/numpy.diff(get_sync_events(self)[1]).mean()
+            fps = int(numpy.ceil(1.0/numpy.diff(get_sync_events(self)[1]).mean()))
             videofile.images2mpeg4(framefolder, fileop.get_convert_filename(self.filename, 'mp4'), fps)
             shutil.rmtree(framefolder)
-            
         
     def _save_meanimage(self):
         '''
@@ -1062,6 +1061,7 @@ class TestExperimentData(unittest.TestCase):
         
     def test_11_caimgfile_convert(self):
         h=CaImagingData('/tmp/20150401/data_C195_spot_131112760_0.hdf5',filelocking=False)
+        h.convert('png')
         h.convert('tif')
         h.convert('mp4')
         h.close()
