@@ -320,24 +320,7 @@ class Analysis(object):
             self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
             self.datafile.save(['repetition_link'], overwrite=True)
         self.datafile.save(['rois'], overwrite=True)
-        #List main nodes of hdf5 file
-        items = [r._v_name for r in self.datafile.h5f.list_nodes('/')]
-        #Copy data to dictionary
-        data={}
-        for item in items:
-            self.datafile.load(item)
-            data[item]=getattr(self.datafile,item)
-        data['timg']=self.timg
-        data['tsync']=self.tsync
-        #Make sure that rois field does not contain None:
-        for r in data['rois']:
-            if r.has_key('area') and r['area'] is None:
-                del r['area']
-        outfile=self.filename.replace('.hdf5', '.mat')
-        #Write to mat file
-        scipy.io.savemat(outfile, data, oned_as = 'row', long_field_names=True)
-        fileop.set_file_dates(outfile, file_info)
-        self.datafile.close()
+        self.datafile.convert(self.engine.guidata.read('Save File Format'))
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
         self.printc('Data exported to  {0}'.format(outfile))
