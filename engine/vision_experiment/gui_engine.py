@@ -320,10 +320,10 @@ class Analysis(object):
             self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
             self.datafile.save(['repetition_link'], overwrite=True)
         self.datafile.save(['rois'], overwrite=True)
-        self.datafile.convert(self.engine.guidata.read('Save File Format'))
+        self.datafile.convert(self.guidata.read('Save File Format'))
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
-        self.printc('Data exported to  {0}'.format(outfile))
+        self.printc('Data exported to  {0}'.format(self.datafile.outfile))
         
     def roi_shift(self, h, v):
         if not hasattr(self, 'rois'):

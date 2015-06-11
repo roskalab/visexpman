@@ -112,10 +112,10 @@ class CaImagingData(hdf5io.Hdf5io):
                 for r in data['rois']:
                     if r.has_key('area') and r['area'] is None:
                         del r['area']
-            self.matfile=self.filename.replace('.hdf5', '.mat')
+            self.outfile = fileop.get_convert_filename(self.filename, 'mat')
             #Write to mat file
-            scipy.io.savemat(self.matfile, data, oned_as = 'row', long_field_names=True)
-            fileop.set_file_dates(self.matfile, self.file_info)
+            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True)
+            fileop.set_file_dates(self.outfile, self.file_info)
         elif format == 'png':
             self._save_meanimage()
         elif format == 'tif':
@@ -126,7 +126,8 @@ class CaImagingData(hdf5io.Hdf5io):
                 self.meanimage, self.image_scale = get_imagedata(self)
             #um/pixel to dpi
             dpi = 1.0/self.image_scale*25.4e3
-            tifffile.imsave(fileop.get_convert_filename(self.filename, 'tif'), self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+            self.outfile = fileop.get_convert_filename(self.filename, 'tif')
+            tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
         elif format == 'mp4':
             imgarray = self.rawdata2images()
             framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
@@ -138,7 +139,8 @@ class CaImagingData(hdf5io.Hdf5io):
                 Image.fromarray(frame).resize((int(frame.shape[1]*resize_factor),int(frame.shape[0]*resize_factor))).save(fn)
                 ct+=1
             fps = int(numpy.ceil(1.0/numpy.diff(get_sync_events(self)[1]).mean()))
-            videofile.images2mpeg4(framefolder, fileop.get_convert_filename(self.filename, 'mp4'), fps)
+            self.outfile = fileop.get_convert_filename(self.filename, 'mp4')
+            videofile.images2mpeg4(framefolder, self.outfile, fps)
             shutil.rmtree(framefolder)
         
     def _save_meanimage(self):
