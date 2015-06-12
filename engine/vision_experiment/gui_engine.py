@@ -101,7 +101,8 @@ class Analysis(object):
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
             if self.rois is not None and len(self.rois)>0:
-                if not self.ask4confirmation('File already contains Rois. These will be overwritten with Rois from previous file. Is that OK?'):
+                if not self.ask4confirmation('{0} already contains Rois. These will be overwritten with Rois from previous file. Is that OK?'.format(os.path.basename(self.filename))):
+                    self.datafile.close()
                     return
             #Calculate roi curves
             self.rois = copy.deepcopy(self.reference_rois)
@@ -143,6 +144,9 @@ class Analysis(object):
         max_ = int(self.guidata.read('Maximum cell radius')/self.image_scale)
         sigma = self.guidata.read('Sigma')/self.image_scale
         threshold_factor = self.guidata.read('Threshold factor')
+        if sigma<0.2 or max_-min_>3:
+            if not self.ask4confirmation('Automatic cell detection will take long with these parameters, do you want to continue?'):
+                return
         self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self._filter_rois()
         #Calculate roi bounding box
@@ -298,12 +302,15 @@ class Analysis(object):
     def _check_unsaved_rois(self, warning_only=False):
         if not hasattr(self,'filename'):
             return
-        rois = hdf5io.read_item(self.filename, 'rois', filelocking=False)
-        if (hasattr(self, 'rois') and rois is not None and len(rois)!=len(self.rois)) or (rois is None and hasattr(self, 'rois') and len(self.rois)>0):
+        if self._any_unsaved_roi():
             if warning_only:
                 print 'Rois are not saved'
-            elif self.ask4confirmation('Do you want to save unsaved rois?'):
+            elif self.ask4confirmation('Do you want to save unsaved rois in {0}?'.format(os.path.basename(self.filename))):
                 self.save_rois_and_export()
+                
+    def _any_unsaved_roi(self):
+        rois = hdf5io.read_item(self.filename, 'rois', filelocking=False)
+        return (hasattr(self, 'rois') and rois is not None and len(rois)!=len(self.rois)) or (rois is None and hasattr(self, 'rois') and len(self.rois)>0)
         
     def save_rois_and_export(self):
         if not hasattr(self, 'filename'):
@@ -312,15 +319,18 @@ class Analysis(object):
         self.datafile = experiment_data.CaImagingData(self.filename)
         self.datafile.load('rois')
         if hasattr(self.datafile, 'rois'):
-            if not self.ask4confirmation('File already contains Rois. These will be overwritten. Is that OK?'):
+            if not self.ask4confirmation('{0} already contains Rois. These will be overwritten. Is that OK?'.format(os.path.basename(self.filename))):
                 self.datafile.close()
                 return
         self.datafile.rois = copy.deepcopy(self.rois)
         if hasattr(self, 'reference_roi_filename'):
             self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
             self.datafile.save(['repetition_link'], overwrite=True)
-        self.datafile.save(['rois'], overwrite=True)
+        self.printc('Calculating trace parameters and saving them')
+        self.datafile.trace_parameters = [self._extract_repetition_data(roi)[-1] for roi in self.rois]
+        self.datafile.save(['rois', 'trace_parameters'], overwrite=True)
         self.datafile.convert(self.guidata.read('Save File Format'))
+        self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
         self.printc('Data exported to  {0}'.format(self.datafile.outfile))
@@ -342,6 +352,8 @@ class Analysis(object):
     def find_repetitions(self):
         if not hasattr(self,'filename'):
             return
+        if self._any_unsaved_roi():
+            self.save_rois_and_export()
         self.printc('Searching for repetitions, please wait...')
         aggregated_rois = cone_data.find_repetitions(self.filename, self.machine_config.EXPERIMENT_DATA_PATH)
         self.aggregated_rois = aggregated_rois
@@ -351,7 +363,7 @@ class Analysis(object):
                 self.rois[i]['matches'] = aggregated_rois[i]['matches']
                 files.extend(self.rois[i]['matches'].keys())
         if len(files)>0:
-            self.printc('Repetitions found in {0} files: {1}'.format(len(list(set(files))), ', ' .join(list(set(files)))))
+            self.printc('Repetitions found in {0} other file(s): {1}'.format(len(list(set(files))), ', ' .join(list(set(files)))))
         else:
             self.printc('No repetitions found')
         self._normalize_roi_curves()
@@ -493,18 +505,18 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         Depending on which parameter changed certain things has to be recalculated
         '''
         tpp_opened = utils.safe_has_key(self.widget_status, 'tpp') and self.widget_status['tpp']
-        if 'Background threshold' in parameter_name:
+        if 'Background Threshold' in parameter_name:
             self._normalize_roi_curves()
             self.display_roi_curve()
-        elif 'Baseline lenght' in parameter_name:
+        elif 'Baseline Lenght' in parameter_name:
             self._normalize_roi_curves()
             self.display_roi_curve()
             if tpp_opened:
                 self.display_trace_parameter_distribution()
-        elif 'Include all files' in parameter_name:
+        elif 'Include all Files' in parameter_name:
             if tpp_opened:
                 self.display_trace_parameter_distribution()
-        elif 'Mean of repetitions' in parameter_name:
+        elif 'Mean of Repetitions' in parameter_name:
             self.display_roi_curve()
             if tpp_opened:
                 self.display_trace_parameter_distribution()

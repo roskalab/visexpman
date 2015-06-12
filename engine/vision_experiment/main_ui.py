@@ -414,7 +414,7 @@ class MainUI(gui.VisexpmanMainWindow):
         fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
         fw2.sort()
         self.params_config = [
-                {'name': 'Imaging', 'type': 'group', 'expanded' : True, 'children': [
+                {'name': 'Imaging', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
                     {'name': 'Cell Name', 'type': 'str', 'value': ''},
                     {'name': 'Scan Height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Scan Width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
@@ -422,7 +422,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Pixel Size Unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
                     {'name': 'Imaging Channel', 'type': 'list', 'values': imaging_channels, 'value': imaging_channels[0]},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
                     {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
                     {'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''},
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},

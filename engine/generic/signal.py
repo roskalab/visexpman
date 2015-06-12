@@ -213,7 +213,7 @@ def time2index(times,timepoint):
         
 def df_over_f(t, x, tstim, baseline_length):
     baseline = x[numpy.where(numpy.logical_and(t<tstim,t>tstim-baseline_length))].mean()
-    return x / baseline
+    return x / baseline - 1.0
     
 def average_of_traces(x,y):
     if len(x) != len(y):
