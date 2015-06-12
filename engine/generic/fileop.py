@@ -68,6 +68,12 @@ def get_tmp_file(suffix, delay = 0.0):
     time.sleep(delay)
     return path
     
+def get_convert_filename(filename, extension, outfolder = None):
+    fn=filename.replace(file_extension(filename), extension)
+    if outfolder is not None:
+        fn=os.path.join(outfolder, os.path.basename(filename))
+    return fn
+    
 def parsefilename(filename, regexdict):
     '''From a string filename extracts fields as defined in a dictionary regexdict. 
     Data will be put into a directory with the same keys as found in regextdict.

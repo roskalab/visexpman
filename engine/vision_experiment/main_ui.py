@@ -327,7 +327,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.analysis = QtGui.QWidget(self)
         self.analysis.parent=self
         
-        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat'])
+        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat', 'tif', 'mp4'])
         self.analysis_helper = AnalysisHelper(self.analysis)
         self.analysis.layout = QtGui.QGridLayout()
         self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
@@ -415,55 +415,56 @@ class MainUI(gui.VisexpmanMainWindow):
         fw2.sort()
         self.params_config = [
                 {'name': 'Imaging', 'type': 'group', 'expanded' : True, 'children': [
-                    {'name': 'Cell name', 'type': 'str', 'value': ''},
-                    {'name': 'Scan height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Scan width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Pixel size', 'type': 'float', 'value': 1.0, 'siPrefix': True},
-                    {'name': 'Pixel size unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
-                    {'name': 'Imaging channel', 'type': 'list', 'values': imaging_channels, 'value': imaging_channels[0]},
+                    {'name': 'Cell Name', 'type': 'str', 'value': ''},
+                    {'name': 'Scan Height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Scan Width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Pixel Size', 'type': 'float', 'value': 1.0, 'siPrefix': True},
+                    {'name': 'Pixel Size Unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
+                    {'name': 'Imaging Channel', 'type': 'list', 'values': imaging_channels, 'value': imaging_channels[0]},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
                     {'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''},
-                    {'name': 'Grey level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Projector on', 'type': 'bool', 'value': False},
-                    {'name': 'Bullseye on', 'type': 'bool', 'value': False},
-                    {'name': 'Bullseye size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Bullseye shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye'},
-                    {'name': 'Stimulus center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Stimulus center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
+                    {'name': 'Projector On', 'type': 'bool', 'value': False},
+                    {'name': 'Bullseye On', 'type': 'bool', 'value': False},
+                    {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye'},
+                    {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     ]},
                 {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
-                    {'name': 'Baseline lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
-                    {'name': 'Background threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Cell detection', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Minimum cell radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
-                        {'name': 'Maximum cell radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
+                    {'name': 'Background Threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
+                    {'name': 'Cell Detection', 'type': 'group', 'expanded' : False, 'children': [
+                        {'name': 'Minimum Cell Radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
+                        {'name': 'Maximum Cell Radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
                         {'name': 'Sigma', 'type': 'float', 'value': 1.0},
-                        {'name': 'Threshold factor', 'type': 'float', 'value': 1.0}
+                        {'name': 'Threshold Factor', 'type': 'float', 'value': 1.0}
                         ]
                     },
-                    {'name': 'Trace statistics', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Mean of repetitions', 'type': 'bool', 'value': False},
-                        {'name': 'Include all files', 'type': 'bool', 'value': False},
+                    {'name': 'Trace Statistics', 'type': 'group', 'expanded' : False, 'children': [
+                        {'name': 'Mean of Repetitions', 'type': 'bool', 'value': False},
+                        {'name': 'Include All Files', 'type': 'bool', 'value': False},
                         ]},
+                    {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
                     ]
-                    },
+                    },                    
                     {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Electrophysiology channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
-                        {'name': 'Electrophysiology sampling rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+                        {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
+                        {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
                     ]},
                     {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                         {'name': 'Scanner', 'type': 'group', 'expanded' : True, 'children': [
-                            {'name': 'Analog input sampling rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
-                            {'name': 'Analog output sampling rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
-                            {'name': 'Scan center x', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                            {'name': 'Scan center y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                            {'name': 'Stimulus flash duty cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                            {'name': 'Stimulus flash delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
-                            {'name': 'Enable flyback scan', 'type': 'bool', 'value': False},
-                            {'name': 'Enable phase characteristics', 'type': 'bool', 'value': False},
-                            {'name': 'Scanner position to voltage factor', 'type': 'float', 'value': 0.013},
+                            {'name': 'Analog Input Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
+                            {'name': 'Analog Output Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
+                            {'name': 'Scan Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                            {'name': 'Scan Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                            {'name': 'Stimulus Flash Duty Cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
+                            {'name': 'Stimulus Flash Delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
+                            {'name': 'Enable Flyback Scan', 'type': 'bool', 'value': False},
+                            {'name': 'Enable Phase Characteristics', 'type': 'bool', 'value': False},
+                            {'name': 'Scanner Position to Voltage Factor', 'type': 'float', 'value': 0.013},
                         ]},
                     ]}
                     ]
@@ -471,8 +472,6 @@ class MainUI(gui.VisexpmanMainWindow):
 
 
 
-                                                                        
-                                                                        
 
 #                {'name': 'Basic parameter data types', 'type': 'group', 'children': [
 #                {'name': 'Integer', 'type': 'int', 'value': 10},
@@ -510,7 +509,10 @@ class MainUI(gui.VisexpmanMainWindow):
         for item in self.engine.guidata.to_dict():
             mwname = item['path'].split('/')[0]
             if mwname == 'params':
-                r = refs[paths.index([p for p in paths if p == item['path']][0])]
+                try:
+                    r = refs[paths.index([p for p in paths if p == item['path']][0])]
+                except IndexError:
+                    continue
                 r.setValue(item['value'])
                 r.setDefault(item['value'])
             elif mwname == 'stimulusbrowser':

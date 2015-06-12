@@ -17,7 +17,7 @@ from PIL import Image,ImageDraw
 
 from pylab import show,plot,imshow,figure,title,subplot
 
-from visexpman.engine.generic import utils,fileop,signal,videofile,geometry
+from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
 from visexpman.engine import generic
 import hdf5io
 
@@ -82,6 +82,7 @@ def get_id(timestamp=None):
 ############### Preprocess measurement data ####################
 class CaImagingData(hdf5io.Hdf5io):
     def __init__(self,filename,filelocking=False):
+        self.file_info = os.stat(filename)
         hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
         
     def prepare4analysis(self):
@@ -96,6 +97,81 @@ class CaImagingData(hdf5io.Hdf5io):
         '''
         Supported formats: mat, tiff
         '''
+        if format == 'mat':
+            if not hasattr(self, 'timg'):
+                self.prepare4analysis()
+            items = [r._v_name for r in self.h5f.list_nodes('/')]
+            data={}
+            for item in items:
+                self.load(item)
+                data[item]=getattr(self,item)
+            data['timg']=self.timg
+            data['tsync']=self.tsync
+            #Make sure that rois field does not contain None:
+            if data.has_key('rois'):
+                for r in data['rois']:
+                    if r.has_key('area') and r['area'] is None:
+                        del r['area']
+            self.outfile = fileop.get_convert_filename(self.filename, 'mat')
+            #Write to mat file
+            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True)
+            fileop.set_file_dates(self.outfile, self.file_info)
+        elif format == 'png':
+            self._save_meanimage()
+        elif format == 'tif':
+            import tifffile
+            if not hasattr(self, 'raw_data'):
+                self.load('raw_data')
+            if not hasattr(self, 'image_scale'):
+                self.meanimage, self.image_scale = get_imagedata(self)
+            #um/pixel to dpi
+            dpi = 1.0/self.image_scale*25.4e3
+            self.outfile = fileop.get_convert_filename(self.filename, 'tif')
+            tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+        elif format == 'mp4':
+            imgarray = self.rawdata2images()
+            framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
+            fileop.mkdir_notexists(framefolder, remove_if_exists=True)
+            ct=0
+            resize_factor = 400.0/min(imgarray.shape[1:3]) if min(imgarray.shape[1:3])<400 else 1.0
+            for frame in imgarray:
+                fn=os.path.join(framefolder, 'f{0:0=5}.png'.format(ct))
+                Image.fromarray(frame).resize((int(frame.shape[1]*resize_factor),int(frame.shape[0]*resize_factor))).save(fn)
+                ct+=1
+            fps = int(numpy.ceil(1.0/numpy.diff(get_sync_events(self)[1]).mean()))
+            self.outfile = fileop.get_convert_filename(self.filename, 'mp4')
+            videofile.images2mpeg4(framefolder, self.outfile, fps)
+            shutil.rmtree(framefolder)
+        
+    def _save_meanimage(self):
+        '''
+        Meanimage is calculated from imaging data and saved to file
+        '''
+        if not hasattr(self, 'meanimage'):
+            self.meanimage, self.image_scale = get_imagedata(self)
+        colored_image = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1],3),dtype=numpy.uint8)
+        colored_image[:,:,1] = numpy.cast['uint8'](signal.scale(self.meanimage)*255)
+        Image.fromarray(colored_image).save(fileop.get_convert_filename(self.filename, 'png'))
+        
+    def rawdata2images(self, nbits = 8):
+        '''
+        One channel is supported, saved to green
+        '''
+        if not hasattr(self, 'raw_data'):
+            self.load('raw_data')
+        if self.raw_data.shape[1]!=1:
+            raise NotImplementedError('Only one channel is supported')
+        imagearray = numpy.zeros((self.raw_data.shape[0], self.raw_data.shape[2], self.raw_data.shape[3], 3),dtype = numpy.uint16 if nbits == 16 else numpy.uint8)
+        if nbits == 16:
+            imagearray[:,:,:,1] = self.raw_data[:,0,:,:]
+        elif nbits == 8:
+            imagearray[:,:,:,1] = numpy.cast['uint8'](numpy.cast['float'](self.raw_data[:,0,:,:])/256)
+        else:
+            raise NotImplementedError('')
+        return imagearray
+        
+        
+    
         
 def timing_from_file(filename):
     '''
@@ -978,9 +1054,19 @@ class TestExperimentData(unittest.TestCase):
         extract_roi_curve(h.raw_data, roix, roiy, roisize,roitype)
         h.close()
         
+    
+    @unittest.skip("")    
     def test_10_caimgfile(self):
         h=CaImagingData(fileop.listdir_fullpath('/mnt/rzws/test_data/datafile')[0],filelocking=False)
         h.prepare4analysis()
+        h.close()
+        
+    def test_11_caimgfile_convert(self):
+        h=CaImagingData('/tmp/20150401/data_C195_spot_131112760_0.hdf5',filelocking=False)
+        h.convert('png')
+        h.convert('tif')
+        h.convert('mp4')
+        h.close()
         
 def find_rois(meanimage):
     from skimage import filter
