@@ -163,7 +163,7 @@ def fast_read(f,vn):
     h.close()
     return val
     
-def find_repetitions(filename, folder):
+def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
     allhdf5files = [f for f in allhdf5files if fileop.is_recording_filename(f)]
     if filename not in allhdf5files:
@@ -194,7 +194,7 @@ def find_repetitions(filename, folder):
             break
         repetitions = list(set(repetitions))
     #Read roi info from assigned files
-    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and experiment_name == fileop.parse_recording_filename(f)['experiment_name']])
+    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (True if filter_by_stimulus_type else experiment_name == fileop.parse_recording_filename(f)['experiment_name'])])
     for fn in aggregated_rois.keys():#Remove recordings that do not contain roi
         if aggregated_rois[fn] is None:
             del aggregated_rois[fn]
@@ -246,6 +246,25 @@ def compare_signatures(sig1, sig2):
     for sig1i in sig1:
         number_of_matches += 1 if numpy.where(abs(numpy.array(sig2)-sig1i).sum(axis=1)<1e-9)[0].shape[0] > 0 else 0
     return number_of_matches
+    
+def aggregate_cells(folder):
+    '''
+    Aggregates cell data from daatafiles in a folder including different stimuli and repetitions
+    
+    '''
+    allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
+    cells = []
+    repeats_extracted = []
+    for hdf5file in allhdf5files:
+        if fileop.parse_recording_filename(hdf5file)['id'] in repeats_extracted:
+            continue
+        aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
+        repeats_extracted.extend([fileop.parse_recording_filename(ar)['id'] for ar in aggregated_rois['matches'].keys()])
+        #TODO: Add current file's rois to aggregated_rois
+        #TODO: separate aggregated_rois by stimulus
+        
+        
+    
 
 class TestCA(unittest.TestCase):
     def setUp(self):
