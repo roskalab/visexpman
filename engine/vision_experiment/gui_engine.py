@@ -326,7 +326,7 @@ class Analysis(object):
         if hasattr(self, 'reference_roi_filename'):
             self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
             self.datafile.save(['repetition_link'], overwrite=True)
-        self.printc('Calculating trace parameters and saving them')
+        self.printc('Calculating and saving trace parameters')
         self.datafile.trace_parameters = [self._extract_repetition_data(roi)[-1] for roi in self.rois]
         self.datafile.save(['rois', 'trace_parameters'], overwrite=True)
         self.datafile.convert(self.guidata.read('Save File Format'))
@@ -714,15 +714,45 @@ class TestGUIEngineIF(unittest.TestCase):
         return os.path.split(filename)[1], protocol_cmds
         
     def _init_guidata(self):
-        self.engine.guidata.from_dict([{'path': 'params/Analysis/Background threshold', 'name': 'Background Threshold', 'value': 10}, 
-            {'path': 'params/Analysis/Baseline lenght', 'name': 'Baseline Lenght', 'value': 1.0},
-            {'path': 'params/Analysis/Trace statistics/Include all files', 'name': 'Include All Files', 'value': False}, 
-            {'path': 'params/Analysis/Trace statistics/Mean of repetitions', 'name': 'Mean of repetitions', 'value': True}, 
+        self.engine.guidata.from_dict(
+            [{'path': 'params/Advanced/Scanner/Analog Input Sampling Rate', 'name': 'Analog Input Sampling Rate', 'value': 400.0}, 
+            {'path': 'params/Advanced/Scanner/Analog Output Sampling Rate', 'name': 'Analog Output Sampling Rate', 'value': 400.0}, 
+            {'path': 'params/Analysis/Background Threshold', 'name': 'Background Threshold', 'value': 10}, 
+            {'path': 'params/Analysis/Baseline Lenght', 'name': 'Baseline Lenght', 'value': 1.0}, 
+            {'path': 'params/Stimulus/Bullseye On', 'name': 'Bullseye On', 'value': False}, 
+            {'path': 'params/Stimulus/Bullseye Shape', 'name': 'Bullseye Shape', 'value': 'bullseye'}, 
+            {'path': 'params/Stimulus/Bullseye Size', 'name': 'Bullseye Size', 'value': 100.0}, 
+            {'path': 'params/Imaging/Cell Name', 'name': 'Cell Name', 'value': ''}, 
+            {'path': 'params/Electrophysiology/Electrophysiology Channel', 'name': 'Electrophysiology Channel', 'value': 'None'}, 
+            {'path': 'params/Electrophysiology/Electrophysiology Sampling Rate', 'name': 'Electrophysiology Sampling Rate', 'value': 10000.0}, 
+            {'path': 'params/Advanced/Scanner/Enable Flyback Scan', 'name': 'Enable Flyback Scan', 'value': False}, 
+            {'path': 'params/Advanced/Scanner/Enable Phase Characteristics', 'name': 'Enable Phase Characteristics', 'value': False}, 
+            {'path': 'params/Stimulus/Filterwheel 1', 'name': 'Filterwheel 1', 'value': 'IR'}, 
+            {'path': 'params/Stimulus/Filterwheel 2', 'name': 'Filterwheel 2', 'value': 'ND10'}, 
+            {'path': 'params/Stimulus/Grey Level', 'name': 'Grey Level', 'value': 100.0}, 
+            {'path': 'params/Imaging/Imaging Channel', 'name': 'Imaging Channel', 'value': 'TOP'}, 
+            {'path': 'params/Analysis/Trace Statistics/Include All Files', 'name': 'Include All Files', 'value': False}, 
+            {'path': 'main_tab', 'name': 'Main Tab', 'value': 1}, 
+            {'path': 'params/Analysis/Cell Detection/Maximum Cell Radius', 'name': 'Maximum Cell Radius', 'value': 3.0}, 
+            {'path': 'params/Analysis/Trace Statistics/Mean of Repetitions', 'name': 'Mean Of Repetitions', 'value': False}, 
+            {'path': 'params/Analysis/Cell Detection/Minimum Cell Radius', 'name': 'Minimum Cell Radius', 'value': 2.0}, 
+            {'path': 'params/Imaging/Pixel Size', 'name': 'Pixel Size', 'value': 1.0}, 
+            {'path': 'params/Imaging/Pixel Size Unit', 'name': 'Pixel Size Unit', 'value': 'pixel/um'}, 
+            {'path': 'params/Stimulus/Projector On', 'name': 'Projector On', 'value': False}, 
+            {'path': 'params/Analysis/Save File Format', 'name': 'Save File Format', 'value': 'mat'}, 
+            {'path': 'params/Advanced/Scanner/Scan Center X', 'name': 'Scan Center X', 'value': 0.0}, 
+            {'path': 'params/Advanced/Scanner/Scan Center Y', 'name': 'Scan Center Y', 'value': 0.0}, 
+            {'path': 'params/Imaging/Scan Height', 'name': 'Scan Height', 'value': 100.0}, 
+            {'path': 'params/Imaging/Scan Width', 'name': 'Scan Width', 'value': 100.0}, 
+            {'path': 'params/Advanced/Scanner/Scanner Position to Voltage Factor', 'name': 'Scanner Position To Voltage Factor', 'value': 0.013}, 
+            {'path': 'stimulusbrowser/Selected experiment class', 'name': 'Selected experiment class', 'value': '/mnt/rzws/codes/visexpman/users/zoltan/experiment_tests.py/NaturalBarsConfig1'}, 
             {'path': 'analysis_helper/show_repetitions/input', 'name': 'Show Repetitions', 'value': True}, 
-            {'path': 'params/Analysis/Cell detection/Maximum cell radius', 'name': 'Maximum Cell Radius', 'value': 3.0},
-            {'path': 'params/Analysis/Cell detection/Minimum cell radius', 'name': 'Minimum cell radius', 'value': 1.0},
-            {'path': 'params/Analysis/Cell detection/Sigma', 'name': 'Sigma', 'value': 1.0}, 
-            {'path': 'params/Analysis/Cell detection/Threshold factor', 'name': 'Threshold Factor', 'value': 1.0}])
+            {'path': 'params/Analysis/Cell Detection/Sigma', 'name': 'Sigma', 'value': 1.0}, 
+            {'path': 'params/Stimulus/Stimulus Center X', 'name': 'Stimulus Center X', 'value': 0.0}, 
+            {'path': 'params/Stimulus/Stimulus Center Y', 'name': 'Stimulus Center Y', 'value': 0.0}, 
+            {'path': 'params/Advanced/Scanner/Stimulus Flash Delay', 'name': 'Stimulus Flash Delay', 'value': 0.0}, 
+            {'path': 'params/Advanced/Scanner/Stimulus Flash Duty Cycle', 'name': 'Stimulus Flash Duty Cycle', 'value': 100.0}, 
+            {'path': 'params/Analysis/Cell Detection/Threshold Factor', 'name': 'Threshold Factor', 'value': 1.0}])
         
     def tearDown(self):
         self.from_gui.put('terminate')
