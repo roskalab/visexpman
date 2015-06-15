@@ -86,12 +86,18 @@ class Analysis(object):
         else:
             if hasattr(self, 'reference_rois'):
                 del self.reference_rois
+            if hasattr(self, 'reference_roi_filename'):
+                del self.reference_roi_filename
 
     def open_datafile(self,filename):
         self._check_unsaved_rois()
         if fileop.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
+        if hasattr(self, 'reference_roi_filename') and fileop.parse_recording_filename(self.reference_roi_filename)['id'] == fileop.parse_recording_filename(filename)['id']:
+            self.notify('Warning', 'ROIS cannot be copied to a file itself')
+            del self.reference_roi_filename
+            del self.reference_rois
         self.filename = filename
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)

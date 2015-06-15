@@ -352,13 +352,14 @@ class TestCA(unittest.TestCase):
         res=p.map(area2edges, areas)
         
     def test_05_find_repetitions(self):
-        fns=['/home/rz/rzws/test_data/find_cone_repetitions/data_C1_unknownstim_1423066846_0.hdf5',
-            '/home/rz/rzws/test_data/find_cone_repetitions/data_C3_unknownstim_1423066960_0.hdf5',
-            '/home/rz/rzws/test_data/find_cone_repetitions/20150206/C2_598299660/data_C2_unknownstim_1423220080_0.hdf5']
+        from visexpman.users.test.unittest_aggregator import prepare_test_data
+        wf='/tmp/wf'
+        fns = fileop.listdir_fullpath(prepare_test_data('aggregate',working_folder=wf))
+        fns.sort()
         for fn in fns:
-            res = find_repetitions(fn, '/home/rz/rzws/test_data/find_cone_repetitions')
+            res = find_repetitions(fn, wf)
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
-            break
+#            break
         return
         folder = '/mnt/rzws/experiment_data/test'
         f='/mnt/rzws/experiment_data/test/data_C7_unknownstim_1423223487_0.hdf5'

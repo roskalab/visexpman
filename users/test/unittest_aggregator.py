@@ -72,7 +72,7 @@ if TEST_os == 'Darwin':
 #The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
 #TEST_pixel_difference_threshold = 50.0
 
-TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/tmp', 'c:\\temp']
+TEST_working_folder = ['/tmp', '/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', 'c:\\temp']
 TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/tmp', 'c:\\temp']
 TEST_test_data_folder = ['/mnt/rzws/test_data', 'r:\\test_data', '/home/rz/codes/data']
 
@@ -193,9 +193,12 @@ if TEST_valid_file is None:
     raise IOError('TEST_valid_file parameter incorrect')
 TEST_invalid_file = '/home'
     
-def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file = False):
+def prepare_test_data(modulename, working_folder=None, clean_working_dir = True, copy_only_first_file = False):
     ref_folder = os.path.join(select_path_exists(TEST_test_data_folder), modulename)
-    working_folder = select_path_exists(TEST_working_folder)
+    if working_folder is None:
+        working_folder = select_path_exists(TEST_working_folder)
+    elif not os.path.exists(working_folder):
+        os.mkdir(working_folder)
     print 'preparing test data'
     if clean_working_dir:
         shutil.rmtree(working_folder)
