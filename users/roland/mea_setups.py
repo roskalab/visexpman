@@ -67,6 +67,18 @@ class MEAConfig(HiMEAConfig):
         self.GAMMA_CORRECTION = numpy.array([numpy.arange(0,1.1,0.1), self.INTENSITIES_425NM]).T
         self._create_parameters_from_locals(locals())
 
+        #### Connect to tho other computers (experimental) ####
+        stim_computer_ip = 'localadmin'
+        #elphys_computer_ip = '172.27.26.48'
+        #imaging_computer_ip = '172.27.26.49'
+        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
+        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
+        #self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = imaging_computer_ip #bind to specific network card
+        #self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = imaging_computer_ip
+        #self.CONNECTIONS['analysis']['ip']['analysis'] = None
+        #self.CONNECTIONS['analysis']['ip']['main_ui'] = '172.27.26.49'
+
+
 class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):
         MEAConfig._set_user_parameters(self)

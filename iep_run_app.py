@@ -79,6 +79,18 @@ socket.send(cmd)
 socket.recv()
 
 
+##
+
+import visexpman.engine.hardware_interface.queued_socket as qs
+
+class Test(qs.QueuedSocketHelpers):
+    #def __init__(self,socket_queues):
+    pass
+
+#socket_queues['fromsocket'] = ...
+socket_queues = []
+t = Test(socket_queues)
+
 
 
 
