@@ -1,0 +1,65 @@
+TJ Viney 20091028
+ 
+How to convert the cat natural scenes into mouse natural scenes.
+ 
+Quick answer: for each cat image, scale the image by 6.86/x where x is your microns per pixel ratio of your projector in your setup.
+ 
+Explanation:
+ 
+Data from paper by Betsch et al Biol Cybern 2004 The world from a cat's perspective.
+ 
+Camera 10 mm lens (mounted on cat's head) has a visual angle of 71 degrees Y and 53 degrees X.
+ 
+They sampled at a spatial resolution of 320 x 240 pixels.
+ 
+This gives 4.52 pixels per degree.
+ 
+For the mouse, 1 degree is 31 microns (see paper by Remtulla and Hallett, Vision Research 1985 - see MouseOptics folder on G drive).
+ 
+Then convert this to pixels per degree.
+ 
+You know the microns per pixel ratio for your DLP projector on your setup. Mine is 3.75 pixels per micron.
+ 
+31/3.75 gives 8.27 pixels per degree.
+ 
+Therefore, 8.27/4.52 is 1.83.
+ 
+So you need to scale your cat images by 1.83. Use bicubic interpolation.
+ 
+ 
+How to make the images (this is how I did it since I didn't work out the scaling factor till later, but probably you can scale directly from the tif files then save as bmps afterwards):
+ 
+First convert the tif files of your favourite cat movie to 8 bit bmps. eg. import image sequence into ImageJ, convert to 8 bit and save as a bmp image sequence.
+ 
+Then import eg 1500 images (you run out of memory if you try to import more) and scale the stack by the scaling factor (control or command E).
+ 
+Save this sequence in the same order as the originals, then do the same for the images after 1500, continuing the sequence.
+ 
+ 
+For the stimulus file, choose your favourite section of the movie, then make a text file starting from your first image -1 (because it starts at zero in the software) to your last image, with a tab followed by 40.
+ 
+40 is the duration in ms of the movie for each frame, since they sample at a temporal resolution of 25 frames per second, 1000 ms / 25 = 40.
+ 
+You can write this stimulus file eg in mathematica, using /t for new tab.
+ 
+Note: do not name any files with the first letter as n, t or r. This interferes with the software.
+ 
+ 
+michelef 6.3.2015:
+ 
+in the current cmos-mea-setup 1 pixel = 1.75 um
+ 
+therefore, I have 0.57 pixels = 1 um
+ 
+now, 1 degree is 31 microns in the mouse retina
+ 
+31 deg/um / 0.57 pixels/um gives ~54.4 pixels per degree
+ 
+therefore, 54.4 pixels/degree / 4.5 pixels/degree is ~12
+ 
+So you need to scale your cat images by 12.
+Use bicubic interpolation in matlab
+ 
+they sample at a temporal resolution of 25 Hz, 1000 ms / 25 = 40 ms.
+ 
+There should be 40 ms between consecutive frames
