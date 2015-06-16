@@ -12,7 +12,7 @@ from visexpman.engine.vision_experiment.configuration import HiMEAConfig
 
 class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
-        FULLSCREEN = True
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([600, 600])
         SCREEN_EXPECTED_FRAME_RATE = 60
         COLOR_MASK = numpy.array([1.0, 1.0, 1.0])
@@ -25,7 +25,11 @@ class MEAConfig(HiMEAConfig):
         
         # Folders & paths:
         #self.root_folder = fileop.select_folder_exists(['/home/localadmin/tmp'])
-        folder = '/home/localadmin/recordings/'+time.strftime('%y%m%d'.format(os.sep))+'/data/'
+        #folder = '/home/localadmin/recordings/'+time.strftime('%y%m%d'.format(os.sep))+'/data/'
+        import getpass
+        username = getpass.getuser()
+        
+        folder = '/mnt/bs-hpws19/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/data/'
         
         if not os.path.isdir(folder):
             os.makedirs(folder)
