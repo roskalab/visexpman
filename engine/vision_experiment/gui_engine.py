@@ -150,7 +150,7 @@ class Analysis(object):
         max_ = int(self.guidata.read('Maximum cell radius')/self.image_scale)
         sigma = self.guidata.read('Sigma')/self.image_scale
         threshold_factor = self.guidata.read('Threshold factor')
-        if sigma<0.2 or max_-min_>3:
+        if sigma*self.image_scale<0.2 or max_-min_>3:
             if not self.ask4confirmation('Automatic cell detection will take long with these parameters, do you want to continue?'):
                 return
         self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)

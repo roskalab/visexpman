@@ -100,7 +100,7 @@ class TransientAnalysator(object):
         response_amplitude = coeff[2]
         return time_constant, response_amplitude
         
-def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor):
+def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsize=1):
     '''
     Dani's algorithm:
     -gaussian filtering
@@ -119,8 +119,9 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor):
     p=im1.max()
     im = gaussian_filter(im1, sigma)
     centers = signal2.getextrema(im, method = 'regmax')
-    wrange = range(minsomaradius, maxsomaradius)
-    res = roi.ratio_center_perimeter(signal.scale(im, 0.0, 1.0), centers,  wrange)
+    wrange = range(minsomaradius, maxsomaradius,stepsize)
+    ims=signal.scale(im, 0.0, 1.0)
+    res = roi.ratio_center_perimeter(ims, centers,  wrange)
     maskcum = numpy.zeros_like(im1)
     c=numpy.zeros_like(im1)
     soma_rois = []
@@ -166,6 +167,7 @@ def fast_read(f,vn):
 def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
     allhdf5files = [f for f in allhdf5files if fileop.is_recording_filename(f)]
+    allhdf5files = [f.replace('\\\\','\\') for f in allhdf5files]#Temporary solution
     if filename not in allhdf5files:
         raise RuntimeError('{0} is not in {1}'.format(filename, folder))
     ids = [fileop.parse_recording_filename(f)['id'] for f in allhdf5files]
