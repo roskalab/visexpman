@@ -256,6 +256,8 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             elif int(e.buttons()) == 2:
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
+            else:
+                self.emit(QtCore.SIGNAL('wheel_double_click'), p.x(), p.y())
             self.update_roi_info()
         elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2:
             self.emit(QtCore.SIGNAL('roi_mouse_selected'), p.x(), p.y())

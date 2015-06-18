@@ -175,6 +175,7 @@ class Image(gui.Image):
         self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
+        self.connect(self, QtCore.SIGNAL('wheel_double_click'), parent.add_roi_action)
             
 class DataFileBrowser(gui.FileTree):
     def __init__(self,parent, root, extensions):

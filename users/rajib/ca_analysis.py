@@ -35,20 +35,37 @@ def file2cells(filename):
                 corner[i]=0
             if corner[i]>meanimage.shape[i/2%2]:
                 corner[i]=meanimage.shape[i/2%2]-1
-        img=gaussian_filter(meanimage[corner[0]:corner[1],corner[2]:corner[3]],4)
+        r=meanimage[corner[0]:corner[1],corner[2]:corner[3]]
+        img=gaussian_filter(r,4)
         labeled, nsegments = scipy.ndimage.measurements.label(numpy.where(img>threshold_otsu(img),1,0))
-        roi_pixels = utils.rc(numpy.where(labeled ==labeled[c['row']-corner[0]-1, c['col']-corner[2]-1]))
-        roi_pixels['row'] += corner[0]
-        roi_pixels['col'] += corner[2]
+        roi_pixels_w = utils.rc(numpy.where(labeled ==labeled[c['row']-corner[0]-1, c['col']-corner[2]-1]))
+        roi_pixels = numpy.copy(roi_pixels_w)
+        roi_pixels['row'] = roi_pixels_w['row'] + corner[0]
+        roi_pixels['col'] = roi_pixels_w['col'] + corner[2]
+        #Check for further segments within roi
+        
+        tmp=numpy.zeros_like(r)+1
+        tmp[roi_pixels_w['row'],roi_pixels_w['col']]=0
+        rr=numpy.copy(r)
+        rr[numpy.nonzero(tmp)[0],numpy.nonzero(tmp)[1]]=r[roi_pixels_w['row'],roi_pixels_w['col']].mean()*0
         if img.shape[0]*img.shape[1]*0.25>roi_pixels.shape[0]:
+            
+            
+            
+            
             roisonimgr[roi_pixels['row'],roi_pixels['col']]=0.3+0.3*numpy.random.random(1)
             roisonimgb[roi_pixels['row'],roi_pixels['col']]=0.3+0.3*numpy.random.random(1)
             somarois.append(roi_pixels)
+            ime=numpy.zeros((meanimage.shape[0],meanimage.shape[1],3),dtype=numpy.uint8)
+            ime[corner[0]:corner[1],corner[2]:corner[3],1]=numpy.cast['uint8'](255*signal.scale(r,0.0,1.0))
+            ime[numpy.cast['int'](roi_pixels['row']),numpy.cast['int'](roi_pixels['col'] ),2]=255
+            from PIL import Image
+            Image.fromarray(ime).save('/tmp/1/c_{0}_{1}.png'.format(c['row'],c['col']))
         
 #        else:
 #            roisonimg[c['row']-10:c['row']+10,c['col']-10:c['col']+10]=1
-    for c in centers:
-        roisonimgr[c['row']-5:c['row']+5,c['col']-5:c['col']+5]=1
+#    for c in centers:
+#        roisonimgr[c['row']-5:c['row']+5,c['col']-5:c['col']+5]=1
     i=numpy.zeros((meanimage.shape[0],meanimage.shape[1],3))
     i[:,:,1]=signal.scale(meanimage,0,1)
     i[:,:,0]=roisonimgr
@@ -62,6 +79,7 @@ if __name__ == "__main__":
     ct=1
     for f in fileop.listdir_fullpath(folder):
         if 'tif' not in f: continue
+        if '006' not in f: continue
         im=file2cells(f)
         figure(ct);
         subplot(1,2,1)
