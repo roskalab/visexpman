@@ -99,6 +99,7 @@ class Analysis(object):
             del self.reference_roi_filename
             del self.reference_rois
         self.filename = filename
+        self.to_gui.put({'image_title' :self.filename})
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
@@ -174,7 +175,7 @@ class Analysis(object):
             contours=p.map(cone_data.area2edges, areas)
             self._init_meanimge_w_rois()
             for coo in contours:
-                self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.4
+                self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.8
         else:
             self.image_w_rois[:,:,2] = numpy.roll(self.image_w_rois[:,:,2], shiftx, 0)
             self.image_w_rois[:,:,2] = numpy.roll(self.image_w_rois[:,:,2], shifty, 1)

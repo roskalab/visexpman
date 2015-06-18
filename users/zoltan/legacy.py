@@ -170,7 +170,7 @@ class PhysTiff2Hdf5(object):
         filename = os.path.join(folder, 'data_{1}_{2}_{0}_0.hdf5'.format(id, cellid, experiment_name))
         print 'saving to file', time.time()-t0
         h=hdf5io.Hdf5io(filename,filelocking=False)
-        h.raw_data = raw_data
+        h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
         h.fphys = fphys
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
