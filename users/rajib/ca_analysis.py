@@ -22,17 +22,17 @@ def file2cells(filename):
 #    rois = cone_data.find_rois(im[50:150,100:200], minsomaradius, maxsomaradius, sigma, threshold_factor)
     
     
-    from skimage.filters import threshold_otsu
+    from skimage.filter import threshold_otsu
     from scipy.ndimage.filters import gaussian_filter
     from visexpA.engine.dataprocessors import signal as signal2
     centers = signal2.getextrema(gaussian_filter(meanimage,25), method = 'regmax')
-    maxcellsize=100
+    maxcellradius=65
     roisonimgr=numpy.zeros_like(meanimage)
     roisonimgb=numpy.zeros_like(meanimage)
     somarois = []
     for c in centers:
-        if c['row']!=506: continue
-        corner = [c['row']-0.5*maxcellsize,c['row']+0.5*maxcellsize,c['col']-0.5*maxcellsize,c['col']+0.5*maxcellsize]
+#        if c['row']!=136 and c['row']!=269 and c['row']!=430 and c['row']!=50: continue
+        corner = [c['row']-0.5*maxcellradius,c['row']+0.5*maxcellradius,c['col']-0.5*maxcellradius,c['col']+0.5*maxcellradius]
         for i in range(4):
             if corner[i]<0:
                 corner[i]=0
@@ -47,27 +47,77 @@ def file2cells(filename):
         roi_pixels['col'] = roi_pixels_w['col'] + corner[2]
         
         #Check profile (curve between edge and center
-        mask=geometry.circle_mask([c['row'],c['col']],maxcellsize,meanimage.shape)
+        mask=geometry.circle_mask([c['row'],c['col']],maxcellradius,meanimage.shape)
         masked = mask*gaussian_filter(meanimage,2)#Remove scanning artifact
-        nbsum=scipy.ndimage.filters.generic_filter(mask,sum,3)
-        indexes=numpy.nonzero(numpy.where(numpy.logical_and(nbsum<9,nbsum>0),1,0))
+        
         profile = []
         contour_pix=[]
         ds=[]
-        for line in range(0,indexes[0].shape[0],indexes[0].shape[0]/36):
-            endx=indexes[0][line]
-            endy=indexes[1][line]
-            xline=numpy.cast['int'](numpy.round(numpy.linspace(c['row'],endx,maxcellsize),0))
-            yline=numpy.cast['int'](numpy.round(numpy.linspace(c['col'],endy,maxcellsize),0))
+        for angle in range(0, 360,15):
+            endx=c['row']+numpy.cos(numpy.radians(angle))*maxcellradius
+            endy=c['col']+numpy.sin(numpy.radians(angle))*maxcellradius
+            if endx<0:
+                endx=0
+            if endy<0:
+                endy=0
+            if endx>meanimage.shape[0]-1:
+                endx=meanimage.shape[0]-1
+            if endy>meanimage.shape[1]-1:
+                endy=meanimage.shape[1]-1
+            xline=numpy.cast['int'](numpy.round(numpy.linspace(c['row'],endx,maxcellradius),0))
+            yline=numpy.cast['int'](numpy.round(numpy.linspace(c['col'],endy,maxcellradius),0))
             profile.append(meanimage[xline,yline])
-            d=numpy.diff(gaussian_filter(profile[-1],0.1*maxcellsize)).argmin()
+            d=numpy.where(numpy.diff(numpy.where(profile[-1]<threshold_otsu(profile[-1]),0,1))==-1)[0]
+            #print angle, numpy.where(numpy.diff(numpy.where(profile[-1]<threshold_otsu(profile[-1]),0,1))==-1), numpy.where(numpy.diff(numpy.where(profile[-1]<threshold_otsu(profile[-1]),0,1))==1)
+            if d.shape[0]==0:
+                if len(ds)>0:
+                    d=ds[-1]
+                else:
+                    d=maxcellradius-1
+            else:
+                d=d[0]
+            
             ds.append(d)
             contour_pix.append([xline[d],yline[d]])
-        pass
+            
+        
+        
+        
+        
+        
+#        nbsum=scipy.ndimage.filters.generic_filter(mask,sum,3)
+#        indexes=numpy.nonzero(numpy.where(numpy.logical_and(nbsum<9,nbsum>0),1,0))
+#        
+#        angles =[]
+#        
+#        
+#        
+#        for line in range(0,indexes[0].shape[0],indexes[0].shape[0]/36):
+#            endx=indexes[0][line]
+#            endy=indexes[1][line]
+#            xline=numpy.cast['int'](numpy.round(numpy.linspace(c['row'],endx,maxcellsize),0))
+#            yline=numpy.cast['int'](numpy.round(numpy.linspace(c['col'],endy,maxcellsize),0))
+#            profile.append(meanimage[xline,yline])
+##            d=numpy.diff(gaussian_filter(profile[-1],0.1*maxcellsize)).argmin()
+#            d=numpy.where(numpy.diff(numpy.where(profile[-1]<threshold_otsu(profile[-1]),0,1))==-1)[0][0]
+#            ds.append(d)
+#            angles.append(numpy.arctan2(xline[0]-xline[-1],yline[0]-yline[-1]))
+#            contour_pix.append([xline[d],yline[d]])
+        import copy
+        cc=copy.deepcopy(contour_pix)
         filled = []
-        for p in range(len(contour_pix)-1):
-            npix=numpy.round(numpy.sqrt((numpy.cast['float'](numpy.array(contour_pix[p])-numpy.array(contour_pix[p+1]))**2).sum()))
-            filled.extend(zip(numpy.linspace(contour_pix[p][0],contour_pix[p+1][0],npix+1),numpy.linspace(contour_pix[p][1],contour_pix[p+1][1],npix+1)))
+        for p in range(len(contour_pix)):
+            if p==len(contour_pix)-1:
+                i1=p
+                i2=0
+            else:
+                i1=p
+                i2=p+1
+            npix=numpy.round(numpy.sqrt((numpy.cast['float'](numpy.array(contour_pix[i1])-numpy.array(contour_pix[i2]))**2).sum()))
+            filled.extend(zip(numpy.linspace(contour_pix[i1][0],contour_pix[i2][0],npix+1),numpy.linspace(contour_pix[i1][1],contour_pix[i2][1],npix+1)))
+#            print contour_pix[p][0]-contour_pix[p+1][0],contour_pix[p][1]-contour_pix[p+1][1]
+#            if abs(contour_pix[p][0]-contour_pix[p+1][0])>10 or abs(contour_pix[p][1]-contour_pix[p+1][1])>10:
+#                pass
         contour_pix=filled
         #TODO: 1 Connect contour points
         #TODO: 2 Fill object
@@ -115,6 +165,7 @@ def file2cells(filename):
 
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
+    folder='/home/rz/codes/data/rajib/'
     ct=1
     for f in fileop.listdir_fullpath(folder):
         if 'tif' not in f: continue
