@@ -31,7 +31,7 @@ def file2cells(filename):
     roisonimgb=numpy.zeros_like(meanimage)
     somarois = []
     for c in centers:
-#        if c['row']!=136 and c['row']!=269 and c['row']!=430 and c['row']!=50: continue
+        if c['row']!=136 and c['row']!=269 and c['row']!=430 and c['row']!=50: continue
         corner = [c['row']-0.5*maxcellradius,c['row']+0.5*maxcellradius,c['col']-0.5*maxcellradius,c['col']+0.5*maxcellradius]
         for i in range(4):
             if corner[i]<0:
@@ -45,6 +45,15 @@ def file2cells(filename):
         roi_pixels = numpy.copy(roi_pixels_w)
         roi_pixels['row'] = roi_pixels_w['row'] + corner[0]
         roi_pixels['col'] = roi_pixels_w['col'] + corner[2]
+        
+        
+#        single_object=numpy.zeros_like(labeled)
+#        single_object[roi_pixels_w['row'], roi_pixels_w['col']]=1
+#        
+#        distance=scipy.ndimage.distance_transform_edt(single_object)
+#        markers=numpy.zeros_like(labeled)
+#        markers[c['row']-corner[0],c['col']-corner[2]]=1
+        
         
         #Check profile (curve between edge and center
         mask=geometry.circle_mask([c['row'],c['col']],maxcellradius,meanimage.shape)
@@ -123,10 +132,17 @@ def file2cells(filename):
         #TODO: 2 Fill object
 #        for p in profile:
 #            numpy.diff(gaussian_filter(p,maxcellsize)).argmin()
+
+        from skimage.morphology import watershed
+        
+        coo=numpy.cast['int'](numpy.array(contour_pix).T)
+        roimask=numpy.zeros_like(masked)
+        roimask[coo[0],coo[1]]=1
+
         
         i=numpy.zeros((masked.shape[0], masked.shape[1], 3))
         i[:,:,1]=signal.scale(masked)
-        coo=numpy.cast['int'](numpy.array(contour_pix).T)
+        
         i[coo[0],coo[1],0]=1
         i=numpy.cast['uint8'](255*i)
         Image.fromarray(i).save('/tmp/1/c_{0}_{1}.png'.format(c['row'],c['col']))
@@ -165,7 +181,7 @@ def file2cells(filename):
 
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
-    folder='/home/rz/codes/data/rajib/'
+#    folder='/home/rz/codes/data/rajib/'
     ct=1
     for f in fileop.listdir_fullpath(folder):
         if 'tif' not in f: continue
