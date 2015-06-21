@@ -116,6 +116,9 @@ if __name__ == "__main__":
     folder='/home/rz/codes/data/rajib/'
     ct=1
     curves=[]
+    center_tolerance = 100
+    dfpf_threshold=0.2
+    center_cell_curves=[]
     for f in fileop.listdir_fullpath(folder):
         if 'tif' not in f: continue
 #        if '006' not in f: continue
@@ -133,6 +136,7 @@ if __name__ == "__main__":
             bg=gaussian_filter(img.mean(axis=0)[0],150)#sigma is much bigger than cell size
             roi_curves = experiment_data.get_roi_curves(img-bg,sr)
 #            roi_curves= [rc-bg_activity for rc in roi_curves]
+            max_response=0
             for i in range(len(roi_curves)):
                 figure(1)
                 clf()
@@ -146,10 +150,27 @@ if __name__ == "__main__":
                 reponse_size=(roi_curves[i].max()-baseline)/baseline
                 plot(roi_curves[i])
                 title(reponse_size)
-                savefig('/tmp/3/{0}_{1}.png'.format(os.path.basename(f),i))
+                fn='/tmp/3/{0}_{1}.png'.format(os.path.basename(f),i)
+                savefig(fn)
                 curves.append(roi_curves[i])
+                
+                roi_center = numpy.array([sr[i][0].mean(),sr[i][1].mean()])
+                image_center = numpy.array(image.shape[1:])/2
+                if numpy.sqrt(((image_center-roi_center)**2).sum()) < center_tolerance and reponse_size>dfpf_threshold and reponse_size>max_response:
+                    max_response = reponse_size
+                    center_cell_curve = roi_curves[i]
+                    center_cell_curves.append(center_cell_curve)
+                    center_cell_fn = fn
+            import shutil
+            shutil.copy(center_cell_fn,'/tmp/4')
+            
+
     figure(2)
-    [plot(c) for c in curves];show()
+    shifts=numpy.array([numpy.diff(c).argmax() for c in center_cell_curves])
+    shifts-=shifts.min()
+    aligned_plots = [numpy.roll(center_cell_curves[i],-shifts[i]) for i in range(len(center_cell_curves))]
+    [plot(p) for p in aligned_plots];show()
+    
             
             
             
