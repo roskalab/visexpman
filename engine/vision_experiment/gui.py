@@ -2030,6 +2030,8 @@ class MainPoller(Poller):
 
     def start_experiment(self):
         self.printc('Experiment started, please wait')
+        if not self.ask4confirmation('Is AO line scan selected on MES user interface? Do you want to continue experiment?'):
+            return
         self.experiment_parameters = {}
         if self.config.PLATFORM == 'mes':
             self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
