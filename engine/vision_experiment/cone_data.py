@@ -180,23 +180,28 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     links=[[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None]
     filenameid = fileop.parse_recording_filename(filename)['id']
     experiment_name = fileop.parse_recording_filename(filename)['experiment_name']
-    repetitions = [filenameid]
-    remaining_links = copy.deepcopy(links)
-    next_ids = [l for l in remaining_links if filenameid in l]
-    map(remaining_links.remove, next_ids)
-    next_ids = [ni[0 if ni.index(filenameid) == 1 else 1 ] for ni in next_ids]
+    repetitions = []
+#    remaining_links = copy.deepcopy(links)
+#    next_ids = [l for l in remaining_links if filenameid in l]
+#    map(remaining_links.remove, next_ids)
+#    next_ids = [ni[0 if ni.index(filenameid) == 1 else 1 ] for ni in next_ids]
+    next_ids = [filenameid]
     while True:
+        next_id_raw=[]
+        for next_id in next_ids:
+            idlist=[link for link in links if next_id in link]
+            idlist = list(set([nii for ni in idlist for nii in ni]))#flatten list, remove repetitions
+            idlist = [i for i in idlist if i != next_id]
+            next_id_raw.extend(idlist)
+        next_ids= list(set(next_id_raw))
+        prev_repetitions = copy.deepcopy(repetitions)
         repetitions.extend(next_ids)
-        #check if any of next_ids can be found in remaining_links
-        next_ids= [[l[0 if l.index(next_id)==1 else 1] for l in remaining_links if next_id in l] for next_id in next_ids]
-        next_ids = [nii for ni in next_ids for nii in ni]#flatten list
-        #remove links containing next_ids from remaining_links
-        remaining_links = [rl for rl in remaining_links if rl[0] not in next_ids and rl[1] not in next_ids]
-        if len(next_ids)==0:
+        repetitions=list(set(repetitions))
+        if len(repetitions)==len(prev_repetitions):
             break
-        repetitions = list(set(repetitions))
+
     #Read roi info from assigned files
-    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (True if filter_by_stimulus_type else experiment_name == fileop.parse_recording_filename(f)['experiment_name'])])
+    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (experiment_name == fileop.parse_recording_filename(f)['experiment_name'] if filter_by_stimulus_type else True)])
     for fn in aggregated_rois.keys():#Remove recordings that do not contain roi
         if aggregated_rois[fn] is None:
             del aggregated_rois[fn]
@@ -261,7 +266,10 @@ def aggregate_cells(folder):
         if fileop.parse_recording_filename(hdf5file)['id'] in repeats_extracted:
             continue
         aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
+#        for roi in aggregated_rois:
+            
         repeats_extracted.extend([fileop.parse_recording_filename(ar)['id'] for ar in aggregated_rois['matches'].keys()])
+        pass
         #TODO: Add current file's rois to aggregated_rois
         #TODO: separate aggregated_rois by stimulus
         
@@ -353,6 +361,7 @@ class TestCA(unittest.TestCase):
         p=multiprocessing.Pool(4)
         res=p.map(area2edges, areas)
         
+    @unittest.skip('')
     def test_05_find_repetitions(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
@@ -368,7 +377,12 @@ class TestCA(unittest.TestCase):
         res = find_repetitions(f, folder)
         self.assertGreater(sum([r.has_key('matches') for r in res]),0)
         
-        
+    def test_06_aggregate_cells(self):
+        from visexpman.users.test.unittest_aggregator import prepare_test_data
+        wf='/tmp/wf'
+        fns = fileop.listdir_fullpath(prepare_test_data('aggregate',working_folder=wf))
+        fns.sort()
+        res = aggregate_cells(wf)
     
 if __name__=='__main__':
     unittest.main()
