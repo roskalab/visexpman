@@ -521,7 +521,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
-        
+        #CAPTURE_PATH = os.path.join(v_drive_data_folder,'capture')
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm HERE YOU CAN ADJUST SCREEN  - MOUSE EYE DISTANCE
@@ -635,6 +635,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         DEFAULT_PMT_CHANNEL = 'pmtUGraw'#This needs to be set to pmtURraw if scan region xy and xz images are to be acquired using red pmt
         BLACK_SCREEN_DURING_PRE_SCAN = True
         TEXT_COLOR = [0.3,0.0,0.0]
+        SYNC_SIGNAL_MIN_AMPLITUDE = 1.3
         gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical.hdf5')
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io

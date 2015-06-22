@@ -422,7 +422,7 @@ class CommandInterface(command_parser.CommandParser):
                         runtime = result.get()
                     elif not False:
                         runtime = 0
-                        excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars',  'angle']
+                        excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars',  'angle', 'touch']
                         if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
                             create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
                             export = ['roi_curves'] 
@@ -644,6 +644,30 @@ class TestJobhandler(unittest.TestCase):
                 f.write(txt+'\r\n')
                 print txt
         f.close()
+        
+def offline(folder,video=False):
+    import visexpA.engine.configuration
+    analysis_config = utils.fetch_classes('visexpA.users.daniel', classname='Config', required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+    for f in os.listdir(folder):
+        if '.hdf5' not in f or 'fragment' not in f:
+            continue
+        try:
+            print f
+            full_fragment_path = os.path.join(folder, f)
+            file_info = os.stat(full_fragment_path)
+            mes_extractor = importers.MESExtractor(full_fragment_path, config = analysis_config)
+            data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
+            mes_extractor.hdfhandler.close()
+            file.set_file_dates(full_fragment_path, file_info)
+            from visexpA.users.zoltan import converters
+            converters.hdf52mat(full_fragment_path, rootnode_names = ['rawdata', 'sync_signal', 'image_scale', 'idnode'],  outtag = '_sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
+            if video:
+                from visexpman.users.zoltan.mes2video import mes2video
+                mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
+        except:
+            import traceback
+            txt= traceback.format_exc()
+            print txt
 
 if __name__=='__main__':
     if len(sys.argv)==1:

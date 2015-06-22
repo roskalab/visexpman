@@ -119,6 +119,18 @@ class LedKamill2Config(experiment.ExperimentConfig):
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
         
+class ThermoStimulatorConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 30.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 0.1
+        self.FLASH_AMPLITUDE = 5.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
 class LedKamillExploreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.BEEP_AT_EXPERIMENT_START_STOP = True
@@ -366,3 +378,61 @@ if 0:
             self.add_text('LED array experiment', color = (1.0,  0.0,  0.0), position = utils.cr((400,300)))
             self.show_fullscreen(color = 0.0, duration = 0.0)
             time.sleep(self.experiment_config.DURATION)
+
+
+class TouchStimulatorConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.VIBRATION_FRQ = 100
+        self.NPULSES = 5
+        self.PULSE_DURATION = 0.3
+        self.PAUSE = 10
+        self.runnable = 'TouchStim'
+        self._create_parameters_from_locals(locals())
+        
+class ThermoStimulatorConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 30.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 1.0
+        self.FLASH_AMPLITUDE = 5.0 #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class TouchStimulator1Config(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.VIBRATION_FRQ = 100
+        self.NPULSES = 20
+        self.PULSE_DURATION = 0.3
+        self.PAUSE = 5
+        self.runnable = 'TouchStim'
+        self._create_parameters_from_locals(locals())
+        
+class TouchStim(experiment.Experiment):
+    '''
+    Flashes externally connected blue led controller by generating analog control signals using daq analog output
+    '''
+    def prepare(self):
+        self.fragment_durations = [(1+self.experiment_config.NPULSES)*(self.experiment_config.PAUSE+self.experiment_config.PULSE_DURATION)]
+        self.number_of_fragments = len(self.fragment_durations)
+        
+    
+    def run(self, fragment_id = 0):
+        self.show_fullscreen(color = 0.0, duration = 0.0)
+        half_vibration_period = 0.5*(self.led_controller.ao_sample_rate/self.experiment_config.VIBRATION_FRQ)
+        vibration_repeats = self.experiment_config.PULSE_DURATION*self.experiment_config.VIBRATION_FRQ
+        self.waveform_prototype = numpy.tile(numpy.concatenate((numpy.ones(half_vibration_period)*5.0, numpy.zeros(half_vibration_period))),vibration_repeats)
+        for rep in range(self.experiment_config.NPULSES):
+            self.printl(rep+1)
+            self.show_fullscreen(color = 0.0, duration = 0.5*self.experiment_config.PAUSE)
+            self.show_fullscreen(color = 1.0, duration = 0)
+            d=self.waveform_prototype.shape[0]/float(self.led_controller.ao_sample_rate)
+            self.led_controller.set([[[0.0], 0.5*d, 1]], d)
+            self.led_controller.waveform = self.waveform_prototype
+            self.led_controller.start()
+            time.sleep(self.experiment_data.PULSE_DURATION)
+            self.show_fullscreen(color = 0.0, duration = 0.5*self.experiment_config.PAUSE)
+            if self.abort:
+                break
