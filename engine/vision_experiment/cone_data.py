@@ -233,7 +233,12 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
                 index=numpy.array(match_list).argmax()
                 timg = timing[fn][1]
                 tsync = timing[fn][0]
-                aggregated_rois[filename][roi_ct]['matches'][os.path.split(fn)[1]] = {'tsync': tsync, 'timg': timg, 'raw': aggregated_rois[fn][index]['raw'], 'match_weight': match_weight}
+                matched_roi=aggregated_rois[fn][index]
+                if 0:
+                    matched_roi['tsync']= tsync#TODO: it might not be necessary
+                    matched_roi['timg']= timg#TODO: this one either
+                matched_roi['match_weight']= match_weight
+                aggregated_rois[filename][roi_ct]['matches'][os.path.split(fn)[1]] = matched_roi
         roi_ct += 1
     return aggregated_rois[filename]
 
@@ -261,15 +266,28 @@ def aggregate_cells(folder):
     '''
     allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
     cells = []
-    repeats_extracted = []
+    skip_ids = []
+    aggregated_cells = []
     for hdf5file in allhdf5files:
-        if fileop.parse_recording_filename(hdf5file)['id'] in repeats_extracted:
+        if fileop.parse_recording_filename(hdf5file)['id'] in skip_ids:
             continue
         aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
-#        for roi in aggregated_rois:
-            
-        repeats_extracted.extend([fileop.parse_recording_filename(ar)['id'] for ar in aggregated_rois['matches'].keys()])
-        pass
+        for roi in aggregated_rois:
+            main_roi = copy.deepcopy(roi)
+            del main_roi['matches']
+            matched_rois = {os.path.basename(hdf5file): main_roi}
+            matched_rois.update(roi['matches'])
+            #Organize by stimulus type:
+            organized_rois = {}
+            for stimulus_name in list(set([v['stimulus_name'] for v in matched_rois.values()])):
+                organized_rois[stimulus_name]={}
+                for fn in [fn for fn,v in matched_rois.items() if v['stimulus_name'] == stimulus_name]:
+                    organized_rois[stimulus_name][fn]=matched_rois[fn]
+            aggregated_cells.append(organized_rois)
+            skip_ids.extend([fileop.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
+        skip_ids = list(set(skip_ids))
+        
+    pass
         #TODO: Add current file's rois to aggregated_rois
         #TODO: separate aggregated_rois by stimulus
         
@@ -370,12 +388,8 @@ class TestCA(unittest.TestCase):
         for fn in fns:
             res = find_repetitions(fn, wf)
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
-#            break
-        return
-        folder = '/mnt/rzws/experiment_data/test'
-        f='/mnt/rzws/experiment_data/test/data_C7_unknownstim_1423223487_0.hdf5'
-        res = find_repetitions(f, folder)
-        self.assertGreater(sum([r.has_key('matches') for r in res]),0)
+            self.assertEqual([len(r['matches'].keys()) for r in res if r.has_key('matches')], [2]*len(res))
+        
         
     def test_06_aggregate_cells(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data

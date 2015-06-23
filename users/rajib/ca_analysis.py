@@ -15,7 +15,10 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
     
     image=tifffile.imread(filename)
     meanimage = image.mean(axis=0)
-    from skimage.filter import threshold_otsu
+    try:
+        from skimage.filters import threshold_otsu
+    except:
+        from skimage.filter import threshold_otsu
     from scipy.ndimage.filters import gaussian_filter
     from skimage.feature import peak_local_max
     centers = utils.rc(peak_local_max(gaussian_filter(meanimage,sigma*maxcellradius),sigma*maxcellradius))
@@ -94,7 +97,11 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
         i[coo[0],coo[1],0]=1
         i[:,:,0] = scipy.ndimage.morphology.binary_fill_holes(i[:,:,0])
         i=numpy.cast['uint8'](255*i)
-        Image.fromarray(i).save('/tmp/1/c_{0}_{1}_{2}.png'.format(os.path.basename(filename), c['row'],c['col']))
+        if 0:
+            cellfolder=os.path.join(os.path.dirname(filename),'cells')
+            if not os.path.exists(cellfolder):
+                os.mkdir(cellfolder)
+            Image.fromarray(i).save(os.path.join(cellfolder, 'cell_{0}_{1}_{2}.png'.format(os.path.basename(filename), c['row'],c['col'])))
         soma_roi=numpy.nonzero(i[:,:,0])
         if soma_roi[0].shape[0]>maxcellradius**2*numpy.pi*0.1:
             soma_rois.append(soma_roi)
@@ -103,9 +110,10 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
     for r in soma_rois:
         iout[r[0],r[1],0]=60+int(100*numpy.random.random())
         iout[r[0],r[1],2]=60+int(100*numpy.random.random())
-    for c in centers:
-        iout[c['row']-2:c['row']+2,c['col']-2:c['col']+2,0]=255
-    Image.fromarray(iout).save('/tmp/2/{0}.png'.format(os.path.basename(filename)))
+    if 0:
+        for c in centers:
+            iout[c['row']-2:c['row']+2,c['col']-2:c['col']+2,0]=255
+    Image.fromarray(iout).save(os.path.join(os.path.dirname(filename), 'all_cells_{0}.png'.format(os.path.basename(filename))))
     return soma_rois
     
 
@@ -113,12 +121,13 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
 
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
-    folder='/home/rz/codes/data/rajib/'
+#    folder='/home/rz/codes/data/rajib/'
     ct=1
     curves=[]
     center_tolerance = 100
     dfpf_threshold=0.2
     center_cell_curves=[]
+    legendtxt=[]
     for f in fileop.listdir_fullpath(folder):
         if 'tif' not in f: continue
 #        if '006' not in f: continue
@@ -134,7 +143,7 @@ if __name__ == "__main__":
             bg_activity=numpy.cast['float']((image*bgmask).mean(axis=1).mean(axis=1))
             from scipy.ndimage.filters import gaussian_filter
             bg=gaussian_filter(img.mean(axis=0)[0],150)#sigma is much bigger than cell size
-            roi_curves = experiment_data.get_roi_curves(img-bg,sr)
+            roi_curves = experiment_data.get_roi_curves(img-0*bg,sr)
 #            roi_curves= [rc-bg_activity for rc in roi_curves]
             max_response=0
             for i in range(len(roi_curves)):
@@ -149,11 +158,13 @@ if __name__ == "__main__":
                 baseline=roi_curves[i][:frame_rate*5].mean()
                 reponse_size=(roi_curves[i].max()-baseline)/baseline
                 plot(roi_curves[i])
-                title(reponse_size)
-                fn='/tmp/3/{0}_{1}.png'.format(os.path.basename(f),i)
+                title('df/f={0:0.2f}'.format(reponse_size))
+                cellfolder=os.path.join(os.path.dirname(f),'cells_and_plots')
+                if not os.path.exists(cellfolder):
+                    os.mkdir(cellfolder)
+                fn=os.path.join(cellfolder, '{0}_{1}.png'.format(os.path.basename(f),i))
                 savefig(fn)
                 curves.append(roi_curves[i])
-                
                 roi_center = numpy.array([sr[i][0].mean(),sr[i][1].mean()])
                 image_center = numpy.array(image.shape[1:])/2
                 if numpy.sqrt(((image_center-roi_center)**2).sum()) < center_tolerance and reponse_size>dfpf_threshold and reponse_size>max_response:
@@ -162,14 +173,25 @@ if __name__ == "__main__":
                     center_cell_curves.append(center_cell_curve)
                     center_cell_fn = fn
             import shutil
-            shutil.copy(center_cell_fn,'/tmp/4')
+            shutil.copy(center_cell_fn,os.path.dirname(f))
+            import scipy.io
+            data={}
+            data['roi_curves']=roi_curves
+            data['center_cell_curve']=center_cell_curve
+            data['soma_roi']=sr
+            data['image']=image
+            scipy.io.savemat(f.replace('.tif','.mat'), data,oned_as='column')
+            legendtxt.append(os.path.basename(f))
             
 
     figure(2)
     shifts=numpy.array([numpy.diff(c).argmax() for c in center_cell_curves])
     shifts-=shifts.min()
     aligned_plots = [numpy.roll(center_cell_curves[i],-shifts[i]) for i in range(len(center_cell_curves))]
-    [plot(p) for p in aligned_plots];show()
+    clf()
+    [plot(p) for p in aligned_plots];
+    legend(legendtxt)
+    savefig(os.path.join(folder, 'center_cell_activity.png'))
     
             
             

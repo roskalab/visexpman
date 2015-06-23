@@ -103,6 +103,7 @@ class Analysis(object):
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
+        self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync, self.timg]})
         self._recalculate_background()
         self.rois = self.datafile.findvar('rois')
@@ -220,6 +221,9 @@ class Analysis(object):
             r['baseline_length'] = baseline_length
             r['background'] = self.background
             r['background_threshold']=self.background_threshold
+            r['timg']=self.timg
+            r['tsync']=self.tsync
+            r['stimulus_name']=self.experiment_name
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
