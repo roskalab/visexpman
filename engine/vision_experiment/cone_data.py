@@ -180,23 +180,28 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     links=[[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None]
     filenameid = fileop.parse_recording_filename(filename)['id']
     experiment_name = fileop.parse_recording_filename(filename)['experiment_name']
-    repetitions = [filenameid]
-    remaining_links = copy.deepcopy(links)
-    next_ids = [l for l in remaining_links if filenameid in l]
-    map(remaining_links.remove, next_ids)
-    next_ids = [ni[0 if ni.index(filenameid) == 1 else 1 ] for ni in next_ids]
+    repetitions = []
+#    remaining_links = copy.deepcopy(links)
+#    next_ids = [l for l in remaining_links if filenameid in l]
+#    map(remaining_links.remove, next_ids)
+#    next_ids = [ni[0 if ni.index(filenameid) == 1 else 1 ] for ni in next_ids]
+    next_ids = [filenameid]
     while True:
+        next_id_raw=[]
+        for next_id in next_ids:
+            idlist=[link for link in links if next_id in link]
+            idlist = list(set([nii for ni in idlist for nii in ni]))#flatten list, remove repetitions
+            idlist = [i for i in idlist if i != next_id]
+            next_id_raw.extend(idlist)
+        next_ids= list(set(next_id_raw))
+        prev_repetitions = copy.deepcopy(repetitions)
         repetitions.extend(next_ids)
-        #check if any of next_ids can be found in remaining_links
-        next_ids= [[l[0 if l.index(next_id)==1 else 1] for l in remaining_links if next_id in l] for next_id in next_ids]
-        next_ids = [nii for ni in next_ids for nii in ni]#flatten list
-        #remove links containing next_ids from remaining_links
-        remaining_links = [rl for rl in remaining_links if rl[0] not in next_ids and rl[1] not in next_ids]
-        if len(next_ids)==0:
+        repetitions=list(set(repetitions))
+        if len(repetitions)==len(prev_repetitions):
             break
-        repetitions = list(set(repetitions))
+
     #Read roi info from assigned files
-    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (True if filter_by_stimulus_type else experiment_name == fileop.parse_recording_filename(f)['experiment_name'])])
+    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (experiment_name == fileop.parse_recording_filename(f)['experiment_name'] if filter_by_stimulus_type else True)])
     for fn in aggregated_rois.keys():#Remove recordings that do not contain roi
         if aggregated_rois[fn] is None:
             del aggregated_rois[fn]
@@ -208,7 +213,7 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
     if not aggregated_rectangles.has_key(filename):
-        raise RuntimeError('This file does not contain rois. Make sure that rois are saved')
+        raise RuntimeError('{0} does not contain rois. Make sure that rois are saved'.format(filename))
     reference = aggregated_rectangles[filename]
     ref_signatures = point_signature(reference)
     del aggregated_rectangles[filename]
@@ -228,7 +233,12 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
                 index=numpy.array(match_list).argmax()
                 timg = timing[fn][1]
                 tsync = timing[fn][0]
-                aggregated_rois[filename][roi_ct]['matches'][os.path.split(fn)[1]] = {'tsync': tsync, 'timg': timg, 'raw': aggregated_rois[fn][index]['raw'], 'match_weight': match_weight}
+                matched_roi=aggregated_rois[fn][index]
+                if 0:
+                    matched_roi['tsync']= tsync#TODO: it might not be necessary
+                    matched_roi['timg']= timg#TODO: this one either
+                matched_roi['match_weight']= match_weight
+                aggregated_rois[filename][roi_ct]['matches'][os.path.split(fn)[1]] = matched_roi
         roi_ct += 1
     return aggregated_rois[filename]
 
@@ -256,17 +266,39 @@ def aggregate_cells(folder):
     '''
     allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
     cells = []
-    repeats_extracted = []
+    skip_ids = []
+    aggregated_cells = []
+    allhdf5files.sort()
     for hdf5file in allhdf5files:
-        if fileop.parse_recording_filename(hdf5file)['id'] in repeats_extracted:
+        #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
+        fntags= fileop.parse_recording_filename(hdf5file)
+        if fntags['id'] in skip_ids or not fileop.is_recording_filename(hdf5file):
             continue
-        aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
-        repeats_extracted.extend([fileop.parse_recording_filename(ar)['id'] for ar in aggregated_rois['matches'].keys()])
-        #TODO: Add current file's rois to aggregated_rois
-        #TODO: separate aggregated_rois by stimulus
-        
-        
-    
+        try:
+            aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
+        except RuntimeError,e:
+            if 'does not contain rois' not in str(e):
+                raise e
+            else:
+                continue
+        scan_region_name = fntags['tag']
+        for roi in aggregated_rois:
+            main_roi = copy.deepcopy(roi)
+            del main_roi['matches']
+            matched_rois = {os.path.basename(hdf5file): main_roi}
+            matched_rois.update(roi['matches'])
+            #Organize by stimulus type:
+            organized_rois = {}
+            [v['stimulus_name'] for v in matched_rois.values()]
+            for stimulus_name in list(set([v['stimulus_name'] for v in matched_rois.values()])):
+                organized_rois[stimulus_name]={}
+                for fn in [fn for fn,v in matched_rois.items() if v['stimulus_name'] == stimulus_name]:
+                    organized_rois[stimulus_name][fn.replace('.hdf5', '')]=matched_rois[fn]
+            organized_rois['scan_region']=scan_region_name
+            aggregated_cells.append(organized_rois)
+            skip_ids.extend([fileop.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
+        skip_ids = list(set(skip_ids))
+    return aggregated_cells
 
 class TestCA(unittest.TestCase):
     def setUp(self):
@@ -353,6 +385,7 @@ class TestCA(unittest.TestCase):
         p=multiprocessing.Pool(4)
         res=p.map(area2edges, areas)
         
+#    @unittest.skip('')
     def test_05_find_repetitions(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
@@ -361,14 +394,15 @@ class TestCA(unittest.TestCase):
         for fn in fns:
             res = find_repetitions(fn, wf)
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
-#            break
-        return
-        folder = '/mnt/rzws/experiment_data/test'
-        f='/mnt/rzws/experiment_data/test/data_C7_unknownstim_1423223487_0.hdf5'
-        res = find_repetitions(f, folder)
-        self.assertGreater(sum([r.has_key('matches') for r in res]),0)
+            self.assertEqual([len(r['matches'].keys()) for r in res if r.has_key('matches')], [2]*len(res))
         
         
+    def test_06_aggregate_cells(self):
+        from visexpman.users.test.unittest_aggregator import prepare_test_data
+        wf='/tmp/wf'
+        fns = fileop.listdir_fullpath(prepare_test_data('aggregate',working_folder=wf))
+        fns.sort()
+        res = aggregate_cells(wf)
     
 if __name__=='__main__':
     unittest.main()
