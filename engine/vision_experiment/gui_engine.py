@@ -324,14 +324,14 @@ class Analysis(object):
         rois = hdf5io.read_item(self.filename, 'rois', filelocking=False)
         return (hasattr(self, 'rois') and rois is not None and len(rois)!=len(self.rois)) or (rois is None and hasattr(self, 'rois') and len(self.rois)>0)
         
-    def save_rois_and_export(self):
+    def save_rois_and_export(self,ask_overwrite=True):
         if not hasattr(self, 'filename'):
             return
         file_info = os.stat(self.filename)
         self.datafile = experiment_data.CaImagingData(self.filename)
         self.datafile.load('rois')
         if hasattr(self.datafile, 'rois'):
-            if not self.ask4confirmation('{0} already contains Rois. These will be overwritten. Is that OK?'.format(os.path.basename(self.filename))):
+            if ask_overwrite and not self.ask4confirmation('{0} already contains Rois. These will be overwritten. Is that OK?'.format(os.path.basename(self.filename))):
                 self.datafile.close()
                 return
         self.datafile.rois = copy.deepcopy(self.rois)
@@ -380,6 +380,15 @@ class Analysis(object):
             self.printc('No repetitions found')
         self._normalize_roi_curves()
         self.display_roi_curve()
+        
+    def aggregate(self, folder):
+        self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
+        self.cells = cone_data.aggregate_cells(folder)
+        self.printc('Aggregated {0} cells.'.format(len(self.cells)))
+        aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
+        hdf5io.save_item(aggregate_filename+'hdf5','cells', self.cells, overwrite=True, filelocking=False)
+        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells}, oned_as = 'row', long_field_names=True)
+        self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
         
     def display_trace_parameter_distribution(self):
         if not hasattr(self, 'rois'):
@@ -467,7 +476,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         #TODO: include logfile and context file content
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
-                    'aggregated_rois', 'context_filename', 'guidata']
+                    'aggregated_rois', 'context_filename', 'guidata', 'cells']
         dump_data = {}
         for v in variables:
             if hasattr(self, v):

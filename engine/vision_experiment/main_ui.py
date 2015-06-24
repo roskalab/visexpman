@@ -274,6 +274,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
         self.show_repetitions.input.setCheckState(0)
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
+        self.aggregate = QtGui.QPushButton('Aggregate' ,parent=self)
         self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameters' ,parent=self)
         self.roi_adjust = RoiShift(self)
         self.trace_parameters = QtGui.QLabel('', self)
@@ -286,17 +287,24 @@ class AnalysisHelper(QtGui.QWidget):
         self.layout.addWidget(self.show_repetitions,0,3,1,1)
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
         self.layout.addWidget(self.show_trace_parameter_distribution,2,3,1,1)
+        self.layout.addWidget(self.aggregate,3,3,1,1)
         self.setLayout(self.layout)
         self.setFixedHeight(140)
         self.setFixedWidth(550)
         self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
         self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
+        self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
         
     def find_repetitions_clicked(self):
         self.parent.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
         
     def show_trace_parameter_distribution_clicked(self):
         self.parent.parent.to_engine.put({'function': 'display_trace_parameter_distribution', 'args':[]})
+        
+    def aggregate_clicked(self):
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.parent.machine_config.EXPERIMENT_DATA_PATH))
+        if os.path.exists(folder):
+            self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder]})
 
 class MainUI(gui.VisexpmanMainWindow):
     def __init__(self, context):

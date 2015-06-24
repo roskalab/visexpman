@@ -213,7 +213,7 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
     if not aggregated_rectangles.has_key(filename):
-        raise RuntimeError('This file does not contain rois. Make sure that rois are saved')
+        raise RuntimeError('{0} does not contain rois. Make sure that rois are saved'.format(filename))
     reference = aggregated_rectangles[filename]
     ref_signatures = point_signature(reference)
     del aggregated_rectangles[filename]
@@ -269,9 +269,16 @@ def aggregate_cells(folder):
     skip_ids = []
     aggregated_cells = []
     for hdf5file in allhdf5files:
-        if fileop.parse_recording_filename(hdf5file)['id'] in skip_ids:
+        #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
+        if fileop.parse_recording_filename(hdf5file)['id'] in skip_ids or not fileop.is_recording_filename(hdf5file):
             continue
-        aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
+        try:
+            aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
+        except RuntimeError,e:
+            if 'does not contain rois' not in str(e):
+                raise e
+            else:
+                continue
         for roi in aggregated_rois:
             main_roi = copy.deepcopy(roi)
             del main_roi['matches']
@@ -279,20 +286,15 @@ def aggregate_cells(folder):
             matched_rois.update(roi['matches'])
             #Organize by stimulus type:
             organized_rois = {}
+            [v['stimulus_name'] for v in matched_rois.values()]
             for stimulus_name in list(set([v['stimulus_name'] for v in matched_rois.values()])):
                 organized_rois[stimulus_name]={}
                 for fn in [fn for fn,v in matched_rois.items() if v['stimulus_name'] == stimulus_name]:
-                    organized_rois[stimulus_name][fn]=matched_rois[fn]
+                    organized_rois[stimulus_name][fn.replace('.hdf5', '')]=matched_rois[fn]
             aggregated_cells.append(organized_rois)
             skip_ids.extend([fileop.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
         skip_ids = list(set(skip_ids))
-        
-    pass
-        #TODO: Add current file's rois to aggregated_rois
-        #TODO: separate aggregated_rois by stimulus
-        
-        
-    
+    return aggregated_cells
 
 class TestCA(unittest.TestCase):
     def setUp(self):
@@ -379,7 +381,7 @@ class TestCA(unittest.TestCase):
         p=multiprocessing.Pool(4)
         res=p.map(area2edges, areas)
         
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_05_find_repetitions(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
