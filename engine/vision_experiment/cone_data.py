@@ -268,9 +268,11 @@ def aggregate_cells(folder):
     cells = []
     skip_ids = []
     aggregated_cells = []
+    allhdf5files.sort()
     for hdf5file in allhdf5files:
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
-        if fileop.parse_recording_filename(hdf5file)['id'] in skip_ids or not fileop.is_recording_filename(hdf5file):
+        fntags= fileop.parse_recording_filename(hdf5file)
+        if fntags['id'] in skip_ids or not fileop.is_recording_filename(hdf5file):
             continue
         try:
             aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
@@ -279,6 +281,7 @@ def aggregate_cells(folder):
                 raise e
             else:
                 continue
+        scan_region_name = fntags['tag']
         for roi in aggregated_rois:
             main_roi = copy.deepcopy(roi)
             del main_roi['matches']
@@ -291,6 +294,7 @@ def aggregate_cells(folder):
                 organized_rois[stimulus_name]={}
                 for fn in [fn for fn,v in matched_rois.items() if v['stimulus_name'] == stimulus_name]:
                     organized_rois[stimulus_name][fn.replace('.hdf5', '')]=matched_rois[fn]
+            organized_rois['scan_region']=scan_region_name
             aggregated_cells.append(organized_rois)
             skip_ids.extend([fileop.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
         skip_ids = list(set(skip_ids))

@@ -532,6 +532,7 @@ def parse_recording_filename(filename):
     offset = 1 if len(fnp[-1]) != 12 else 0
     items['id'] = fnp[-1-offset]
     items['experiment_name'] = fnp[-2-offset]
+    items['tag'] = fnp[1]
     return items
         
 def is_recording_filename(filename):

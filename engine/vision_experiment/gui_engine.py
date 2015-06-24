@@ -224,6 +224,7 @@ class Analysis(object):
             r['timg']=self.timg
             r['tsync']=self.tsync
             r['stimulus_name']=self.experiment_name
+            r['meanimage']=self.meanimage
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
