@@ -114,6 +114,17 @@ class PhysTiff2Hdf5(object):
         
     def build_hdf5(self,fphys,ftiff,folder=None):
         t0=time.time()
+        coordsfn=os.path.join(os.path.dirname(ftiff), 'coords.txt')
+        absolute_stage_coordinates=numpy.zeros(3)
+        if os.path.exists(coordsfn):
+            try:
+                absolute_stage_coordinates=numpy.array(map(float, fileop.read_text_file(coordsfn).split('\r\n')[0].split('\t')))
+                print 'coords file processed'
+            except:
+                print 'coords file cannot be read'
+        else:
+            print 'coords file not found'
+            
         if self.use_tiff:
             tmptiff = os.path.join(tempfile.gettempdir(), 'temp.tiff')
             if os.path.exists(tmptiff):
@@ -154,6 +165,7 @@ class PhysTiff2Hdf5(object):
         recording_parameters['experiment_name']=experiment_name
         recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if metadata.has_key('Stimulus file') and os.path.exists(metadata['Stimulus file']) else ''
         recording_parameters['experiment_source_file'] = metadata['Stimulus file'] if metadata.has_key('Stimulus file') else ''
+        recording_parameters['absolute_stage_coordinates'] = absolute_stage_coordinates
         if float(metadata['Sample Rate'])!=10000:
             raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
         if data.shape[0]!=3:
