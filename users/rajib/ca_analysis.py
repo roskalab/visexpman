@@ -7,9 +7,8 @@ import scipy.ndimage.interpolation
 import scipy.ndimage.filters
 from pylab import *
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,geometry
-#Questions to Rajib: image scale
-#TODO: background !!!!!!
-frame_rate=1
+frame_rate=1/0.64#s
+image_scale = 0.3225#Scale Factor for X
 
 def file2cells(filename, maxcellradius=65, sigma=0.2):
     
@@ -114,84 +113,126 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
         for c in centers:
             iout[c['row']-2:c['row']+2,c['col']-2:c['col']+2,0]=255
     Image.fromarray(iout).save(os.path.join(os.path.dirname(filename), 'all_cells_{0}.png'.format(os.path.basename(filename))))
-    return soma_rois
+    return soma_rois,image
     
-
+def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2):
+    sr,image=file2cells(f, maxcellradius=maxcellradius, sigma=sigma)
+    img=image.reshape((image.shape[0],1, image.shape[1],image.shape[2]))
+#            bg=cone_data.calculate_background(img)
+    bgmask=numpy.ones((image.shape[1],image.shape[2]))
+    for sri in sr:
+        bgmask[sri[0],sri[1]]=0
+    import scipy.ndimage
+    bgmask=scipy.ndimage.morphology.binary_erosion(bgmask,iterations=20,border_value=1)
+    bg_activity=numpy.cast['float']((image*bgmask).mean(axis=1).mean(axis=1))
+    from scipy.ndimage.filters import gaussian_filter
+    bg=gaussian_filter(img.mean(axis=0)[0],150)#sigma is much bigger than cell size
+    roi_curves = experiment_data.get_roi_curves(img-0*bg,sr)
+    roi_curves_integral = [roi_curves[i]*sr[i][0].shape[0] for i in range(len(roi_curves))]
+#            roi_curves= [rc-bg_activity for rc in roi_curves]
+    max_response=0
+    baselines = []
+    center_cell_index = -1
+    for i in range(len(roi_curves)):
+        figure(1)
+        clf()
+        ima=numpy.zeros((image.shape[1],image.shape[2],3))
+        ima[:,:,1]=signal.scale(image.mean(axis=0))
+        ima[sr[i][0],sr[i][1],2]=0.4
+        subplot(2,1,2)
+        imshow(ima)
+        subplot(2,1,1)
+        baseline=roi_curves[i][:frame_rate*baseline_duration].mean()
+        baselines.append(baseline)
+        reponse_size=(roi_curves[i].max()-baseline)/baseline
+        t=numpy.arange(roi_curves[i].shape[0])/frame_rate
+        plot(t,roi_curves[i]/baseline-1)
+        xlabel('t [s]')
+        ylabel('df/f')
+        title('max df/f: {0:0.3f}'.format(reponse_size))
+        cellfolder=os.path.join(os.path.dirname(f),'cells_and_plots')
+        if not os.path.exists(cellfolder):
+            os.mkdir(cellfolder)
+        fn=os.path.join(cellfolder, '{0}_{1}.{2}'.format(os.path.basename(f),i,export_fileformat))
+        savefig(fn,dpi=200)
+        roi_center = numpy.array([sr[i][0].mean(),sr[i][1].mean()])
+        image_center = numpy.array(image.shape[1:])/2
+        if numpy.sqrt(((image_center-roi_center)**2).sum()) < center_tolerance and reponse_size>dfpf_threshold and reponse_size>max_response:
+            max_response = reponse_size
+            center_cell_curve = roi_curves[i]
+            center_cell_fn = fn
+            center_cell_curve_integral = roi_curves_integral[i]
+            center_cell_index=i
+    import shutil
+    shutil.copy(center_cell_fn,os.path.dirname(f))
+    import scipy.io
+    data={}
+    data['roi_curves']=roi_curves
+    data['roi_curves_normalized']=[roi_curves[i]/baselines[i] for i in range(len(roi_curves))]
+    data['roi_curves_integral']=roi_curves_integral
+    data['center_cell_curve']=center_cell_curve
+    data['center_cell_curve_integral']=center_cell_curve_integral
+    data['roi_areas']=sr
+    data['image']=image
+    import copy
+    nonresponding_roi_curves = copy.deepcopy(roi_curves)
+    del nonresponding_roi_curves[center_cell_index]
+    nonresponding_roi_curves_integral = copy.deepcopy(roi_curves_integral)
+    del nonresponding_roi_curves_integral[center_cell_index]
+    scipy.io.savemat(f.replace('.tif','.mat'), data,oned_as='column')
+    return center_cell_curve,nonresponding_roi_curves,center_cell_curve_integral,nonresponding_roi_curves_integral
     
+def plot_aggregated_curves(curves, legendtxt, filename):
+    figure(1)
+    shifts=numpy.array([numpy.diff(c).argmax() for c in curves])
+    shifts-=shifts.min()
+    aligned_plots = [numpy.roll(curves[i],-shifts[i]) for i in range(len(curves))]
+    clf()
+    [plot(numpy.arange(p.shape[0])/frame_rate) for p in aligned_plots];
+    legend(legendtxt)
+    savefig(filename)
 
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
 #    folder='/home/rz/codes/data/rajib/'
-    ct=1
-    curves=[]
-    center_tolerance = 100
-    dfpf_threshold=0.2
+    folder='/tmp/rajib'
     center_cell_curves=[]
+    center_cell_curves_integral=[]
+    nonresponding_roi_curves = []
+    nonresponding_roi_curves_integral=[]
     legendtxt=[]
     for f in fileop.listdir_fullpath(folder):
-        if 'tif' not in f: continue
+        if 'tif' not in f[-3:]: continue
 #        if '006' not in f: continue
         with introspect.Timer():
-            sr=file2cells(f)
-            image=tifffile.imread(f)
-            img=image.reshape((image.shape[0],1, image.shape[1],image.shape[2]))
-#            bg=cone_data.calculate_background(img)
-            bgmask=numpy.ones((image.shape[1],image.shape[2]))
-            for sri in sr:
-                bgmask[sri[0],sri[1]]=0
-            bgmask=scipy.ndimage.morphology.binary_erosion(bgmask,iterations=20,border_value=1)
-            bg_activity=numpy.cast['float']((image*bgmask).mean(axis=1).mean(axis=1))
-            from scipy.ndimage.filters import gaussian_filter
-            bg=gaussian_filter(img.mean(axis=0)[0],150)#sigma is much bigger than cell size
-            roi_curves = experiment_data.get_roi_curves(img-0*bg,sr)
-#            roi_curves= [rc-bg_activity for rc in roi_curves]
-            max_response=0
-            for i in range(len(roi_curves)):
-                figure(1)
-                clf()
-                ima=numpy.zeros((image.shape[1],image.shape[2],3))
-                ima[:,:,1]=signal.scale(image.mean(axis=0))
-                ima[sr[i][0],sr[i][1],2]=0.4
-                subplot(2,1,1)
-                imshow(ima)
-                subplot(2,1,2)
-                baseline=roi_curves[i][:frame_rate*5].mean()
-                reponse_size=(roi_curves[i].max()-baseline)/baseline
-                plot(roi_curves[i])
-                title('df/f={0:0.2f}'.format(reponse_size))
-                cellfolder=os.path.join(os.path.dirname(f),'cells_and_plots')
-                if not os.path.exists(cellfolder):
-                    os.mkdir(cellfolder)
-                fn=os.path.join(cellfolder, '{0}_{1}.png'.format(os.path.basename(f),i))
-                savefig(fn)
-                curves.append(roi_curves[i])
-                roi_center = numpy.array([sr[i][0].mean(),sr[i][1].mean()])
-                image_center = numpy.array(image.shape[1:])/2
-                if numpy.sqrt(((image_center-roi_center)**2).sum()) < center_tolerance and reponse_size>dfpf_threshold and reponse_size>max_response:
-                    max_response = reponse_size
-                    center_cell_curve = roi_curves[i]
-                    center_cell_curves.append(center_cell_curve)
-                    center_cell_fn = fn
-            import shutil
-            shutil.copy(center_cell_fn,os.path.dirname(f))
-            import scipy.io
-            data={}
-            data['roi_curves']=roi_curves
-            data['center_cell_curve']=center_cell_curve
-            data['soma_roi']=sr
-            data['image']=image
-            scipy.io.savemat(f.replace('.tif','.mat'), data,oned_as='column')
+            center_cell_curve,nonresponding_roi_curve,center_cell_curve_integral,nonresponding_roi_curve_integral=process_file(f)
+            center_cell_curves.append(center_cell_curve)
+            center_cell_curves_integral.append(center_cell_curve_integral)
+            nonresponding_roi_curves.append(nonresponding_roi_curve)
+            nonresponding_roi_curves_integral.append(nonresponding_roi_curve_integral)
             legendtxt.append(os.path.basename(f))
-            
-
-    figure(2)
-    shifts=numpy.array([numpy.diff(c).argmax() for c in center_cell_curves])
-    shifts-=shifts.min()
-    aligned_plots = [numpy.roll(center_cell_curves[i],-shifts[i]) for i in range(len(center_cell_curves))]
-    clf()
-    [plot(p) for p in aligned_plots];
-    legend(legendtxt)
-    savefig(os.path.join(folder, 'center_cell_activity.png'))
+    #Saving aggregated data
+    data = {'center_cell_curves':center_cell_curves, 'center_cell_curves_integral': center_cell_curves_integral,
+            'nonresponding_roi_curves':nonresponding_roi_curves, 'nonresponding_roi_curve_integral':nonresponding_roi_curve_integral}
+                
+    scipy.io.savemat(os.path.join(folder, 'aggregated_curves.mat'), data,oned_as='column')
+    plot_aggregated_curves(center_cell_curves, legendtxt, os.path.join(folder, 'center_cell_activity.png'))
+    plot_aggregated_curves(center_cell_curves_integral, legendtxt, os.path.join(folder, 'center_cell_activity.png'))
+#    figure(1)
+#    shifts=numpy.array([numpy.diff(c).argmax() for c in center_cell_curves])
+#    shifts-=shifts.min()
+#    aligned_plots = [numpy.roll(center_cell_curves[i],-shifts[i]) for i in range(len(center_cell_curves))]
+#    clf()
+#    [plot(p) for p in aligned_plots];
+#    legend(legendtxt)
+#    savefig()
+#    figure(2)
+#    aligned_plots = [numpy.roll(center_cell_curves_integral[i],-shifts[i]) for i in range(len(center_cell_curves_integral))]
+#    clf()
+#    [plot(p) for p in aligned_plots];
+#    legend(legendtxt)
+#    savefig(os.path.join(folder, 'center_cell_activity_integral.png'))
+    
     
             
             
