@@ -385,10 +385,15 @@ class Analysis(object):
     def aggregate(self, folder):
         self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
         self.cells = cone_data.aggregate_cells(folder)
+        self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
         self.printc('Aggregated {0} cells.'.format(len(self.cells)))
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
-        hdf5io.save_item(aggregate_filename+'hdf5','cells', self.cells, overwrite=True, filelocking=False)
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells}, oned_as = 'row', long_field_names=True)
+        h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
+        h.cells=self.cells
+        h.stage_coordinates=self.stage_coordinates
+        h.save(['stage_coordinates','cells'])
+        h.close()
+        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'stage_coordinates': self.stage_coordinates}, oned_as = 'row', long_field_names=True)
         self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
         
     def display_trace_parameter_distribution(self):

@@ -299,7 +299,13 @@ def aggregate_cells(folder):
             skip_ids.extend([fileop.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
         skip_ids = list(set(skip_ids))
     return aggregated_cells
-
+    
+def aggregate_stage_coordinates(folder):
+    allhdf5files = fileop.find_recording_files(folder)
+    rp=[[os.path.basename(f).replace('.hdf5',''), hdf5io.read_item(f, 'recording_parameters', filelocking=False)] for f in allhdf5files]
+    return dict([(rpi[0], rpi[1]['absolute_stage_coordinates']) for rpi in rp if rpi[1].has_key('absolute_stage_coordinates')])
+    
+    
 class TestCA(unittest.TestCase):
     def setUp(self):
         from visexpman.users.test import unittest_aggregator
