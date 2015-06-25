@@ -46,7 +46,10 @@ class PhysTiff2Hdf5(object):
         for pf in processable_physfiles:
             found = [tf for tf in tiffiles if os.path.split(pf.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
             if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3 and [pf,found[0]] not in self.processed_pairs:
-                pairs.append([pf, found[0]])
+                self.allfiles
+                id = str(experiment_data.get_id(os.path.getmtime(pf)))
+                if len([f for f in self.allfiles if id in f])==0:
+                    pairs.append([pf, found[0]])
         if len(pairs)>0:
             print 'converting pairs'
             for p in pairs:
@@ -60,6 +63,7 @@ class PhysTiff2Hdf5(object):
 #                converted.append(self.build_hdf5(p[0],p[1], self.outfolder))
 #            except:
 #                pass
+        
         self.processed_pairs.extend(pairs)
         converted=[self.build_hdf5(p[0],p[1], self.outfolder) for p in pairs]
         return converted
@@ -164,6 +168,7 @@ class PhysTiff2Hdf5(object):
         id = experiment_data.get_id(os.path.getmtime(fphys))
         if folder is None:
             folder = os.path.join(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
+        folder = os.path.dirname(fphys)#(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
         if not os.path.exists(folder):
             os.makedirs(folder)
         cellid=os.path.split(ftiff)[1].split('_')[0]
