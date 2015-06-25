@@ -199,13 +199,11 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
         repetitions=list(set(repetitions))
         if len(repetitions)==len(prev_repetitions):
             break
-
     #Read roi info from assigned files
     aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (experiment_name == fileop.parse_recording_filename(f)['experiment_name'] if filter_by_stimulus_type else True)])
     for fn in aggregated_rois.keys():#Remove recordings that do not contain roi
         if aggregated_rois[fn] is None:
             del aggregated_rois[fn]
-    timing = dict([(f, experiment_data.timing_from_file(f)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True)])
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
     for fn, rois in aggregated_rois.items():
@@ -231,18 +229,12 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
                 if not aggregated_rois[filename][roi_ct].has_key('matches'):
                     aggregated_rois[filename][roi_ct]['matches'] = {}
                 index=numpy.array(match_list).argmax()
-                timg = timing[fn][1]
-                tsync = timing[fn][0]
                 matched_roi=aggregated_rois[fn][index]
-                if 0:
-                    matched_roi['tsync']= tsync#TODO: it might not be necessary
-                    matched_roi['timg']= timg#TODO: this one either
                 matched_roi['match_weight']= match_weight
                 aggregated_rois[filename][roi_ct]['matches'][os.path.split(fn)[1]] = matched_roi
         roi_ct += 1
     return aggregated_rois[filename]
 
-    
 def point_signature(points):
     '''
     Calculate relative position (distance, angle) of a point from each other point
@@ -385,7 +377,7 @@ class TestCA(unittest.TestCase):
         p=multiprocessing.Pool(4)
         res=p.map(area2edges, areas)
         
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_05_find_repetitions(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
