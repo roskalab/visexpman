@@ -7,7 +7,6 @@ import scipy.ndimage.interpolation
 import scipy.ndimage.filters
 from pylab import *
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,geometry
-frame_rate=1/0.64#s
 image_scale = 0.3225#Scale Factor for X
 
 def file2cells(filename, maxcellradius=65, sigma=0.2):
@@ -74,7 +73,6 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
             yline=lines[a][1]
             d=dsf[a]
             contour_pix.append([xline[d],yline[d]])
-
         import copy
         cc=copy.deepcopy(contour_pix)
         filled = []
@@ -115,10 +113,10 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
     Image.fromarray(iout).save(os.path.join(os.path.dirname(filename), 'all_cells_{0}.png'.format(os.path.basename(filename))))
     return soma_rois,image
     
-def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2):
+def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=1):
+    f=filename
     sr,image=file2cells(f, maxcellradius=maxcellradius, sigma=sigma)
     img=image.reshape((image.shape[0],1, image.shape[1],image.shape[2]))
-#            bg=cone_data.calculate_background(img)
     bgmask=numpy.ones((image.shape[1],image.shape[2]))
     for sri in sr:
         bgmask[sri[0],sri[1]]=0
@@ -129,10 +127,9 @@ def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', cente
     bg=gaussian_filter(img.mean(axis=0)[0],150)#sigma is much bigger than cell size
     roi_curves = experiment_data.get_roi_curves(img-0*bg,sr)
     roi_curves_integral = [roi_curves[i]*sr[i][0].shape[0] for i in range(len(roi_curves))]
-#            roi_curves= [rc-bg_activity for rc in roi_curves]
     max_response=0
     baselines = []
-    center_cell_index = -1
+    stimulated_cell_index = -1
     for i in range(len(roi_curves)):
         figure(1)
         clf()
@@ -159,94 +156,94 @@ def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', cente
         image_center = numpy.array(image.shape[1:])/2
         if numpy.sqrt(((image_center-roi_center)**2).sum()) < center_tolerance and reponse_size>dfpf_threshold and reponse_size>max_response:
             max_response = reponse_size
-            center_cell_curve = roi_curves[i]
-            center_cell_fn = fn
-            center_cell_curve_integral = roi_curves_integral[i]
-            center_cell_index=i
+            stimulated_cell_curve = roi_curves[i]/baselines[i]
+            stimulated_cell_fn = fn
+            stimulated_cell_curve_integral = roi_curves_integral[i]
+            stimulated_cell_index=i
     import shutil
-    shutil.copy(center_cell_fn,os.path.dirname(f))
+    shutil.copy(stimulated_cell_fn,os.path.dirname(f))
     import scipy.io
     data={}
     data['roi_curves']=roi_curves
     data['roi_curves_normalized']=[roi_curves[i]/baselines[i] for i in range(len(roi_curves))]
     data['roi_curves_integral']=roi_curves_integral
-    data['center_cell_curve']=center_cell_curve
-    data['center_cell_curve_integral']=center_cell_curve_integral
+    data['stimulated_cell_curve']=stimulated_cell_curve
+    data['stimulated_cell_curve_integral']=stimulated_cell_curve_integral
     data['roi_areas']=sr
     data['image']=image
     import copy
-    nonresponding_roi_curves = copy.deepcopy(roi_curves)
-    del nonresponding_roi_curves[center_cell_index]
+    nonresponding_roi_curves = copy.deepcopy(data['roi_curves_normalized'])
+    del nonresponding_roi_curves[stimulated_cell_index]
     nonresponding_roi_curves_integral = copy.deepcopy(roi_curves_integral)
-    del nonresponding_roi_curves_integral[center_cell_index]
+    del nonresponding_roi_curves_integral[stimulated_cell_index]
     scipy.io.savemat(f.replace('.tif','.mat'), data,oned_as='column')
-    return center_cell_curve,nonresponding_roi_curves,center_cell_curve_integral,nonresponding_roi_curves_integral
+    return stimulated_cell_curve,nonresponding_roi_curves,stimulated_cell_curve_integral,nonresponding_roi_curves_integral
     
-def plot_aggregated_curves(curves, legendtxt, filename):
+def plot_aggregated_curves(curves, legendtxt, filename,baseline_duration,ylab,plot_mean_only=False,frame_rate=1):
     figure(1)
     shifts=numpy.array([numpy.diff(c).argmax() for c in curves])
     shifts-=shifts.min()
     aligned_plots = [numpy.roll(curves[i],-shifts[i]) for i in range(len(curves))]
+    aligned_plots = [p-p[-baseline_duration*frame_rate:].mean() for p in aligned_plots]
+    trace_min_size=min([p.shape[0] for p in aligned_plots])
+    truncated = [p[:trace_min_size] for p in aligned_plots]
+    mean=numpy.array(truncated).mean(axis=0)
+    std=numpy.array(truncated).std(axis=0)
     clf()
-    [plot(numpy.arange(p.shape[0])/frame_rate) for p in aligned_plots];
-    legend(legendtxt)
-    savefig(filename)
+    if not plot_mean_only:
+        [plot(numpy.arange(p.shape[0])/frame_rate, p,'x-') for p in aligned_plots]
+        legend(legendtxt)
+        ylabel(ylab)
+        xlabel('time [s]')
+        savefig(filename,dpi=200)
+    clf()
+    t=numpy.arange(mean.shape[0])/frame_rate
+    plot(t,mean,'o-')
+    plot(t,mean-std,'^-')
+    plot(t,mean+std,'v-')
+    ylabel(ylab)
+    xlabel('time [s]')
+    meanlegend=['mean', 'std', 'std']
+    legend(meanlegend)
+    tags=filename.split('.')
+    tags[-2]+='_mean_std'
+    savefig('.'.join(tags), dpi=200)
+    return mean,std
+    
+def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=1):
+    files=[f for f in fileop.listdir_fullpath(folder) if 'tif' in f[-3:]]
+    cc=[]#center cell curve
+    cc_int=[]#central cell integral curve
+    nrc=[]#not responding cell curves
+    nrc_int = []#not responding cell integral curves
+    legendtxt=[os.path.basename(f) for f in files]
+    for f in files:
+        with introspect.Timer():
+            stimulated_cell_curves,nonresponding_roi_curves,stimulated_cell_curves_integral,nonresponding_roi_curves_integral=\
+                            process_file(f,baseline_duration=baseline_duration,export_fileformat=export_fileformat,center_tolerance = center_tolerance, dfpf_threshold=dfpf_threshold, maxcellradius=maxcellradius, sigma=sigma,frame_rate=frame_rate)
+            cc.append(stimulated_cell_curves)
+            cc_int.append(stimulated_cell_curves_integral)
+            nrc.extend(nonresponding_roi_curves)
+            nrc_int.extend(nonresponding_roi_curves_integral)
+    cc_mean,cc_std=plot_aggregated_curves(cc, legendtxt, os.path.join(folder, 'stimulated_cell.'+export_fileformat),baseline_duration,'df/f',frame_rate=frame_rate)
+    cc_int_mean,cc_int_std=plot_aggregated_curves(cc_int, legendtxt, os.path.join(folder, 'stimulated_cell_integrated.'+export_fileformat),baseline_duration, 'integral activity',frame_rate=frame_rate)
+    nrc_mean,nrc_std=plot_aggregated_curves(nrc, legendtxt, os.path.join(folder, 'not_responding_cells.'+export_fileformat),baseline_duration,'df/f',plot_mean_only=True,frame_rate=frame_rate)
+    nrc_int_mean, nrc_int_std = plot_aggregated_curves(nrc_int, legendtxt, os.path.join(folder, 'not_responding_cells_intergated.'+export_fileformat),baseline_duration, 'integral activity',plot_mean_only=True,frame_rate=frame_rate)
+    
+    #Saving aggregated data
+    data ={'stimulated_cell': cc, 'stimulated_cell_mean': cc_mean, 'stimulated_cell_std': cc_std, 
+                'stimulated_cell_integrated': cc_int, 'stimulated_cell_integrated_mean': cc_int_mean, 'stimulated_cell_integrated_std': cc_int_std, 
+                'not_responding_cell': nrc, 'not_responding_cell_mean': nrc_mean, 'not_responding_cell_std': nrc_std, 
+                'not_responding_cell_integrated': nrc_int, 'not_responding_cell_integrated_mean': nrc_int_mean, 'not_responding_cell_integrated_std': nrc_int_std}
+    scipy.io.savemat(os.path.join(folder, 'aggregated_curves.mat'), data,oned_as='column')
 
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
 #    folder='/home/rz/codes/data/rajib/'
     folder='/tmp/rajib'
-    center_cell_curves=[]
-    center_cell_curves_integral=[]
-    nonresponding_roi_curves = []
-    nonresponding_roi_curves_integral=[]
-    legendtxt=[]
-    for f in fileop.listdir_fullpath(folder):
-        if 'tif' not in f[-3:]: continue
-#        if '006' not in f: continue
-        with introspect.Timer():
-            center_cell_curve,nonresponding_roi_curve,center_cell_curve_integral,nonresponding_roi_curve_integral=process_file(f)
-            center_cell_curves.append(center_cell_curve)
-            center_cell_curves_integral.append(center_cell_curve_integral)
-            nonresponding_roi_curves.append(nonresponding_roi_curve)
-            nonresponding_roi_curves_integral.append(nonresponding_roi_curve_integral)
-            legendtxt.append(os.path.basename(f))
-    #Saving aggregated data
-    data = {'center_cell_curves':center_cell_curves, 'center_cell_curves_integral': center_cell_curves_integral,
-            'nonresponding_roi_curves':nonresponding_roi_curves, 'nonresponding_roi_curve_integral':nonresponding_roi_curve_integral}
-                
-    scipy.io.savemat(os.path.join(folder, 'aggregated_curves.mat'), data,oned_as='column')
-    plot_aggregated_curves(center_cell_curves, legendtxt, os.path.join(folder, 'center_cell_activity.png'))
-    plot_aggregated_curves(center_cell_curves_integral, legendtxt, os.path.join(folder, 'center_cell_activity.png'))
-#    figure(1)
-#    shifts=numpy.array([numpy.diff(c).argmax() for c in center_cell_curves])
-#    shifts-=shifts.min()
-#    aligned_plots = [numpy.roll(center_cell_curves[i],-shifts[i]) for i in range(len(center_cell_curves))]
-#    clf()
-#    [plot(p) for p in aligned_plots];
-#    legend(legendtxt)
-#    savefig()
-#    figure(2)
-#    aligned_plots = [numpy.roll(center_cell_curves_integral[i],-shifts[i]) for i in range(len(center_cell_curves_integral))]
-#    clf()
-#    [plot(p) for p in aligned_plots];
-#    legend(legendtxt)
-#    savefig(os.path.join(folder, 'center_cell_activity_integral.png'))
+    baseline_duration=5
+    export_fileformat = 'png'
+    frame_rate=1/0.64#s
+    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=frame_rate)
     
     
-            
-            
-            
-#            plot(roi_curves);show()
-#        figure(ct);
-#        subplot(1,2,1)
-#        imshow(im);
-#        subplot(1,2,2)
-#        im2=numpy.copy(im)
-#        im2[:,:,0]=0
-#        im2[:,:,2]=0
-#        imshow(im2);
-#        title(f);
-#        ct+=1
-        
-#    show()
