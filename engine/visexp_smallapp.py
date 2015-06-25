@@ -233,8 +233,6 @@ class BehavioralTester(SmallApp):
         self.connect_and_map_signal(self.close_valve, 'close_valve')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
 
-
-
 class ReceptiveFieldPlotter(SmallApp):
     def __init__(self):
         SmallApp.__init__(self)
@@ -369,6 +367,41 @@ class ReceptiveFieldPlotter(SmallApp):
         for pp in self.plots.plots:
             pp.setYRange(min(plotrangemin), max(plotrangemax))
         self.printc('Plots are updated')
+        
+class AfmCaImagingAnalyzer(SmallApp):
+    def __init__(self):
+        SmallApp.__init__(self)
+        self.resize(800,600)
+        self.select_folder_button = QtGui.QPushButton('Select folder', self)
+        self.select_folder_button.setFixedWidth(100)
+        self.create_parameter_table()
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.parameters_widget, 0, 0, 1, 1)
+        self.layout.addWidget(self.select_folder_button, 1, 0, 1, 1)
+        self.layout.addWidget(self.text_out, 2, 0, 1, 1)
+        self.setLayout(self.layout)
+        
+        self.connect(self.select_folder_button, QtCore.SIGNAL('clicked()'),  self.process_folder)
+        
+    def create_parameter_table(self):
+        params = [
+                    {'name': 'Export fileformat', 'type': 'list', 'value': 'eps', 'values': ['eps','png']},
+                    {'name': 'Frame rate', 'type': 'float', 'value': 1/0.64, 'siPrefix': True, 'suffix': 'Hz'},
+                    {'name': 'Baseline time ', 'type': 'float', 'value': 5, 'siPrefix': True, 'suffix': 's'},
+                    {'name': 'Max cell diameter', 'type': 'float', 'value': 65.0,  'suffix': ' pixel'},
+                    {'name': 'Cell detector gaussian filter\'s sigma', 'type': 'float', 'value': 0.2, },
+                    {'name': 'Max offset from center', 'type': 'float', 'value': 100.0,  'suffix': ' pixel'},
+                    {'name': 'df/f threshold', 'type': 'float', 'value': 0.2 }]
+        from pyqtgraph.parametertree import Parameter, ParameterTree
+        self.parameters_widget = ParameterTree(self, showHeader=False)
+        self.parameters_widget.setFixedWidth(400)
+        self.parameters = Parameter.create(name='params', type='group', children=params)
+        self.parameters_widget.setParameters(self.parameters, showTop=False)
+        
+    def process_folder(self):
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', '/'))
+        if os.path.exists(folder):
+            self.printc(folder)
 
 def run_gui():
     '''
