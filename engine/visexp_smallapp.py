@@ -373,8 +373,8 @@ class AfmCaImagingAnalyzer(SmallApp):
         SmallApp.__init__(self)
         self.setWindowTitle('AFM Ca Imaging Analyzer')
         self.resize(800,600)
-        self.select_folder_button = QtGui.QPushButton('Select folder', self)
-        self.select_folder_button.setFixedWidth(100)
+        self.select_folder_button = QtGui.QPushButton('Select folder/Start analysis', self)
+        self.select_folder_button.setFixedWidth(250)
         self.create_parameter_table()
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.parameters_widget, 0, 0, 1, 1)
@@ -386,6 +386,7 @@ class AfmCaImagingAnalyzer(SmallApp):
     def create_parameter_table(self):
         params = [
                     {'name': 'Export fileformat', 'type': 'list', 'value': 'eps', 'values': ['eps','png']},
+                    {'name': 'Enable parallel processing', 'type': 'bool', 'value': False},
                     {'name': 'Frame rate', 'type': 'float', 'value': 1/0.64, 'siPrefix': True, 'suffix': 'Hz'},
                     {'name': 'Baseline time', 'type': 'float', 'value': 5, 'siPrefix': True, 'suffix': 's'},
                     {'name': 'Max cell diameter', 'type': 'float', 'value': 65.0,  'suffix': ' pixel'},
@@ -397,20 +398,50 @@ class AfmCaImagingAnalyzer(SmallApp):
         self.parameters_widget.setFixedWidth(400)
         self.parameters = Parameter.create(name='params', type='group', children=params)
         self.parameters_widget.setParameters(self.parameters, showTop=False)
+        self.parameters_widget.setToolTip(
+        '''
+        Preparation:
+        1) Convert zvi files to tiff with Fiji/ImageJ. Make sure that the background is already removed
+        2) Copy them to a folder
+        Usage:
+        3) Adjust parameters if necessary, however default parameters should work
+        4) Press "Select folder/Start analysis" to select the folder where the datafiles are.
+        5) After folder selection the analysis is initiated and takes approximately 100 seconds/file
+            * It will search for cell like objects. Their activity will be extracted as roi curves
+            * Error messages may appear on the DOS window
+        Results:
+        * The activity plot of the detected cells are saved to a cells_and_plots subfolder
+        * The plots of the stimulated cells are copied to the data folder
+        * The ROI area and ROI curve information is saved to a .mat file for each recording
+        * The aggregated plots of the stimulated cells are saved to the aggregated_curves.mat.
+        '''
+        
+        )
         
     def process_folder(self):
-        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', '/'))
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', 'c:\\' if os.name=='nt' else '/' ))
         if os.path.exists(folder):
             parameters=dict([(n.name(), n.value()) for n in self.parameters.children()])
             from visexpman.users.rajib import ca_analysis
-            self.printc('Procesing {0}. Please wait'.format(folder))
-            ca_analysis.process_folder(folder, baseline_duration=parameters['Baseline time'],
+            msg='Processing {0}. Please wait'.format(folder)
+            self.printc(msg)
+            if 0:
+                ca_analysis.process_folder(folder, baseline_duration=parameters['Baseline time'],
                                         export_fileformat = parameters['Export fileformat'],
                                         center_tolerance = parameters['Max offset from center'], 
                                         dfpf_threshold=parameters['df/f threshold'], 
                                         maxcellradius=parameters['Max cell diameter'],
                                         sigma=parameters['Cell detector gaussian filter\'s sigma'], 
-                                        frame_rate=parameters['Frame rate'])
+                                        frame_rate=parameters['Frame rate'],
+                                        ppenable = False and parameters['Enable parallel processing'])
+            else:
+                import subprocess
+                cmd='''python -c "from visexpman.users.rajib import ca_analysis;ca_analysis.process_folder('{0}', baseline_duration={1},export_fileformat = '{2}',center_tolerance = {3}, dfpf_threshold={4}, maxcellradius={5},sigma={6}, frame_rate= {7},ppenable = {8})"
+                                        '''.format(folder,parameters['Baseline time'],parameters['Export fileformat'], parameters['Max offset from center'],
+                                            parameters['df/f threshold'], parameters['Max cell diameter'], parameters['Cell detector gaussian filter\'s sigma'],
+                                            parameters['Frame rate'],parameters['Enable parallel processing']
+                                        )
+                subprocess.call(cmd,shell=True)
             self.printc('Processing finished')
 
 def run_gui():

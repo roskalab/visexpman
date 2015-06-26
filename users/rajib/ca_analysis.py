@@ -6,7 +6,7 @@ from visexpman.engine.vision_experiment import cone_data,experiment_data
 import scipy.ndimage.interpolation
 import scipy.ndimage.filters
 from pylab import *
-from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,geometry
+from visexpman.engine.generic import fileop, utils,introspect,geometry,signal
 image_scale = 0.3225#Scale Factor for X
 
 def file2cells(filename, maxcellradius=65, sigma=0.2):
@@ -210,22 +210,36 @@ def plot_aggregated_curves(curves, legendtxt, filename,baseline_duration,ylab,pl
     savefig('.'.join(tags), dpi=200)
     return mean,std
     
-def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=1):
+def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=1, ppenable=False):
     files=[f for f in fileop.listdir_fullpath(folder) if 'tif' in f[-3:]]
     cc=[]#center cell curve
     cc_int=[]#central cell integral curve
     nrc=[]#not responding cell curves
     nrc_int = []#not responding cell integral curves
     legendtxt=[os.path.basename(f) for f in files]
-    for f in files:
-        print 'processing', f
-        with introspect.Timer():
-            stimulated_cell_curves,nonresponding_roi_curves,stimulated_cell_curves_integral,nonresponding_roi_curves_integral=\
-                            process_file(f,baseline_duration=baseline_duration,export_fileformat=export_fileformat,center_tolerance = center_tolerance, dfpf_threshold=dfpf_threshold, maxcellradius=maxcellradius, sigma=sigma,frame_rate=frame_rate)
+    if ppenable:
+        import multiprocessing
+        pars=[[f, baseline_duration,export_fileformat,center_tolerance, dfpf_threshold, maxcellradius, sigma,frame_rate] for f in files]
+        p=multiprocessing.Pool(introspect.get_available_process_cores())
+        res=[p.apply_async(process_file, par) for par in pars]
+        p.close()
+        p.join()
+        for r in res:
+            stimulated_cell_curves,nonresponding_roi_curves,stimulated_cell_curves_integral,nonresponding_roi_curves_integral=r.get()
             cc.append(stimulated_cell_curves)
             cc_int.append(stimulated_cell_curves_integral)
             nrc.extend(nonresponding_roi_curves)
             nrc_int.extend(nonresponding_roi_curves_integral)
+    else:
+        for f in files:
+            print 'processing', f
+            with introspect.Timer():
+                stimulated_cell_curves,nonresponding_roi_curves,stimulated_cell_curves_integral,nonresponding_roi_curves_integral=\
+                                process_file(f,baseline_duration=baseline_duration,export_fileformat=export_fileformat,center_tolerance = center_tolerance, dfpf_threshold=dfpf_threshold, maxcellradius=maxcellradius, sigma=sigma,frame_rate=frame_rate)
+                cc.append(stimulated_cell_curves)
+                cc_int.append(stimulated_cell_curves_integral)
+                nrc.extend(nonresponding_roi_curves)
+                nrc_int.extend(nonresponding_roi_curves_integral)
     cc_mean,cc_std=plot_aggregated_curves(cc, legendtxt, os.path.join(folder, 'stimulated_cell.'+export_fileformat),baseline_duration,'df/f',frame_rate=frame_rate)
     cc_int_mean,cc_int_std=plot_aggregated_curves(cc_int, legendtxt, os.path.join(folder, 'stimulated_cell_integrated.'+export_fileformat),baseline_duration, 'integral activity',frame_rate=frame_rate)
     nrc_mean,nrc_std=plot_aggregated_curves(nrc, legendtxt, os.path.join(folder, 'not_responding_cells.'+export_fileformat),baseline_duration,'df/f',plot_mean_only=True,frame_rate=frame_rate)
@@ -234,8 +248,8 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
     #Saving aggregated data
     data ={'stimulated_cell': cc, 'stimulated_cell_mean': cc_mean, 'stimulated_cell_std': cc_std, 
                 'stimulated_cell_integrated': cc_int, 'stimulated_cell_integrated_mean': cc_int_mean, 'stimulated_cell_integrated_std': cc_int_std, 
-                'not_responding_cell': nrc, 'not_responding_cell_mean': nrc_mean, 'not_responding_cell_std': nrc_std, 
-                'not_responding_cell_integrated': nrc_int, 'not_responding_cell_integrated_mean': nrc_int_mean, 'not_responding_cell_integrated_std': nrc_int_std}
+                'not_responding_cells': nrc, 'not_responding_cells_mean': nrc_mean, 'not_responding_cells_std': nrc_std, 
+                'not_responding_cells_integrated': nrc_int, 'not_responding_cells_integrated_mean': nrc_int_mean, 'not_responding_cells_integrated_std': nrc_int_std}
     analysis_parameters = {'folder':folder, 'baseline_duration':baseline_duration,'export_fileformat' : export_fileformat,'center_tolerance' : center_tolerance, 'dfpf_threshold':dfpf_threshold, maxcellradius:'maxcellradius', sigma:'sigma', frame_rate:'frame_rate'}
     data['analysis_parameters']=analysis_parameters
     scipy.io.savemat(os.path.join(folder, 'aggregated_curves.mat'), data,oned_as='column')
@@ -247,6 +261,5 @@ if __name__ == "__main__":
     baseline_duration=5
     export_fileformat = 'png'
     frame_rate=1/0.64#s
-    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=frame_rate)
-    
+    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=frame_rate,ppenable=True)    
     
