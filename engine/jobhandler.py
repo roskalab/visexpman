@@ -157,6 +157,13 @@ class CommandInterface(command_parser.CommandParser):
         if not self.copy_request_pending or dt > 20:
             self.log.info(dt)
             self._ask_mouse_file_copy()
+            
+            
+        if not hasattr(self, 't0'):
+            self.t0=time.time()
+        if time.time()-self.t0>60:
+            self.t0=time.time()
+            self.printl('Debug msg from jobhandler')
 
     ################## Fragment processing #######################
     def _jobs_from_database(self):
