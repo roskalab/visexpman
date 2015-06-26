@@ -236,6 +236,8 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
                 'stimulated_cell_integrated': cc_int, 'stimulated_cell_integrated_mean': cc_int_mean, 'stimulated_cell_integrated_std': cc_int_std, 
                 'not_responding_cell': nrc, 'not_responding_cell_mean': nrc_mean, 'not_responding_cell_std': nrc_std, 
                 'not_responding_cell_integrated': nrc_int, 'not_responding_cell_integrated_mean': nrc_int_mean, 'not_responding_cell_integrated_std': nrc_int_std}
+    analysis_parameters = {'folder':folder, 'baseline_duration':baseline_duration,'export_fileformat' : export_fileformat,'center_tolerance' : center_tolerance, 'dfpf_threshold':dfpf_threshold, maxcellradius:'maxcellradius', sigma:'sigma', frame_rate:'frame_rate'}
+    data['analysis_parameters']=analysis_parameters
     scipy.io.savemat(os.path.join(folder, 'aggregated_curves.mat'), data,oned_as='column')
 
 if __name__ == "__main__":
