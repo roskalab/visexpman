@@ -371,6 +371,7 @@ class ReceptiveFieldPlotter(SmallApp):
 class AfmCaImagingAnalyzer(SmallApp):
     def __init__(self):
         SmallApp.__init__(self)
+        self.setWindowTitle('AFM Ca Imaging Analyzer')
         self.resize(800,600)
         self.select_folder_button = QtGui.QPushButton('Select folder', self)
         self.select_folder_button.setFixedWidth(100)
@@ -380,14 +381,13 @@ class AfmCaImagingAnalyzer(SmallApp):
         self.layout.addWidget(self.select_folder_button, 1, 0, 1, 1)
         self.layout.addWidget(self.text_out, 2, 0, 1, 1)
         self.setLayout(self.layout)
-        
         self.connect(self.select_folder_button, QtCore.SIGNAL('clicked()'),  self.process_folder)
         
     def create_parameter_table(self):
         params = [
                     {'name': 'Export fileformat', 'type': 'list', 'value': 'eps', 'values': ['eps','png']},
                     {'name': 'Frame rate', 'type': 'float', 'value': 1/0.64, 'siPrefix': True, 'suffix': 'Hz'},
-                    {'name': 'Baseline time ', 'type': 'float', 'value': 5, 'siPrefix': True, 'suffix': 's'},
+                    {'name': 'Baseline time', 'type': 'float', 'value': 5, 'siPrefix': True, 'suffix': 's'},
                     {'name': 'Max cell diameter', 'type': 'float', 'value': 65.0,  'suffix': ' pixel'},
                     {'name': 'Cell detector gaussian filter\'s sigma', 'type': 'float', 'value': 0.2, },
                     {'name': 'Max offset from center', 'type': 'float', 'value': 100.0,  'suffix': ' pixel'},
@@ -401,7 +401,17 @@ class AfmCaImagingAnalyzer(SmallApp):
     def process_folder(self):
         folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', '/'))
         if os.path.exists(folder):
-            self.printc(folder)
+            parameters=dict([(n.name(), n.value()) for n in self.parameters.children()])
+            from visexpman.users.rajib import ca_analysis
+            self.printc('Procesing {0}. Please wait'.format(folder))
+            ca_analysis.process_folder(folder, baseline_duration=parameters['Baseline time'],
+                                        export_fileformat = parameters['Export fileformat'],
+                                        center_tolerance = parameters['Max offset from center'], 
+                                        dfpf_threshold=parameters['df/f threshold'], 
+                                        maxcellradius=parameters['Max cell diameter'],
+                                        sigma=parameters['Cell detector gaussian filter\'s sigma'], 
+                                        frame_rate=parameters['Frame rate'])
+            self.printc('Processing finished')
 
 def run_gui():
     '''

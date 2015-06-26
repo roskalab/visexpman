@@ -218,6 +218,7 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
     nrc_int = []#not responding cell integral curves
     legendtxt=[os.path.basename(f) for f in files]
     for f in files:
+        print 'processing', f
         with introspect.Timer():
             stimulated_cell_curves,nonresponding_roi_curves,stimulated_cell_curves_integral,nonresponding_roi_curves_integral=\
                             process_file(f,baseline_duration=baseline_duration,export_fileformat=export_fileformat,center_tolerance = center_tolerance, dfpf_threshold=dfpf_threshold, maxcellradius=maxcellradius, sigma=sigma,frame_rate=frame_rate)
