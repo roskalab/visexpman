@@ -371,13 +371,34 @@ class ReceptiveFieldPlotter(SmallApp):
 class AfmCaImagingAnalyzer(SmallApp):
     def __init__(self):
         SmallApp.__init__(self)
-        self.setWindowTitle('AFM Ca Imaging Analyzer')
+        self.setWindowTitle('Ca Imaging Analyzer')
         self.resize(800,600)
         self.select_folder_button = QtGui.QPushButton('Select folder/Start analysis', self)
         self.select_folder_button.setFixedWidth(250)
         self.create_parameter_table()
+        txt = \
+            '''
+            Preparation:
+            1) Convert zvi files to tiff with Fiji/ImageJ. Make sure that the background is already removed
+            2) Copy them to a folder
+            Usage:
+            3) Adjust parameters if necessary, however default parameters should work
+            4) Press "Select folder/Start analysis" to select the folder where the datafiles are.
+            5) After folder selection the analysis is initiated and takes approximately 100 seconds/file
+                * It will search for cell like objects. Their activity will be extracted as roi curves
+                * Error messages may appear on the DOS window
+            Results:
+            * The activity plot of the detected cells are saved to a cells_and_plots subfolder
+            * The plots of the stimulated cells are copied to the data folder
+            * The ROI area and ROI curve information is saved to a .mat file for each recording
+            * The aggregated plots of the stimulated cells are saved to the aggregated_curves.mat.
+            '''
+        self.manual = QtGui.QLabel(txt, self)
+
+        
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.parameters_widget, 0, 0, 1, 1)
+        self.layout.addWidget(self.manual, 0, 2, 1, 1)
         self.layout.addWidget(self.select_folder_button, 1, 0, 1, 1)
         self.layout.addWidget(self.text_out, 2, 0, 1, 1)
         self.setLayout(self.layout)
@@ -398,25 +419,7 @@ class AfmCaImagingAnalyzer(SmallApp):
         self.parameters_widget.setFixedWidth(400)
         self.parameters = Parameter.create(name='params', type='group', children=params)
         self.parameters_widget.setParameters(self.parameters, showTop=False)
-        self.parameters_widget.setToolTip(
-        '''
-        Preparation:
-        1) Convert zvi files to tiff with Fiji/ImageJ. Make sure that the background is already removed
-        2) Copy them to a folder
-        Usage:
-        3) Adjust parameters if necessary, however default parameters should work
-        4) Press "Select folder/Start analysis" to select the folder where the datafiles are.
-        5) After folder selection the analysis is initiated and takes approximately 100 seconds/file
-            * It will search for cell like objects. Their activity will be extracted as roi curves
-            * Error messages may appear on the DOS window
-        Results:
-        * The activity plot of the detected cells are saved to a cells_and_plots subfolder
-        * The plots of the stimulated cells are copied to the data folder
-        * The ROI area and ROI curve information is saved to a .mat file for each recording
-        * The aggregated plots of the stimulated cells are saved to the aggregated_curves.mat.
-        '''
         
-        )
         
     def process_folder(self):
         folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', 'c:\\' if os.name=='nt' else '/' ))
@@ -436,6 +439,8 @@ class AfmCaImagingAnalyzer(SmallApp):
                                         ppenable = False and parameters['Enable parallel processing'])
             else:
                 import subprocess
+                if os.name=='nt':
+                    folder=folder.replace('//','////')
                 cmd='''python -c "from visexpman.users.rajib import ca_analysis;ca_analysis.process_folder('{0}', baseline_duration={1},export_fileformat = '{2}',center_tolerance = {3}, dfpf_threshold={4}, maxcellradius={5},sigma={6}, frame_rate= {7},ppenable = {8})"
                                         '''.format(folder,parameters['Baseline time'],parameters['Export fileformat'], parameters['Max offset from center'],
                                             parameters['df/f threshold'], parameters['Max cell diameter'], parameters['Cell detector gaussian filter\'s sigma'],

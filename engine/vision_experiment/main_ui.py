@@ -10,6 +10,48 @@ import pyqtgraph
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
 from visexpman.engine.vision_experiment import gui_engine, experiment
+
+class CellBrowser(pyqtgraph.TreeWidget):
+    def __init__(self,parent):
+        self.parent=parent
+        pyqtgraph.TreeWidget.__init__(self,parent)
+        self.setColumnCount(1)
+        self.setHeaderLabels(QtCore.QStringList(['']))
+        self.setMaximumWidth(350)
+        self.itemDoubleClicked.connect(self.item_selected)
+        
+    def populate(self, cells):
+        self.blockSignals(True)
+        self.clear()
+        for i in range(len(cells)):
+            cell=cells[i]
+            cellname = '{0}_{1:0=3}'.format(cell['scan_region'], i)
+            cellw=QtGui.QTreeWidgetItem([cellname])
+            self.addTopLevelItem(cellw)
+            for stimulus_name in cell.keys():
+                if stimulus_name=='scan_region':
+                    continue
+                stimulus_level_widget = QtGui.QTreeWidgetItem([stimulus_name])
+                cellw.addChild(stimulus_level_widget)
+                for filename in cell[stimulus_name].keys():
+                    file_level_widget = QtGui.QTreeWidgetItem([filename])
+                    stimulus_level_widget.addChild(file_level_widget)
+        self.blockSignals(False)
+        
+    def item_selected(self,par):
+        path=self._get_path(par)
+        self.parent.to_engine.put({'function': 'display_cell', 'args':[path]})
+        
+    def _get_path(self,par):
+        p=par.parent()
+        path=[str(par.text(0))]
+        if p is None:
+            return path
+        while p is not None:
+            path.append(str(p.text(0)))
+            p=p.parent()
+        path.reverse()
+        return path
     
 class StimulusTree(pyqtgraph.TreeWidget):
     def __init__(self,parent, root):
@@ -333,6 +375,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         
         self.stimulusbrowser = StimulusTree(self, fileop.get_user_module_folder(self.machine_config) )
+        self.cellbrowser=CellBrowser(self)
         self.analysis = QtGui.QWidget(self)
         self.analysis.parent=self
         
@@ -352,6 +395,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
         self.main_tab.addTab(self.analysis, 'Analysis')
+        self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         
@@ -373,7 +417,7 @@ class MainUI(gui.VisexpmanMainWindow):
             if msg.has_key('printc'):
                 self.printc(msg['printc'])
             elif msg.has_key('send_image_data'):
-                self.meanimage, self.image_scale, self.tsync, self.timg = msg['send_image_data']
+                self.meanimage, self.image_scale = msg['send_image_data']
                 self.image.remove_all_rois()
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
@@ -387,11 +431,11 @@ class MainUI(gui.VisexpmanMainWindow):
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
                 self.printc('Displaying {0} rois'.format(len(msg['display_roi_rectangles'])))
             elif msg.has_key('display_roi_curve'):
-                timg, curve, index, tsync = msg['display_roi_curve']
+                timg, curve, index, tsync,options = msg['display_roi_curve']
                 #Highlight roi
                 self.image.highlight_roi(index)
                 if isinstance(timg, list) and isinstance(curve, list):
-                    self.plot.update_curves(timg, curve,plot_average = True)
+                    self.plot.update_curves(timg, curve,plot_average = options['plot_average'] if options.has_key('plot_average') else True, colors = options['colors'] if options.has_key('colors') else [])
                 else:
                     #Update plot
                     self.plot.update_curve(timg, curve)
@@ -414,6 +458,8 @@ class MainUI(gui.VisexpmanMainWindow):
             elif msg.has_key('display_trace_parameter_distributions'):
                 self.tpp = TraceParameterPlots(msg['display_trace_parameter_distributions'])
                 self.tpp.show()
+            elif msg.has_key('display_cell_tree'):
+                self.cellbrowser.populate(msg['display_cell_tree'])
 #                self.pb = Progressbar(10)
 #                self.pb.show()
                 
