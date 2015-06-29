@@ -447,6 +447,7 @@ class Analysis(object):
         
     def display_cell(self, path):
         index=int(path[0].split('_')[-1])
+        self.to_gui.put({'image_title' :'/'.join(path)})
         if len(path)==1:#Display all stimulus and all repetitions
             #Collect all roi curves and meanimage
             roi=self.cells[index]
@@ -483,8 +484,6 @@ class Analysis(object):
         normalized=[r['normalized'] for r in rois]
         tsync = rois[tdiffs.argmin()]['tsync']
         return timgs, tsync, normalized
-
-        
             
     def _display_single_roi(self,roi):
         self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
