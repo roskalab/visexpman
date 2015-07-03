@@ -297,11 +297,45 @@ def aggregate_stage_coordinates(folder):
     rp=[[os.path.basename(f).replace('.hdf5',''), hdf5io.read_item(f, 'recording_parameters', filelocking=False)] for f in allhdf5files]
     return dict([(rpi[0], rpi[1]['absolute_stage_coordinates']) for rpi in rp if rpi[1].has_key('absolute_stage_coordinates')])
     
+def quantify_cells(cells):
+    #Calculate trace parameters
+    for cell in cells:
+        keys=[]
+        for sn,v in cell.items():
+            if 'scan_region' in sn: continue
+            keys.extend(zip(len(v.keys())*[sn], v.keys()))
+        for key in keys:
+            baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop,fitted_traces = \
+                        calculate_trace_parameters(cell[key[0]][key[1]]['normalized'],
+                                                                     cell[key[0]][key[1]]['tsync'], 
+                                                                     cell[key[0]][key[1]]['timg'], 
+                                                                     cell[key[0]][key[1]]['baseline_length'])
+            cell[key[0]][key[1]]['response_amplitude']=response_amplitude
+            cell[key[0]][key[1]]['response_rise_sigma']=response_rise_sigma
+    #Average repetitions
+    cell_parameters=[]
+    for cell in cells:
+        cell_parameter = {}
+        for sn in cell.keys():
+            if 'scan_region' in sn: continue
+            pars=numpy.array([[v['response_amplitude'], v['response_rise_sigma']] for v in cell[sn].values()]).mean(axis=0)
+            cell_parameter[sn] = {'response_amplitude': pars[0], 'response_rise_sigma': pars[1]}
+        cell_parameters.append(cell_parameter)
+    #Distribution of different stimuli
+    parameter_distributions = {}
+    parameter_names = list(set([cpii for cp in cell_parameters for cpi in cp.values() for cpii in cpi.keys()]))
+    for stimulus_name in list(set([cpi for cp in cell_parameters for cpi in cp.keys()])):
+        parameter_distributions[stimulus_name]={}
+        for parname in parameter_names:
+            parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] for cp in cell_parameters])
+    pass
+    
     
 class TestCA(unittest.TestCase):
     def setUp(self):
-        from visexpman.users.test import unittest_aggregator
-        self.files = fileop.listdir_fullpath(os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'trace_analysis'))
+        if '_01_' in self._testMethodName or '_02_' in self._testMethodName or '_03_' in self._testMethodName:
+            from visexpman.users.test import unittest_aggregator
+            self.files = fileop.listdir_fullpath(os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'trace_analysis'))
         
     def test_01_trace_parameters(self):
         ct=0
@@ -394,13 +428,17 @@ class TestCA(unittest.TestCase):
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
             self.assertEqual([len(r['matches'].keys()) for r in res if r.has_key('matches')], [2]*len(res))
         
-        
+    @unittest.skip('')
     def test_06_aggregate_cells(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
         fns = fileop.listdir_fullpath(prepare_test_data('aggregate',working_folder=wf))
         fns.sort()
         res = aggregate_cells(wf)
+    
+    def test_07_quantify_cells(self):
+        cells=hdf5io.read_item('/tmp/conetestdata/aggregated_cells_conetestdata.hdf5', 'cells',filelocking=False)
+        quantify_cells(cells)
     
 if __name__=='__main__':
     unittest.main()
