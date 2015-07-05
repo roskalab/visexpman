@@ -297,21 +297,26 @@ def aggregate_stage_coordinates(folder):
     rp=[[os.path.basename(f).replace('.hdf5',''), hdf5io.read_item(f, 'recording_parameters', filelocking=False)] for f in allhdf5files]
     return dict([(rpi[0], rpi[1]['absolute_stage_coordinates']) for rpi in rp if rpi[1].has_key('absolute_stage_coordinates')])
     
+def cell_trace_params(cell):
+    keys=[]
+    for sn,v in cell.items():
+        if 'scan_region' in sn: continue
+        keys.extend(zip(len(v.keys())*[sn], v.keys()))
+    for key in keys:
+        baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop,fitted_traces = \
+                    calculate_trace_parameters(cell[key[0]][key[1]]['normalized'],
+                                                                 cell[key[0]][key[1]]['tsync'], 
+                                                                 cell[key[0]][key[1]]['timg'], 
+                                                                 cell[key[0]][key[1]]['baseline_length'])
+        cell[key[0]][key[1]]['response_amplitude']=response_amplitude
+        cell[key[0]][key[1]]['response_rise_sigma']=response_rise_sigma
+    return cell
+    
 def quantify_cells(cells):
     #Calculate trace parameters
-    for cell in cells:
-        keys=[]
-        for sn,v in cell.items():
-            if 'scan_region' in sn: continue
-            keys.extend(zip(len(v.keys())*[sn], v.keys()))
-        for key in keys:
-            baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop,fitted_traces = \
-                        calculate_trace_parameters(cell[key[0]][key[1]]['normalized'],
-                                                                     cell[key[0]][key[1]]['tsync'], 
-                                                                     cell[key[0]][key[1]]['timg'], 
-                                                                     cell[key[0]][key[1]]['baseline_length'])
-            cell[key[0]][key[1]]['response_amplitude']=response_amplitude
-            cell[key[0]][key[1]]['response_rise_sigma']=response_rise_sigma
+    import multiprocessing
+    p=multiprocessing.Pool(introspect.get_available_process_cores())
+    cells=p.map(cell_trace_params,cells)
     #Average repetitions
     cell_parameters=[]
     for cell in cells:
@@ -328,8 +333,7 @@ def quantify_cells(cells):
         parameter_distributions[stimulus_name]={}
         for parname in parameter_names:
             parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] for cp in cell_parameters])
-    pass
-    
+    return parameter_distributions
     
 class TestCA(unittest.TestCase):
     def setUp(self):

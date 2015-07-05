@@ -244,7 +244,7 @@ class Analysis(object):
                 x=x[0]
                 y=y[0]
             self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync, {}]})
-            self.to_gui.put({'display_trace_parameters':parameters[0]})
+#            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
         if len(self.rois)>0:
@@ -399,22 +399,25 @@ class Analysis(object):
         self.to_gui.put({'display_cell_tree':self.cells})
         
     def display_trace_parameter_distribution(self):
-        if not hasattr(self, 'rois'):
+        if not hasattr(self, 'cells'):
             return
-        include_all_files = self.guidata.include_all_files.v if hasattr(self.guidata, 'include_all_files') else False
-        if include_all_files:
-            self.printc('Creating statistics for all files is not supported')
-            return
-        self.printc('Creating statistics from traces, please wait...')
-        allparams = []
-        for r in self.rois:
-            x_, y_, x, y, parameters = self._extract_repetition_data(r)
-            allparams.extend(parameters)
-        self.distributions = {}
-        for par1,par2 in itertools.combinations(allparams[0].keys(),2):
-            self.distributions[par1+'@'+par2] = [[p[par1], p[par2]]for p in allparams]
-            self.distributions[par1+'@'+par2] = numpy.array(self.distributions[par1+'@'+par2]).T
-        self.to_gui.put({'display_trace_parameter_distributions':self.distributions})
+        self.parameter_distributions = cone_data.quantify_cells(self.cells)
+            
+            
+#        include_all_files = self.guidata.include_all_files.v if hasattr(self.guidata, 'include_all_files') else False
+#        if include_all_files:
+#            self.printc('Creating statistics for all files is not supported')
+#            return
+#        self.printc('Creating statistics from traces, please wait...')
+#        allparams = []
+#        for r in self.rois:
+#            x_, y_, x, y, parameters = self._extract_repetition_data(r)
+#            allparams.extend(parameters)
+#        self.distributions = {}
+#        for par1,par2 in itertools.combinations(allparams[0].keys(),2):
+#            self.distributions[par1+'@'+par2] = [[p[par1], p[par2]]for p in allparams]
+#            self.distributions[par1+'@'+par2] = numpy.array(self.distributions[par1+'@'+par2]).T
+        self.to_gui.put({'display_trace_parameter_distributions':self.parameter_distributions})
         
     def _extract_repetition_data(self,roi):
         '''

@@ -250,26 +250,18 @@ class TraceParameterPlots(QtGui.QWidget):
         self.setWindowTitle('Parameter distributions')
         self.tab = QtGui.QTabWidget(self)
         self.plots = {}
-        for par1,par2 in itertools.combinations(['rise', 'fall', 'drop', 'amplitude'],2):
-            self.plots['{0}@{1}'.format(par1,par2)] = gui.Plot(self)
+        plot_modes = ['1 axis', '2 axis']
+        parameter_names = [stringop.to_title(n) for n in distributions[distributions.keys()[0]].keys()]
+        for n,m in itertools.product(plot_modes, parameter_names):
+            self.plots[m+'@'+n]=gui.Plot(self)
         for k in self.plots.keys():
             self.tab.addTab(self.plots[k], k)
         self.tab.setTabPosition(self.tab.South)
-        self.nstd = gui.LabeledInput(self, 'n = ')
-        self.nstd.input.setFixedWidth(50)
-        self.nstd.input.setText('1')
-        self.scale = QtGui.QPushButton('Scale to mean +/- n * std' ,parent=self)
-        self.axis2scale = gui.LabeledComboBox(self, 'axis to scale',['both', 'x', 'y'])
+        self.update_plots()
+        self.setGeometry(50,50,1000,500)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.tab,0,0,3,4)
-        self.layout.addWidget(self.nstd,4,0,1,1)
-        self.layout.addWidget(self.axis2scale,4,1,1,1)
-        self.layout.addWidget(self.scale,4,2,1,1)
         self.setLayout(self.layout)
-        self.setGeometry(50,50,700,400)
-        self.update_plots()
-        self.connect(self.scale, QtCore.SIGNAL('clicked()'), self.rescale)
-        self.connect(self.axis2scale.input, QtCore.SIGNAL('currentChanged(int)'), self.rescale)
         
     def _plotname2distributionname(self,plotname):
         if self.distributions.has_key(plotname):
@@ -282,11 +274,33 @@ class TraceParameterPlots(QtGui.QWidget):
         
     def update_plots(self):
         for k in self.plots.keys():
-            ki=self._plotname2distributionname(k)
-            self.plots[k].plot.setLabels(bottom=ki.split('@')[0], left =ki.split('@')[1])
-            x=self.distributions[ki][0]
-            y=self.distributions[ki][1]
-            self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+            naxis = int(k.split('@')[1].split(' ')[0])
+            pname=stringop.to_variable_name(k.split('@')[0])
+            stimnames = self.distributions.keys()
+            if naxis==2:
+                x=self.distributions[stimnames[0]][pname]
+                y=self.distributions[stimnames[1]][pname]
+                self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+                self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
+            elif naxis==1:
+                ncells = self.distributions[stimnames[0]][pname].shape[0]
+                nbins=ncells/5
+                distr1, bins1=numpy.histogram(self.distributions[stimnames[0]][pname],nbins)
+                distr2, bins2=numpy.histogram(self.distributions[stimnames[1]][pname],nbins)
+                self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
+                self.distr2 = numpy.cast['float'](distr2)/float(distr2.sum())
+                self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
+                self.bins2 = numpy.diff(bins2)[0]*0.5+bins2
+                self.plots[k]._clear_curves()
+                self.plots[k].plot.addLegend(size=(120,60))
+                self.plots[k].curves=[]
+                plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : (0, 0, 255,150), 'name': stimnames[0]}
+                self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
+                self.plots[k].curves[-1].setData(self.bins1,self.distr1)
+                plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : (0, 255, 0,150), 'name': stimnames[1]}
+                self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
+                self.plots[k].curves[-1].setData(self.bins2,self.distr2)
+                self.plots[k].plot.setLabels(bottom=pname)
         
     def rescale(self):
         plotname = self.plots.keys()[self.tab.currentIndex()]
@@ -317,19 +331,19 @@ class AnalysisHelper(QtGui.QWidget):
         self.show_repetitions.input.setCheckState(0)
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.aggregate = QtGui.QPushButton('Aggregate' ,parent=self)
-        self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameters' ,parent=self)
+        self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
         self.roi_adjust = RoiShift(self)
-        self.trace_parameters = QtGui.QLabel('', self)
+#        self.trace_parameters = QtGui.QLabel('', self)
 #        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.show_rois,0,0,1,1)
         self.layout.addWidget(self.keep_rois,1,0,1,1)
         self.layout.addWidget(self.roi_adjust,0,1,2,2)
-        self.layout.addWidget(self.trace_parameters,0,2,2,1)
+#        self.layout.addWidget(self.trace_parameters,0,2,2,1)
         self.layout.addWidget(self.show_repetitions,0,3,1,1)
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
-        self.layout.addWidget(self.show_trace_parameter_distribution,2,3,1,1)
-        self.layout.addWidget(self.aggregate,3,3,1,1)
+        self.layout.addWidget(self.aggregate,2,3,1,1)
+        self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
         self.setLayout(self.layout)
         self.setFixedHeight(140)
         self.setFixedWidth(550)
@@ -453,8 +467,9 @@ class MainUI(gui.VisexpmanMainWindow):
             elif msg.has_key('delete_all_rois'):
                 self.image.remove_all_rois()
             elif msg.has_key('display_trace_parameters'):
-                txt='\n'.join(['{0}: {1}'.format(stringop.to_title(k),'{0}'.format(v)[:4]) for k, v in msg['display_trace_parameters'].items()])
-                self.analysis_helper.trace_parameters.setText(txt)
+                pass
+#                txt='\n'.join(['{0}: {1}'.format(stringop.to_title(k),'{0}'.format(v)[:4]) for k, v in msg['display_trace_parameters'].items()])
+#                self.analysis_helper.trace_parameters.setText(txt)
             elif msg.has_key('display_trace_parameter_distributions'):
                 self.tpp = TraceParameterPlots(msg['display_trace_parameter_distributions'])
                 self.tpp.show()
@@ -500,10 +515,10 @@ class MainUI(gui.VisexpmanMainWindow):
                         {'name': 'Threshold Factor', 'type': 'float', 'value': 1.0}
                         ]
                     },
-                    {'name': 'Trace Statistics', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Mean of Repetitions', 'type': 'bool', 'value': False},
-                        {'name': 'Include All Files', 'type': 'bool', 'value': False},
-                        ]},
+#                    {'name': 'Trace Statistics', 'type': 'group', 'expanded' : False, 'children': [
+#                        {'name': 'Mean of Repetitions', 'type': 'bool', 'value': False},
+#                        {'name': 'Include All Files', 'type': 'bool', 'value': False},
+#                        ]},
                     {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
                     ]
                     },                    
