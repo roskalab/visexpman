@@ -120,7 +120,7 @@ class CommandInterface(command_parser.CommandParser):
         if len(sys.argv) == 4 and sys.argv[3] != 'EXPORT_SYNC_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_VIDEO':
             aconfigname = sys.argv[3]
         else:
-            aconfigname = 'Config'
+           aconfigname = 'Config'
         self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
         self.copy_request_pending = False
         self.copy_request_time = 0
