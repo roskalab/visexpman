@@ -386,37 +386,26 @@ class Analysis(object):
     def aggregate(self, folder):
         self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
         self.cells = cone_data.aggregate_cells(folder)
+        self.printc('Calculating parameter distributions')
+        self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
         self.printc('Aggregated {0} cells.'.format(len(self.cells)))
+        
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
         h.cells=self.cells
         h.stage_coordinates=self.stage_coordinates
-        h.save(['stage_coordinates','cells'])
+        h.parameter_distributions=self.parameter_distributions
+        h.save(['stage_coordinates','cells', 'parameter_distributions'])
         h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True)
+        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True)
         self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
         self.to_gui.put({'display_cell_tree':self.cells})
+        self.display_trace_parameter_distribution()
         
     def display_trace_parameter_distribution(self):
-        if not hasattr(self, 'cells'):
+        if not hasattr(self, 'parameter_distributions'):
             return
-        self.parameter_distributions = cone_data.quantify_cells(self.cells)
-            
-            
-#        include_all_files = self.guidata.include_all_files.v if hasattr(self.guidata, 'include_all_files') else False
-#        if include_all_files:
-#            self.printc('Creating statistics for all files is not supported')
-#            return
-#        self.printc('Creating statistics from traces, please wait...')
-#        allparams = []
-#        for r in self.rois:
-#            x_, y_, x, y, parameters = self._extract_repetition_data(r)
-#            allparams.extend(parameters)
-#        self.distributions = {}
-#        for par1,par2 in itertools.combinations(allparams[0].keys(),2):
-#            self.distributions[par1+'@'+par2] = [[p[par1], p[par2]]for p in allparams]
-#            self.distributions[par1+'@'+par2] = numpy.array(self.distributions[par1+'@'+par2]).T
         self.to_gui.put({'display_trace_parameter_distributions':self.parameter_distributions})
         
     def _extract_repetition_data(self,roi):

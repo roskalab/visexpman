@@ -330,7 +330,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
         self.show_repetitions.input.setCheckState(0)
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
-        self.aggregate = QtGui.QPushButton('Aggregate' ,parent=self)
+        self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
         self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
         self.roi_adjust = RoiShift(self)
 #        self.trace_parameters = QtGui.QLabel('', self)
