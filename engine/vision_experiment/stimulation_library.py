@@ -103,6 +103,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if is_last and self.stimulus_frame_info[-2].has_key('counter') and self.stimulus_frame_info[-1]['counter']<self.stimulus_frame_info[-2]['counter']:
             raise RuntimeError('frame counter value cannot decrease: {0}, {1}'.format(*self.stimulus_frame_info[-2:]))
             
+    def _append_to_stimulus_frame_info(self,values):
+        self.stimulus_frame_info[-1]['parameters'].update(values)
+            
     def trigger_pulse(self, pin, width):
         '''
         Generates trigger pulses
@@ -1005,7 +1008,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def white_noise(self, duration, square_size,save_frame_info=False):
+    def white_noise(self, duration, square_size,save_frame_info=True):
         '''
         Generates white noise stimulus using numpy.random.random
         
@@ -1021,6 +1024,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         ncheckers = utils.rc_x_const(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
         checker_colors = numpy.where(numpy.random.random((nframes,ncheckers['row'],ncheckers['col']))<0.5, False,True)
+        params = {'colors': checker_colors, 'ncheckers':ncheckers}
+        if save_frame_info:
+            self._append_to_stimulus_frame_info(params)
         size = utils.rc_x_const(ncheckers, square_size_pixel)
         self._init_texture(size)
         for frame_i in range(nframes):
@@ -1036,6 +1042,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            self._append_to_stimulus_frame_info(params)
     
             
 class StimulationHelpers(Stimulations):
