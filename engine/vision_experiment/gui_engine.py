@@ -104,7 +104,7 @@ class Analysis(object):
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
         self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
-        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync, self.timg]})
+        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale]})
         self._recalculate_background()
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
@@ -225,6 +225,7 @@ class Analysis(object):
             r['tsync']=self.tsync
             r['stimulus_name']=self.experiment_name
             r['meanimage']=self.meanimage
+            r['image_scale']=self.image_scale
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
@@ -242,8 +243,8 @@ class Analysis(object):
             if not show_repetitions or len(x) == 1:
                 x=x[0]
                 y=y[0]
-            self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync]})
-            self.to_gui.put({'display_trace_parameters':parameters[0]})
+            self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync, {}]})
+#            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
         if len(self.rois)>0:
@@ -385,34 +386,27 @@ class Analysis(object):
     def aggregate(self, folder):
         self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
         self.cells = cone_data.aggregate_cells(folder)
+        self.printc('Calculating parameter distributions')
+        self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
         self.printc('Aggregated {0} cells.'.format(len(self.cells)))
+        
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
         h.cells=self.cells
         h.stage_coordinates=self.stage_coordinates
-        h.save(['stage_coordinates','cells'])
+        h.parameter_distributions=self.parameter_distributions
+        h.save(['stage_coordinates','cells', 'parameter_distributions'])
         h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'stage_coordinates': self.stage_coordinates}, oned_as = 'row', long_field_names=True)
+        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True)
         self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
+        self.to_gui.put({'display_cell_tree':self.cells})
+        self.display_trace_parameter_distribution()
         
     def display_trace_parameter_distribution(self):
-        if not hasattr(self, 'rois'):
+        if not hasattr(self, 'parameter_distributions'):
             return
-        include_all_files = self.guidata.include_all_files.v if hasattr(self.guidata, 'include_all_files') else False
-        if include_all_files:
-            self.printc('Creating statistics for all files is not supported')
-            return
-        self.printc('Creating statistics from traces, please wait...')
-        allparams = []
-        for r in self.rois:
-            x_, y_, x, y, parameters = self._extract_repetition_data(r)
-            allparams.extend(parameters)
-        self.distributions = {}
-        for par1,par2 in itertools.combinations(allparams[0].keys(),2):
-            self.distributions[par1+'@'+par2] = [[p[par1], p[par2]]for p in allparams]
-            self.distributions[par1+'@'+par2] = numpy.array(self.distributions[par1+'@'+par2]).T
-        self.to_gui.put({'display_trace_parameter_distributions':self.distributions})
+        self.to_gui.put({'display_trace_parameter_distributions':self.parameter_distributions})
         
     def _extract_repetition_data(self,roi):
         '''
@@ -442,6 +436,54 @@ class Analysis(object):
                 parameters_[pn] = numpy.array([par[pn] for par in parameters]).mean()
             parameters = [parameters_]
         return x_, y_, x, y, parameters
+        
+    def display_cell(self, path):
+        index=int(path[0].split('_')[-1])
+        self.to_gui.put({'image_title' :'/'.join(path)})
+        if len(path)==1:#Display all stimulus and all repetitions
+            #Collect all roi curves and meanimage
+            roi=self.cells[index]
+            first_roi = roi.values()[0].values()[0]
+            rois = []
+            for k,r in roi.items():
+                if k == 'scan_region': continue
+                rois.extend(r.values())
+            self._display_single_roi(first_roi)
+            possible_colors = [(0,0,0),(0,0,200),(0,200,0)]
+            stimnames = [stimname for stimname in roi.keys() if stimname != 'scan_region']
+            colors = []
+            for i in range(len(stimnames)):
+                colors.extend(len(roi[stimnames[i]].keys())*[possible_colors[i]])
+            timgs, tsync, normalized = self._align_curves(rois)
+            options = {'plot_average':False, 'colors' : colors}
+            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tsync, options]})
+        elif len(path)==2:
+            roi=self.cells[index][path[1]].values()
+            first_roi = roi[0]
+            self._display_single_roi(first_roi)
+            timgs, tsync, normalized = self._align_curves(roi)
+            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tsync, {}]})
+        elif len(path)==3:
+            roi=self.cells[index][path[1]][path[2]]
+            self._display_single_roi(roi)
+            self.to_gui.put({'display_roi_curve': [roi['timg'], roi['normalized'], 0, roi['tsync'], {}]})
+            
+    def _align_curves(self, rois):
+        tdiffs = numpy.array([r['tsync'][0] for r in rois])
+        tdiffs -= tdiffs.min()
+        timgs=numpy.array([r['timg'] for r in rois])
+        timgs = list(timgs-tdiffs)
+        normalized=[r['normalized'] for r in rois]
+        tsync = rois[tdiffs.argmin()]['tsync']
+        return timgs, tsync, normalized
+            
+    def _display_single_roi(self,roi):
+        self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
+        self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
+        
+    def meanimage2tiff(self,fn):
+        import tifffile
+        tifffile.imsave(fn, numpy.cast['uint16'](signal.scale(self.meanimage)*(2**16-1)))
         
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
@@ -585,7 +627,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         if self.last_run-self.last_periodic>2.0:
             self.last_periodic=time.time()
             self.update_network_connection_status()
-            
         
     def update_network_connection_status(self):
         #Check for network connection status
@@ -602,7 +643,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         if hasattr(self, 'datafile') and self.datafile.h5f.isopen==1:
             self.datafile.close()
             self.printc('{0} file is closed'.format(self.datafile.filename))
-            
         
     def close(self):
         self.close_analysis()

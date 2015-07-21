@@ -13,7 +13,7 @@ from OpenGL.GLUT import *
 
 import visexpman
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-from visexpman.engine.generic import utils,fileop
+from visexpman.engine.generic import utils,fileop,introspect
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
@@ -223,7 +223,6 @@ class TestCommonExperimentConfig(experiment.ExperimentConfig):
         DIRECTIONS = [90]
         REPETITIONS=1
         self._create_parameters_from_locals(locals())
-                                 
         
 class DebugExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -311,5 +310,18 @@ class TestStimulusBlocks(experiment.Experiment):
             self.moving_shape(utils.rc((100,300)), [2000.0], [45.0], shape = 'rect', color = 1.0, background_color = 0.5, 
                     moving_range=utils.rc((500.0,500.0)), pause=1.0, repetition = 1, block_trigger = b, shape_starts_from_edge=False)
 
+class TestCheckerboardConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestCheckerboardExp'
+        self._create_parameters_from_locals(locals())
+
+class TestCheckerboardExp(experiment.Experiment):
+    def run(self):
+        #White noise
+        checker_size = 20#75
+        duration = 20*60/100
+        self.white_noise(duration, checker_size)
+
 if __name__ == "__main__":
     pass
+    
