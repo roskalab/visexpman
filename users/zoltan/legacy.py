@@ -112,6 +112,14 @@ class PhysTiff2Hdf5(object):
         fphys,ftiff = entry
         self.build_hdf5(fphys,ftiff)
         
+    def backup_files(self,fphys,ftiff,fhdf5):
+        bu_folder = 'D:\\backup'
+        import shutil
+        shutil.copy(fphys, bu_folder)
+        shutil.copy(fhdf5, bu_folder)
+        os.path.join(bu_folder, os.path.basename(os.path.dirname(ftiff))+'_'+os.path.basename(ftiff))
+        shutil.copy(ftiff, os.path.join(bu_folder, os.path.basename(os.path.dirname(ftiff))+'_'+os.path.basename(ftiff)))
+        
     def build_hdf5(self,fphys,ftiff,folder=None):
         t0=time.time()
         coordsfn=os.path.join(os.path.dirname(ftiff), 'coords.txt')
@@ -198,6 +206,7 @@ class PhysTiff2Hdf5(object):
         h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
         fileop.set_file_dates(filename, id)
+        self.backup_files(fphys,ftiff,filename)
         return filename
         #TODO: use pool for parallel processing
         
