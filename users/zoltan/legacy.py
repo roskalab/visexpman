@@ -31,24 +31,22 @@ class PhysTiff2Hdf5(object):
         
     def detect_and_convert(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
-        self.outfiles = fileop.find_files_and_folders(self.outfolder)[1]
+        self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
         physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='phys']
         tiffiles = [f for f in self.allfiles if fileop.file_extension(f)==('tif' if self.use_tiff else 'csv')]
         if not self.use_tiff:
             tiffiles = [f for f in tiffiles if not 'timestamp' in f]
         processable_physfiles = []
-        for f in physfiles:
-            id = str(int(os.path.getmtime(f)))
-            if len([of for of in self.outfiles if id in of and fileop.file_extension(of)=='hdf5'])==0:
-                processable_physfiles.append(f)
+        phys_ids = [[str(experiment_data.get_id(os.path.getmtime(f))),f] for f in physfiles]
+        out_ids= [str(os.path.split(of)[1].split('_')[-2]) for of in self.outfiles]
+        processable_physfiles = [pid[1] for pid in phys_ids if pid[0] not in out_ids]
         #Find corresponding folder with tiff file
         pairs = []
         for pf in processable_physfiles:
             found = [tf for tf in tiffiles if os.path.split(pf.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
             if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3 and [pf,found[0]] not in self.processed_pairs:
-                self.allfiles
                 id = str(experiment_data.get_id(os.path.getmtime(pf)))
-                if len([f for f in self.allfiles if id in f])==0:
+                if len([f for f in self.outfiles if id in f])==0:
                     pairs.append([pf, found[0]])
         if len(pairs)>0:
             print 'converting pairs'
@@ -131,7 +129,7 @@ class PhysTiff2Hdf5(object):
             except:
                 print 'coords file cannot be read'
         else:
-            print 'coords file not found'
+            print 'coords file not found', coordsfn
             
         if self.use_tiff:
             tmptiff = os.path.join(tempfile.gettempdir(), 'temp.tiff')
@@ -193,7 +191,7 @@ class PhysTiff2Hdf5(object):
             os.makedirs(folder)
         cellid=os.path.split(ftiff)[1].split('_')[0]
         filename = os.path.join(folder, 'data_{1}_{2}_{0}_0.hdf5'.format(id, cellid, experiment_name))
-        print utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0
+        print utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
         h.fphys = fphys
@@ -233,7 +231,11 @@ class PhysTiff2Hdf5(object):
             sig2=numpy.zeros_like(sig)
             rising_index = delay_before_start*frame_rate
             falling_index = (delay_before_start+ontime)*frame_rate
-            sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
+            try:
+                sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
+            except:
+                print 'sync signal recordifng was aborted'
+            pass
             return sig2
         
     def yscanner_signal2trigger(self,waveform, fsample,nxlines):
