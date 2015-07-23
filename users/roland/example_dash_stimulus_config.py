@@ -23,10 +23,11 @@ class ExampleDashStimulus(experiment.ExperimentConfig):
         self.BARSIZE = [25, 100]
         self.GAPSIZE = [5, 20]
         self.MOVINGLINES = 3
-        self.DURATION = 5
-        self.SPEEDS = [160, 300]
-        self.DIRECTIONS = [0, 45, 90]
-    
+        self.DURATION = 1
+        self.SPEEDS = [1600]
+        self.DIRECTIONS = range(0, 55, 5)
+        self.BAR_COLOR = 0.5
+        
         self.runnable='DashStimulus'
         self._create_parameters_from_locals(locals())
 
@@ -34,17 +35,34 @@ class ExampleDashStimulus(experiment.ExperimentConfig):
 
 class DashStimulus(experiment.Experiment):
     def prepare(self):
-        self.texture = self.create_bar(size=[128,128], bar=self.experiment_config.BARSIZE, gap=self.experiment_config.GAPSIZE)
+        
+        self.bgcolor = self.config.BACKGROUND_COLOR
+        if hasattr(self.experiment_config, 'BACKGROUND_COLOR'):
+            self.bgcolor = colors.convert_color(self.experiment_config.BACKGROUND_COLOR, self.config)
+        
+        self.barcolor = self.experiment_config.BAR_COLOR
+        if type(self.barcolor) is float or type(self.barcolor) is int:
+            self.barcolor = colors.convert_color(self.experiment_config.BAR_COLOR, self.config)
+        
+        self.texture = self.create_bar(size=[128,128],
+                                       bar=self.experiment_config.BARSIZE,
+                                       gap=self.experiment_config.GAPSIZE,
+                                       bgcolor = self.bgcolor, 
+                                       barcolor=self.barcolor)
+        
         self.texture_size = numpy.array(self.experiment_config.BARSIZE) + numpy.array(self.experiment_config.GAPSIZE)
         self.texture_info = {'bar_size':self.experiment_config.BARSIZE,
-                             'gap_size':self.experiment_config.GAPSIZE
+                             'gap_size':self.experiment_config.GAPSIZE,
+                             'bar_color':self.barcolor,
+                             'bgcolor':self.bgcolor,
                             }
-        
-    
+                            
+        self.stimulus_duration = len(self.experiment_config.DIRECTIONS)*\
+                                 len(self.experiment_config.SPEEDS)*\
+                                 self.experiment_config.DURATION*\
+                                 self.experiment_config.MOVINGLINES
     
     def run(self):
-        self_SHAPE_POSITIONS = {0:{'row':5,'col':2}}#,1:{'row':300,'col':400}}
-        print 'DashStimulus.run()'
         
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':0, 'counter':self.frame_counter})
         
@@ -63,7 +81,7 @@ class DashStimulus(experiment.Experiment):
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':1, 'counter':self.frame_counter})
     
     
-    def create_bar(self, size, bar, gap):# width_ratio = 1.0, length_ratio = 1.0):
+    def create_bar(self, size, bar, gap, bgcolor = [0,0,0], barcolor = [1,1,1]):# width_ratio = 1.0, length_ratio = 1.0):
         # Create BAR texture:
         texture_W = size[0]
         texture_L = size[1]
@@ -79,8 +97,8 @@ class DashStimulus(experiment.Experiment):
         gap_[1] = int(gap[1]*fl*0.5)*2
         bar_[1] = texture_L-gap_[1]
         
-        bg_color  = numpy.array([[0,0,0]])
-        bar_color = numpy.array([[1,0,0]])
+        bg_color  = numpy.array([bgcolor])
+        bar_color = numpy.array([barcolor])
         
         # Upper and lower gap_ between dashes
         gap_w = numpy.repeat([numpy.repeat(bg_color, texture_W, axis=0)], 0.5*gap_[0], axis=0)

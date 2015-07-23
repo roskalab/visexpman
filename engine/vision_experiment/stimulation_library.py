@@ -1505,7 +1505,7 @@ class AdvancedStimulation(StimulationHelpers):
         
         # Size and number of repetiotions along the length of bar
         wDist_px = (texture_size[0])/self.config.SCREEN_UM_TO_PIXEL_SCALE
-        nRepW   = int(numpy.ceil(diagonal_px/wDist_px))
+        nRepW = int(numpy.ceil(diagonal_px/wDist_px))
         
         # Size and number of repetiotions along the width of bar
         lDist_px = (texture_size[1])/self.config.SCREEN_UM_TO_PIXEL_SCALE
@@ -1555,8 +1555,8 @@ class AdvancedStimulation(StimulationHelpers):
                         else:
                             glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
                         
-                        #glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-screen[0], 0)
-                        glTranslate(0,(w_i*wDist_px)-screen[0], 0)
+                        glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-0.5*diagonal_px,0) #0.75*screen[0], 0)
+                        #glTranslate(0,(w_i*wDist_px)-0.5*screen[0], 0)
                         
                         glEnable(GL_TEXTURE_2D)
                         glBindTexture(GL_TEXTURE_2D, texture_handles)
