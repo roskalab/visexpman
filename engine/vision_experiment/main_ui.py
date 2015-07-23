@@ -296,10 +296,9 @@ class TraceParameterPlots(QtGui.QWidget):
                 if len(stimnames)!=2:#When number of stimuli is not 2, this plotting is skipped
                     continue
                 x=self.distributions[stimnames[0]][pname]
-                try:
-                    y=self.distributions[stimnames[1]][pname]
-                except IndexError:
-                    print stimnames,pname
+                y=self.distributions[stimnames[1]][pname]
+                xfildered=[]
+                yfiltered=[]
                 self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
                 self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
             elif naxis==1:
@@ -311,7 +310,8 @@ class TraceParameterPlots(QtGui.QWidget):
                 for i in range(len(stimnames)):
                     ncells = self.distributions[stimnames[i]][pname].shape[0]
                     nbins=ncells/5
-                    distr1, bins1=numpy.histogram(self.distributions[stimnames[i]][pname],nbins)
+                    values = numpy.array([v for v in self.distributions[stimnames[i]][pname] if not numpy.isnan(v)])
+                    distr1, bins1=numpy.histogram(values,nbins)
                     self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
                     self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
                     plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : colors[i], 'name': stimnames[i]}

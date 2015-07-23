@@ -392,7 +392,7 @@ class Analysis(object):
         self.printc('Calculating parameter distributions')
         self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
-        self.printc('Aggregated {0} cells.'.format(len(self.cells)))
+        self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
         
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
@@ -441,7 +441,6 @@ class Analysis(object):
         return x_, y_, x, y, parameters
         
     def display_cell(self, path):
-        print path
         index=int(path[0].split('_')[-1])
         self.to_gui.put({'image_title' :'/'.join(path)})
         if len(path)==1:#Display all stimulus and all repetitions
@@ -493,11 +492,15 @@ class Analysis(object):
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
-        for f in fileop.listdir_fullpath(folder):
+        files=fileop.listdir_fullpath(folder)
+        files.sort()
+        self.abort=False
+        for f in files:
             if 'hdf5' not in f: continue
             self.open_datafile(f)
             self._normalize_roi_curves()
             self.save_rois_and_export(ask_overwrite=False)
+            if self.abort:break
         self.printc('DONE')
         self.notify('Info', 'ROI fixing is ready')
         

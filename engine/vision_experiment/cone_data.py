@@ -335,7 +335,7 @@ def quantify_cells(cells):
     for stimulus_name in list(set([cpi for cp in cell_parameters for cpi in cp.keys()])):
         parameter_distributions[stimulus_name]={}
         for parname in parameter_names:
-            parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] for cp in cell_parameters if cp.has_key(stimulus_name)])
+            parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] if cp.has_key(stimulus_name) else numpy.nan for cp in cell_parameters])
     return parameter_distributions
     
 class TestCA(unittest.TestCase):
@@ -443,11 +443,12 @@ class TestCA(unittest.TestCase):
         fns.sort()
         res = aggregate_cells(wf)
     
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_07_quantify_cells(self):
-        cells=hdf5io.read_item('/tmp/conetestdata/aggregated_cells_conetestdata.hdf5', 'cells',filelocking=False)
+        cells=hdf5io.read_item('/home/rz/rzws/test_data/aggregated_cells.hdf5', 'cells',filelocking=False)
         quantify_cells(cells)
     
+    @unittest.skip('')
     def test_debug(self):
         aggregate_cells('/mnt/rzws/experiment_data/test')
     
