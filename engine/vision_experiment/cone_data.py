@@ -276,7 +276,10 @@ def aggregate_cells(folder):
         scan_region_name = fntags['tag']
         for roi in aggregated_rois:
             main_roi = copy.deepcopy(roi)
-            del main_roi['matches']
+            try:
+                del main_roi['matches']
+            except:
+                continue
             matched_rois = {os.path.basename(hdf5file): main_roi}
             matched_rois.update(roi['matches'])
             #Organize by stimulus type:
@@ -332,7 +335,7 @@ def quantify_cells(cells):
     for stimulus_name in list(set([cpi for cp in cell_parameters for cpi in cp.keys()])):
         parameter_distributions[stimulus_name]={}
         for parname in parameter_names:
-            parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] for cp in cell_parameters])
+            parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] for cp in cell_parameters if cp.has_key(stimulus_name)])
     return parameter_distributions
     
 class TestCA(unittest.TestCase):
@@ -440,9 +443,13 @@ class TestCA(unittest.TestCase):
         fns.sort()
         res = aggregate_cells(wf)
     
+    @unittest.skip('')
     def test_07_quantify_cells(self):
         cells=hdf5io.read_item('/tmp/conetestdata/aggregated_cells_conetestdata.hdf5', 'cells',filelocking=False)
         quantify_cells(cells)
+    
+    def test_debug(self):
+        aggregate_cells('/mnt/rzws/experiment_data/test')
     
 if __name__=='__main__':
     unittest.main()

@@ -278,29 +278,27 @@ class TraceParameterPlots(QtGui.QWidget):
             pname=stringop.to_variable_name(k.split('@')[0])
             stimnames = self.distributions.keys()
             if naxis==2:
+                if len(stimnames)!=2:#When number of stimuli is not 2, this plotting is skipped
+                    continue
                 x=self.distributions[stimnames[0]][pname]
                 y=self.distributions[stimnames[1]][pname]
                 self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
                 self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
             elif naxis==1:
-                ncells = self.distributions[stimnames[0]][pname].shape[0]
-                nbins=ncells/5
-                distr1, bins1=numpy.histogram(self.distributions[stimnames[0]][pname],nbins)
-                distr2, bins2=numpy.histogram(self.distributions[stimnames[1]][pname],nbins)
-                self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
-                self.distr2 = numpy.cast['float'](distr2)/float(distr2.sum())
-                self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
-                self.bins2 = numpy.diff(bins2)[0]*0.5+bins2
+                colors = [(0, 0, 255,150), (0, 255, 0,150)]
                 self.plots[k]._clear_curves()
                 self.plots[k].plot.addLegend(size=(120,60))
                 self.plots[k].curves=[]
-                plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : (0, 0, 255,150), 'name': stimnames[0]}
-                self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
-                self.plots[k].curves[-1].setData(self.bins1,self.distr1)
-                plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : (0, 255, 0,150), 'name': stimnames[1]}
-                self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
-                self.plots[k].curves[-1].setData(self.bins2,self.distr2)
                 self.plots[k].plot.setLabels(bottom=pname)
+                for i in range(len(stimnames)):
+                    ncells = self.distributions[stimnames[i]][pname].shape[0]
+                    nbins=ncells/5
+                    distr1, bins1=numpy.histogram(self.distributions[stimnames[i]][pname],nbins)
+                    self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
+                    self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
+                    plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : colors[i], 'name': stimnames[i]}
+                    self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
+                    self.plots[k].curves[-1].setData(self.bins1,self.distr1)
         
     def rescale(self):
         plotname = self.plots.keys()[self.tab.currentIndex()]
@@ -688,7 +686,7 @@ class MainUI(gui.VisexpmanMainWindow):
     def tab_changed(self,currentIndex):
         self.to_engine.put({'data': currentIndex, 'path': 'main_tab', 'name': 'Main Tab'})
         
-    def adjust_contrast(self):
+    def adjust_contrast(self):#TODO: self.adjust widget shall be integrated into image widget
         if hasattr(self.image, 'rawimage'):
             image_range = self.image.rawimage.max()-self.image.rawimage.min()
             low = float(self.adjust.low.value())/100*image_range
