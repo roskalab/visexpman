@@ -24,7 +24,7 @@ class ExampleDashStimulus(experiment.ExperimentConfig):
         self.GAPSIZE = [20, 20]
         self.MOVINGLINES = 3
         self.DURATION = 5
-        self.SPEED = 160
+        self.SPEEDS = [160, 300]
         self.DIRECTIONS = [0, 45, 90]
     
         self.runnable='DashStimulus'
@@ -39,6 +39,8 @@ class DashStimulus(experiment.Experiment):
         self.texture_info = {'bar_size':self.experiment_config.BARSIZE,
                              'gap_size':self.experiment_config.GAPSIZE
                             }
+        
+    
     
     def run(self):
         self_SHAPE_POSITIONS = {0:{'row':5,'col':2}}#,1:{'row':300,'col':400}}
@@ -46,13 +48,17 @@ class DashStimulus(experiment.Experiment):
         
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':0, 'counter':self.frame_counter})
         
-        self.show_dashes(texture = self.texture,
-                         texture_size = self.texture_size,
-                         texture_info = self.texture_info,
-                        movingLines = self.experiment_config.MOVINGLINES,
-                        duration = self.experiment_config.DURATION,
-                        speed = self.experiment_config.SPEED,
-                        )
+        for speed in self.experiment_config.SPEEDS:
+            for direction in self.experiment_config.DIRECTIONS:
+            
+                self.show_dashes(texture = self.texture,
+                                texture_size = self.texture_size,
+                                texture_info = self.texture_info,
+                                movingLines = self.experiment_config.MOVINGLINES,
+                                duration = self.experiment_config.DURATION,
+                                speed = speed,
+                                direction = direction,
+                                )
         
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':1, 'counter':self.frame_counter})
     

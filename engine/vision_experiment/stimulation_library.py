@@ -1526,47 +1526,50 @@ class AdvancedStimulation(StimulationHelpers):
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         
         
-        # Enter stimulus loop:
-        dist = 0
-        t = 0
-        dx = speed/(self.config.SCREEN_EXPECTED_FRAME_RATE*self.config.SCREEN_UM_TO_PIXEL_SCALE)
-        while True:
-            
-            dist += dx
-            t += 1
-            if self.abort:
-                break
-            if t > (duration*self.config.SCREEN_EXPECTED_FRAME_RATE):
-                break
-            
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            glColor3fv((1.0,1.0,1.0))
-             
-            for w_i in range(-1, nRepW+1):
-                for l_i in range(-1, nRepL+1):
+        for lineRepeat in range(movingLines):
+            # Enter stimulus loop:
+            dist = 0
+            t = 0
+            dx = speed/(self.config.SCREEN_EXPECTED_FRAME_RATE*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+            while True:
                 
-                    glPushMatrix()
-           
-                    glRotatef(direction, 0,0,1)
+                dist += dx
+                t += 1
+                if self.abort:
+                    break
+                if t > (duration*self.config.SCREEN_EXPECTED_FRAME_RATE):
+                    break
+                
+                glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                glColor3fv((1.0,1.0,1.0))
+                
+                for w_i in range(-1, nRepW+1):
+                    for l_i in range(-1, nRepL+1):
                     
-                    if w_i%movingLines == 0:
-                        glTranslate((dist+l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
-                    else:
-                        glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
-                    
-                    glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-screen[0], 0)
-                    
-                    glEnable(GL_TEXTURE_2D)
-                    glBindTexture(GL_TEXTURE_2D, texture_handles)
-                    glVertexPointerf(vertices)
-                    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-                    glDrawArrays(GL_POLYGON,  0, 4)
-                    glDisable(GL_TEXTURE_2D)
-                    
-                    glPopMatrix()
+                        glPushMatrix()
             
-            self._flip(frame_trigger = True)
+                        glRotatef(direction, 0,0,1)
+                        
+                        if w_i%movingLines == lineRepeat:
+                            glTranslate((dist+l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                        else:
+                            glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                        
+                        #glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-screen[0], 0)
+                        glTranslate(0,(w_i*wDist_px)-screen[0], 0)
+                        
+                        glEnable(GL_TEXTURE_2D)
+                        glBindTexture(GL_TEXTURE_2D, texture_handles)
+                        glVertexPointerf(vertices)
+                        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+                        glDrawArrays(GL_POLYGON,  0, 4)
+                        glDisable(GL_TEXTURE_2D)
+                        
+                        glPopMatrix()
+                
+                self._flip(frame_trigger = True)
         
+        # Finish up
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
