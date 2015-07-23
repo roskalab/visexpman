@@ -106,7 +106,7 @@ class DashStimulus(experiment.Experiment):
         self.show_dash()
         # self.show_grating(  duration = 0.0,
         #                     profile = 'sqr',
-        #                     white_bar_width =-1,
+        #                     white_bar[0] =-1,
         #                     display_area = utils.cr((0,  0)),
         #                     orientation = 0,
         #                     starting_phase = 0.0,
@@ -132,7 +132,7 @@ class DashStimulus(experiment.Experiment):
                 - 'sin': sine
                 - 'cos': cosine
                 profile parameter can be a list of these keywords. Then different profiles are applied to each color channel
-            - white_bar_width: length of one bar in um (pixel)
+            - white_bar[0]: length of one bar in um (pixel)
             - display area
             - orientation: orientation of grating in degrees
             - starting_phase: starting phase of stimulus in degrees
@@ -145,99 +145,122 @@ class DashStimulus(experiment.Experiment):
         
         Usage examples:
         1) Show a simple, fullscreen, grating stimuli for 3 seconds with 45 degree orientation
-            show_grating(duration = 3.0, orientation = 45, velocity = 100, white_bar_width = 100)
+            show_grating(duration = 3.0, orientation = 45, velocity = 100, white_bar[0] = 100)
         2) Show grating with sine profile on a 500x500 area with 10 degree starting phase
-            show_grating(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, white_bar_width = 200)
+            show_grating(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, white_bar[0] = 200)
         3) Show grating with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
-            show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
+            show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar[0] = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """
         
-    def create_bar(self, size=[128,128], width_ratio = 1.0, length_ratio = 1.0):
+    def create_bar(self, size=[128,128], bar=[10,10], gap=[10,10]):# width_ratio = 1.0, length_ratio = 1.0):
         # Create BAR texture:
-        #bar_width = 100
-        #gap_width = round(bar_width/width_ratio)
-        #bar_length = 100
-        #gap_length = round(bar_length/length_ratio)
+        #bar[0] = 100
+        #gap[0] = round(bar[0]/width_ratio)
+        #bar[1] = 100
+        #gap[1] = round(bar[1]/length_ratio)
         texture_W = size[0]
         texture_L = size[1]
         
-        gap_width = round(size[0]/(2*(width_ratio+1.0)))
-        bar_width = (texture_W/2 - gap_width)#(gap_width*width_ratio;
-        gap_length = round(size[1]/(2*(length_ratio+1.0)))
-        bar_length = (texture_L/2 - gap_length) #gap_length*length_ratio;
+        bar_in = copy.copy(bar)
+        gap_in = copy.copy(gap)
         
+        fw = texture_W / float(bar_in[0]+gap_in[0])
+        gap[0] = int(gap_in[0]*fw*0.5)*2
+        bar[0] = texture_W - gap[0] #int(bar[0]*fw)
+        
+        fl = texture_L / float(bar_in[1]+gap_in[1])
+        gap[1] = int(gap_in[1]*fl*0.5)*2
+        bar[1] = texture_L-gap[1] #int(bar[0]*fl)
+        
+        # gap[0] = round(size[0]/(2*(width_ratio+1.0)))
+        # bar[0] = (texture_W/2 - gap[0])#(gap[0]*width_ratio;
+        # gap[1] = round(size[1]/(2*(length_ratio+1.0)))
+        # bar[1] = (texture_L/2 - gap[1]) #gap[1]*length_ratio;
+        # 
         bg_color  = numpy.array([[0,0,0]])
         bar_color = numpy.array([[1,0,0]])
         
-        #texture_H = 2*(bar_width+gap_width)
-        #texture_W = 2*(bar_length+gap_length)
+        #texture_H = 2*(bar[0]+gap[0])
+        #texture_W = 2*(bar[1]+gap[1])
         
         # Upper and lower gap between dashes
-        gap_w = numpy.repeat([numpy.repeat(bg_color, texture_W, axis=0)], gap_width, axis=0)
+        gap_w = numpy.repeat([numpy.repeat(bg_color, texture_W, axis=0)], 0.5*gap[0], axis=0)
         
         # Left and right gap between dashes
-        gap_l = numpy.repeat(bg_color, gap_length, axis=0)
+        gap_l = numpy.repeat(bg_color, 0.5*gap[1], axis=0)
         # Dash itself (one dimensional)
-        dash_l = numpy.repeat(bar_color, 2*bar_length, axis=0)
+        dash_l = numpy.repeat(bar_color, bar[1], axis=0)
         
         # Dash and left-right gaps in 2D
-        dash = numpy.repeat([numpy.concatenate((gap_l, dash_l, gap_l))], 2*bar_width, axis=0)
+        dash = numpy.repeat([numpy.concatenate((gap_l, dash_l, gap_l))], bar[0], axis=0)
         return numpy.concatenate((gap_w, dash, gap_w)) 
         
     def show_dash(self):
         
-        bar_width = 50 # um
-        bar_length = 100 # um
-        gap_width = 20
-        gap_length = 100
+        bar = [100, 100] # W, L um
+        gap = [100, 100]
         
+        movingLines = 2
+        time = 5 #
+        speed = 160 # um/s
         
-        diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
-        diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
-                
+              
         #speed = 300
         #y_repeat = 1# 3
         #x_repeat = 1#0
         #
-        lineRep = 2
         
-        time = 5 #
-        speed = 160 # um/s
-        maxLength = 2*speed*time/(self.config.SCREEN_UM_TO_PIXEL_SCALE*self.config.SCREEN_RESOLUTION['row'])
+        #maxLength = 2*speed*time/(self.config.SCREEN_UM_TO_PIXEL_SCALE*self.config.SCREEN_RESOLUTION['row'])
+        
+        diagonal_px = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
+        diagonal_px =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
+        
         
         #alpha =numpy.pi/4
         #angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
-        angles = numpy.array([  45.,  135.,  225.,  -45.]) * numpy.pi/180
+        #angles = numpy.array([  45.,  135.,  225.,  -45.]) * numpy.pi/180
         
-        vertices_x = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
-        vertices_x = vertices_x.transpose()
+        #vertices_x = 0.5 * diagonal_px * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        #vertices_x = vertices_x.transpose()
         
-        screen = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])*0.5
-        vertices0 = numpy.array([[screen[0], screen[1]],[-screen[0], screen[1]],[-screen[0], -screen[1]],[screen[0], -screen[1]]])
+        screen = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        # vertices0 = numpy.array([[screen[0], screen[1]],[-screen[0], screen[1]],[-screen[0], -screen[1]],[screen[0], -screen[1]]])
         vertices = []
         
-        yDist = (bar_width+gap_width)*self.config.SCREEN_UM_TO_PIXEL_SCALE #float(screen[1])/float(nLines)*numpy.sqrt(2)
-        nLines = int(numpy.ceil(diagonal/yDist)) #int(numpy.ceil( diagonal*self.config.SCREEN_UM_TO_PIXEL_SCALE/(bar_width+gap_width)  ))#diagonal maximum
-        for l in numpy.arange(-(nLines*0.5),nLines*0.5,1.0):
-            d0 = yDist*l
-            d1 = yDist*(l+1.0)
-            v = numpy.concatenate(([vertices0[:,0]*2*maxLength], [[d0,d0,d1,d1]]), axis=0 ).T
-            vertices.append(v)
-            #vertices.append(vertices0*numpy.array([1,1/nLines]) + numpy.array([[0,0],[0,0],[0,yDist*(l-nLines*0.5)],[0,yDist*(l-nLines*0.5)]]) )
+        wDist_px = (bar[0]+gap[0])/self.config.SCREEN_UM_TO_PIXEL_SCALE #float(screen[1])/float(nRepW)*numpy.sqrt(2)
+        nRepW   = int(numpy.ceil(diagonal_px/wDist_px)) #int(numpy.ceil( diagonal_px*self.config.SCREEN_UM_TO_PIXEL_SCALE/(bar[0]+gap[0])  ))#diagonal_px maximum
         
+        lDist_px = (bar[1]+gap[1])/self.config.SCREEN_UM_TO_PIXEL_SCALE
+        nRepL = int(numpy.ceil(diagonal_px/lDist_px))
         
-        texture = self.create_bar(size = [128,128], width_ratio =  bar_width/gap_width, length_ratio = bar_length/gap_length)
-        x_repeat = 2*maxLength*screen[0]/128
+        # for l in numpy.arange(-(nRepW*0.5),nRepW*0.5,1.0):
+        #     d0 = wDist_px*l
+        #     d1 = wDist_px*(l+1.0)
+        #     v = numpy.concatenate(([vertices0[:,0]*2*maxLength], [[d0,d0,d1,d1]]), axis=0 ).T
+        #     vertices.append(v)
         
-        print x_repeat
+        nPixTexture = 128
+        #nPixH = nPixTexture/2
+        vertices2 = numpy.array([[-lDist_px, -wDist_px],[-lDist_px, wDist_px],[lDist_px, wDist_px],[lDist_px, -wDist_px]])*0.5
+        
+        texture = self.create_bar(size = [nPixTexture,nPixTexture], bar=bar, gap=gap)
+        # x_repeat = 2*maxLength*screen[0]/128
+        # 
+        # print x_repeat
+        # texture_coordinates = numpy.array(
+        #                     [
+        #                     [ x_repeat, 1.0],# y_repeat],
+        #                     [-x_repeat, 1.0],# y_repeat],
+        #                     [-x_repeat, 0.0],#-y_repeat],
+        #                     [ x_repeat, 0.0],#-y_repeat],
+        #                     ])
         texture_coordinates = numpy.array(
                             [
-                            [ x_repeat, 1.0],# y_repeat],
-                            [-x_repeat, 1.0],# y_repeat],
-                            [-x_repeat, 0.0],#-y_repeat],
-                            [ x_repeat, 0.0],#-y_repeat],
+                            [1.0, 1.0],# y_repeat],
+                            [0.0, 1.0],# y_repeat],
+                            [0.0, 0.0],#-y_repeat],
+                            [1.0, 0.0],#-y_repeat],
                             ])
-        
         
         #print texture
         
@@ -277,33 +300,36 @@ class DashStimulus(experiment.Experiment):
         # If the values extend 1, the texture is being repeated:
         
         
-        def show_dashes(i=0):
+        def show_dash():
             glEnable(GL_TEXTURE_2D)
             glBindTexture(GL_TEXTURE_2D, texture_handles)
-            glVertexPointerf(vertices[i])
+            glVertexPointerf(vertices2)#[i])
             glEnableClientState(GL_TEXTURE_COORD_ARRAY)
             glDrawArrays(GL_POLYGON,  0, 4)
             glDisable(GL_TEXTURE_2D)
             
         dist = 0
-        i = 0
+        t = 0
         #speed*time/(self.config.SCREEN_UM_TO_PIXEL_SCALE*self.config.SCREEN_RESOLUTION['row'])
         dx = speed/(self.config.SCREEN_EXPECTED_FRAME_RATE*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         #for t in range(200):
         while True:
             
             dist += dx
-            i += 1
+            t += 1
             if self.abort:
                 break
-            if dist > maxLength*screen[0]:
+            if t > (time*self.config.SCREEN_EXPECTED_FRAME_RATE):
                 break
             
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
              
-            for l in range(nLines):
-                glPushMatrix()
+            for w_i in range(-1, nRepW+1):
+                
+                for l_i in range(-1, nRepL+1):
+                
+                    glPushMatrix()
             # # FIRST TEXTURE:
             # glEnable(GL_TEXTURE_2D)
             # glBindTexture(GL_TEXTURE_2D, texture_handles)
@@ -315,12 +341,16 @@ class DashStimulus(experiment.Experiment):
             # glDrawArrays(GL_POLYGON,  0, 4)
             # glDisable(GL_TEXTURE_2D)
             
-                glRotatef(i, 0,0,1)
-                if l%lineRep == 0:
-                    glTranslate(dist,0,0)
-                
-                show_dashes(l)
-                glPopMatrix()
+                    glRotatef(t*0.0, 0,0,1)
+                    if w_i%movingLines == 0:
+                        glTranslate((dist+l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                    else:
+                        glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                    
+                    glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-screen[0], 0)
+                    
+                    show_dash()
+                    glPopMatrix()
 
             
             
@@ -396,13 +426,13 @@ class DashStimulus(experiment.Experiment):
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         intensity_profile_length = texture.shape[0]
         
-        diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
-        diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
+        diagonal_px = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
+        diagonal_px =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
         
         alpha =numpy.pi/4
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
         angles = angles + direction*numpy.pi/180.0
-        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        vertices = 0.5 * diagonal_px * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
 
         glEnableClientState(GL_VERTEX_ARRAY)
