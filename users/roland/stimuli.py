@@ -52,6 +52,7 @@ class MovingShapeExperiment(experiment.Experiment):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
     
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'MovingShapeExperiment', 'is_last':0, 'counter':self.frame_counter})
         self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
                                   speeds = self.experiment_config.SPEEDS,
                                   directions = self.experiment_config.DIRECTIONS,
@@ -62,6 +63,7 @@ class MovingShapeExperiment(experiment.Experiment):
                                   repetition = self.experiment_config.REPETITIONS,
                                   block_trigger = True,
                                   shape_starts_from_edge = True)
+        self.stimulus_frame_info.append({'super_block':'MovingShapeExperiment', 'is_last':1, 'counter':self.frame_counter})
 
 class IncreasingSpotExperiment(experiment.Experiment):
     def prepare(self):

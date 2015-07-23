@@ -34,5 +34,5 @@ class WhiteNoiseExperiment(experiment.Experiment):
                 colors = self.experiment_config.COLORS,
                 n_on_pixels = _n_white_pixels, set_seed = False)
         self.block_end()
-	self.show_fullscreen(color=0.5)
+        self.show_fullscreen(color=0.5)
         
