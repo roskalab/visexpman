@@ -20,8 +20,8 @@ from stimuli import *
 # ------------------------------------------------------------------------------
 class ExampleDashStimulus(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.BARSIZE = [50, 100]
-        self.GAPSIZE = [20, 20]
+        self.BARSIZE = [25, 100]
+        self.GAPSIZE = [5, 20]
         self.MOVINGLINES = 3
         self.DURATION = 5
         self.SPEEDS = [160, 300]
