@@ -340,9 +340,12 @@ class Analysis(object):
         if hasattr(self, 'reference_roi_filename'):
             self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
             self.datafile.save(['repetition_link'], overwrite=True)
-        self.printc('Calculating and saving trace parameters')
-        self.datafile.trace_parameters = [self._extract_repetition_data(roi)[-1] for roi in self.rois]
-        self.datafile.save(['rois', 'trace_parameters'], overwrite=True)
+        if 0:
+            self.printc('Calculating and saving trace parameters')
+            self.datafile.trace_parameters = [self._extract_repetition_data(roi)[-1] for roi in self.rois]
+            self.datafile.save(['rois', 'trace_parameters'], overwrite=True)
+        else:
+            self.datafile.save(['rois'], overwrite=True)
         self.datafile.convert(self.guidata.read('Save File Format'))
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
@@ -438,12 +441,13 @@ class Analysis(object):
         return x_, y_, x, y, parameters
         
     def display_cell(self, path):
+        print path
         index=int(path[0].split('_')[-1])
         self.to_gui.put({'image_title' :'/'.join(path)})
         if len(path)==1:#Display all stimulus and all repetitions
             #Collect all roi curves and meanimage
             roi=self.cells[index]
-            first_roi = roi.values()[0].values()[0]
+            first_roi = roi[[k for k in roi.keys() if k!='scan_region'][0]].values()[0]
             rois = []
             for k,r in roi.items():
                 if k == 'scan_region': continue
@@ -472,7 +476,13 @@ class Analysis(object):
         tdiffs = numpy.array([r['tsync'][0] for r in rois])
         tdiffs -= tdiffs.min()
         timgs=numpy.array([r['timg'] for r in rois])
+        transposed=False
+        if len(timgs.shape)==2 and timgs.shape[0]<timgs.shape[1]:#For some weird reoson timgs can come transposed
+            timgs=timgs.T
+            transposed=True
         timgs = list(timgs-tdiffs)
+        if transposed:
+            timgs = list(numpy.array(timgs).T)
         normalized=[r['normalized'] for r in rois]
         tsync = rois[tdiffs.argmin()]['tsync']
         return timgs, tsync, normalized
@@ -480,6 +490,17 @@ class Analysis(object):
     def _display_single_roi(self,roi):
         self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
+        
+    def fix_files(self,folder):
+        self.printc('Fixing '+folder)
+        for f in fileop.listdir_fullpath(folder):
+            if 'hdf5' not in f: continue
+            self.open_datafile(f)
+            self._normalize_roi_curves()
+            self.save_rois_and_export(ask_overwrite=False)
+        self.printc('DONE')
+        self.notify('Info', 'ROI fixing is ready')
+        
         
     def meanimage2tiff(self,fn):
         import tifffile

@@ -276,7 +276,10 @@ def aggregate_cells(folder):
         scan_region_name = fntags['tag']
         for roi in aggregated_rois:
             main_roi = copy.deepcopy(roi)
-            del main_roi['matches']
+            try:
+                del main_roi['matches']
+            except:
+                continue
             matched_rois = {os.path.basename(hdf5file): main_roi}
             matched_rois.update(roi['matches'])
             #Organize by stimulus type:

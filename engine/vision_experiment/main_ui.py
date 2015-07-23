@@ -11,6 +11,21 @@ import pyqtgraph
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
 from visexpman.engine.vision_experiment import gui_engine, experiment
 
+
+class Advanced(QtGui.QWidget):
+    def __init__(self,parent):
+        self.parent=parent
+        QtGui.QWidget.__init__(self,parent)
+        self.fix=QtGui.QPushButton('Fix rois, reexport files' ,parent=self)
+        self.connect(self.fix, QtCore.SIGNAL('clicked()'), self.fix_clicked)
+        
+    def fix_clicked(self):
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.machine_config.EXPERIMENT_DATA_PATH))
+        if os.path.exists(folder):
+            self.parent.to_engine.put({'function': 'fix_files', 'args':[folder]})
+
+        
+
 class CellBrowser(pyqtgraph.TreeWidget):
     def __init__(self,parent):
         self.parent=parent
@@ -279,7 +294,10 @@ class TraceParameterPlots(QtGui.QWidget):
             stimnames = self.distributions.keys()
             if naxis==2:
                 x=self.distributions[stimnames[0]][pname]
-                y=self.distributions[stimnames[1]][pname]
+                try:
+                    y=self.distributions[stimnames[1]][pname]
+                except IndexError:
+                    print stimnames,pname
                 self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
                 self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
             elif naxis==1:
@@ -404,12 +422,14 @@ class MainUI(gui.VisexpmanMainWindow):
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
+        self.advanced=Advanced(self)
         
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
         self.main_tab.addTab(self.analysis, 'Analysis')
         self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
+        self.main_tab.addTab(self.advanced, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         
