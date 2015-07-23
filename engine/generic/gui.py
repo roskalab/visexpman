@@ -236,6 +236,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.rois = []
         
     def set_image(self, image, color_channel=None, alpha = 0.8):
+        self.rawimage=image
         im=alpha*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
         if len(image.shape) == 2 and color_channel is not None:
             im[:,:,:3] = 0
@@ -380,6 +381,26 @@ class ArrowButtons(QtGui.QGroupBox):
         
     def arrow_clicked(self, direction):
         '''User should redefine this'''
+        
+class ImageAdjust(QtGui.QWidget):
+    '''
+    Default value in input field:
+        self.input.setText(TEXT)
+    '''
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.high = QtGui.QSlider(Qt.Qt.Horizontal,self)
+        self.low = QtGui.QSlider(Qt.Qt.Horizontal,self)
+        hl=QtGui.QLabel('High', self)
+        ll=QtGui.QLabel('Low', self)
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(ll, 0, 0)
+        self.layout.addWidget(self.low, 0, 1)
+        self.layout.addWidget(hl, 0, 2)
+        self.layout.addWidget(self.high, 0, 3)
+        self.setLayout(self.layout)
+        self.high.setFixedWidth(100)
+        self.low.setFixedWidth(100)
 
 
 class GroupBox(QtGui.QGroupBox):#OBSOLETE

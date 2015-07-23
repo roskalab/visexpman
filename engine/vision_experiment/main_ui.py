@@ -400,6 +400,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         self.image = Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+        self.adjust=gui.ImageAdjust(self)
+        self.adjust.setFixedHeight(40)
+        self.adjust.low.setValue(0)
+        self.adjust.high.setValue(99)
+        self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
         self.plot = gui.Plot(self)
         self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
         self.plot.setMaximumWidth(self.image.width())
@@ -442,6 +447,8 @@ class MainUI(gui.VisexpmanMainWindow):
         self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
         self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repeptitions_changed)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
+        self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+        self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -700,6 +707,13 @@ class MainUI(gui.VisexpmanMainWindow):
             
     def tab_changed(self,currentIndex):
         self.to_engine.put({'data': currentIndex, 'path': 'main_tab', 'name': 'Main Tab'})
+        
+    def adjust_contrast(self):
+        if hasattr(self.image, 'rawimage'):
+            image_range = self.image.rawimage.max()-self.image.rawimage.min()
+            low = float(self.adjust.low.value())/100*image_range
+            high = float(self.adjust.high.value())/100*image_range
+            self.image.img.setLevels([low,high])
             
     def send_widget_status(self):
         if hasattr(self, 'tpp'):
