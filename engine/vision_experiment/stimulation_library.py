@@ -1495,6 +1495,87 @@ class AdvancedStimulation(StimulationHelpers):
             from visexpman.engine.hardware_interface.scanner_control import ScannerError
             raise ScannerError('Position(s) are beyond the scanner\'s operational range')
         daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
+
+    
+    def show_dashes(self, texture, texture_size, texture_info = {}, movingLines = 2, duration = 5, speed = 160, direction = 0.0, save_frame_info = True):
+        
+        # Length of diagonal in pixels
+        screen = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        diagonal_px = numpy.sqrt(2) * numpy.max(screen)
+        
+        # Size and number of repetiotions along the length of bar
+        wDist_px = (texture_size[0])/self.config.SCREEN_UM_TO_PIXEL_SCALE
+        nRepW   = int(numpy.ceil(diagonal_px/wDist_px))
+        
+        # Size and number of repetiotions along the width of bar
+        lDist_px = (texture_size[1])/self.config.SCREEN_UM_TO_PIXEL_SCALE
+        nRepL = int(numpy.ceil(diagonal_px/lDist_px))
+        
+        # Vertices that define the size of the texture (centered around (0,0) )
+        vertices = numpy.array([[-lDist_px, -wDist_px],[-lDist_px, wDist_px],[lDist_px, wDist_px],[lDist_px, -wDist_px]])*0.5
+        
+        
+        # Create gl texture
+        glEnableClientState(GL_VERTEX_ARRAY)
+        texture_handles = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, texture_handles)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
+        glTexCoordPointerf(texture_coordinates)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+        
+        
+        # Enter stimulus loop:
+        dist = 0
+        t = 0
+        dx = speed/(self.config.SCREEN_EXPECTED_FRAME_RATE*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        while True:
+            
+            dist += dx
+            t += 1
+            if self.abort:
+                break
+            if t > (duration*self.config.SCREEN_EXPECTED_FRAME_RATE):
+                break
+            
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+             
+            for w_i in range(-1, nRepW+1):
+                for l_i in range(-1, nRepL+1):
+                
+                    glPushMatrix()
+           
+                    glRotatef(direction, 0,0,1)
+                    
+                    if w_i%movingLines == 0:
+                        glTranslate((dist+l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                    else:
+                        glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                    
+                    glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-screen[0], 0)
+                    
+                    glEnable(GL_TEXTURE_2D)
+                    glBindTexture(GL_TEXTURE_2D, texture_handles)
+                    glVertexPointerf(vertices)
+                    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+                    glDrawArrays(GL_POLYGON,  0, 4)
+                    glDisable(GL_TEXTURE_2D)
+                    
+                    glPopMatrix()
+            
+            self._flip(frame_trigger = True)
+        
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        glDeleteTextures(texture_handles)
+        # END OF show_dash
+
+
         
 class TestStimulationPatterns(unittest.TestCase):
     
@@ -1614,6 +1695,10 @@ class TestStimulationPatterns(unittest.TestCase):
         #Check if block indexes are increasing:
         bidiff = numpy.diff(numpy.array([s['block_start' if s.has_key('block_start') else 'block_end'] for s in sfi if 'block_start' in s or 'block_end' in s]))
         self.assertGreaterEqual(bidiff.min(),0)
+    
+    
+
+
 
 if __name__ == "__main__":
     unittest.main()
