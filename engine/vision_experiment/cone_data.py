@@ -14,6 +14,11 @@ from visexpA.engine.dataprocessors import signal as signal2
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import scipy.optimize
+try:
+    from skimage import filters
+except ImportError:
+    from skimage import filter as filters
+
 from pylab import plot,show,figure,title,imshow,subplot,clf,savefig
 
 import warnings
@@ -111,10 +116,6 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
     -Segment and select central object
     '''
     from scipy.ndimage.filters import gaussian_filter
-    try:
-        from skimage import filters
-    except ImportError:
-        from skimage import filter as filters
     import scipy.ndimage.measurements
     p=im1.max()
     im = gaussian_filter(im1, sigma)
@@ -338,6 +339,14 @@ def quantify_cells(cells):
             parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] if cp.has_key(stimulus_name) else numpy.nan for cp in cell_parameters])
     return parameter_distributions
     
+def roi_redetect(rectangle, meanimage, subimage_size=3):
+    subimage=meanimage[rectangle[0]-rectangle[2]*0.5*subimage_size:rectangle[0]+rectangle[2]*0.5*subimage_size,rectangle[1]-rectangle[3]*0.5*subimage_size:rectangle[1]+rectangle[3]*0.5*subimage_size]
+    area=numpy.where(subimage>filters.threshold_otsu(subimage))
+    area=numpy.copy(area)
+    area[0]+=rectangle[0]-rectangle[2]*0.5*subimage_size
+    area[1]+=rectangle[1]-rectangle[3]*0.5*subimage_size
+    return numpy.array(area).T
+    
 class TestCA(unittest.TestCase):
     def setUp(self):
         if '_01_' in self._testMethodName or '_02_' in self._testMethodName or '_03_' in self._testMethodName:
@@ -443,10 +452,21 @@ class TestCA(unittest.TestCase):
         fns.sort()
         res = aggregate_cells(wf)
     
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_07_quantify_cells(self):
         cells=hdf5io.read_item('/home/rz/rzws/test_data/aggregated_cells.hdf5', 'cells',filelocking=False)
         quantify_cells(cells)
+        
+    def test_08_local_cell_detection(self):
+        fn='/home/rz/codes/data/test_data/data_C6_SpotPar_209592957_0.hdf5'
+        rois=hdf5io.read_item(fn,'rois',filelocking=False)
+        roi=rois[18]
+        meanimage=roi['meanimage']
+        area=roi_redetect(roi['rectangle'], meanimage, subimage_size=3)
+        meanimage[area[:,0],area[:,1]]=meanimage.max()
+        print roi['rectangle']
+        imshow(meanimage);show()
+        pass
     
     @unittest.skip('')
     def test_debug(self):

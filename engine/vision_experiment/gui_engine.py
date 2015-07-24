@@ -305,12 +305,13 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
-        areax,areay=numpy.meshgrid(numpy.arange(rectangle[0]-0.5*rectangle[2],rectangle[0]+0.5*rectangle[2]),numpy.arange(rectangle[1]-0.5*rectangle[3],rectangle[1]+0.5*rectangle[3]))
-        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': numpy.cast['int'](numpy.round(numpy.array([areax.flatten(), areay.flatten()]).T))})
+        area=cone_data.roi_redetect(rectangle, self.meanimage, subimage_size=3)
+        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
         self.to_gui.put({'fix_roi' : None})
         self.display_roi_curve()
+        self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
         
     def _check_unsaved_rois(self, warning_only=False):
