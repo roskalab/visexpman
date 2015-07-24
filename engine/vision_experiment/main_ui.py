@@ -223,7 +223,7 @@ class RoiShift(gui.ArrowButtons):
         self.parent.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
                 
 class Image(gui.Image):
-    def __init__(self, parent, roi_diameter=3):
+    def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
         self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
         self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)

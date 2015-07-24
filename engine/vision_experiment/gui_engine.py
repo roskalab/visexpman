@@ -74,6 +74,8 @@ class ExperimentHandler(object):
 class Analysis(object):
     def __init__(self,machine_config):
         self.machine_config = machine_config
+        import multiprocessing
+        self.pool=multiprocessing.Pool(introspect.get_available_process_cores())
         
     def keep_rois(self, keep):
         if keep:
@@ -171,9 +173,7 @@ class Analysis(object):
     def _roi_area2image(self, recalculate_contours = True, shiftx = 0, shifty = 0):
         areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
         if recalculate_contours:
-            import multiprocessing
-            p=multiprocessing.Pool(introspect.get_available_process_cores())
-            contours=p.map(cone_data.area2edges, areas)
+            contours=self.pool.map(cone_data.area2edges, areas)
             self._init_meanimge_w_rois()
             for coo in contours:
                 self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.8
@@ -503,7 +503,8 @@ class Analysis(object):
         for n in nodes:
             h.load(n)
             if hasattr(h,n):
-                path=str(getattr(h,n))
+                path=str(getattr(h,n)).lstrip()
+                path = path[0].lower()+path[1:]#In windows the drive letter mightr come lowercase and uppercase. 
                 if n=='ftiff':
                     path=os.path.dirname(path)
                 if os.path.exists(path) and measurement_folder in path:
@@ -513,8 +514,10 @@ class Analysis(object):
         files2remove.extend([fn for fn in fileop.listdir_fullpath(measurement_folder) if id in fn and fn != filename])
         if not self.ask4confirmation('The following files will be removed:\r\n{0}. Is that OK?'.format('\r\n'.join(files2remove))):
             return
+        self.printc('Removing {0}, please wait...'.format(', '.join(files2remove)))
         for fn in files2remove:
             shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
+        self.printc('Done')
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)

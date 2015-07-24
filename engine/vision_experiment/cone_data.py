@@ -341,7 +341,11 @@ def quantify_cells(cells):
     
 def roi_redetect(rectangle, meanimage, subimage_size=3):
     subimage=meanimage[rectangle[0]-rectangle[2]*0.5*subimage_size:rectangle[0]+rectangle[2]*0.5*subimage_size,rectangle[1]-rectangle[3]*0.5*subimage_size:rectangle[1]+rectangle[3]*0.5*subimage_size]
-    area=numpy.where(subimage>filters.threshold_otsu(subimage))
+    binary=numpy.where(subimage>filters.threshold_otsu(subimage),1,0)
+    import scipy.ndimage.measurements
+    labeled, nsegments = scipy.ndimage.measurements.label(binary)
+    #Take item in the center
+    area=numpy.where(labeled==labeled[binary.shape[0]/2,binary.shape[1]/2])
     area=numpy.copy(area)
     area[0]+=rectangle[0]-rectangle[2]*0.5*subimage_size
     area[1]+=rectangle[1]-rectangle[3]*0.5*subimage_size
