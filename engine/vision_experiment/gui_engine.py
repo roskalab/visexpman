@@ -490,6 +490,31 @@ class Analysis(object):
         self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
         
+    def remove_recording(self,filename):
+        if not fileop.is_recording_filename(filename) or fileop.file_extension(filename)!='hdf5':
+            self.notify('Info', '{0} is not a recording file'.format(filename))
+            return
+        #Figure out which files will be removed
+        measurement_folder=os.path.dirname(filename)
+        h=hdf5io.Hdf5io(filename,filelocking=False)
+        nodes=['ftiff','fphys']
+        files2remove = [filename]
+        for n in nodes:
+            h.load(n)
+            if hasattr(h,n):
+                path=str(getattr(h,n))
+                if n=='ftiff':
+                    path=os.path.dirname(path)
+                if os.path.exists(path) and measurement_folder in path:
+                    files2remove.append(path)
+        h.close()
+        id=fileop.parse_recording_filename(filename)['id']
+        files2remove.extend([fn for fn in fileop.listdir_fullpath(measurement_folder) if id in fn and fn != filename])
+        if not self.ask4confirmation('The following files will be removed:\r\n{0}. Is that OK?'.format('\r\n'.join(files2remove))):
+            return
+        for fn in files2remove:
+            shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
+        
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
         files=fileop.listdir_fullpath(folder)
