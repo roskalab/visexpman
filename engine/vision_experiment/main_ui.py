@@ -24,8 +24,6 @@ class Advanced(QtGui.QWidget):
         if os.path.exists(folder):
             self.parent.to_engine.put({'function': 'fix_files', 'args':[folder]})
 
-        
-
 class CellBrowser(pyqtgraph.TreeWidget):
     def __init__(self,parent):
         self.parent=parent
@@ -180,8 +178,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         return filename, classname
         
     def _give_not_stimulus_selected_warning(self):
-        QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)
-        
+        QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)        
 
 class Progressbar(QtGui.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False):
@@ -237,16 +234,27 @@ class Image(gui.Image):
 class DataFileBrowser(gui.FileTree):
     def __init__(self,parent, root, extensions):
         gui.FileTree.__init__(self,parent, root, extensions)
-        self.doubleClicked.connect(self.file_selected)
+        self.doubleClicked.connect(self.file_open)
+        self.clicked.connect(self.file_selected)
         self.setToolTip('Double click on file to open')
         
-    def file_selected(self,index):
+        self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.open_menu)
+        
+    def _get_filename(self,index):
         filename = str(index.model().filePath(index))
         #Make compatible filename with win and linux systems
         filename = filename.replace('/', os.sep)
         filename = list(filename)
         filename[0] = filename[0].lower()
         filename = ''.join(filename)
+        return filename
+        
+    def file_selected(self,index):
+        self.selected_filename = self._get_filename(index)
+        
+    def file_open(self,index):
+        filename = self._get_filename(index)
         if os.path.isdir(filename): return#Double click on folder is ignored
         ext = fileop.file_extension(filename)
         if ext == 'hdf5':
@@ -256,6 +264,17 @@ class DataFileBrowser(gui.FileTree):
         else:
             raise NotImplementedError(filename)
         self.parent.parent.to_engine.put({'function': function, 'args':[filename]})
+
+    def open_menu(self, position):
+        self.menu = QtGui.QMenu(self)
+        delete_action = QtGui.QAction('Remove recording', self)
+        delete_action.triggered.connect(self.delete_action)
+        self.menu.addAction(delete_action)
+        self.menu.exec_(self.viewport().mapToGlobal(position))
+        
+    def delete_action(self):
+        if hasattr(self, 'selected_filename'):
+            self.parent.parent.to_engine.put({'function': 'remove_recording', 'args':[self.selected_filename]})
 
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
@@ -293,32 +312,30 @@ class TraceParameterPlots(QtGui.QWidget):
             pname=stringop.to_variable_name(k.split('@')[0])
             stimnames = self.distributions.keys()
             if naxis==2:
+                if len(stimnames)!=2:#When number of stimuli is not 2, this plotting is skipped
+                    continue
                 x=self.distributions[stimnames[0]][pname]
-                try:
-                    y=self.distributions[stimnames[1]][pname]
-                except IndexError:
-                    print stimnames,pname
+                y=self.distributions[stimnames[1]][pname]
+                xfildered=[]
+                yfiltered=[]
                 self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
                 self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
             elif naxis==1:
-                ncells = self.distributions[stimnames[0]][pname].shape[0]
-                nbins=ncells/5
-                distr1, bins1=numpy.histogram(self.distributions[stimnames[0]][pname],nbins)
-                distr2, bins2=numpy.histogram(self.distributions[stimnames[1]][pname],nbins)
-                self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
-                self.distr2 = numpy.cast['float'](distr2)/float(distr2.sum())
-                self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
-                self.bins2 = numpy.diff(bins2)[0]*0.5+bins2
+                colors = [(0, 0, 255,150), (0, 255, 0,150)]
                 self.plots[k]._clear_curves()
                 self.plots[k].plot.addLegend(size=(120,60))
                 self.plots[k].curves=[]
-                plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : (0, 0, 255,150), 'name': stimnames[0]}
-                self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
-                self.plots[k].curves[-1].setData(self.bins1,self.distr1)
-                plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : (0, 255, 0,150), 'name': stimnames[1]}
-                self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
-                self.plots[k].curves[-1].setData(self.bins2,self.distr2)
                 self.plots[k].plot.setLabels(bottom=pname)
+                for i in range(len(stimnames)):
+                    ncells = self.distributions[stimnames[i]][pname].shape[0]
+                    nbins=ncells/5
+                    values = numpy.array([v for v in self.distributions[stimnames[i]][pname] if not numpy.isnan(v)])
+                    distr1, bins1=numpy.histogram(values,nbins)
+                    self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
+                    self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
+                    plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : colors[i], 'name': stimnames[i]}
+                    self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
+                    self.plots[k].curves[-1].setData(self.bins1,self.distr1)
         
     def rescale(self):
         plotname = self.plots.keys()[self.tab.currentIndex()]
@@ -381,7 +398,7 @@ class AnalysisHelper(QtGui.QWidget):
             self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder]})
 
 class MainUI(gui.VisexpmanMainWindow):
-    def __init__(self, context):
+    def __init__(self, context):        
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
         gui.VisexpmanMainWindow.__init__(self, context)
@@ -708,7 +725,7 @@ class MainUI(gui.VisexpmanMainWindow):
     def tab_changed(self,currentIndex):
         self.to_engine.put({'data': currentIndex, 'path': 'main_tab', 'name': 'Main Tab'})
         
-    def adjust_contrast(self):
+    def adjust_contrast(self):#TODO: self.adjust widget shall be integrated into image widget
         if hasattr(self.image, 'rawimage'):
             image_range = self.image.rawimage.max()-self.image.rawimage.min()
             low = float(self.adjust.low.value())/100*image_range

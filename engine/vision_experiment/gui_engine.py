@@ -305,12 +305,13 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
-        areax,areay=numpy.meshgrid(numpy.arange(rectangle[0]-0.5*rectangle[2],rectangle[0]+0.5*rectangle[2]),numpy.arange(rectangle[1]-0.5*rectangle[3],rectangle[1]+0.5*rectangle[3]))
-        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': numpy.cast['int'](numpy.round(numpy.array([areax.flatten(), areay.flatten()]).T))})
+        area=cone_data.roi_redetect(rectangle, self.meanimage, subimage_size=3)
+        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
         self.to_gui.put({'fix_roi' : None})
         self.display_roi_curve()
+        self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
         
     def _check_unsaved_rois(self, warning_only=False):
@@ -392,7 +393,7 @@ class Analysis(object):
         self.printc('Calculating parameter distributions')
         self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
-        self.printc('Aggregated {0} cells.'.format(len(self.cells)))
+        self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
         
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
@@ -441,7 +442,6 @@ class Analysis(object):
         return x_, y_, x, y, parameters
         
     def display_cell(self, path):
-        print path
         index=int(path[0].split('_')[-1])
         self.to_gui.put({'image_title' :'/'.join(path)})
         if len(path)==1:#Display all stimulus and all repetitions
@@ -491,13 +491,42 @@ class Analysis(object):
         self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
         
+    def remove_recording(self,filename):
+        if not fileop.is_recording_filename(filename) or fileop.file_extension(filename)!='hdf5':
+            self.notify('Info', '{0} is not a recording file'.format(filename))
+            return
+        #Figure out which files will be removed
+        measurement_folder=os.path.dirname(filename)
+        h=hdf5io.Hdf5io(filename,filelocking=False)
+        nodes=['ftiff','fphys']
+        files2remove = [filename]
+        for n in nodes:
+            h.load(n)
+            if hasattr(h,n):
+                path=str(getattr(h,n))
+                if n=='ftiff':
+                    path=os.path.dirname(path)
+                if os.path.exists(path) and measurement_folder in path:
+                    files2remove.append(path)
+        h.close()
+        id=fileop.parse_recording_filename(filename)['id']
+        files2remove.extend([fn for fn in fileop.listdir_fullpath(measurement_folder) if id in fn and fn != filename])
+        if not self.ask4confirmation('The following files will be removed:\r\n{0}. Is that OK?'.format('\r\n'.join(files2remove))):
+            return
+        for fn in files2remove:
+            shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
+        
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
-        for f in fileop.listdir_fullpath(folder):
+        files=fileop.listdir_fullpath(folder)
+        files.sort()
+        self.abort=False
+        for f in files:
             if 'hdf5' not in f: continue
             self.open_datafile(f)
             self._normalize_roi_curves()
             self.save_rois_and_export(ask_overwrite=False)
+            if self.abort:break
         self.printc('DONE')
         self.notify('Info', 'ROI fixing is ready')
         

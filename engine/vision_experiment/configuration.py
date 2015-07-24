@@ -50,6 +50,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
             CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
+            DELETED_FILES_PATH
             
         GUI_CONFIGURABLE_STIMULATION_DEVICES: generating stimulation on these devices can be done without an existing experiment config. The (timing) parameters are taken from the user interface.
 
