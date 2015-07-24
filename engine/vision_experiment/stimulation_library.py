@@ -936,20 +936,26 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
     def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, is_block = False):
+        
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
+            
         self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
+        
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
         self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
             self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
+        
         intensity_profile_length = self.intensity_profile.shape[0]
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
+            
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
         fly_in_out = self.config.BACKGROUND_COLOR[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
         intensity_profile_length += 2*fly_in_out.shape[0]
@@ -962,6 +968,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         angles = angles + direction*numpy.pi/180.0
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
+        
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -1498,6 +1505,19 @@ class AdvancedStimulation(StimulationHelpers):
 
     
     def show_dashes(self, texture, texture_size, texture_info = {}, movingLines = 2, duration = 5, speed = 160, direction = 0.0, save_frame_info = True):
+        '''
+            This stimulus repeats a texture object in lines that are then moving together.
+            Required:
+            - texture: 3D numpy.array with shape (nx,ny,3)
+            - texture_size: width and length of each texture (in um)
+            Optional:
+            - texture_info: useful for data analysis, i.e. explain that the texture is
+            - movingLines: every m-th rows move together while the others are static
+            - duration: total time of stimulus in seconds
+            - speed: in um/s
+            - direction: in degrees
+            - save_frame_info: default to True
+        '''
         
         # Length of diagonal in pixels
         screen = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
