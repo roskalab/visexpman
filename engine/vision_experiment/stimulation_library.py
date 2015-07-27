@@ -934,7 +934,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 break
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
+    
+    
+    
     def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, is_block = False):
         
         if spatial_resolution is None:

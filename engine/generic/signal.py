@@ -86,7 +86,7 @@ def generate_random_angles(n, p = 3559, q = 3571, x0 = 17):
         v.append(xn/float(p*q))
     return numpy.array(v)*2*numpy.pi - numpy.pi
     
-def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels = 255):
+def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels = 255, debug=False):
     '''
     duration: duration of stimulus
     speed: um/s
@@ -101,9 +101,11 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
     spatial_range = duration * speed
     if minimal_spatial_period < 5 * spatial_resolution:
         raise RuntimeError('minimal_spatial_period ({0}) shall be bigger than 5 x spatial_resolution ({0}) ' .format(minimal_spatial_period, spatial_resolution))
+    
     spatial_frequencies = numpy.arange(1.0/spatial_range, 1.0/minimal_spatial_period+1.0/spatial_range, 1.0/spatial_range)
     amplitudes = numpy.sqrt(1.0/spatial_frequencies**2)#Power spectrum of sunlight which is 1/f**2
     phases = generate_random_angles(spatial_frequencies.shape[0])
+    
     #Since the number fo samples have to be integer, the spatial resolution is slightly modified
     modified_spatial_resolution = float(spatial_range/spatial_resolution)/int(spatial_range/spatial_resolution)*spatial_resolution
     intensity_profile = numpy.zeros(int(numpy.round(spatial_range/modified_spatial_resolution)))
@@ -113,9 +115,11 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
         if abs(intensity_profile[0]-intensity_profile[-1])/intensity_profile.max()>1e-3:
             pass
     intensity_profile = scale(intensity_profile)
+    
     if intensity_levels != 0:
         intensity_profile = numpy.cast['int'](intensity_profile*intensity_levels)/float(intensity_levels)
-    if not True:
+    
+    if debug:
         from pylab import plot,show,figure
         figure(1)
         plot(s, intensity_profile)
@@ -124,6 +128,7 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
         figure(3)
         plot(numpy.tile(intensity_profile,3),'o')
         show()
+    
     return intensity_profile
     
 def natural_distribution_morse(duration, sample_time, occurence_of_longest_period = 1.0, n0 = 10):

@@ -32,6 +32,7 @@ class MEAConfig(HiMEAConfig):
         
         recordingMachineName = 'bs-hpws18' # retina room: bs-hpws19
         folder = '/mnt/' + recordingMachineName + '/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/data/'
+        folder = '/home/rolandd/rolandd-fileshare/tmp'
         
         if not os.path.isdir(folder):
             os.makedirs(folder)

@@ -1,4 +1,7 @@
-##
+#%%
+import os
+os.chdir('/home/rolandd/Software/')
+
 import sys
 import unittest
 import time
@@ -16,9 +19,7 @@ import hdf5io
 
 import visexpman.engine.visexp_app as app
 
-context = visexpman.engine.application_init(user='roland',
-                                  config='MEAConfig',
-                                  user_interface_name='stim')
+context = visexpman.engine.application_init(user='roland', config='MEAConfig', user_interface_name='stim')
 
 #
 #context = visexpman.engine.application_init(user='antonia',
@@ -31,17 +32,17 @@ app.run_stim(context)
 visexpman.engine.stop_application(context)
 
 
-## 
-#import serial
-#s = [serial.Serial(context['machine_config'].DIGITAL_IO_PORT)]
+#%%
+
+import visexpman.engine.generic.signal as s
+x = s.generate_natural_stimulus_intensity_profile(speed = 500,
+                                                  duration=20.0,
+                                                  intensity_levels=255,
+                                                  minimal_spatial_period=17.5,
+                                                  spatial_resolution=1.75)
 
 
-##
-#import serial
-#s = serial.Serial('/dev/ttyS0')
-
-
-## This works:
+#%% This works:
 import parallel
 p = parallel.Parallel()
 ##
