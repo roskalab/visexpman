@@ -71,7 +71,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._frame_trigger_pulse()
         if count:
             self.frame_counter += 1
-            print self.frame_counter
+            #print self.frame_counter
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             self.frame_rates.append(self.screen.frame_rate)

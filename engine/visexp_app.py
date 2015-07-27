@@ -22,9 +22,10 @@ from visexpman.engine.generic import utils,fileop,introspect
 import hdf5io
 
 class StimulationLoop(ServerLoop, StimulationScreen):
-    def __init__(self, machine_config, socket_queues, command, log):
+    def __init__(self, machine_config, socket_queues, command, log, single_file=None):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
-        self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
+        print single_file
+        self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False, single_file=single_file)]
         self.experiment_configs.sort()
         if len(self.experiment_configs)>10:
             self.experiment_configs = self.experiment_configs[:10]#TODO: give some warning
@@ -222,7 +223,7 @@ def run_main_ui(context):
         main_ui.MainUI(context=context)
 
 def run_stim(context, timeout = None):
-    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
+    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'], single_file=context['single_file'])
     context['logger'].start()
     stim.run(timeout=timeout)
     
@@ -240,7 +241,7 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
         setattr(context['machine_config'], k, v)
     if context['machine_config'].ENABLE_FRAME_CAPTURE:
         context['capture_path'] = prepare_capture_folder(context['machine_config'])
-    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
+    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'], single_file=context['single_file'])
     parameters = {
             'experiment_name': experiment_config,
             'cell_name': '', 

@@ -19,7 +19,7 @@ import hdf5io
 
 import visexpman.engine.visexp_app as app
 
-context = visexpman.engine.application_init(user='roland', config='MEAConfig', user_interface_name='stim')
+context = visexpman.engine.application_init(user='roland', config='MEAConfig', user_interface_name='stim', single_file='pilot02_cell_classification')
 
 #
 #context = visexpman.engine.application_init(user='antonia',

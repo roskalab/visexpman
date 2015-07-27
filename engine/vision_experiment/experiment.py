@@ -67,6 +67,12 @@ class ExperimentConfig(Config):
                 self.runnable.run()
         self.runnable.cleanup()
 
+    def extract_experiment_type(self, obj):
+        experiment_type = obj.runnable
+        for var_name in self.VARS[experiment_type]:
+            setattr(obj, var_name, self.VARS[experiment_type][var_name])
+    
+
 class Experiment(stimulation_library.AdvancedStimulation):
     '''
     The usage of experiment fragments assumes the existence of number_of_fragments variable

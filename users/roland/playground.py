@@ -47,6 +47,15 @@ class ABatchConfig(experiment.ExperimentConfig):
         self.runnable = 'BatchStimulus'
         self._create_parameters_from_locals(locals())
 
+          
+
+class AA(ABatchConfig):
+    def _create_parameters(self):
+        super(AA, self)._create_parameters()
+        self.runnable = 'DashStimulus'
+        super(AA, self).extract_experiment_type(self)
+        self._create_parameters_from_locals(locals())
+
 
 class PlayGround(experiment.Experiment):
     '''

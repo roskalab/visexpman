@@ -49,6 +49,7 @@ def application_init(**kwargs):
     '''
     parnames = ['user', 'config', 'user_interface_name']
     args = {}
+    args['single_file'] = None   
     if len(kwargs) < 3:#Find user, machine config and application name from command line parameters
         import sys
         if 'unittest_aggregator' not in sys.argv[0]:#Unit
@@ -60,18 +61,30 @@ def application_init(**kwargs):
         argparser.add_argument('-u', '--user', help = 'User of the application. A subfolder with this name shall exists visexpman.engine.users folder.')
         argparser.add_argument('-c', '--config', help = 'Machine config that reside in either user\'s folder or in visexpman.users.common')
         argparser.add_argument('-a', '--user_interface_name', help = 'Application to be started: main_ui, stim, ca_imaging')
+        argparser.add_argument('-s', '--single_file', help = 'Specify one single file that contains the stimulus configs.')
         argparser.add_argument('--testmode', help = 'Test mode')
         parsed_args = argparser.parse_args()
         for parname in parnames:
             if getattr(parsed_args,parname) is None:
                 raise ApplicationError('{0} parameter not provided'.format(parname))
             args[parname] = getattr(parsed_args,parname).replace(' ', '')
+        
+        try:
+            args['single_file'] = getattr(parsed_args,'single_file').replace(' ', '')
+        except:
+            args['single_file'] = None    
+            
     else:
         for parname in parnames:
             args[parname] = kwargs[parname]
+        try:
+            args['single_file'] = kwargs['single_file']
+        except:
+            args['single_file'] = None   
+        
     #Instantiate machine config
     import visexpman.engine.vision_experiment.configuration
-    config_class = utils.fetch_classes('visexpman.users.common', classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
+    config_class = utils.fetch_classes('visexpman.users.common', classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False, single_file=args['single_file'])
     if len(config_class) == 0:#Try user's folder if not found in common folder 
         config_class = utils.fetch_classes('visexpman.users.' + args['user'], classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
         if len(config_class) == 0:#Machine config class not found
@@ -126,6 +139,7 @@ def application_init(**kwargs):
     context['user_interface_name'] = args['user_interface_name']
     context['command'] = multiprocessing.Queue()
     context['warning'] = []
+    context['single_file'] = args['single_file']
     return context
     
 def stop_application(context):

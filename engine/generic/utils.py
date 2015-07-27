@@ -392,7 +392,7 @@ def class_name(object):
     name = str(object.__class__)
     return name.split('\'')[1]
     
-def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_ancestors=[], direct=True):
+def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_ancestors=[], direct=True, single_file=None):
     '''Looks for the specified class, imports it and returns as class instance.
     Use cases:
     1. just specify user, others left as default: returns all classes
@@ -404,10 +404,14 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     import visexpman
     bm=__import__(basemodule, fromlist='dummy')
     class_list=[]
+    
     if not isinstance(required_ancestors, (list, tuple)): required_ancestors=[required_ancestors]
     if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
     
     for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
+        #print modname
+        if single_file is not None and modname != bm.__name__+'.'+single_file:
+            continue
         try:
             m= __import__(modname, fromlist='dummy')
             for attr in inspect.getmembers(m, inspect.isclass):
