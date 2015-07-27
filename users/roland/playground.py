@@ -44,17 +44,34 @@ class ABatchConfig(experiment.ExperimentConfig):
         self.VARS['DashStimulus']['DIRECTIONS'] = [135] #range(0, 55, 5)
         self.VARS['DashStimulus']['BAR_COLOR'] = 0.5
         
-        self.runnable = 'PlayGround'
+        self.runnable = 'BatchStimulus'
         self._create_parameters_from_locals(locals())
 
 
 class PlayGround(experiment.Experiment):
+    '''
+        Required parameters:
+        VARS: dict with each 'runnable' experiment.Experiment class as first keys and
+            their required variables as second keys.
+            
+        E.g.:
+            self.VARS = {}
+            self.VARS['FingerPrinting'] = {}
+            self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
+            ...
+            self.VARS['DashStimulus'] = {}
+            self.VARS['DashStimulus']['BARSIZE'] = [25, 100]
+    '''    
+    
     def prepare(self):
-        
+        '''
+            This function creates all the sub-stimuli and calls their 'prepare' functions.
+        '''        
         self.experiments = {}
         for experiment_type in self.experiment_config.VARS:
             print experiment_type
             
+            # Pass on ExperimentConfig to sub classes:
             this_config = experiment.ExperimentConfig(machine_config=None, runnable=experiment_type)
             for var_name in self.experiment_config.VARS[experiment_type]:
                 setattr(this_config, var_name, self.experiment_config.VARS[experiment_type][var_name])
@@ -65,21 +82,17 @@ class PlayGround(experiment.Experiment):
                                                                       queues = self.queues,
                                                                       parameters = self.parameters,
                                                                       log = self.log,
-                                                                      )
-            #machine_config, experiment_config=None, queues=None, parameters=None, log=None, digital_output=None):
-            
-            #self.experiments[experiment_type].experiment_config = experiment.ExperimentConfig(self.machine_config, runnable=experiment_type)
-            #for var_name in self.experiment_config.VARS[experiment_type]:
-                #eval('self.experiments[' + experiment_type + '].experiment_config.' + var_name + ' = self.experiment_config.VARS['+experiment_type+']['+var_name+']')
-                #self.experiments[experiment_type].experiment_config.var_name = self.experiment_config.VARS[experiment_type][var_name]
-            
+                                                                      )                                                    
             self.experiments[experiment_type].prepare()
         
     def run(self):
-        
-        for experiment_type in self.experiment_config.VARS:
-            #self.stimulus_frame_info.append({'super_block':experiment_type, 'is_last':0, 'counter':self.frame_counter})
+        '''
+            This function iterates all sub-stimuli and calls their 'run' functions.
             
+            The variable 'frame_counter' has to be passed and retrieved directly
+            to/from the sub-stimulus class.
+        '''
+        for experiment_type in self.experiment_config.VARS:           
             # Before starting sub_experiment, update the frame_counter:
             self.experiments[experiment_type].frame_counter = self.frame_counter
             self.experiments[experiment_type].run()
@@ -89,8 +102,6 @@ class PlayGround(experiment.Experiment):
                 self.stimulus_frame_info.append(info)
                 print info
             
-            #self.stimulus_frame_info.append({'super_block':experiment_type, 'is_last':1, 'counter':self.frame_counter})
-
             # After each sub_experiment, add one second of white fullscreen:
             self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':0, 'counter':self.frame_counter})     
             self.show_fullscreen(duration=1.0, color=1.0, frame_trigger=True)
