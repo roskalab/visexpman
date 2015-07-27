@@ -27,12 +27,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self, machine_config, queues, application_log):
+    def __init__(self, machine_config, queues, application_log, digital_output=None):
         self.config=machine_config#TODO: eliminate self.config
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
         self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
-        experiment_control.StimulationControlHelper.__init__(self, machine_config, queues, application_log)
+        experiment_control.StimulationControlHelper.__init__(self, machine_config, queues, application_log, digital_output=digital_output)
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
@@ -71,6 +71,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._frame_trigger_pulse()
         if count:
             self.frame_counter += 1
+            print self.frame_counter
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             self.frame_rates.append(self.screen.frame_rate)
@@ -1547,6 +1548,9 @@ class AdvancedStimulation(StimulationHelpers):
         glTexCoordPointerf(texture_coordinates)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         
+        # Enter stimulus loop:
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         
         for lineRepeat in range(movingLines):
             # Enter stimulus loop:
@@ -1601,7 +1605,7 @@ class AdvancedStimulation(StimulationHelpers):
         # END OF show_dash
 
 
-    def fingerprinting(self, intensity_profile, speed,
+    def show_fingerprint(self, intensity_profile, speed,
                        direction = 0.0,
                        forward = True,
                        save_frame_info =True, is_block = False):

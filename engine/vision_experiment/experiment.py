@@ -25,7 +25,8 @@ class ExperimentConfig(Config):
     socket queues
     log
     '''
-    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None):
+    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, runnable=None):
+        self.runnable = runnable
         Config.__init__(self, ignore_range = True)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         if machine_config != None:
@@ -71,12 +72,12 @@ class Experiment(stimulation_library.AdvancedStimulation):
     The usage of experiment fragments assumes the existence of number_of_fragments variable
     The following variable is saved to the output file: self.experiment_specific_data
     '''
-    def __init__(self, machine_config, experiment_config=None, queues=None, parameters=None, log=None):
+    def __init__(self, machine_config, experiment_config=None, queues=None, parameters=None, log=None, digital_output=None):
         self.parameters = parameters#Parameters coming from main_ui
         self.experiment_config = experiment_config
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
-        stimulation_library.Stimulations.__init__(self, machine_config, queues, log)
+        stimulation_library.Stimulations.__init__(self, machine_config, queues, log, digital_output=digital_output)
         #self.prepare()#TODO: eliminate this: This might not be necessary: 
 
     def prepare(self):

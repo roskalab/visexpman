@@ -21,15 +21,28 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-from stimuli import *
+from visexpman.users.common.stimuli import *
 
-class APlayGroundConfig(experiment.ExperimentConfig):
+class ABatchConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.FF_PAUSE_DURATION = 1.0
-        self.FF_PAUSE_COLOR = 1.0
-        self.DIRECTIONS = range(0,90, 45)
-        self.SPEEDS = [500, 1600]      
-        self.DURATION = 2.0        
+        
+        self.VARS = {}
+        self.VARS['FingerPrinting'] = {}
+        self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
+        self.VARS['FingerPrinting']['FF_PAUSE_COLOR'] = 1.0
+        self.VARS['FingerPrinting']['DIRECTIONS'] = [0] #range(0,90, 45)
+        self.VARS['FingerPrinting']['SPEEDS'] = [1600] #[500, 1600]      
+        self.VARS['FingerPrinting']['DURATION'] = 1.0
+        self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255        
+        
+        self.VARS['DashStimulus'] = {}
+        self.VARS['DashStimulus']['BARSIZE'] = [25, 100]
+        self.VARS['DashStimulus']['GAPSIZE'] = [5, 20]
+        self.VARS['DashStimulus']['MOVINGLINES'] = 3
+        self.VARS['DashStimulus']['DURATION'] = 1.0
+        self.VARS['DashStimulus']['SPEEDS'] = [1600]
+        self.VARS['DashStimulus']['DIRECTIONS'] = [135] #range(0, 55, 5)
+        self.VARS['DashStimulus']['BAR_COLOR'] = 0.5
         
         self.runnable = 'PlayGround'
         self._create_parameters_from_locals(locals())
@@ -38,49 +51,50 @@ class APlayGroundConfig(experiment.ExperimentConfig):
 class PlayGround(experiment.Experiment):
     def prepare(self):
         
-        #self.speed = 500
-        #self.direction = 0.0
-        duration = self.experiment_config.DURATION
-        
-        self.intensity_levels = 255
-        minimal_spatial_period = None
-        spatial_resolution = None
-        
-        if spatial_resolution is None:
-            spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
-        if minimal_spatial_period is None:
-            minimal_spatial_period = 10 * spatial_resolution
-        
-        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
-        
-        # Create intensity profile(s):
-        self.intensity_profiles = {}
-        for speed in self.experiment_config.SPEEDS:
-            intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration=duration,
-                                                                                        speed=speed,
-                                                                                        intensity_levels=self.intensity_levels,
-                                                                                        minimal_spatial_period=minimal_spatial_period,
-                                                                                        spatial_resolution=spatial_resolution,
-                                                                                        )
+        self.experiments = {}
+        for experiment_type in self.experiment_config.VARS:
+            print experiment_type
             
-            intensity_profile = numpy.concatenate((numpy.zeros(1.5*screen_size[1]), intensity_profile, numpy.zeros(1.5*screen_size[1])) )
-            if intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
-                intensity_profile = numpy.tile(intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/intensity_profile.shape[0]))
+            this_config = experiment.ExperimentConfig(machine_config=None, runnable=experiment_type)
+            for var_name in self.experiment_config.VARS[experiment_type]:
+                setattr(this_config, var_name, self.experiment_config.VARS[experiment_type][var_name])
             
-            self.intensity_profiles[speed] = intensity_profile
+            self.experiments[experiment_type] = eval(experiment_type)(machine_config = self.machine_config,
+                                                                      digital_output = self.digital_output,
+                                                                      experiment_config=this_config,
+                                                                      queues = self.queues,
+                                                                      parameters = self.parameters,
+                                                                      log = self.log,
+                                                                      )
+            #machine_config, experiment_config=None, queues=None, parameters=None, log=None, digital_output=None):
+            
+            #self.experiments[experiment_type].experiment_config = experiment.ExperimentConfig(self.machine_config, runnable=experiment_type)
+            #for var_name in self.experiment_config.VARS[experiment_type]:
+                #eval('self.experiments[' + experiment_type + '].experiment_config.' + var_name + ' = self.experiment_config.VARS['+experiment_type+']['+var_name+']')
+                #self.experiments[experiment_type].experiment_config.var_name = self.experiment_config.VARS[experiment_type][var_name]
+            
+            self.experiments[experiment_type].prepare()
         
     def run(self):
-        self.stimulus_frame_info.append({'super_block':'PlayGround', 'is_last':0, 'counter':self.frame_counter})
         
-        for speed in self.experiment_config.SPEEDS:
-            for direction in self.experiment_config.DIRECTIONS:
-                #self.moving_comb(speed=500, orientation=0, bar_width=50, tooth_size=20, tooth_type='sawtooth', contrast=1.0, background=0,pos = utils.rc((0,0)) )
-                self.fingerprinting(self.intensity_profiles[speed], speed, direction = direction, forward=True)
-                self.show_fullscreen(duration=self.experiment_config.FF_PAUSE_DURATION, color=self.experiment_config.FF_PAUSE_COLOR,frame_trigger=True)
-                self.fingerprinting(self.intensity_profiles[speed], speed, direction = direction, forward=False)
+        for experiment_type in self.experiment_config.VARS:
+            #self.stimulus_frame_info.append({'super_block':experiment_type, 'is_last':0, 'counter':self.frame_counter})
             
-        self.stimulus_frame_info.append({'super_block':'PlayGround', 'is_last': 1, 'counter':self.frame_counter})
+            # Before starting sub_experiment, update the frame_counter:
+            self.experiments[experiment_type].frame_counter = self.frame_counter
+            self.experiments[experiment_type].run()
+            self.frame_counter = self.experiments[experiment_type].frame_counter
 
+            for info in self.experiments[experiment_type].stimulus_frame_info:           
+                self.stimulus_frame_info.append(info)
+                print info
+            
+            #self.stimulus_frame_info.append({'super_block':experiment_type, 'is_last':1, 'counter':self.frame_counter})
+
+            # After each sub_experiment, add one second of white fullscreen:
+            self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':0, 'counter':self.frame_counter})     
+            self.show_fullscreen(duration=1.0, color=1.0, frame_trigger=True)
+            self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':1, 'counter':self.frame_counter})
 
 
 
