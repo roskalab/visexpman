@@ -424,7 +424,6 @@ class DashStimulus(experiment.Experiment):
         
         for speed in self.experiment_config.SPEEDS:
             for direction in self.experiment_config.DIRECTIONS:
-            
                 self.show_dashes(texture = self.texture,
                                 texture_size = self.texture_size,
                                 texture_info = self.texture_info,
