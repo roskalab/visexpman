@@ -135,7 +135,7 @@ class MovingGrating(experiment.Experiment):
     '''
     Mandatory configuration parameters:
         REPEATS
-        NUMBER_OF_BAR_ADVANCE_OVER_POINT
+        N_BAR_ADVANCES_OVER_POINT
         MARCH_TIME
         GREY_INSTEAD_OF_MARCHING
         NUMBER_OF_MARCHING_PHASES
@@ -148,7 +148,6 @@ class MovingGrating(experiment.Experiment):
     Optional configuration parameters:
         ENABLE_FLASH
         PROFILE
-        
     '''
     def prepare(self):
         self.marching_phases = -numpy.linspace(0, 360, self.experiment_config.NUMBER_OF_MARCHING_PHASES + 1)[:-1]        
@@ -168,7 +167,7 @@ class MovingGrating(experiment.Experiment):
                             stimulus_unit['duty_cycle'] = duty_cycle
                             stimulus_unit['orientation'] = orientation
                             period_length = (duty_cycle + 1) * white_bar_width
-                            required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
+                            required_movement = period_length * self.experiment_config.N_BAR_ADVANCES_OVER_POINT
                             stimulus_unit['move_time'] = float(required_movement) / velocity
                             #round it to the multiple of frame rate
                             stimulus_unit['move_time'] = \
