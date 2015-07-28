@@ -117,6 +117,7 @@ class FullFieldFlashesExperiment(experiment.Experiment):
             self.repetitions = self.experiment_config.REPETITIONS
         else:
             self.repetitions = 1
+        self.stimulus_duration = self.repetitions * len(self.colors) * (self.experiment_config.ON_TIME+self.experiment_config.OFF_TIME)
 
     def run(self):
         self.stimulus_frame_info.append({'super_block':'FullFieldFlashesExperiment', 'is_last':0, 'counter':self.frame_counter})
@@ -187,6 +188,8 @@ class MovingGrating(experiment.Experiment):
         segment_pointer = 0
         self.fragmented_stimulus_units = [self.stimulus_units]
         self.experiment_specific_data = {}
+        
+        self.stimulus_duration = self.overall_duration
 
     def run(self, fragment_id = 0):
         
@@ -465,10 +468,8 @@ class DashStimulus(experiment.Experiment):
         dash = numpy.repeat([numpy.concatenate((gap_l, dash_l, gap_l))], bar_[0], axis=0)
         return numpy.concatenate((gap_w, dash, gap_w)) 
   
-class FingerPrinting(experiment.Experiment):
-            
+class FingerPrinting(experiment.Experiment):        
     def prepare(self):
-        
         duration = self.experiment_config.DURATION
         intensity_levels = self.experiment_config.INTENSITY_LEVELS
         
@@ -511,6 +512,26 @@ class FingerPrinting(experiment.Experiment):
             
         self.stimulus_frame_info.append({'super_block':'FingerPrinting', 'is_last': 1, 'counter':self.frame_counter})
 
+class WhiteNoiseExperiment(experiment.Experiment):
+    def prepare(self):
+        self.stimulus_duration = self.experiment_config.DURATION_MINS*60
+        self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
+        if not self.experiment_config.N_WHITE_PIXELS:
+            self.n_white_pixels = None;
+        
+    def run(self):
+        print 'Start WhiteNoiseExperiments.run()'
+        
+        random.seed(0)
+                
+        self.stimulus_frame_info.append({'super_block':'WhiteNoiseExperiment', 'is_last':0, 'counter':self.frame_counter})    
+        self.white_noise(duration = self.experiment_config.DURATION_MINS*60,
+                pixel_size = self.experiment_config.PIXEL_SIZE, 
+                flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY, 
+                colors = self.experiment_config.COLORS,
+                n_on_pixels = self.n_white_pixels, set_seed = False)
+        self.show_fullscreen(color=0.5)
+        self.stimulus_frame_info.append({'super_block':'WhiteNoiseExperiment', 'is_last':1, 'counter':self.frame_counter})    
 
 class BatchStimulus(experiment.Experiment):
     '''
