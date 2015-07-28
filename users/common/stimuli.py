@@ -572,8 +572,8 @@ class BatchStimulus(experiment.Experiment):
                 self.stimulus_frame_info.append(info)
             
             # After each sub_experiment, add one second of white fullscreen:
-            self.stimulus_frame_info.append({'super_block':'Adaptation', 'is_last':0, 'counter':self.frame_counter})     
+            self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':0, 'counter':self.frame_counter})     
             self.show_fullscreen(duration=1.0, color=1.0, frame_trigger=True)
-            self.stimulus_frame_info.append({'super_block':'Adaptation', 'is_last':1, 'counter':self.frame_counter})
+            self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':1, 'counter':self.frame_counter})
 
 
