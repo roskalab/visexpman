@@ -1523,8 +1523,8 @@ class AdvancedStimulation(StimulationHelpers):
         '''
         
         # Length of diagonal in pixels
-        screen = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
-        diagonal_px = numpy.sqrt(2) * numpy.max(screen)
+        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        diagonal_px = numpy.sqrt(2) * numpy.max(screen_size)
         
         # Size and number of repetiotions along the length of bar
         wDist_px = (texture_size[0])/self.config.SCREEN_UM_TO_PIXEL_SCALE
@@ -1577,12 +1577,12 @@ class AdvancedStimulation(StimulationHelpers):
                         glRotatef(direction, 0,0,1)
                         
                         if w_i%movingLines == lineRepeat:
-                            glTranslate((dist+l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                            glTranslate((dist+l_i*lDist_px)%((nRepL+1)*lDist_px)-screen_size[1],0,0)
                         else:
-                            glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen[1],0,0)
+                            glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen_size[1],0,0)
                         
-                        glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-0.5*diagonal_px,0) #0.75*screen[0], 0)
-                        #glTranslate(0,(w_i*wDist_px)-0.5*screen[0], 0)
+                        glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-0.5*diagonal_px,0) #0.75*screen_size[0], 0)
+                        #glTranslate(0,(w_i*wDist_px)-0.5*screen_size[0], 0)
                         
                         glEnable(GL_TEXTURE_2D)
                         glBindTexture(GL_TEXTURE_2D, texture_handles)

@@ -68,9 +68,9 @@ class ExperimentConfig(Config):
         self.runnable.cleanup()
 
     def extract_experiment_type(self, obj):
-        experiment_type = obj.runnable
-        for var_name in self.VARS[experiment_type]:
-            setattr(obj, var_name, self.VARS[experiment_type][var_name])
+        self.runnable = self.STIM_TYPE_CLASS[self.sub_stimulus]
+        for var_name in self.VARS[self.sub_stimulus]:
+            setattr(obj, var_name, self.VARS[self.sub_stimulus][var_name])
     
 
 class Experiment(stimulation_library.AdvancedStimulation):

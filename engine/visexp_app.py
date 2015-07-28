@@ -24,7 +24,7 @@ import hdf5io
 class StimulationLoop(ServerLoop, StimulationScreen):
     def __init__(self, machine_config, socket_queues, command, log, single_file=None):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
-        print single_file
+        #print single_file
         self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False, single_file=single_file)]
         self.experiment_configs.sort()
         if len(self.experiment_configs)>10:

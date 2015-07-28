@@ -27,11 +27,13 @@ class SpotWaveform(experiment.Experiment):
                 self.intensities.append(numpy.array([utils.generate_waveform(self.experiment_config.WAVEFORM, n_sample, self.machine_config.SCREEN_EXPECTED_FRAME_RATE/frq,  float(amplitude),  offset = float(self.experiment_config.BACKGROUND))]).T)
 
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'SpotWaveform', 'is_last':0, 'counter':self.frame_counter})
         for spot_diameter in self.experiment_config.SPOT_DIAMETERS:
             for intensities in self.intensities:
                 self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
                 self.show_shape(color = intensities, background_color = self.experiment_config.BACKGROUND, shape = 'spot', size = spot_diameter, block_trigger=True)
                 self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
+        self.stimulus_frame_info.append({'super_block':'SpotWaveform', 'is_last':1, 'counter':self.frame_counter})
                 
 class MovingShapeExperiment(experiment.Experiment):
     def prepare(self):
@@ -55,6 +57,7 @@ class MovingShapeExperiment(experiment.Experiment):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
     
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'MovingShapeExperiment', 'is_last':0, 'counter':self.frame_counter})
         self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
                                   speeds = self.experiment_config.SPEEDS,
                                   directions = self.experiment_config.DIRECTIONS,
@@ -65,7 +68,8 @@ class MovingShapeExperiment(experiment.Experiment):
                                   repetition = self.experiment_config.REPETITIONS,
                                   block_trigger = True,
                                   shape_starts_from_edge = True)
-
+        self.stimulus_frame_info.append({'super_block':'MovingShapeExperiment', 'is_last':1, 'counter':self.frame_counter})
+        
 class IncreasingSpotExperiment(experiment.Experiment):
     def prepare(self):
         if not hasattr(self.experiment_config, 'COLORS'):
@@ -78,6 +82,7 @@ class IncreasingSpotExperiment(experiment.Experiment):
             self.background_color = self.experiment_config.BACKGROUND
         
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'IncreasingSpotExperiment', 'is_last':0, 'counter':self.frame_counter})
         self.show_fullscreen(color = self.background_color, duration = self.experiment_config.OFF_TIME)
         for color in self.colors:
             self.increasing_spot(   self.experiment_config.SIZES,
@@ -87,6 +92,7 @@ class IncreasingSpotExperiment(experiment.Experiment):
                                     background_color = self.background_color,
                                     pos = utils.rc((0,  0)),
                                     block_trigger = True)
+        self.stimulus_frame_info.append({'super_block':'IncreasingSpotExperiment', 'is_last':1, 'counter':self.frame_counter})
 
 class FullFieldFlashesExperiment(experiment.Experiment):
     '''
@@ -113,6 +119,7 @@ class FullFieldFlashesExperiment(experiment.Experiment):
             self.repetitions = 1
 
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'FullFieldFlashesExperiment', 'is_last':0, 'counter':self.frame_counter})
         for r in range(self.repetitions):
             self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
             for color in self.colors:
@@ -120,7 +127,7 @@ class FullFieldFlashesExperiment(experiment.Experiment):
                 self.show_fullscreen(duration=self.experiment_config.ON_TIME,color=color,frame_trigger=True)
                 self.block_end()
                 self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
-
+        self.stimulus_frame_info.append({'super_block':'FullFieldFlashesExperiment', 'is_last':1, 'counter':self.frame_counter})
             
 
 class MovingGrating(experiment.Experiment):
@@ -183,6 +190,7 @@ class MovingGrating(experiment.Experiment):
 
     def run(self, fragment_id = 0):
         
+        self.stimulus_frame_info.append({'super_block':'MovingGrating', 'is_last':0, 'counter':self.frame_counter})
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus('ff', self.experiment_config.TIMING, colors = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
@@ -252,6 +260,7 @@ class MovingGrating(experiment.Experiment):
                 self.experiment_specific_data['segment_info'][segment_id] = segment_info#TODO:redundant data, need to be removed
                 segment_counter += 1
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)
+        self.stimulus_frame_info.append({'super_block':'MovingGrating', 'is_last':1, 'counter':self.frame_counter})
 
 class PixelSizeCalibration(experiment.Experiment):
     '''
@@ -262,6 +271,7 @@ class PixelSizeCalibration(experiment.Experiment):
         self.number_of_fragments = len(self.fragment_durations)
 
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'PixelSizeCalibration', 'is_last':0, 'counter':self.frame_counter})
         pattern = 0
         self.add_text('Circle at 100,100 um, diameter is 20 um.', color = (1.0,  0.0,  0.0), position = utils.cr((10.0, 30.0)))        
         while True:
@@ -280,12 +290,14 @@ class PixelSizeCalibration(experiment.Experiment):
                 if pattern == 2:
                     pattern = 0
                 self.command_buffer = ''
+        self.stimulus_frame_info.append({'super_block':'PixelSizeCalibration', 'is_last':1, 'counter':self.frame_counter})
 
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):
         self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]
         
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'NaturalMovieExperiment', 'is_last':0, 'counter':self.frame_counter})
         if self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
             duration = 0
         elif self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
@@ -293,6 +305,7 @@ class NaturalMovieExperiment(experiment.Experiment):
         else:
             duration = 1.0/self.experiment_config.FRAME_RATE
         self.show_image(self.experiment_config.FILENAME,duration)
+        self.stimulus_frame_info.append({'super_block':'NaturalMovieExperiment', 'is_last':1, 'counter':self.frame_counter})
 
 class NaturalBarsExperiment(experiment.Experiment):
     def prepare(self):
@@ -314,17 +327,17 @@ class NaturalBarsExperiment(experiment.Experiment):
                                         spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE,
                                         intensity_levels = 255,
                                         direction = directions)
-               
-        
         self.stimulus_frame_info.append({'super_block':'NaturalBarsExperiment', 'is_last':1, 'counter':self.frame_counter})
 
 class LaserBeamStimulus(experiment.Experiment):
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'LaserBeamStimulus', 'is_last':0, 'counter':self.frame_counter})  
         for i in range(self.experiment_config.REPEATS):
             if self.abort:
                 break
             self.point_laser_beam(self.experiment_config.POSITIONS, self.experiment_config.JUMP_TIME, self.experiment_config.HOLD_TIME)
-            
+        self.stimulus_frame_info.append({'super_block':'LaserBeamStimulus', 'is_last':1, 'counter':self.frame_counter})
+
 class ReceptiveFieldExplore(experiment.Experiment):
     '''
     Repeats: flash or sequence
@@ -348,12 +361,13 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                                             on_time = self.experiment_config.ON_TIME,
                                                                             off_time = self.experiment_config.OFF_TIME,
                                                                             overlap = self.experiment_config.OVERLAP if hasattr(self.experiment_config, 'OVERLAP') else [0,0])
-        print 'Projected Duration: ' + str(self.stimulus_duration)
+        #print 'Projected Duration: ' + str(self.stimulus_duration)
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
 
         
     def run(self):
+        self.stimulus_frame_info.append({'super_block':'ReceptiveFieldExplore', 'is_last':0, 'counter':self.frame_counter})   
         self.receptive_field_explore(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None, 
                                     self.experiment_config.ON_TIME,
                                     self.experiment_config.OFF_TIME,
@@ -368,6 +382,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     overlap = self.experiment_config.OVERLAP if hasattr(self.experiment_config, 'OVERLAP') else [0,0],
                                     )
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
+        self.stimulus_frame_info.append({'super_block':'ReceptiveFieldExplore', 'is_last':1, 'counter':self.frame_counter})  
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
 
 
@@ -482,6 +497,8 @@ class FingerPrinting(experiment.Experiment):
             #if intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             #    intensity_profile = numpy.tile(intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/intensity_profile.shape[0]))
             self.intensity_profiles[speed] = intensity_profile
+            
+        self.stimulus_duration = (duration* 2 + self.experiment_config.FF_PAUSE_DURATION) * len(self.experiment_config.SPEEDS)
     
     def run(self):
         self.stimulus_frame_info.append({'super_block':'FingerPrinting', 'is_last':0, 'counter':self.frame_counter})
@@ -514,23 +531,29 @@ class BatchStimulus(experiment.Experiment):
         '''
             This function creates all the sub-stimuli and calls their 'prepare' functions.
         '''        
+        print 'Preparing Batch Stimulus'
+        self.stimulus_duration = 0.0
+        
         self.experiments = {}
-        for experiment_type in self.experiment_config.VARS:
-            print experiment_type
+        for stimulus_name in self.experiment_config.VARS:
+            print 'Adding sub-stimulus: ' + stimulus_name
+            stimulus_type = self.experiment_config.STIM_TYPE_CLASS[stimulus_name]
             
             # Pass on ExperimentConfig to sub classes:
-            this_config = experiment.ExperimentConfig(machine_config=None, runnable=experiment_type)
-            for var_name in self.experiment_config.VARS[experiment_type]:
-                setattr(this_config, var_name, self.experiment_config.VARS[experiment_type][var_name])
+            this_config = experiment.ExperimentConfig(machine_config=None, runnable=stimulus_name)
+            for var_name in self.experiment_config.VARS[stimulus_name]:
+                setattr(this_config, var_name, self.experiment_config.VARS[stimulus_name][var_name])
             
-            self.experiments[experiment_type] = eval(experiment_type)(machine_config = self.machine_config,
+            self.experiments[stimulus_name] = eval(stimulus_type)(machine_config = self.machine_config,
                                                                       digital_output = self.digital_output,
                                                                       experiment_config=this_config,
                                                                       queues = self.queues,
                                                                       parameters = self.parameters,
                                                                       log = self.log,
                                                                       )                                                    
-            self.experiments[experiment_type].prepare()
+            self.experiments[stimulus_name].prepare()
+            self.stimulus_duration += self.experiments[stimulus_name].stimulus_duration
+        print "Projected BatchStimulus duration: " + str(self.stimulus_duration)
         
     def run(self):
         '''
@@ -539,15 +562,14 @@ class BatchStimulus(experiment.Experiment):
             The variable 'frame_counter' has to be passed and retrieved directly
             to/from the sub-stimulus class.
         '''
-        for experiment_type in self.experiment_config.VARS:           
+        for stimulus_name in self.experiment_config.VARS:           
             # Before starting sub_experiment, update the frame_counter:
-            self.experiments[experiment_type].frame_counter = self.frame_counter
-            self.experiments[experiment_type].run()
-            self.frame_counter = self.experiments[experiment_type].frame_counter
+            self.experiments[stimulus_name].frame_counter = self.frame_counter
+            self.experiments[stimulus_name].run()
+            self.frame_counter = self.experiments[stimulus_name].frame_counter
 
-            for info in self.experiments[experiment_type].stimulus_frame_info:           
+            for info in self.experiments[stimulus_name].stimulus_frame_info:           
                 self.stimulus_frame_info.append(info)
-                print info
             
             # After each sub_experiment, add one second of white fullscreen:
             self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':0, 'counter':self.frame_counter})     
