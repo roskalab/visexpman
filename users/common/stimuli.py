@@ -388,8 +388,17 @@ class ReceptiveFieldExplore(experiment.Experiment):
 
 
 class DashStimulus(experiment.Experiment):
+    '''
+        Required:
+            BARSIZE:     list of 2 elements: bar width and length
+            GAPSIZE:     list of 2 elements: gap width and length
+            MOVINGLINES: number that specifies how many lines are skipped during movement
+            DURATION:    in seconds
+            SPEEDS:      list of speeds in um/s
+            DIRECTIONS:  list of directions
+            BAR_COLOR:   either a float of a 3 element RGB-list
+    '''
     def prepare(self):
-        
         self.bgcolor = self.config.BACKGROUND_COLOR
         if hasattr(self.experiment_config, 'BACKGROUND_COLOR'):
             self.bgcolor = colors.convert_color(self.experiment_config.BACKGROUND_COLOR, self.config)
@@ -417,12 +426,9 @@ class DashStimulus(experiment.Experiment):
                                  self.experiment_config.MOVINGLINES
     
     def run(self):
-        
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':0, 'counter':self.frame_counter})
-        
         for speed in self.experiment_config.SPEEDS:
             for direction in self.experiment_config.DIRECTIONS:
-            
                 self.show_dashes(texture = self.texture,
                                 texture_size = self.texture_size,
                                 texture_info = self.texture_info,
@@ -431,7 +437,6 @@ class DashStimulus(experiment.Experiment):
                                 speed = speed,
                                 direction = direction,
                                 )
-        
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':1, 'counter':self.frame_counter})
     
     
@@ -465,14 +470,23 @@ class DashStimulus(experiment.Experiment):
         # Dash and left-right gaps in 2D
         dash = numpy.repeat([numpy.concatenate((gap_l, dash_l, gap_l))], bar_[0], axis=0)
         return numpy.concatenate((gap_w, dash, gap_w)) 
-  
+
+
 class FingerPrinting(experiment.Experiment):
-            
+    '''
+        Required:
+            DURATION
+            INTENSITY_LEVELS
+            SPEEDS
+            DIRECTIONS
+            FF_PAUSE_DURATION
+        Optional:
+            SPATIAL_PERIOD
+            MIN_SPATIAL_PERIOD
+    '''           
     def prepare(self):
-        
         duration = self.experiment_config.DURATION
         intensity_levels = self.experiment_config.INTENSITY_LEVELS
-        
         try:
             spatial_resolution = self.experiment_config.SPATIAL_PERIOD
         except:
