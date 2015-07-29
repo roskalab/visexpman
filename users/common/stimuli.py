@@ -544,13 +544,13 @@ class WhiteNoiseExperiment(experiment.Experiment):
         try:
             self.flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY
         except:
-            self.flickering_frequency = 0
+            self.flickering_frequency = self.config.SCREEN_EXPECTED_FRAME_RATE
         
-        npatterns = self.experiment_config.DURATION_MINS*60*self.flickering_frequency
+        npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
         pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
-        if len(pixel_size) == 1:
+        if pixel_size.shape[0] == 1:
             pixel_size = [pixel_size[0], pixel_size[0]]
         
         npixels = numpy.round(screen_size/pixel_size)
