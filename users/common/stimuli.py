@@ -546,10 +546,16 @@ class WhiteNoiseExperiment(experiment.Experiment):
         except:
             self.flickering_frequency = 0
         
-        npatterns = 100
-        npixels = {'row':7,'col':13}
+        npatterns = self.experiment_config.DURATION_MINS*60*self.flickering_frequency
+        
+        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
+        if len(pixel_size) == 1:
+            pixel_size = [pixel_size[0], pixel_size[0]]
+        
+        npixels = numpy.round(screen_size/pixel_size)
         n_channels = 1
-        color = numpy.zeros((npatterns, npixels['row'], npixels['col'], n_channels))
+        color = numpy.zeros((npatterns, npixels[0], npixels[1], n_channels))
         numpy.random.seed(0)
         self.textures = numpy.round(numpy.random.random(color.shape[:-1]))
         
