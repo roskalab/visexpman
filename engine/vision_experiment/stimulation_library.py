@@ -1403,7 +1403,7 @@ class AdvancedStimulation(StimulationHelpers):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
         
-    def white_noise(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
+    def white_noise_old(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
         '''
         pixel_size : in um
         flickering_frequency: pattern change frequency, 0: max frame rate
@@ -1695,18 +1695,15 @@ class AdvancedStimulation(StimulationHelpers):
         # END OF fingerprinting()
         
          
-    def my_whitenoise(self, textures,
-                       save_frame_info =True, is_block = False):
-        
-#        '''
-#            This stimulus repeats a texture object in lines that are then moving together.
-#            Required:
-#            - intensity_profile: Nx1 vector of grayscale-intensities
-#            - speed: in um/s
-#            Optional:
-#            - direction: in degrees
-#            - save_frame_info: default to True
-#        '''
+    def white_noise(self, textures, save_frame_info = True):
+        '''
+            This stimulus flashes textures one after the other at the given 
+            frame rate.
+            Required:
+            - textures: NxLxW object of grayscale values (N: time dimension)
+            Optional:
+            - save_frame_info: default to True
+        '''
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
         textures_size = textures.shape
@@ -1747,21 +1744,16 @@ class AdvancedStimulation(StimulationHelpers):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         
         idx = 0
-        #ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         while True:
-            #dist += ds
-            idx += 1
-            #end_idx = numpy.min([start_idx + screen_size[0], texture.shape[0]])
-            
             if self.abort or idx >= textures_size[0]:
                 break
-            
             
             texture_piece = textures[idx][:][:]
             texture_piece = numpy.repeat(texture_piece,3).reshape(texture_piece.shape[0],texture_piece.shape[1],3)
             
-            show_(texture_piece)
+            show_(texture_piece)          
             self._flip(frame_trigger = True)
+            idx += 1
         
         # Finish up
         if save_frame_info:

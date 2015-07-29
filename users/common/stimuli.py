@@ -574,7 +574,7 @@ class WhiteNoiseExperiment(experiment.Experiment):
 #                         n_on_pixels = self.n_white_pixels,
 #                         set_seed = False)
         
-        self.my_whitenoise(textures = self.textures)
+        self.white_noise(textures = self.textures)
                  
         self.show_fullscreen(color=0.5)
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseExperiment', 'is_last':1, 'counter':self.frame_counter})  
