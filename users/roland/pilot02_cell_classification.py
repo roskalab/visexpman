@@ -26,7 +26,7 @@ class Pilot02BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['DIRECTIONS'] = [0] #range(0,90, 45)
         self.VARS['FingerPrinting']['SPEEDS'] = [1600] #[500, 1600]      
         self.VARS['FingerPrinting']['DURATION'] = 1.0
-        self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255        
+        self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
         
         self.STIM_TYPE_CLASS['DashStimulus'] = 'DashStimulus'
         self.VARS['DashStimulus'] = {}
@@ -51,7 +51,7 @@ class Pilot02BatchConfig(experiment.ExperimentConfig):
         self.VARS['MarchingSquares']['REPEAT_SEQUENCE'] = 1
         self.VARS['MarchingSquares']['ENABLE_RANDOM_ORDER'] = True
         
-        self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseExperiment'
+        self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
         self.VARS['WhiteNoise']['DURATION_MINS'] = 0.1 #30.0 # min
         self.VARS['WhiteNoise']['PIXEL_SIZE'] = [50.0] # um

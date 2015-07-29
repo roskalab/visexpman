@@ -1704,11 +1704,8 @@ class AdvancedStimulation(StimulationHelpers):
             Optional:
             - save_frame_info: default to True
         '''
-        
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
         textures_size = textures.shape
-        #intensity_profile_length = intensity_profile.shape[0]       
-        #texture = numpy.repeat(intensity_profile,3).reshape(intensity_profile.shape[0],1,3)        
         
         # Vertices that define the size of the texture (centered around (0,0) ), covers the whole screen:
         vertices = numpy.array([[-1,-1],[-1, 1],[ 1, 1],[ 1,-1]])*screen_size*0.5 #*numpy.sqrt(2.0)
@@ -1728,8 +1725,7 @@ class AdvancedStimulation(StimulationHelpers):
         
         texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
         glTexCoordPointerf(texture_coordinates)
-        #glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
-       
+        
         def show_(texture_piece):
             glPushMatrix()
             glRotatef(90, 0,0,1)            
@@ -1739,10 +1735,10 @@ class AdvancedStimulation(StimulationHelpers):
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4) 
             glPopMatrix()
+            
         # Enter stimulus loop:
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-        
         idx = 0
         while True:
             if self.abort or idx >= textures_size[0]:
