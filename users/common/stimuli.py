@@ -527,21 +527,49 @@ class FingerPrinting(experiment.Experiment):
         self.stimulus_frame_info.append({'super_block':'FingerPrinting', 'is_last': 1, 'counter':self.frame_counter})
 
 class WhiteNoiseExperiment(experiment.Experiment):
+    '''
+        Required:
+            DURATION_MINS: in minutes (!)
+            PIXEL_SIZE
+            COLORS
+        Optional:
+            FLICKERING_FREQUENCY
+    '''
     def prepare(self):
         self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
         if not self.experiment_config.N_WHITE_PIXELS:
             self.n_white_pixels = None;
         self.stimulus_duration = self.experiment_config.DURATION_MINS*60.0
+
+        try:
+            self.flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY
+        except:
+            self.flickering_frequency = 0
+        
+        npatterns = 100
+        npixels = {'row':7,'col':13}
+        n_channels = 1
+        color = numpy.zeros((npatterns, npixels['row'], npixels['col'], n_channels))
+        numpy.random.seed(0)
+        self.textures = numpy.round(numpy.random.random(color.shape[:-1]))
+        
+        
+        #pixel_size = self.experiment_config.PIXEL_SIZE
+        #self.nPixels = utils.rc((int(self.config.SCREEN_SIZE_UM['row']/pixel_size), int(self.config.SCREEN_SIZE_UM['col']/pixel_size)))
+        
         
     def run(self):
         random.seed(0)
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseExperiment', 'is_last':0, 'counter':self.frame_counter})  
-        self.white_noise(duration = self.experiment_config.DURATION_MINS*60,
-                         pixel_size = self.experiment_config.PIXEL_SIZE, 
-                         flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY, 
-                         colors = self.experiment_config.COLORS,
-                         n_on_pixels = self.n_white_pixels,
-                         set_seed = False)
+#        self.white_noise(duration = self.experiment_config.DURATION_MINS*60,
+#                         pixel_size = self.experiment_config.PIXEL_SIZE, 
+#                         flickering_frequency = self.flickering_frequency, 
+#                         colors = self.experiment_config.COLORS,
+#                         n_on_pixels = self.n_white_pixels,
+#                         set_seed = False)
+        
+        self.my_whitenoise(textures = self.textures)
+                 
         self.show_fullscreen(color=0.5)
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseExperiment', 'is_last':1, 'counter':self.frame_counter})  
 

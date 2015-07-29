@@ -55,7 +55,7 @@ class Pilot02BatchConfig(experiment.ExperimentConfig):
         self.VARS['WhiteNoise'] = {}
         self.VARS['WhiteNoise']['DURATION_MINS'] = 0.1 #30.0 # min
         self.VARS['WhiteNoise']['PIXEL_SIZE'] = 50.0 # um
-        self.VARS['WhiteNoise']['FLICKERING_FREQUENCY'] = 60.0 # Hz
+        #self.VARS['WhiteNoise']['FLICKERING_FREQUENCY'] = 60.0 # Hz
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [0.0, 1.0]
         
