@@ -393,8 +393,10 @@ class Analysis(object):
         self.printc('Calculating parameter distributions')
         self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
+        if len(self.cells)==0:
+            self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
+            return
         self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
-        
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
         h.cells=self.cells
