@@ -24,8 +24,6 @@ class Advanced(QtGui.QWidget):
         if os.path.exists(folder):
             self.parent.to_engine.put({'function': 'fix_files', 'args':[folder]})
 
-        
-
 class CellBrowser(pyqtgraph.TreeWidget):
     def __init__(self,parent):
         self.parent=parent
@@ -180,8 +178,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         return filename, classname
         
     def _give_not_stimulus_selected_warning(self):
-        QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)
-        
+        QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)        
 
 class Progressbar(QtGui.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False):
@@ -226,7 +223,7 @@ class RoiShift(gui.ArrowButtons):
         self.parent.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
                 
 class Image(gui.Image):
-    def __init__(self, parent, roi_diameter=3):
+    def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
         self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
         self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
@@ -237,16 +234,27 @@ class Image(gui.Image):
 class DataFileBrowser(gui.FileTree):
     def __init__(self,parent, root, extensions):
         gui.FileTree.__init__(self,parent, root, extensions)
-        self.doubleClicked.connect(self.file_selected)
+        self.doubleClicked.connect(self.file_open)
+        self.clicked.connect(self.file_selected)
         self.setToolTip('Double click on file to open')
         
-    def file_selected(self,index):
+        self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.open_menu)
+        
+    def _get_filename(self,index):
         filename = str(index.model().filePath(index))
         #Make compatible filename with win and linux systems
         filename = filename.replace('/', os.sep)
         filename = list(filename)
         filename[0] = filename[0].lower()
         filename = ''.join(filename)
+        return filename
+        
+    def file_selected(self,index):
+        self.selected_filename = self._get_filename(index)
+        
+    def file_open(self,index):
+        filename = self._get_filename(index)
         if os.path.isdir(filename): return#Double click on folder is ignored
         ext = fileop.file_extension(filename)
         if ext == 'hdf5':
@@ -256,6 +264,17 @@ class DataFileBrowser(gui.FileTree):
         else:
             raise NotImplementedError(filename)
         self.parent.parent.to_engine.put({'function': function, 'args':[filename]})
+
+    def open_menu(self, position):
+        self.menu = QtGui.QMenu(self)
+        delete_action = QtGui.QAction('Remove recording', self)
+        delete_action.triggered.connect(self.delete_action)
+        self.menu.addAction(delete_action)
+        self.menu.exec_(self.viewport().mapToGlobal(position))
+        
+    def delete_action(self):
+        if hasattr(self, 'selected_filename'):
+            self.parent.parent.to_engine.put({'function': 'remove_recording', 'args':[self.selected_filename]})
 
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
@@ -379,7 +398,7 @@ class AnalysisHelper(QtGui.QWidget):
             self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder]})
 
 class MainUI(gui.VisexpmanMainWindow):
-    def __init__(self, context):
+    def __init__(self, context):        
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
         gui.VisexpmanMainWindow.__init__(self, context)

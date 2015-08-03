@@ -39,8 +39,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                 setattr(self,c,context[c])
             self.source_name = '{0}' .format(self.user_interface_name)
         self.text = ''
-        
-            
+
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
         

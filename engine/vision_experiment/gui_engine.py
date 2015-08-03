@@ -74,6 +74,8 @@ class ExperimentHandler(object):
 class Analysis(object):
     def __init__(self,machine_config):
         self.machine_config = machine_config
+        import multiprocessing
+        self.pool=multiprocessing.Pool(introspect.get_available_process_cores())
         
     def keep_rois(self, keep):
         if keep:
@@ -171,9 +173,7 @@ class Analysis(object):
     def _roi_area2image(self, recalculate_contours = True, shiftx = 0, shifty = 0):
         areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
         if recalculate_contours:
-            import multiprocessing
-            p=multiprocessing.Pool(introspect.get_available_process_cores())
-            contours=p.map(cone_data.area2edges, areas)
+            contours=self.pool.map(cone_data.area2edges, areas)
             self._init_meanimge_w_rois()
             for coo in contours:
                 self.image_w_rois[coo[:,0],coo[:,1],2]=self.meanimage.max()*0.8
@@ -305,12 +305,13 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
-        areax,areay=numpy.meshgrid(numpy.arange(rectangle[0]-0.5*rectangle[2],rectangle[0]+0.5*rectangle[2]),numpy.arange(rectangle[1]-0.5*rectangle[3],rectangle[1]+0.5*rectangle[3]))
-        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': numpy.cast['int'](numpy.round(numpy.array([areax.flatten(), areay.flatten()]).T))})
+        area=cone_data.roi_redetect(rectangle, self.meanimage, subimage_size=3)
+        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
         self.to_gui.put({'fix_roi' : None})
         self.display_roi_curve()
+        self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
         
     def _check_unsaved_rois(self, warning_only=False):
@@ -392,8 +393,10 @@ class Analysis(object):
         self.printc('Calculating parameter distributions')
         self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
+        if len(self.cells)==0:
+            self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
+            return
         self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
-        
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
         h.cells=self.cells
@@ -489,6 +492,34 @@ class Analysis(object):
     def _display_single_roi(self,roi):
         self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
+        
+    def remove_recording(self,filename):
+        if not fileop.is_recording_filename(filename) or fileop.file_extension(filename)!='hdf5':
+            self.notify('Info', '{0} is not a recording file'.format(filename))
+            return
+        #Figure out which files will be removed
+        measurement_folder=os.path.dirname(filename)
+        h=hdf5io.Hdf5io(filename,filelocking=False)
+        nodes=['ftiff','fphys']
+        files2remove = [filename]
+        for n in nodes:
+            h.load(n)
+            if hasattr(h,n):
+                path=str(getattr(h,n)).lstrip()
+                path = path[0].lower()+path[1:]#In windows the drive letter mightr come lowercase and uppercase. 
+                if n=='ftiff':
+                    path=os.path.dirname(path)
+                if os.path.exists(path) and measurement_folder in path:
+                    files2remove.append(path)
+        h.close()
+        id=fileop.parse_recording_filename(filename)['id']
+        files2remove.extend([fn for fn in fileop.listdir_fullpath(measurement_folder) if id in fn and fn != filename])
+        if not self.ask4confirmation('The following files will be removed:\r\n{0}. Is that OK?'.format('\r\n'.join(files2remove))):
+            return
+        self.printc('Removing {0}, please wait...'.format(', '.join(files2remove)))
+        for fn in files2remove:
+            shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
+        self.printc('Done')
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
