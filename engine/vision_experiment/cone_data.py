@@ -448,13 +448,21 @@ class TestCA(unittest.TestCase):
             self.assertGreater(sum([r.has_key('matches') for r in res]),0)
             self.assertEqual([len(r['matches'].keys()) for r in res if r.has_key('matches')], [2]*len(res))
         
-    @unittest.skip('')
+    
     def test_06_aggregate_cells(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
         fns = fileop.listdir_fullpath(prepare_test_data('aggregate',working_folder=wf))
         fns.sort()
-        res = aggregate_cells(wf)
+        cells = aggregate_cells(wf)
+        self.assertTrue(isinstance(cells,list))
+        [self.assertTrue('scan_region' in cell.keys()) for cell in cells]
+        [self.assertGreater(len(cell.keys()),0) for cell in cells]
+        expected_cell_properties = ['image_scale', 'area', 'match_weight', 'meanimage', 'stimulus_name', 'tsync', 'raw', 'baseline_length', 'normalized', 'background', 'background_threshold', 'rectangle', 'timg']
+        for cell in cells:
+            repeats=cell[[c for c in cell.keys() if 'scan_region' !=c][0]].values()
+            for r in repeats:
+                self.assertEqual(len([True for p in expected_cell_properties if p in r.keys()]),13)
     
     def test_07_quantify_cells(self):
         folder = fileop.select_folder_exists(['/home/rz/rzws/test_data/', '/home/rz/codes/data/test_data'])
