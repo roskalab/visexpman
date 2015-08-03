@@ -1023,6 +1023,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
         ncheckers = utils.rc_x_const(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
+        numpy.random.seed(0)
         checker_colors = numpy.where(numpy.random.random((nframes,ncheckers['row'],ncheckers['col']))<0.5, False,True)
         row_coords = numpy.arange(ncheckers['row'])-0.5*(ncheckers['row'] - 1)
         col_coords = numpy.arange(ncheckers['col'])-0.5*(ncheckers['col'] -1)
