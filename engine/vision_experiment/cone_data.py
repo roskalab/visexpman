@@ -456,10 +456,15 @@ class TestCA(unittest.TestCase):
         fns.sort()
         res = aggregate_cells(wf)
     
-    @unittest.skip('')
     def test_07_quantify_cells(self):
-        cells=hdf5io.read_item('/home/rz/rzws/test_data/aggregated_cells.hdf5', 'cells',filelocking=False)
-        quantify_cells(cells)
+        folder = fileop.select_folder_exists(['/home/rz/rzws/test_data/', '/home/rz/codes/data/test_data'])
+        cells=hdf5io.read_item(os.path.join(folder, 'aggregated_cells.hdf5'), 'cells',filelocking=False)
+        parameter_distributions = quantify_cells(cells)
+        self.assertTrue(isinstance(parameter_distributions,dict))
+        ref=parameter_distributions.values()[0].keys()
+        for parnames in [v.keys() for v in parameter_distributions.values()]:
+            self.assertEqual(ref,parnames)
+        self.assertTrue(all([hasattr(vv, 'shape') for vv in v.values() for v in parameter_distributions.values()]))
         
     def test_08_local_cell_detection(self):
         fn='/home/rz/codes/data/test_data/data_C6_SpotPar_209592957_0.hdf5'
