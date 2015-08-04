@@ -12,6 +12,18 @@ import pyqtgraph
 import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal
 from pyqtgraph.parametertree import Parameter, ParameterTree
+import traceback,sys,Queue
+
+def excepthook(excType, excValue, tracebackobj):
+    msg='\n'.join(traceback.format_tb(tracebackobj))+str(excType.__name__)+': '+str(excValue)
+    print msg
+    error_messages.put(msg)
+    
+sys.excepthook = excepthook
+
+
+error_messages = Queue.Queue()
+
 
 def get_icon(name, icon_folder=None):
     if icon_folder is None:
@@ -39,6 +51,9 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                 setattr(self,c,context[c])
             self.source_name = '{0}' .format(self.user_interface_name)
         self.text = ''
+        self.error_timer = QtCore.QTimer()
+        self.error_timer.timeout.connect(self.catch_error_message)
+        self.error_timer.start(200)
 
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
@@ -68,6 +83,10 @@ class VisexpmanMainWindow(Qt.QMainWindow):
             getattr(self.logger, loglevel)(text.replace('{0}: '.format(loglevel.upper()),''), self.source_name)
         else:
             self.logger.info(text, self.source_name)
+            
+    def catch_error_message(self):
+        if not error_messages.empty():
+            self.logger.error(error_messages.get())
         
     def closeEvent(self, e):
         e.accept()
