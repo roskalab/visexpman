@@ -66,8 +66,30 @@ class ExperimentHandler(object):
         filename=os.sep.join(cf.split(os.sep)[:-1])
         #Find out duration
         experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = fileop.read_text_file(filename))
-        #TODO: CONTINUE HERE: Calculate and check scan parameters
-        #Pack scanner signals with guidata and add entry to issued commands
+        from visexpman.engine.hardware_interface import scanner_control
+        size=utils.rc((self.guidata.read('scan height'),self.guidata.read('scan width')))
+        resolution=self.guidata.read('pixel size')
+        psu=self.guidata.read('pixel size unit')
+        if psu=='um/pixel':
+            resolution=1.0/resolution
+        elif psu=='us':
+            raise NotImplementedError('')
+        center = utils.rc((self.guidata.read('scan center y'),self.guidata.read('scan center x')))
+        constraints = {}
+        constraints['x_flyback_time']=0.2e-3
+        constraints['y_flyback_time']=1e-3
+        constraints['x_max_frq']=1400
+        constraints['f_sample']=self.guidata.read('analog output sampling rate')*1e3
+        constraints['position2voltage']=self.guidata.read('scanner position to voltage factor')
+        x,y,frame_sync,stim_sync,signal_attributes = scanner_control.generate_scanner_signals(size,resolution,center,constraints)
+        #Collect experiment parameters
+        experiment_parameters = {}
+        experiment_parameters['stimfile']=filename
+        experiment_parameters['stimclass']=classname
+        experiment_parameters['duration']=experiment_duration
+        experiment_parameters['imaging']={'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'signal_attributes': signal_attributes}
+        experiment_parameters['status']='waiting'
+        #TODO: CONTINUE HERE: add entry to issued commands
         
 
 
