@@ -263,6 +263,7 @@ def aggregate_cells(folder):
     aggregated_cells = []
     allhdf5files.sort()
     for hdf5file in allhdf5files:
+        print allhdf5files.index(hdf5file)+1,len(allhdf5files)
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
         fntags= fileop.parse_recording_filename(hdf5file)
         if fntags['id'] in skip_ids or not fileop.is_recording_filename(hdf5file):
@@ -318,9 +319,13 @@ def cell_trace_params(cell):
     
 def quantify_cells(cells):
     #Calculate trace parameters
-    import multiprocessing
-    p=multiprocessing.Pool(introspect.get_available_process_cores())
-    cells=p.map(cell_trace_params,cells)
+    if 0:
+        import multiprocessing
+        p=multiprocessing.Pool(introspect.get_available_process_cores())
+        cells=p.map(cell_trace_params,cells)
+    else:
+        cells=[cell_trace_params(cell) for cell in cells]
+#    p.join()
     #Average repetitions
     cell_parameters=[]
     for cell in cells:
