@@ -112,6 +112,8 @@ class PhysTiff2Hdf5(object):
         
     def backup_files(self,fphys,ftiff,fhdf5):
         bu_folder = 'D:\\backup'
+        if not os.path.exists(bu_folder) or os.name=='posix':
+            return
         import shutil
         shutil.copy(fphys, bu_folder)
         shutil.copy(fhdf5, bu_folder)
@@ -146,11 +148,12 @@ class PhysTiff2Hdf5(object):
             raw_data = tifffile.imread(tmptiff)[1::2]
             raw_data = raw_data.reshape((raw_data.shape[0], 1, raw_data.shape[1], raw_data.shape[2]))
         else:
-            import struct
-            f =open(ftiff, 'rb')
+#            import struct
+#            f =open(ftiff, 'rb')
             sizex, sizey, a,b, res = map(float, os.path.split(ftiff)[1].replace('.csv','').split('_')[-5:])
-            data = f.read()
-            data=numpy.array(struct.unpack('>'+''.join(len(data)/4*['f']),data), dtype = numpy.float32)
+#            data_s = f.read()
+#            data=numpy.array(struct.unpack('>'+''.join(len(data_s)/4*['f']),data_s), dtype = numpy.float32)
+            data=numpy.fromfile(ftiff,">f4")
             nframes = int(data.shape[0]/(sizex*res*(sizey*res-1))/2)
             if nframes<10:
                 return
@@ -217,7 +220,7 @@ class PhysTiff2Hdf5(object):
                 if getattr(m, cl).__bases__[0].__name__ == 'ExperimentConfig':
                     return cl
         else:
-            return os.path.split(metadata['Stimulus file'])[1].replace('.py','')
+            return os.path.split(metadata['Stimulus file'])[1].split('\\')[-1].replace('.py','')
         
     def sync_signal2block_trigger(self, sig):
         indexes = signal.trigger_indexes(sig)
@@ -245,6 +248,8 @@ class PhysTiff2Hdf5(object):
         f=f[:f.shape[0]/2]
         df=1.0/(waveform.shape[0]/fsample)
         frame_rate = factor*abs(f)[1:].argmax()*df#First harmonic has the highest amplitude
+        if abs(f)[1:].argmax()==0:
+            frame_rate=10.0
         if frame_rate>30:#Then probably x scanner signal
             frame_rate /= nxlines
             start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000)[0][0]

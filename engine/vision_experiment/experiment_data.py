@@ -485,9 +485,9 @@ def read_phys(filename):
     dim2 = f.read(4)
     dim1 = struct.unpack('>i',dim1)[0]
     dim2 = struct.unpack('>i',dim2)[0]
-    data = f.read(2*dim1*dim2)
-    data = numpy.array(struct.unpack('>'+''.join(dim1*dim2*['h']),data), dtype = numpy.int16).reshape((dim1, dim2))
-#    data = numpy.fromfile(f, dtype=numpy.int16, count=dim1*dim2).reshape((dim1, dim2))
+    data=numpy.fromfile(f,">i2").reshape((dim1, dim2))
+#    data = f.read(2*dim1*dim2)
+#    data = numpy.array(struct.unpack('>'+''.join(dim1*dim2*['h']),data), dtype = numpy.int16).reshape((dim1, dim2))
     f.close()
     return data, metadata
 
