@@ -325,7 +325,6 @@ def quantify_cells(cells):
         cells=p.map(cell_trace_params,cells)
     else:
         cells=[cell_trace_params(cell) for cell in cells]
-#    p.join()
     #Average repetitions
     cell_parameters=[]
     for cell in cells:
