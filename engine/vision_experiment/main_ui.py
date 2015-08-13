@@ -419,6 +419,7 @@ class MainUI(gui.VisexpmanMainWindow):
         #Set up toobar
         self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit'])
         self.addToolBar(self.toolbar)
+        self.statusbar=self.statusBar()
         #Add dockable widgets
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
@@ -475,8 +476,15 @@ class MainUI(gui.VisexpmanMainWindow):
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+        
+        self.network_status_timer=QtCore.QTimer()
+        self.network_status_timer.start(2000)#ms
+        self.connect(self.network_status_timer, QtCore.SIGNAL('timeout()'), self.check_network_status)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
+            
+    def check_network_status(self):
+        self.to_engine.put({'function': 'check_network_status', 'args':[]})
             
     def check_queue(self):
         while not self.from_engine.empty():
@@ -528,8 +536,11 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.tpp.show()
             elif msg.has_key('display_cell_tree'):
                 self.cellbrowser.populate(msg['display_cell_tree'])
+            elif msg.has_key('update_network_status'):
+                self.statusbar.showMessage(msg['update_network_status'])
 #                self.pb = Progressbar(10)
 #                self.pb.show()
+            
                 
     def _init_variables(self):
         imaging_channels = self.machine_config.PMTS.keys()
@@ -649,7 +660,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     ref.setCheckState(2 if item['value'] else 0)
                 elif 'qtabwidget' in wname:
                     ref.setCurrentIndex(item['value'])
-    
+
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})

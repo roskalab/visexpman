@@ -90,8 +90,6 @@ class ExperimentHandler(object):
         experiment_parameters['imaging']={'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'signal_attributes': signal_attributes}
         experiment_parameters['status']='waiting'
         #TODO: CONTINUE HERE: add entry to issued commands
-        
-
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -666,6 +664,17 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
             self.display_roi_curve()
             if tpp_opened:
                 self.display_trace_parameter_distribution()
+                
+    def check_network_status(self):
+        self.connected_nodes = ''
+        n_connected = 0
+        n_connections = len(self.socket_queues.keys())
+        for remote_node_name, socket in self.socket_queues.items():
+            if self.ping(timeout=0.3, connection=remote_node_name):
+                self.connected_nodes += remote_node_name + ' '
+                n_connected += 1
+        self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
+        
     
     def run(self):
         while True:
