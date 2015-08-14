@@ -105,6 +105,10 @@ class Analysis(object):
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
+        if self.tsync.shape[0]==0 or  self.timg.shape[0]==0:
+            msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
+            self.notify('Error', msg)
+            raise RuntimeError(msg)
         self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale]})
         self._recalculate_background()
