@@ -675,7 +675,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
                 n_connected += 1
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
-    
     def run(self):
         while True:
             try:

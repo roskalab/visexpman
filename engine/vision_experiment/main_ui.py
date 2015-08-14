@@ -514,7 +514,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 else:
                     #Update plot
                     self.plot.update_curve(timg, curve)
-                self.plot.add_linear_region(*list(tsync))
+                self.plot.add_linear_region(list(tsync))
             elif msg.has_key('remove_roi_rectangle'):
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))
             elif msg.has_key('fix_roi'):
