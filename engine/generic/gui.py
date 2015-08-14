@@ -232,12 +232,17 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             map(self.plot.removeItem, self.curves)
             del self.curves
         
-    def add_linear_region(self, start, end):
-        if hasattr(self,'linear_region'):
-            self.plot.removeItem(self.linear_region)
+    def add_linear_region(self, boundaries):
+        if len(boundaries)%2==1:
+            raise RuntimeError('Invalid boundaries: {0}'.format(boundaries))
+        if hasattr(self,'linear_regions'):
+            for linear_region in self.linear_regions:
+                self.plot.removeItem(linear_region)
         c=(40,40,40,100)
-        self.linear_region = pyqtgraph.LinearRegionItem([start, end], movable=False, brush = c)
-        self.plot.addItem(self.linear_region)
+        self.linear_regions=[]
+        for i in range(len(boundaries)/2):
+            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = c))
+            self.plot.addItem(self.linear_regions[-1])
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):
