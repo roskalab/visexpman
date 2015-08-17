@@ -1696,6 +1696,10 @@ class TestScannerControl(unittest.TestCase):
         from visexpman.engine.generic.introspect import Timer
         from visexpman.users.zoltan import scanner_calibration
         constraints = {}
+        constraints['x_flyback_time']=0.2e-3
+        constraints['f_sample']=500e3
+        constraints['y_flyback_time'] = 1e-3
+        constraints['x_max_frq'] = 1500
         constraints['enable_flybackscan']=False
         constraints['enable_scanner_phase_characteristics']=True
         constraints['scanner_position_to_voltage']=1.0/128.0#includes voltage to angle factor
@@ -1707,6 +1711,7 @@ class TestScannerControl(unittest.TestCase):
         constraints['gain_characteristics']=[-1.12765460e-04,  -2.82919056e-06]
         
         scan_configs = [
+                                    [utils.rc((50,50)), 3, False, 100e3,5e-2],
                                     [utils.rc((100,100)), 1, False, 100e3,5e-2],
                                     [utils.rc((100,100)), 2, True, 400e3,5e-2],
                                     [utils.rc((100,100)), 2, False, 400e3,5e-2],
@@ -1726,6 +1731,7 @@ class TestScannerControl(unittest.TestCase):
             center = utils.rc((1*0,10*0))
             xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
                             generate_scanner_signals(scan_size, resolution, center, constraints)
+            continue
             self.assertGreaterEqual(signal_attributes['ymirror_flyback_time'],constraints['ymirror_flyback_time'])
             number_of_periods = numpy.where(numpy.diff(numpy.where(xsignal>xsignal.mean(),1,0))>0,1,0).sum()
             xperiod_length = float(xsignal.shape[0])/number_of_periods
@@ -1889,10 +1895,51 @@ def signal2image(ai_data, parameters, pmt_config):
         
     return colorized_frame, frame
     
-
+def generate_scanner_signals(size,resolution,center,constraints):
+    '''
+    resolution: pixel/um
+    Generated signals: x,y scanner, stim sync, frame sync
+    
+    constraints['x_flyback_time']
+    constraints['y_flyback_time']
+    constraints['x_max_frq']
+    constraints['f_sample']
+    constraints['position2voltage']
+    calibration:
+        x scan contraction->size['row'] 
+        x scanner delay-> scan center['row'] 
+    
+    '''
+    from pylab import plot,show
+    
+    x_scan=numpy.linspace(-0.5*size['row'], 0.5*size['row'], size['row']*resolution)+center['row']
+    x_n_min_samples = numpy.ceil(constraints['f_sample']/constraints['x_max_frq'])
+    if x_n_min_samples>x_scan.shape[0]:
+        flyback_samples = x_n_min_samples-x_scan.shape[0]
+    else:
+        flyback_samples=constraints['f_sample']*constraints['x_flyback_time']
+    x_flyback=numpy.linspace(0.5*size['row'], -0.5*size['row'], flyback_samples)+center['row']
+    x_one_period=numpy.concatenate((x_scan,x_flyback))
+    y_flyback_lines = numpy.ceil(constraints['y_flyback_time']*constraints['f_sample']/x_one_period.shape[0])
+    nlines = int(size['col']*resolution+y_flyback_lines)
+    x=numpy.tile(x_one_period,nlines)*constraints['position2voltage']
+    y_scan=numpy.linspace(-0.5*size['col'], 0.5*size['col'], x_one_period.shape[0]*(nlines-y_flyback_lines))+center['col']
+    y_flyback = numpy.linspace(0.5*size['col'], -0.5*size['col'], x_one_period.shape[0]*(y_flyback_lines))+center['col']
+    y=numpy.concatenate((y_scan,y_flyback))*constraints['position2voltage']
+    frame_sync = numpy.tile(numpy.concatenate((numpy.ones_like(x_scan),numpy.zeros_like(x_flyback))),nlines)
+    if y.shape[0] != x.shape[0]:
+        raise ScannerError('x and y signal length must be the same: {0}, {1}. Adjust a little on resolution or scan range.'.format(y.shape[0], x.shape[0]))
+    stim_sync=numpy.tile(numpy.concatenate((numpy.zeros_like(x_scan),numpy.ones_like(x_flyback))),nlines)
+    signal_attributes={}
+    signal_attributes['frame_rate']=constraints['f_sample']/float(y.shape[0])
+    signal_attributes['x_frequency'] = constraints['f_sample']/float(x_one_period.shape[0])
+    signal_attributes['x_flyback_time'] = float(flyback_samples)/constraints['f_sample']
+    signal_attributes['y_flyback_time'] = float(y_flyback.shape[0])/constraints['f_sample']
+    return x,y,frame_sync,stim_sync,signal_attributes
     
 
-def generate_scanner_signals(scan_size, resolution, center, constraints):
+#OBSOLETE
+def generate_scanner_signals1(scan_size, resolution, center, constraints):
     '''
     resolution: pixel/um
     scan_size: height and width of scannable area in um and in row,col format (see utils.rc)

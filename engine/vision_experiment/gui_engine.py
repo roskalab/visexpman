@@ -66,10 +66,30 @@ class ExperimentHandler(object):
         filename=os.sep.join(cf.split(os.sep)[:-1])
         #Find out duration
         experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = fileop.read_text_file(filename))
-        #TODO: CONTINUE HERE: Calculate and check scan parameters
-        #Pack scanner signals with guidata and add entry to issued commands
-        
-
+        from visexpman.engine.hardware_interface import scanner_control
+        size=utils.rc((self.guidata.read('scan height'),self.guidata.read('scan width')))
+        resolution=self.guidata.read('pixel size')
+        psu=self.guidata.read('pixel size unit')
+        if psu=='um/pixel':
+            resolution=1.0/resolution
+        elif psu=='us':
+            raise NotImplementedError('')
+        center = utils.rc((self.guidata.read('scan center y'),self.guidata.read('scan center x')))
+        constraints = {}
+        constraints['x_flyback_time']=0.2e-3
+        constraints['y_flyback_time']=1e-3
+        constraints['x_max_frq']=1400
+        constraints['f_sample']=self.guidata.read('analog output sampling rate')*1e3
+        constraints['position2voltage']=self.guidata.read('scanner position to voltage factor')
+        x,y,frame_sync,stim_sync,signal_attributes = scanner_control.generate_scanner_signals(size,resolution,center,constraints)
+        #Collect experiment parameters
+        experiment_parameters = {}
+        experiment_parameters['stimfile']=filename
+        experiment_parameters['stimclass']=classname
+        experiment_parameters['duration']=experiment_duration
+        experiment_parameters['imaging']={'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'signal_attributes': signal_attributes}
+        experiment_parameters['status']='waiting'
+        #TODO: CONTINUE HERE: add entry to issued commands
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -397,8 +417,10 @@ class Analysis(object):
         self.printc('Calculating parameter distributions')
         self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
+        if len(self.cells)==0:
+            self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
+            return
         self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
-        
         aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
         h.cells=self.cells
@@ -646,7 +668,17 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
             self.display_roi_curve()
             if tpp_opened:
                 self.display_trace_parameter_distribution()
-    
+                
+    def check_network_status(self):
+        self.connected_nodes = ''
+        n_connected = 0
+        n_connections = len(self.socket_queues.keys())
+        for remote_node_name, socket in self.socket_queues.items():
+            if self.ping(timeout=0.3, connection=remote_node_name):
+                self.connected_nodes += remote_node_name + ' '
+                n_connected += 1
+        self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
+        
     def run(self):
         while True:
             try:

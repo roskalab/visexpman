@@ -1023,8 +1023,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
         ncheckers = utils.rc_x_const(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
+        numpy.random.seed(0)
         checker_colors = numpy.where(numpy.random.random((nframes,ncheckers['row'],ncheckers['col']))<0.5, False,True)
-        params = {'colors': checker_colors, 'ncheckers':ncheckers}
+        row_coords = numpy.arange(ncheckers['row'])-0.5*(ncheckers['row'] - 1)
+        col_coords = numpy.arange(ncheckers['col'])-0.5*(ncheckers['col'] -1)
+        rc, cc = numpy.meshgrid(row_coords, col_coords)
+        positions=numpy.rollaxis(numpy.array([rc,cc]),0,3)*square_size
+        params = {'colors': checker_colors, 'ncheckers':ncheckers, 'positions': positions}
         if save_frame_info:
             self._append_to_stimulus_frame_info(params)
         size = utils.rc_x_const(ncheckers, square_size_pixel)

@@ -49,7 +49,6 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.projector_state = False
         self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
         
-        
         self.daq_queues = daq_instrument.init_daq_queues()
         self.imaging_started = False
         self.experiment_running = False

@@ -106,8 +106,8 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
     phases = generate_random_angles(spatial_frequencies.shape[0])
     #Since the number fo samples have to be integer, the spatial resolution is slightly modified
     modified_spatial_resolution = float(spatial_range/spatial_resolution)/int(spatial_range/spatial_resolution)*spatial_resolution
-    intensity_profile = numpy.zeros(int(numpy.round(spatial_range/modified_spatial_resolution)))
     s = numpy.arange(0, spatial_range, modified_spatial_resolution)
+    intensity_profile = numpy.zeros_like(s)
     for harmonic in range(spatial_frequencies.shape[0]):
         intensity_profile += amplitudes[harmonic]*numpy.sin(2*numpy.pi*s*spatial_frequencies[harmonic] + phases[harmonic])
         if abs(intensity_profile[0]-intensity_profile[-1])/intensity_profile.max()>1e-3:
@@ -326,10 +326,14 @@ class TestSignal(unittest.TestCase):
         fs = 10000
         sig = wf_triangle(a, t_up, t_down, duration, fs)
         self.assertNotEqual(abs(sig).sum(), 0)
-        
-            
+
     def test_10_generate_natural_stimulus_intensity_profile(self):
-        profile = generate_natural_stimulus_intensity_profile(20.0, 300.0, 20.0,2.0)
+        #duration, speed, minimal_spatial_period, spatial_resolution
+        profile = generate_natural_stimulus_intensity_profile(40.0, 300.0, 20.0,2.0)
+#        from pylab import plot,show,figure
+#        figure(1);plot(profile);plot(profile*0.5+0.5)
+#        figure(2);plot(abs(numpy.fft.fft(profile))/profile.shape[0]);plot(abs(numpy.fft.fft(profile*0.5+0.5))/profile.shape[0]);show()
+
         if 0:
             from pylab import plot,show
             plot(profile)
