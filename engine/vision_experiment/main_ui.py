@@ -330,7 +330,7 @@ class TraceParameterPlots(QtGui.QWidget):
                 self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
                 self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
             elif naxis==1:
-                colors = [(0, 0, 255,150), (0, 255, 0,150)]
+                colors = [(0, 0, 255,150), (0, 255, 0,150), (255,0,0,100)]
                 self.plots[k]._clear_curves()
                 self.plots[k].plot.addLegend(size=(120,60))
                 self.plots[k].curves=[]
