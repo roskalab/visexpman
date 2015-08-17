@@ -50,12 +50,7 @@ class PhysTiff2Hdf5(object):
         #Find corresponding folder with tiff file
         pairs = []
         for pf in processable_physfiles:
-            if self.irlaser:
-                tags=pf.split('_')
-                del tags[-4]
-                regexp = '_'.join(tags)
-            else:
-                regexp = pf
+            regexp = pf
             found = [tf for tf in tiffiles if os.path.split(regexp.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
             if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3 and [pf,found[0]] not in self.processed_pairs:
                 id = str(experiment_data.get_id(os.path.getmtime(pf)))
@@ -189,7 +184,7 @@ class PhysTiff2Hdf5(object):
             data=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
             metadata={}
             metadata['Sample Rate']=10000
-            metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,fphys.replace('.csv','').split('_')[2:])
+            metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,fphys.replace('.csv','').split('_')[3:])
             data[1]=data[2]
             data[2]=data[4]
             data=data[:3]

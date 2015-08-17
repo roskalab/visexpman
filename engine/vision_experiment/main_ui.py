@@ -478,7 +478,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         
         self.network_status_timer=QtCore.QTimer()
-        self.network_status_timer.start(2000)#ms
+        if 0: self.network_status_timer.start(2000)#ms
         self.connect(self.network_status_timer, QtCore.SIGNAL('timeout()'), self.check_network_status)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()

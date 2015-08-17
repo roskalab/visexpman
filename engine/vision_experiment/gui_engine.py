@@ -633,9 +633,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
             if not self.from_gui.empty():
                 break
             time.sleep(0.05)
-        return self.from_gui.get()
+        result=self.from_gui.get()
+        self.log.info('Ask for confirmation: {0}, {1}'.format(message, result), 'engine')
+        return result
         
     def notify(self,title,message):
+        self.log.info('Notify: {0}, {1}'.format(title, msg), 'engine')
         self.to_gui.put({'notify':{'title': title, 'msg':message}})
         
     def update_widget_status(self, status):
