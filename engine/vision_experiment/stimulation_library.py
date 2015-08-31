@@ -1403,7 +1403,7 @@ class AdvancedStimulation(StimulationHelpers):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
         
-    def white_noise(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
+    def white_noise_old(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
         '''
         pixel_size : in um
         flickering_frequency: pattern change frequency, 0: max frame rate
@@ -1693,6 +1693,72 @@ class AdvancedStimulation(StimulationHelpers):
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
         # END OF fingerprinting()
+        
+         
+    def white_noise(self, textures, save_frame_info = True):
+        '''
+            This stimulus flashes textures one after the other at the given 
+            frame rate.
+            Required:
+            - textures: NxLxW object of grayscale values (N: time dimension)
+            Optional:
+            - save_frame_info: default to True
+        '''
+        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        textures_size = textures.shape
+        
+        # Vertices that define the size of the texture (centered around (0,0) ), covers the whole screen:
+        vertices = numpy.array([[-1,-1],[-1, 1],[ 1, 1],[ 1,-1]])*screen_size*0.5 #*numpy.sqrt(2.0)
+        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        
+        texture_piece = textures[0][:][:]
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)        
+        
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        
+        texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
+        glTexCoordPointerf(texture_coordinates)
+        
+        def show_(texture_piece):
+            glPushMatrix()
+            glRotatef(90, 0,0,1)            
+                      
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4) 
+            glPopMatrix()
+            
+        # Enter stimulus loop:
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        idx = 0
+        while True:
+            if self.abort or idx >= textures_size[0]:
+                break
+            
+            texture_piece = textures[idx][:][:]
+            texture_piece = numpy.repeat(texture_piece,3).reshape(texture_piece.shape[0],texture_piece.shape[1],3)
+            
+            show_(texture_piece)          
+            self._flip(frame_trigger = True)
+            idx += 1
+        
+        # Finish up
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        # END OF my_whitenoise()        
         
 class TestStimulationPatterns(unittest.TestCase):
     
