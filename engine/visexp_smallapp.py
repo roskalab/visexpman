@@ -25,7 +25,7 @@ class SmallApp(QtGui.QWidget):
     '''
     Small  application gui
     '''
-    def __init__(self, user=None, config_class=None):
+    def __init__(self, user=None, config_class=None, enable_console=True):
         if hasattr(config_class, 'OS'):
             self.config=config_class
             config_class_name = config_class.__class__.__name__
@@ -56,7 +56,8 @@ class SmallApp(QtGui.QWidget):
         if hasattr(self.config, 'GUI_POSITION'):
             self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
-        self.add_console()
+        if enable_console:
+            self.add_console()
         self.create_layout()
         self.connect_signals()
         self.show()
@@ -113,7 +114,7 @@ class SmallApp(QtGui.QWidget):
             return True
             
     def ask4filename(self,title, directory, filter):
-        filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)
+        filename = str(QtGui.QFileDialog.getOpenFileName(self, title, directory, filter))
         return filename
         
     def notify_user(self, title, message):
@@ -420,7 +421,6 @@ class AfmCaImagingAnalyzer(SmallApp):
         self.parameters = Parameter.create(name='params', type='group', children=params)
         self.parameters_widget.setParameters(self.parameters, showTop=False)
         
-        
     def process_folder(self):
         folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', 'c:\\' if os.name=='nt' else '/' ))
         if os.path.exists(folder):
@@ -448,7 +448,129 @@ class AfmCaImagingAnalyzer(SmallApp):
                                         )
                 subprocess.call(cmd,shell=True)
             self.printc('Processing finished')
+            
+            
+class TileScanCorrection(SmallApp):
+    def __init__(self):
+        self.TILE_SIZE=512
+        SmallApp.__init__(self,enable_console=False)
+        self.setWindowTitle('Tile Scan Correction')
+        self.select_stack_button = QtGui.QPushButton('Select stack', self)
+        self.save_mip_button = QtGui.QPushButton('Save MIP', self)
+        self.image=gui_generic.Image(self)
+        n=5
+        defaultx = ','.join(map(str,numpy.linspace(0.0, 1.0, n)))
+        defaulty= ','.join(['1']*n)
+        params = [
+                    {'name': 'Horizontal', 'type': 'group', 'expanded' : True, 'children': [
+                        {'name': 'x', 'type': 'str', 'value': defaultx },
+                        {'name': 'y', 'type': 'str', 'value': defaulty },
+                        ]},
+                    {'name': 'Vertical', 'type': 'group', 'expanded' : True, 'children': [
+                        {'name': 'x', 'type': 'str', 'value': defaultx },
+                        {'name': 'y', 'type': 'str', 'value': defaulty },
+                        ]},
+                    {'name': 'Parameters', 'type': 'group', 'expanded' : True, 'children': [
+                        {'name': 'Interpolation', 'type': 'list', 'values': ['quadratic', 'cubic', 'linear', 'nearest' ] },
+                        ]},]
+        from pyqtgraph.parametertree import Parameter, ParameterTree
+        self.parameters_widget = ParameterTree(self, showHeader=False)
+        self.parameters_widget.setMinimumWidth(200)
+        self.parameters_widget.setMaximumWidth(500)
+        self.parameters = Parameter.create(name='params', type='group', children=params)
+        self.parameters_widget.setParameters(self.parameters, showTop=False)
+        self.parameters.sigTreeStateChanged.connect(self.parameter_changed)    
+        
+        self.hplot=gui_generic.Plot(self)
+        self.vplot=gui_generic.Plot(self)
+        self.vplot.setMinimumWidth(300)
+        self.hplot.setMinimumWidth(300)
+        self.vplot.setFixedHeight(200)
+        self.hplot.setFixedHeight(200)
+        self.hplot.plot.setTitle('Horizontal correction')
+        self.vplot.plot.setTitle('Vertical correction')
+        
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.image, 1, 0, 1, 5)
+        self.layout.addWidget(self.parameters_widget, 1, 5, 1, 1)
+        self.layout.addWidget(self.select_stack_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.save_mip_button, 0, 1, 1, 1)
+        self.layout.addWidget(self.hplot, 2, 0, 1, 3)
+        self.layout.addWidget(self.vplot, 2, 3, 1, 3)
+        self.setLayout(self.layout)
+        self.connect(self.select_stack_button, QtCore.SIGNAL('clicked()'),  self.select_stack)
+        self.connect(self.save_mip_button, QtCore.SIGNAL('clicked()'),  self.save_mip)
+        
+        self.select_stack_button.setFixedWidth(100)
+        
+    
+        
+    def select_stack(self):
+        filename= self.ask4filename('Select folder', 'c:\\' if os.name=='nt' else '/home/rz/codes/data/Santiago', '*.tif')
+        import tifffile
+        self.tilescandata=tifffile.imread(filename)
+        self.image.set_image(self.tilescandata,alpha=1.0)
+        self.image_correction()
+        
+    def image_correction(self):
+        vcorr= numpy.tile(self.vcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
+        hcorr=  numpy.tile(self.hcorrection,(self.tilescandata.shape[0],self.tilescandata.shape[1]/self.TILE_SIZE))
+        
+        vcorr= numpy.tile(self.vcorrection,(self.tilescandata.shape[0],self.tilescandata.shape[1]/self.TILE_SIZE))
+        hcorr=  numpy.tile(self.hcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
+        
+        corr=hcorr*vcorr
+        corrected=numpy.zeros_like(self.tilescandata,dtype=numpy.float)
+        for i in range(3):
+            corrected[:,:,i]=self.tilescandata[:,:,i]*corr
+        self.image.set_image(corrected,alpha=1.0)
 
+    def save_mip(self):
+        pass
+        
+    def parameter_changed(self, param, changes):
+        values={}
+        for direction in param.children():
+            if str(direction.name()) =='Parameters': 
+                interp=direction.children()[0].value()
+                continue
+            values[str(direction.name())]=dict([(v.name(),numpy.array(map(float,v.value().split(',')))) for v in direction.children()])
+        self._update_curves(values,interp)
+        
+    def _update_curves(self,curve_parameters,interp):
+        plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)}
+        from scipy.interpolate import interp1d
+        k=interp#'cubic'#linear, nearest, zero, slinear, quadratic, 
+        #Horizontal
+        self.hplot._clear_curves()
+        c1 = self.hplot.plot.plot(pen=(0,0,0), **plotparams)
+        c1.setData(curve_parameters['Horizontal']['x']*self.TILE_SIZE, curve_parameters['Horizontal']['y'])
+        c2 = self.hplot.plot.plot(pen=(255,0,0))
+        fh=interp1d(curve_parameters['Horizontal']['x']*self.TILE_SIZE, curve_parameters['Horizontal']['y'], kind=k)
+        self.hcorrection=fh(numpy.arange(self.TILE_SIZE))
+        c2.setData(numpy.arange(self.TILE_SIZE), self.hcorrection)
+        self.hplot.curves=[c1,c2]
+        print self.tilescandata.shape
+        if hasattr(self, 'tilescandata'):
+            c3 = self.hplot.plot.plot(pen=(0,255,0))
+            c3.setData(numpy.arange(self.TILE_SIZE), self.tilescandata.mean(axis=0)[:512])
+            self.hplot.curves.append(c3)
+        
+        #vertical
+        self.vplot._clear_curves()
+        c1 = self.vplot.plot.plot(pen=(0,0,0), **plotparams)
+        c1.setData(curve_parameters['Vertical']['x']*self.TILE_SIZE, curve_parameters['Vertical']['y'])
+        c2 = self.vplot.plot.plot(pen=(255,0,0))
+        fv=interp1d(curve_parameters['Vertical']['x']*self.TILE_SIZE, curve_parameters['Vertical']['y'], kind=k)
+        self.vcorrection=fv(numpy.arange(self.TILE_SIZE))
+        c2.setData(numpy.arange(self.TILE_SIZE), self.vcorrection)
+        self.vplot.curves=[c1,c2]
+        
+        
+        
+        self.image_correction()
+    
+        
 def run_gui():
     '''
     1. argument: username
