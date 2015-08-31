@@ -227,6 +227,10 @@ def average_of_traces(x,y):
     y_average = numpy.array([y[i][indexes[i]] for i in range(len(y))]).mean(axis=0)
     x_average = numpy.array([x[i][indexes[i]] for i in range(len(x))]).mean(axis=0)
     return x_average, y_average
+    
+def signal_shift(sig1,sig2):
+    c=numpy.correlate(sig1,sig2,'same')
+    return sig1.shape[0]/2-c.argmax()
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -378,6 +382,12 @@ class TestSignal(unittest.TestCase):
         x.append(rois[0]['matches']['/mnt/rzws/experiment_data/test/20150310/C1_3371241139/data_C1_unknownstim_1425992998_0.hdf5']['timg'])
         y.append(rois[0]['matches']['/mnt/rzws/experiment_data/test/20150310/C1_3371241139/data_C1_unknownstim_1425992998_0.hdf5']['normalized'])
         x_, y_ = average_of_traces(x,y)
+        
+    def test_15_signal_shift(self):
+        signal1=numpy.zeros(100)
+        signal1[10:20]=1
+        signal2=numpy.roll(signal1,10)
+        self.assertEqual(signal_shift(signal1,signal2),10)
         
     
 
