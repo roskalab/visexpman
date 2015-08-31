@@ -76,14 +76,6 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['DashStimulus']['DIRECTIONS'] = range(0,360,45)
         self.VARS['DashStimulus']['BAR_COLOR'] = 0.5 
         
-        self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseExperiment'
-        self.VARS['WhiteNoise'] = {}
-        self.VARS['WhiteNoise']['DURATION_MINS'] = 0.5 #30.0 # min
-        self.VARS['WhiteNoise']['PIXEL_SIZE'] = 50.0 # um
-        self.VARS['WhiteNoise']['FLICKERING_FREQUENCY'] = 60.0 # Hz
-        self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
-        self.VARS['WhiteNoise']['COLORS'] = [0.0, 1.0]
-        
         self.STIM_TYPE_CLASS['FullFieldFlashes'] = 'FullFieldFlashesExperiment'
         self.VARS['FullFieldFlashes'] = {}   
         self.VARS['FullFieldFlashes']['BACKGROUND'] = 0.5
@@ -91,20 +83,6 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['FullFieldFlashes']['ON_TIME'] = 2.0
         self.VARS['FullFieldFlashes']['OFF_TIME'] = 1.0
         self.VARS['FullFieldFlashes']['REPETITIONS'] = 1 #10
-        
-        self.STIM_TYPE_CLASS['Gratings'] = 'MovingGrating'
-        self.VARS['Gratings'] = {}   
-        self.VARS['Gratings']['REPEATS'] = 1
-        self.VARS['Gratings']['NUMBER_OF_BAR_ADVANCE_OVER_POINT'] = 5
-        self.VARS['Gratings']['MARCH_TIME'] = 1
-        self.VARS['Gratings']['GREY_INSTEAD_OF_MARCHING'] = False
-        self.VARS['Gratings']['NUMBER_OF_MARCHING_PHASES'] = 1
-        self.VARS['Gratings']['GRATING_STAND_TIME'] = 1.0
-        self.VARS['Gratings']['ORIENTATIONS'] = [0.0]#range(0,360,45)
-        self.VARS['Gratings']['WHITE_BAR_WIDTHS'] = [25, 300]
-        self.VARS['Gratings']['VELOCITIES'] = [500] #[100, 400, 1600]
-        self.VARS['Gratings']['DUTY_CYCLES'] = [1]
-        self.VARS['Gratings']['PAUSE_BEFORE_AFTER'] = 1
         
         self.runnable = 'BatchStimulus'
         self._create_parameters_from_locals(locals())

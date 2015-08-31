@@ -494,8 +494,6 @@ class FingerPrinting(experiment.Experiment):
                                                                                    )
             
             intensity_profile = numpy.concatenate((numpy.zeros(1.5*screen_size[1]), intensity_profile, numpy.zeros(1.5*screen_size[1])) )
-            #if intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
-            #    intensity_profile = numpy.tile(intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/intensity_profile.shape[0]))
             self.intensity_profiles[speed] = intensity_profile
             
         self.stimulus_duration = (duration* 2 + self.experiment_config.FF_PAUSE_DURATION) * len(self.experiment_config.SPEEDS)
@@ -506,9 +504,7 @@ class FingerPrinting(experiment.Experiment):
         for speed in self.experiment_config.SPEEDS:
             for direction in self.experiment_config.DIRECTIONS:
                 self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=True)
-                self.show_fullscreen(duration=self.experiment_config.FF_PAUSE_DURATION, color=self.experiment_config.FF_PAUSE_COLOR,frame_trigger=True)
-                self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=False)
-            
+        
         self.stimulus_frame_info.append({'super_block':'FingerPrinting', 'is_last': 1, 'counter':self.frame_counter})
 
 class WhiteNoiseExperiment(experiment.Experiment):
