@@ -35,7 +35,7 @@ class SpotWaveform(experiment.Experiment):
                 self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
         self.stimulus_frame_info.append({'super_block':'SpotWaveform', 'is_last':1, 'counter':self.frame_counter})
                 
-class MovingShapeExperiment(experiment.Experiment):
+class MovingShapeStimulus(experiment.Experiment):
     def prepare(self):
         parameter_default_values = {
         'REPETITIONS': 1, 
@@ -57,7 +57,7 @@ class MovingShapeExperiment(experiment.Experiment):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
     
     def run(self):
-        self.stimulus_frame_info.append({'super_block':'MovingShapeExperiment', 'is_last':0, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':0, 'counter':self.frame_counter})
         self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
                                   speeds = self.experiment_config.SPEEDS,
                                   directions = self.experiment_config.DIRECTIONS,
@@ -68,7 +68,7 @@ class MovingShapeExperiment(experiment.Experiment):
                                   repetition = self.experiment_config.REPETITIONS,
                                   block_trigger = True,
                                   shape_starts_from_edge = True)
-        self.stimulus_frame_info.append({'super_block':'MovingShapeExperiment', 'is_last':1, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':1, 'counter':self.frame_counter})
         
 class IncreasingSpotExperiment(experiment.Experiment):
     def prepare(self):
@@ -131,7 +131,7 @@ class FullFieldFlashesStimulus(experiment.Experiment):
         self.stimulus_frame_info.append({'super_block':'FullFieldFlashesStimulus', 'is_last':1, 'counter':self.frame_counter})
             
 
-class MovingGrating(experiment.Experiment):
+class MovingGratingStimulus(experiment.Experiment):
     '''
     Mandatory configuration parameters:
         REPEATS

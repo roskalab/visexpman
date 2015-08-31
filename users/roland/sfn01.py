@@ -30,7 +30,7 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['SPEEDS'] = [300.0, 1000.0] #[500, 1600]      
         self.VARS['FingerPrinting']['DURATION'] = 15.0
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
-        self.VARS['FingerPrinting']['REPEATS'] = 5
+        self.VARS['FingerPrinting']['REPEATS'] = 1#5
         
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
@@ -39,7 +39,7 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [0.0, 1.0]
         
-        self.STIM_TYPE_CLASS['Gratings'] = 'MovingGrating'
+        self.STIM_TYPE_CLASS['Gratings'] = 'MovingGratingStimulus'
         self.VARS['Gratings'] = {}   
         self.VARS['Gratings']['REPEATS'] = 3
         self.VARS['Gratings']['N_BAR_ADVANCES_OVER_POINT'] = 10
@@ -53,7 +53,7 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['Gratings']['DUTY_CYCLES'] = [1]
         self.VARS['Gratings']['PAUSE_BEFORE_AFTER'] = 1.0
         
-        self.STIM_TYPE_CLASS['MovingBars'] = 'MovingShapeExperiment'
+        self.STIM_TYPE_CLASS['MovingBars'] = 'MovingShapeStimulus'
         self.VARS['MovingBars'] = {}   
         self.VARS['MovingBars']['SHAPE_SIZE'] = utils.cr((1000, 500)) #um
         self.VARS['MovingBars']['SPEEDS'] = [200, 400, 1600] 
