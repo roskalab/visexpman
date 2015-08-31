@@ -507,7 +507,7 @@ class FingerPrintingStimulus(experiment.Experiment):
         
         self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last': 1, 'counter':self.frame_counter})
 
-class WhiteNoiseExperiment(experiment.Experiment):
+class WhiteNoiseStimulus(experiment.Experiment):
     def prepare(self):
         self.stimulus_duration = self.experiment_config.DURATION_MINS*60
         self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
@@ -515,18 +515,18 @@ class WhiteNoiseExperiment(experiment.Experiment):
             self.n_white_pixels = None;
         
     def run(self):
-        print 'Start WhiteNoiseExperiments.run()'
+        print 'Start WhiteNoiseStimulus.run()'
         
         random.seed(0)
                 
-        self.stimulus_frame_info.append({'super_block':'WhiteNoiseExperiment', 'is_last':0, 'counter':self.frame_counter})    
+        self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':0, 'counter':self.frame_counter})    
         self.white_noise(duration = self.experiment_config.DURATION_MINS*60,
                 pixel_size = self.experiment_config.PIXEL_SIZE, 
                 flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY, 
                 colors = self.experiment_config.COLORS,
                 n_on_pixels = self.n_white_pixels, set_seed = False)
         self.show_fullscreen(color=0.5)
-        self.stimulus_frame_info.append({'super_block':'WhiteNoiseExperiment', 'is_last':1, 'counter':self.frame_counter})    
+        self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})    
 
 class BatchStimulus(experiment.Experiment):
     '''
