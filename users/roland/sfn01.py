@@ -21,27 +21,27 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['FullFieldFlashes']['ON_TIME'] = 2.0
         self.VARS['FullFieldFlashes']['OFF_TIME'] = 2.0
         self.VARS['FullFieldFlashes']['REPETITIONS'] = 10
-        
+
+        # ~20 minutes        
         self.STIM_TYPE_CLASS['FingerPrinting'] = 'FingerPrintingStimulus'
         self.VARS['FingerPrinting'] = {}
-        self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
-        self.VARS['FingerPrinting']['FF_PAUSE_COLOR'] = 0.5
-        self.VARS['FingerPrinting']['DIRECTIONS'] = [0.0, 90.0]
+        self.VARS['FingerPrinting']['DIRECTIONS'] = [0.0, 90.0, 180.0, 270.0]
         self.VARS['FingerPrinting']['SPEEDS'] = [300.0, 1000.0] #[500, 1600]      
         self.VARS['FingerPrinting']['DURATION'] = 15.0
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
-        self.VARS['FingerPrinting']['REPEATS'] = 1#5
+        self.VARS['FingerPrinting']['REPEATS'] = 1 #10
+        self.VARS['FingerPrinting']['MIN_SPATIAL_PERIOD'] = [10.0, 50.0]
         
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
-        self.VARS['WhiteNoise']['DURATION_MINS'] = 30.0 # min
+        self.VARS['WhiteNoise']['DURATION_MINS'] = 1.0#30.0 # min
         self.VARS['WhiteNoise']['PIXEL_SIZE'] = [50.0] # um
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [0.0, 1.0]
         
         self.STIM_TYPE_CLASS['Gratings'] = 'MovingGratingStimulus'
         self.VARS['Gratings'] = {}   
-        self.VARS['Gratings']['REPEATS'] = 3
+        self.VARS['Gratings']['REPEATS'] = 1 #10
         self.VARS['Gratings']['N_BAR_ADVANCES_OVER_POINT'] = 10
         self.VARS['Gratings']['MARCH_TIME'] = 0.0
         self.VARS['Gratings']['GREY_INSTEAD_OF_MARCHING'] = False
@@ -52,7 +52,6 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['Gratings']['VELOCITIES'] = [300] #[100, 400, 1600]
         self.VARS['Gratings']['DUTY_CYCLES'] = [1]
         self.VARS['Gratings']['PAUSE_BEFORE_AFTER'] = 1.0
-        
         
         self.STIM_TYPE_CLASS['MovingBars'] = 'MovingShapeStimulus'
         self.VARS['MovingBars'] = {}   

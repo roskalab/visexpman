@@ -479,7 +479,6 @@ class FingerPrintingStimulus(experiment.Experiment):
             INTENSITY_LEVELS
             SPEEDS
             DIRECTIONS
-            FF_PAUSE_DURATION
             REPEATS
         Optional:
             SPATIAL_PERIOD
@@ -493,39 +492,46 @@ class FingerPrintingStimulus(experiment.Experiment):
         except:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         try:
-            minimal_spatial_period = self.experiment_config.MIN_SPATIAL_PERIOD
-        except:        
-            minimal_spatial_period = 10 * spatial_resolution
+            #minimal_spatial_period = self.experiment_config.MIN_SPATIAL_PERIOD
+            self.experiment_config.MIN_SPATIAL_PERIOD
+        except:
+            self.experiment_config.MIN_SPATIAL_PERIOD = [10 * spatial_resolution]
+            #minimal_spatial_period = 10 * spatial_resolution
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
         
         # Create intensity profile(s):
         self.intensity_profiles = {}
         for speed in self.experiment_config.SPEEDS:
+            self.intensity_profiles[speed] = {}
+            for minimal_spatial_period in self.experiment_config.MIN_SPATIAL_PERIOD:
             
-            intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration=duration, 
-                                                                                   speed=speed,
-                                                                                   intensity_levels=intensity_levels,
-                                                                                   minimal_spatial_period=minimal_spatial_period,
-                                                                                   spatial_resolution=spatial_resolution,
-                                                                                   )
+                intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration=duration, 
+                                                                                       speed=speed,
+                                                                                       intensity_levels=intensity_levels,
+                                                                                       minimal_spatial_period=minimal_spatial_period,
+                                                                                       spatial_resolution=spatial_resolution,
+                                                                                       )
+                
+                intensity_profile = numpy.concatenate((numpy.zeros(1.5*screen_size[1]), intensity_profile, numpy.zeros(1.5*screen_size[1])) )
+                #if intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
+                #    intensity_profile = numpy.tile(intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/intensity_profile.shape[0]))
+                self.intensity_profiles[speed][minimal_spatial_period] = intensity_profile
             
-            intensity_profile = numpy.concatenate((numpy.zeros(1.5*screen_size[1]), intensity_profile, numpy.zeros(1.5*screen_size[1])) )
-            #if intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
-            #    intensity_profile = numpy.tile(intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/intensity_profile.shape[0]))
-            self.intensity_profiles[speed] = intensity_profile
-            
-        self.stimulus_duration = (duration* 2 + self.experiment_config.FF_PAUSE_DURATION) * len(self.experiment_config.SPEEDS)*self.experiment_config.REPEATS
+        self.stimulus_duration = duration
+        self.stimulus_duration *= len(self.experiment_config.SPEEDS) 
+        self.stimulus_duration *= len(self.experiment_config.MIN_SPATIAL_PERIOD) 
+        self.stimulus_duration *= self.experiment_config.REPEATS
     
     def run(self):
         self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last':0, 'counter':self.frame_counter})
         
         for rep in range(self.experiment_config.REPEATS):
             for speed in self.experiment_config.SPEEDS:
-                for direction in self.experiment_config.DIRECTIONS:
-                    self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=True)
-                    self.show_fullscreen(duration=self.experiment_config.FF_PAUSE_DURATION, color=self.experiment_config.FF_PAUSE_COLOR,frame_trigger=True)
-                    self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=False)
+                for minimal_spatial_period in self.experiment_config.MIN_SPATIAL_PERIOD:
+                    for direction in self.experiment_config.DIRECTIONS:
+                        self.show_fingerprint(self.intensity_profiles[speed][minimal_spatial_period], speed, direction = direction, forward=True)
+                        
                 
         self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last': 1, 'counter':self.frame_counter})
 
