@@ -94,7 +94,7 @@ class IncreasingSpotExperiment(experiment.Experiment):
                                     block_trigger = True)
         self.stimulus_frame_info.append({'super_block':'IncreasingSpotExperiment', 'is_last':1, 'counter':self.frame_counter})
 
-class FullFieldFlashesExperiment(experiment.Experiment):
+class FullFieldFlashesStimulus(experiment.Experiment):
     '''
     Expected parameters:
     Color(s)
@@ -120,7 +120,7 @@ class FullFieldFlashesExperiment(experiment.Experiment):
         self.stimulus_duration = self.repetitions * len(self.colors) * (self.experiment_config.ON_TIME+self.experiment_config.OFF_TIME)
 
     def run(self):
-        self.stimulus_frame_info.append({'super_block':'FullFieldFlashesExperiment', 'is_last':0, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'FullFieldFlashesStimulus', 'is_last':0, 'counter':self.frame_counter})
         for r in range(self.repetitions):
             self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
             for color in self.colors:
@@ -128,7 +128,7 @@ class FullFieldFlashesExperiment(experiment.Experiment):
                 self.show_fullscreen(duration=self.experiment_config.ON_TIME,color=color,frame_trigger=True)
                 self.block_end()
                 self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
-        self.stimulus_frame_info.append({'super_block':'FullFieldFlashesExperiment', 'is_last':1, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'FullFieldFlashesStimulus', 'is_last':1, 'counter':self.frame_counter})
             
 
 class MovingGrating(experiment.Experiment):
@@ -467,7 +467,7 @@ class DashStimulus(experiment.Experiment):
         dash = numpy.repeat([numpy.concatenate((gap_l, dash_l, gap_l))], bar_[0], axis=0)
         return numpy.concatenate((gap_w, dash, gap_w)) 
   
-class FingerPrinting(experiment.Experiment):        
+class FingerPrintingStimulus(experiment.Experiment):        
     def prepare(self):
         duration = self.experiment_config.DURATION
         intensity_levels = self.experiment_config.INTENSITY_LEVELS
@@ -499,13 +499,13 @@ class FingerPrinting(experiment.Experiment):
         self.stimulus_duration = (duration* 2 + self.experiment_config.FF_PAUSE_DURATION) * len(self.experiment_config.SPEEDS)
     
     def run(self):
-        self.stimulus_frame_info.append({'super_block':'FingerPrinting', 'is_last':0, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last':0, 'counter':self.frame_counter})
         
         for speed in self.experiment_config.SPEEDS:
             for direction in self.experiment_config.DIRECTIONS:
                 self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=True)
         
-        self.stimulus_frame_info.append({'super_block':'FingerPrinting', 'is_last': 1, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last': 1, 'counter':self.frame_counter})
 
 class WhiteNoiseExperiment(experiment.Experiment):
     def prepare(self):
@@ -536,8 +536,8 @@ class BatchStimulus(experiment.Experiment):
             
         E.g.:
             self.VARS = {}
-            self.VARS['FingerPrinting'] = {}
-            self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
+            self.VARS['FingerPrintingStimulus'] = {}
+            self.VARS['FingerPrintingStimulus']['FF_PAUSE_DURATION'] = 1.0
             ...
             self.VARS['DashStimulus'] = {}
             self.VARS['DashStimulus']['BARSIZE'] = [25, 100]

@@ -14,7 +14,7 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS = OrderedDict()
         self.STIM_TYPE_CLASS = {}
     
-        self.STIM_TYPE_CLASS['FullFieldFlashes'] = 'FullFieldFlashesExperiment'
+        self.STIM_TYPE_CLASS['FullFieldFlashes'] = 'FullFieldFlashesStimulus'
         self.VARS['FullFieldFlashes'] = {}   
         self.VARS['FullFieldFlashes']['BACKGROUND'] = 0.5
         self.VARS['FullFieldFlashes']['COLORS'] = [0.0, 1.0]
@@ -22,7 +22,7 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['FullFieldFlashes']['OFF_TIME'] = 2.0
         self.VARS['FullFieldFlashes']['REPETITIONS'] = 10
         
-        self.STIM_TYPE_CLASS['FingerPrinting'] = 'FingerPrinting'
+        self.STIM_TYPE_CLASS['FingerPrinting'] = 'FingerPrintingStimulus'
         self.VARS['FingerPrinting'] = {}
         self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
         self.VARS['FingerPrinting']['FF_PAUSE_COLOR'] = 0.5
@@ -53,14 +53,14 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['Gratings']['DUTY_CYCLES'] = [1]
         self.VARS['Gratings']['PAUSE_BEFORE_AFTER'] = 1.0
         
-        self.STIM_TYPE_CLASS['MovingShapeExperiment'] = 'MovingBars'
-        self.VARS['MovingShapeExperiment'] = {}   
-        self.VARS['MovingShapeExperiment']['SHAPE_SIZE'] = utils.cr((1000, 500)) #um
-        self.VARS['MovingShapeExperiment']['SPEEDS'] = [200, 400, 1600] 
-        self.VARS['MovingShapeExperiment']['PAUSE_BETWEEN_DIRECTIONS'] = 1.0
-        self.VARS['MovingShapeExperiment']['REPETITIONS'] = 10
-        self.VARS['MovingShapeExperiment']['DIRECTIONS'] = range(0,360,45)
-        self.VARS['MovingShapeExperiment']['SHAPE_BACKGROUND'] = 0.0
+        self.STIM_TYPE_CLASS['MovingBars'] = 'MovingShapeExperiment'
+        self.VARS['MovingBars'] = {}   
+        self.VARS['MovingBars']['SHAPE_SIZE'] = utils.cr((1000, 500)) #um
+        self.VARS['MovingBars']['SPEEDS'] = [200, 400, 1600] 
+        self.VARS['MovingBars']['PAUSE_BETWEEN_DIRECTIONS'] = 1.0
+        self.VARS['MovingBars']['REPETITIONS'] = 10
+        self.VARS['MovingBars']['DIRECTIONS'] = range(0,360,45)
+        self.VARS['MovingBars']['SHAPE_BACKGROUND'] = 0.0
         
         self.runnable = 'BatchStimulus'
         self._create_parameters_from_locals(locals())
@@ -96,6 +96,6 @@ class SFN01Gratings(SFN01BatchConfig):
 class SFN01MovingBars(SFN01BatchConfig):
     def _create_parameters(self):
         SFN01BatchConfig._create_parameters(self)
-        self.sub_stimulus = 'MovingShapeExperiment'
+        self.sub_stimulus = 'MovingBars'
         SFN01BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
