@@ -65,11 +65,10 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.runnable = 'BatchStimulus'
         self._create_parameters_from_locals(locals())
 
-
-class SFN01DashStimulus(SFN01BatchConfig):
+class SFN01FullField(SFN01BatchConfig):
     def _create_parameters(self):
-        SFN01BatchConfig._create_parameters(self)   
-        self.sub_stimulus = 'DashStimulus'
+        SFN01BatchConfig._create_parameters(self)
+        self.sub_stimulus = 'FullFieldFlashes'
         SFN01BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
 
@@ -79,25 +78,11 @@ class SFN01FingerPrinting(SFN01BatchConfig):
         self.sub_stimulus = 'FingerPrinting'
         SFN01BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
-
-#class SFN01MarchingSquares(SFN01BatchConfig):
-#    def _create_parameters(self):
-#        SFN01BatchConfig._create_parameters(self)
-#        self.sub_stimulus = 'MarchingSquares'
-#        SFN01BatchConfig.extract_experiment_type(self, self)
-#        self._create_parameters_from_locals(locals())
         
 class SFN01WhiteNoise(SFN01BatchConfig):
     def _create_parameters(self):
         SFN01BatchConfig._create_parameters(self)
         self.sub_stimulus = 'WhiteNoise'
-        SFN01BatchConfig.extract_experiment_type(self, self)
-        self._create_parameters_from_locals(locals())
-
-class SFN01FullField(SFN01BatchConfig):
-    def _create_parameters(self):
-        SFN01BatchConfig._create_parameters(self)
-        self.sub_stimulus = 'FullFieldFlashes'
         SFN01BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
 
@@ -108,23 +93,9 @@ class SFN01Gratings(SFN01BatchConfig):
         SFN01BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
         
-class SFN01WhiteNoise(SFN01BatchConfig):
+class SFN01MovingBars(SFN01BatchConfig):
     def _create_parameters(self):
         SFN01BatchConfig._create_parameters(self)
-        self.sub_stimulus = 'WhiteNoise'
-        SFN01BatchConfig.extract_experiment_type(self, self)
-        self._create_parameters_from_locals(locals())
-
-class SFN01FullField(SFN01BatchConfig):
-    def _create_parameters(self):
-        SFN01BatchConfig._create_parameters(self)
-        self.sub_stimulus = 'FullFieldFlashes'
-        SFN01BatchConfig.extract_experiment_type(self, self)
-        self._create_parameters_from_locals(locals())
-
-class SFN01Gratings(SFN01BatchConfig):
-    def _create_parameters(self):
-        SFN01BatchConfig._create_parameters(self)
-        self.sub_stimulus = 'Gratings'
+        self.sub_stimulus = 'MovingShapeExperiment'
         SFN01BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
