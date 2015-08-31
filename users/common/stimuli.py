@@ -508,25 +508,44 @@ class FingerPrintingStimulus(experiment.Experiment):
         self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last': 1, 'counter':self.frame_counter})
 
 class WhiteNoiseStimulus(experiment.Experiment):
+    '''
+        Required:
+            DURATION_MINS: in minutes (!)
+            PIXEL_SIZE
+            COLORS
+        Optional:
+            FLICKERING_FREQUENCY
+    '''
     def prepare(self):
-        self.stimulus_duration = self.experiment_config.DURATION_MINS*60
         self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
         if not self.experiment_config.N_WHITE_PIXELS:
             self.n_white_pixels = None;
+        self.stimulus_duration = self.experiment_config.DURATION_MINS*60.0
+
+        try:
+            self.flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY
+        except:
+            self.flickering_frequency = self.config.SCREEN_EXPECTED_FRAME_RATE
+        
+        npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
+        
+        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
+        if pixel_size.shape[0] == 1:
+            pixel_size = [pixel_size[0], pixel_size[0]]
+        
+        npixels = numpy.round(screen_size/pixel_size)
+        n_channels = 1
+        color = numpy.zeros((npatterns, npixels[0], npixels[1], n_channels))
+        numpy.random.seed(0)
+        self.textures = numpy.round(numpy.random.random(color.shape[:-1]))
         
     def run(self):
-        print 'Start WhiteNoiseStimulus.run()'
-        
-        random.seed(0)
-                
-        self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':0, 'counter':self.frame_counter})    
-        self.white_noise(duration = self.experiment_config.DURATION_MINS*60,
-                pixel_size = self.experiment_config.PIXEL_SIZE, 
-                flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY, 
-                colors = self.experiment_config.COLORS,
-                n_on_pixels = self.n_white_pixels, set_seed = False)
+        #random.seed(0)
+        self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':0, 'counter':self.frame_counter})
+        self.white_noise(textures = self.textures)
         self.show_fullscreen(color=0.5)
-        self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})    
+        self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})  
 
 class BatchStimulus(experiment.Experiment):
     '''
