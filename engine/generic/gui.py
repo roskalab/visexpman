@@ -12,6 +12,18 @@ import pyqtgraph
 import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal
 from pyqtgraph.parametertree import Parameter, ParameterTree
+import traceback,sys,Queue
+
+def excepthook(excType, excValue, tracebackobj):
+    msg='\n'.join(traceback.format_tb(tracebackobj))+str(excType.__name__)+': '+str(excValue)
+    print msg
+    error_messages.put(msg)
+    
+sys.excepthook = excepthook
+
+
+error_messages = Queue.Queue()
+
 
 def get_icon(name, icon_folder=None):
     if icon_folder is None:
@@ -39,6 +51,9 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                 setattr(self,c,context[c])
             self.source_name = '{0}' .format(self.user_interface_name)
         self.text = ''
+        self.error_timer = QtCore.QTimer()
+        self.error_timer.timeout.connect(self.catch_error_message)
+        self.error_timer.start(200)
 
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
@@ -68,6 +83,10 @@ class VisexpmanMainWindow(Qt.QMainWindow):
             getattr(self.logger, loglevel)(text.replace('{0}: '.format(loglevel.upper()),''), self.source_name)
         else:
             self.logger.info(text, self.source_name)
+            
+    def catch_error_message(self):
+        if not error_messages.empty():
+            self.logger.error(error_messages.get())
         
     def closeEvent(self, e):
         e.accept()
@@ -213,12 +232,17 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             map(self.plot.removeItem, self.curves)
             del self.curves
         
-    def add_linear_region(self, start, end):
-        if hasattr(self,'linear_region'):
-            self.plot.removeItem(self.linear_region)
+    def add_linear_region(self, boundaries):
+        if len(boundaries)%2==1:
+            raise RuntimeError('Invalid boundaries: {0}'.format(boundaries))
+        if hasattr(self,'linear_regions'):
+            for linear_region in self.linear_regions:
+                self.plot.removeItem(linear_region)
         c=(40,40,40,100)
-        self.linear_region = pyqtgraph.LinearRegionItem([start, end], movable=False, brush = c)
-        self.plot.addItem(self.linear_region)
+        self.linear_regions=[]
+        for i in range(len(boundaries)/2):
+            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = c))
+            self.plot.addItem(self.linear_regions[-1])
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):

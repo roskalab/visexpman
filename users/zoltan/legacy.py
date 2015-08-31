@@ -28,12 +28,19 @@ class PhysTiff2Hdf5(object):
         self.use_tiff = True
         self.skipped_files = []
         self.processed_pairs = []
+        self.irlaser = len(sys.argv) == 3 and sys.argv[2]=='irlaser'
         
     def detect_and_convert(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
         self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
-        physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='phys']
+        
+        if self.irlaser:
+            physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='csv' and 'rect' not in f and 'timestamps' not in f]
+        else:
+            physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='phys']
         tiffiles = [f for f in self.allfiles if fileop.file_extension(f)==('tif' if self.use_tiff else 'csv')]
+        if self.irlaser:
+            tiffiles = [tf for tf in tiffiles if tf not in physfiles]
         if not self.use_tiff:
             tiffiles = [f for f in tiffiles if not 'timestamp' in f]
         processable_physfiles = []
@@ -43,7 +50,8 @@ class PhysTiff2Hdf5(object):
         #Find corresponding folder with tiff file
         pairs = []
         for pf in processable_physfiles:
-            found = [tf for tf in tiffiles if os.path.split(pf.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
+            regexp = pf
+            found = [tf for tf in tiffiles if os.path.split(regexp.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
             if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3 and [pf,found[0]] not in self.processed_pairs:
                 id = str(experiment_data.get_id(os.path.getmtime(pf)))
                 if len([f for f in self.outfiles if id in f])==0:
@@ -112,6 +120,8 @@ class PhysTiff2Hdf5(object):
         
     def backup_files(self,fphys,ftiff,fhdf5):
         bu_folder = 'D:\\backup'
+        if not os.path.exists(bu_folder) or os.name=='posix':
+            return
         import shutil
         shutil.copy(fphys, bu_folder)
         shutil.copy(fhdf5, bu_folder)
@@ -146,11 +156,12 @@ class PhysTiff2Hdf5(object):
             raw_data = tifffile.imread(tmptiff)[1::2]
             raw_data = raw_data.reshape((raw_data.shape[0], 1, raw_data.shape[1], raw_data.shape[2]))
         else:
-            import struct
-            f =open(ftiff, 'rb')
+#            import struct
+#            f =open(ftiff, 'rb')
             sizex, sizey, a,b, res = map(float, os.path.split(ftiff)[1].replace('.csv','').split('_')[-5:])
-            data = f.read()
-            data=numpy.array(struct.unpack('>'+''.join(len(data)/4*['f']),data), dtype = numpy.float32)
+#            data_s = f.read()
+#            data=numpy.array(struct.unpack('>'+''.join(len(data_s)/4*['f']),data_s), dtype = numpy.float32)
+            data=numpy.fromfile(ftiff,">f4")
             nframes = int(data.shape[0]/(sizex*res*(sizey*res-1))/2)
             if nframes<10:
                 return
@@ -166,8 +177,20 @@ class PhysTiff2Hdf5(object):
         recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+fileop.file_extension(ftiff), ''))
         recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
         recording_parameters['elphys_sync_sample_rate'] = 10000
-        data, metadata = experiment_data.read_phys(fphys)
-        experiment_name = self.parse_stimulus_name(metadata)
+        if self.irlaser:
+            experiment_name = 'irlaser'
+            with open(fphys,'rt') as f:
+                txt=f.read()
+            data=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
+            metadata={}
+            metadata['Sample Rate']=10000
+            metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,fphys.replace('.csv','').split('_')[3:])
+            data[1]=data[2]
+            data[2]=data[4]
+            data=data[:3]
+        else:
+            data, metadata = experiment_data.read_phys(fphys)
+            experiment_name = self.parse_stimulus_name(metadata)
         recording_parameters['experiment_name']=experiment_name
         recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if metadata.has_key('Stimulus file') and os.path.exists(metadata['Stimulus file']) else ''
         recording_parameters['experiment_source_file'] = metadata['Stimulus file'] if metadata.has_key('Stimulus file') else ''
@@ -217,9 +240,11 @@ class PhysTiff2Hdf5(object):
                 if getattr(m, cl).__bases__[0].__name__ == 'ExperimentConfig':
                     return cl
         else:
-            return os.path.split(metadata['Stimulus file'])[1].replace('.py','')
+            return os.path.split(metadata['Stimulus file'])[1].split('\\')[-1].replace('.py','')
         
     def sync_signal2block_trigger(self, sig):
+        if self.irlaser:
+            return sig*5.0/sig.max()
         indexes = signal.trigger_indexes(sig)
         if (10000.0/numpy.diff(indexes)[1::2]).mean()<55:
             return sig
@@ -239,19 +264,25 @@ class PhysTiff2Hdf5(object):
             return sig2
         
     def yscanner_signal2trigger(self,waveform, fsample,nxlines):
+        if self.irlaser:
+            threshold_factor = 1e-5
+        else:
+            threshold_factor = 1.0
         #First harmonic will be the frame rate
         factor=5
         f=numpy.fft.fft(waveform[:waveform.shape[0]/factor])
         f=f[:f.shape[0]/2]
         df=1.0/(waveform.shape[0]/fsample)
         frame_rate = factor*abs(f)[1:].argmax()*df#First harmonic has the highest amplitude
+        if abs(f)[1:].argmax()==0:
+            frame_rate=10.0
         if frame_rate>30:#Then probably x scanner signal
             frame_rate /= nxlines
-            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000)[0][0]
-            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>2000)[0][-1]
+            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][0]
+            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][-1]
         else:
-            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000)[0][0]
-            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>1000)[0][-1]
+            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][0]
+            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][-1]
         if frame_rate<5 or frame_rate>12:
             pdb.set_trace()
             raise RuntimeError(frame_rate)
@@ -299,7 +330,7 @@ class TestConverter(unittest.TestCase):
         
         
 if __name__ == '__main__':
-    if len(sys.argv)==2:
+    if len(sys.argv)==2 or len(sys.argv)==3:
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1])
         p.use_tiff=False
         print 'Close window to exit program'

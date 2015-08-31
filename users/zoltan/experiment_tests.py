@@ -16,37 +16,10 @@ class NaturalBarsConfig1(experiment.ExperimentConfig):
 
 class NaturalBarsExperiment1(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)]
+        self.stimulus_duration = self.experiment_config.DURATION
         
     def run(self):
-        for rep in [0]:
-            if self.abort:
-                break
-            self.show_fullscreen(duration = self.experiment_config.BACKGROUND_TIME, color =  self.experiment_config.BACKGROUND_COLOR, flip=False)
-            for directions in [0]:
-                if self.abort:
-                    break
-                for speeds in self.experiment_config.SPEED:
-                    if self.abort:
-                        break
-                    if self.experiment_config.ALWAYS_FLY_IN_OUT:
-                        fly_in = True
-                        fly_out = True
-                    else:
-                        if self.experiment_config.SPEED.index(speeds) == 0:
-                            fly_in = True
-                            fly_out = False
-                        elif self.experiment_config.SPEED.index(speeds) == len(self.experiment_config.SPEED)-1:
-                            fly_in = False
-                            fly_out = True
-                        else:
-                            fly_in = False
-                            fly_out = False
-#                    fly_in = False
-#                    fly_out = False
-                    self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
-                    
-                    
+        self.show_fullscreen(duration = self.experiment_config.DURATION, color =  self.experiment_config.BACKGROUND_COLOR)
 
 
 if __name__ == "__main__":

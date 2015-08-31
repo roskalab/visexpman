@@ -90,7 +90,7 @@ class CaImagingData(hdf5io.Hdf5io):
         self.meanimage, self.image_scale = get_imagedata(self)
         self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
         if self.raw_data.shape[0]<self.timg.shape[0]:
-            raise RuntimeError('More sync pulses detected than number of frames recorded')
+            raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
         return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
         
     def convert(self,format):
@@ -485,9 +485,9 @@ def read_phys(filename):
     dim2 = f.read(4)
     dim1 = struct.unpack('>i',dim1)[0]
     dim2 = struct.unpack('>i',dim2)[0]
-    data = f.read(2*dim1*dim2)
-    data = numpy.array(struct.unpack('>'+''.join(dim1*dim2*['h']),data), dtype = numpy.int16).reshape((dim1, dim2))
-#    data = numpy.fromfile(f, dtype=numpy.int16, count=dim1*dim2).reshape((dim1, dim2))
+    data=numpy.fromfile(f,">i2").reshape((dim1, dim2))
+#    data = f.read(2*dim1*dim2)
+#    data = numpy.array(struct.unpack('>'+''.join(dim1*dim2*['h']),data), dtype = numpy.int16).reshape((dim1, dim2))
     f.close()
     return data, metadata
 

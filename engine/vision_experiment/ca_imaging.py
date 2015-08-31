@@ -1,3 +1,4 @@
+import numpy
 import time
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -8,14 +9,14 @@ from visexpman.engine.hardware_interface import camera_interface
 import Queue
 import rpyc
 import cPickle as pickle
-camen=not False
+camen= not False
 q=Queue.Queue()
 
 class CaImagingHardwareHandler(object):
     def start_ir_camera_acquisition(self):
         self.camera=camera_interface.SpotCam()
 #        self.camera=camera_interface.SpotCamAcquisition()
-        self.camera.set_exposure(self.settings['Exposure time'], self.settings['Gain'])
+        self.camera.set_exposure(self.settings['Exposure time']*1e-3, self.settings['Gain'])
         self.camera_running=True
 #        self.camera.command.put({'set_exposure':[self.settings['Exposure time'], self.settings['Gain']]})
 #        self.camera.start()
@@ -30,7 +31,7 @@ class CaImagingHardwareHandler(object):
             self.camera.close()
             del self.camera
             self.printc('Camera stopped')
-            
+
     def read_ir_image(self):
         if hasattr(self, 'camera'):
             return self.camera.get_image()
@@ -47,7 +48,24 @@ class CaImagingHardwareHandler(object):
     def help(self):
         import rpyc
         self.c=rpyc.connect('localhost',port = 18861)
+        self.c.root.set_exposure(self.settings['Exposure time']*1e-3, self.settings['Gain'])
+        self.camera_running=True
         
+class Images(QtGui.QWidget):
+    def __init__(self, parent):
+        self.parent = parent
+        QtGui.QWidget.__init__(self, parent)
+        image_names = ['Live', 'Reference']
+        self.image={}
+        self.layout = QtGui.QHBoxLayout()
+        for n in image_names:
+            self.image[n]=gui.Image(self)
+            self.image[n].plot.setLabels(left='um', bottom='um')
+            self.image[n].plot.setTitle(n)
+            self.image[n].setMinimumWidth(self.parent.machine_config.GUI['SIZE']['col']/2.5)
+            self.image[n].setFixedHeight(self.parent.machine_config.GUI['SIZE']['col']/2.5)
+            self.layout.addWidget(self.image[n])
+        self.setLayout(self.layout)
 
 class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
     def __init__(self, context):
@@ -56,23 +74,22 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
         gui.VisexpmanMainWindow.__init__(self, context)
         self.toolbar = gui.ToolBar(self, ['live_ir_camera', 'live_two_photon', 'snap_two_photon', 'stop', 'exit'])
         self.addToolBar(self.toolbar)
+        self.images=Images(self)
+        self.setCentralWidget(self.images)
         self.debug = gui.Debug(self)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        self.image = gui.Image(self)
-        self.image.plot.setLabels(left='um', bottom='um')
-        self.image.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-        self.image.setFixedHeight(self.machine_config.GUI['SIZE']['col']/2)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         self.settings = gui.ParameterTable(self, self._get_params_config())
         self.settings.setMinimumWidth(300)
         self.settings.params.sigTreeStateChanged.connect(self.settings_changed)
         self._add_dockable_widget('Settings', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.settings)
+        self._set_window_title()
         self.show()
         self.settings_changed()
         self.timer=QtCore.QTimer()
-        self.timer.start(1200)#ms
+        self.timer.start(80)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.read_image)
         self.camera_running = False
+        self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -97,12 +114,14 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
             
     def read_image(self):
         if self.camera_running:
-            self.printc('reading image')
-            im=self.read_ir_image()
+#            self.printc('reading image')
+            im=pickle.loads(self.c.root.get_image())
+            self.im=im
             if im is not None:
 #                im*=0.2
 #                im+=0.5
-                self.image.img.setImage(im, levels = (0,1))
+                im=im.T
+                self.image.img.setImage(im, levels = (0,255))
                 self.image.setFixedWidth(float(im.shape[0])/im.shape[1]*self.image.height())
             
     def live_ir_camera_action(self):
