@@ -6,7 +6,7 @@ Created on Mon Jul 27 15:43:10 2015
 #import numpy
 #import copy
 #import time
-#import random
+#import random 
 #from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
