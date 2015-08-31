@@ -53,10 +53,11 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         self.VARS['Gratings']['DUTY_CYCLES'] = [1]
         self.VARS['Gratings']['PAUSE_BEFORE_AFTER'] = 1.0
         
+        
         self.STIM_TYPE_CLASS['MovingBars'] = 'MovingShapeStimulus'
         self.VARS['MovingBars'] = {}   
         self.VARS['MovingBars']['SHAPE_SIZE'] = utils.cr((1000, 500)) #um
-        self.VARS['MovingBars']['SPEEDS'] = [200, 400, 1600] 
+        self.VARS['MovingBars']['SPEEDS'] = [200, 400, 1600]
         self.VARS['MovingBars']['PAUSE_BETWEEN_DIRECTIONS'] = 1.0
         self.VARS['MovingBars']['REPETITIONS'] = 10
         self.VARS['MovingBars']['DIRECTIONS'] = range(0,360,45)

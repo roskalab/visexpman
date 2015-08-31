@@ -1,7 +1,7 @@
 import numpy
 import copy
 import time
-import random
+#import random
 import os
 from visexpman.engine.generic import utils, signal, colors
 from visexpman.engine.vision_experiment import experiment
@@ -117,7 +117,7 @@ class FullFieldFlashesStimulus(experiment.Experiment):
             self.repetitions = self.experiment_config.REPETITIONS
         else:
             self.repetitions = 1
-        self.stimulus_duration = self.repetitions * len(self.colors) * (self.experiment_config.ON_TIME+self.experiment_config.OFF_TIME)
+        self.stimulus_duration = (self.experiment_config.ON_TIME+self.experiment_config.OFF_TIME)*self.repetitions*len(self.colors)
 
     def run(self):
         self.stimulus_frame_info.append({'super_block':'FullFieldFlashesStimulus', 'is_last':0, 'counter':self.frame_counter})
@@ -135,7 +135,7 @@ class MovingGratingStimulus(experiment.Experiment):
     '''
     Mandatory configuration parameters:
         REPEATS
-        NUMBER_OF_BAR_ADVANCE_OVER_POINT
+        N_BAR_ADVANCES_OVER_POINT
         MARCH_TIME
         GREY_INSTEAD_OF_MARCHING
         NUMBER_OF_MARCHING_PHASES
@@ -148,7 +148,6 @@ class MovingGratingStimulus(experiment.Experiment):
     Optional configuration parameters:
         ENABLE_FLASH
         PROFILE
-        
     '''
     def prepare(self):
         self.marching_phases = -numpy.linspace(0, 360, self.experiment_config.NUMBER_OF_MARCHING_PHASES + 1)[:-1]        
@@ -168,7 +167,7 @@ class MovingGratingStimulus(experiment.Experiment):
                             stimulus_unit['duty_cycle'] = duty_cycle
                             stimulus_unit['orientation'] = orientation
                             period_length = (duty_cycle + 1) * white_bar_width
-                            required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
+                            required_movement = period_length * self.experiment_config.N_BAR_ADVANCES_OVER_POINT
                             stimulus_unit['move_time'] = float(required_movement) / velocity
                             #round it to the multiple of frame rate
                             stimulus_unit['move_time'] = \
@@ -185,15 +184,14 @@ class MovingGratingStimulus(experiment.Experiment):
         self.fragment_durations = [self.fragment_durations]
         self.number_of_fragments = len(self.fragment_durations)
         #Group stimulus units into fragments
-        segment_pointer = 0
+        #segment_pointer = 0
         self.fragmented_stimulus_units = [self.stimulus_units]
         self.experiment_specific_data = {}
-        
         self.stimulus_duration = self.overall_duration
-
+        
     def run(self, fragment_id = 0):
         
-        self.stimulus_frame_info.append({'super_block':'MovingGrating', 'is_last':0, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'MovingGratingStimulus', 'is_last':0, 'counter':self.frame_counter})
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus('ff', self.experiment_config.TIMING, colors = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
@@ -263,7 +261,7 @@ class MovingGratingStimulus(experiment.Experiment):
                 self.experiment_specific_data['segment_info'][segment_id] = segment_info#TODO:redundant data, need to be removed
                 segment_counter += 1
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)
-        self.stimulus_frame_info.append({'super_block':'MovingGrating', 'is_last':1, 'counter':self.frame_counter})
+        self.stimulus_frame_info.append({'super_block':'MovingGratingStimulus', 'is_last':1, 'counter':self.frame_counter})
 
 class PixelSizeCalibration(experiment.Experiment):
     '''
@@ -390,8 +388,17 @@ class ReceptiveFieldExplore(experiment.Experiment):
 
 
 class DashStimulus(experiment.Experiment):
+    '''
+        Required:
+            BARSIZE:     list of 2 elements: bar width and length
+            GAPSIZE:     list of 2 elements: gap width and length
+            MOVINGLINES: number that specifies how many lines are skipped during movement
+            DURATION:    in seconds
+            SPEEDS:      list of speeds in um/s
+            DIRECTIONS:  list of directions
+            BAR_COLOR:   either a float of a 3 element RGB-list
+    '''
     def prepare(self):
-        
         self.bgcolor = self.config.BACKGROUND_COLOR
         if hasattr(self.experiment_config, 'BACKGROUND_COLOR'):
             self.bgcolor = colors.convert_color(self.experiment_config.BACKGROUND_COLOR, self.config)
@@ -419,9 +426,7 @@ class DashStimulus(experiment.Experiment):
                                  self.experiment_config.MOVINGLINES
     
     def run(self):
-        
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':0, 'counter':self.frame_counter})
-        
         for speed in self.experiment_config.SPEEDS:
             for direction in self.experiment_config.DIRECTIONS:
                 self.show_dashes(texture = self.texture,
@@ -432,7 +437,6 @@ class DashStimulus(experiment.Experiment):
                                 speed = speed,
                                 direction = direction,
                                 )
-        
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':1, 'counter':self.frame_counter})
     
     
@@ -466,12 +470,24 @@ class DashStimulus(experiment.Experiment):
         # Dash and left-right gaps in 2D
         dash = numpy.repeat([numpy.concatenate((gap_l, dash_l, gap_l))], bar_[0], axis=0)
         return numpy.concatenate((gap_w, dash, gap_w)) 
-  
-class FingerPrintingStimulus(experiment.Experiment):        
+
+
+class FingerPrintingStimulus(experiment.Experiment):
+    '''
+        Required:
+            DURATION
+            INTENSITY_LEVELS
+            SPEEDS
+            DIRECTIONS
+            FF_PAUSE_DURATION
+            REPEATS
+        Optional:
+            SPATIAL_PERIOD
+            MIN_SPATIAL_PERIOD
+    '''           
     def prepare(self):
         duration = self.experiment_config.DURATION
         intensity_levels = self.experiment_config.INTENSITY_LEVELS
-        
         try:
             spatial_resolution = self.experiment_config.SPATIAL_PERIOD
         except:
@@ -486,6 +502,7 @@ class FingerPrintingStimulus(experiment.Experiment):
         # Create intensity profile(s):
         self.intensity_profiles = {}
         for speed in self.experiment_config.SPEEDS:
+            
             intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration=duration, 
                                                                                    speed=speed,
                                                                                    intensity_levels=intensity_levels,
@@ -494,17 +511,22 @@ class FingerPrintingStimulus(experiment.Experiment):
                                                                                    )
             
             intensity_profile = numpy.concatenate((numpy.zeros(1.5*screen_size[1]), intensity_profile, numpy.zeros(1.5*screen_size[1])) )
+            #if intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
+            #    intensity_profile = numpy.tile(intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/intensity_profile.shape[0]))
             self.intensity_profiles[speed] = intensity_profile
             
-        self.stimulus_duration = (duration* 2 + self.experiment_config.FF_PAUSE_DURATION) * len(self.experiment_config.SPEEDS)
+        self.stimulus_duration = (duration* 2 + self.experiment_config.FF_PAUSE_DURATION) * len(self.experiment_config.SPEEDS)*self.experiment_config.REPEATS
     
     def run(self):
         self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last':0, 'counter':self.frame_counter})
         
-        for speed in self.experiment_config.SPEEDS:
-            for direction in self.experiment_config.DIRECTIONS:
-                self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=True)
-        
+        for rep in range(self.experiment_config.REPEATS):
+            for speed in self.experiment_config.SPEEDS:
+                for direction in self.experiment_config.DIRECTIONS:
+                    self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=True)
+                    self.show_fullscreen(duration=self.experiment_config.FF_PAUSE_DURATION, color=self.experiment_config.FF_PAUSE_COLOR,frame_trigger=True)
+                    self.show_fingerprint(self.intensity_profiles[speed], speed, direction = direction, forward=False)
+                
         self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last': 1, 'counter':self.frame_counter})
 
 class WhiteNoiseStimulus(experiment.Experiment):
@@ -555,8 +577,8 @@ class BatchStimulus(experiment.Experiment):
             
         E.g.:
             self.VARS = {}
-            self.VARS['FingerPrintingStimulus'] = {}
-            self.VARS['FingerPrintingStimulus']['FF_PAUSE_DURATION'] = 1.0
+            self.VARS['FingerPrinting'] = {}
+            self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
             ...
             self.VARS['DashStimulus'] = {}
             self.VARS['DashStimulus']['BARSIZE'] = [25, 100]
@@ -607,8 +629,8 @@ class BatchStimulus(experiment.Experiment):
                 self.stimulus_frame_info.append(info)
             
             # After each sub_experiment, add one second of white fullscreen:
-            self.stimulus_frame_info.append({'super_block':'Adaptation', 'is_last':0, 'counter':self.frame_counter})     
+            self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':0, 'counter':self.frame_counter})     
             self.show_fullscreen(duration=1.0, color=1.0, frame_trigger=True)
-            self.stimulus_frame_info.append({'super_block':'Adaptation', 'is_last':1, 'counter':self.frame_counter})
+            self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':1, 'counter':self.frame_counter})
 
 
