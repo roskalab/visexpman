@@ -47,11 +47,8 @@ class MEAConfig(HiMEAConfig):
         # For USB: DIGITAL_IO_PORT = 'COM5'
         
         EXPERIMENT_DATA_PATH = self.root_folder
-        #EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['/home/localadmin/tmp']) #'/links/rolandd/tmp/lightX_stim_logs/'+time.strftime('%y%m%d{0}data'.format(os.sep)), 
         CONTEXT_PATH = self.root_folder
         EXPERIMENT_FILE_FORMAT = 'mat'
-#        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
-#        os.mkdir(CAPTURE_PATH)
         
         RECORDING_MACHINE_PORT = recordingMachineName + ':75000'
         
@@ -70,15 +67,8 @@ class MEAConfig(HiMEAConfig):
 
         #### Connect to tho other computers (experimental) ####
         stim_computer_ip = 'localadmin'
-        #elphys_computer_ip = '172.27.26.48'
-        #imaging_computer_ip = '172.27.26.49'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
-        #self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = imaging_computer_ip #bind to specific network card
-        #self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = imaging_computer_ip
-        #self.CONNECTIONS['analysis']['ip']['analysis'] = None
-        #self.CONNECTIONS['analysis']['ip']['main_ui'] = '172.27.26.49'
-
 
 class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):
@@ -87,6 +77,16 @@ class MEAConfigDebug(MEAConfig):
         folder = '/home/rolandd/rolandd-fileshare/tmp'       
         self.ENABLE_MEA_START_COMMAND = not True # set True when stim software needs to start the recording
         
+        
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        self.root_folder = folder
+        LOG_PATH = self.root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH
+        DIGITAL_IO_PORT = 'parallel port'
+        ENABLE_PARALLEL_PORT = True
+        EXPERIMENT_DATA_PATH = self.root_folder
+        CONTEXT_PATH = self.root_folder
         
 
         
