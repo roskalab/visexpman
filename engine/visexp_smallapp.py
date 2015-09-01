@@ -457,10 +457,19 @@ class TileScanCorrection(SmallApp):
         self.setWindowTitle('Tile Scan Correction')
         self.select_stack_button = QtGui.QPushButton('Select stack', self)
         self.save_mip_button = QtGui.QPushButton('Save MIP', self)
+        self.show_correction = gui_generic.LabeledCheckBox(self, 'Show correction')
+        self.red = gui_generic.LabeledCheckBox(self, 'Red')
+        self.green = gui_generic.LabeledCheckBox(self, 'Green')
+        self.blue = gui_generic.LabeledCheckBox(self, 'Blue')
+        self.red.input.setCheckState(2)
+        self.blue.input.setCheckState(2)
+        self.green.input.setCheckState(2)
         self.image=gui_generic.Image(self)
-        n=5
+        n=11
         defaultx = ','.join(map(str,numpy.linspace(0.0, 1.0, n)))
         defaulty= ','.join(['1']*n)
+        self.vcorrection=numpy.ones(self.TILE_SIZE)
+        self.hcorrection=numpy.ones(self.TILE_SIZE)
         params = [
                     {'name': 'Horizontal', 'type': 'group', 'expanded' : True, 'children': [
                         {'name': 'x', 'type': 'str', 'value': defaultx },
@@ -495,24 +504,33 @@ class TileScanCorrection(SmallApp):
         self.layout.addWidget(self.parameters_widget, 1, 5, 1, 1)
         self.layout.addWidget(self.select_stack_button, 0, 0, 1, 1)
         self.layout.addWidget(self.save_mip_button, 0, 1, 1, 1)
+        self.layout.addWidget(self.show_correction, 0, 2, 1, 1)
+        self.layout.addWidget(self.red, 0, 3, 1, 1)
+        self.layout.addWidget(self.green, 0, 4, 1, 1)
+        self.layout.addWidget(self.blue, 0, 5, 1, 1)
         self.layout.addWidget(self.hplot, 2, 0, 1, 3)
         self.layout.addWidget(self.vplot, 2, 3, 1, 3)
         self.setLayout(self.layout)
         self.connect(self.select_stack_button, QtCore.SIGNAL('clicked()'),  self.select_stack)
         self.connect(self.save_mip_button, QtCore.SIGNAL('clicked()'),  self.save_mip)
-        
+        self.connect(self.show_correction.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.red.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.green.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.blue.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.select_stack_button.setFixedWidth(100)
         
     
         
     def select_stack(self):
-        filename= self.ask4filename('Select folder', 'c:\\' if os.name=='nt' else '/home/rz/codes/data/Santiago', '*.tif')
+        self.filename= self.ask4filename('Select folder', 'c:\\' if os.name=='nt' else '/tmp/Santiago', '*.tif')
         import tifffile
-        self.tilescandata=tifffile.imread(filename)
+        self.tilescandata=tifffile.imread(self.filename)#[:3*512,:3*512,:]
         self.image.set_image(self.tilescandata,alpha=1.0)
+        self.image.img.setLevels([0,255])
         self.image_correction()
         
     def image_correction(self):
+        
         vcorr= numpy.tile(self.vcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
         hcorr=  numpy.tile(self.hcorrection,(self.tilescandata.shape[0],self.tilescandata.shape[1]/self.TILE_SIZE))
         
@@ -520,13 +538,24 @@ class TileScanCorrection(SmallApp):
         hcorr=  numpy.tile(self.hcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
         
         corr=hcorr*vcorr
-        corrected=numpy.zeros_like(self.tilescandata,dtype=numpy.float)
+        self.corrected=numpy.zeros_like(self.tilescandata,dtype=numpy.float)
         for i in range(3):
-            corrected[:,:,i]=self.tilescandata[:,:,i]*corr
-        self.image.set_image(corrected,alpha=1.0)
+            self.corrected[:,:,i]=self.tilescandata[:,:,i]*corr
+        
+    def display_image(self):
+        disp=numpy.copy(self.corrected if self.show_correction.input.checkState()==2 else self.tilescandata)
+        if self.red.input.checkState()==0:
+            disp[:,:,0]=0
+        if self.green.input.checkState()==0:
+            disp[:,:,1]=0
+        if self.blue.input.checkState()==0:
+            disp[:,:,2]=0
+        self.image.set_image(disp,alpha=1.0)
 
     def save_mip(self):
-        pass
+        import tifffile
+        tifffile.imsave(self.filename.replace('.tif','_corrected.tif'),numpy.cast['uint8'](255*signal.scale(self.corrected)))
+        
         
     def parameter_changed(self, param, changes):
         values={}
@@ -545,30 +574,50 @@ class TileScanCorrection(SmallApp):
         self.hplot._clear_curves()
         c1 = self.hplot.plot.plot(pen=(0,0,0), **plotparams)
         c1.setData(curve_parameters['Horizontal']['x']*self.TILE_SIZE, curve_parameters['Horizontal']['y'])
-        c2 = self.hplot.plot.plot(pen=(255,0,0))
+        c2 = self.hplot.plot.plot(pen=(0,255,255))
         fh=interp1d(curve_parameters['Horizontal']['x']*self.TILE_SIZE, curve_parameters['Horizontal']['y'], kind=k)
         self.hcorrection=fh(numpy.arange(self.TILE_SIZE))
         c2.setData(numpy.arange(self.TILE_SIZE), self.hcorrection)
         self.hplot.curves=[c1,c2]
-        print self.tilescandata.shape
+        
         if hasattr(self, 'tilescandata'):
             c3 = self.hplot.plot.plot(pen=(0,255,0))
-            c3.setData(numpy.arange(self.TILE_SIZE), self.tilescandata.mean(axis=0)[:512])
+            curve=self.tilescandata[:,:,1].mean(axis=1).reshape(self.tilescandata[:,:,0].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            curve/=curve.max()
+            c3.setData(numpy.arange(self.TILE_SIZE), curve)
+            c4 = self.hplot.plot.plot(pen=(0,0,255))
+            curve=self.tilescandata[:,:,2].mean(axis=1).reshape(self.tilescandata[:,:,2].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            curve/=curve.max()
+            c4.setData(numpy.arange(self.TILE_SIZE), curve)
             self.hplot.curves.append(c3)
+            self.hplot.curves.append(c4)
+        
         
         #vertical
         self.vplot._clear_curves()
         c1 = self.vplot.plot.plot(pen=(0,0,0), **plotparams)
         c1.setData(curve_parameters['Vertical']['x']*self.TILE_SIZE, curve_parameters['Vertical']['y'])
-        c2 = self.vplot.plot.plot(pen=(255,0,0))
+        c2 = self.vplot.plot.plot(pen=(0,255,255))
         fv=interp1d(curve_parameters['Vertical']['x']*self.TILE_SIZE, curve_parameters['Vertical']['y'], kind=k)
         self.vcorrection=fv(numpy.arange(self.TILE_SIZE))
         c2.setData(numpy.arange(self.TILE_SIZE), self.vcorrection)
         self.vplot.curves=[c1,c2]
+        if hasattr(self, 'tilescandata'):
+            c3 = self.vplot.plot.plot(pen=(0,255,0))
+            curve=self.tilescandata[:,:,1].mean(axis=0).reshape(self.tilescandata[:,:,0].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            curve/=curve.max()
+            c3.setData(numpy.arange(self.TILE_SIZE), curve)
+            c4 = self.vplot.plot.plot(pen=(0,0,255))
+            curve=self.tilescandata[:,:,2].mean(axis=0).reshape(self.tilescandata[:,:,2].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            curve/=curve.max()
+            c4.setData(numpy.arange(self.TILE_SIZE), curve)
+            self.vplot.curves.append(c3)
+            self.vplot.curves.append(c4)
         
         
         
         self.image_correction()
+        self.display_image()
     
         
 def run_gui():
