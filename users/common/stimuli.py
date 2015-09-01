@@ -397,6 +397,7 @@ class DashStimulus(experiment.Experiment):
             SPEEDS:      list of speeds in um/s
             DIRECTIONS:  list of directions
             BAR_COLOR:   either a float of a 3 element RGB-list
+            REPETITIONS: how many times sequence is repeated
     '''
     def prepare(self):
         self.bgcolor = self.config.BACKGROUND_COLOR
@@ -423,20 +424,23 @@ class DashStimulus(experiment.Experiment):
         self.stimulus_duration = len(self.experiment_config.DIRECTIONS)*\
                                  len(self.experiment_config.SPEEDS)*\
                                  self.experiment_config.DURATION*\
-                                 self.experiment_config.MOVINGLINES
+                                 self.experiment_config.MOVINGLINES*\
+                                 self.experiment_config.REPETITIONS
     
     def run(self):
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':0, 'counter':self.frame_counter})
-        for speed in self.experiment_config.SPEEDS:
-            for direction in self.experiment_config.DIRECTIONS:
-                self.show_dashes(texture = self.texture,
-                                texture_size = self.texture_size,
-                                texture_info = self.texture_info,
-                                movingLines = self.experiment_config.MOVINGLINES,
-                                duration = self.experiment_config.DURATION,
-                                speed = speed,
-                                direction = direction,
-                                )
+        
+        for repeat in range(self.experiment_config.REPETITIONS):
+            for speed in self.experiment_config.SPEEDS:
+                for direction in self.experiment_config.DIRECTIONS:
+                    self.show_dashes(texture = self.texture,
+                                    texture_size = self.texture_size,
+                                    texture_info = self.texture_info,
+                                    movingLines = self.experiment_config.MOVINGLINES,
+                                    duration = self.experiment_config.DURATION,
+                                    speed = speed,
+                                    direction = direction,
+                                    )
         self.stimulus_frame_info.append({'super_block':'DashStimulus', 'is_last':1, 'counter':self.frame_counter})
     
     
