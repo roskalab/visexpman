@@ -25,11 +25,11 @@ class SFN01BatchConfig(experiment.ExperimentConfig):
         # ~30 minutes        
         self.STIM_TYPE_CLASS['FingerPrinting'] = 'FingerPrintingStimulus'
         self.VARS['FingerPrinting'] = {}
-        self.VARS['FingerPrinting']['DIRECTIONS'] =  range(0,360,90)
-        self.VARS['FingerPrinting']['SPEEDS'] = [300, 1600] #[500, 1600]      
+        self.VARS['FingerPrinting']['DIRECTIONS'] = [0, 90]  #range(0,360,90)
+        self.VARS['FingerPrinting']['SPEEDS'] = [300] #[300, 1600]      
         self.VARS['FingerPrinting']['DURATION'] = 15.0
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
-        self.VARS['FingerPrinting']['REPEATS'] = 15
+        self.VARS['FingerPrinting']['REPEATS'] = 20
         self.VARS['FingerPrinting']['MIN_SPATIAL_PERIOD'] = [10.0, 50.0]
         
         # 30 minutes
