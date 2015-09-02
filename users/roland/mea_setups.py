@@ -87,6 +87,6 @@ class MEAConfigDebug(MEAConfig):
         ENABLE_PARALLEL_PORT = True
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
-        
+        CAPTURE_PATH = self.root_folder
 
         

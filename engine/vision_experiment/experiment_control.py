@@ -567,6 +567,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 fn = fileop.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
             # debug
             #print self.datafile
+            print fn
             scipy.io.savemat(fn, self.datafile, oned_as = 'column') 
             
     def _data2matfile_compatible(self):
