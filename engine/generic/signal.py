@@ -232,6 +232,24 @@ def signal_shift(sig1,sig2):
     c=numpy.correlate(sig1,sig2,'same')
     return sig1.shape[0]/2-c.argmax()
 
+def downsample_2d_array(ar, fact):
+    from scipy import ndimage
+    assert isinstance(fact, int), type(fact)
+    sx, sy = ar.shape
+    X, Y = numpy.ogrid[0:sx, 0:sy]
+    regions = sy/fact * (X/fact) + Y/fact
+    res = ndimage.mean(ar, labels=regions, index=numpy.arange(regions.max() + 1))
+    res.shape = (sx/fact, sy/fact)
+    return res
+    
+def downsample_2d_rgbarray(ar, fact):
+    newshape=(numpy.array(ar.shape[:2])/fact).tolist()
+    newshape.append(3)
+    out=numpy.zeros(newshape,dtype=ar.dtype)
+    for ci in range(ar.shape[2]):
+        out[:,:,ci]=downsample_2d_array(ar[:,:,ci],fact)
+    return out
+
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
         #generate test data
@@ -388,6 +406,14 @@ class TestSignal(unittest.TestCase):
         signal1[10:20]=1
         signal2=numpy.roll(signal1,10)
         self.assertEqual(signal_shift(signal1,signal2),10)
+        
+    def test_16_downsample_2d_array(self):
+        a=numpy.random.random((100,100))
+        res=downsample_2d_array(a,10)
+        numpy.testing.assert_array_equal(numpy.array(a.shape), numpy.array(res.shape)*10)
+        a=numpy.random.random((100,100,3))
+        res=downsample_2d_rgbarray(a,2)
+        numpy.testing.assert_array_equal(numpy.array(a.shape[:2]), numpy.array(res.shape[:2])*2)
         
     
 
