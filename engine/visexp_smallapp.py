@@ -453,11 +453,15 @@ class AfmCaImagingAnalyzer(SmallApp):
 class TileScanCorrection(SmallApp):
     def __init__(self):
         self.TILE_SIZE=512
+        self.RESCALE=4
         SmallApp.__init__(self,enable_console=False)
         self.setWindowTitle('Tile Scan Correction')
-        self.select_stack_button = QtGui.QPushButton('Select stack', self)
-        self.save_mip_button = QtGui.QPushButton('Save MIP', self)
+        self.open_file_button = QtGui.QPushButton('Open', self)
+        self.save_button = QtGui.QPushButton('Save', self)
+        self.trench_correct_button = QtGui.QPushButton('Remove \"trenches\"', self)
         self.show_correction = gui_generic.LabeledCheckBox(self, 'Show correction')
+        self.low_resolution = gui_generic.LabeledCheckBox(self, 'Low resolution')
+        self.low_resolution.input.setCheckState(2)
         self.red = gui_generic.LabeledCheckBox(self, 'Red')
         self.green = gui_generic.LabeledCheckBox(self, 'Green')
         self.blue = gui_generic.LabeledCheckBox(self, 'Blue')
@@ -465,6 +469,7 @@ class TileScanCorrection(SmallApp):
         self.blue.input.setCheckState(2)
         self.green.input.setCheckState(2)
         self.image=gui_generic.Image(self)
+        self.image.img.setLevels([0,255])
         n=11
         defaultx = ','.join(map(str,numpy.linspace(0.0, 1.0, n)))
         defaulty= ','.join(['1']*n)
@@ -501,48 +506,79 @@ class TileScanCorrection(SmallApp):
         
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.image, 1, 0, 1, 5)
-        self.layout.addWidget(self.parameters_widget, 1, 5, 1, 1)
-        self.layout.addWidget(self.select_stack_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.save_mip_button, 0, 1, 1, 1)
-        self.layout.addWidget(self.show_correction, 0, 2, 1, 1)
-        self.layout.addWidget(self.red, 0, 3, 1, 1)
-        self.layout.addWidget(self.green, 0, 4, 1, 1)
-        self.layout.addWidget(self.blue, 0, 5, 1, 1)
+        self.layout.addWidget(self.parameters_widget, 1, 5, 1, 3)
+        self.layout.addWidget(self.open_file_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.save_button, 0, 2, 1, 1)
+        self.layout.addWidget(self.trench_correct_button, 0, 1, 1, 1)
+        self.layout.addWidget(self.show_correction, 0, 3, 1, 1)
+        self.layout.addWidget(self.low_resolution, 0, 4, 1, 1)
+        self.layout.addWidget(self.red, 0, 5, 1, 1)
+        self.layout.addWidget(self.green, 0, 6, 1, 1)
+        self.layout.addWidget(self.blue, 0, 7, 1, 1)
         self.layout.addWidget(self.hplot, 2, 0, 1, 3)
         self.layout.addWidget(self.vplot, 2, 3, 1, 3)
         self.setLayout(self.layout)
-        self.connect(self.select_stack_button, QtCore.SIGNAL('clicked()'),  self.select_stack)
-        self.connect(self.save_mip_button, QtCore.SIGNAL('clicked()'),  self.save_mip)
+        self.connect(self.open_file_button, QtCore.SIGNAL('clicked()'),  self.open_file)
+        self.connect(self.save_button, QtCore.SIGNAL('clicked()'),  self.save)
+        self.connect(self.trench_correct_button, QtCore.SIGNAL('clicked()'),  self.trench_correction)
         self.connect(self.show_correction.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.connect(self.red.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.connect(self.green.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.connect(self.blue.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
-        self.select_stack_button.setFixedWidth(100)
+        self.connect(self.low_resolution.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.open_file_button.setFixedWidth(100)
         
-    
-        
-    def select_stack(self):
-        self.filename= self.ask4filename('Select folder', 'c:\\' if os.name=='nt' else '/tmp/Santiago', '*.tif')
+    def open_file(self):
+        self.filename = self.ask4filename('Select folder', 'c:\\' if os.name=='nt' else '/tmp/Santiago', '*.tif')
         import tifffile
-        self.tilescandata=tifffile.imread(self.filename)#[:3*512,:3*512,:]
+        self.tilescandata=tifffile.imread(self.filename)
+        self.lowres=signal.downsample_2d_rgbarray(self.tilescandata,self.RESCALE)
+        self.image.plot.setTitle(self.filename)
+        self.tile_profile()
+        
+        
+        
+        
+        #return
+        
+        
         self.image.set_image(self.tilescandata,alpha=1.0)
-        self.image.img.setLevels([0,255])
-        self.image_correction()
+        self.image.set_image(self.lowres,alpha=1.0)
+        
+        #self.image_correction()
+        
+    def tile_profile(self):
+        '''
+        calculate average horizontal and vertical profiles
+        '''
+        self.hprofile=numpy.zeros((self.TILE_SIZE.shape[0],3))
+        self.vprofile=numpy.zeros((self.TILE_SIZE.shape[0],3))
+        for ci in range(3):
+            p=self.tilescandata[:,:,ci].mean(axis=1).reshape(self.tilescandata[:,:,0].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            self.hprofile[:,:,ci]=p/p.max()
+            p=self.tilescandata[:,:,ci].mean(axis=0).reshape(self.tilescandata[:,:,0].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            self.vprofile[:,:,ci]=p/p.max()
         
     def image_correction(self):
-        
-        vcorr= numpy.tile(self.vcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
-        hcorr=  numpy.tile(self.hcorrection,(self.tilescandata.shape[0],self.tilescandata.shape[1]/self.TILE_SIZE))
-        
-        vcorr= numpy.tile(self.vcorrection,(self.tilescandata.shape[0],self.tilescandata.shape[1]/self.TILE_SIZE))
-        hcorr=  numpy.tile(self.hcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
-        
-        corr=hcorr*vcorr
-        self.corrected=numpy.zeros_like(self.tilescandata,dtype=numpy.float)
-        for i in range(3):
-            self.corrected[:,:,i]=self.tilescandata[:,:,i]*corr
+        if self.low_resolution.input.checkState()==2:
+            vcorr= numpy.tile(1.0/self.vcorrection_lowres,(self.lowres.shape[0],self.lowres.shape[1]/(self.TILE_SIZE/self.RESCALE)))
+            hcorr=  numpy.tile(1.0/self.hcorrection_lowres,(self.lowres.shape[1], self.lowres.shape[0]/(self.TILE_SIZE/self.RESCALE))).T
+            self.corrected=numpy.zeros_like(self.lowres,dtype=numpy.float)
+            corr=hcorr*vcorr
+            for i in range(3):
+                self.corrected[:,:,i]=self.lowres[:,:,i]*corr
+        else:
+            vcorr= numpy.tile(1.0/self.vcorrection,(self.tilescandata.shape[0],self.tilescandata.shape[1]/self.TILE_SIZE))
+            hcorr=  numpy.tile(1.0/self.hcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
+            self.corrected=numpy.zeros_like(self.tilescandata,dtype=numpy.float)
+            corr=hcorr*vcorr
+            for i in range(3):
+                self.corrected[:,:,i]=self.tilescandata[:,:,i]*corr
         
     def display_image(self):
+        if self.low_resolution.input.checkState()==2:
+            pass
+        
         disp=numpy.copy(self.corrected if self.show_correction.input.checkState()==2 else self.tilescandata)
         if self.red.input.checkState()==0:
             disp[:,:,0]=0
@@ -551,11 +587,39 @@ class TileScanCorrection(SmallApp):
         if self.blue.input.checkState()==0:
             disp[:,:,2]=0
         self.image.set_image(disp,alpha=1.0)
+        
+    def trench_correction(self):
+        corrected=numpy.cast['float'](numpy.copy(self.tilescandata))
+        #Remove vertical trenches
+        color=2
+        for color in range(3):
+            for i in range(1,corrected.shape[1]/512):
+                start=i*512-1
+                end=i*512+3
+                corr=corrected[:,start:end,color]
+                step=(corrected[:,end,color]-corrected[:,start,2])/(end-start-1)
+                c=numpy.ones((corr.shape[0],2))
+                c[:,1]*=2
+                corr[:,1:3]=(c.T*step+corr[:,0]).T
+                corrected[:,start:end,color]=corr
+            #Remove horizontal trenches
+            for i in range(1,corrected.shape[0]/512):
+                start=i*512-1
+                end=i*512+3
+                corr=corrected[start:end,:,color]
+                step=(corrected[end,:,color]-corrected[start,:,color])/(end-start-1)
+                c=numpy.ones((2,corr.shape[1]))
+                c[1]*=2
+                corr[1:3]=c*step+corr[0]
+                corrected[start:end,:,color]=corr
+        corrected=numpy.where(corrected<0,0,corrected)
+        self.tilescandata=corrected
+        print 'DONE'
+        self.display_image()
 
-    def save_mip(self):
+    def save(self):
         import tifffile
         tifffile.imsave(self.filename.replace('.tif','_corrected.tif'),numpy.cast['uint8'](255*signal.scale(self.corrected)))
-        
         
     def parameter_changed(self, param, changes):
         values={}
@@ -577,6 +641,8 @@ class TileScanCorrection(SmallApp):
         c2 = self.hplot.plot.plot(pen=(0,255,255))
         fh=interp1d(curve_parameters['Horizontal']['x']*self.TILE_SIZE, curve_parameters['Horizontal']['y'], kind=k)
         self.hcorrection=fh(numpy.arange(self.TILE_SIZE))
+        fhlowres=interp1d(curve_parameters['Horizontal']['x']*self.TILE_SIZE/self.RESCALE, curve_parameters['Horizontal']['y'], kind=k)
+        self.hcorrection_lowres=fhlowres(numpy.arange(self.TILE_SIZE/self.RESCALE))
         c2.setData(numpy.arange(self.TILE_SIZE), self.hcorrection)
         self.hplot.curves=[c1,c2]
         
@@ -600,6 +666,8 @@ class TileScanCorrection(SmallApp):
         c2 = self.vplot.plot.plot(pen=(0,255,255))
         fv=interp1d(curve_parameters['Vertical']['x']*self.TILE_SIZE, curve_parameters['Vertical']['y'], kind=k)
         self.vcorrection=fv(numpy.arange(self.TILE_SIZE))
+        fvlowres=interp1d(curve_parameters['Vertical']['x']*self.TILE_SIZE/self.RESCALE, curve_parameters['Vertical']['y'], kind=k)
+        self.vcorrection_lowres=fvlowres(numpy.arange(self.TILE_SIZE/self.RESCALE))
         c2.setData(numpy.arange(self.TILE_SIZE), self.vcorrection)
         self.vplot.curves=[c1,c2]
         if hasattr(self, 'tilescandata'):
