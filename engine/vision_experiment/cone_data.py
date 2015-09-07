@@ -282,8 +282,12 @@ def aggregate_cells(folder):
                 del main_roi['matches']
             except:
                 continue
-            matched_rois = {os.path.basename(hdf5file): main_roi}
+            name=os.path.basename(hdf5file)
+            matched_rois = {name: main_roi}
             matched_rois.update(roi['matches'])
+            for k in matched_rois.keys():
+                matched_rois[k.replace('.','_').replace('-','_')]=matched_rois.pop(k)
+            print matched_rois.keys()
             #Organize by stimulus type:
             organized_rois = {}
             [v['stimulus_name'] for v in matched_rois.values()]

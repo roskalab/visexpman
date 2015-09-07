@@ -397,7 +397,7 @@ class Analysis(object):
         if self._any_unsaved_roi():
             self.save_rois_and_export()
         self.printc('Searching for repetitions, please wait...')
-        aggregated_rois = cone_data.find_repetitions(self.filename, self.machine_config.EXPERIMENT_DATA_PATH)
+        aggregated_rois = cone_data.find_repetitions(self.filename, os.path.dirname(self.filename))#self.machine_config.EXPERIMENT_DATA_PATH)
         self.aggregated_rois = aggregated_rois
         files = []
         for i in range(len(self.rois)):
@@ -638,7 +638,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         return result
         
     def notify(self,title,message):
-        self.log.info('Notify: {0}, {1}'.format(title, msg), 'engine')
+        self.log.info('Notify: {0}, {1}'.format(title, message), 'engine')
         self.to_gui.put({'notify':{'title': title, 'msg':message}})
         
     def update_widget_status(self, status):
