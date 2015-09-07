@@ -450,8 +450,6 @@ class AfmCaImagingAnalyzer(SmallApp):
             self.printc('Processing finished')
             
 from pyqtgraph.parametertree import Parameter, ParameterTree
-#TODO: remove undo from parameters
-#TODO: parameter changed signal is not always fired
 class TileScanCorrection(SmallApp):
     def __init__(self):
         self.TILE_SIZE=512
@@ -475,15 +473,17 @@ class TileScanCorrection(SmallApp):
         self.npoints = gui_generic.LabeledComboBox(self, 'Number of points', map(str,[3,5,7,10]))
         self.npoints.input.setCurrentIndex(2)
         
-        self.vcorrection=numpy.ones(self.TILE_SIZE)
-        self.hcorrection=numpy.ones(self.TILE_SIZE)
+        self.vcorrection=numpy.ones((3,self.TILE_SIZE))
+        self.vcorrection_lr=numpy.ones((3,self.TILE_SIZE/self.RESCALE))
+        self.hcorrection=numpy.ones((3,self.TILE_SIZE))
+        self.hcorrection_lr=numpy.ones((3,self.TILE_SIZE/self.RESCALE))
         self.hprofile=numpy.ones((3,self.TILE_SIZE))
         self.vprofile=numpy.ones((3,self.TILE_SIZE))
+        self.color_channels = [False,False,False]
         self.parameters_widget = ParameterTree(self, showHeader=False)
         self.parameters_widget.setMinimumWidth(200)
         self.parameters_widget.setMaximumWidth(500)
         self.update_parameter_tree()
-        self.parameters.sigTreeStateChanged.connect(self.parameter_changed)            
             
         self.hplot=gui_generic.Plot(self)
         self.vplot=gui_generic.Plot(self)
@@ -516,13 +516,12 @@ class TileScanCorrection(SmallApp):
         self.connect(self.green.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.connect(self.blue.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.connect(self.npoints.input, QtCore.SIGNAL('currentIndexChanged(int)'), self.update_parameter_tree)
-        
         self.open_file_button.setFixedWidth(100)
         
     def _param_config(self,n):
         xval=numpy.linspace(0,1,n)
         xvalconfig=[{'name': '{0:0=2}'.format(i), 'type': 'float', 'value': xval[i]} for i in range(n)]
-        yvalconfig=[{'name': '{0:0=2}'.format(i), 'type': 'float', 'value': 0.0, 'step': 0.1} for i in range(n)]
+        yvalconfig=[{'name': '{0:0=2}'.format(i), 'type': 'float', 'value': 1.0, 'step': 0.01} for i in range(n)]
         x_group= {'name': 'X', 'type': 'group', 'expanded' : False, 'children': xvalconfig}
         hy_group= {'name': 'Horizontal Y', 'type': 'group', 'expanded' : True, 'children': yvalconfig}
         vy_group= {'name': 'Vertical Y', 'type': 'group', 'expanded' : True, 'children': yvalconfig}
@@ -530,20 +529,21 @@ class TileScanCorrection(SmallApp):
         import copy
         r=copy.deepcopy(xy_group_template)
         r['name']='Red'
+        r['expanded'] = self.color_channels[0]
         g=copy.deepcopy(xy_group_template)
         g['name']='Green'
+        g['expanded'] = self.color_channels[1]
         b=copy.deepcopy(xy_group_template)
         b['name']='Blue'
-        params = [
-                    #{'name': 'Interpolation', 'type': 'list', 'values': ['linear', 'quadratic', 'cubic', 'nearest' ] },
-                    x_group,r,g,b
-                    ]
+        b['expanded'] = self.color_channels[2]
+        params = [x_group,r,g,b]
         return params
         
     def update_parameter_tree(self):
         self.parameters = Parameter.create(name='params', type='group', children=self._param_config(int(self.npoints.input.currentText())))
         self.parameters_widget.setParameters(self.parameters, showTop=False)
         self.default_correction_curves()
+        self.parameters.sigTreeStateChanged.connect(self.parameter_changed) 
         
     def default_correction_curves(self):
         '''
@@ -562,7 +562,12 @@ class TileScanCorrection(SmallApp):
                         v.setValue(hnew_values[i,int(v.name())])
                     elif 'Vertical' in d.name():
                         v.setValue(vnew_values[i,int(v.name())])
+        self.update_plots(x,hnew_values,vnew_values)
+            
+    def update_plots(self,x,hcorrection, vcorrection):
         if hasattr(self, 'hplot') and hasattr(self, 'vplot'):
+            colors=['Red','Green','Blue']
+            curves = {'horizontal':[],'vertical':[]}
             self.hplot._clear_curves()
             self.vplot._clear_curves()
             self.hplot.curves = []
@@ -571,12 +576,15 @@ class TileScanCorrection(SmallApp):
             for i in range(len(colors)):
                 tracecolor=[0,0,0]
                 tracecolor[i]=127
+                plotparams['symbolBrush']=tuple(numpy.array(tracecolor)*2)
                 c1 = self.hplot.plot.plot(pen=tracecolor, **plotparams)
-                c1.setData(x,hnew_values[i])
+                c1.setData(x,hcorrection[i])
                 self.hplot.curves.append(c1)
+                curves['horizontal'].append(hcorrection[i])
                 c1 = self.vplot.plot.plot(pen=tracecolor, **plotparams)
-                c1.setData(x,vnew_values[i])
+                c1.setData(x,vcorrection[i])
                 self.vplot.curves.append(c1)
+                curves['vertical'].append(vcorrection[i])
             if hasattr(self, 'hprofile') and hasattr(self, 'vprofile'):
                 x=numpy.arange(self.TILE_SIZE,dtype=numpy.float)/self.TILE_SIZE
                 for i in range(len(colors)):
@@ -585,9 +593,18 @@ class TileScanCorrection(SmallApp):
                     c1 = self.hplot.plot.plot(pen=tracecolor)
                     c1.setData(x,self.hprofile[i])
                     self.hplot.curves.append(c1)
+                    curves['horizontal'].append(self.hprofile[i])
                     c1 = self.vplot.plot.plot(pen=tracecolor)
                     c1.setData(x,self.vprofile[i])
                     self.vplot.curves.append(c1)
+                    curves['vertical'].append(self.vprofile[i])
+            y1=numpy.concatenate([c for c in curves['horizontal'] if c.sum() != 0])
+            self.hplot.plot.setYRange(y1.min(), y1.max())
+            y2=numpy.concatenate([c for c in curves['vertical'] if c.sum() != 0])
+            self.vplot.plot.setYRange(y2.min(), y2.max())
+            #This is necessary for unknown reason
+            self.hplot.plot.setYRange(y1.min(), y1.max())
+            self.vplot.plot.setYRange(y2.min(), y2.max())
         
     def open_file(self):
         '''
@@ -597,16 +614,16 @@ class TileScanCorrection(SmallApp):
         4) Calculate tile profiles
         '''
         self.filename = self.ask4filename('Select folder', 'c:\\' if os.name=='nt' else '/tmp/Santiago', '*.tif')
+        if not os.path.exists(self.filename):
+            return
         import tifffile
         self.tilescan=tifffile.imread(self.filename)
         self.lowres=signal.downsample_2d_rgbarray(self.tilescan,self.RESCALE)
+        self.color_channels = [numpy.nonzero(self.lowres[:,:,0])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0]
         self.trench_corrected=self.trench_correction(self.tilescan)
         self.trench_corrected_lowres=self.trench_correction(self.lowres)
         self.tile_profile(self.trench_corrected)
         self.default_correction_curves()
-        #tile profile to plot
-        
-        
         self.image.plot.setTitle(self.filename)
         self.display_image()
         
@@ -651,8 +668,6 @@ class TileScanCorrection(SmallApp):
             if p.max()==0: continue
             self.vprofile[ci]=p/p.max()
         
-    
-        
     def display_image(self):
         img = numpy.copy(self.trench_corrected_lowres if self.low_resolution.input.checkState()==2 else self.trench_corrected)
         if self.show_correction.input.checkState()==2:
@@ -669,7 +684,22 @@ class TileScanCorrection(SmallApp):
         '''
         Should work for both full resolution and low resolution
         '''
-        return image
+        if self.low_resolution.input.checkState()==2:
+            vcorr=self.vcorrection_lr
+            hcorr=self.hcorrection_lr
+            size=self.TILE_SIZE/self.RESCALE
+        else:
+            vcorr=self.vcorrection
+            hcorr=self.hcorrection
+            size=self.TILE_SIZE/self.RESCALE
+        self.corrected=numpy.zeros_like(image,dtype=numpy.float)
+        vcorr_img=numpy.zeros_like(image,dtype=numpy.float)
+        hcorr_img=numpy.zeros_like(image,dtype=numpy.float)
+        for i in range(3):
+            if self.color_channels[i]:
+                vcorr_img[:,:,i] = numpy.tile(1.0/vcorr[i],(image.shape[0],image.shape[1]/size))
+                hcorr_img[:,:,i] = numpy.tile(1.0/hcorr[i],(image.shape[1], image.shape[0]/size)).T
+        return image*hcorr_img*vcorr_img
     
     def image_correction(self):
         if self.low_resolution.input.checkState()==2:
@@ -692,74 +722,34 @@ class TileScanCorrection(SmallApp):
         tifffile.imsave(self.filename.replace('.tif','_corrected.tif'),numpy.cast['uint8'](255*signal.scale(self.corrected)))
         
     def parameter_changed(self, param, changes):
-        import time
-        print time.time()
-        return
         values={}
-        for direction in param.children():
-            if str(direction.name()) =='Parameters': 
-                interp=direction.children()[0].value()
-                continue
-            values[str(direction.name())]=dict([(v.name(),numpy.array(map(float,v.value().split(',')))) for v in direction.children()])
-        self._update_curves(values,interp)
-        
-    def _update_curves(self,curve_parameters,interp):
-        plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)}
-        from scipy.interpolate import interp1d
-        k=interp#'cubic'#linear, nearest, zero, slinear, quadratic, 
-        #Horizontal
-        self.hplot._clear_curves()
-        c1 = self.hplot.plot.plot(pen=(0,0,0), **plotparams)
-        c1.setData(curve_parameters['Horizontal']['x']*self.TILE_SIZE, curve_parameters['Horizontal']['y'])
-        c2 = self.hplot.plot.plot(pen=(0,255,255))
-        fh=interp1d(curve_parameters['Horizontal']['x']*self.TILE_SIZE, curve_parameters['Horizontal']['y'], kind=k)
-        self.hcorrection=fh(numpy.arange(self.TILE_SIZE))
-        fhlowres=interp1d(curve_parameters['Horizontal']['x']*self.TILE_SIZE/self.RESCALE, curve_parameters['Horizontal']['y'], kind=k)
-        self.hcorrection_lowres=fhlowres(numpy.arange(self.TILE_SIZE/self.RESCALE))
-        c2.setData(numpy.arange(self.TILE_SIZE), self.hcorrection)
-        self.hplot.curves=[c1,c2]
-        
-        if hasattr(self, 'tilescandata'):
-            c3 = self.hplot.plot.plot(pen=(0,255,0))
-            curve=self.tilescandata[:,:,1].mean(axis=1).reshape(self.tilescandata[:,:,0].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
-            curve/=curve.max()
-            c3.setData(numpy.arange(self.TILE_SIZE), curve)
-            c4 = self.hplot.plot.plot(pen=(0,0,255))
-            curve=self.tilescandata[:,:,2].mean(axis=1).reshape(self.tilescandata[:,:,2].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
-            curve/=curve.max()
-            c4.setData(numpy.arange(self.TILE_SIZE), curve)
-            self.hplot.curves.append(c3)
-            self.hplot.curves.append(c4)
-        
-        
-        #vertical
-        self.vplot._clear_curves()
-        c1 = self.vplot.plot.plot(pen=(0,0,0), **plotparams)
-        c1.setData(curve_parameters['Vertical']['x']*self.TILE_SIZE, curve_parameters['Vertical']['y'])
-        c2 = self.vplot.plot.plot(pen=(0,255,255))
-        fv=interp1d(curve_parameters['Vertical']['x']*self.TILE_SIZE, curve_parameters['Vertical']['y'], kind=k)
-        self.vcorrection=fv(numpy.arange(self.TILE_SIZE))
-        fvlowres=interp1d(curve_parameters['Vertical']['x']*self.TILE_SIZE/self.RESCALE, curve_parameters['Vertical']['y'], kind=k)
-        self.vcorrection_lowres=fvlowres(numpy.arange(self.TILE_SIZE/self.RESCALE))
-        c2.setData(numpy.arange(self.TILE_SIZE), self.vcorrection)
-        self.vplot.curves=[c1,c2]
-        if hasattr(self, 'tilescandata'):
-            c3 = self.vplot.plot.plot(pen=(0,255,0))
-            curve=self.tilescandata[:,:,1].mean(axis=0).reshape(self.tilescandata[:,:,0].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
-            curve/=curve.max()
-            c3.setData(numpy.arange(self.TILE_SIZE), curve)
-            c4 = self.vplot.plot.plot(pen=(0,0,255))
-            curve=self.tilescandata[:,:,2].mean(axis=0).reshape(self.tilescandata[:,:,2].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
-            curve/=curve.max()
-            c4.setData(numpy.arange(self.TILE_SIZE), curve)
-            self.vplot.curves.append(c3)
-            self.vplot.curves.append(c4)
-        
-        
-        
-        self.image_correction()
+        x=numpy.array([v.value() for v in [c.children() for c in param.children() if c.name()=='X'][0]])
+        colors=['Red','Green','Blue']
+        hcorrection_points = numpy.zeros((3,x.shape[0]))
+        vcorrection_points = numpy.zeros((3,x.shape[0]))
+        for c in param.children():
+            if c.name()=='X': continue
+            h=numpy.array([v.value() for v in [t for t in c.children() if 'Horizontal' in t.name()][0].children()])
+            v=numpy.array([v.value() for v in [t for t in c.children() if 'Vertical' in t.name()][0].children()])
+            hcorrection_points[colors.index(c.name())]=h
+            vcorrection_points[colors.index(c.name())]=v
+        self.update_plots(x,hcorrection_points, vcorrection_points)
+        self.points2correction_curves(x,hcorrection_points, vcorrection_points)
         self.display_image()
-    
+        
+    def points2correction_curves(self,x,h,v):
+        from scipy.interpolate import interp1d
+        for i in range(3):
+            #Horizontal
+            fh=interp1d(x*self.TILE_SIZE, h[i], kind='linear')
+            self.hcorrection[i]=fh(numpy.arange(self.TILE_SIZE))
+            fhlr=interp1d(x*self.TILE_SIZE/self.RESCALE, h[i], kind='linear')
+            self.hcorrection_lr[i]=fh(numpy.arange(self.TILE_SIZE/self.RESCALE))
+            #Vertical
+            fv=interp1d(x*self.TILE_SIZE, v[i], kind='linear')
+            self.vcorrection[i]=fv(numpy.arange(self.TILE_SIZE))
+            fvlr=interp1d(x*self.TILE_SIZE/self.RESCALE, v[i], kind='linear')
+            self.vcorrection_lr[i]=fv(numpy.arange(self.TILE_SIZE/self.RESCALE))
         
 def run_gui():
     '''
