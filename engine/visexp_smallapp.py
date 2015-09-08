@@ -459,6 +459,10 @@ class TileScanCorrection(SmallApp):
         self.setWindowTitle('Tile Scan Correction')
         self.open_file_button = QtGui.QPushButton('Open', self)
         self.save_button = QtGui.QPushButton('Save', self)
+        self.tif2tif_button = QtGui.QPushButton('Tif 2 Tif', self)
+        self.tif2tif_button.setToolTip('''
+        Tif files in selected folder will be read and saved back to tif. Opening saved back tif files takes less time
+        ''')
         self.view=QtGui.QComboBox(self)
         self.low_resolution = gui_generic.LabeledCheckBox(self, 'Low resolution')
         self.low_resolution.input.setCheckState(2)
@@ -506,6 +510,7 @@ class TileScanCorrection(SmallApp):
         self.layout.addWidget(self.green, 0, 5, 1, 1)
         self.layout.addWidget(self.blue, 0, 6, 1, 1)
         self.layout.addWidget(self.npoints, 0, 7, 1, 1)
+        self.layout.addWidget(self.tif2tif_button, 0, 8, 1, 1)
         self.layout.addWidget(self.hplot, 2, 0, 1, 3)
         self.layout.addWidget(self.vplot, 2, 3, 1, 3)
         self.setLayout(self.layout)
@@ -517,6 +522,7 @@ class TileScanCorrection(SmallApp):
         self.connect(self.green.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.connect(self.blue.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
         self.connect(self.npoints.input, QtCore.SIGNAL('currentIndexChanged(int)'), self.update_parameter_tree)
+        self.connect(self.tif2tif_button, QtCore.SIGNAL('clicked()'), self.tif2tif)
         self.open_file_button.setFixedWidth(100)
         
     def _param_config(self,n):
@@ -543,8 +549,9 @@ class TileScanCorrection(SmallApp):
     def update_parameter_tree(self):
         self.parameters = Parameter.create(name='params', type='group', children=self._param_config(int(self.npoints.input.currentText())))
         self.parameters_widget.setParameters(self.parameters, showTop=False)
+        self.parameters.sigTreeStateChanged.connect(self.parameter_changed)
         self.default_correction_curves()
-        self.parameters.sigTreeStateChanged.connect(self.parameter_changed) 
+        self.display_image()
         
     def default_correction_curves(self):
         '''
@@ -617,11 +624,14 @@ class TileScanCorrection(SmallApp):
         3) Create trench corrected image which will be the input for correction
         4) Calculate tile profiles
         '''
-        self.filename = self.ask4filename('Select folder', 'c:\\' if os.name=='nt' else '/tmp/Santiago', '*.tif')
+        self.filename = self.ask4filename('Select tif file', 'c:\\' if os.name=='nt' else '/tmp/Santiago', '*.tif')
         if not os.path.exists(self.filename):
             return
         import tifffile
         self.tilescan=tifffile.imread(self.filename)
+        if self.tilescan.shape[0]%self.TILE_SIZE!=0 or self.tilescan.shape[1]%self.TILE_SIZE!=0:
+            self.notify_user('Warning', 'Size {1} of {0} is not the multiple of tile size ({2})'.format(self.filename,self.tilescan.shape, self.TILE_SIZE))
+            return
         self.lowres=self.tilescan[0.5*self.RESCALE::self.RESCALE,0.5*self.RESCALE::self.RESCALE]#signal.downsample_2d_rgbarray(self.tilescan,self.RESCALE)
         self.color_channels = [numpy.nonzero(self.lowres[:,:,0])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0]
         self.trench_corrected=self.trench_correction(self.tilescan)
@@ -665,14 +675,16 @@ class TileScanCorrection(SmallApp):
         self.hprofile=numpy.zeros((3,self.TILE_SIZE))
         self.vprofile=numpy.zeros((3,self.TILE_SIZE))
         for ci in range(3):
-            p=image[:,:,ci].mean(axis=1).reshape(image[:,:,0].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
-            if p.max()==0: continue
-            self.hprofile[ci]=p/p.max()
-            p=image[:,:,ci].mean(axis=0).reshape(image[:,:,0].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
-            if p.max()==0: continue
-            self.vprofile[ci]=p/p.max()
+            p1=image[:,:,ci].mean(axis=1).reshape(image[:,:,0].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            if p1.max()==0: continue
+            self.hprofile[ci]=p1/p1.max()
+            p2=image[:,:,ci].mean(axis=0).reshape(image[:,:,0].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            if p2.max()==0: continue
+            self.vprofile[ci]=p2/p2.max()
         
     def display_image(self):
+        if not hasattr(self, 'trench_corrected'):
+            return
         img = numpy.copy(self.trench_corrected_lowres if self.low_resolution.input.checkState()==2 else self.trench_corrected)
         if self.show_correction.input.checkState()==2:
             img=self.correct(self.trench_corrected)
@@ -682,7 +694,7 @@ class TileScanCorrection(SmallApp):
             img[:,:,1]=0
         if self.blue.input.checkState()==0:
             img[:,:,2]=0
-        self.image.set_image(img,alpha=1.0)
+        self.image.set_image(numpy.fliplr(numpy.rollaxis(img,0,2)),alpha=1.0)
         
     def correct(self,image):
         '''
@@ -701,7 +713,6 @@ class TileScanCorrection(SmallApp):
         vcorr=1.0/vcorr
         hcorr=numpy.where(hcorr==0.0, 1.0,hcorr)
         hcorr=1.0/hcorr
-        
         vcorr_img=numpy.zeros_like(image,dtype=numpy.float)
         hcorr_img=numpy.zeros_like(image,dtype=numpy.float)
 #        for i in range(3):
@@ -709,7 +720,7 @@ class TileScanCorrection(SmallApp):
 #                vcorr_img[:,:,i] = numpy.tile(vcorr[i],(image.shape[0],image.shape[1]/size))
 #                hcorr_img[:,:,i] = numpy.tile(hcorr[i],(image.shape[1], image.shape[0]/size)).T
         vcorr_img = numpy.tile(vcorr.T.flatten(),(image.shape[0], image.shape[1]/size)).reshape(image.shape[0],image.shape[1],3)
-        hcorr_img = numpy.tile(hcorr.T.flatten(),(image.shape[0]/size, image.shape[1])).reshape(image.shape[0],image.shape[1],3)
+        hcorr_img = numpy.tile(hcorr.T, (image.shape[0]/size,image.shape[1])).reshape(image.shape[0],image.shape[1],3)
         out=image*hcorr_img*vcorr_img
         if self.low_resolution.input.checkState()==2:
 #            out=signal.downsample_2d_rgbarray(out,self.RESCALE)
@@ -751,6 +762,19 @@ class TileScanCorrection(SmallApp):
             self.vcorrection[i]=fv(numpy.arange(self.TILE_SIZE))
             fvlr=interp1d(x*self.TILE_SIZE/self.RESCALE, v[i], kind='linear')
             self.vcorrection_lr[i]=fv(numpy.arange(self.TILE_SIZE/self.RESCALE))
+            
+    def tif2tif(self):
+        self.folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder','c:\\' if os.name=='nt' else '/tmp/Santiago' ))
+        if not os.path.exists(self.folder):
+            return
+        tiffiles=[f for f in fileop.find_files_and_folders(self.folder,  extension = 'tif')[1] if '_prep.tif' not in tf]
+        import tifffile
+        for tf in tiffiles:
+            print tiffiles.index(tf)+1, len(tiffiles), tf
+            data=tifffile.imread(tf)
+            new_fn=tf.replace('.tif', '_prep.tif')
+            tifffile.imsave(new_fn,data)
+        self.notify_user('Tif file preparation is ready', '{0} files are converted'.format(len(tiffiles)))
 
 def run_gui():
     '''
