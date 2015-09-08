@@ -471,7 +471,6 @@ class LabeledComboBox(QtGui.QWidget):
         self.create_layout()
         if items is not None:
             self.update_items(items)
-            
 
     def create_widgets(self):
         self.labelw = QtGui.QLabel(self.label, self)

@@ -242,12 +242,22 @@ def downsample_2d_array(ar, fact):
     res.shape = (sx/fact, sy/fact)
     return res
     
-def downsample_2d_rgbarray(ar, fact):
+def downsample_2d_array_1_arg(arg):
+    ar, fact=arg
+    return downsample_2d_array(ar, fact)
+    
+def downsample_2d_rgbarray(ar, fact,pool=None):
     newshape=(numpy.array(ar.shape[:2])/fact).tolist()
     newshape.append(3)
     out=numpy.zeros(newshape,dtype=ar.dtype)
-    for ci in range(ar.shape[2]):
-        out[:,:,ci]=downsample_2d_array(ar[:,:,ci],fact)
+    if pool is not None:
+        pars=[(ar[:,:,ci],fact) for ci in range(ar.shape[2])]
+        res=pool.map(downsample_2d_array_1_arg,pars)
+        for i in range(len(res)):
+            out[:,:,i]=res[i]
+    else:
+        for ci in range(ar.shape[2]):
+            out[:,:,ci]=downsample_2d_array(ar[:,:,ci],fact)
     return out
 
 class TestSignal(unittest.TestCase):
@@ -412,7 +422,10 @@ class TestSignal(unittest.TestCase):
         res=downsample_2d_array(a,10)
         numpy.testing.assert_array_equal(numpy.array(a.shape), numpy.array(res.shape)*10)
         a=numpy.random.random((100,100,3))
-        res=downsample_2d_rgbarray(a,2)
+        import multiprocessing
+        import introspect
+        pool=multiprocessing.Pool(introspect.get_available_process_cores())
+        res=downsample_2d_rgbarray(a,2,pool)
         numpy.testing.assert_array_equal(numpy.array(a.shape[:2]), numpy.array(res.shape[:2])*2)
         
     

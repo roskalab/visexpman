@@ -15,7 +15,7 @@ import PyQt4.QtCore as QtCore
 
 import visexpman
 import hdf5io
-from visexpman.engine.generic import utils,log,fileop,signal
+from visexpman.engine.generic import utils,log,fileop,signal,introspect
 from visexpman.engine.vision_experiment import configuration,gui
 from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
@@ -450,6 +450,7 @@ class AfmCaImagingAnalyzer(SmallApp):
             self.printc('Processing finished')
             
 from pyqtgraph.parametertree import Parameter, ParameterTree
+#TODO: NEXT: better low resolution image: reduce runtime, rotate image
 class TileScanCorrection(SmallApp):
     def __init__(self):
         self.TILE_SIZE=512
@@ -470,7 +471,7 @@ class TileScanCorrection(SmallApp):
         self.green.input.setCheckState(2)
         self.image=gui_generic.Image(self)
         self.image.img.setLevels([0,255])
-        self.npoints = gui_generic.LabeledComboBox(self, 'Number of points', map(str,[3,5,7,10]))
+        self.npoints = gui_generic.LabeledComboBox(self, 'Number of points', map(str,[3,5,7,10,15]))
         self.npoints.input.setCurrentIndex(2)
         
         self.vcorrection=numpy.ones((3,self.TILE_SIZE))
@@ -555,6 +556,7 @@ class TileScanCorrection(SmallApp):
         hnew_values = numpy.round(self.hprofile[:,numpy.cast['int'](indexes)],2)
         vnew_values = numpy.round(self.vprofile[:,numpy.cast['int'](indexes)],2)
         colors=['Red','Green','Blue']
+        self.parameters.blockSignals(True)
         for i in range(len(colors)):
             for d in [c for c in self.parameters.children() if c.name()==colors[i]][0].children():
                 for v in d.children():
@@ -562,6 +564,8 @@ class TileScanCorrection(SmallApp):
                         v.setValue(hnew_values[i,int(v.name())])
                     elif 'Vertical' in d.name():
                         v.setValue(vnew_values[i,int(v.name())])
+        self.parameters.blockSignals(False)
+        self.points2correction_curves(x,hnew_values, vnew_values)
         self.update_plots(x,hnew_values,vnew_values)
             
     def update_plots(self,x,hcorrection, vcorrection):
@@ -618,7 +622,7 @@ class TileScanCorrection(SmallApp):
             return
         import tifffile
         self.tilescan=tifffile.imread(self.filename)
-        self.lowres=signal.downsample_2d_rgbarray(self.tilescan,self.RESCALE)
+        self.lowres=self.tilescan[0.5*self.RESCALE::self.RESCALE,0.5*self.RESCALE::self.RESCALE]#signal.downsample_2d_rgbarray(self.tilescan,self.RESCALE)
         self.color_channels = [numpy.nonzero(self.lowres[:,:,0])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0]
         self.trench_corrected=self.trench_correction(self.tilescan)
         self.trench_corrected_lowres=self.trench_correction(self.lowres)
@@ -671,7 +675,7 @@ class TileScanCorrection(SmallApp):
     def display_image(self):
         img = numpy.copy(self.trench_corrected_lowres if self.low_resolution.input.checkState()==2 else self.trench_corrected)
         if self.show_correction.input.checkState()==2:
-            img=self.correct(img)
+            img=self.correct(self.trench_corrected)
         if self.red.input.checkState()==0:
             img[:,:,0]=0
         if self.green.input.checkState()==0:
@@ -684,42 +688,39 @@ class TileScanCorrection(SmallApp):
         '''
         Should work for both full resolution and low resolution
         '''
-        if self.low_resolution.input.checkState()==2:
-            vcorr=self.vcorrection_lr
-            hcorr=self.hcorrection_lr
-            size=self.TILE_SIZE/self.RESCALE
-        else:
+#        if self.low_resolution.input.checkState()==2:
+#            vcorr=self.vcorrection_lr
+#            hcorr=self.hcorrection_lr
+#            size=self.TILE_SIZE/self.RESCALE
+#        else:
+        if 1:
             vcorr=self.vcorrection
             hcorr=self.hcorrection
-            size=self.TILE_SIZE/self.RESCALE
-        self.corrected=numpy.zeros_like(image,dtype=numpy.float)
+            size=self.TILE_SIZE
+        vcorr=numpy.where(vcorr==0.0, 1.0,vcorr)
+        vcorr=1.0/vcorr
+        hcorr=numpy.where(hcorr==0.0, 1.0,hcorr)
+        hcorr=1.0/hcorr
+        
         vcorr_img=numpy.zeros_like(image,dtype=numpy.float)
         hcorr_img=numpy.zeros_like(image,dtype=numpy.float)
-        for i in range(3):
-            if self.color_channels[i]:
-                vcorr_img[:,:,i] = numpy.tile(1.0/vcorr[i],(image.shape[0],image.shape[1]/size))
-                hcorr_img[:,:,i] = numpy.tile(1.0/hcorr[i],(image.shape[1], image.shape[0]/size)).T
-        return image*hcorr_img*vcorr_img
-    
-    def image_correction(self):
+#        for i in range(3):
+#            if self.color_channels[i] and i==1:
+#                vcorr_img[:,:,i] = numpy.tile(vcorr[i],(image.shape[0],image.shape[1]/size))
+#                hcorr_img[:,:,i] = numpy.tile(hcorr[i],(image.shape[1], image.shape[0]/size)).T
+        vcorr_img = numpy.tile(vcorr.T.flatten(),(image.shape[0], image.shape[1]/size)).reshape(image.shape[0],image.shape[1],3)
+        hcorr_img = numpy.tile(hcorr.T.flatten(),(image.shape[0]/size, image.shape[1])).reshape(image.shape[0],image.shape[1],3)
+        out=image*hcorr_img*vcorr_img
         if self.low_resolution.input.checkState()==2:
-            vcorr= numpy.tile(1.0/self.vcorrection_lowres,(self.lowres.shape[0],self.lowres.shape[1]/(self.TILE_SIZE/self.RESCALE)))
-            hcorr=  numpy.tile(1.0/self.hcorrection_lowres,(self.lowres.shape[1], self.lowres.shape[0]/(self.TILE_SIZE/self.RESCALE))).T
-            self.corrected=numpy.zeros_like(self.lowres,dtype=numpy.float)
-            corr=hcorr*vcorr
-            for i in range(3):
-                self.corrected[:,:,i]=self.lowres[:,:,i]*corr
-        else:
-            vcorr= numpy.tile(1.0/self.vcorrection,(self.tilescandata.shape[0],self.tilescandata.shape[1]/self.TILE_SIZE))
-            hcorr=  numpy.tile(1.0/self.hcorrection,(self.tilescandata.shape[1], self.tilescandata.shape[0]/self.TILE_SIZE)).T
-            self.corrected=numpy.zeros_like(self.tilescandata,dtype=numpy.float)
-            corr=hcorr*vcorr
-            for i in range(3):
-                self.corrected[:,:,i]=self.tilescandata[:,:,i]*corr    
+#            out=signal.downsample_2d_rgbarray(out,self.RESCALE)
+            out = out[0.5*self.RESCALE::self.RESCALE,0.5*self.RESCALE::self.RESCALE]
+        return out
     
     def save(self):
         import tifffile
-        tifffile.imsave(self.filename.replace('.tif','_corrected.tif'),numpy.cast['uint8'](255*signal.scale(self.corrected)))
+        fn=self.filename.replace('.tif','_corrected{0}.tif'.format('_lowres' if self.low_resolution.input.checkState()==2 else ''))
+        tifffile.imsave(fn,numpy.cast['uint8'](255*signal.scale(self.correct(self.trench_corrected))))
+        self.notify_user('Save done', 'Saved to {0}'.format(fn))
         
     def parameter_changed(self, param, changes):
         values={}
@@ -750,7 +751,7 @@ class TileScanCorrection(SmallApp):
             self.vcorrection[i]=fv(numpy.arange(self.TILE_SIZE))
             fvlr=interp1d(x*self.TILE_SIZE/self.RESCALE, v[i], kind='linear')
             self.vcorrection_lr[i]=fv(numpy.arange(self.TILE_SIZE/self.RESCALE))
-        
+
 def run_gui():
     '''
     1. argument: username
