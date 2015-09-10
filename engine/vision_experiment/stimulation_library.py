@@ -1596,6 +1596,7 @@ class AdvancedStimulation(StimulationHelpers):
                 self._flip(frame_trigger = True)
         
         # Finish up
+        self._flip(frame_trigger = True)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
