@@ -1612,6 +1612,7 @@ class AdvancedStimulation(StimulationHelpers):
 
     def show_fingerprint(self, intensity_profile, speed,
                        direction = 0.0,
+                       minimal_spatial_period = 0.0, 
                        forward = True,
                        save_frame_info =True, is_block = False):
         

@@ -534,7 +534,7 @@ class FingerPrintingStimulus(experiment.Experiment):
             for speed in self.experiment_config.SPEEDS:
                 for minimal_spatial_period in self.experiment_config.MIN_SPATIAL_PERIOD:
                     for direction in self.experiment_config.DIRECTIONS:
-                        self.show_fingerprint(self.intensity_profiles[speed][minimal_spatial_period], speed, direction = direction, forward=True)
+                        self.show_fingerprint(self.intensity_profiles[speed][minimal_spatial_period], speed, direction = direction, minimal_spatial_period=minimal_spatial_period, forward=True)
                         
                 
         self.stimulus_frame_info.append({'super_block':'FingerPrintingStimulus', 'is_last': 1, 'counter':self.frame_counter})
