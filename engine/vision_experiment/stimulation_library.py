@@ -146,6 +146,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def _add_block_end(self, is_block, frame_i, nframes):
         if frame_i == nframes - 1 and is_block:
             self.block_end()
+            
+    def draw(self):
+        '''
+        This method is called after drawing a stimulus, User can overdefine this function with drawing a mask, additional object etc
+        '''
         
     def _show_text(self):
         '''
@@ -642,7 +647,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             profile_adjusted = []
             for profile_i in profile:
                 profile_adjusted.append(profile_i)
-        
         #contrast and offset can be provided in rgb or intensity. For both the accepted range is 0...1.0
         if not isinstance(color_contrast, list) and not isinstance(color_contrast, tuple):
             color_contrast_adjusted = [color_contrast,  color_contrast,  color_contrast]
@@ -650,14 +654,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             color_contrast_adjusted = []
             for color_contrast_i in color_contrast:
                 color_contrast_adjusted.append(color_contrast_i)
-            
         if not isinstance(color_offset, list) and not isinstance(color_offset, tuple):
             color_offset_adjusted = [color_offset,  color_offset,  color_offset]
         else:
             color_offset_adjusted = []
             for color_offset_i in color_offset:
                 color_offset_adjusted.append(color_offset_i)
-
         #calculate grating profile period from spatial frequency
         period = int(bar_width * (1.0 + duty_cycle))
         #modify profile length so that the profile will contain integer number of repetitions
@@ -1041,6 +1043,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
+            self.draw()
             self._flip(frame_trigger = True)
             if self.abort:
                 break
@@ -1653,7 +1656,7 @@ class TestStimulationPatterns(unittest.TestCase):
         from visexpman.users.test.test_stimulus import TestMovingShapeConfig
         context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
     
-    @unittest.skip('')    
+    @unittest.skip('')
     def test_10_block_trigger(self):
         from visexpman.engine.visexp_app import stimulation_tester
         import hdf5io
@@ -1678,10 +1681,16 @@ class TestStimulationPatterns(unittest.TestCase):
         #Check if block indexes are increasing:
         bidiff = numpy.diff(numpy.array([s['block_start' if s.has_key('block_start') else 'block_end'] for s in sfi if 'block_start' in s or 'block_end' in s]))
         self.assertGreaterEqual(bidiff.min(),0)
-        
+    
+    @unittest.skip('')    
     def test_11_checkerboard(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestCheckerboardConfig', ENABLE_FRAME_CAPTURE = False)
+    
+#    @unittest.skip('')
+    def test_12_movinggrating(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
 
 if __name__ == "__main__":
     unittest.main()

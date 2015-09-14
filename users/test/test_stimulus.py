@@ -316,11 +316,72 @@ class TestCheckerboardConfig(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 class TestCheckerboardExp(experiment.Experiment):
+    
     def run(self):
         #White noise
         checker_size = 20#75
         duration = 20*60/100
         self.white_noise(duration, checker_size)
+        
+class TestGratingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestGratingExp'
+        self._create_parameters_from_locals(locals())
+
+class TestGratingExp(experiment.Experiment):
+        
+    def run(self):
+        from visexpman.engine.generic import colors
+        glEnable (GL_BLEND)
+        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        display_area_adjusted=numpy.array([40,40])
+        alpha = numpy.arctan(display_area_adjusted[1]/display_area_adjusted[0])
+        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
+        diagonal = numpy.sqrt((display_area_adjusted **2).sum())
+        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        vertices = vertices.transpose()
+        vertices = numpy.tile(vertices,(2,1))
+        vertices[4:]+=100
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        self._init_texture(utils.rc((100,100)))
+#        c=colors.convert_color([1.0,1.0,1.0], self.config)
+#        c.append(1.0)
+#        glColor4fv(c)
+        for i in range(60*5):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            texture = numpy.ones((11,11))
+            texture[::2]=0.0
+            texture = numpy.rollaxis(numpy.array(4*[numpy.cast['float'](texture)]), 0,3)
+            texture[:,:,1]=0.0
+            texture[:,:,2]=0.0
+            texture[:,:,3]=1.0
+            if 1:
+                glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGBA, GL_FLOAT, texture)#LUMINANCE
+                #TODO: blending and texture, mask on screen
+                
+                
+                glColor3fv(colors.convert_color([0.0,0.0,0.0], self.config))
+                glDrawArrays(GL_POLYGON,  0, 4)
+
+#            glBindTexture(GL_TEXTURE_2D, 0)
+#            glDisable(GL_TEXTURE_2D)
+
+            glColor4fv([0.0,1.0,0.0,0.5])
+            glDrawArrays(GL_POLYGON,  4, 4)
+            
+#            glEnable(GL_TEXTURE_2D)
+#            glBindTexture(GL_TEXTURE_2D, self.grating_texture)
+
+
+            self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        self._deinit_texture()
+        glDisable (GL_BLEND)
+        
+        
+        #self.show_grating(duration = 10.0,  white_bar_width =1,velocity = 1.0,  color_contrast = 1.0,  color_offset = 0.5)
 
 if __name__ == "__main__":
     pass
