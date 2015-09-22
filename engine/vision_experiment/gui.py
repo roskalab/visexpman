@@ -18,7 +18,10 @@ import pyqtgraph.console
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-import PyQt4.Qwt5 as Qwt
+try:
+    import PyQt4.Qwt5 as Qwt
+except ImportError:
+    pass
 
 import visexpman
 import hdf5io
@@ -1826,87 +1829,87 @@ class CaImagingVisualisationControl(gui.WidgetControl):
             self.poller.send(function_call,connection='ca_imaging')
             self.printc('Ca imaging display updated')
             
-class BarCurve(Qwt.QwtPlotCurve):
-    
-    def drawFromTo(self, painter, xMap, yMap, start, stop):
-        """Draws rectangles with the corners taken from the x- and y-arrays.
-        """
-        barcolor = Qt.QColor(50,50,50,100)
-        painter.setPen(Qt.QPen(barcolor))
-        painter.setBrush(barcolor)
-        if stop == -1:
-            stop = self.dataSize()
-        # force 'start' and 'stop' to be even and positive
-        if start & 1:
-            start -= 1
-        if stop & 1:
-            stop -= 1
-        start = max(start, 0)
-        stop = max(stop, 0)
-        for i in range(start, stop, 2):
-            px1 = xMap.transform(self.x(i))
-            py1 = yMap.transform(self.y(i))
-            px2 = xMap.transform(self.x(i+1))
-            py2 = yMap.transform(self.y(i+1))
-            painter.drawRect(px1, py1, (px2 - px1), (py2 - py1))
-
-class Plot(Qwt.QwtPlot):
-    def __init__(self, parent):
-        Qwt.QwtPlot.__init__(self)
-        self.setCanvasBackground(QtCore.Qt.white)
-        self.setFixedWidth(700)
-        self.setFixedHeight(220)
-        self.grid = Qwt.QwtPlotGrid()
-        self.grid.enableXMin(True)
-        self.grid.setMajPen(QtGui.QPen(QtCore.Qt.black, 0, QtCore.Qt.DotLine))
-        self.grid.setMinPen(QtGui.QPen(QtCore.Qt.gray, 0, QtCore.Qt.DotLine))
-        self.grid.attach(self)
-#        legend = Qwt.QwtLegend()
-#        self.insertLegend(legend, Qwt.QwtPlot.BottomLegend)
-        self.setAxisTitle(Qwt.QwtPlot.xBottom, 'time [s]')
-        self.colors = [QtCore.Qt.red, QtCore.Qt.green, QtCore.Qt.blue, QtCore.Qt.black]
-        ncurves = 3
-        self.curves = []
-        for i in range(ncurves):
-            if i != 0:
-                c = Qwt.QwtPlotCurve(str(i))
-            else:
-                c = BarCurve(str(i))
-            self.curves.append(c)
-            self.curves[-1].setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
-            self.curves[-1].setPen(QtGui.QPen(self.colors[i]))
-            self.curves[-1].setSymbol(Qwt.QwtSymbol(Qwt.QwtSymbol.Cross,
-                                      Qt.QBrush(),
-                                      Qt.QPen(self.colors[i]),
-                                      Qt.QSize(8, 8)))
-            self.curves[-1].attach(self)
-        
-#        duration=5
-##        self.set_stimulus_duration(duration)
-#        t=numpy.arange(0,duration, 1./100)
-#        data = t**2
-#        self.update_curve(t, data)
-#        self.update_curve(t, data*2)
-    
-        
-    def set_stimulus_duration(self,duration):
-        self.setAxisScale(Qwt.QwtPlot.xBottom, 0, duration)
-        
-    def update(self, curves):
-        if curves is None:
-             for ci in range(3):
-                 self.curves[ci].setData([],[])
-        else:
-            for ci in range(len(curves)):
-                if curves[ci] == []:
-                    continue
-                self.curves[ci].setData(curves[ci][0], curves[ci][1])
-#        self.setAxisScale(Qwt.QwtPlot.yLeft, min(data), max(data))
-        self.replot()
-        
-#        self.setAxisScaleDraw(
-#            Qwt.QwtPlot.xBottom, TimeScaleDraw(Qt.QDate(int(self.months[0].split('-')[0]), int(self.months[0].split('-')[1]), 1)))
-#        self.setAxisScale(Qwt.QwtPlot.xBottom, 0, len(self.months))        
+#class BarCurve(Qwt.QwtPlotCurve):
+#    
+#    def drawFromTo(self, painter, xMap, yMap, start, stop):
+#        """Draws rectangles with the corners taken from the x- and y-arrays.
+#        """
+#        barcolor = Qt.QColor(50,50,50,100)
+#        painter.setPen(Qt.QPen(barcolor))
+#        painter.setBrush(barcolor)
+#        if stop == -1:
+#            stop = self.dataSize()
+#        # force 'start' and 'stop' to be even and positive
+#        if start & 1:
+#            start -= 1
+#        if stop & 1:
+#            stop -= 1
+#        start = max(start, 0)
+#        stop = max(stop, 0)
+#        for i in range(start, stop, 2):
+#            px1 = xMap.transform(self.x(i))
+#            py1 = yMap.transform(self.y(i))
+#            px2 = xMap.transform(self.x(i+1))
+#            py2 = yMap.transform(self.y(i+1))
+#            painter.drawRect(px1, py1, (px2 - px1), (py2 - py1))
+#
+#class Plot(Qwt.QwtPlot):
+#    def __init__(self, parent):
+#        Qwt.QwtPlot.__init__(self)
+#        self.setCanvasBackground(QtCore.Qt.white)
+#        self.setFixedWidth(700)
+#        self.setFixedHeight(220)
+#        self.grid = Qwt.QwtPlotGrid()
+#        self.grid.enableXMin(True)
+#        self.grid.setMajPen(QtGui.QPen(QtCore.Qt.black, 0, QtCore.Qt.DotLine))
+#        self.grid.setMinPen(QtGui.QPen(QtCore.Qt.gray, 0, QtCore.Qt.DotLine))
+#        self.grid.attach(self)
+##        legend = Qwt.QwtLegend()
+##        self.insertLegend(legend, Qwt.QwtPlot.BottomLegend)
+#        self.setAxisTitle(Qwt.QwtPlot.xBottom, 'time [s]')
+#        self.colors = [QtCore.Qt.red, QtCore.Qt.green, QtCore.Qt.blue, QtCore.Qt.black]
+#        ncurves = 3
+#        self.curves = []
+#        for i in range(ncurves):
+#            if i != 0:
+#                c = Qwt.QwtPlotCurve(str(i))
+#            else:
+#                c = BarCurve(str(i))
+#            self.curves.append(c)
+#            self.curves[-1].setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
+#            self.curves[-1].setPen(QtGui.QPen(self.colors[i]))
+#            self.curves[-1].setSymbol(Qwt.QwtSymbol(Qwt.QwtSymbol.Cross,
+#                                      Qt.QBrush(),
+#                                      Qt.QPen(self.colors[i]),
+#                                      Qt.QSize(8, 8)))
+#            self.curves[-1].attach(self)
+#        
+##        duration=5
+###        self.set_stimulus_duration(duration)
+##        t=numpy.arange(0,duration, 1./100)
+##        data = t**2
+##        self.update_curve(t, data)
+##        self.update_curve(t, data*2)
+#    
+#        
+#    def set_stimulus_duration(self,duration):
+#        self.setAxisScale(Qwt.QwtPlot.xBottom, 0, duration)
+#        
+#    def update(self, curves):
+#        if curves is None:
+#             for ci in range(3):
+#                 self.curves[ci].setData([],[])
+#        else:
+#            for ci in range(len(curves)):
+#                if curves[ci] == []:
+#                    continue
+#                self.curves[ci].setData(curves[ci][0], curves[ci][1])
+##        self.setAxisScale(Qwt.QwtPlot.yLeft, min(data), max(data))
+#        self.replot()
+#        
+##        self.setAxisScaleDraw(
+##            Qwt.QwtPlot.xBottom, TimeScaleDraw(Qt.QDate(int(self.months[0].split('-')[0]), int(self.months[0].split('-')[1]), 1)))
+##        self.setAxisScale(Qwt.QwtPlot.xBottom, 0, len(self.months))        
 
 class ImageWidget(QtGui.QWidget):
     '''

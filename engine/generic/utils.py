@@ -5,6 +5,7 @@ import numpy
 import os.path
 import os
 import time
+import datetime
 import unittest
 import pkgutil
 import inspect
@@ -809,8 +810,10 @@ def timestamp2ymdhm(timestamp):
 def timestamp2ymd(timestamp):
     time_struct = time.localtime(timestamp)
     return '{0:0=4}-{1:0=2}-{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday).replace('+',' ')
-
-
+    
+def datestring2timestamp(ds,format="%d/%m/%Y"):
+    time.mktime(datetime.datetime.strptime(s, format).timetuple())
+    
 class Timeout(object):
     def __init__(self, timeout, sleep_period = 0.01):
         self.start_time = time.time()

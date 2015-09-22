@@ -121,8 +121,8 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
 #                im*=0.2
 #                im+=0.5
                 im=im.T
-                self.image.img.setImage(im, levels = (0,255))
-                self.image.setFixedWidth(float(im.shape[0])/im.shape[1]*self.image.height())
+                self.images.image['Live'].img.setImage(im, levels = (0,255))
+                self.images.image['Live'].setFixedWidth(float(im.shape[0])/im.shape[1]*self.images.image['Live'].height())
             
     def live_ir_camera_action(self):
         self.start_ir_camera_acquisition()

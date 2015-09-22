@@ -339,25 +339,27 @@ class TestGratingExp(experiment.Experiment):
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
         diagonal = numpy.sqrt((display_area_adjusted **2).sum())
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
-        vertices = vertices.transpose()
+        vertices = vertices.transpose()+250
         vertices = numpy.tile(vertices,(2,1))
-        vertices[4:]+=100
+        vertices[4:]-=100
+        print vertices
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
-        self._init_texture(utils.rc((100,100)))
+        #self._init_texture(utils.rc((100,100)))
 #        c=colors.convert_color([1.0,1.0,1.0], self.config)
 #        c.append(1.0)
 #        glColor4fv(c)
         for i in range(60*5):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            texture = numpy.ones((11,11))
-            texture[::2]=0.0
-            texture = numpy.rollaxis(numpy.array(4*[numpy.cast['float'](texture)]), 0,3)
-            texture[:,:,1]=0.0
-            texture[:,:,2]=0.0
-            texture[:,:,3]=1.0
+            texture = numpy.ones((40,40))
+            texture[::5]=0.0
+#            texture = numpy.rollaxis(numpy.array(4*[numpy.cast['float'](texture)]), 0,3)
+#            texture[:,:,1]=0.0
+#            texture[:,:,2]=0.0
+#            texture[:,:,3]=1.0
             if 1:
-                glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGBA, GL_FLOAT, texture)#LUMINANCE
+#                glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)#LUMINANCE
+                glTexImage2D(GL_TEXTURE_2D, 0, 1, texture.shape[1], texture.shape[0], 0, GL_LUMINANCE, GL_FLOAT, texture)#LUMINANCE
                 #TODO: blending and texture, mask on screen
                 
                 
@@ -367,8 +369,8 @@ class TestGratingExp(experiment.Experiment):
 #            glBindTexture(GL_TEXTURE_2D, 0)
 #            glDisable(GL_TEXTURE_2D)
 
-            glColor4fv([0.0,1.0,0.0,0.5])
-            glDrawArrays(GL_POLYGON,  4, 4)
+#            glColor4fv([0.0,1.0,0.0,0.5])
+#            glDrawArrays(GL_POLYGON,  4, 4)
             
 #            glEnable(GL_TEXTURE_2D)
 #            glBindTexture(GL_TEXTURE_2D, self.grating_texture)
@@ -377,7 +379,7 @@ class TestGratingExp(experiment.Experiment):
             self._flip(frame_trigger = True)
             if self.abort:
                 break
-        self._deinit_texture()
+        #self._deinit_texture()
         glDisable (GL_BLEND)
         
         

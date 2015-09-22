@@ -23,7 +23,7 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
 #        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'datastorage')
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
-        DELETED_FILES_PATH = 'd:\\deleted_files'
+        self.DELETED_FILES_PATH = 'd:\\deleted_files'
         os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #### experiment specific ####
@@ -90,6 +90,16 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.BLOCK_TRIGGER_PIN = 0
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
+        
+class ReiSetupConfigDebug(ReiSetupConfig):
+    def _set_user_parameters(self):
+        ReiSetupConfig._set_user_parameters(self)
+        self.DELETED_FILES_PATH='c:\\tmp'
+        self.LOG_PATH = 'c:\\tmp'
+        self.EXPERIMENT_LOG_PATH = 'c:\\tmp'        
+        self.EXPERIMENT_DATA_PATH = 'c:\\tmp'
+        self.CONTEXT_PATH = 'c:\\tmp'
+        
 
 class TamasSetupConfig(ElphysRetinalCaImagingConfig):
     '''

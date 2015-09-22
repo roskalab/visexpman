@@ -24,7 +24,12 @@ class SPOT_EXPOSURE_STRUCT2(ctypes.Structure):
                     ('nGain', ctypes.c_short)]
                     
                     
-
+class SPOT_EXPOSURE_STRUCT64(ctypes.Structure):
+    _fields_ = [('qwRedExpDur', ctypes.c_longlong),
+                    ('qwGreenExpDur', ctypes.c_longlong),
+                    ('qwBlueExpDur', ctypes.c_longlong),
+                    ('qwExpDur', ctypes.c_longlong),
+                    ('nGain', ctypes.c_short)]
 
 
 class VideoCamera(instrument.Instrument):
@@ -52,7 +57,8 @@ class SpotCam(VideoCamera):
     def _init_camera(self):
         if os.name != 'nt':
             raise NotImplementedError('Spot cam is only supported on Windows platform')
-        self.dll = ctypes.WinDLL (os.path.join(fileop.visexpman_package_path(), 'engine', 'external', 'SpotCamProxy.dll'))
+        self.live=True
+        self.dll = ctypes.WinDLL (os.path.join(fileop.visexpman_package_path(), 'engine', 'external','spotcam', '64bit', 'SpotCamProxy.dll'))
         dll=self.dll
         res=[]
         res.append(dll.SpotStartUp(None))
@@ -80,8 +86,14 @@ class SpotCam(VideoCamera):
         res.append(dll.SpotGetValue(153,ctypes.byref(tmp)))
         h=(tmp.value>>16)&0xffff
         w=tmp.value&0xffff
-        res.append(dll.SpotClearStatus())
+        if not self.live:
+            res.append(dll.SpotClearStatus())
         ref =ctypes.create_string_buffer(h*w)
+#        if self.live:
+#            SpotSetCallback
+        
+        if self.live:
+            res.append(dll.SpotClearStatus())
         self.buffer=ref
         self.h=h
         self.w=w
@@ -95,7 +107,10 @@ class SpotCam(VideoCamera):
         res.append(dll.SpotGetValue(221,ctypes.byref(tmp)))
         exposure_increment = tmp.value
         exposure_ct = int(exposure_time*1e9/exposure_increment)
-        res.append(dll.SpotSetValue(105,ctypes.byref(SPOT_EXPOSURE_STRUCT2(0,0,0,exposure_ct,int(gain)))))#Set exposure, #SPOT_EXPOSURE2
+        if 0 and self.live:
+            res.append(dll.SpotSetValue(209,ctypes.byref(SPOT_EXPOSURE_STRUCT64(0,0,0,int(1e9*exposure_time),int(gain)))))#Set exposure, #SPOT_LIVEEXPOSURE64
+        else:
+            res.append(dll.SpotSetValue(105,ctypes.byref(SPOT_EXPOSURE_STRUCT2(0,0,0,exposure_ct,int(gain)))))#Set exposure, #SPOT_EXPOSURE2
         if len([r for r in res if r!= 0])>0:
             raise RuntimeError('Could not set exposure: {0}'.format(res))
     
@@ -111,7 +126,11 @@ class SpotCam(VideoCamera):
     def get_image(self):
         dll = self.dll
         res=[]
-        res = dll.SpotGetImage(ctypes.c_short(0),ctypes.c_bool(False), ctypes.c_short(0), ctypes.cast(self.buffer, ctypes.c_void_p),None,None, None)
+        if not self.live:
+            res = dll.SpotGetImage(ctypes.c_short(0), ctypes.c_bool(False), ctypes.c_short(0), ctypes.cast(self.buffer, ctypes.c_void_p),None,None, None)
+        else:
+            self.buffer=ctypes.create_string_buffer(self.h*self.w)
+            res = dll.SpotGetLiveImages(ctypes.c_bool(False), ctypes.c_short(0),  ctypes.c_short(0), ctypes.c_bool(False), ctypes.c_bool(False), ctypes.cast(self.buffer, ctypes.c_void_p))
         if res!=0:
             raise RuntimeError('Image could not be acquired, error code: {0}'.format(res))
         im=numpy.fromstring(self.buffer, dtype=numpy.uint8).reshape(self.h,self.w)
