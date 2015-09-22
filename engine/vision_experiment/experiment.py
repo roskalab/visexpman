@@ -76,7 +76,7 @@ class Experiment(stimulation_library.AdvancedStimulation):
         self.experiment_config = experiment_config
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
-        stimulation_library.Stimulations.__init__(self, machine_config, queues, log)
+        stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
         #self.prepare()#TODO: eliminate this: This might not be necessary: 
 
     def prepare(self):
@@ -139,6 +139,41 @@ class PreExperiment(Experiment):
     #Preexperiment can be a static image, that is always drawn when the non-experiment screen is redrawn.
     #Alternatively while preexperiment runs, keyboard handler&command handler shall be called.
 
+
+class Stimulus(stimulation_library.AdvancedStimulation):
+    '''
+    Superclass for all user defined stimuli. Stimulus logic and parameters are also included in this class.
+    '''
+    def __init__(self, machine_config, queues = None, parameters = None, log=None):
+        stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
+        self.stimulus_configuration()
+        
+        
+    def stimulus_configuration(self):
+        '''
+        This method needs to be overdefined by subclasses. The experiment configuration parameters are defined here
+        '''
+        
+    def calculate_stimulus_duration(self):
+        '''
+        Method for calculating the stimulus duration from the stimulus configuration parameters
+        '''
+        
+    def run(self):
+        '''
+        Placeholder for main stimulus logic
+        '''
+        
+    def prepare(self):
+        '''
+        Place for computation intensive code that should run before run() method is called
+        '''
+        
+        
+    def prestim(self):
+        '''
+        Stimulus pattern generation on idle screen
+        '''
 
 ######################### Restore experiment config from measurement data #########################
 

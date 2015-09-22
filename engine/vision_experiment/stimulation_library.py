@@ -27,12 +27,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self, machine_config, queues, application_log):
+    def __init__(self, machine_config, parameters, queues, application_log):
         self.config=machine_config#TODO: eliminate self.config
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
         self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
-        experiment_control.StimulationControlHelper.__init__(self, machine_config, queues, application_log)
+        experiment_control.StimulationControlHelper.__init__(self, machine_config, parameters, queues, application_log)
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)

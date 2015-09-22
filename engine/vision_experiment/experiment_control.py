@@ -454,8 +454,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
     Handles datafiles related to displaying stimulation
     Ensures that no file operation take place during stimulation (writing to file in logger process is suspended)
     '''
-    def __init__(self, machine_config, queues, log):
+    def __init__(self, machine_config, parameters, queues, log):
         self.machine_config = machine_config
+        self.parameters = parameters
         self.log = log
         if self.machine_config.DIGITAL_IO_PORT != False:
             digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
