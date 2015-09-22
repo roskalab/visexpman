@@ -1068,6 +1068,9 @@ class TestExperimentData(unittest.TestCase):
         h.convert('mp4')
         h.close()
         
+    def test_12_gamma(self):
+        gammatext2hdf5('/tmp/g.txt')
+        
 def find_rois(meanimage):
     from skimage import filter
     import scipy.ndimage.measurements
@@ -1135,6 +1138,12 @@ def anti_zigzag(im):
 
 def shift_between_arrays(a1, a2):
     return numpy.array([numpy.correlate(numpy.cast['float'](a1), numpy.roll(numpy.cast['float'](a2),shift)) for shift in range(-a1.shape[0], a1.shape[0])]).argmax()
+    
+def gammatext2hdf5(filename):
+    with open(filename,'rt') as f:
+        txt=f.read()
+    gc=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
+    hdf5io.save_item(os.path.join(os.path.dirname(filename),'gamma.hdf5'),'gamma_correction', gc, filelocking=False)
 
 if __name__=='__main__':
     unittest.main()
