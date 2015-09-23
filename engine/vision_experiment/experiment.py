@@ -156,7 +156,9 @@ class Stimulus(stimulation_library.AdvancedStimulation):
         
     def calculate_stimulus_duration(self):
         '''
-        Method for calculating the stimulus duration from the stimulus configuration parameters
+        Method for calculating the stimulus duration from the stimulus configuration parameters.
+        
+        Compulsory for stimuli intentended for Ca imaging
         '''
         
     def run(self):
@@ -289,6 +291,14 @@ class testExperimentHelpers(unittest.TestCase):
         conf.user='test'
         self.assertRaises(ExperimentConfigError, get_experiment_duration,'Pointing2NonExpConfig', conf, None)
         
+    def test_06_stimulusclass(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestStim', ENABLE_FRAME_CAPTURE = False)
+        context = stimulation_tester('test', 'GUITestConfig', 'TestStim1', ENABLE_FRAME_CAPTURE = False)
+        src=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test','test_stimulus.py'))
+        context = stimulation_tester('test', 'GUITestConfig', 'TestStim1', ENABLE_FRAME_CAPTURE = False, stimulus_source_code = src)
+        
+    
     
 if __name__ == "__main__":
     unittest.main()

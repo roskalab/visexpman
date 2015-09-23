@@ -1687,10 +1687,12 @@ class TestStimulationPatterns(unittest.TestCase):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestCheckerboardConfig', ENABLE_FRAME_CAPTURE = False)
     
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_12_movinggrating(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
+        
+    
 
 if __name__ == "__main__":
     unittest.main()

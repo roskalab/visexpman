@@ -187,25 +187,38 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             experiment_module = __import__('experiment_module')
             self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
+        elif parameters.has_key('stimulus_source_code'):
+            introspect.import_code(parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
+            experiment_module = __import__('experiment_module')
+            self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.socket_queues, \
+                                                                                                  parameters, self.log)
         else:
             #Source code not provided, existing experiment config module is instantiated
             experiment_module = None
             experiment_config_class=[]
-            for u in [self.machine_config.user, 'common']:
-                experiment_config_class.extend(utils.fetch_classes('visexpman.users.'+ u, classname = parameters['experiment_name'],  
-                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct=False))
+            for ancestor in [visexpman.engine.vision_experiment.experiment.ExperimentConfig,visexpman.engine.vision_experiment.experiment.Stimulus]:
+                for u in [self.machine_config.user, 'common']:
+                    experiment_config_class.extend(utils.fetch_classes('visexpman.users.'+ u, classname = parameters['experiment_name'],  
+                                                        required_ancestors = ancestor, direct=False))
             if len(experiment_config_class)==0:
+                
                 from visexpman.engine import ExperimentConfigError
                 raise ExperimentConfigError('{0} user\'s {1} experiment config cannot be fetched or does not exists'
                                             .format(self.machine_config.user, parameters['experiment_name']))
-            self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
+            if issubclass(experiment_config_class[0][1],visexpman.engine.vision_experiment.experiment.Stimulus):
+                self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
+                                                                                                  parameters, self.log)
+            else:
+                self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
         #Prepare experiment, run stimulation and save data
+        self.isstimclass=issubclass(self.experiment_config.__class__,visexpman.engine.vision_experiment.experiment.Stimulus)
+        runnable=self.experiment_config if self.isstimclass else self.experiment_config.runnable
         if parameters.get('stimulus_only', False):#TODO: eliminate prepare
-            self.experiment_config.runnable.prepare()
-        getattr(self.experiment_config.runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
+            runnable.prepare()
+        getattr(runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters
-        self.stim_context['last_experiment_stimulus_frame_info'] = self.experiment_config.runnable.stimulus_frame_info
+        self.stim_context['last_experiment_stimulus_frame_info'] = runnable.stimulus_frame_info
 
 def run_main_ui(context):
     context['logger'].add_source('engine')
@@ -250,6 +263,8 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
             'stimulation_device' : '', 
             'stimulus_only':True,
             'id':str(int(numpy.round(time.time(), 2)*100))}
+    if kwargs.has_key('stimulus_source_code'):
+        parameters['stimulus_source_code']=kwargs['stimulus_source_code']
     commands = [{'function': 'start_stimulus', 'args': [parameters]}]
     commands.append({'function': 'exit_application'})
     map(context['socket_queues']['stim']['fromsocket'].put, commands)

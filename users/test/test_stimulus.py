@@ -385,6 +385,19 @@ class TestGratingExp(experiment.Experiment):
         
         #self.show_grating(duration = 10.0,  white_bar_width =1,velocity = 1.0,  color_contrast = 1.0,  color_offset = 0.5)
 
+class TestStim(experiment.Stimulus):
+    def stimulus_configuration(self):
+        self.DURATION=0.2
+        
+    def calculate_stimulus_duration(self):
+        self.duration=self.DURATION
+        
+    def run(self):
+        self.show_fullscreen(color=1.0,duration=self.DURATION)
+        
+class TestStim1(TestStim):
+    def stimulus_configuration(self):
+        self.DURATION=0.3
+
 if __name__ == "__main__":
     pass
-    
