@@ -35,6 +35,8 @@ ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
 
+ENABLE_SCAN_REGION_SERIALIZATION= False
+
 class Poller(QtCore.QThread):
     '''
     Generic poller thread that receives commands via queues and executes them. Additionally can access gui
@@ -977,7 +979,15 @@ class MainPoller(Poller):
             if scan_regions is None:
                 self.scan_regions = {}
             else:
-                self.scan_regions = copy.deepcopy(scan_regions)
+                if ENABLE_SCAN_REGION_SERIALIZATION:
+                    if isinstance(scan_regions, dict) and isinstance(scan_regions.values()[0], dict):
+                        self.scan_regions = copy.deepcopy(scan_regions)
+                    elif hasattr(scan_regions.values()[0], 'dtype'):
+                        self.scan_regions={}
+                        for srn in scan_regions.keys():
+                            self.scan_regions[srn] = utils.array2object(copy.deepcopy(scan_regions[srn]))
+                else:
+                    self.scan_regions = copy.deepcopy(scan_regions)
             self.printc('Loading cells')
             cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
             if cells is not None:
@@ -2507,6 +2517,11 @@ class MainPoller(Poller):
                 field_name, field_value = self.queues['mouse_file_handler'].get()
                 if field_name == 'animal_parameters':
                     field_name += str(int(time.time()))
+                if field_name == 'scan_regions' and ENABLE_SCAN_REGION_SERIALIZATION:
+                    new_fv={}
+                    for srn in field_value.keys():
+                        new_fv[srn]=utils.object2array(field_value[srn])
+                    field_value = new_fv
                 setattr(h, field_name, field_value)
                 if not field_name in field_names_to_save:
                     field_names_to_save.append(field_name)

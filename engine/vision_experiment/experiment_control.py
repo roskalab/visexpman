@@ -241,6 +241,7 @@ class ExperimentControl(object):
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
+        self.experiment_start_timestamp=time.time()
         self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
         if self.analog_input.start_daq_activity():
             self.printl('Analog signal recording started')
@@ -533,6 +534,7 @@ class ExperimentControl(object):
                                     'software_environment' : software_environment, 
                                     'machine_config': experiment_data.pickle_config(self.config), 
                                     'experiment_config': experiment_data.pickle_config(self.experiment_config), 
+                                    'experiment_start_timestamp':self.experiment_start_timestamp
                                     }
         if self.user_data != {}:
             data_to_file['user_data'] = self.user_data

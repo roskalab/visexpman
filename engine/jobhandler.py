@@ -169,7 +169,15 @@ class CommandInterface(command_parser.CommandParser):
 #             while utils.is_file_open(self.mouse_file):
 #                 print 'Wait file'
 #                 time.sleep(0.2)
-            scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions',filelocking=False)#sometimes this read fails with tables.isPyTablesFile(self.filename), None is returned
+            try:
+                scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions',filelocking=False)#sometimes this read fails with tables.isPyTablesFile(self.filename), None is returned
+            except RuntimeError:
+                corrupted_filename = self.mouse_file+'corrupted'
+                if os.path.exists(corrupted_filename):
+                    os.remove(corrupted_filename)
+                    self.printl('corrupted mouse file removed')
+                    return
+                
             time.sleep(1.0)
             os.remove(self.mouse_file)
             self.log.info('scan regions read')
@@ -238,9 +246,10 @@ class CommandInterface(command_parser.CommandParser):
     def _find_cells_ready(self, id =None, runtime=None):
         time.sleep(0.3)#Make sure that file is closed
         filename = file.get_measurement_file_path_from_id(id, self.config, filename_only = True)
+        filenamefull = file.get_measurement_file_path_from_id(id, self.config, filename_only = False)
         fullpath = fragment_name_to_short_string(filename)
         self.printl('Copying files to databig and tape')
-        databig_path, tape_path = self._generate_copypath(filename)
+        databig_path, tape_path = self._generate_copypath(filenamefull)
         exit = False
         try:
             shutil.copy(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path)
@@ -309,7 +318,12 @@ class CommandInterface(command_parser.CommandParser):
         try:
             paths = []
             for dir in [self.config.DATABIG_PATH,self.config.TAPE_PATH]:
-                d = os.path.join(dir, utils.date_string().replace('-',''), os.path.split(self.mouse_file)[1].split('_')[1])
+                if 'mouse' in filename:
+                    animal_id = os.path.split(self.mouse_file)[1].split('_')[1]
+                else:
+                    idnode = ('_'.join(filename.split('_')[-3:])).split('.')[0]
+                    animal_id = str(hdf5io.read_item(filename, idnode, self.analysis_config)['animal_parameters']['id'])
+                d = os.path.join(dir, utils.date_string().replace('-',''), animal_id)
                 if not os.path.exists(d) and create_folder:
                     try:
                         os.makedirs(d)
