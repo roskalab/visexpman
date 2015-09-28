@@ -17,11 +17,14 @@ import unittest
 import tempfile
 import time
 
+
+
 class PhysTiff2Hdf5(object):
     '''
     Convert phys/tiff data into hdf5
     '''
-    def __init__(self, folder, outfolder=None):
+    def __init__(self, folder, outfolder=None,allow_high_framerate=False):
+        self.allow_high_framerate=allow_high_framerate
         self.folder=folder
         self.outfolder=outfolder
         self.maximal_timediff = 3
@@ -169,6 +172,9 @@ class PhysTiff2Hdf5(object):
             pixel_per_frame = int(2*(sizex*res)*(sizey*res-1)+4)
             boundaries = numpy.repeat(numpy.arange(nframes)*pixel_per_frame,2)
             boundaries[1::2]+=pixel_per_frame-4
+            boundaries = boundaries[numpy.where(boundaries<data_.shape[0])[0]]
+            nframes=boundaries.shape[0]/2
+            boundaries = boundaries[:2*(boundaries.shape[0]/2)]
             rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
             raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,1:,:,:],0,2**16-1))
         print 'rawdata ok', time.time()-t0
@@ -276,14 +282,14 @@ class PhysTiff2Hdf5(object):
         frame_rate = factor*abs(f)[1:].argmax()*df#First harmonic has the highest amplitude
         if abs(f)[1:].argmax()==0:
             frame_rate=10.0
-        if frame_rate>30:#Then probably x scanner signal
+        if frame_rate>30 and not self.allow_high_framerate:#Then probably x scanner signal
             frame_rate /= nxlines
             start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][0]
             end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][-1]
         else:
             start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][0]
             end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][-1]
-        if frame_rate<5 or frame_rate>12:
+        if (frame_rate<5 or frame_rate>12) and not self.allow_high_framerate:
             pdb.set_trace()
             raise RuntimeError(frame_rate)
         #first frame's start time has to be calculated
@@ -331,7 +337,7 @@ class TestConverter(unittest.TestCase):
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
-        p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1])
+        p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False
         print 'Close window to exit program'
         while True:
