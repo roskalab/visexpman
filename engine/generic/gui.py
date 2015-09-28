@@ -87,6 +87,15 @@ class VisexpmanMainWindow(Qt.QMainWindow):
     def catch_error_message(self):
         if not error_messages.empty():
             self.logger.error(error_messages.get())
+            
+    def _start_engine(self,engine):
+        self.engine = engine
+        self.to_engine, self.from_engine = self.engine.get_queues()
+        self.engine.start()
+        
+    def _stop_engine(self):
+        self.to_engine.put('terminate')
+        self.engine.join()
         
     def closeEvent(self, e):
         e.accept()

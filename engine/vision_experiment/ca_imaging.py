@@ -6,6 +6,7 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph
 from visexpman.engine.generic import utils,gui,signal,fileop
 from visexpman.engine.hardware_interface import camera_interface
+from visexpman.engine.vision_experiment import gui_engine
 import Queue
 import rpyc
 import cPickle as pickle
@@ -40,10 +41,7 @@ class CaImagingHardwareHandler(object):
 #            return self.camera.response.get()
             
             
-    def update_settings(self, values, paths, refs):
-        self.settings = {}
-        for i in range(len(paths)):
-            self.settings[paths[i][-1]]=values[i]
+
             
     def help(self):
         import rpyc
@@ -67,11 +65,12 @@ class Images(QtGui.QWidget):
             self.layout.addWidget(self.image[n])
         self.setLayout(self.layout)
 
-class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
+class CaImaging(gui.VisexpmanMainWindow):
     def __init__(self, context):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
         gui.VisexpmanMainWindow.__init__(self, context)
+        self._start_engine(gui_engine.CaImagingEngine(self.machine_config, self.logger, self.socket_queues))
         self.toolbar = gui.ToolBar(self, ['live_ir_camera', 'live_two_photon', 'snap_two_photon', 'stop', 'exit'])
         self.addToolBar(self.toolbar)
         self.images=Images(self)
@@ -106,9 +105,7 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
                 {'name': 'IR camera', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Exposure time', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'ms'},
                     {'name': 'Gain', 'type': 'float', 'value': 1.0, },
-                    
                     ]},
-                    
                     ]
         return pc
             
@@ -137,11 +134,16 @@ class CaImaging(gui.VisexpmanMainWindow, CaImagingHardwareHandler):
         self.stop_ir_camera()
             
     def exit_action(self):
-        self.stop_ir_camera()
+        self._stop_engine()
         self.close()
         
     def settings_changed(self):
         self.update_settings(*self.settings.get_parameter_tree())
+        
+    def update_settings(self, values, paths, refs):
+        self.setting_values = {}
+        for i in range(len(paths)):
+            self.setting_values[paths[i][-1]]=values[i]
         
 class CameraService(rpyc.Service):
         

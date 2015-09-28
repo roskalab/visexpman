@@ -413,7 +413,7 @@ class MainUI(gui.VisexpmanMainWindow):
         gui.VisexpmanMainWindow.__init__(self, context)
         self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
-        self._start_engine()
+        self._start_engine(gui_engine.MainUIEngine(self.machine_config, self.logger, self.socket_queues))
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         self._set_window_title()
         #Set up toobar
@@ -579,10 +579,6 @@ class MainUI(gui.VisexpmanMainWindow):
                         {'name': 'Threshold Factor', 'type': 'float', 'value': 1.0}
                         ]
                     },
-#                    {'name': 'Trace Statistics', 'type': 'group', 'expanded' : False, 'children': [
-#                        {'name': 'Mean of Repetitions', 'type': 'bool', 'value': False},
-#                        {'name': 'Include All Files', 'type': 'bool', 'value': False},
-#                        ]},
                     {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
                     ]
                     },                    
@@ -604,35 +600,6 @@ class MainUI(gui.VisexpmanMainWindow):
                         ]},
                     ]}
                     ]
-                
-
-
-
-
-#                {'name': 'Basic parameter data types', 'type': 'group', 'children': [
-#                {'name': 'Integer', 'type': 'int', 'value': 10},
-#                {'name': 'Float', 'type': 'float', 'value': 10.5, 'step': 0.1},
-#                {'name': 'String', 'type': 'str', 'value': "hi"},
-##                {'name': 'List', 'type': 'list', 'values': [1,2,3], 'value': 2},
-##                {'name': 'Named List', 'type': 'list', 'values': {"one": 1, "two": "twosies", "three": [3,3,3]}, 'value': 2},
-#                {'name': 'Boolean', 'type': 'bool', 'value': True, 'tip': "This is a checkbox"},
-##                {'name': 'Color', 'type': 'color', 'value': "FF0", 'tip': "This is a color button"},
-#            ]},
-#            {'name': 'Numerical Parameter Options', 'type': 'group', 'children': [
-#                {'name': 'Units + SI prefix', 'type': 'float', 'value': 1.2e-6, 'step': 1e-6, 'siPrefix': True, 'suffix': 'V'},
-#                {'name': 'Limits (min=7;max=15)', 'type': 'int', 'value': 11, 'limits': (7, 15), 'default': -6},
-#                {'name': 'DEC stepping', 'type': 'float', 'value': 1.2e6, 'dec': True, 'step': 1, 'siPrefix': True, 'suffix': 'Hz'},
-#        
-#    ]}]
-        
-    def _start_engine(self):
-        self.engine = gui_engine.GUIEngine(self.machine_config, self.logger, self.socket_queues)
-        self.to_engine, self.from_engine = self.engine.get_queues()
-        self.engine.start()
-        
-    def _stop_engine(self):
-        self.to_engine.put('terminate')
-        self.engine.join()
 
     def _dump_all_parameters(self):#TODO: rename
         values, paths, refs = self.params.get_parameter_tree()

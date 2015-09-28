@@ -265,7 +265,7 @@ class PhysTiff2Hdf5(object):
             try:
                 sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
             except:
-                print 'sync signal recordifng was aborted'
+                print 'sync signal recording was aborted'
             pass
             return sig2
         

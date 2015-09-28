@@ -567,7 +567,7 @@ class Analysis(object):
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
     
-class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, ExperimentHandler):
+class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
     '''
     GUI engine: receives commands via queue interface from gui and performs the following actions:
      - stores data internally
@@ -590,7 +590,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         self.load_context()
         self.widget_status = {}
         self.last_periodic = time.time()
-        Analysis.__init__(self, machine_config)
         
     def load_context(self):
         self.guidata = GUIData()
@@ -737,8 +736,19 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
             self.printc('{0} file is closed'.format(self.datafile.filename))
         
     def close(self):
-        self.close_analysis()
         self.save_context()
+        
+class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
+    def __init__(self, machine_config, log, socket_queues, unittest=False):
+        GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
+        Analysis.__init__(self, machine_config)
+        
+    def close(self):
+        self.close_analysis()
+        GUIEngine.close(self)
+    
+class CaImagingEngine(GUIEngine):
+    pass
 
 class TestGUIEngineIF(unittest.TestCase):
     def setUp(self):
