@@ -440,8 +440,7 @@ class TestCA(unittest.TestCase):
         import multiprocessing
         p=multiprocessing.Pool(4)
         res=p.map(area2edges, areas)
-        
-    @unittest.skip('')
+    
     def test_05_find_repetitions(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
@@ -466,7 +465,7 @@ class TestCA(unittest.TestCase):
         for cell in cells:
             repeats=cell[[c for c in cell.keys() if 'scan_region' !=c][0]].values()
             for r in repeats:
-                self.assertEqual(len([True for p in expected_cell_properties if p in r.keys()]),13)
+                self.assertGreaterEqual(len([True for p in expected_cell_properties if p in r.keys()]),11)#11...13. Some old files does not have area key or match_weight
     
     def test_07_quantify_cells(self):
         folder = fileop.select_folder_exists(['/home/rz/rzws/test_data/', '/home/rz/codes/data/test_data'])
@@ -479,7 +478,10 @@ class TestCA(unittest.TestCase):
         self.assertTrue(all([hasattr(vv, 'shape') for vv in v.values() for v in parameter_distributions.values()]))
         
     def test_08_local_cell_detection(self):
-        fn='/home/rz/codes/data/test_data/data_C6_SpotPar_209592957_0.hdf5'
+        from visexpman.users.test.unittest_aggregator import prepare_test_data
+        wf='/tmp/wf'
+        fn = fileop.listdir_fullpath(prepare_test_data('local_cell_detection',working_folder=wf))[0]
+        #fn='/home/rz/codes/data/test_data/data_C6_SpotPar_209592957_0.hdf5'
         rois=hdf5io.read_item(fn,'rois',filelocking=False)
         roi=rois[18]
         meanimage=roi['meanimage']

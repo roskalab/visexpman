@@ -639,7 +639,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         return result
         
     def notify(self,title,message):
-        self.log.info('Notify: {0}, {1}'.format(title, msg), 'engine')
+        self.log.info('Notify: {0}, {1}'.format(title, message), 'engine')
         self.to_gui.put({'notify':{'title': title, 'msg':message}})
         
     def update_widget_status(self, status):
