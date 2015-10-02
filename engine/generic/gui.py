@@ -4,7 +4,7 @@ generic.gui module has generic gui widgets like labeled widgets. It also contain
 import os.path
 import numpy
 import time
-import copy
+import copy,Queue,logging,tempfile
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
@@ -100,7 +100,60 @@ class VisexpmanMainWindow(Qt.QMainWindow):
     def closeEvent(self, e):
         e.accept()
         self.exit_action()
+
+class SimpleAppWindow(Qt.QMainWindow):
+    def __init__(self):
+        if QtCore.QCoreApplication.instance() is None:
+            self.qt_app = Qt.QApplication([])
+        Qt.QMainWindow.__init__(self)
         
+        if not hasattr(self, 'logfile'):
+            self.logfile = os.path.join(tempfile.gettempdir(), utils.timestamp2ymdhms(time.time()))
+        logging.basicConfig(filename= self.logfile,
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.DEBUG)
+        self.logtext=''
+        self.debugw = Debug(self)
+        self.logw=self.debugw.log
+        self.add_dockwidget(self.debugw, 'Log/Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
+        self.init_gui()
+        self.error_timer = QtCore.QTimer()
+        self.error_timer.timeout.connect(self.catch_error_message)
+        self.error_timer.start(300)
+        self.log_update_timer = QtCore.QTimer()#Makes sure that whole logfile is always displayed on screen
+        self.log_update_timer.timeout.connect(self.logfile2screen)
+        self.log_update_timer.start(300)
+        self.show()
+        if QtCore.QCoreApplication.instance() is not None:
+            QtCore.QCoreApplication.instance().exec_()
+            
+    def init_gui(self):
+        '''
+        Placeholder for creating application specific widgets and layout
+        '''
+                    
+    def logfile2screen(self):
+        newlogtext=fileop.read_text_file(self.logfile)
+        if len(newlogtext)!=len(self.logtext):
+            self.logtext=newlogtext
+            self.logw.update(self.logtext)
+
+    def log(self, msg, loglevel='info'):
+        getattr(logging, loglevel)(str(msg))
+        self.logw.update(fileop.read_text_file(self.logfile))
+        
+    def catch_error_message(self):
+        if not error_messages.empty():
+            self.log(error_messages.get(),'error')
+            
+    def add_dockwidget(self, widget, title, position, allowed_areas):
+        dock = QtGui.QDockWidget(title, self)
+        dock.setAllowedAreas(allowed_areas)
+        dock.setWidget(widget)
+        self.addDockWidget(position, dock)
+        dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
+
+
 class ToolBar(QtGui.QToolBar):
     '''
     Toolbar holding the following shortcuts:
@@ -132,14 +185,14 @@ class Debug(QtGui.QTabWidget):
         self.log = TextOut(self)
         self.console = PythonConsole(self)
         self.addTab(self.log, 'Log')
-        self.addTab(self.console, 'Console')
+        self.addTab(self.console, 'Python Debug')
         self.setTabPosition(self.South)
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
             selfw = parent.parent
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: main gui widget, numpy, utils, fileop, signal')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):

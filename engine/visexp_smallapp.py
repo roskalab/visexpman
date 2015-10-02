@@ -104,8 +104,7 @@ class SmallApp(QtGui.QWidget):
                 self.log.info(text)
         except:
             print 'gui: logging error'
-            
-    
+
     def ask4confirmation(self, action2confirm):
         reply = QtGui.QMessageBox.question(self, 'Confirm following action', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.No:
