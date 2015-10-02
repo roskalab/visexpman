@@ -12,7 +12,7 @@ class Config(object):
     def __init__(self):
         self.DATA_FOLDER = '/mnt/tmp'
         self.VALVE_OPEN_TIME=400e-3
-        self.CURSOR_RESET_POSITION=0.01
+        self.CURSOR_RESET_POSITION=0.03
         self.CURSOR_POSITION_UPDATE_PERIOD = 10e-3
         self.CAMERA_UPDATE_RATE=10
         self.CAMERA_FRAME_WIDTH=640
@@ -81,11 +81,12 @@ class Behavioral(gui.SimpleAppWindow):
         self.cursor_t = QtCore.QTimer()
         self.cursor_t.timeout.connect(self.cursor_handler)
         self.cursor_t.start(int(1000.*self.config.CURSOR_POSITION_UPDATE_PERIOD))
-        screen_width = self.qt_app.desktop().screenGeometry().width()
+        self.screen_width = self.qt_app.desktop().screenGeometry().width()
         self.screen_height = self.qt_app.desktop().screenGeometry().height()
-        self.screen_left=int(screen_width*self.config.CURSOR_RESET_POSITION)
-        self.screen_right=int((1-self.config.CURSOR_RESET_POSITION)*screen_width)
+        self.screen_left=int(self.screen_width*self.config.CURSOR_RESET_POSITION)
+        self.screen_right=int((1-self.config.CURSOR_RESET_POSITION)*self.screen_width)
         self.running=False
+        self.next_speed_correction=False
         
     def read_camera(self):
         ret, frame = self.camera.read()
@@ -95,7 +96,7 @@ class Behavioral(gui.SimpleAppWindow):
     def start_experiment(self):
         if self.running: return
         self.running=True
-        nparams=2
+        nparams=3
         self.data=numpy.empty((nparams,0))
         self.log('start')
         
@@ -114,17 +115,33 @@ class Behavioral(gui.SimpleAppWindow):
         if not self.running:
             return
         self.cursor_position = QtGui.QCursor.pos().x()
+        now=time.time()
         reset_position=None
+        #self.speed_correction=0
         if self.screen_left>self.cursor_position:
             reset_position = self.screen_right
+            self.speed_correction=-self.screen_width
         if self.screen_right<self.cursor_position:
             reset_position = self.screen_left
+            self.speed_correction=self.screen_width
         if reset_position is not None:
             QtGui.QCursor.setPos(reset_position,int(self.screen_height*0.5))
-        self.data = numpy.append(self.data, numpy.array([[time.time(), self.cursor_position]]).T,axis=1)
-        d=self.data
-        self.cw.plotw.update_curve(d[0]-d[0,0], d[1], pen=(0,0,0), plotparams = {})
-        
+
+        if self.data.shape[1]>0:
+            ds=(self.cursor_position-self.data[1, -1]+(self.speed_correction if self.next_speed_correction else 0))
+            for i in range(2):
+                if abs(ds)>0.9*self.screen_width:
+                    ds+=self.screen_width*(-1 if ds>0 else 1)
+            speed=ds/(now-self.data[0,-1])
+        else:
+            speed=0
+        if self.next_speed_correction:
+            self.next_speed_correction=False
+        if reset_position is not None:
+            self.next_speed_correction=True
+        self.data = numpy.append(self.data, numpy.array([[now, self.cursor_position,speed]]).T,axis=1)
+        self.cw.plotw.update_curve(self.data[0]-self.data[0,0], self.data[2], pen=(0,0,0), plotparams = {})
+
     def closeEvent(self, e):
         self.camera.release()
         e.accept()
