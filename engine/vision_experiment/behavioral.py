@@ -1,24 +1,26 @@
-import sys
-import time
-import numpy
+import os,sys,time,threading,Queue
+import numpy,scipy.io
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
-from visexpman.engine.generic import gui
+from visexpman.engine.generic import gui,utils,videofile
+#TODO: video frame rate/colors
 
 class Config(object):
     def __init__(self):
-        self.DATA_FOLDER = '/mnt/tmp'
+        self.DATA_FOLDER = '/tmp'
         self.VALVE_OPEN_TIME=400e-3
-        self.CURSOR_RESET_POSITION=0.03
-        self.CURSOR_POSITION_UPDATE_PERIOD = 10e-3
-        self.CAMERA_UPDATE_RATE=10
+        self.STIMULUS_DURATION=1.0
+        self.CURSOR_RESET_POSITION=0.0
+        self.CURSOR_POSITION_UPDATE_PERIOD = 50e-3
+        self.CAMERA_UPDATE_RATE=6
         self.CAMERA_FRAME_WIDTH=640
         self.CAMERA_FRAME_HEIGHT=480
-        
-        self.MOVE_THRESHOLD=200
+
+        self.RUN_THRESHOLD=0.8
+        self.MOVE_THRESHOLD=10#200
         self.PROTOCOL_STOP_REWARD={}
         self.PROTOCOL_STOP_REWARD['run time']=2
         self.PROTOCOL_STOP_REWARD['stop time']=2
@@ -28,10 +30,33 @@ class Config(object):
         self.PROTOCOL_STIM_STOP_REWARD['stop time']=2
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time range']=10
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']=0.5
+        self.PROTOCOL_STIM_STOP_REWARD['delay after run']=2
         
     def get_protocol_names(self):
         return [vn.replace('PROTOCOL_','') for vn in dir(self) if 'PROTOCOL_' in vn]
         
+
+class HardwareHandler(threading.Thread):
+    def __init__(self,command,response,config):
+        self.command=command
+        self.response=response
+        self.config=config
+        threading.Thread.__init__(self)
+        
+    def run(self):
+        while True:
+            if not self.command.empty():
+                cmd=self.command.get()
+                if cmd=='terminate':
+                    break
+                elif cmd == 'stimulate':
+                    time.sleep(self.config.STIMULUS_DURATION)
+                    self.response.put('stim ready')
+                elif cmd == 'reward':
+                    time.sleep(self.config.VALVE_OPEN_TIME)
+                    self.response.put('reward ready')
+            else:
+                time.sleep(10e-3)
 
 HELP='''Start experiment: Ctrl+a
 Stop experiment: Ctrl+s
@@ -75,6 +100,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.camera = cv2.VideoCapture(0)
         self.camera.set(3, self.config.CAMERA_FRAME_WIDTH)
         self.camera.set(4, self.config.CAMERA_FRAME_HEIGHT)
+        #self.camera.set(15, 1)#CV_CAP_PROP_EXPOSURE
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Ctrl+a'), self), QtCore.SIGNAL('activated()'), self.start_experiment)
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Ctrl+s'), self), QtCore.SIGNAL('activated()'), self.stop_experiment)
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Space'), self), QtCore.SIGNAL('activated()'), self.next_protocol)
@@ -87,25 +113,45 @@ class Behavioral(gui.SimpleAppWindow):
         self.screen_right=int((1-self.config.CURSOR_RESET_POSITION)*self.screen_width)
         self.running=False
         self.next_speed_correction=False
+        nparams=5#time, position, speed, reward, stim
+        self.empty=numpy.empty((nparams,0))
+        self.hwcommand=Queue.Queue()
+        self.hwresponse=Queue.Queue()
+        self.hwh=HardwareHandler(self.hwcommand,self.hwresponse, self.config)
+        self.hwh.start()
+        self.stim_state=False
+        self.valve_state=False
         
     def read_camera(self):
         ret, frame = self.camera.read()
         if hasattr(frame, 'shape'):
             self.cw.image.set_image(numpy.rot90(frame,3),alpha=1.0)
+            if self.running:
+                self.frame_times.append(time.time())
+                self.frames.append(frame)
             
     def start_experiment(self):
         if self.running: return
         self.running=True
-        nparams=3
-        self.data=numpy.empty((nparams,0))
-        self.log('start')
+        self.checkdata=numpy.copy(self.empty)
+        self.data=numpy.copy(self.empty)
+        self.frame_times=[]
+        self.frames=[]
+        self.log('start experiment')
+        
+        #Protocol specific
+        self.run_complete=False
+        self.stimulus_fired=False
+        self.stop_complete=False
         
     def stop_experiment(self):
         if not self.running: return
         self.running=False
-        self.log('stop')
+        self.log('stop experiment')
+        self.save_data()
         
     def next_protocol(self):
+        if self.running: return
         next_index = self.cw.select_protocol.input.currentIndex()+1
         if next_index == self.cw.select_protocol.input.count():
             next_index = 0
@@ -115,36 +161,118 @@ class Behavioral(gui.SimpleAppWindow):
         if not self.running:
             return
         self.cursor_position = QtGui.QCursor.pos().x()
-        now=time.time()
+        self.now=time.time()
         reset_position=None
-        #self.speed_correction=0
-        if self.screen_left>self.cursor_position:
+        jump=0
+        if self.cursor_position<=self.screen_left:
             reset_position = self.screen_right
-            self.speed_correction=-self.screen_width
-        if self.screen_right<self.cursor_position:
+            jump=self.screen_width
+        if self.cursor_position>=self.screen_right-1:
             reset_position = self.screen_left
-            self.speed_correction=self.screen_width
+            jump=-self.screen_width
         if reset_position is not None:
             QtGui.QCursor.setPos(reset_position,int(self.screen_height*0.5))
-
         if self.data.shape[1]>0:
-            ds=(self.cursor_position-self.data[1, -1]+(self.speed_correction if self.next_speed_correction else 0))
-            for i in range(2):
-                if abs(ds)>0.9*self.screen_width:
-                    ds+=self.screen_width*(-1 if ds>0 else 1)
-            speed=ds/(now-self.data[0,-1])
+            ds=self.cursor_position-self.data[1, -1]
+            self.cursor_position+=jump
+            speed=ds/(self.now-self.data[0,-1])
+            if abs(speed)>1000 and 0:
+                self.log('!')
+                self.context={'speed':speed, 'ds':ds,'data':self.data[1,-1], 'jump':jump, 'cursor_position':self.cursor_position}
+                self.log(self.context)
         else:
             speed=0
-        if self.next_speed_correction:
-            self.next_speed_correction=False
-        if reset_position is not None:
-            self.next_speed_correction=True
-        self.data = numpy.append(self.data, numpy.array([[now, self.cursor_position,speed]]).T,axis=1)
-        self.cw.plotw.update_curve(self.data[0]-self.data[0,0], self.data[2], pen=(0,0,0), plotparams = {})
+        #Check stim and valve states:
+        if not self.hwresponse.empty():
+            resp=self.hwresponse.get()
+            if resp=='stim ready':
+                self.stim_state=False
+            elif resp == 'reward ready':
+                self.valve_state=False
+        newdata=numpy.array([[self.now, self.cursor_position,speed,int(self.valve_state),int(self.stim_state)]]).T
+        self.data = numpy.append(self.data, newdata,axis=1)
+        self.checkdata = numpy.append(self.checkdata, newdata,axis=1)
+        t=self.data[0]-self.data[0,0]
+        self.cw.plotw.update_curves([t,t,t], [self.data[2],self.data[3]*self.data[2].max(),self.data[4]*self.data[2].max()], colors=[(0,0,0),(0,255,0),(0,0,255)])
+        getattr(self, str(self.cw.select_protocol.input.currentText()).lower())()
+        
+    def stop_reward(self):
+        if self.checkdata[0,-1]-self.checkdata[0,0]>self.config.PROTOCOL_STOP_REWARD['run time']+self.config.PROTOCOL_STOP_REWARD['stop time']:
+            speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)
+            t=self.checkdata[0]-self.checkdata[0,0]
+            t0index=numpy.where(t>t.max()-(self.config.PROTOCOL_STOP_REWARD['run time']+self.config.PROTOCOL_STOP_REWARD['stop time']))[0].min()
+            index=numpy.where(t>t.max()-self.config.PROTOCOL_STOP_REWARD['stop time'])[0].min()
+            run_speed=speed[t0index:index]
+            stop_speed=speed[index:]
+            run=run_speed.sum()>self.config.RUN_THRESHOLD*run_speed.shape[0]
+            stop=stop_speed.sum()==0
+            if run and stop:
+                self.reward()
+                self.checkdata=numpy.copy(self.empty)
+    
+    def stim_stop_reward(self):
+        if self.checkdata[0,-1]-self.checkdata[0,0]>self.config.PROTOCOL_STIM_STOP_REWARD['run time']:
+            speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)
+            t=self.checkdata[0]-self.checkdata[0,0]
+            index=numpy.where(t>t.max()-self.config.PROTOCOL_STIM_STOP_REWARD['run time'])[0].min()
+            run_speed=speed[index:]
+            run=run_speed.sum()>self.config.RUN_THRESHOLD*run_speed.shape[0]
+            if run and not self.run_complete:
+                self.run_complete=True
+            if self.run_complete:
+                if not self.stimulus_fired:
+                    self.mouse_run_complete=self.now
+                    self.stimulate()
+                    self.stimulus_fired=True
+                else:
+                    index=numpy.where(t>t.max()-self.config.PROTOCOL_STIM_STOP_REWARD['stop time'])[0].min()
+                    stop_speed=speed[index:]
+                    self.stop_complete = stop_speed.sum()==0
+                    if self.now-self.mouse_run_complete>self.config.PROTOCOL_STIM_STOP_REWARD['delay after run']+self.config.PROTOCOL_STIM_STOP_REWARD['stop time'] and not self.stop_complete:
+                        #TImeout, start from the beginning
+                        self.log('no reward')
+                        self.run_complete=False
+                        self.stimulus_fired=False
+                        self.checkdata=numpy.copy(self.empty)
+                    elif self.stop_complete:
+                        self.reward()
+                        self.run_complete=False
+                        self.stimulus_fired=False
+                        self.checkdata=numpy.copy(self.empty)
+        
+    def stimulate(self):
+        self.hwcommand.put('stimulate')
+        self.stim_state=True
+        self.log('stim')
+        
+    def reward(self):
+        self.hwcommand.put('reward')
+        self.valve_state=True
+        self.log('reward')
+        
+    def save_data(self):
+        filename=os.path.join(self.config.DATA_FOLDER, '{1}_{0}.mat'.format(utils.timestamp2ymdhms(time.time()),str(self.cw.select_protocol.input.currentText()).lower()))
+        filename = filename.replace(':', '-').replace(' ', '_')
+        data2save={}
+        data2save['time']=self.data[0]
+        data2save['position']=self.data[1]
+        data2save['speed']=self.data[2]
+        data2save['reward']=self.data[3]
+        data2save['stim']=self.data[4]
+        data2save['config']=[(vn, getattr(self.config,vn)) for vn in dir(self.config) if vn.isupper()]
+        data2save['frametime']=self.frame_times
+        self.log(1/numpy.diff(self.frame_times).mean())
+        scipy.io.savemat(filename, data2save,oned_as='row')
+        self.log('Data saved to {0}'.format(filename))
+        vfilename=filename.replace('.mat','.mp4')
+        videofile.array2mp4(numpy.array(self.frames), vfilename, self.config.CAMERA_UPDATE_RATE)
+        self.log('Video saved to {0}'.format(vfilename))
 
     def closeEvent(self, e):
         self.camera.release()
+        self.hwcommand.put('terminate')
         e.accept()
+        self.hwh.join()
         
     
 if __name__ == '__main__':

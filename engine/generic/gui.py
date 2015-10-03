@@ -108,7 +108,7 @@ class SimpleAppWindow(Qt.QMainWindow):
         Qt.QMainWindow.__init__(self)
         
         if not hasattr(self, 'logfile'):
-            self.logfile = os.path.join(tempfile.gettempdir(), utils.timestamp2ymdhms(time.time()))
+            self.logfile = os.path.join(tempfile.gettempdir(), 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time())))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
