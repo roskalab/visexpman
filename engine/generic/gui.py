@@ -152,6 +152,24 @@ class SimpleAppWindow(Qt.QMainWindow):
         dock.setWidget(widget)
         self.addDockWidget(position, dock)
         dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
+        
+    def ask4confirmation(self, action2confirm):
+        reply = QtGui.QMessageBox.question(self, 'Confirm:', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.No:
+            return False
+        else:
+            return True
+            
+    def ask4filename(self,title, directory, filter):
+        filename = str(QtGui.QFileDialog.getOpenFileName(self, title, directory, filter))
+        return filename
+        
+    def ask4foldername(self,title, directory):
+        foldername = str(QtGui.QFileDialog.getExistingDirectory(self, title, directory))
+        return foldername
+        
+    def notify_user(self, title, message):
+        QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
 
 
 class ToolBar(QtGui.QToolBar):

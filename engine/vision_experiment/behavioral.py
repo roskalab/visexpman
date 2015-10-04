@@ -15,9 +15,9 @@ class Config(object):
         self.STIMULUS_DURATION=1.0
         self.CURSOR_RESET_POSITION=0.0
         self.CURSOR_POSITION_UPDATE_PERIOD = 50e-3
-        self.CAMERA_UPDATE_RATE=6
-        self.CAMERA_FRAME_WIDTH=640
-        self.CAMERA_FRAME_HEIGHT=480
+        self.CAMERA_UPDATE_RATE=15
+        self.CAMERA_FRAME_WIDTH=640/2
+        self.CAMERA_FRAME_HEIGHT=480/2
 
         self.RUN_THRESHOLD=0.8
         self.MOVE_THRESHOLD=10#200
@@ -110,7 +110,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.screen_width = self.qt_app.desktop().screenGeometry().width()
         self.screen_height = self.qt_app.desktop().screenGeometry().height()
         self.screen_left=int(self.screen_width*self.config.CURSOR_RESET_POSITION)
-        self.screen_right=int((1-self.config.CURSOR_RESET_POSITION)*self.screen_width)
+        self.screen_right=int((1-self.config.CURSOR_RESET_POSITION)*self.screen_width)-1
         self.running=False
         self.next_speed_correction=False
         nparams=5#time, position, speed, reward, stim
@@ -167,7 +167,7 @@ class Behavioral(gui.SimpleAppWindow):
         if self.cursor_position<=self.screen_left:
             reset_position = self.screen_right
             jump=self.screen_width
-        if self.cursor_position>=self.screen_right-1:
+        if self.cursor_position>=self.screen_right:
             reset_position = self.screen_left
             jump=-self.screen_width
         if reset_position is not None:
