@@ -208,7 +208,7 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
     for fn, rois in aggregated_rois.items():
-        if len(rois)>0 and rois is not None:#Skip if link exists but rois do not
+        if len(rois)>3 and rois is not None:#Skip if link exists but rois do not. Also when number of rois is 3 or less
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
     if not aggregated_rectangles.has_key(filename):
@@ -498,4 +498,5 @@ class TestCA(unittest.TestCase):
         aggregate_cells('/mnt/rzws/experiment_data/test')
     
 if __name__=='__main__':
-    unittest.main()
+    #unittest.main()
+    aggregate_cells('Q:\\20150909 for Dasha')
