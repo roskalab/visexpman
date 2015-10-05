@@ -1,15 +1,18 @@
 import os,sys,time,threading,Queue
 import numpy,scipy.io
+import serial
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 from visexpman.engine.generic import gui,utils,videofile
-#TODO: video frame rate/colors
+#TODO: video colors
+#TODO: reduce video save time
 
 class Config(object):
     def __init__(self):
+        self.DIO_PORT = '/dev/ttyUSB0'
         self.DATA_FOLDER = '/tmp'
         self.VALVE_OPEN_TIME=400e-3
         self.STIMULUS_DURATION=1.0
@@ -44,19 +47,30 @@ class HardwareHandler(threading.Thread):
         threading.Thread.__init__(self)
         
     def run(self):
+        s=serial.Serial(self.config.DIO_PORT)
+        s.setBreak(1)
+        s.setRTS(1)
         while True:
             if not self.command.empty():
                 cmd=self.command.get()
                 if cmd=='terminate':
                     break
                 elif cmd == 'stimulate':
+                    s.setRTS(0)
                     time.sleep(self.config.STIMULUS_DURATION)
+                    s.setRTS(1)
                     self.response.put('stim ready')
                 elif cmd == 'reward':
+                    s.setBreak(0)
                     time.sleep(self.config.VALVE_OPEN_TIME)
+                    s.setBreak(1)
                     self.response.put('reward ready')
             else:
                 time.sleep(10e-3)
+                
+        s.setBreak(1)
+        s.setRTS(1)
+        s.close()
 
 HELP='''Start experiment: Ctrl+a
 Stop experiment: Ctrl+s
