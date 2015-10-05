@@ -9,6 +9,7 @@ import pyqtgraph
 from visexpman.engine.generic import gui,utils,videofile
 #TODO: video colors
 #TODO: reduce video save time
+#TODO: Scale digital curves on plot correctly when speed has high negativ values
 
 class Config(object):
     def __init__(self):
@@ -18,7 +19,7 @@ class Config(object):
         self.STIMULUS_DURATION=1.0
         self.CURSOR_RESET_POSITION=0.0
         self.CURSOR_POSITION_UPDATE_PERIOD = 50e-3
-        self.CAMERA_UPDATE_RATE=15
+        self.CAMERA_UPDATE_RATE=24
         self.CAMERA_FRAME_WIDTH=640/2
         self.CAMERA_FRAME_HEIGHT=480/2
 
@@ -88,12 +89,16 @@ class CWidget(QtGui.QWidget):
         self.plotw.setFixedHeight(250)
         self.help=QtGui.QLabel(HELP,self)
         self.select_protocol=gui.LabeledComboBox(self,'Select protocol', parent.config.get_protocol_names())
+        self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)
+        self.selected_folder = QtGui.QLabel('', self)
         
         self.l = QtGui.QGridLayout()
-        self.l.addWidget(self.image, 0, 0, 2, 2)
+        self.l.addWidget(self.image, 0, 0, 3, 2)
         self.l.addWidget(self.plotw, 0, 2, 1, 3)
         self.l.addWidget(self.select_protocol, 1, 2, 1, 1)
         self.l.addWidget(self.help, 1, 3, 1, 1)
+        self.l.addWidget(self.select_folder, 1, 4, 1, 1)
+        self.l.addWidget(self.selected_folder, 2, 4, 1, 1)
         self.setLayout(self.l)
 
 class Behavioral(gui.SimpleAppWindow):
@@ -118,6 +123,9 @@ class Behavioral(gui.SimpleAppWindow):
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Ctrl+a'), self), QtCore.SIGNAL('activated()'), self.start_experiment)
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Ctrl+s'), self), QtCore.SIGNAL('activated()'), self.stop_experiment)
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Space'), self), QtCore.SIGNAL('activated()'), self.next_protocol)
+        self.connect(self.cw.select_folder, QtCore.SIGNAL('clicked()'), self.select_folder)
+        self.output_folder = self.config.DATA_FOLDER
+        self.cw.selected_folder.setText(self.output_folder)
         self.cursor_t = QtCore.QTimer()
         self.cursor_t.timeout.connect(self.cursor_handler)
         self.cursor_t.start(int(1000.*self.config.CURSOR_POSITION_UPDATE_PERIOD))
@@ -126,7 +134,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.screen_left=int(self.screen_width*self.config.CURSOR_RESET_POSITION)
         self.screen_right=int((1-self.config.CURSOR_RESET_POSITION)*self.screen_width)-1
         self.running=False
-        self.next_speed_correction=False
+        self.next_speed_correction=False#Obsolete
         nparams=5#time, position, speed, reward, stim
         self.empty=numpy.empty((nparams,0))
         self.hwcommand=Queue.Queue()
@@ -265,7 +273,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.log('reward')
         
     def save_data(self):
-        filename=os.path.join(self.config.DATA_FOLDER, '{1}_{0}.mat'.format(utils.timestamp2ymdhms(time.time()),str(self.cw.select_protocol.input.currentText()).lower()))
+        filename=os.path.join(self.output_folder, '{1}_{0}.mat'.format(utils.timestamp2ymdhms(time.time()),str(self.cw.select_protocol.input.currentText()).lower()))
         filename = filename.replace(':', '-').replace(' ', '_')
         data2save={}
         data2save['time']=self.data[0]
@@ -281,6 +289,10 @@ class Behavioral(gui.SimpleAppWindow):
         vfilename=filename.replace('.mat','.mp4')
         videofile.array2mp4(numpy.array(self.frames), vfilename, self.config.CAMERA_UPDATE_RATE)
         self.log('Video saved to {0}'.format(vfilename))
+        
+    def select_folder(self):
+        self.output_folder=self.ask4foldername('Select output folder', self.output_folder)
+        self.cw.selected_folder.setText(self.output_folder)
 
     def closeEvent(self, e):
         self.camera.release()

@@ -106,9 +106,8 @@ class SimpleAppWindow(Qt.QMainWindow):
         if QtCore.QCoreApplication.instance() is None:
             self.qt_app = Qt.QApplication([])
         Qt.QMainWindow.__init__(self)
-        
         if not hasattr(self, 'logfile'):
-            self.logfile = os.path.join(tempfile.gettempdir(), 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time())))
+            self.logfile = os.path.join(tempfile.gettempdir(), 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
@@ -126,7 +125,7 @@ class SimpleAppWindow(Qt.QMainWindow):
         self.show()
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
-            
+
     def init_gui(self):
         '''
         Placeholder for creating application specific widgets and layout
@@ -162,10 +161,14 @@ class SimpleAppWindow(Qt.QMainWindow):
             
     def ask4filename(self,title, directory, filter):
         filename = str(QtGui.QFileDialog.getOpenFileName(self, title, directory, filter))
+        if os.name=='nt':
+            filename=filename.replace('/','\\')
         return filename
         
     def ask4foldername(self,title, directory):
         foldername = str(QtGui.QFileDialog.getExistingDirectory(self, title, directory))
+        if os.name=='nt':
+            foldername=foldername.replace('/','\\')
         return foldername
         
     def notify_user(self, title, message):

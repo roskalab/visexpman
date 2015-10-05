@@ -799,9 +799,15 @@ def timestamp2hm(timestamp):
     time_struct = time.localtime(timestamp)
     return ('{0:0=2}:{1:0=2}'.format(time_struct.tm_hour, time_struct.tm_min))
     
-def timestamp2ymdhms(timestamp):
+def timestamp2ymdhms(timestamp,filename=False):
     time_struct = time.localtime(timestamp)
-    return '{0:0=4}-{1:0=2}-{2:0=2}+{3:0=2}:{4:0=2}:{5:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec).replace('+',' ')
+    if filename:
+        dt='_'
+        t='-'
+    else:
+        dt=' '
+        t=':'
+    return '{0:0=4}-{1:0=2}-{2:0=2}{6}{3:0=2}{6}{4:0=2}{7}{5:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec,dt,t)
 
 def timestamp2ymdhm(timestamp):
     time_struct = time.localtime(timestamp)

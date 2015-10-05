@@ -24,6 +24,68 @@ class DaqInstrumentError(Exception):
     Raised when Daq related error detected
     '''
 
+def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None):
+    n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+    if os.name=='nt':
+        ai_data = numpy.zeros(waveform.shape[0]*n_ai_channels, dtype=numpy.float64)
+        analog_output = PyDAQmx.Task()
+        analog_output.CreateAOVoltageChan(ao_channel,
+                                        'ao',
+                                        waveform.min(), 
+                                        waveform.max(), 
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+        analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(ai_channel.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
+        ai_data = numpy.zeros(waveform.shape[0]*n_ai_channels, dtype=numpy.float64)
+        analog_input = PyDAQmx.Task()
+        analog_input.CreateAIVoltageChan(ai_channel,
+                                        'ai',
+                                        DAQmxConstants.DAQmx_Val_RSE,
+                                        -5, 
+                                        5, 
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+        read = DAQmxTypes.int32()
+        analog_output.CfgSampClkTiming("OnboardClock",
+                                        sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                        waveform.shape[0])
+        analog_input.CfgSampClkTiming("OnboardClock",
+                                        sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                        waveform.shape[0])
+        analog_output.WriteAnalogF64(waveform.shape[0],
+                                        False,
+                                        timeout,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        waveform,
+                                        None,
+                                        None)
+        analog_output.StartTask()
+        analog_input.StartTask()
+        if callable(action):
+            action()
+        time.sleep(waveform.shape[0]/float(sample_rate))
+        analog_input.ReadAnalogF64(int(ai_data.shape[0]/n_ai_channels),
+                                    timeout,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    ai_data,
+                                    ai_data.shape[0],
+                                    DAQmxTypes.byref(read),
+                                    None)
+        ai_data = ai_data[:read.value * n_ai_channels]
+        ai_data = ai_data.flatten('F').reshape((n_ai_channels, read.value)).transpose()
+        analog_output.StopTask()
+        analog_input.StopTask()
+    else:
+        if callable(action):
+            action()
+        time.sleep(waveform.shape[0]/float(sample_rate))
+        ai_data = numpy.zeros((waveform.shape[0],n_ai_channels), dtype=numpy.float64)
+    return ai_data
+
 class ControlLoop():
     def __init__(self):
         pass
@@ -1766,9 +1828,12 @@ class TestAnalogIOProcess(unittest.TestCase):
     def test_12_analog_control(self):
         ControlLoop().run()
         
-        
-
+    @unittest.skipIf(not unittest_aggregator.TEST_daq, 'Daq tests disabled')
+    def test_13_analogio(self):
+        analogio('Dev1/ai0:4','Dev1/ao0',1000,numpy.linspace(0,3,1000),timeout=1)
+        numpy.testing.assert_almost_equal(numpy.roll(ai_data[:,0],-1),numpy.linspace(0,3,1000),2)
         
         
 if __name__ == '__main__':
-    unittest.main()
+    #unittest.main()
+    analogio('Dev1/ai0:4','Dev1/ao0',1000,numpy.linspace(0,3,1000),timeout=1)
