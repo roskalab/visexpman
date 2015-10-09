@@ -816,7 +816,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
                             'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
                             'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig', 'ProjectorFlashConfig',
-                            'TouchStimulatorConfig', 'TouchStimulator1Config','ThermoStimulatorConfig','ThermoStimulatorShortConfig', 'ShortMovingGratingConfig']
+                            'TouchStimulatorConfig', 'TouchStimulator1Config','ThermoStimulatorConfig','ThermoStimulatorShortConfig', 'ShortMovingGratingConfig', 'IRLaserConfig']
         FULLSCREEN = not True
         self.COLOR_MASK = [1.0, 1.0, 1.0]
         self.TRIGGER_MES = not False
