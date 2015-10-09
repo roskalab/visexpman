@@ -21,7 +21,8 @@ def get_fps(filename):
 def images2mpeg4(folder, video_path,  fps):
     if os.path.exists(video_path):
         os.remove(video_path)
-    command = 'avconv -y -r {0} -i {1} -map 0 -c:v libx264 -b 5M {2}'.format(fps, os.path.join(folder, 'f%5d.png'), video_path)
+    cmd = 'ffmpeg' if os.name=='nt' else 'avconv'
+    command = '{3} -y -r {0} -i {1} -map 0 -c:v libx264 -b 5M {2}'.format(fps, os.path.join(folder, 'f%5d.png'), video_path,cmd)
     subprocess.call(command, shell=True)
     
 def array2mp4(array, videofile, fps):

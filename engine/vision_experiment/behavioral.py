@@ -1,4 +1,4 @@
-import os,sys,time,threading,Queue
+import os,sys,time,threading,Queue,tempfile
 import numpy,scipy.io
 import serial
 import cv2
@@ -7,14 +7,16 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 from visexpman.engine.generic import gui,utils,videofile
+from visexpman.engine.hardware_interface import daq_instrument
 #TODO: video colors
 #TODO: reduce video save time
 #TODO: Scale digital curves on plot correctly when speed has high negativ values
 
 class Config(object):
     def __init__(self):
-        self.DIO_PORT = '/dev/ttyUSB0'
-        self.DATA_FOLDER = '/tmp'
+        self.AO_CHANNEL='Dev3/ao0'
+        self.DIO_PORT = 'COM3'
+        self.DATA_FOLDER = tempfile.gettempdir()
         self.VALVE_OPEN_TIME=400e-3
         self.STIMULUS_DURATION=1.0
         self.CURSOR_RESET_POSITION=0.0
@@ -22,6 +24,7 @@ class Config(object):
         self.CAMERA_UPDATE_RATE=24
         self.CAMERA_FRAME_WIDTH=640/2
         self.CAMERA_FRAME_HEIGHT=480/2
+        self.POWER_VOLTAGE_RANGE=[0,10]
 
         self.RUN_THRESHOLD=0.8
         self.MOVE_THRESHOLD=10#200
@@ -54,14 +57,16 @@ class HardwareHandler(threading.Thread):
         while True:
             if not self.command.empty():
                 cmd=self.command.get()
-                if cmd=='terminate':
+                if cmd[0]=='terminate':
                     break
-                elif cmd == 'stimulate':
-                    s.setRTS(0)
+                elif cmd[0] == 'stimulate':
+                    daq_instrument.set_voltage(self.config.AO_CHANNEL,cmd[1])
+                    #s.setRTS(0)
                     time.sleep(self.config.STIMULUS_DURATION)
-                    s.setRTS(1)
+                    daq_instrument.set_voltage(self.config.AO_CHANNEL,0)
+                    #s.setRTS(1)
                     self.response.put('stim ready')
-                elif cmd == 'reward':
+                elif cmd[0] == 'reward':
                     s.setBreak(0)
                     time.sleep(self.config.VALVE_OPEN_TIME)
                     s.setBreak(1)
@@ -92,10 +97,15 @@ class CWidget(QtGui.QWidget):
         self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)
         self.selected_folder = QtGui.QLabel('', self)
         
+        self.stim_power = gui.LabeledInput(self, 'Stimulus power [V]')
+        self.stim_power.input.setText('1')
+        self.stim_power.input.setFixedWidth(40)
+        
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.image, 0, 0, 3, 2)
         self.l.addWidget(self.plotw, 0, 2, 1, 3)
         self.l.addWidget(self.select_protocol, 1, 2, 1, 1)
+        self.l.addWidget(self.stim_power, 2, 2, 1, 1)
         self.l.addWidget(self.help, 1, 3, 1, 1)
         self.l.addWidget(self.select_folder, 1, 4, 1, 1)
         self.l.addWidget(self.selected_folder, 2, 4, 1, 1)
@@ -146,11 +156,16 @@ class Behavioral(gui.SimpleAppWindow):
         
     def read_camera(self):
         ret, frame = self.camera.read()
-        if hasattr(frame, 'shape'):
-            self.cw.image.set_image(numpy.rot90(frame,3),alpha=1.0)
+        frame_color_corrected=numpy.zeros_like(frame)#For some reason we need to do this
+        frame_color_corrected[:,:,0]=frame[:,:,2]
+        frame_color_corrected[:,:,1]=frame[:,:,1]
+        frame_color_corrected[:,:,2]=frame[:,:,0]
+        
+        if hasattr(frame_color_corrected, 'shape'):
+            self.cw.image.set_image(numpy.rot90(frame_color_corrected,3),alpha=1.0)
             if self.running:
                 self.frame_times.append(time.time())
-                self.frames.append(frame)
+                self.frames.append(frame_color_corrected)
             
     def start_experiment(self):
         if self.running: return
@@ -263,18 +278,21 @@ class Behavioral(gui.SimpleAppWindow):
                         self.checkdata=numpy.copy(self.empty)
         
     def stimulate(self):
-        self.hwcommand.put('stimulate')
+        power=float(str(self.cw.stim_power.input.text()))
+        if self.config.POWER_VOLTAGE_RANGE[0]>power and self.config.POWER_VOLTAGE_RANGE[1]<power:
+            self.log('stimulus power shall be within this range: {0}'.format(self.config.POWER_VOLTAGE_RANGE))
+            power=0
+        self.hwcommand.put(['stimulate', power])
         self.stim_state=True
         self.log('stim')
         
     def reward(self):
-        self.hwcommand.put('reward')
+        self.hwcommand.put(['reward'])
         self.valve_state=True
         self.log('reward')
         
     def save_data(self):
-        filename=os.path.join(self.output_folder, '{1}_{0}.mat'.format(utils.timestamp2ymdhms(time.time()),str(self.cw.select_protocol.input.currentText()).lower()))
-        filename = filename.replace(':', '-').replace(' ', '_')
+        filename=os.path.join(self.output_folder, '{1}_{0}.mat'.format(utils.timestamp2ymdhms(time.time()).replace(':', '-').replace(' ', '_'),str(self.cw.select_protocol.input.currentText()).lower()))
         data2save={}
         data2save['time']=self.data[0]
         data2save['position']=self.data[1]
@@ -296,7 +314,7 @@ class Behavioral(gui.SimpleAppWindow):
 
     def closeEvent(self, e):
         self.camera.release()
-        self.hwcommand.put('terminate')
+        self.hwcommand.put(['terminate'])
         e.accept()
         self.hwh.join()
         

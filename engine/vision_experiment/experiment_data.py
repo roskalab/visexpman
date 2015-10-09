@@ -1071,6 +1071,12 @@ class TestExperimentData(unittest.TestCase):
     def test_12_gamma(self):
         gammatext2hdf5('/tmp/g.txt')
         
+    def test_13_y(self):
+        from visexpman.users.test import unittest_aggregator
+        f =  fileop.listdir_fullpath(unittest_aggregator.prepare_test_data('yscanner', '/tmp/wf'))[0]
+        import scipy.io
+        yscanner2sync(scipy.io.loadmat(f)['recorded'][:,3])
+        
 def find_rois(meanimage):
     from skimage import filter
     import scipy.ndimage.measurements
@@ -1144,6 +1150,9 @@ def gammatext2hdf5(filename):
         txt=f.read()
     gc=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
     hdf5io.save_item(os.path.join(os.path.dirname(filename),'gamma.hdf5'),'gamma_correction', gc, filelocking=False)
+    
+def yscanner2sync(waveform):
+    pass
 
 if __name__=='__main__':
     unittest.main()
