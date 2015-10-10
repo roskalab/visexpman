@@ -1,5 +1,5 @@
 import numpy
-import time
+import time,copy
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
@@ -77,13 +77,13 @@ class CaImaging(gui.VisexpmanMainWindow):
         self.setCentralWidget(self.images)
         self.debug = gui.Debug(self)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        self.settings = gui.ParameterTable(self, self._get_params_config())
-        self.settings.setMinimumWidth(300)
-        self.settings.params.sigTreeStateChanged.connect(self.settings_changed)
-        self._add_dockable_widget('Settings', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.settings)
+        self.params = gui.ParameterTable(self, self._get_params_config())
+        self.params.setMinimumWidth(300)
+        self.params.params.sigTreeStateChanged.connect(self.params_changed)
+        self._add_dockable_widget('Settings', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.params)
         self._set_window_title()
         self.show()
-        self.settings_changed()
+        self.load_all_parameters()
         self.timer=QtCore.QTimer()
         self.timer.start(80)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.read_image)
@@ -100,14 +100,38 @@ class CaImaging(gui.VisexpmanMainWindow):
         for channel in channels:
             image_channel_items.append({'name': 'Enable {0}'.format(channel), 'type': 'bool', 'value': False})
             image_channel_items.append({'name': '{0} filter'.format(channel), 'type': 'list', 'values': filter_names, 'value': ''})
+        two_photon_items = ([
+                                   {'name': 'Scan Height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Scan Width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Pixel Size', 'type': 'float', 'value': 1.0, 'siPrefix': True},
+                {'name': 'Pixel Size Unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
+                                   ])
         pc =  [
-                {'name': 'Image channels', 'type': 'group', 'expanded' : True, 'children': image_channel_items},
+                {'name': 'Image Channels', 'type': 'group', 'expanded' : True, 'children': image_channel_items},
+                {'name': 'Two Photon Imaging', 'type': 'group', 'expanded' : True, 'children': two_photon_items},
                 {'name': 'IR camera', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Exposure time', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'ms'},
                     {'name': 'Gain', 'type': 'float', 'value': 1.0, },
                     ]},
+                    {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
+                        {'name': 'Scanner', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Analog Input Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
+                            {'name': 'Analog Output Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
+                            {'name': 'Scan Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                            {'name': 'Scan Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                            {'name': 'Stimulus Flash Duty Cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
+                            {'name': 'Stimulus Flash Delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
+                            {'name': 'Enable Flyback Scan', 'type': 'bool', 'value': False},
+                            {'name': 'Enable Phase Characteristics', 'type': 'bool', 'value': False},
+                            {'name': 'Scanner Position to Voltage Factor', 'type': 'float', 'value': 0.013},
+                        ]},
+                    ]}
+                    
+                    
                     ]
         return pc
+        
+
             
     def read_image(self):
         if self.camera_running:
@@ -134,16 +158,23 @@ class CaImaging(gui.VisexpmanMainWindow):
         self.stop_ir_camera()
             
     def exit_action(self):
+        self.send_all_parameters2engine()
         self._stop_engine()
         self.close()
         
-    def settings_changed(self):
-        self.update_settings(*self.settings.get_parameter_tree())
-        
-    def update_settings(self, values, paths, refs):
-        self.setting_values = {}
-        for i in range(len(paths)):
-            self.setting_values[paths[i][-1]]=values[i]
+    def params_changed(self, param, changes):
+        for change in changes:
+            #find out tree
+            ref = copy.deepcopy(change[0])
+            tree = []
+            while True:
+                if hasattr(ref, 'name') and callable(getattr(ref, 'name')):
+                    tree.append(getattr(ref, 'name')())
+                    ref = copy.deepcopy(ref.parent())
+                else:
+                    break
+            tree.reverse()
+            self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
         
 class CameraService(rpyc.Service):
         

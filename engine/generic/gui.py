@@ -97,6 +97,33 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.to_engine.put('terminate')
         self.engine.join()
         
+    def send_all_parameters2engine(self):
+        values, paths, refs = self.params.get_parameter_tree()
+        for i in range(len(refs)):
+            self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
+            
+    def load_all_parameters(self):
+        values, paths, refs = self.params.get_parameter_tree()
+        paths = ['/'.join(p) for p in paths]
+        for item in self.engine.guidata.to_dict():
+            mwname = item['path'].split('/')[0]
+            if mwname == 'params':
+                try:
+                    r = refs[paths.index([p for p in paths if p == item['path']][0])]
+                except IndexError:
+                    continue
+                r.setValue(item['value'])
+                r.setDefault(item['value'])
+            elif mwname == 'stimulusbrowser':
+                self.stimulusbrowser.select_stimulus(item['value'])
+            else:
+                ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
+                wname = ref.__class__.__name__.lower()
+                if 'checkbox' in wname:
+                    ref.setCheckState(2 if item['value'] else 0)
+                elif 'qtabwidget' in wname:
+                    ref.setCurrentIndex(item['value'])
+        
     def closeEvent(self, e):
         e.accept()
         self.exit_action()

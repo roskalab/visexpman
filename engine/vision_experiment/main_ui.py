@@ -450,7 +450,6 @@ class MainUI(gui.VisexpmanMainWindow):
         self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
         self.analysis.setLayout(self.analysis.layout)
         
-        
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
@@ -466,13 +465,13 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab.setTabPosition(self.main_tab.South)
         
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
-        self._load_all_parameters()
+        self.load_all_parameters()
         self.show()
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
-        self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repeptitions_changed)
+        self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
@@ -543,20 +542,13 @@ class MainUI(gui.VisexpmanMainWindow):
             
                 
     def _init_variables(self):
-        imaging_channels = self.machine_config.PMTS.keys()
-        imaging_channels.append('both')
         fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
         fw1.sort()
         fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
         fw2.sort()
         self.params_config = [
-                {'name': 'Imaging', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
+                {'name': 'Experiment', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
                     {'name': 'Cell Name', 'type': 'str', 'value': ''},
-                    {'name': 'Scan Height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Scan Width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Pixel Size', 'type': 'float', 'value': 1.0, 'siPrefix': True},
-                    {'name': 'Pixel Size Unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
-                    {'name': 'Imaging Channel', 'type': 'list', 'values': imaging_channels, 'value': imaging_channels[0]},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
                     {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
@@ -586,47 +578,7 @@ class MainUI(gui.VisexpmanMainWindow):
                         {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
                         {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
                     ]},
-                    {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Scanner', 'type': 'group', 'expanded' : True, 'children': [
-                            {'name': 'Analog Input Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
-                            {'name': 'Analog Output Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
-                            {'name': 'Scan Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                            {'name': 'Scan Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                            {'name': 'Stimulus Flash Duty Cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                            {'name': 'Stimulus Flash Delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
-                            {'name': 'Enable Flyback Scan', 'type': 'bool', 'value': False},
-                            {'name': 'Enable Phase Characteristics', 'type': 'bool', 'value': False},
-                            {'name': 'Scanner Position to Voltage Factor', 'type': 'float', 'value': 0.013},
-                        ]},
-                    ]}
                     ]
-
-    def _dump_all_parameters(self):#TODO: rename
-        values, paths, refs = self.params.get_parameter_tree()
-        for i in range(len(refs)):
-            self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
-            
-    def _load_all_parameters(self):
-        values, paths, refs = self.params.get_parameter_tree()
-        paths = ['/'.join(p) for p in paths]
-        for item in self.engine.guidata.to_dict():
-            mwname = item['path'].split('/')[0]
-            if mwname == 'params':
-                try:
-                    r = refs[paths.index([p for p in paths if p == item['path']][0])]
-                except IndexError:
-                    continue
-                r.setValue(item['value'])
-                r.setDefault(item['value'])
-            elif mwname == 'stimulusbrowser':
-                self.stimulusbrowser.select_stimulus(item['value'])
-            else:
-                ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
-                wname = ref.__class__.__name__.lower()
-                if 'checkbox' in wname:
-                    ref.setCheckState(2 if item['value'] else 0)
-                elif 'qtabwidget' in wname:
-                    ref.setCurrentIndex(item['value'])
 
     ############# Actions #############
     def start_experiment_action(self):
@@ -676,7 +628,7 @@ class MainUI(gui.VisexpmanMainWindow):
     def exit_action(self):
         if hasattr(self, 'tpp'):
             self.tpp.close()
-        self._dump_all_parameters()
+        self.send_all_parameters2engine()
         self._stop_engine()
         self.close()
     
@@ -687,7 +639,7 @@ class MainUI(gui.VisexpmanMainWindow):
             im[:,:,2] *= state==2
             self.image.set_image(im)
             
-    def show_repeptitions_changed(self,state):
+    def show_repetitions_changed(self,state):
         self.to_engine.put({'data': state==2, 'path': 'analysis_helper/show_repetitions/input', 'name': 'show_repetitions'})
         self.to_engine.put({'function': 'display_roi_curve', 'args':[]})
         
