@@ -292,11 +292,11 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
-        TWO_PHOTON_PINOUT = {}
-        TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0'
-        TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
-        TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
-        TWO_PHOTON_PINOUT['PROJECTOR_CONTROL'] = 'Dev1/ao2'
+        TWO_PHOTON = {}
+        TWO_PHOTON['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0'
+        TWO_PHOTON['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
+        TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
+        TWO_PHOTON['PROJECTOR_CONTROL'] = 'Dev1/ao2'
         TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
         
         ELPHYS_SYNC_RECORDING={}

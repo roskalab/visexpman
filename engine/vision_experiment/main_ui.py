@@ -467,9 +467,6 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self.load_all_parameters()
         self.show()
-        self.timer=QtCore.QTimer()
-        self.timer.start(50)#ms
-        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
         self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)

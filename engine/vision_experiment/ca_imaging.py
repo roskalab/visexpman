@@ -87,7 +87,7 @@ class CaImaging(gui.VisexpmanMainWindow):
         self.timer=QtCore.QTimer()
         self.timer.start(80)#ms
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.read_image)
-        self.camera_running = False
+        self.isrunning=False
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -105,6 +105,7 @@ class CaImaging(gui.VisexpmanMainWindow):
                 {'name': 'Scan Width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Pixel Size', 'type': 'float', 'value': 1.0, 'siPrefix': True},
                 {'name': 'Pixel Size Unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
+                {'name': 'Averaging', 'type': 'int', 'value': 1},
                                    ])
         pc =  [
                 {'name': 'Image Channels', 'type': 'group', 'expanded' : True, 'children': image_channel_items},
@@ -126,25 +127,13 @@ class CaImaging(gui.VisexpmanMainWindow):
                             {'name': 'Scanner Position to Voltage Factor', 'type': 'float', 'value': 0.013},
                         ]},
                     ]}
-                    
-                    
                     ]
         return pc
-        
 
-            
     def read_image(self):
-        if self.camera_running:
-#            self.printc('reading image')
-            im=pickle.loads(self.c.root.get_image())
-            self.im=im
-            if im is not None:
-#                im*=0.2
-#                im+=0.5
-                im=im.T
-                self.images.image['Live'].img.setImage(im, levels = (0,255))
-                self.images.image['Live'].setFixedWidth(float(im.shape[0])/im.shape[1]*self.images.image['Live'].height())
-            
+        if self.isrunning:
+            self.to_engine.put({'function': 'read_2p'})
+
     def live_ir_camera_action(self):
         self.start_ir_camera_acquisition()
         
@@ -175,6 +164,18 @@ class CaImaging(gui.VisexpmanMainWindow):
                     break
             tree.reverse()
             self.to_engine.put({'data': change[2], 'path': '/'.join(tree), 'name': change[0].name()})
+            
+    def check_queue(self):
+        while not self.from_engine.empty():
+            msg = self.from_engine.get()
+            if msg.has_key('printc'):
+                self.printc(msg['printc'])
+            elif msg.has_key('send_image_data'):
+                self.meanimage, self.image_scale = msg['send_image_data']
+                self.images.image['Live'].set_image(self.meanimage, color_channel = 1)
+                self.images.image['Live'].set_scale(self.image_scale)
+            elif msg.has_key('set_isrunning'):
+                self.isrunning = msg['set_isrunning']
         
 class CameraService(rpyc.Service):
         

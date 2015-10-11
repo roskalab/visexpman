@@ -14,7 +14,7 @@ import itertools
 
 import hdf5io
 from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
-from visexpman.engine.hardware_interface import queued_socket
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
 class GUIDataItem(object):
@@ -72,6 +72,8 @@ class ExperimentHandler(object):
         experiment_parameters['stimclass']=classname
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
+        self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
+        self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         #TODO: CONTINUE HERE: add entry to issued commands
 
 class Analysis(object):
@@ -733,7 +735,21 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
         GUIEngine.close(self)
 
 class CaImagingHandler(object):
-    def start_2p_recording(self):
+    def __init__(self):
+        self.isrunning=False
+        self.limits = {}
+        self.limits['min_ao_voltage'] = -self.machine_config.MAX_SCANNER_VOLTAGE
+        self.limits['max_ao_voltage'] = self.machine_config.MAX_SCANNER_VOLTAGE
+        self.limits['min_ai_voltage'] = -self.machine_config.MAX_PMT_VOLTAGE
+        self.limits['max_ai_voltage'] = self.machine_config.MAX_PMT_VOLTAGE
+        self.limits['timeout'] = self.machine_config.TWO_PHOTON_DAQ_TIMEOUT
+        self.instrument_name = 'daq'
+        self.laser_on = False
+        self.projector_state = False
+        self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
+        self.daq_queues = daq_instrument.init_daq_queues()
+        
+    def start_2p_recording(self, experiment_parameters):
         from visexpman.engine.hardware_interface import scanner_control
         size=utils.rc((self.guidata.read('scan height'),self.guidata.read('scan width')))
         resolution=self.guidata.read('pixel size')
@@ -751,9 +767,143 @@ class CaImagingHandler(object):
         constraints['position2voltage']=self.guidata.read('scanner position to voltage factor')
         x,y,frame_sync,stim_sync,signal_attributes = scanner_control.generate_scanner_signals(size,resolution,center,constraints)
         experiment_parameters['imaging']={'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'signal_attributes': signal_attributes}
+        self.imaging_parameters=experiment_parameters
+        
+    def _shutter(self,state):
+        daq_instrument.set_digital_line(self.machine_config.TWO_PHOTON['LASER_SHUTTER_PORT'], int(state))
+        self.laser_on = state
+        
+    def _2pnap(self):
+        pass
+        
+    def _start2p(self):
+        if self.isrunning:
+            self.printc('Restarting imaging')
+            self._finish2p()
+        self.imaging_parameters=parameters
+        self.record_ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels']))
+        self.daq_process = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.daq_logger_queue,
+                                ai_channels = self.record_ai_channels,
+                                ao_channels= self.machine_config.TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
+        self.daq_process.start()
+        self._shutter(True)
+        imaging_started_result = self.daq_process.start_daq(ai_sample_rate = parameters['analog_input_sampling_rate'], 
+                                                            ao_sample_rate = parameters['analog_output_sampling_rate'], 
+                                                            ao_waveform = self._pack_waveform(parameters), 
+                                                            timeout = 30)
+        self.t0=time.time()
+        if parameters.has_key('experiment_name'):
+            self.send({'trigger': 'imaging started',  'arg': imaging_started_result})#notifying main_ui that imaging started and stimulus can be launched
+        self.printc('Imaging started {0}'.format('' if imaging_started_result else imaging_started_result))
+        self.isrunning = False if imaging_started_result == 'timeout' else imaging_started_result
+        self.to_gui.put({'set_isrunning':self.isrunning})
+        
+        
+    def _finish2p(self):
+        if not self.isrunning:
+            self.printc('No scanning is running')
+            return
+        self.t2=time.time()
+        #Closing shutter before terminating scanning
+        self._shutter(False)
+        try:
+            parameters = self.imaging_parameters
+            unread_data = self.daq_process.stop_daq()
+            if isinstance(unread_data ,str):
+                self.printc(unread_data)
+            else:
+                self.printc('acquired frames {0} read frames {1}, expected number of frames {2}'.format(
+                                unread_data[1],
+                                self.frame_ct, 
+                                (self.t2-self.t0) * parameters['frame_rate']))
+                #Check if all frames have been acquired
+                if unread_data[0].shape[0] + self.frame_ct != unread_data[1] or\
+                    unread_data[1] < (self.t2-self.t0) * parameters['frame_rate']:
+                    self.printc('WARNING: Some frames are lost')
+                self._close_datafile(unread_data)
+        except:
+            self.printc(traceback.format_exc())
+        finally:
+            self.isrunning = False
+            self.to_gui.put({'set_isrunning':self.isrunning})
+            self.daq_process.terminate()
+            #Wait till process terminates
+            while self.daq_process.is_alive():
+                time.sleep(0.2)
+            #Set scanner voltages to 0V
+            daq_instrument.set_voltage(self.machine_config.TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
+            self.printc('Imaging stopped')
+            
+    def read_2p(self):
+        '''
+        Read imaging data when live imaging is ongoing
+        '''
+        if hasattr(self, 'daq_process') and self.imaging_started is not False and hasattr(self, 'imaging_parameters'):
+            while True:
+                frame = self.daq_process.read_ai()
+                if frame is None:
+                    break
+                else:
+                    #Transform frame to image
+                    self.images['display'], self.images['save'] = scanner_control.signal2image(frame, self.imaging_parameters, self.machine_config.PMTS)
+                    self.images['display']/=self.machine_config.MAX_PMT_VOLTAGE
+                    self.frame_ct+=1
+                    if ENABLE_16_BIT:
+                        self.images['save'] = self._pmt_voltage2_16bit(self.images['save'])
+                    self._save_data(self.images['save'])
+                    self.to_gui.put({'send_image_data' :[self.images['display'], self.image_scale]})
+            
+    def _prepare_datafile(self):
+        if self.imaging_parameters['save2file']:
+            self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.imaging_parameters, self.machine_config, prefix = 'ca'),filelocking=False)
+            self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
+            self.image_size = (len(self.imaging_parameters['recording_channels']), self.imaging_parameters['scanning_range']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['scanning_range']['col'] * self.imaging_parameters['resolution'])
+            datacompressor = tables.Filters(complevel=self.machine_config.DATAFILE_COMPRESSION_LEVEL, complib='blosc', shuffle = 1)
+            if ENABLE_16_BIT:
+                datatype = tables.UInt16Atom(self.image_size)
+            else:
+                datatype = tables.Float32Atom(self.image_size)
+            self.raw_data = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'raw_data', datatype, 
+                    (0,),filters=datacompressor)
+        
+    def _close_datafile(self, data=None):
+        if self.imaging_parameters['save2file']:
+            self.printl('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
+            if data is not None:
+                for frame in data[0]:
+                    frame_converted = scanner_control.signal2image(frame, self.imaging_parameters, self.machine_config.PMTS)[1]
+                    if ENABLE_16_BIT:
+                        frame_converted = self._pmt_voltage2_16bit(frame_converted)
+                    self._save_data(frame_converted)
+                    self.frame_ct += 1
+            self.datafile.imaging_run_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
+            setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
+            setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
+            nodes2save = ['imaging_parameters', 'imaging_run_info', 'software_environment_{0}'.format(self.machine_config.user_interface_name), 'configs_{0}'.format(self.machine_config.user_interface_name)]
+            self.datafile.save(nodes2save)
+            self.printl('Data saved to {0}'.format(self.datafile.filename))
+            self.datafile.close()
+        
+    def _save_data(self,frame):
+        if self.imaging_parameters['save2file']:
+            self.raw_data.append(numpy.array([frame]))
+            
+    def _pmt_voltage2_16bit(self,image):
+        '''
+        Limit PMT voltage between -MAX_PMT_NOISE_LEVEL...self.machine_config.MAX_PMT_VOLTAGE+MAX_PMT_NOISE_LEVEL range. 
+        The MAX_PMT_NOISE_LEVEL extension to both extremes ensures that noise is not distorted with limiting PMT voltage values,
+        but ensures that no invalid value is generated by scale and converting image data to 0...2**16-1 range
+        '''
+        #Subzero PMT voltages are coming from noise. Voltages below MAX_PMT_NOISE_LEVEL are ignored. 
+        image_cut = numpy.where(image<-self.machine_config.MAX_PMT_NOISE_LEVEL,-self.machine_config.MAX_PMT_NOISE_LEVEL,image)
+        #Voltages above MAX_PMT_VOLTAGE+max_noise_level are considered to be saturated
+        image_cut = numpy.where(image>self.machine_config.MAX_PMT_VOLTAGE+self.machine_config.MAX_PMT_NOISE_LEVEL,self.machine_config.MAX_PMT_VOLTAGE+self.machine_config.MAX_PMT_NOISE_LEVEL,image_cut)
+        return numpy.cast['uint16'](((image_cut+self.machine_config.MAX_PMT_NOISE_LEVEL)/(2*self.machine_config.MAX_PMT_NOISE_LEVEL+self.machine_config.MAX_PMT_VOLTAGE))*(2**16-1))
 
 class CaImagingEngine(GUIEngine, CaImagingHandler):
-    pass
+    def __init__(self, machine_config, log, socket_queues, unittest=False):
+        GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
+        CaImagingHandler.__init__(self)
 
 class TestMainUIEngineIF(unittest.TestCase):
     def setUp(self):

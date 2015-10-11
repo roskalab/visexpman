@@ -54,6 +54,12 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.error_timer = QtCore.QTimer()
         self.error_timer.timeout.connect(self.catch_error_message)
         self.error_timer.start(200)
+        self.timer=QtCore.QTimer()
+        self.timer.start(50)#ms
+        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        
+    def check_queue(self):
+        pass
 
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
