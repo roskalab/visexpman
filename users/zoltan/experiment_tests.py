@@ -21,6 +21,15 @@ class NaturalBarsExperiment1(experiment.Experiment):
     def run(self):
         self.show_fullscreen(duration = self.experiment_config.DURATION, color =  self.experiment_config.BACKGROUND_COLOR)
 
+class Flash(experiment.Stimulus):
+    def stimulus_configuration(self):
+        self.DURATION=0.2
+        
+    def calculate_stimulus_duration(self):
+        self.duration=self.DURATION
+        
+    def run(self):
+        self.show_fullscreen(color=1.0,duration=self.DURATION)
 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester

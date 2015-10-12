@@ -56,7 +56,7 @@ class ExperimentHandler(object):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
             return
-        self.printc('Opening {0} in gedit, scroll to {1}'.format(filename, classname))
+        self.printc('Opening {0} in gedit, scroll to class {1}'.format(filename, classname))
         import subprocess
         process = subprocess.Popen(['gedit', filename], shell=self.machine_config.OS != 'Linux')
         
@@ -64,11 +64,13 @@ class ExperimentHandler(object):
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
         filename=os.sep.join(cf.split(os.sep)[:-1])
+        stimulus_source_code = fileop.read_text_file(filename)
         #Find out duration
-        experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = fileop.read_text_file(filename))
+        experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
         #Collect experiment parameters
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
+        experiment_parameters['stimulus_source_code']=stimulus_source_code
         experiment_parameters['stimclass']=classname
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
@@ -530,6 +532,28 @@ class Analysis(object):
             shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
         self.printc('Done')
         
+    def check_parameter_changes(self, parameter_name):
+        '''
+        parameter_name: name of parameter changed
+        Depending on which parameter changed certain things has to be recalculated
+        '''
+        tpp_opened = utils.safe_has_key(self.widget_status, 'tpp') and self.widget_status['tpp']
+        if 'Background Threshold' in parameter_name:
+            self._normalize_roi_curves()
+            self.display_roi_curve()
+        elif 'Baseline Lenght' in parameter_name:
+            self._normalize_roi_curves()
+            self.display_roi_curve()
+            if tpp_opened:
+                self.display_trace_parameter_distribution()
+        elif 'Include all Files' in parameter_name:
+            if tpp_opened:
+                self.display_trace_parameter_distribution()
+        elif 'Mean of Repetitions' in parameter_name:
+            self.display_roi_curve()
+            if tpp_opened:
+                self.display_trace_parameter_distribution()
+        
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
         files=fileop.listdir_fullpath(folder)
@@ -641,22 +665,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         parameter_name: name of parameter changed
         Depending on which parameter changed certain things has to be recalculated
         '''
-        tpp_opened = utils.safe_has_key(self.widget_status, 'tpp') and self.widget_status['tpp']
-        if 'Background Threshold' in parameter_name:
-            self._normalize_roi_curves()
-            self.display_roi_curve()
-        elif 'Baseline Lenght' in parameter_name:
-            self._normalize_roi_curves()
-            self.display_roi_curve()
-            if tpp_opened:
-                self.display_trace_parameter_distribution()
-        elif 'Include all Files' in parameter_name:
-            if tpp_opened:
-                self.display_trace_parameter_distribution()
-        elif 'Mean of Repetitions' in parameter_name:
-            self.display_roi_curve()
-            if tpp_opened:
-                self.display_trace_parameter_distribution()
                 
     def check_network_status(self):
         self.connected_nodes = ''
@@ -670,8 +678,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def run(self):
         while True:
-            try:
+            try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
+                self.periodic()
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()
                     if msg == 'terminate':
@@ -691,7 +700,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     getattr(self, msg['function'])(*msg['args'])
                     if hasattr(self, 'log') and hasattr(self.log, 'info'):
                         self.log.info(msg, 'engine')
-                self.periodic()
             except:
                 import traceback
                 self.printc(traceback.format_exc())
@@ -701,10 +709,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.close()
         
     def periodic(self):
-        return
-        if self.last_run-self.last_periodic>2.0:
+        if self.last_run-self.last_periodic>1.0:
             self.last_periodic=time.time()
-            self.update_network_connection_status()
+            self.one_second_periodic()
+            
+    def one_second_periodic(self):
+        pass
         
     def update_network_connection_status(self):
         #Check for network connection status
@@ -729,13 +739,18 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
         GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
         Analysis.__init__(self, machine_config)
+        
+    def one_second_periodic(self):
+        return
+        self.update_network_connection_status()
 
     def close(self):
         self.close_analysis()
         GUIEngine.close(self)
 
-class CaImagingHandler(object):
-    def __init__(self):
+class CaImagingEngine(GUIEngine):
+    def __init__(self, machine_config, log, socket_queues, unittest=False):
+        GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
         self.isrunning=False
         self.limits = {}
         self.limits['min_ao_voltage'] = -self.machine_config.MAX_SCANNER_VOLTAGE
@@ -749,10 +764,37 @@ class CaImagingHandler(object):
         self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
         self.daq_queues = daq_instrument.init_daq_queues()
         
-    def start_2p_recording(self, experiment_parameters):
+    def one_second_periodic(self):
+        '''
+        Periodically checks if any command has arrived via zmq
+        '''
+        
+        message = self.recv('ca_imaging')
+        if message is None:
+            return
+        if not utils.safe_has_key(message, 'function'):
+            return False
+        if not hasattr(self, message['function']):
+            return False
+        args = message.get('args', [])
+        kwargs = message.get('kwargs', {})
+        try:
+            getattr(self, message['function'])(*args, **kwargs)
+            return True
+        except:
+            import traceback
+            self.printc(traceback.format_exc())
+        
+    def start_imaging(self, experiment_parameters):
         from visexpman.engine.hardware_interface import scanner_control
         size=utils.rc((self.guidata.read('scan height'),self.guidata.read('scan width')))
         resolution=self.guidata.read('pixel size')
+        self.machine_config.TWO_PHOTON['PMT_ANALOG_INPUT_CHANNELS']
+        channels = []
+        if self.guidata.read('enable top'):
+            channels.append('TOP')
+        if self.guidata.read('enable side'):
+            channels.append('SIDE')
         psu=self.guidata.read('pixel size unit')
         if psu=='um/pixel':
             resolution=1.0/resolution
@@ -760,14 +802,17 @@ class CaImagingHandler(object):
             raise NotImplementedError('')
         center = utils.rc((self.guidata.read('scan center y'),self.guidata.read('scan center x')))
         constraints = {}
+        constraints['channels']=channels
         constraints['x_flyback_time']=0.2e-3
         constraints['y_flyback_time']=1e-3
         constraints['x_max_frq']=1400
         constraints['f_sample']=self.guidata.read('analog output sampling rate')*1e3
         constraints['position2voltage']=self.guidata.read('scanner position to voltage factor')
         x,y,frame_sync,stim_sync,signal_attributes = scanner_control.generate_scanner_signals(size,resolution,center,constraints)
+        self.printc('Generating scanner signals')
         experiment_parameters['imaging']={'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'signal_attributes': signal_attributes}
         self.imaging_parameters=experiment_parameters
+        self._start2p()
         
     def _shutter(self,state):
         daq_instrument.set_digital_line(self.machine_config.TWO_PHOTON['LASER_SHUTTER_PORT'], int(state))
@@ -780,13 +825,17 @@ class CaImagingHandler(object):
         if self.isrunning:
             self.printc('Restarting imaging')
             self._finish2p()
-        self.imaging_parameters=parameters
-        self.record_ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels']))
+        parameters = self.imaging_parameters
+        self.printc(1)
+        self.record_ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['channels']))
+        self.printc(2)
         self.daq_process = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.daq_logger_queue,
                                 ai_channels = self.record_ai_channels,
                                 ao_channels= self.machine_config.TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
+        self.printc(3)
         self.daq_process.start()
         self._shutter(True)
+        self.printc(4)
         imaging_started_result = self.daq_process.start_daq(ai_sample_rate = parameters['analog_input_sampling_rate'], 
                                                             ao_sample_rate = parameters['analog_output_sampling_rate'], 
                                                             ao_waveform = self._pack_waveform(parameters), 
@@ -852,6 +901,12 @@ class CaImagingHandler(object):
                         self.images['save'] = self._pmt_voltage2_16bit(self.images['save'])
                     self._save_data(self.images['save'])
                     self.to_gui.put({'send_image_data' :[self.images['display'], self.image_scale]})
+                    
+    def _pmtchannels2indexes(self, recording_channels):
+        daq_device = self.machine_config.TWO_PHOTON['PMT_ANALOG_INPUT_CHANNELS'].split('/')[0]
+        channel_indexes = [self.machine_config.PMTS[ch]['CHANNEL'] for ch in recording_channels]
+        channel_indexes.sort()
+        return channel_indexes, daq_device
             
     def _prepare_datafile(self):
         if self.imaging_parameters['save2file']:
@@ -899,11 +954,6 @@ class CaImagingHandler(object):
         #Voltages above MAX_PMT_VOLTAGE+max_noise_level are considered to be saturated
         image_cut = numpy.where(image>self.machine_config.MAX_PMT_VOLTAGE+self.machine_config.MAX_PMT_NOISE_LEVEL,self.machine_config.MAX_PMT_VOLTAGE+self.machine_config.MAX_PMT_NOISE_LEVEL,image_cut)
         return numpy.cast['uint16'](((image_cut+self.machine_config.MAX_PMT_NOISE_LEVEL)/(2*self.machine_config.MAX_PMT_NOISE_LEVEL+self.machine_config.MAX_PMT_VOLTAGE))*(2**16-1))
-
-class CaImagingEngine(GUIEngine, CaImagingHandler):
-    def __init__(self, machine_config, log, socket_queues, unittest=False):
-        GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
-        CaImagingHandler.__init__(self)
 
 class TestMainUIEngineIF(unittest.TestCase):
     def setUp(self):

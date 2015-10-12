@@ -10,7 +10,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
-from visexpman.engine.generic import utils,stringop,fileop,signal
+from visexpman.engine.generic import utils,stringop,fileop,signal,introspect
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import traceback,sys,Queue
 
@@ -20,7 +20,6 @@ def excepthook(excType, excValue, tracebackobj):
     error_messages.put(msg)
     
 sys.excepthook = excepthook
-
 
 error_messages = Queue.Queue()
 

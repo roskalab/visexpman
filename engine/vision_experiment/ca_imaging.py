@@ -8,7 +8,6 @@ from visexpman.engine.generic import utils,gui,signal,fileop
 from visexpman.engine.hardware_interface import camera_interface
 from visexpman.engine.vision_experiment import gui_engine
 import Queue
-import rpyc
 import cPickle as pickle
 camen= not False
 q=Queue.Queue()
@@ -84,9 +83,9 @@ class CaImaging(gui.VisexpmanMainWindow):
         self._set_window_title()
         self.show()
         self.load_all_parameters()
-        self.timer=QtCore.QTimer()
-        self.timer.start(80)#ms
-        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.read_image)
+        self.timer_img_read=QtCore.QTimer()
+        self.timer_img_read.start(80)#ms
+        self.connect(self.timer_img_read, QtCore.SIGNAL('timeout()'), self.read_image)
         self.isrunning=False
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         if QtCore.QCoreApplication.instance() is not None:
@@ -177,48 +176,48 @@ class CaImaging(gui.VisexpmanMainWindow):
             elif msg.has_key('set_isrunning'):
                 self.isrunning = msg['set_isrunning']
         
-class CameraService(rpyc.Service):
-        
-    def on_connect(self):
-        # code that runs when a connection is created
-        # (to init the serivce, if needed)
-        print 'connect'
-        if camen:
-            self.camera=camera_interface.SpotCam()
-        
-    def exposed_set_exposure(self,e,g):
-        self.camera.set_exposure(e,g)
-        
-    def exposed_get_image(self):
-        return pickle.dumps(self.camera.get_image())
-
-    def on_disconnect(self):
-        # code that runs when the connection has already closed
-        # (to finalize the service, if needed)
-        print 'disconnect'
-        if camen:
-            self.camera.close()
-
-    def exposed_test(self,a): # this is an exposed method
-        print a
-        time.sleep(1)
-        return numpy.random.random((1200,1600))
-        
-    def exposed_stop_server(self):
-        q.put('exit')
-        
-    def __del__(self):
-        print 'close camera'
-        if camen and hasattr(self, 'camera'):
-            self.camera.close()
-        
-def run_camera_server():
-    from rpyc.utils.server import ThreadedServer,Server,OneShotServer
-    while True:
-        t = OneShotServer(CameraService, port = 18861)
-        t.start()
-        if not q.empty() and q.get()=='exit':
-            break
+#class CameraService(rpyc.Service):
+#        
+#    def on_connect(self):
+#        # code that runs when a connection is created
+#        # (to init the serivce, if needed)
+#        print 'connect'
+#        if camen:
+#            self.camera=camera_interface.SpotCam()
+#        
+#    def exposed_set_exposure(self,e,g):
+#        self.camera.set_exposure(e,g)
+#        
+#    def exposed_get_image(self):
+#        return pickle.dumps(self.camera.get_image())
+#
+#    def on_disconnect(self):
+#        # code that runs when the connection has already closed
+#        # (to finalize the service, if needed)
+#        print 'disconnect'
+#        if camen:
+#            self.camera.close()
+#
+#    def exposed_test(self,a): # this is an exposed method
+#        print a
+#        time.sleep(1)
+#        return numpy.random.random((1200,1600))
+#        
+#    def exposed_stop_server(self):
+#        q.put('exit')
+#        
+#    def __del__(self):
+#        print 'close camera'
+#        if camen and hasattr(self, 'camera'):
+#            self.camera.close()
+#        
+#def run_camera_server():
+#    from rpyc.utils.server import ThreadedServer,Server,OneShotServer
+#    while True:
+#        t = OneShotServer(CameraService, port = 18861)
+#        t.start()
+#        if not q.empty() and q.get()=='exit':
+#            break
             
 if __name__ == '__main__':
     import visexpman.engine

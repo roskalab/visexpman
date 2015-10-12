@@ -97,7 +97,7 @@ class CWidget(QtGui.QWidget):
         self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)
         self.selected_folder = QtGui.QLabel('', self)
         
-        self.stim_power = gui.LabeledInput(self, 'Stimulus power [V]')
+        self.stim_power = gui.LabeledInput(self, 'Stimulus Intensity [V]')
         self.stim_power.input.setText('1')
         self.stim_power.input.setFixedWidth(40)
         
@@ -280,7 +280,7 @@ class Behavioral(gui.SimpleAppWindow):
     def stimulate(self):
         power=float(str(self.cw.stim_power.input.text()))
         if self.config.POWER_VOLTAGE_RANGE[0]>power and self.config.POWER_VOLTAGE_RANGE[1]<power:
-            self.log('stimulus power shall be within this range: {0}'.format(self.config.POWER_VOLTAGE_RANGE))
+            self.log('stimulus intensity shall be within this range: {0}'.format(self.config.POWER_VOLTAGE_RANGE))
             power=0
         self.hwcommand.put(['stimulate', power])
         self.stim_state=True

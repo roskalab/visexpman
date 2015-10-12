@@ -22,6 +22,9 @@ def log2str(msg):
     if utils.safe_has_key(msg_out, 'args') and isinstance(msg_out['args'], list):
         if utils.safe_has_key(msg_out['args'][0], 'experiment_config_source_code'):
             msg_out['args'][0]['experiment_config_source_code'] = 'Not logged'
+        if utils.safe_has_key(msg_out['args'][0], 'stimulus_source_code'):
+            msg_out['args'][0]['stimulus_source_code'] = 'Not logged'
+        #THIS MIGHT BE OBSOLETE
         for vn in ['xsignal', 'ysignal', 'frame_trigger_signal', 'valid_data_mask', 
                         'stimulus_flash_trigger_signal', 'one_period_valid_data_mask', 'one_period_x_scanner_signal']:
             if utils.safe_has_key(msg_out['args'][0], vn):

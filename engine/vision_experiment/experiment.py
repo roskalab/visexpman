@@ -210,20 +210,36 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     
 def get_experiment_duration(experiment_config_class, config, source=None):
     if source is None:
-        experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
-        experiment_class_object = experiment_class(config).runnable
+        stimulus_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)
+        if len(stimulus_class)==1:
+            experiment_class_object=stimulus_class[0][1]
+        else:
+            experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+            experiment_class_object = experiment_class(config).runnable
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
         experiment_config_module = __import__('experiment_config_module')
-        experiment_config_class_object = getattr(experiment_config_module, experiment_config_class)(None)
-        if hasattr(experiment_config_module,experiment_config_class_object.runnable):
-            experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
+        ecclass=getattr(experiment_config_module, experiment_config_class)
+        if hasattr(ecclass, 'calculate_stimulus_duration'):
+            experiment_class_object=ecclass
         else:
-            experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
-            experiment_class_object = experiment_class(config, experiment_config_class_object)
-    experiment_class_object.prepare()
+            experiment_config_class_object = ecclass(None)
+            if hasattr(experiment_config_module,experiment_config_class_object.runnable):
+                experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
+            else:
+                experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
+                experiment_class_object = experiment_class(config, experiment_config_class_object)
+    if hasattr(experiment_class_object,'calculate_stimulus_duration'):
+        ec=experiment_class_object(config)
+        ec.stimulus_configuration()
+        ec.calculate_stimulus_duration()
+    else:
+        ec=None
+        experiment_class_object.prepare()
     if hasattr(experiment_class_object, 'stimulus_duration'):
         return experiment_class_object.stimulus_duration
+    elif hasattr(ec, 'duration'):
+        return ec.duration
     else:
         from visexpman.engine import ExperimentConfigError
         raise ExperimentConfigError('Stimulus duration is unknown')
@@ -251,6 +267,8 @@ def parse_stimulation_file(filename):
                         if '=' in expconfig_line and (expconfig_line.split('=')[0].replace('self.','').isupper() or 'self.editable' in expconfig_line.split('=')[0])]
             except:
                 continue
+        elif 'Stimulus' in introspect.class_ancestors(c[1]):
+            experiment_config_classes[c[0]] = []
     return experiment_config_classes
 
 class testExperimentHelpers(unittest.TestCase):
@@ -259,15 +277,20 @@ class testExperimentHelpers(unittest.TestCase):
         self.assertEqual((
                           experiment_config_classes.has_key('GUITestExperimentConfig'), 
                           experiment_config_classes.has_key('DebugExperimentConfig'), 
+                          experiment_config_classes.has_key('TestStim'), 
                           ), 
-                          (True, True))
+                          (True, True, True))
     
     def test_02_read_experiment_duration(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         conf = GUITestConfig()
         conf.user='test'
-        duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)
+        duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)#Legacy experiment config
         self.assertEqual(duration, 15.0)
+        duration = get_experiment_duration('TestStim', conf, source=None)
+        self.assertEqual(duration, 0.2)
+        duration = get_experiment_duration('TestStim', conf, source=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(),'users','test','test_stimulus.py')))
+        self.assertEqual(duration, 0.2)
         
     def test_03_read_experiment_duration_from_source(self):
         from visexpman.users.test.test_configurations import GUITestConfig

@@ -146,7 +146,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
         DATA_STORAGE_PATH = fileop.select_folder_exists([ '/mnt/rzws/dataslow', '/tmp', 'C:\\temp'])
-        DELETED_FILES_PATH = fileop.select_folder_exists(['d:\\deleted_files', '/tmp/deleted_files'])
+        DELETED_FILES_PATH = fileop.select_folder_exists(['d:\\deleted_files', '/tmp/deleted_files', 'c:\\temp'])
         CONTEXT_PATH = self.root_folder
         ENABLE_FRAME_CAPTURE = not True
         if ENABLE_FRAME_CAPTURE:
@@ -157,14 +157,12 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
-        if self.OS=='Linux':
-            main_ui_ip = '172.27.27.220'
-        else:
-            main_ui_ip='172.27.26.45'
+        main_ui_ip = '172.27.27.220'
+        ca_imaging_ip = '172.27.26.45'
         self.CONNECTIONS['stim']['ip']['stim'] = None
         self.CONNECTIONS['stim']['ip']['main_ui'] = main_ui_ip
-        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = main_ui_ip#bind to specific network card
-        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = main_ui_ip
+        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = ca_imaging_ip#bind to specific network card
+        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = ca_imaging_ip
         self.CONNECTIONS['analysis']['ip']['analysis'] = None
         self.CONNECTIONS['analysis']['ip']['main_ui'] = main_ui_ip
 
