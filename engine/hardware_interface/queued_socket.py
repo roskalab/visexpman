@@ -16,7 +16,12 @@ class QueuedSocketHelpers(object):
         
     def _get_queue(self, connection):
         if connection == None:
-            queue = self.socket_queues['fromsocket']
+            if self.socket_queues.has_key('fromsocket'):
+                queue = self.socket_queues['fromsocket']
+            elif len(self.socket_queues.keys())==1:
+                queue = self.socket_queues.values()[0]['fromsocket']
+            else:
+                raise RuntimeError('Unknown socket queue format {0}'.format(self.socket_queues))
         else:
             queue = self.socket_queues[connection]['fromsocket']
         return queue
