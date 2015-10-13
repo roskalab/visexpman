@@ -772,7 +772,7 @@ class CaImagingEngine(GUIEngine):
         Periodically checks if any command has arrived via zmq
         '''
         
-        message = self.recv('ca_imaging')
+        message = self.recv()
         if message is None:
             return
         if not utils.safe_has_key(message, 'function'):
