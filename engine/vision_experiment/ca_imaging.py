@@ -131,7 +131,7 @@ class CaImaging(gui.VisexpmanMainWindow):
 
     def read_image(self):
         if self.isrunning:
-            self.to_engine.put({'function': 'read_2p'})
+            self.to_engine.put({'function': 'read_2p', 'args':[]})
 
     def live_ir_camera_action(self):
         self.start_ir_camera_acquisition()

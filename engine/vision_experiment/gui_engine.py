@@ -7,14 +7,15 @@ import os.path
 import time
 import threading
 import Queue
-import unittest
+import unittest,traceback
 import numpy
 import shutil
 import itertools
+import tables
 
 import hdf5io
 from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
 class GUIDataItem(object):
@@ -46,7 +47,6 @@ class GUIData(object):
         for item in data:
             setattr(self, stringop.to_variable_name(item['name']), GUIDataItem(stringop.to_title(item['name']), item['value'], item['path']))
 
-
 class ExperimentHandler(object):
     '''
     Takes care of all microscope, hardware related tasks
@@ -74,6 +74,7 @@ class ExperimentHandler(object):
         experiment_parameters['stimclass']=classname
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
+        experiment_parameters['id']=experiment_data.get_id()
         self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         #TODO: CONTINUE HERE: add entry to issued commands
@@ -761,6 +762,8 @@ class CaImagingEngine(GUIEngine):
         self.instrument_name = 'daq'
         self.laser_on = False
         self.projector_state = False
+        self.frame_ct=0
+        self.ENABLE_16_BIT=True
         self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
         self.daq_queues = daq_instrument.init_daq_queues()
         
@@ -784,17 +787,19 @@ class CaImagingEngine(GUIEngine):
         except:
             import traceback
             self.printc(traceback.format_exc())
-        
-    def start_imaging(self, experiment_parameters):
-        from visexpman.engine.hardware_interface import scanner_control
+            
+    def generate_imaging_parameters(self):
+        params={}
         size=utils.rc((self.guidata.read('scan height'),self.guidata.read('scan width')))
         resolution=self.guidata.read('pixel size')
-        self.machine_config.TWO_PHOTON['PMT_ANALOG_INPUT_CHANNELS']
         channels = []
         if self.guidata.read('enable top'):
             channels.append('TOP')
         if self.guidata.read('enable side'):
             channels.append('SIDE')
+        if len(channels)==0:
+            self.printc('No channels selected')
+            return
         psu=self.guidata.read('pixel size unit')
         if psu=='um/pixel':
             resolution=1.0/resolution
@@ -802,15 +807,27 @@ class CaImagingEngine(GUIEngine):
             raise NotImplementedError('')
         center = utils.rc((self.guidata.read('scan center y'),self.guidata.read('scan center x')))
         constraints = {}
-        constraints['channels']=channels
         constraints['x_flyback_time']=0.2e-3
         constraints['y_flyback_time']=1e-3
         constraints['x_max_frq']=1400
         constraints['f_sample']=self.guidata.read('analog output sampling rate')*1e3
         constraints['position2voltage']=self.guidata.read('scanner position to voltage factor')
-        x,y,frame_sync,stim_sync,signal_attributes = scanner_control.generate_scanner_signals(size,resolution,center,constraints)
+        constraints['enable_flybackscan']=False
         self.printc('Generating scanner signals')
-        experiment_parameters['imaging']={'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'signal_attributes': signal_attributes}
+        x,y,frame_sync,stim_sync,valid_data_mask,signal_attributes = scanner_control.generate_scanner_signals(size,resolution,center,constraints)
+        params['channels']=channels
+        params['constraints']=constraints
+        params['size']=size
+        params['resolution']=resolution
+        params['analog_input_sampling_rate']=self.guidata.read('analog input sampling rate')
+        params['analog_output_sampling_rate']=self.guidata.read('analog output sampling rate')
+        params.update({'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'valid_data_mask':valid_data_mask})
+        params.update(signal_attributes)
+        return params
+        
+    def start_imaging(self, experiment_parameters):
+        experiment_parameters.update(self.generate_imaging_parameters())
+        experiment_parameters['save2file']=True
         self.imaging_parameters=experiment_parameters
         self._start2p()
         
@@ -826,16 +843,14 @@ class CaImagingEngine(GUIEngine):
             self.printc('Restarting imaging')
             self._finish2p()
         parameters = self.imaging_parameters
-        self.printc(1)
         self.record_ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['channels']))
-        self.printc(2)
+        self._prepare_datafile()
         self.daq_process = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.daq_logger_queue,
                                 ai_channels = self.record_ai_channels,
                                 ao_channels= self.machine_config.TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
-        self.printc(3)
         self.daq_process.start()
         self._shutter(True)
-        self.printc(4)
+        self.frame_ct=0
         imaging_started_result = self.daq_process.start_daq(ai_sample_rate = parameters['analog_input_sampling_rate'], 
                                                             ao_sample_rate = parameters['analog_output_sampling_rate'], 
                                                             ao_waveform = self._pack_waveform(parameters), 
@@ -846,7 +861,6 @@ class CaImagingEngine(GUIEngine):
         self.printc('Imaging started {0}'.format('' if imaging_started_result else imaging_started_result))
         self.isrunning = False if imaging_started_result == 'timeout' else imaging_started_result
         self.to_gui.put({'set_isrunning':self.isrunning})
-        
         
     def _finish2p(self):
         if not self.isrunning:
@@ -887,7 +901,7 @@ class CaImagingEngine(GUIEngine):
         '''
         Read imaging data when live imaging is ongoing
         '''
-        if hasattr(self, 'daq_process') and self.imaging_started is not False and hasattr(self, 'imaging_parameters'):
+        if hasattr(self, 'daq_process') and self.isrunning is not False and hasattr(self, 'imaging_parameters'):
             while True:
                 frame = self.daq_process.read_ai()
                 if frame is None:
@@ -897,7 +911,7 @@ class CaImagingEngine(GUIEngine):
                     self.images['display'], self.images['save'] = scanner_control.signal2image(frame, self.imaging_parameters, self.machine_config.PMTS)
                     self.images['display']/=self.machine_config.MAX_PMT_VOLTAGE
                     self.frame_ct+=1
-                    if ENABLE_16_BIT:
+                    if self.ENABLE_16_BIT:
                         self.images['save'] = self._pmt_voltage2_16bit(self.images['save'])
                     self._save_data(self.images['save'])
                     self.to_gui.put({'send_image_data' :[self.images['display'], self.image_scale]})
@@ -907,14 +921,23 @@ class CaImagingEngine(GUIEngine):
         channel_indexes = [self.machine_config.PMTS[ch]['CHANNEL'] for ch in recording_channels]
         channel_indexes.sort()
         return channel_indexes, daq_device
+        
+    def _pack_waveform(self,parameters,xy_scanner_only=False):
+        waveforms = numpy.array([parameters['x'], 
+                                parameters['y'],
+                                parameters['stim_sync']*self.machine_config.STIMULATION_TRIGGER_AMPLITUDE,
+                                parameters['frame_sync']*self.machine_config.FRAME_TRIGGER_AMPLITUDE])
+        if xy_scanner_only:
+            waveforms *= numpy.array([[1,1,0,0]]).T
+        return waveforms
             
     def _prepare_datafile(self):
         if self.imaging_parameters['save2file']:
             self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.imaging_parameters, self.machine_config, prefix = 'ca'),filelocking=False)
             self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
-            self.image_size = (len(self.imaging_parameters['recording_channels']), self.imaging_parameters['scanning_range']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['scanning_range']['col'] * self.imaging_parameters['resolution'])
+            self.image_size = (len(self.imaging_parameters['channels']), self.imaging_parameters['size']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['size']['col'] * self.imaging_parameters['resolution'])
             datacompressor = tables.Filters(complevel=self.machine_config.DATAFILE_COMPRESSION_LEVEL, complib='blosc', shuffle = 1)
-            if ENABLE_16_BIT:
+            if self.ENABLE_16_BIT:
                 datatype = tables.UInt16Atom(self.image_size)
             else:
                 datatype = tables.Float32Atom(self.image_size)
@@ -923,11 +946,11 @@ class CaImagingEngine(GUIEngine):
         
     def _close_datafile(self, data=None):
         if self.imaging_parameters['save2file']:
-            self.printl('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
+            self.printc('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
             if data is not None:
                 for frame in data[0]:
                     frame_converted = scanner_control.signal2image(frame, self.imaging_parameters, self.machine_config.PMTS)[1]
-                    if ENABLE_16_BIT:
+                    if self.ENABLE_16_BIT:
                         frame_converted = self._pmt_voltage2_16bit(frame_converted)
                     self._save_data(frame_converted)
                     self.frame_ct += 1
@@ -936,7 +959,7 @@ class CaImagingEngine(GUIEngine):
             setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
             nodes2save = ['imaging_parameters', 'imaging_run_info', 'software_environment_{0}'.format(self.machine_config.user_interface_name), 'configs_{0}'.format(self.machine_config.user_interface_name)]
             self.datafile.save(nodes2save)
-            self.printl('Data saved to {0}'.format(self.datafile.filename))
+            self.printc('Data saved to {0}'.format(self.datafile.filename))
             self.datafile.close()
         
     def _save_data(self,frame):

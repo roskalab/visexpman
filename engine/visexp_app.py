@@ -239,6 +239,7 @@ def run_stim(context, timeout = None):
     stim.run(timeout=timeout)
     
 def run_ca_imaging(context, timeout = None):
+    context['logger'].add_source('engine')
     context['logger'].start()
     if 1:
         from visexpman.engine.vision_experiment import ca_imaging

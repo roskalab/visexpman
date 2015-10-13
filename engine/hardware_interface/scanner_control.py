@@ -1702,7 +1702,7 @@ class TestScannerControl(unittest.TestCase):
         constraints['x_max_frq'] = 1500
         constraints['enable_flybackscan']=False
         constraints['enable_scanner_phase_characteristics']=True
-        constraints['scanner_position_to_voltage']=1.0/128.0#includes voltage to angle factor
+        constraints['position2voltage']=1.0/128.0#includes voltage to angle factor
         constraints['xmirror_max_frequency']=1400
         constraints['ymirror_flyback_time']=1e-3
         constraints['sample_frequency']=1000e3
@@ -1729,7 +1729,7 @@ class TestScannerControl(unittest.TestCase):
                                    ]
         for scan_size, resolution, constraints['enable_flybackscan'], constraints['sample_frequency'], constraints['max_linearity_error'] in scan_configs:
             center = utils.rc((1*0,10*0))
-            xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
+            xsignal,ysignal,frame_trigger_signal, stim_sync, valid_data_mask,signal_attributes =\
                             generate_scanner_signals(scan_size, resolution, center, constraints)
             continue
             self.assertGreaterEqual(signal_attributes['ymirror_flyback_time'],constraints['ymirror_flyback_time'])
@@ -1791,9 +1791,29 @@ class TestScannerControl(unittest.TestCase):
         from visexpman.users.test import unittest_aggregator
         if unittest_aggregator.TEST_data is None:
             return
+            
+        constraints = {}
+        constraints['x_flyback_time']=0.2e-3
+        constraints['f_sample']=500e3
+        constraints['y_flyback_time'] = 1e-3
+        constraints['x_max_frq'] = 1500
+        constraints['enable_flybackscan']=False
+        constraints['position2voltage']=1.0/128.0#includes voltage to angle factor
+        x,y,frame_sync,stim_sync,valid_data_mask,signal_attributes = \
+                            generate_scanner_signals(utils.rc((50,50)), 1, utils.rc((0,0)), constraints)
         folder = os.path.join(unittest_aggregator.TEST_data, 'two-photon-snapshots', 'data')
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
+                            
+        p=constraints
+        p.update(signal_attributes)
+        data=numpy.zeros((x.shape[0]*2,1))
+        p['analog_input_sampling_rate'] = 2*constraints['f_sample']
+        p['analog_output_sampling_rate'] = constraints['f_sample']
+        p['valid_data_mask']=valid_data_mask
+        p['channels']=['TOP']
+        frames = signal2image(data, p, PMTS)
+                            
         fns=os.listdir(folder)
         fns.sort()
         if len(fns)==0:
@@ -1846,21 +1866,23 @@ def signal2image(ai_data, parameters, pmt_config):
     for ch_i in range(ai_data.shape[1]):
         binned[:,ch_i] = ai_data[:,ch_i].reshape((ai_data.shape[0]/binning_factor,binning_factor)).mean(axis=1)
         if False:#Method 1, longer runtime
-            indexes = numpy.nonzero(numpy.diff(parameters['valid_data_mask']))[0]
+            indexes = numpy.nonzero(numpy.diff(valid_data_mask))[0]
             lines=numpy.split(binned[:,ch_i],indexes)[1::2]
             frame = numpy.array(lines)
         else:
-            indexes = numpy.nonzero(numpy.diff(parameters['one_period_valid_data_mask']))[0]+1
-            if indexes.shape[0] ==3 and parameters['one_period_valid_data_mask'][-1] == 1:
+            indexes = numpy.nonzero(numpy.diff(parameters['valid_data_mask']))[0]+1
+            if parameters['valid_data_mask'][0]!=0:
+                indexes = numpy.insert(indexes, 0,0)
+            if indexes.shape[0] ==3 and parameters['valid_data_mask'][-1] == 1:
                 #If end of valid range is at period end (numpy.diff cannot detect it)
-                indexes = numpy.append(indexes, parameters['one_period_valid_data_mask'].shape[0])
+                indexes = numpy.append(indexes, parameters['valid_data_mask'].shape[0])
             valid_x_lines = int(parameters['nxlines'] - parameters['yflyback_nperiods'])
-            linelenght = parameters['one_period_valid_data_mask'].shape[0]
+            linelenght = parameters['valid_data_mask'].shape[0]
             if 0:
                 print binned[:linelenght*valid_x_lines,ch_i].shape,(valid_x_lines,linelenght)
             binned_without_flyback =  binned[:linelenght*valid_x_lines,ch_i].reshape((valid_x_lines,linelenght))
             if parameters['enable_flybackscan']:
-                frame=numpy.zeros((2*valid_x_lines,parameters['one_period_valid_data_mask'].sum()/2))
+                frame=numpy.zeros((2*valid_x_lines,parameters['valid_data_mask'].sum()/2))
                 frame[0::2,:] = binned_without_flyback[:,indexes[0]:indexes[1]]
                 frame[1::2,:] = numpy.fliplr(binned_without_flyback[:,indexes[2]:indexes[3]])
             else:
@@ -1869,8 +1891,8 @@ def signal2image(ai_data, parameters, pmt_config):
     #Colorize channels
     colorized_frame = numpy.zeros((frame.shape[0],frame.shape[1],3))
     frame = numpy.array(frames)
-    for color_channel_assignment in [[pmt_config[ch]['COLOR'],pmt_config[ch]['CHANNEL']] for ch in parameters['recording_channels']]:
-        if len(parameters['recording_channels']) == 1:
+    for color_channel_assignment in [[pmt_config[ch]['COLOR'],pmt_config[ch]['CHANNEL']] for ch in parameters['channels']]:
+        if len(parameters['channels']) == 1:
             frame_index = 0
         else:
             frame_index = color_channel_assignment[1]
@@ -1884,9 +1906,10 @@ def signal2image(ai_data, parameters, pmt_config):
             raise NotImlementedError('')
         
     #calculate grid
-    valid_data_mask_phase_shifted_back = numpy.roll(parameters['one_period_valid_data_mask'],parameters['phase_shift'])
-    indexes_valid_data = numpy.nonzero(numpy.diff(valid_data_mask_phase_shifted_back))[0]
-    valid_data_xscanner_signal = parameters['one_period_x_scanner_signal'][indexes_valid_data[0]:indexes_valid_data[1]][::-1]
+    if 0:
+        valid_data_mask_phase_shifted_back = numpy.roll(parameters['one_period_valid_data_mask'],parameters['phase_shift'])
+        indexes_valid_data = numpy.nonzero(numpy.diff(valid_data_mask_phase_shifted_back))[0]
+        valid_data_xscanner_signal = parameters['one_period_x_scanner_signal'][indexes_valid_data[0]:indexes_valid_data[1]][::-1]
 #        x_grid_min = parameters['scan_center']['row']-0.5*parameters['scanning_range']['row']
 #        x_grid_max = parameters['scan_center']['row']+0.5*parameters['scanning_range']['row']
 #        y_grid_min = parameters['scan_center']['col']-0.5*parameters['scanning_range']['col']
@@ -1926,7 +1949,8 @@ def generate_scanner_signals(size,resolution,center,constraints):
     y_scan=numpy.linspace(-0.5*size['col'], 0.5*size['col'], x_one_period.shape[0]*(nlines-y_flyback_lines))+center['col']
     y_flyback = numpy.linspace(0.5*size['col'], -0.5*size['col'], x_one_period.shape[0]*(y_flyback_lines))+center['col']
     y=numpy.concatenate((y_scan,y_flyback))*constraints['position2voltage']
-    frame_sync = numpy.tile(numpy.concatenate((numpy.ones_like(x_scan),numpy.zeros_like(x_flyback))),nlines)
+    valid_data_mask=numpy.concatenate((numpy.ones_like(x_scan),numpy.zeros_like(x_flyback)))
+    frame_sync = numpy.tile(valid_data_mask,nlines)
     if y.shape[0] != x.shape[0]:
         raise ScannerError('x and y signal length must be the same: {0}, {1}. Adjust a little on resolution or scan range.'.format(y.shape[0], x.shape[0]))
     stim_sync=numpy.tile(numpy.concatenate((numpy.zeros_like(x_scan),numpy.ones_like(x_flyback))),nlines)
@@ -1935,7 +1959,9 @@ def generate_scanner_signals(size,resolution,center,constraints):
     signal_attributes['x_frequency'] = constraints['f_sample']/float(x_one_period.shape[0])
     signal_attributes['x_flyback_time'] = float(flyback_samples)/constraints['f_sample']
     signal_attributes['y_flyback_time'] = float(y_flyback.shape[0])/constraints['f_sample']
-    return x,y,frame_sync,stim_sync,signal_attributes
+    signal_attributes['nxlines'] = nlines
+    signal_attributes['yflyback_nperiods'] = y_flyback_lines
+    return x,y,frame_sync,stim_sync,valid_data_mask,signal_attributes
     
 
 #OBSOLETE
