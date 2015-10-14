@@ -122,7 +122,6 @@ class CaImaging(gui.VisexpmanMainWindow):
                             {'name': 'Stimulus Flash Duty Cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                             {'name': 'Stimulus Flash Delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
                             {'name': 'Enable Flyback Scan', 'type': 'bool', 'value': False},
-                            {'name': 'Enable Phase Characteristics', 'type': 'bool', 'value': False},
                             {'name': 'Scanner Position to Voltage Factor', 'type': 'float', 'value': 0.013},
                         ]},
                     ]}
@@ -137,13 +136,14 @@ class CaImaging(gui.VisexpmanMainWindow):
         self.start_ir_camera_acquisition()
         
     def live_two_photon_action(self):
-        pass
+        self.to_engine.put({'function': 'live_2p', 'args':[]})
         
     def snap_two_photon_action(self):
         pass
         
     def stop_action(self):
-        self.stop_ir_camera()
+        self.to_engine.put({'function': 'stop_2p', 'args':[]})
+        #self.stop_ir_camera()
             
     def exit_action(self):
         self.send_all_parameters2engine()

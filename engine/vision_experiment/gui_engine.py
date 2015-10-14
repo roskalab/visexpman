@@ -831,6 +831,14 @@ class CaImagingEngine(GUIEngine):
         self.imaging_parameters=experiment_parameters
         self._start2p()
         
+    def live_2p(self):
+        self.imaging_parameters=self.generate_imaging_parameters()
+        self.imaging_parameters['save2file']=False
+        self._start2p()
+        
+    def stop_2p(self):
+        self._finish2p()
+        
     def _shutter(self,state):
         daq_instrument.set_digital_line(self.machine_config.TWO_PHOTON['LASER_SHUTTER_PORT'], int(state))
         self.laser_on = state
@@ -908,6 +916,7 @@ class CaImagingEngine(GUIEngine):
                     break
                 else:
                     #Transform frame to image
+                    self.frame=frame
                     self.images['display'], self.images['save'] = scanner_control.signal2image(frame, self.imaging_parameters, self.machine_config.PMTS)
                     self.images['display']/=self.machine_config.MAX_PMT_VOLTAGE
                     self.frame_ct+=1

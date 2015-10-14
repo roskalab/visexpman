@@ -456,6 +456,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
     def _read_ai(self):
         samples_to_read = self.number_of_ai_samples * self.number_of_ai_channels
         self.ai_data = numpy.zeros(self.number_of_ai_samples*self.number_of_ai_channels, dtype=numpy.float64)
+        self.printl(self.ai_data.shape)
         try:
             self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
                                         self.limits['timeout'],
@@ -465,10 +466,12 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                                         DAQmxTypes.byref(self.read),
                                         None)
         except PyDAQmx.DAQError:
-            if self.finite_samples:
+            #if self.finite_samples:
                 import traceback
-                print traceback.format_exc()
+                #print traceback.format_exc()#!!!!!!!!!!!!!!
+                self.printl(traceback.format_exc())
         ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+        self.printl(self.ai_data.shape)
         ##self.ai_raw_data = self.ai_data
         ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
         self.queues['data'].put(ai_data)
