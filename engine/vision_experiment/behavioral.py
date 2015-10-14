@@ -8,16 +8,22 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph
 from visexpman.engine.generic import gui,utils,videofile
 from visexpman.engine.hardware_interface import daq_instrument
-#TODO: video colors
-#TODO: reduce video save time
-#TODO: Scale digital curves on plot correctly when speed has high negativ values
+#TODO: random expected run time
+#TODO: save video during session
+#TODO: two stim channels , random order
+#TODO: start/stop button
+#TODO: add comments
+#TODO: axis labels
+#TODO: fix layout
+#7 cm: 803-5,988-21,1072-75,1172-270,1341-293,1338-466
+
 
 class Config(object):
     def __init__(self):
-        self.AO_CHANNEL='Dev3/ao0'
-        self.DIO_PORT = 'COM3'
-        self.DATA_FOLDER = tempfile.gettempdir()
-        self.VALVE_OPEN_TIME=400e-3
+        self.AO_CHANNEL='Dev1/ao0'
+        self.DIO_PORT = 'COM4'
+        self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()
+        self.VALVE_OPEN_TIME=8e-3
         self.STIMULUS_DURATION=1.0
         self.CURSOR_RESET_POSITION=0.0
         self.CURSOR_POSITION_UPDATE_PERIOD = 50e-3
@@ -25,6 +31,7 @@ class Config(object):
         self.CAMERA_FRAME_WIDTH=640/2
         self.CAMERA_FRAME_HEIGHT=480/2
         self.POWER_VOLTAGE_RANGE=[0,10]
+        self.RUN_DIRECTION=1
 
         self.RUN_THRESHOLD=0.8
         self.MOVE_THRESHOLD=10#200
@@ -52,7 +59,7 @@ class HardwareHandler(threading.Thread):
         
     def run(self):
         s=serial.Serial(self.config.DIO_PORT)
-        s.setBreak(1)
+        s.setBreak(0)
         s.setRTS(1)
         while True:
             if not self.command.empty():
@@ -67,14 +74,18 @@ class HardwareHandler(threading.Thread):
                     #s.setRTS(1)
                     self.response.put('stim ready')
                 elif cmd[0] == 'reward':
-                    s.setBreak(0)
-                    time.sleep(self.config.VALVE_OPEN_TIME)
                     s.setBreak(1)
+                    time.sleep(self.config.VALVE_OPEN_TIME)
+                    s.setBreak(0)
                     self.response.put('reward ready')
+                elif cmd[0] == 'open_valve':
+                    s.setBreak(1)
+                elif cmd[0] == 'close_valve':
+                    s.setBreak(0)
             else:
                 time.sleep(10e-3)
                 
-        s.setBreak(1)
+        s.setBreak(0)
         s.setRTS(1)
         s.close()
 
@@ -101,6 +112,12 @@ class CWidget(QtGui.QWidget):
         self.stim_power.input.setText('1')
         self.stim_power.input.setFixedWidth(40)
         
+        self.open_valve=gui.LabeledCheckBox(self,'Open Valve')
+        self.save_data=gui.LabeledCheckBox(self,'Save Data')
+        
+        self.start = QtGui.QPushButton('Start', parent=self)
+        self.stop = QtGui.QPushButton('Stop', parent=self)
+        
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.image, 0, 0, 3, 2)
         self.l.addWidget(self.plotw, 0, 2, 1, 3)
@@ -109,6 +126,10 @@ class CWidget(QtGui.QWidget):
         self.l.addWidget(self.help, 1, 3, 1, 1)
         self.l.addWidget(self.select_folder, 1, 4, 1, 1)
         self.l.addWidget(self.selected_folder, 2, 4, 1, 1)
+        self.l.addWidget(self.open_valve, 3, 4, 1, 1)
+        self.l.addWidget(self.save_data, 3, 3, 1, 1)
+        self.l.addWidget(self.start, 3, 1, 1, 1)
+        self.l.addWidget(self.stop, 3, 2, 1, 1)
         self.setLayout(self.l)
 
 class Behavioral(gui.SimpleAppWindow):
@@ -134,6 +155,9 @@ class Behavioral(gui.SimpleAppWindow):
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Ctrl+s'), self), QtCore.SIGNAL('activated()'), self.stop_experiment)
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Space'), self), QtCore.SIGNAL('activated()'), self.next_protocol)
         self.connect(self.cw.select_folder, QtCore.SIGNAL('clicked()'), self.select_folder)
+        self.connect(self.cw.open_valve.input, QtCore.SIGNAL('stateChanged(int)'),  self.toggle_valve)
+        self.connect(self.cw.start, QtCore.SIGNAL('clicked()'), self.start_experiment)
+        self.connect(self.cw.stop, QtCore.SIGNAL('clicked()'), self.stop_experiment)
         self.output_folder = self.config.DATA_FOLDER
         self.cw.selected_folder.setText(self.output_folder)
         self.cursor_t = QtCore.QTimer()
@@ -153,6 +177,12 @@ class Behavioral(gui.SimpleAppWindow):
         self.hwh.start()
         self.stim_state=False
         self.valve_state=False
+        
+    def toggle_valve(self,state):
+        if state==2:
+            self.hwcommand.put(['open_valve'])
+        elif state == 0:
+            self.hwcommand.put(['close_valve'])
         
     def read_camera(self):
         ret, frame = self.camera.read()
@@ -183,9 +213,12 @@ class Behavioral(gui.SimpleAppWindow):
         
     def stop_experiment(self):
         if not self.running: return
+        if not self.ask4confirmation('Experiment will be terminated. Are you sure?\r\nIf yes, saving data takes some time'):
+            return
         self.running=False
         self.log('stop experiment')
-        self.save_data()
+        if self.cw.save_data.input.checkState()==2:
+            self.save_data()
         
     def next_protocol(self):
         if self.running: return
@@ -212,7 +245,7 @@ class Behavioral(gui.SimpleAppWindow):
         if self.data.shape[1]>0:
             ds=self.cursor_position-self.data[1, -1]
             self.cursor_position+=jump
-            speed=ds/(self.now-self.data[0,-1])
+            speed=self.config.RUN_DIRECTION*ds/(self.now-self.data[0,-1])
             if abs(speed)>1000 and 0:
                 self.log('!')
                 self.context={'speed':speed, 'ds':ds,'data':self.data[1,-1], 'jump':jump, 'cursor_position':self.cursor_position}
@@ -231,6 +264,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.checkdata = numpy.append(self.checkdata, newdata,axis=1)
         t=self.data[0]-self.data[0,0]
         self.cw.plotw.update_curves([t,t,t], [self.data[2],self.data[3]*self.data[2].max(),self.data[4]*self.data[2].max()], colors=[(0,0,0),(0,255,0),(0,0,255)])
+        self.cw.plotw.plot.setXRange(min(t), max(t))
         getattr(self, str(self.cw.select_protocol.input.currentText()).lower())()
         
     def stop_reward(self):
