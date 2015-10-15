@@ -1,40 +1,38 @@
-import os,sys,time,threading,Queue,tempfile
+import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy
 import numpy,scipy.io
 import serial
+from PIL import Image
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
-from visexpman.engine.generic import gui,utils,videofile
+from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument
-#TODO: random expected run time
-#TODO: save video during session
-#TODO: two stim channels , random order
-#TODO: start/stop button
+#TODO: test stim channel info in mat file
 #TODO: add comments
-#TODO: axis labels
+#TODO: trace labels
 #TODO: fix layout
-#7 cm: 803-5,988-21,1072-75,1172-270,1341-293,1338-466
-
 
 class Config(object):
     def __init__(self):
-        self.AO_CHANNEL='Dev1/ao0'
+        self.STIM_CHANNELS=['Dev1/ao0','Dev1/ao1']
         self.DIO_PORT = 'COM4'
         self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()
         self.VALVE_OPEN_TIME=8e-3
         self.STIMULUS_DURATION=1.0
         self.CURSOR_RESET_POSITION=0.0
         self.CURSOR_POSITION_UPDATE_PERIOD = 50e-3
-        self.CAMERA_UPDATE_RATE=24
+        self.CAMERA_UPDATE_RATE=20
         self.CAMERA_FRAME_WIDTH=640/2
         self.CAMERA_FRAME_HEIGHT=480/2
         self.POWER_VOLTAGE_RANGE=[0,10]
         self.RUN_DIRECTION=1
 
         self.RUN_THRESHOLD=0.8
-        self.MOVE_THRESHOLD=10#200
+        #7 cm: 803-5,988-21,1072-75,1172-270,1341-293,1338-466: 7 cm = 930 pixel -> 1 pixel = 0.0075214899713467055
+        self.PIXEL2SPEED=0.0075214899713467055
+        self.MOVE_THRESHOLD=10*self.PIXEL2SPEED#200
         self.PROTOCOL_STOP_REWARD={}
         self.PROTOCOL_STOP_REWARD['run time']=2
         self.PROTOCOL_STOP_REWARD['stop time']=2
@@ -46,9 +44,31 @@ class Config(object):
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']=0.5
         self.PROTOCOL_STIM_STOP_REWARD['delay after run']=2
         
+        
+        
     def get_protocol_names(self):
         return [vn.replace('PROTOCOL_','') for vn in dir(self) if 'PROTOCOL_' in vn]
         
+class FrameSaver(multiprocessing.Process):
+    '''
+    This process saves the images transmitted through the input queue. 
+    It is running on a different processor core from the main thread to ensure higher video recording framerate.
+    '''
+    def __init__(self,queue):
+        multiprocessing.Process.__init__(self)
+        self.queue=queue
+        
+    def run(self):
+        while True:
+            if not self.queue.empty():
+                msg=self.queue.get()
+                if msg=='terminate':#If message contains this string, stop the process
+                    break
+                else:
+                    frame,filename=msg
+                    Image.fromarray(frame).save(filename)
+            else:
+                time.sleep(1e-3)
 
 class HardwareHandler(threading.Thread):
     def __init__(self,command,response,config):
@@ -67,10 +87,10 @@ class HardwareHandler(threading.Thread):
                 if cmd[0]=='terminate':
                     break
                 elif cmd[0] == 'stimulate':
-                    daq_instrument.set_voltage(self.config.AO_CHANNEL,cmd[1])
+                    daq_instrument.set_voltage(cmd[1],cmd[1])
                     #s.setRTS(0)
                     time.sleep(self.config.STIMULUS_DURATION)
-                    daq_instrument.set_voltage(self.config.AO_CHANNEL,0)
+                    daq_instrument.set_voltage(cmd[1],0)
                     #s.setRTS(1)
                     self.response.put('stim ready')
                 elif cmd[0] == 'reward':
@@ -103,6 +123,9 @@ class CWidget(QtGui.QWidget):
         
         self.plotw=gui.Plot(self)
         self.plotw.setFixedHeight(250)
+        self.plotw.plot.setLabels(left='speed [cm/s]', bottom='time [s]')
+        #self.plotw.plot.addLegend(size=(120,60))
+        
         self.help=QtGui.QLabel(HELP,self)
         self.select_protocol=gui.LabeledComboBox(self,'Select protocol', parent.config.get_protocol_names())
         self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)
@@ -119,17 +142,17 @@ class CWidget(QtGui.QWidget):
         self.stop = QtGui.QPushButton('Stop', parent=self)
         
         self.l = QtGui.QGridLayout()
-        self.l.addWidget(self.image, 0, 0, 3, 2)
-        self.l.addWidget(self.plotw, 0, 2, 1, 3)
+        self.l.addWidget(self.image, 0, 0, 4, 2)
+        self.l.addWidget(self.plotw, 0, 2, 1, 4)
         self.l.addWidget(self.select_protocol, 1, 2, 1, 1)
         self.l.addWidget(self.stim_power, 2, 2, 1, 1)
         self.l.addWidget(self.help, 1, 3, 1, 1)
         self.l.addWidget(self.select_folder, 1, 4, 1, 1)
         self.l.addWidget(self.selected_folder, 2, 4, 1, 1)
-        self.l.addWidget(self.open_valve, 3, 4, 1, 1)
-        self.l.addWidget(self.save_data, 3, 3, 1, 1)
-        self.l.addWidget(self.start, 3, 1, 1, 1)
-        self.l.addWidget(self.stop, 3, 2, 1, 1)
+        self.l.addWidget(self.open_valve, 3, 5, 1, 1)
+        self.l.addWidget(self.save_data, 3, 4, 1, 1)
+        self.l.addWidget(self.start, 3, 2, 1, 1)
+        self.l.addWidget(self.stop, 3, 3, 1, 1)
         self.setLayout(self.l)
 
 class Behavioral(gui.SimpleAppWindow):
@@ -175,7 +198,10 @@ class Behavioral(gui.SimpleAppWindow):
         self.hwresponse=Queue.Queue()
         self.hwh=HardwareHandler(self.hwcommand,self.hwresponse, self.config)
         self.hwh.start()
-        self.stim_state=False
+        self.framequeue=multiprocessing.Queue()
+        self.framesaver=FrameSaver(self.framequeue)
+        self.framesaver.start()
+        self.stim_state=0
         self.valve_state=False
         
     def toggle_valve(self,state):
@@ -187,6 +213,8 @@ class Behavioral(gui.SimpleAppWindow):
     def read_camera(self):
         ret, frame = self.camera.read()
         frame_color_corrected=numpy.zeros_like(frame)#For some reason we need to do this
+        if frame is None:
+            return
         frame_color_corrected[:,:,0]=frame[:,:,2]
         frame_color_corrected[:,:,1]=frame[:,:,1]
         frame_color_corrected[:,:,2]=frame[:,:,0]
@@ -196,6 +224,8 @@ class Behavioral(gui.SimpleAppWindow):
             if self.running:
                 self.frame_times.append(time.time())
                 self.frames.append(frame_color_corrected)
+                if self.cw.save_data.input.checkState()==2:
+                    self.framequeue.put([copy.deepcopy(frame_color_corrected), os.path.join(self.frame_folder, 'f{0:0=5}.png'.format(len(self.frames)))])
             
     def start_experiment(self):
         if self.running: return
@@ -206,15 +236,19 @@ class Behavioral(gui.SimpleAppWindow):
         self.frames=[]
         self.log('start experiment')
         
+        self.frame_folder=os.path.join(tempfile.gettempdir(), 'vf')
+        if os.path.exists(self.frame_folder):
+            shutil.rmtree(self.frame_folder)
+        os.mkdir(self.frame_folder)
+        
         #Protocol specific
         self.run_complete=False
         self.stimulus_fired=False
         self.stop_complete=False
+        self.generate_run_time()
         
     def stop_experiment(self):
         if not self.running: return
-        if not self.ask4confirmation('Experiment will be terminated. Are you sure?\r\nIf yes, saving data takes some time'):
-            return
         self.running=False
         self.log('stop experiment')
         if self.cw.save_data.input.checkState()==2:
@@ -245,18 +279,14 @@ class Behavioral(gui.SimpleAppWindow):
         if self.data.shape[1]>0:
             ds=self.cursor_position-self.data[1, -1]
             self.cursor_position+=jump
-            speed=self.config.RUN_DIRECTION*ds/(self.now-self.data[0,-1])
-            if abs(speed)>1000 and 0:
-                self.log('!')
-                self.context={'speed':speed, 'ds':ds,'data':self.data[1,-1], 'jump':jump, 'cursor_position':self.cursor_position}
-                self.log(self.context)
+            speed=self.config.RUN_DIRECTION*ds/(self.now-self.data[0,-1])*self.config.PIXEL2SPEED
         else:
             speed=0
         #Check stim and valve states:
         if not self.hwresponse.empty():
             resp=self.hwresponse.get()
             if resp=='stim ready':
-                self.stim_state=False
+                self.stim_state=0
             elif resp == 'reward ready':
                 self.valve_state=False
         newdata=numpy.array([[self.now, self.cursor_position,speed,int(self.valve_state),int(self.stim_state)]]).T
@@ -282,10 +312,10 @@ class Behavioral(gui.SimpleAppWindow):
                 self.checkdata=numpy.copy(self.empty)
     
     def stim_stop_reward(self):
-        if self.checkdata[0,-1]-self.checkdata[0,0]>self.config.PROTOCOL_STIM_STOP_REWARD['run time']:
+        if self.checkdata[0,-1]-self.checkdata[0,0]>self.actual_runtime:
             speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)
             t=self.checkdata[0]-self.checkdata[0,0]
-            index=numpy.where(t>t.max()-self.config.PROTOCOL_STIM_STOP_REWARD['run time'])[0].min()
+            index=numpy.where(t>t.max()-self.actual_runtime)[0].min()
             run_speed=speed[index:]
             run=run_speed.sum()>self.config.RUN_THRESHOLD*run_speed.shape[0]
             if run and not self.run_complete:
@@ -305,20 +335,30 @@ class Behavioral(gui.SimpleAppWindow):
                         self.run_complete=False
                         self.stimulus_fired=False
                         self.checkdata=numpy.copy(self.empty)
+                        self.generate_run_time()
                     elif self.stop_complete:
                         self.reward()
                         self.run_complete=False
                         self.stimulus_fired=False
                         self.checkdata=numpy.copy(self.empty)
+                        self.generate_run_time()
+                        
+    def generate_run_time(self):
+        '''
+        Stim stop protocol expected runtime has a random part that needs to be recalculated
+        '''
+        random_time=self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']*int(random.random()*self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time range']/self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution'])
+        self.actual_runtime = self.config.PROTOCOL_STIM_STOP_REWARD['run time']+random_time
         
     def stimulate(self):
         power=float(str(self.cw.stim_power.input.text()))
         if self.config.POWER_VOLTAGE_RANGE[0]>power and self.config.POWER_VOLTAGE_RANGE[1]<power:
             self.log('stimulus intensity shall be within this range: {0}'.format(self.config.POWER_VOLTAGE_RANGE))
             power=0
-        self.hwcommand.put(['stimulate', power])
-        self.stim_state=True
-        self.log('stim')
+        channel = random.choice(self.config.STIM_CHANNELS)
+        self.hwcommand.put(['stimulate', power, channel])
+        self.stim_state=self.config.STIM_CHANNELS.index(channel)+1
+        self.log('stim at channel {0}'.format(self.stim_state))
         
     def reward(self):
         self.hwcommand.put(['reward'])
@@ -339,7 +379,7 @@ class Behavioral(gui.SimpleAppWindow):
         scipy.io.savemat(filename, data2save,oned_as='row')
         self.log('Data saved to {0}'.format(filename))
         vfilename=filename.replace('.mat','.mp4')
-        videofile.array2mp4(numpy.array(self.frames), vfilename, self.config.CAMERA_UPDATE_RATE)
+        videofile.images2mpeg4(self.frame_folder, vfilename, self.config.CAMERA_UPDATE_RATE)
         self.log('Video saved to {0}'.format(vfilename))
         
     def select_folder(self):
@@ -351,6 +391,9 @@ class Behavioral(gui.SimpleAppWindow):
         self.hwcommand.put(['terminate'])
         e.accept()
         self.hwh.join()
+        self.framequeue.put('terminate')
+        self.framesaver.join()
+        
         
     
 if __name__ == '__main__':
