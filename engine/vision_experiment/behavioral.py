@@ -122,16 +122,16 @@ class CWidget(QtGui.QWidget):
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
         self.image=gui.Image(self)#Create image widget
-        self.image.setFixedWidth(500)#Setting its width
+        self.image.setFixedWidth(450)#Setting its width
         ar=float(parent.config.CAMERA_FRAME_WIDTH)/parent.config.CAMERA_FRAME_HEIGHT
-        self.image.setFixedHeight(500/ar)#Setting image widget height while keeping the aspect ratio of camera resolution
+        self.image.setFixedHeight(450/ar)#Setting image widget height while keeping the aspect ratio of camera resolution
         
         self.plotw=gui.Plot(self)#Plot widget initialization
         self.plotw.setFixedHeight(250)
         self.plotw.plot.setLabels(left='speed [cm/s]', bottom='time [s]')#Adding labels to the plot
         #self.plotw.plot.addLegend(size=(120,60))
         
-        self.help=QtGui.QLabel(HELP,self)#Holds the instructions about the keyboard shortcuts
+        self.setToolTip(HELP)
         self.select_protocol=gui.LabeledComboBox(self,'Select protocol', parent.config.get_protocol_names())#With this combobox the stimulus protocol can be selected
         self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)#Clicking this button the data save folder can be selected
         self.selected_folder = QtGui.QLabel(parent.config.DATA_FOLDER, self)#Displays the data folder
@@ -145,20 +145,21 @@ class CWidget(QtGui.QWidget):
         self.save_data=gui.LabeledCheckBox(self,'Save Data')#Checking this checkbox enables saving the video and the speed signal of a session
         
         self.start = QtGui.QPushButton('Start', parent=self)#Start recording/experiment session
+        self.start.setMaximumWidth(100)
         self.stop = QtGui.QPushButton('Stop', parent=self)#Stop recording/experiment session
+        self.stop.setMaximumWidth(100)
         
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
         self.l.addWidget(self.image, 0, 0, 4, 2)
-        self.l.addWidget(self.plotw, 0, 2, 1, 4)
-        self.l.addWidget(self.select_protocol, 1, 2, 1, 1)
-        self.l.addWidget(self.stim_power, 2, 2, 1, 1)
-        self.l.addWidget(self.help, 1, 3, 1, 1)
+        self.l.addWidget(self.plotw, 0, 2, 1, 5)
+        self.l.addWidget(self.select_protocol, 1, 2, 1, 2)
+        self.l.addWidget(self.stim_power, 2, 5, 1, 1)
         self.l.addWidget(self.select_folder, 1, 4, 1, 1)
-        self.l.addWidget(self.selected_folder, 2, 4, 1, 1)
-        self.l.addWidget(self.open_valve, 3, 5, 1, 1)
-        self.l.addWidget(self.save_data, 3, 4, 1, 1)
-        self.l.addWidget(self.start, 3, 2, 1, 1)
-        self.l.addWidget(self.stop, 3, 3, 1, 1)
+        self.l.addWidget(self.selected_folder, 1, 5, 1, 1)
+        self.l.addWidget(self.open_valve, 1, 6, 1, 1)
+        self.l.addWidget(self.save_data, 2, 4, 1, 1)
+        self.l.addWidget(self.start, 2, 2, 1, 1)
+        self.l.addWidget(self.stop, 2, 3, 1, 1)
         self.setLayout(self.l)
 
 class Behavioral(gui.SimpleAppWindow):
@@ -173,9 +174,9 @@ class Behavioral(gui.SimpleAppWindow):
         self.cw.setMinimumWidth(1100)
         self.setCentralWidget(self.cw)#Setting it as a central widget
         self.debugw.setMinimumWidth(800)#Setting the sizes of the debug widget. The debug widget is created by gui.SimpleAppWindow class which is 
-        self.debugw.setMinimumHeight(300)#the superclass of Behavioral. The debug widget displays the logfile and provides a python console
+        self.debugw.setMinimumHeight(250)#the superclass of Behavioral. The debug widget displays the logfile and provides a python console
         self.setMinimumWidth(1200)#Setting the minimum size of the main user interface
-        self.setMinimumHeight(800)
+        self.setMinimumHeight(750)
         self.camera_reader = QtCore.QTimer()#Timer for periodically reading out the camera
         self.camera_reader.timeout.connect(self.read_camera)#Assigning the function which reads out the camera to this timer
         self.camera_reader.start(int(1000./self.config.CAMERA_UPDATE_RATE))#Setting the update rate of the timer
