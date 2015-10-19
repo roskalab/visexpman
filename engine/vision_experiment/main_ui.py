@@ -417,7 +417,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         self._set_window_title()
         #Set up toobar
-        self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit'])
+        self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit'])
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
         #Add dockable widgets
@@ -525,7 +525,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.to_engine.put(reply == QtGui.QMessageBox.Yes)
             elif msg.has_key('notify'):
                 QtGui.QMessageBox.question(self, msg['notify']['title'], msg['notify']['msg'], QtGui.QMessageBox.Ok)
-            elif msg.has_key('delete_all_rois'):
+            elif msg.has_key('reset_datafile'):
                 self.image.remove_all_rois()
             elif msg.has_key('display_trace_parameters'):
                 pass
@@ -703,8 +703,8 @@ class MainUI(gui.VisexpmanMainWindow):
         '''Also exports to mat file'''
         self.to_engine.put({'function': 'save_rois_and_export', 'args':[]})
         
-    def delete_all_rois_action(self):
-        self.to_engine.put({'function': 'delete_all_rois', 'args':[]})
+    def reset_datafile_action(self):
+        self.to_engine.put({'function': 'reset_datafile', 'args':[]})
         
     def exit_action(self):
         if hasattr(self, 'tpp'):

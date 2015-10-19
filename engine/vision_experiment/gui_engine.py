@@ -313,16 +313,28 @@ class Analysis(object):
         self.display_roi_curve()
         self._roi_area2image()
         
-    def delete_all_rois(self):
+    def reset_datafile(self):
         if not hasattr(self, 'current_roi_index'):
             return
-        if not self.unittest and not self.ask4confirmation('Removing all rois. Are you sure?'):
+        if not self.unittest and not self.ask4confirmation('Reset file: removing all rois and exported mat file. Are you sure?'):
             return
         self.rois = []
         del self.current_roi_index
-        self.to_gui.put({'delete_all_rois': None})
+        self.to_gui.put({'reset_datafile': None})
         self._roi_area2image()
-        self.printc('All rois removed')
+        file_info = os.stat(self.filename)
+        self.datafile = experiment_data.CaImagingData(self.filename)
+        self.datafile.load('rois')
+        self.datafile.rois = None
+        self.datafile.repetition_link = None
+        self.datafile.save(['rois', 'repetition_link'], overwrite=True)
+        self.datafile.close()
+        fileop.set_file_dates(self.filename, file_info)
+        self.printc('{0} datafile reset, rois and repetition links are removed'.format(self.filename))
+        outfile=self.filename.replace('.hdf5','.'+self.guidata.read('Save File Format'))
+        if os.path.exists(outfile):
+            os.remove(outfile)
+            self.printc('{0} removed'.format(outfile))
         
     def add_manual_roi(self, rectangle):
         rectangle = numpy.array(rectangle)/self.image_scale
