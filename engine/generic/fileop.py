@@ -505,10 +505,10 @@ def parse_fragment_filename(path):
     fields['fragment_id'] = filename[-1]
     fields['region_name'] = '_'.join(filename[2:-4])
     return fields
-    
+#TODO: Move to experiment_data
 def get_recording_name(config, parameters, separator):
     name = ''
-    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'experiment_name', 'id', 'counter']:
+    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
         if parameters.has_key(k) and parameters[k]!='':
             name += str(parameters[k])+separator
     return name[:-1]
@@ -546,7 +546,7 @@ def is_recording_filename(filename):
 def find_recording_files(folder):
     allhdf5files = find_files_and_folders(folder, extension = 'hdf5')[1]
     return [f for f in allhdf5files if is_recording_filename(f)]
-    
+#TODO: END of Move to experiment_data    
 ################# Not fileop related ####################
 
 def compare_timestamps(string1, string2):

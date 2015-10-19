@@ -764,6 +764,7 @@ class CaImagingEngine(GUIEngine):
         self.projector_state = False
         self.frame_ct=0
         self.ENABLE_16_BIT=True
+        self.images={}
         self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
         self.daq_queues = daq_instrument.init_daq_queues()
         
@@ -771,7 +772,6 @@ class CaImagingEngine(GUIEngine):
         '''
         Periodically checks if any command has arrived via zmq
         '''
-        
         message = self.recv()
         if message is None:
             return
@@ -805,24 +805,24 @@ class CaImagingEngine(GUIEngine):
             resolution=1.0/resolution
         elif psu=='us':
             raise NotImplementedError('')
+        self.image_scale=1.0/resolution
         center = utils.rc((self.guidata.read('scan center y'),self.guidata.read('scan center x')))
         constraints = {}
-        constraints['x_flyback_time']=0.2e-3
-        constraints['y_flyback_time']=1e-3
+        constraints['x_flyback_time']=self.guidata.read('x scanner flyback time')*1e-6
+        constraints['y_flyback_time']=self.guidata.read('y scanner flyback time')*1e-6
         constraints['x_max_frq']=1400
         constraints['f_sample']=self.guidata.read('analog output sampling rate')*1e3
-        constraints['position2voltage']=self.guidata.read('scanner position to voltage factor')
-        constraints['enable_flybackscan']=False
+        constraints['movement2voltage']=self.guidata.read('scanner movement to voltage factor')
         self.printc('Generating scanner signals')
         x,y,frame_sync,stim_sync,valid_data_mask,signal_attributes = scanner_control.generate_scanner_signals(size,resolution,center,constraints)
         params['channels']=channels
-        params['constraints']=constraints
         params['size']=size
         params['resolution']=resolution
-        params['analog_input_sampling_rate']=self.guidata.read('analog input sampling rate')
-        params['analog_output_sampling_rate']=self.guidata.read('analog output sampling rate')
+        params['analog_input_sampling_rate']=self.guidata.read('analog input sampling rate')*1e3
+        params['analog_output_sampling_rate']=self.guidata.read('analog output sampling rate')*1e3
         params.update({'x':x,'y':y,'frame_sync':frame_sync,'stim_sync': stim_sync,'valid_data_mask':valid_data_mask})
         params.update(signal_attributes)
+        params.update(constraints)
         return params
         
     def start_imaging(self, experiment_parameters):
@@ -866,7 +866,7 @@ class CaImagingEngine(GUIEngine):
         self.t0=time.time()
         if parameters.has_key('experiment_name'):
             self.send({'trigger': 'imaging started',  'arg': imaging_started_result})#notifying main_ui that imaging started and stimulus can be launched
-        self.printc('Imaging started {0}'.format('' if imaging_started_result else imaging_started_result))
+        self.printc('Imaging started {0} at {1:.2f} Hz'.format('' if imaging_started_result else imaging_started_result,parameters['frame_rate']))
         self.isrunning = False if imaging_started_result == 'timeout' else imaging_started_result
         self.to_gui.put({'set_isrunning':self.isrunning})
         

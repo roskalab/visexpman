@@ -98,6 +98,7 @@ class CaImaging(gui.VisexpmanMainWindow):
         image_channel_items = []
         for channel in channels:
             image_channel_items.append({'name': 'Enable {0}'.format(channel), 'type': 'bool', 'value': False})
+            image_channel_items.append({'name': 'Display {0}'.format(channel), 'type': 'bool', 'value': False})
             image_channel_items.append({'name': '{0} filter'.format(channel), 'type': 'list', 'values': filter_names, 'value': ''})
         two_photon_items = ([
                                    {'name': 'Scan Height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
@@ -121,8 +122,9 @@ class CaImaging(gui.VisexpmanMainWindow):
                             {'name': 'Scan Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                             {'name': 'Stimulus Flash Duty Cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                             {'name': 'Stimulus Flash Delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
-                            {'name': 'Enable Flyback Scan', 'type': 'bool', 'value': False},
-                            {'name': 'Scanner Position to Voltage Factor', 'type': 'float', 'value': 0.013},
+                            {'name': 'X Scanner Flyback Time', 'type': 'float', 'value': 200, 'suffix': 'us'},
+                            {'name': 'Y Scanner Flyback Time', 'type': 'float', 'value': 1000, 'suffix': 'us'},
+                            {'name': 'Scanner Movement to Voltage Factor', 'type': 'float', 'value': 0.013},
                         ]},
                     ]}
                     ]

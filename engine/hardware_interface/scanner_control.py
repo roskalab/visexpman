@@ -1702,7 +1702,7 @@ class TestScannerControl(unittest.TestCase):
         constraints['x_max_frq'] = 1500
         constraints['enable_flybackscan']=False
         constraints['enable_scanner_phase_characteristics']=True
-        constraints['position2voltage']=1.0/128.0#includes voltage to angle factor
+        constraints['movement2voltage']=1.0/128.0#includes voltage to angle factor
         constraints['xmirror_max_frequency']=1400
         constraints['ymirror_flyback_time']=1e-3
         constraints['sample_frequency']=1000e3
@@ -1793,14 +1793,14 @@ class TestScannerControl(unittest.TestCase):
             return
             
         constraints = {}
-        constraints['x_flyback_time']=0.2e-3
+        constraints['x_flyback_time']=0.1e-3
         constraints['f_sample']=500e3
-        constraints['y_flyback_time'] = 1e-3
+        constraints['y_flyback_time'] = 0.5e-3
         constraints['x_max_frq'] = 1500
         constraints['enable_flybackscan']=False
-        constraints['position2voltage']=1.0/128.0#includes voltage to angle factor
+        constraints['movement2voltage']=1.0/128.0#includes voltage to angle factor
         x,y,frame_sync,stim_sync,valid_data_mask,signal_attributes = \
-                            generate_scanner_signals(utils.rc((50,50)), 1, utils.rc((0,0)), constraints)
+                            generate_scanner_signals(utils.rc((50,50)), 3, utils.rc((0,0)), constraints)
         folder = os.path.join(unittest_aggregator.TEST_data, 'two-photon-snapshots', 'data')
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
@@ -1881,7 +1881,7 @@ def signal2image(ai_data, parameters, pmt_config):
             if 0:
                 print binned[:linelenght*valid_x_lines,ch_i].shape,(valid_x_lines,linelenght)
             binned_without_flyback =  binned[:linelenght*valid_x_lines,ch_i].reshape((valid_x_lines,linelenght))
-            if parameters['enable_flybackscan']:
+            if parameters.has_key('enable_flybackscan') and parameters['enable_flybackscan']:
                 frame=numpy.zeros((2*valid_x_lines,parameters['valid_data_mask'].sum()/2))
                 frame[0::2,:] = binned_without_flyback[:,indexes[0]:indexes[1]]
                 frame[1::2,:] = numpy.fliplr(binned_without_flyback[:,indexes[2]:indexes[3]])
@@ -1927,7 +1927,7 @@ def generate_scanner_signals(size,resolution,center,constraints):
     constraints['y_flyback_time']
     constraints['x_max_frq']
     constraints['f_sample']
-    constraints['position2voltage']
+    constraints['movement2voltage']
     calibration:
         x scan contraction->size['row'] 
         x scanner delay-> scan center['row'] 
@@ -1945,10 +1945,10 @@ def generate_scanner_signals(size,resolution,center,constraints):
     x_one_period=numpy.concatenate((x_scan,x_flyback))
     y_flyback_lines = numpy.ceil(constraints['y_flyback_time']*constraints['f_sample']/x_one_period.shape[0])
     nlines = int(size['col']*resolution+y_flyback_lines)
-    x=numpy.tile(x_one_period,nlines)*constraints['position2voltage']
+    x=numpy.tile(x_one_period,nlines)*constraints['movement2voltage']
     y_scan=numpy.linspace(-0.5*size['col'], 0.5*size['col'], x_one_period.shape[0]*(nlines-y_flyback_lines))+center['col']
     y_flyback = numpy.linspace(0.5*size['col'], -0.5*size['col'], x_one_period.shape[0]*(y_flyback_lines))+center['col']
-    y=numpy.concatenate((y_scan,y_flyback))*constraints['position2voltage']
+    y=numpy.concatenate((y_scan,y_flyback))*constraints['movement2voltage']
     valid_data_mask=numpy.concatenate((numpy.ones_like(x_scan),numpy.zeros_like(x_flyback)))
     frame_sync = numpy.tile(valid_data_mask,nlines)
     if y.shape[0] != x.shape[0]:

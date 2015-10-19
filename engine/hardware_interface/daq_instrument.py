@@ -466,9 +466,8 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                                         DAQmxTypes.byref(self.read),
                                         None)
         except PyDAQmx.DAQError:
-            #if self.finite_samples:
+            if self.finite_samples:
                 import traceback
-                #print traceback.format_exc()#!!!!!!!!!!!!!!
                 self.printl(traceback.format_exc())
         ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
         self.printl(self.ai_data.shape)
@@ -1694,7 +1693,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         set_digital_line('Dev1/port0/line0', 1)
         set_digital_line('Dev1/port0/line0', 0)
             
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
     def test_04_aio_multichannel(self):
         '''
         Analog IO process started and two consecutive analog waveform generation and analog input sampling 
@@ -1838,5 +1837,5 @@ class TestAnalogIOProcess(unittest.TestCase):
         
         
 if __name__ == '__main__':
-    #unittest.main()
-    analogio('Dev1/ai0:4','Dev1/ao0',1000,numpy.linspace(0,3,1000),timeout=1)
+    unittest.main()
+    #analogio('Dev1/ai0:4','Dev1/ao0',1000,numpy.linspace(0,3,1000),timeout=1)
