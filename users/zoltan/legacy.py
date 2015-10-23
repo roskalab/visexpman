@@ -235,7 +235,6 @@ class PhysTiff2Hdf5(object):
         fileop.set_file_dates(filename, id)
         self.backup_files(fphys,ftiff,filename)
         return filename
-        #TODO: use pool for parallel processing
         
     def parse_stimulus_name(self,metadata):
         if not metadata.has_key('Stimulus file'):

@@ -271,7 +271,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):#OBSOLETE
         
     def _prepare_datafile(self):
         if self.imaging_parameters['save2file']:
-            self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.imaging_parameters, self.config, prefix = 'ca'),filelocking=False)
+            self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.imaging_parameters, self.config, prefix = 'ca'),filelocking=False)
             self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
             self.image_size = (len(self.imaging_parameters['recording_channels']), self.imaging_parameters['scanning_range']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['scanning_range']['col'] * self.imaging_parameters['resolution'])
             datacompressor = tables.Filters(complevel=self.config.DATAFILE_COMPRESSION_LEVEL, complib='blosc', shuffle = 1)
@@ -540,7 +540,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         variables2save = ['stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
+            self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
             self._prepare_data2save()
             res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
             self.datafile.save(variables2save)
@@ -559,11 +559,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     filename_prefix = ''
                 else:
                     filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
-                fn = fileop.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
                 fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
             else:
                 filename_prefix = 'stim'
-                fn = fileop.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
             scipy.io.savemat(fn, self.datafile, oned_as = 'column') 
             
     def _data2matfile_compatible(self):

@@ -1,3 +1,4 @@
+#OBSOLETE
 import socket
 import Queue
 import sys

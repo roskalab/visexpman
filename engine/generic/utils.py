@@ -357,7 +357,6 @@ def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 
     '''
     Calculate trajectory coordinates between two points or a point pairs
     '''
-    #TODO: multiple trajectories, trajectory of multiple predefined points    
     distance = rc_distance(start_point,  end_point)
     number_of_steps = int(round(distance / spatial_resolution, 0))
     step_size = distance / number_of_steps    

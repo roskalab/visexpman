@@ -214,7 +214,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         #Prepare experiment, run stimulation and save data
         self.isstimclass=issubclass(self.experiment_config.__class__,visexpman.engine.vision_experiment.experiment.Stimulus)
         runnable=self.experiment_config if self.isstimclass else self.experiment_config.runnable
-        if parameters.get('stimulus_only', False):#TODO: eliminate prepare
+        if parameters.get('stimulus_only', False):
             runnable.prepare()
         getattr(runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters

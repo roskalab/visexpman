@@ -23,6 +23,51 @@ import hdf5io
 
 import unittest
 
+#### Recording filename handling ####
+
+def get_recording_name(config, parameters, separator):
+    name = ''
+    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
+        if parameters.has_key(k) and parameters[k]!='':
+            name += str(parameters[k])+separator
+    return name[:-1]
+    
+def get_recording_filename(config, parameters, prefix):
+    if prefix != '':
+        prefix = prefix + '_'
+    return prefix + get_recording_name(config, parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
+
+def get_recording_path(parameters, config, prefix = ''):
+    return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters, prefix))
+    
+def parse_recording_filename(filename):
+    items = {}
+    items['folder'] = os.path.split(filename)[0]
+    items['file'] = os.path.split(filename)[1]
+    items['extension'] = file_extension(filename)
+    fnp = items['file'].replace(items['extension'],'').split('_')
+    items['type'] = fnp[0]
+    #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
+    offset = 1 if len(fnp[-1]) != 12 else 0
+    items['id'] = fnp[-1-offset]
+    items['experiment_name'] = fnp[-2-offset]
+    items['tag'] = fnp[1]
+    return items
+        
+def is_recording_filename(filename):
+    try:
+        items = parse_recording_filename(filename)
+        idnum = int(items['id'])
+        return True
+    except:
+        return False
+    
+def find_recording_files(folder):
+    allhdf5files = find_files_and_folders(folder, extension = 'hdf5')[1]
+    return [f for f in allhdf5files if is_recording_filename(f)]
+    
+#### Check file ####
+
 def check(h, config):
     '''
     Check measurement file
@@ -958,7 +1003,7 @@ class TestExperimentData(unittest.TestCase):
         conf = GUITestConfig()
         from pylab import plot,show,savefig,figure,clf
         for file in fileop.listdir_fullpath('r:\\production\\rei-setup\\zoltan'):
-            if fileop.parse_recording_filename(file)['type'] == 'data' and '22863' in file:
+            if parse_recording_filename(file)['type'] == 'data' and '22863' in file:
                 if len(check(file,conf))==0:
 #                    h=hdf5io.Hdf5io(file,filelocking=False)
                     ts, ti, a = get_activity_plotdata(file)

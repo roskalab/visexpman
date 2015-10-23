@@ -128,7 +128,6 @@ class Logger(multiprocessing.Process,LoggerHelper):
         '''
         for fn in fileop.listdir_fullpath(self.logpath):
             if fileop.is_first_tag(fn, 'log_') and fileop.file_extension(fn) == 'txt':
-                #TODO: check if remote path is available
                 target_path = os.path.join(self.remote_logpath, os.path.split(fn)[1])
                 if not os.path.exists(target_path):#Copy file if cannot be found in remote log folder
                     import shutil
@@ -184,6 +183,21 @@ class Logger(multiprocessing.Process,LoggerHelper):
         if hasattr(self, 'remote_logpath') and os.path.exists(self.remote_logpath):#Do nothing when  remote log path not provided 
             self.upload_logfiles()
         self.command.put('terminated')
+        
+def get_logfilename(config):
+    '''
+    filename format: log_<machine config name>_<username>_<user_interface_name>_yy-mm-dd-hhmm.txt
+    '''
+    expected_attributes = ['user', 'user_interface_name', 'LOG_PATH']
+    if not all([hasattr(config, expected_attribute) for expected_attribute in expected_attributes]):
+        from visexpman.engine import MachineConfigError
+        raise MachineConfigError('LOG_PATH, user and user_interface_name shall be an attribute in machine config')
+    while True:
+        filename =  os.path.join(config.LOG_PATH, 'log_{0}_{1}_{2}_{3}.txt'.format(config.__class__.__name__, config.user, config.user_interface_name, utils.datetime_string()))
+        if not os.path.exists(filename):
+            break
+        time.sleep(1.0)
+    return filename
 
 class TestLog(unittest.TestCase):
     def setUp(self):
@@ -193,7 +207,7 @@ class TestLog(unittest.TestCase):
         self.machine_config.user = 'test'
 
     def test_01_create_logger(self):
-        p= Logger(filename=fileop.get_logfilename(self.machine_config), remote_logpath = self.machine_config.REMOTE_LOG_PATH)
+        p= Logger(filename=get_logfilename(self.machine_config), remote_logpath = self.machine_config.REMOTE_LOG_PATH)
         p.add_source('mysource')
         p.start()
         p.info('test1', 'mysource')
@@ -226,7 +240,7 @@ class TestLog(unittest.TestCase):
         self.assertEqual(filelist['logfiles'], filelist['remotelogfiles'])
         
     def test_02_no_remote_logger(self):
-        p= Logger(filename=fileop.get_logfilename(self.machine_config))
+        p= Logger(filename=get_logfilename(self.machine_config))
         p.add_source('mysource')
         p.start()
         p.info('test1', 'mysource')

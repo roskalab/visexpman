@@ -302,7 +302,7 @@ class TestQueuedSocket(unittest.TestCase):
         logfiles = []
         for uiname in uinames:
             config.user_interface_name = uiname
-            logger = log.Logger(filename=fileop.get_logfilename(config), remote_logpath = config.REMOTE_LOG_PATH)
+            logger = log.Logger(filename=log.get_logfilename(config), remote_logpath = config.REMOTE_LOG_PATH)
             sockets = start_sockets(uiname, config, log=logger, enable_sockets = True)#Unit under test
             logger.start()
             time.sleep(4.0)
