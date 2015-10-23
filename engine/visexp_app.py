@@ -16,7 +16,6 @@ from visexpman.engine.visexp_gui import VisionExperimentGui
 from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.engine.vision_experiment.screen import StimulationScreen
 from visexpman.engine.vision_experiment import experiment_control
-from visexpman.engine.generic.graphics import check_keyboard
 from visexpman.engine.generic import utils,fileop,introspect
 import hdf5io
 
@@ -63,6 +62,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         if self.exit:
             return 'terminate'
         #Check keyboard
+        from visexpman.engine.generic.graphics import check_keyboard
         for key_pressed in check_keyboard():
             if key_pressed == self.config.KEYS['exit']:#Exit application
                 return 'terminate'

@@ -8,10 +8,11 @@ from PIL import Image
 import inspect
 import re
 import multiprocessing
-
-from OpenGL.GL import *
-from OpenGL.GLU import *
-from OpenGL.GLUT import *
+try:
+    from OpenGL.GL import *
+    from OpenGL.GLUT import *
+except ImportError:
+    print 'opengl not installed'
 
 import command_handler
 import experiment_control

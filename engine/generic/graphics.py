@@ -1,10 +1,13 @@
 import time
 import os.path
 import numpy
-from OpenGL.GL import *
-from OpenGL.GLU import *
-from OpenGL.GLUT import *
-import pygame
+try:
+    from OpenGL.GL import *
+    from OpenGL.GLU import *
+    from OpenGL.GLUT import *
+    import pygame
+except ImportError:
+    print 'opengl or pygame not intalled'
 
 from PIL import Image
 from visexpman.engine.generic import utils

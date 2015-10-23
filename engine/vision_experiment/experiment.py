@@ -4,9 +4,7 @@ import os
 import visexpman
 
 from visexpman.engine.generic.configuration import Config
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils,fileop,introspect
 from visexpman.engine import ExperimentConfigError
 import stimulation_library
 

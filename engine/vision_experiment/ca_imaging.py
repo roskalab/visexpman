@@ -88,6 +88,12 @@ class CaImaging(gui.VisexpmanMainWindow):
         self.connect(self.timer_img_read, QtCore.SIGNAL('timeout()'), self.read_image)
         self.isrunning=False
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
+        
+        self.cmd=Queue.Queue()
+        self.irimg=Queue.Queue()
+        self.u=UdpListener(self.cmd,self.irimg)
+        self.u.start()
+        
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -150,6 +156,8 @@ class CaImaging(gui.VisexpmanMainWindow):
     def exit_action(self):
         self.send_all_parameters2engine()
         self._stop_engine()
+        self.cmd.put('terminate')
+        self.u.join()
         self.close()
         
     def params_changed(self, param, changes):
@@ -173,10 +181,55 @@ class CaImaging(gui.VisexpmanMainWindow):
                 self.printc(msg['printc'])
             elif msg.has_key('send_image_data'):
                 self.meanimage, self.image_scale = msg['send_image_data']
-                self.images.image['Live'].set_image(self.meanimage, color_channel = 1)
+                self.images.image['Live'].set_image(self.meanimage)
                 self.images.image['Live'].set_scale(self.image_scale)
             elif msg.has_key('set_isrunning'):
                 self.isrunning = msg['set_isrunning']
+        if not self.irimg.empty():
+            self.images.image['Live'].set_image(self.irimg.get())
+                
+import threading,socket
+class UdpListener(threading.Thread):
+    def __init__(self,input,output):
+        threading.Thread.__init__(self)
+        self.input=input
+        self.output=output
+        
+    def run(self):
+        sock = socket.socket(socket.AF_INET, # Internet
+                     socket.SOCK_DGRAM) # UDP
+        sock.bind(('127.0.0.1', 8888))
+        sock.settimeout(5)
+        linect=0
+
+        frame=numpy.zeros(1200*1600,dtype=numpy.uint8)
+        framect=1
+        while True:
+            try:
+                data, addr = sock.recvfrom(10*1600) # buffer size is 1024 bytes
+                #print data
+                s=linect*16000
+                e=(linect+1)*16000
+                linect+=1
+                #print linect,len(data),linect>=1200/10
+                frame[s:e]=numpy.fromstring(data,dtype=numpy.uint8)
+                if linect>=1200/10:
+                    #print 'ok'
+                    now=time.time()
+                    #print now-t
+                    t=now
+                    linect=0
+                    self.output.put(frame.reshape((1200,1600)))
+                    print 'frame',frame.sum(),frame[:10],numpy.diff(frame)
+                    #print self.output.empty()
+                    from PIL import Image
+                    Image.fromarray(frame.reshape((1200,1600))).save('/tmp/t{0}.png'.format(framect))
+                    framect+=1
+            except:
+                pass
+            
+            if not self.input.empty() and self.input.get()=='terminate':
+                break
         
 #class CameraService(rpyc.Service):
 #        
