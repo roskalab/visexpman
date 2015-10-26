@@ -31,7 +31,6 @@ ENABLE_COMPRESSION=False
 import fileop
 import introspect
 import platform
-from visexpman.users.test import unittest_aggregator
 
 def is_network_available():
     if platform.system() == 'Windows':
