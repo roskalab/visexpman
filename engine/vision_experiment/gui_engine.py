@@ -77,7 +77,6 @@ class ExperimentHandler(object):
         experiment_parameters['id']=experiment_data.get_id()
         self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
-        #TODO: CONTINUE HERE: add entry to issued commands
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -101,10 +100,10 @@ class Analysis(object):
 
     def open_datafile(self,filename):
         self._check_unsaved_rois()
-        if fileop.parse_recording_filename(filename)['type'] != 'data':
+        if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
-        if hasattr(self, 'reference_roi_filename') and fileop.parse_recording_filename(self.reference_roi_filename)['id'] == fileop.parse_recording_filename(filename)['id']:
+        if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == fileop.parse_recording_filename(filename)['id']:
             self.notify('Warning', 'ROIS cannot be copied to a file itself')
             del self.reference_roi_filename
             del self.reference_rois
@@ -351,7 +350,7 @@ class Analysis(object):
                 return
         self.datafile.rois = copy.deepcopy(self.rois)
         if hasattr(self, 'reference_roi_filename'):
-            self.datafile.repetition_link = [fileop.parse_recording_filename(self.reference_roi_filename)['id']]
+            self.datafile.repetition_link = [experiment_data.parse_recording_filename(self.reference_roi_filename)['id']]
             self.datafile.save(['repetition_link'], overwrite=True)
         if 0:
             self.printc('Calculating and saving trace parameters')
@@ -506,7 +505,7 @@ class Analysis(object):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
         
     def remove_recording(self,filename):
-        if not fileop.is_recording_filename(filename) or fileop.file_extension(filename)!='hdf5':
+        if not experiment_data.is_recording_filename(filename) or fileop.file_extension(filename)!='hdf5':
             self.notify('Info', '{0} is not a recording file'.format(filename))
             return
         #Figure out which files will be removed
@@ -524,7 +523,7 @@ class Analysis(object):
                 if os.path.exists(path) and measurement_folder in path:
                     files2remove.append(path)
         h.close()
-        id=fileop.parse_recording_filename(filename)['id']
+        id=experiment_data.parse_recording_filename(filename)['id']
         files2remove.extend([fn for fn in fileop.listdir_fullpath(measurement_folder) if id in fn and fn != filename])
         if not self.ask4confirmation('The following files will be removed:\r\n{0}. Is that OK?'.format('\r\n'.join(files2remove))):
             return
@@ -611,7 +610,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
             
     def dump(self, filename=None):
-        #TODO: include logfile and context file content
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
                     'aggregated_rois', 'context_filename', 'guidata', 'cells']
@@ -942,7 +940,7 @@ class CaImagingEngine(GUIEngine):
             
     def _prepare_datafile(self):
         if self.imaging_parameters['save2file']:
-            self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.imaging_parameters, self.machine_config, prefix = 'ca'),filelocking=False)
+            self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.imaging_parameters, self.machine_config, prefix = 'ca'),filelocking=False)
             self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
             self.image_size = (len(self.imaging_parameters['channels']), self.imaging_parameters['size']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['size']['col'] * self.imaging_parameters['resolution'])
             datacompressor = tables.Filters(complevel=self.machine_config.DATAFILE_COMPRESSION_LEVEL, complib='blosc', shuffle = 1)

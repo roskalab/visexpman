@@ -8,10 +8,11 @@ from PIL import Image
 import inspect
 import re
 import multiprocessing
-
-from OpenGL.GL import *
-from OpenGL.GLU import *
-from OpenGL.GLUT import *
+try:
+    from OpenGL.GL import *
+    from OpenGL.GLUT import *
+except ImportError:
+    print 'opengl not installed'
 
 import command_handler
 import experiment_control
@@ -1456,52 +1457,6 @@ class AdvancedStimulation(StimulationHelpers):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
-        
-    def white_noise_obsolete(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
-        '''
-        pixel_size : in um
-        flickering_frequency: pattern change frequency, 0: max frame rate
-        colors: set of colors or intensities to be used
-        n_on_pixels: if provided the number of white pixels shown. colors shall be a list of two.
-        '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
-        #TODO: has to be reworked
-        self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')', source='stim')
-        self._save_stimulus_frame_info(inspect.currentframe())
-        if flickering_frequency == 0:
-            npatterns = duration * self.config.SCREEN_EXPECTED_FRAME_RATE
-            pattern_duration = 1
-        else:
-            npatterns = duration * flickering_frequency
-            pattern_duration = self.config.SCREEN_EXPECTED_FRAME_RATE/flickering_frequency
-        if not hasattr(pixel_size, 'dtype'):
-            pixel_size = utils.rc((pixel_size, pixel_size))
-        npixels = utils.rc((int(self.config.SCREEN_SIZE_UM['row']/pixel_size['row']), int(self.config.SCREEN_SIZE_UM['col']/pixel_size['col'])))
-        if isinstance(colors[0],list):
-            n_channels = len(colors[0])
-        else:
-            n_channels = 1
-        color = numpy.zeros((npatterns, npixels['row'], npixels['col'], n_channels))
-        numpy.random.seed(0)
-        randmask = numpy.random.random(color.shape[:-1])
-        if n_on_pixels is None:
-            ranges =  numpy.linspace(0, 1, len(colors)+1)
-            for r_i in range(ranges.shape[0]-1):
-                indexes = numpy.nonzero(numpy.where(randmask > ranges[r_i], 1, 0) * numpy.where(randmask <= ranges[r_i + 1], 1, 0))
-                color[indexes] = colors[r_i]
-        elif len(colors) == 2:
-            indexes = numpy.nonzero(randmask[0])
-            if set_seed:
-                import random
-                random.seed(0)
-            for pattern_i in range(int(npatterns)):
-                rows = [random.choice(indexes[0]) for i in range(n_on_pixels)]
-                cols = [random.choice(indexes[1]) for i in range(n_on_pixels)]
-                color[pattern_i][rows, cols] = colors[-1]
-                pass
-        color = numpy.repeat(color, pattern_duration, 0)
-        self.show_checkerboard(npixels, duration = 0, color = color, box_size = pixel_size, save_frame_info = True)
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def sine_wave_shape(self):
         pass

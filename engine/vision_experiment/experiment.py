@@ -4,9 +4,7 @@ import os
 import visexpman
 
 from visexpman.engine.generic.configuration import Config
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils,fileop,introspect
 from visexpman.engine import ExperimentConfigError
 import stimulation_library
 
@@ -77,7 +75,6 @@ class Experiment(stimulation_library.AdvancedStimulation):
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
         stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
-        #self.prepare()#TODO: eliminate this: This might not be necessary: 
 
     def prepare(self):
         '''

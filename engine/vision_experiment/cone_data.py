@@ -167,20 +167,20 @@ def fast_read(f,vn):
     
 def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
-    allhdf5files = [f for f in allhdf5files if fileop.is_recording_filename(f)]
+    allhdf5files = [f for f in allhdf5files if experiment_data.is_recording_filename(f)]
     allhdf5files = [f.replace('\\\\','\\') for f in allhdf5files]#Temporary solution
     if filename not in allhdf5files:
         raise RuntimeError('{0} is not in {1}'.format(filename, folder))
-    ids = [fileop.parse_recording_filename(f)['id'] for f in allhdf5files]
+    ids = [experiment_data.parse_recording_filename(f)['id'] for f in allhdf5files]
     if len(ids) != len(set(ids)):
         import collections
         duplicates = [x for x, y in collections.Counter(ids).items() if y > 1]
         raise RuntimeError('Some files are duplicated: {0}'.format([f for f in allhdf5files if stringop.string_in_list(duplicates, f, any_match=True)]))
     #Identify files that are linked together
     links = [(f, fast_read(f, 'repetition_link')) for f in allhdf5files]#This takes long, cannot be run in parallel processes
-    links=[[fileop.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None]
-    filenameid = fileop.parse_recording_filename(filename)['id']
-    experiment_name = fileop.parse_recording_filename(filename)['experiment_name']
+    links=[[experiment_data.parse_recording_filename(link[0])['id'], link[1][0]] for link in links if link[1] is not None]
+    filenameid = experiment_data.parse_recording_filename(filename)['id']
+    experiment_name = experiment_data.parse_recording_filename(filename)['experiment_name']
     repetitions = []
 #    remaining_links = copy.deepcopy(links)
 #    next_ids = [l for l in remaining_links if filenameid in l]
@@ -201,7 +201,7 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
         if len(repetitions)==len(prev_repetitions):
             break
     #Read roi info from assigned files
-    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (experiment_name == fileop.parse_recording_filename(f)['experiment_name'] if filter_by_stimulus_type else True)])
+    aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (experiment_name == experiment_data.parse_recording_filename(f)['experiment_name'] if filter_by_stimulus_type else True)])
     for fn in aggregated_rois.keys():#Remove recordings that do not contain roi
         if aggregated_rois[fn] is None:
             del aggregated_rois[fn]
@@ -265,8 +265,8 @@ def aggregate_cells(folder):
     for hdf5file in allhdf5files:
         print allhdf5files.index(hdf5file)+1,len(allhdf5files)
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
-        fntags= fileop.parse_recording_filename(hdf5file)
-        if fntags['id'] in skip_ids or not fileop.is_recording_filename(hdf5file):
+        fntags= experiment_data.parse_recording_filename(hdf5file)
+        if fntags['id'] in skip_ids or not experiment_data.is_recording_filename(hdf5file):
             continue
         try:
             aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
@@ -293,7 +293,7 @@ def aggregate_cells(folder):
                     organized_rois[stimulus_name][fn.replace('.hdf5', '')]=matched_rois[fn]
             organized_rois['scan_region']=scan_region_name
             aggregated_cells.append(organized_rois)
-            skip_ids.extend([fileop.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
+            skip_ids.extend([experiment_data.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
         skip_ids = list(set(skip_ids))
     return aggregated_cells
     

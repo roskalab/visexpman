@@ -349,13 +349,13 @@ def write_text_file(filename, content):
 
 def visexpman_package_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
-    
+
 def get_user_module_folder(config):
     '''
     Returns folder path where user's stimulation files or other source files reside
     '''
     return os.path.join(visexpman_package_path(), 'users', config.user)
-    
+
 def get_user_experiment_data_folder(config):
     '''
     Returns path to folder where user's experiment data can be saved
@@ -377,22 +377,7 @@ def get_context_filename(config):
     import platform
     filename = 'context_{0}_{1}_{2}.hdf5'.format(config.user_interface_name, config.user, platform.uname()[1])
     return os.path.join(config.CONTEXT_PATH, filename)
-    
-def get_logfilename(config):
-    '''
-    filename format: log_<machine config name>_<username>_<user_interface_name>_yy-mm-dd-hhmm.txt
-    '''
-    expected_attributes = ['user', 'user_interface_name', 'LOG_PATH']
-    if not all([hasattr(config, expected_attribute) for expected_attribute in expected_attributes]):
-        from visexpman.engine import MachineConfigError
-        raise MachineConfigError('LOG_PATH, user and user_interface_name shall be an attribute in machine config')
-    while True:
-        filename =  os.path.join(config.LOG_PATH, 'log_{0}_{1}_{2}_{3}.txt'.format(config.__class__.__name__, config.user, config.user_interface_name, utils.datetime_string()))
-        if not os.path.exists(filename):
-            break
-        time.sleep(1.0)
-    return filename
-    
+
 def find_recording_filename(id, config_or_path):
     if isinstance(config_or_path,str):
         foldername = config_or_path
@@ -451,7 +436,7 @@ def copy_reference_fragment_files(reference_folder, target_folder):
     
 def get_id_node_name_from_path(path):#Using similar function from component guesser may result segmentation error.
     return '_'.join(os.path.split(path)[1].split('.')[-2].split('_')[-3:])
-
+#OBSOLETE
 def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5', subfolders =  False):
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
         folder = config.EXPERIMENT_DATA_PATH
@@ -466,7 +451,7 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
-
+#OBSOLETE
 def find_file_from_timestamp(dir, timestamp):
     #from visexpman.engine.generic.fileop import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
@@ -478,14 +463,14 @@ def find_file_from_timestamp(dir, timestamp):
     if len(matching)==0: return None
     else: return matching[0]
 
-
+#OBSOLETE
 def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, remote_win_path = True):
     filename = os.path.split(local_file_path)[-1]
     remote_file_path = os.path.join(remote_machine_folder, filename)
     if remote_win_path:
         remote_file_path = remote_file_path.replace('/',  '\\')
     return remote_file_path
-    
+#OBSOLETE    
 def parse_fragment_filename(path):
     fields = {}
     filename = os.path.split(path)[1]
@@ -505,48 +490,7 @@ def parse_fragment_filename(path):
     fields['fragment_id'] = filename[-1]
     fields['region_name'] = '_'.join(filename[2:-4])
     return fields
-#TODO: Move to experiment_data
-def get_recording_name(config, parameters, separator):
-    name = ''
-    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
-        if parameters.has_key(k) and parameters[k]!='':
-            name += str(parameters[k])+separator
-    return name[:-1]
-    
-def get_recording_filename(config, parameters, prefix):
-    if prefix != '':
-        prefix = prefix + '_'
-    return prefix + get_recording_name(config, parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
 
-def get_recording_path(parameters, config, prefix = ''):
-    return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters, prefix))
-    
-def parse_recording_filename(filename):
-    items = {}
-    items['folder'] = os.path.split(filename)[0]
-    items['file'] = os.path.split(filename)[1]
-    items['extension'] = file_extension(filename)
-    fnp = items['file'].replace(items['extension'],'').split('_')
-    items['type'] = fnp[0]
-    #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
-    offset = 1 if len(fnp[-1]) != 12 else 0
-    items['id'] = fnp[-1-offset]
-    items['experiment_name'] = fnp[-2-offset]
-    items['tag'] = fnp[1]
-    return items
-        
-def is_recording_filename(filename):
-    try:
-        items = parse_recording_filename(filename)
-        idnum = int(items['id'])
-        return True
-    except:
-        return False
-    
-def find_recording_files(folder):
-    allhdf5files = find_files_and_folders(folder, extension = 'hdf5')[1]
-    return [f for f in allhdf5files if is_recording_filename(f)]
-#TODO: END of Move to experiment_data    
 ################# Not fileop related ####################
 
 def compare_timestamps(string1, string2):

@@ -103,7 +103,7 @@ def application_init(**kwargs):
         remote_logpath = ''
     else:
         remote_logpath = machine_config.REMOTE_LOG_PATH
-    logger = log.Logger(filename=fileop.get_logfilename(machine_config), 
+    logger = log.Logger(filename=log.get_logfilename(machine_config), 
                                     remote_logpath = remote_logpath)
     log_sources = utils.get_key(kwargs, 'log_sources')
     if log_sources is not None:
