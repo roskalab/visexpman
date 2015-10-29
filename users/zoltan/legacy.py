@@ -311,6 +311,8 @@ class PhysTiff2Hdf5(object):
 def phys2mat(filename):
     if os.path.isdir(filename):
         filename = fileop.find_files_and_folders(filename, extension = 'phys')[1]
+    else:
+        filename=[filename]
     import scipy.io
     from visexpman.engine.vision_experiment.experiment_data import read_phys
     for f in filename:
@@ -318,7 +320,7 @@ def phys2mat(filename):
         for k in metadata.keys():
             metadata[stringop.to_variable_name(k)] = metadata[k]
             del metadata[k]
-        scipy.io.savemat(f.replace('.phys','.mat'), {'data': data, 'metadata': metadata}, oned_as='column')
+        scipy.io.savemat(f.replace('.phys','.mat'), {'data': numpy.cast['int'](data), 'metadata': metadata}, oned_as='column')
         
         
 class TestConverter(unittest.TestCase):
