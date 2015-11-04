@@ -1789,7 +1789,7 @@ class TestScannerControl(unittest.TestCase):
         from PIL import Image
         from visexpman.engine.generic import signal,introspect
         from visexpman.users.test import unittest_aggregator
-        if unittest_aggregator.TEST_data is None:
+        if unittest_aggregator.TEST_data_folder is None:
             return
             
         constraints = {}
@@ -1801,7 +1801,7 @@ class TestScannerControl(unittest.TestCase):
         constraints['movement2voltage']=1.0/128.0#includes voltage to angle factor
         x,y,frame_sync,stim_sync,valid_data_mask,signal_attributes = \
                             generate_scanner_signals(utils.rc((50,50)), 3, utils.rc((0,0)), constraints)
-        folder = os.path.join(unittest_aggregator.TEST_data, 'two-photon-snapshots', 'data')
+        folder = os.path.join(unittest_aggregator.TEST_data_folder, 'two-photon-snapshots', 'data')
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
                             
