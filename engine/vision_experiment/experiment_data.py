@@ -159,7 +159,7 @@ class CaImagingData(hdf5io.Hdf5io):
                         del r['area']
             self.outfile = fileop.get_convert_filename(self.filename, 'mat')
             #Write to mat file
-            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True)
+            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
             fileop.set_file_dates(self.outfile, self.file_info)
         elif format == 'png':
             self._save_meanimage()

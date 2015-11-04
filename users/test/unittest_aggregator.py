@@ -72,7 +72,7 @@ if TEST_os == 'Darwin':
 #The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
 #TEST_pixel_difference_threshold = 50.0
 
-TEST_working_folder = ['/tmp', '/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', 'c:\\temp']
+TEST_working_folder = ['/tmp/wf', '/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', 'c:\\temp']
 TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/tmp', 'c:\\temp']
 TEST_test_data_folder = ['/mnt/rzws/test_data', 'r:\\test_data', '/home/rz/codes/data/test_data']
 

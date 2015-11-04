@@ -415,7 +415,7 @@ class Analysis(object):
         h.parameter_distributions=self.parameter_distributions
         h.save(['stage_coordinates','cells', 'parameter_distributions'])
         h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True)
+        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
         self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
         self.to_gui.put({'display_cell_tree':self.cells})
         self.display_trace_parameter_distribution()
