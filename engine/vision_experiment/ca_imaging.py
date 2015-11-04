@@ -73,6 +73,7 @@ class CaImaging(gui.VisexpmanMainWindow):
         self.toolbar = gui.ToolBar(self, ['live_ir_camera', 'live_two_photon', 'snap_two_photon', 'stop', 'exit'])
         self.addToolBar(self.toolbar)
         self.images=Images(self)
+        self.images.image['Live'].img.setLevels(0,255)
         self.setCentralWidget(self.images)
         self.debug = gui.Debug(self)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
@@ -88,7 +89,7 @@ class CaImaging(gui.VisexpmanMainWindow):
         self.connect(self.timer_img_read, QtCore.SIGNAL('timeout()'), self.read_image)
         self.isrunning=False
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
-        
+        import multiprocessing
         self.cmd=Queue.Queue()
         self.irimg=Queue.Queue()
         self.u=UdpListener(self.cmd,self.irimg)
@@ -158,6 +159,8 @@ class CaImaging(gui.VisexpmanMainWindow):
         self._stop_engine()
         self.cmd.put('terminate')
         self.u.join()
+#        if self.u.is_alive():
+#            self.u.terminate()
         self.close()
         
     def params_changed(self, param, changes):
@@ -186,11 +189,17 @@ class CaImaging(gui.VisexpmanMainWindow):
             elif msg.has_key('set_isrunning'):
                 self.isrunning = msg['set_isrunning']
         if not self.irimg.empty():
-            self.images.image['Live'].set_image(self.irimg.get())
+            self.ir=self.irimg.get()
+            self.ir=numpy.rollaxis(numpy.tile(numpy.rot90(numpy.fliplr(self.ir),1),(3,1,1)),0,3)
+            self.images.image['Live'].set_image(self.ir,1)
+            self.images.image['Live'].plot.setTitle(str(self.ir.sum()))
+            
                 
-import threading,socket
+import threading,socket,multiprocessing
 class UdpListener(threading.Thread):
+#class UdpListener(multiprocessing.Process):
     def __init__(self,input,output):
+#        multiprocessing.Process.__init__(self)
         threading.Thread.__init__(self)
         self.input=input
         self.output=output
@@ -198,39 +207,71 @@ class UdpListener(threading.Thread):
     def run(self):
         sock = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP
-        sock.bind(('127.0.0.1', 8888))
-        sock.settimeout(5)
+        sock.bind(('127.0.0.1', 8880))
+        sock.settimeout(1)
         linect=0
-
-        frame=numpy.zeros(1200*1600,dtype=numpy.uint8)
+        NLINES=30
+        NCOLS=20
+        image_width=1600/2
+        frame=numpy.zeros(NLINES*image_width*NCOLS,dtype=numpy.uint8)
         framect=1
+        buff=""
+        lcs=[]
+
         while True:
-            try:
-                data, addr = sock.recvfrom(10*1600) # buffer size is 1024 bytes
-                #print data
-                s=linect*16000
-                e=(linect+1)*16000
-                linect+=1
-                #print linect,len(data),linect>=1200/10
-                frame[s:e]=numpy.fromstring(data,dtype=numpy.uint8)
-                if linect>=1200/10:
-                    #print 'ok'
-                    now=time.time()
-                    #print now-t
-                    t=now
-                    linect=0
-                    self.output.put(frame.reshape((1200,1600)))
-                    print 'frame',frame.sum(),frame[:10],numpy.diff(frame)
-                    #print self.output.empty()
-                    from PIL import Image
-                    Image.fromarray(frame.reshape((1200,1600))).save('/tmp/t{0}.png'.format(framect))
-                    framect+=1
-            except:
-                pass
             
+            try:
+                data, addr = sock.recvfrom(NCOLS*image_width+9) # buffer size is 1024 bytes
+                
+                buff+=data
+                #linect=ord(data.split('start')[1][0])
+                #print linect,self.input.empty()
+                #lcs.append(linect)
+                if 1:
+                   # fileop.write_text_file('c:\\tmp\\buf.txt',str(len(buff))+' '+str(framect))
+                    
+                    if 'start' in buff and 'end' in buff:
+                        msg=buff.split('start')[1].split('end')[0]
+                        linect=ord(msg[0])
+                        lines=msg[1:]
+                        buff=buff.replace(buff.split('start')[0]+'start'+msg+'end','')
+    #                    f=open('c:\\tmp\\lct.txt','at')
+    #                    f.write('{0}\r\n'.format(linect))
+    #                    f.close()
+                        #print data
+                        s=linect*image_width*NCOLS
+                        e=(linect+1)*image_width*NCOLS
+                        #print linect,len(data),linect>=1200/10
+                        #print s,e,len(lines)
+                        frame[s:e]=numpy.fromstring(lines,dtype=numpy.uint8)
+                        #numpy.save('c:\\rz\\l.npy',numpy.fromstring(lines,dtype=numpy.uint8))
+                        #print 2
+                        #if linect>=1200/30-1:
+                        lcs.append(linect)
+                        #print linect,s,e,NLINES-1
+                        if linect==NLINES-1:
+                            #print 1
+                            frameo=frame.reshape((NCOLS*NLINES,image_width))
+                            
+                            
+                            
+                            
+                            
+                            send=frameo
+                        
+                            self.output.put(send)
+                            #fileop.write_text_file('c:\\tmp\\1.txt',str(time.time()))
+                            #frame=numpy.zeros(1200*1600,dtype=numpy.uint8)
+    #                        from PIL import Image
+    #                        Image.fromarray(send).save('c:\\tmp\\ddd.png')
+                            framect+=1
+            except:
+                import traceback
+                fileop.write_text_file('c:\\tmp\\e.txt',traceback.format_exc())
             if not self.input.empty() and self.input.get()=='terminate':
+                fileop.write_text_file('c:\\tmp\\lines.txt',str(lcs))
                 break
-        
+           # time.sleep(1e-3)
 #class CameraService(rpyc.Service):
 #        
 #    def on_connect(self):
