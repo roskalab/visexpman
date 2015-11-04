@@ -10,7 +10,7 @@ import pyqtgraph
 from visexpman.engine.generic import gui,utils,videofile
 from visexpman.engine.hardware_interface import daq_instrument
 #TODO: test stim channel info in mat file
-#TODO: add comments
+#TODO: check video frame rate 
 #TODO: trace labels
 
 class Config(object):
@@ -143,6 +143,7 @@ class CWidget(QtGui.QWidget):
         self.open_valve=gui.LabeledCheckBox(self,'Open Valve')#This checkbox is for controlling the valve manually
         self.open_valve.setToolTip('When checked, the valve is open')
         self.save_data=gui.LabeledCheckBox(self,'Save Data')#Checking this checkbox enables saving the video and the speed signal of a session
+        self.save_data.input.setCheckState(2)
         
         self.start = QtGui.QPushButton('Start', parent=self)#Start recording/experiment session
         self.start.setMaximumWidth(100)
@@ -308,13 +309,6 @@ class Behavioral(gui.SimpleAppWindow):
             speed=self.config.RUN_DIRECTION*ds/(self.now-self.data[0,-1])*self.config.PIXEL2SPEED
         else:
             speed=0#At the first call of cursor handler the previous cursor position is not known
-        #Check stim and valve states:
-        if not self.hwresponse.empty():
-            resp=self.hwresponse.get()#If there is a stim ready message...
-            if resp=='stim ready':
-                self.stim_state=0#...set the stim_state to 0
-            elif resp == 'reward ready':#Same for valve state
-                self.valve_state=False
         #collect all the data to one array: time, cursor position, speed, valve state, stimulus state
         newdata=numpy.array([[self.now, self.cursor_position,speed,int(self.valve_state),int(self.stim_state)]]).T
         self.data = numpy.append(self.data, newdata,axis=1)#Append it to data
@@ -325,6 +319,13 @@ class Behavioral(gui.SimpleAppWindow):
         self.cw.plotw.plot.setXRange(min(t), max(t))#Set the x range of plot
         #Call the protocol handler which value is taken from protocol selection combox
         getattr(self, str(self.cw.select_protocol.input.currentText()).lower())()
+        #Check stim and valve states:
+        if not self.hwresponse.empty():
+            resp=self.hwresponse.get()#If there is a stim ready message...
+            if resp=='stim ready':
+                self.stim_state=0#...set the stim_state to 0
+            elif resp == 'reward ready':#Same for valve state
+                self.valve_state=False
         
     def stop_reward(self):
         '''
@@ -431,7 +432,7 @@ class Behavioral(gui.SimpleAppWindow):
         data2save['frametime']=self.frame_times
         self.log('Video capture frame rate was {0}'.format(1/numpy.diff(self.frame_times).mean()))
         #Write data to mat file
-        scipy.io.savemat(filename, data2save,oned_as='row')
+        scipy.io.savemat(filename, data2save,oned_as='row', do_compression=True)
         self.log('Data saved to {0}'.format(filename))
         vfilename=filename.replace('.mat','.mp4')
         #frames saved to a temporary folder are used for generating an mpeg4 video file.
