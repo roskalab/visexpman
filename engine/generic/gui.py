@@ -154,7 +154,10 @@ class SimpleAppWindow(Qt.QMainWindow):
         self.log_update_timer = QtCore.QTimer()#Makes sure that whole logfile is always displayed on screen
         self.log_update_timer.timeout.connect(self.logfile2screen)
         self.log_update_timer.start(300)
-        self.show()
+        if hasattr(self,'maximized') and self.maximized:
+            self.showMaximized()
+        else:
+            self.show()
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
 
@@ -287,6 +290,7 @@ class ParameterTable(ParameterTree):
             return res
         else:
             return values, paths, refs
+            
     
 class TextOut(QtGui.QTextEdit):
     def __init__(self, parent):
@@ -459,6 +463,15 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 self.rois[i].setPen(self.selected_color)
             else:
                 self.rois[i].setPen(self.unselected_color)
+                
+def index2filename(index):
+    filename = str(index.model().filePath(index))
+    #Make compatible filename with win and linux systems
+    filename = filename.replace('/', os.sep)
+    filename = list(filename)
+    filename[0] = filename[0].lower()
+    filename = ''.join(filename)
+    return filename
         
 class FileTree(QtGui.QTreeView):
     def __init__(self,parent, root, extensions = []):
@@ -466,7 +479,7 @@ class FileTree(QtGui.QTreeView):
         QtGui.QTreeView.__init__(self,parent)
         self.model = QtGui.QFileSystemModel(self)
         self.setModel(self.model)
-        self.setRootIndex(self.model.setRootPath( root ))
+        self.set_root(root)
         filterlist = ['*.'+e for e in extensions]
         self.model.setNameFilters(QtCore.QStringList(filterlist))
         self.model.setNameFilterDisables(False)
@@ -479,6 +492,9 @@ class FileTree(QtGui.QTreeView):
         
     def test(self,i):
         print self.model.filePath(self.currentIndex())
+        
+    def set_root(self,root):
+        self.setRootIndex(self.model.setRootPath( root ))
 
 class ArrowButtons(QtGui.QGroupBox):
     def __init__(self, name, parent):

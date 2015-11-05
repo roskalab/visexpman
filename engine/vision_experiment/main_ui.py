@@ -246,24 +246,14 @@ class DataFileBrowser(gui.FileTree):
         self.doubleClicked.connect(self.file_open)
         self.clicked.connect(self.file_selected)
         self.setToolTip('Double click on file to open')
-        
         self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.open_menu)
         
-    def _get_filename(self,index):
-        filename = str(index.model().filePath(index))
-        #Make compatible filename with win and linux systems
-        filename = filename.replace('/', os.sep)
-        filename = list(filename)
-        filename[0] = filename[0].lower()
-        filename = ''.join(filename)
-        return filename
-        
     def file_selected(self,index):
-        self.selected_filename = self._get_filename(index)
+        self.selected_filename = gui.index2filename(index)
         
     def file_open(self,index):
-        filename = self._get_filename(index)
+        filename = gui.index2filename(index)
         if os.path.isdir(filename): return#Double click on folder is ignored
         ext = fileop.file_extension(filename)
         if ext == 'hdf5':
