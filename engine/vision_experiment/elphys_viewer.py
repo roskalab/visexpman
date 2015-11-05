@@ -1,4 +1,4 @@
-import sys
+import sys,multiprocessing
 import subprocess,tempfile,os,unittest,numpy,scipy.io,scipy.signal
 from pylab import *
 
@@ -67,14 +67,12 @@ def filter_trace(pars):
     highpassfiltered=scipy.signal.filtfilt(highpass[0],highpass[1], signal).real
     return lowpassfiltered, highpassfiltered
     
-def filter(elphys, cutoff,order,fs,pool=None):
+def filter(elphys, cutoff,order,fs):
     lowpass=scipy.signal.butter(order,cutoff/fs,'low')
     highpass=scipy.signal.butter(order,cutoff/fs,'high')
     lowpassfiltered=numpy.zeros_like(elphys)
     highpassfiltered=numpy.zeros_like(elphys)
-    import multiprocessing
-    if pool is None:
-        pool=multiprocessing.Pool(introspect.get_available_process_cores())
+    pool=multiprocessing.Pool(introspect.get_available_process_cores())
     pars=[(lowpass,highpass,elphys[i]) for i in range(elphys.shape[0])]
     res=pool.map(filter_trace,pars)
     pool.terminate()
@@ -82,6 +80,21 @@ def filter(elphys, cutoff,order,fs,pool=None):
         lowpassfiltered[i]=res[i][0]
         highpassfiltered[i]=res[i][1]
     return lowpassfiltered, highpassfiltered
+    
+def spikes2bins(pars):
+    channel,nrepetitions, repetition_window_length,edges,spike_times,bins,spike_binning=pars
+    aggr_per_channel=[]
+    spiking_map=numpy.zeros((nrepetitions, repetition_window_length), dtype=numpy.uint8)
+    for rep in numpy.arange(nrepetitions)*2:
+        start=edges[rep]
+        end=edges[rep+1]
+        spike_times_in_rep = spike_times[channel][numpy.where(numpy.logical_and(spike_times[channel]>start,spike_times[channel]<end))[0]]
+        spike_times_in_rep-=start
+        aggr_per_channel.extend(list(spike_times_in_rep))
+        spiking_map[rep/2][spike_times_in_rep]=1
+    hist,b=numpy.histogram(aggr_per_channel,bins)
+    spiking_frq=hist/spike_binning/edges.shape[0]/2
+    return spiking_frq, spiking_map
     
 def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_binning):
     '''
@@ -110,22 +123,16 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_bi
     trep=(bins+0.5*spike_binnings)/sample_rate
     spiking_frqs=[]
     spiking_maps = []
-    for channel in range(len(spike_times)):
-        aggr_per_channel=[]
-        spiking_map=numpy.zeros((nrepetitions, repetition_window_length), dtype=numpy.uint8)
-        for rep in numpy.arange(nrepetitions)*2:
-            start=edges[rep]
-            end=edges[rep+1]
-            spike_times_in_rep = spike_times[channel][numpy.where(numpy.logical_and(spike_times[channel]>start,spike_times[channel]<end))[0]]
-            spike_times_in_rep-=start
-            aggr_per_channel.extend(list(spike_times_in_rep))
-            spiking_map[rep/2][spike_times_in_rep]=1
+    pars=[(channel,nrepetitions, repetition_window_length,edges,spike_times,bins,spike_binning) for channel in range(len(spike_times))]
+    pool=multiprocessing.Pool(introspect.get_available_process_cores())
+    res=pool.map(spikes2bins,pars)
+    pool.terminate()
+    for i in range(len(res)):
+        spiking_frq, spiking_map = res[i]
         spiking_maps.append(spiking_map)
-        hist,bins=numpy.histogram(aggr_per_channel,bins)
-        spiking_frq=hist/spike_binning/edges.shape[0]/2
         spiking_frqs.append(spiking_frq)
     spiking_frqs=numpy.array(spiking_frqs)
-    return spiking_frqs,low_frequency_avg,spiking_maps
+    return spiking_frqs,low_frequency_avg*ad_scaling,spiking_maps,sample_rate
     
 class ElphysViewerFunctions(unittest.TestCase):
     @unittest.skipIf(os.name!='nt', 'Works only on Windows')
@@ -171,12 +178,9 @@ class DataFileBrowser(QtGui.QWidget):
         self.select_folder=QtGui.QPushButton('Select Folder',self)
         self.select_folder.setMaximumWidth(150)
         self.connect(self.select_folder, QtCore.SIGNAL('clicked()'), self.select_folder_clicked)
-        
-        
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.filetree, 0, 0, 4, 1)
         self.l.addWidget(self.select_folder, 4, 0, 1, 1)
-        
         self.setLayout(self.l)
         
        
@@ -200,6 +204,37 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
             self.plots.append(p)
             if (i+1)%2==0 and i!=0:
                 self.nextRow()
+                
+    def plot(self,x,y,pen=(0,0,0),label=''):
+        yi=numpy.array(y)
+        ymin=y.min()
+        ymax=y.max()
+        for i in range(self.nplots):
+            self.plots[i].setLabels(left=label, bottom='time [ms]')
+            self.plots[i].setYRange(ymin,ymax)
+            curve = self.plots[i].plot(pen=pen)
+            curve.setData(x, y[i])
+            
+class MultipleImages(pyqtgraph.GraphicsLayoutWidget):
+    def __init__(self,parent, nplots):
+        self.nplots=nplots
+        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setBackground((255,255,255))
+        self.plots=[]
+        self.imgs=[]
+        for i in range(nplots):
+            p=self.addPlot()
+            p.setLabels(left='', bottom='t [ms]')
+            img = pyqtgraph.ImageItem(border='w')
+            p.addItem(img)
+            self.imgs.append(img)
+            self.plots.append(p)
+            if (i+1)%4==0 and i!=0:
+                self.nextRow()
+                
+    def set(self,images):
+        for i in range(self.nplots):
+            self.imgs[i].setImage(images[i])
             
 class CWidget(QtGui.QWidget):
     '''
@@ -207,7 +242,7 @@ class CWidget(QtGui.QWidget):
     '''
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
-        self.df=DataFileBrowser(self,'/home/rz/rzws/dataslow/elphys_viewer',['mat', 'mcd', 'raw'])
+        self.df=DataFileBrowser(self,'/tmp',['mat', 'mcd', 'raw'])
         self.df.setMinimumWidth(400)
         self.df.setMaximumWidth(500)
         self.df.setMinimumHeight(400)
@@ -227,21 +262,15 @@ class CWidget(QtGui.QWidget):
         self.params.setMinimumWidth(400)
         self.params.setMaximumWidth(500)
         self.params.setMaximumHeight(300)
-        self.plots=MultiplePlots(self,16)
-        self.plots.setMinimumWidth(800)
-        
+
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.df, 0, 0, 1, 1)
-        self.l.addWidget(self.params, 1, 0, 1, 1)
-        self.l.addWidget(self.plots, 0, 2, 2, 1)
-        
+        self.l.addWidget(self.params, 0, 1, 1, 1)
         self.setLayout(self.l)
 
 class ElphysViewer(gui.SimpleAppWindow):
     #TODO: context
     #TODO: save params to file
-    #TODO figure out stim type
-    #TODO give warning when filter params are changed!!!
     def init_gui(self):
         self.toolbar = gui.ToolBar(self, ['add_note', 'save','reconvert_all', 'concatenate_files', 'exit'])
         TOOLBAR_HELP = '''
@@ -259,10 +288,8 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.debugw.setMinimumHeight(250)
         self.setMinimumWidth(1200)
         self.setMinimumHeight(750)
-        self.maximized=True
+        self.maximized=False
         self.cw.df.filetree.doubleClicked.connect(self.open_file)
-        import multiprocessing
-        self.pool=multiprocessing.Pool(introspect.get_available_process_cores())
         
     def open_file(self, index):
         self.filename = gui.index2filename(index)
@@ -274,25 +301,39 @@ class ElphysViewer(gui.SimpleAppWindow):
             post=params['Post Stimulus Time']
             filter_order=params['Filter Order']
             fcut=params['Lowpass Cut Frequency']
-            fcut=params['Lowpass Cut Frequency']
             spike_threshold_std=params['Spike Threshold']
             spike_binning=params['Spiking Frequency Window Size']
-            self.spiking_frqs,self.low_frequency_avg,self.spiking_maps = raw2spikes(self.filename,pre,post,filter_order,fcut,spike_threshold_std, spike_binning)
+            self.spiking_frqs,self.low_frequency_avg,self.spiking_maps,self.fsample = raw2spikes(self.filename,pre,post,filter_order,fcut,spike_threshold_std, spike_binning)
+            self.tplot=1e3*numpy.linspace(0,self.spiking_frqs.shape[1]*spike_binning,self.spiking_frqs.shape[1])
+            self.tplotlf=1e3*numpy.linspace(0,self.low_frequency_avg.shape[1]/self.fsample,self.low_frequency_avg.shape[1])
+            self.nchannels=self.spiking_frqs.shape[0]
             
-        elif ext == 'mat':
-            data=scipy.io.loadmat(self.filename,mat_dtype=True)
-            fnflatten=['sample_rate','ad_scaling']
-            for fni in fnflatten:
-                setattr(self, fni, data[fni].flatten()[0])
-            self.digital=data['digital'].flatten()
-            self.t=data['t'].flatten()
-            self.elphys=data['elphys'].flatten()
-            self.log('{0} opened'.format(self.filename))
+            self.spike_frq_plots=MultiplePlots(None,self.nchannels)
+            self.spike_frq_plots.setWindowTitle('Spiking Frequency')
+            self.spike_frq_plots.plot(self.tplot,self.spiking_frqs,label='Hz')
+            
+            self.dc_plots=MultiplePlots(None,self.nchannels)
+            self.dc_plots.setWindowTitle('DC')
+            self.dc_plots.plot(self.tplotlf,self.low_frequency_avg*1e6,label='uV')
 
+            self.images=MultipleImages(None,self.nchannels)
+            self.images.setWindowTitle('Spikes')
+            self.images.set(self.spiking_maps)
             
+            self.spike_frq_plots.show()
+            self.dc_plots.show()
+            self.images.show()
+        self.log('{0} opened'.format(self.filename))
 
     def exit_action(self):
         self.close()
+        [getattr(self,w).close() for w in ['spike_frq_plots', 'dc_plots','images'] if hasattr(self, w)]
+        if hasattr(self, 'dc_plots'):
+            del self.dc_plots
+        if hasattr(self, 'spike_frq_plots'):
+            del self.spike_frq_plots
+        if hasattr(self, 'images'):
+            del self.images
         
     def save_action(self):
         pass
