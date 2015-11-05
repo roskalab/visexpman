@@ -9,8 +9,7 @@ import pyqtgraph
 
 from visexpman.engine.generic import fileop,introspect,gui
 
-ELECTRODE_ORDER=[16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]
-ELECTRODE_SPACING=50
+ELECTRODE_ORDER=[16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]#TODO: add this to parameter tree
 
 def mcd2raw(filename):
     cmdfile=os.path.join(fileop.visexpman_package_path(), 'data', 'mcd2raw16.cmd')
@@ -194,7 +193,7 @@ class DataFileBrowser(QtGui.QWidget):
         self.filetree.set_root(folder)
     
 class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent,nplots):
+    def __init__(self,parent,nplots,electrode_spacing):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.nplots=nplots
         self.setBackground((255,255,255))
@@ -204,7 +203,7 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
             p=self.addPlot()
             p.enableAutoRange()
             p.showGrid(True,True,1.0)
-            p.setTitle('{0} um'.format(-ELECTRODE_SPACING*i))
+            p.setTitle('{0} um'.format(-electrode_spacing*i))
             self.plots.append(p)
             if (i+1)%2==0 and i!=0:
                 self.nextRow()
@@ -220,7 +219,7 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
             curve.setData(x, y[i])
             
 class MultipleImages(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent, nplots):
+    def __init__(self,parent, nplots,electrode_spacing):
         self.nplots=nplots
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.setBackground((255,255,255))
@@ -229,7 +228,7 @@ class MultipleImages(pyqtgraph.GraphicsLayoutWidget):
         for i in range(nplots):
             p=self.addPlot()
             p.setLabels(left='', bottom='t [ms]')
-            p.setTitle('{0} um'.format(-ELECTRODE_SPACING*i))
+            p.setTitle('{0} um'.format(-electrode_spacing*i))
             img = pyqtgraph.ImageItem(border='w')
             p.addItem(img)
             self.imgs.append(img)
@@ -261,6 +260,8 @@ class CWidget(QtGui.QWidget):
                 {'name': 'Spiking Frequency Window Size', 'type': 'float', 'value': 5e-3, 'suffix': 's','siPrefix': True},
                 {'name': 'Pre Stimulus Time', 'type': 'float', 'value': 200e-3, 'suffix': 's','siPrefix': True},
                 {'name': 'Post Stimulus Time', 'type': 'float', 'value': 200e-3, 'suffix': 's','siPrefix': True},
+                {'name': 'Electrode Spacing', 'type': 'float', 'value': 50e-6, 'suffix': 'm','siPrefix': True},
+                {'name': 'Electrode Order', 'type': 'list', 'value': [16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]},
                     ]
 
         self.params = gui.ParameterTable(self, params_config)
@@ -314,15 +315,15 @@ class ElphysViewer(gui.SimpleAppWindow):
             self.tplotlf=1e3*numpy.linspace(0,self.low_frequency_avg.shape[1]/self.fsample,self.low_frequency_avg.shape[1])
             self.nchannels=self.spiking_frqs.shape[0]
             
-            self.spike_frq_plots=MultiplePlots(None,self.nchannels)
+            self.spike_frq_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'])
             self.spike_frq_plots.setWindowTitle('Spiking Frequency')
             self.spike_frq_plots.plot(self.tplot,self.spiking_frqs[electrode_order],label='Hz')
             
-            self.dc_plots=MultiplePlots(None,self.nchannels)
+            self.dc_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'])
             self.dc_plots.setWindowTitle('DC')
             self.dc_plots.plot(self.tplotlf,self.low_frequency_avg[electrode_order]*1e6,label='uV')
 
-            self.images=MultipleImages(None,self.nchannels)
+            self.images=MultipleImages(None,self.nchannels,params['Electrode Spacing'])
             self.images.setWindowTitle('Spikes')
             self.images.set(self.spiking_maps[electrode_order])
             
