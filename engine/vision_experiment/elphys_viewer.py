@@ -9,6 +9,9 @@ import pyqtgraph
 
 from visexpman.engine.generic import fileop,introspect,gui
 
+ELECTRODE_ORDER=[16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]
+ELECTRODE_SPACING=50
+
 def mcd2raw(filename):
     cmdfile=os.path.join(fileop.visexpman_package_path(), 'data', 'mcd2raw16.cmd')
     cmdfiletxt=fileop.read_text_file(cmdfile)
@@ -132,6 +135,7 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_bi
         spiking_maps.append(spiking_map)
         spiking_frqs.append(spiking_frq)
     spiking_frqs=numpy.array(spiking_frqs)
+    spiking_maps = numpy.array(spiking_maps)
     return spiking_frqs,low_frequency_avg*ad_scaling,spiking_maps,sample_rate
     
 class ElphysViewerFunctions(unittest.TestCase):
@@ -182,7 +186,6 @@ class DataFileBrowser(QtGui.QWidget):
         self.l.addWidget(self.filetree, 0, 0, 4, 1)
         self.l.addWidget(self.select_folder, 4, 0, 1, 1)
         self.setLayout(self.l)
-        
        
     def select_folder_clicked(self):
         folder=self.parent().parent().ask4foldername('Select folder', self.root)
@@ -201,6 +204,7 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
             p=self.addPlot()
             p.enableAutoRange()
             p.showGrid(True,True,1.0)
+            p.setTitle('{0} um'.format(-ELECTRODE_SPACING*i))
             self.plots.append(p)
             if (i+1)%2==0 and i!=0:
                 self.nextRow()
@@ -225,6 +229,7 @@ class MultipleImages(pyqtgraph.GraphicsLayoutWidget):
         for i in range(nplots):
             p=self.addPlot()
             p.setLabels(left='', bottom='t [ms]')
+            p.setTitle('{0} um'.format(-ELECTRODE_SPACING*i))
             img = pyqtgraph.ImageItem(border='w')
             p.addItem(img)
             self.imgs.append(img)
@@ -297,6 +302,7 @@ class ElphysViewer(gui.SimpleAppWindow):
         ext = fileop.file_extension(self.filename)
         params=self.cw.params.get_parameter_tree(True)
         if ext == 'raw':
+            electrode_order=numpy.array(ELECTRODE_ORDER)-1
             pre=params['Pre Stimulus Time']
             post=params['Post Stimulus Time']
             filter_order=params['Filter Order']
@@ -310,15 +316,15 @@ class ElphysViewer(gui.SimpleAppWindow):
             
             self.spike_frq_plots=MultiplePlots(None,self.nchannels)
             self.spike_frq_plots.setWindowTitle('Spiking Frequency')
-            self.spike_frq_plots.plot(self.tplot,self.spiking_frqs,label='Hz')
+            self.spike_frq_plots.plot(self.tplot,self.spiking_frqs[electrode_order],label='Hz')
             
             self.dc_plots=MultiplePlots(None,self.nchannels)
             self.dc_plots.setWindowTitle('DC')
-            self.dc_plots.plot(self.tplotlf,self.low_frequency_avg*1e6,label='uV')
+            self.dc_plots.plot(self.tplotlf,self.low_frequency_avg[electrode_order]*1e6,label='uV')
 
             self.images=MultipleImages(None,self.nchannels)
             self.images.setWindowTitle('Spikes')
-            self.images.set(self.spiking_maps)
+            self.images.set(self.spiking_maps[electrode_order])
             
             self.spike_frq_plots.show()
             self.dc_plots.show()
