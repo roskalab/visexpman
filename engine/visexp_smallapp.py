@@ -199,25 +199,36 @@ class SerialportPulseGenerator(SmallApp):
 class ReceptiveFieldPlotter(SmallApp):
     def __init__(self):
         SmallApp.__init__(self)
-        self.resize(2000,900)
+        
         self.image = gui.Image(self)
         self.plots = gui.Plots(self)
+        if len(sys.argv)==2 and sys.argv[1]=='rec':
+            self.plots.setMinimumWidth(1600)
+            self.resize(2000,900)
+            self.plots.setMinimumHeight(900)
+        else:
+            self.plots.setMinimumWidth(800)
+            self.plots.setMaximumHeight(300)
+            self.resize(1500,800)
+            self.image.setMinimumWidth(500)
+            self.image.setMinimumHeight(500)
         
-        self.plots.setMinimumWidth(1600)
-        self.plots.setMinimumHeight(900)
         
         self.open_file_button = QtGui.QPushButton('Open file', self)
         self.update_plots_button = QtGui.QPushButton('Update plots', self)
         help='First roi: cell, second roi: background'
         self.help = QtGui.QLabel(help, self)
-        self.text_out.setMaximumHeight(300)
+        self.text_out.setMaximumHeight(200)
+        self.debug=gui.PythonConsole(self, self)
+        self.debug.setFixedHeight(200)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.open_file_button, 0, 0, 1, 1)
         self.layout.addWidget(self.update_plots_button, 0, 1, 1, 1)
         self.layout.addWidget(self.help, 0, 2, 1, 7)
-        self.layout.addWidget(self.plots, 1, 0, 1, 5)
+        self.layout.addWidget(self.plots, 1, 0, 1, 3)
         self.layout.addWidget(self.image, 1, 6, 1, 2)
-        self.layout.addWidget(self.text_out, 2, 0, 1, 10)
+        self.layout.addWidget(self.text_out, 2, 0, 1, 5)
+        self.layout.addWidget(self.debug, 2, 6, 1, 5)
         self.setLayout(self.layout)
         self.connect(self.open_file_button, QtCore.SIGNAL('clicked()'),  self.open_file)
         self.connect(self.update_plots_button, QtCore.SIGNAL('clicked()'),  self.update_plots)
@@ -241,12 +252,30 @@ class ReceptiveFieldPlotter(SmallApp):
         self.filename = self.filenames[0]
         if not os.path.exists(self.filename):return
         if len([fn for fn in self.filenames if 'ReceptiveFieldExploreNew' not in fn])>0:
-            self.notify_user('Warning', 'This stimulus is not supported')
-            return
+            #self.notify_user('Warning', 'This is not a receptive field stimulus. Single ROI mode')
+            self.is_recfield_stim=False
+        else:
+            self.is_recfield_stim=True
         
         import copy
         hh=hdf5io.Hdf5io(self.filename,filelocking=False)
         self.rawdata =copy.deepcopy(hh.findvar('rawdata'))
+        self.t = hh.findvar('sync_signal')['data_frame_start_ms']*1e-3
+        #Read sync data
+        import visexpA.engine.component_guesser as cg
+        self.printc(cg.select_measurement(hh).split('\\')[-1])
+        idnode=hh.findvar(cg.select_measurement(hh).split('\\')[-1])
+        from visexpA.engine.datahandlers.importers import load_configs
+        self.machine_config, self.experiment_config = load_configs(hh)
+        self.synct=numpy.linspace(0, idnode['sync_data'].shape[0]/float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE']), idnode['sync_data'].shape[0])
+        self.sync_data=idnode['sync_data'][:, 0]
+        self.sync_visual_stim=idnode['sync_data'][:, 1]
+        self.sync_l_stim=idnode['sync_data'][:, 2]
+        if self.rawdata is None:
+            self.notify_user('Warning', 'Not yet prcessed by Jobhandler')
+            self.plots.setFixedWidth(1000)
+            hh.close()
+            return
         self.scale = copy.deepcopy(hh.findvar('image_scale')['row'][0])
 #        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
 #        idnode = hh.findvar('_'.join(os.path.split(self.filename)[1].replace('.hdf5','').split('_')[-3:]))
@@ -300,6 +329,48 @@ class ReceptiveFieldPlotter(SmallApp):
             self.notify_user('Warning', 'Open a file first')
             return
         #Generate plot data
+        if not self.is_recfield_stim and len(self.image.rois)==1:
+            if hasattr(self, 'p'):
+                self.plots.removeItem(self.p) 
+                del self.p
+            filename = self.filenames[0]
+            rawdata = hdf5io.read_item(filename, 'rawdata',filelocking=False)
+            roipos = self.image.rois[0].pos()
+            roiposx=int(roipos.x()/self.scale)
+            roiposy=int(roipos.y()/self.scale)
+            roisize = int(self.image.rois[0].size().x()/self.scale)
+            mask=numpy.zeros_like(self.meanimage, numpy.uint16)
+            m=numpy.zeros_like(mask)
+            m[roiposx:roiposx+roisize,roiposy:roiposy+roisize]=1
+            coo=numpy.nonzero(m)
+            rsq=(0.5*roisize)**2
+            for cx,cy in zip(coo[0],coo[1]):
+                if (roiposx+0.5*roisize-cx)**2+(roiposy+0.5*roisize-cy)**2<rsq:
+                    mask[cx,cy]=1
+            import copy
+            masked = numpy.rollaxis(rawdata, 2, 0)[:,:,:,0]
+            masked *= mask
+            raw_trace=masked.mean(axis=1).mean(axis=1)
+            self.update_image(self.meanimage,mask*self.meanimage.max()*0.7)
+            self.p=self.plots.addPlot()
+            self.p.plot(self.t, raw_trace-raw_trace.min(), pen=(255, 0, 0))
+            self.p.plot(self.synct, numpy.where(self.sync_visual_stim>1.6, 1, 0), pen=(0, 128, 0))
+            if hasattr(self.experiment_config,  'FLASH_AMPLITUDE'):
+                if self.experiment_config.FLASH_AMPLITUDE>0.1:
+                    s=numpy.where(self.sync_l_stim>self.experiment_config.FLASH_AMPLITUDE, 1, 0)
+                else:
+                    s=self.sync_l_stim
+                self.p.plot(self.synct, s, pen=(0, 0,  255))
+            #self.p.plot(self.synct, self.sync_data, pen=(0, 128,  255))
+            self.p.showGrid(True,True,1.0)
+            
+            
+#            for pp in self.plots.plots:
+#                pp.setYRange(min(plotrangemin), max(plotrangemax))
+            self.printc('Plots are updated')
+            
+            
+            return
         if len(self.image.rois)==0:
             raw_trace = self.overall_activity
             self.notify_user('Warning', 'No roi selected,overall activity is plotted')

@@ -16,6 +16,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 import pyqtgraph
+import pyqtgraph.console
 
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
@@ -36,6 +37,12 @@ BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following forma
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
 
 ENABLE_SCAN_REGION_SERIALIZATION= False
+
+class PythonConsole(pyqtgraph.console.ConsoleWidget):
+    def __init__(self, parent, selfw = None):
+        if selfw == None:
+            selfw = parent.parent
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils,  'numpy': numpy}, text = 'self: main gui widget, numpy, utils, fileop, signal')
 
 class Poller(QtCore.QThread):
     '''
