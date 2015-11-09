@@ -14,24 +14,26 @@ class CRTMEASetup(MCMEAConfig):
         COORDINATE_SYSTEM='center'
         self.root_folder = fileop.select_folder_exists(['/tmp', 'c:\\temp'])
         LOG_PATH = self.root_folder
+        EXPERIMENT_DATA_PATH=self.root_folder
         CONTEXT_PATH = self.root_folder
         FILTERWHEEL = [{
                 'connected to': 'main_ui',
                 'port' :  'TBD',
                 'baudrate' : 115200,
-                'filters' : {
-                                        
-                                        }
+                'filters' : {'TBD':1}
                 },
                 {
                 'connected to': '',
                 'port' :  'TBD',
                 'baudrate' : 115200,
-                'filters' : {
-                                      
-                                        }
+                'filters' : {'TBD':1}
                 }]
-        self.GUI['SIZE'] =  utils.cr((1280,1024))
+        self.GUI['SIZE'] =  utils.cr((1024,768))
+        main_ui_ip = '127.0.0.1'
+        stim_ip = '127.0.0.1'
+        self.CONNECTIONS['stim']['ip']['stim'] = stim_ip
+        self.CONNECTIONS['stim']['ip']['main_ui'] = main_ui_ip
+        self.BASE_PORT = 10000
         self._create_parameters_from_locals(locals())
 
 class MEAConfig(HiMEAConfig):

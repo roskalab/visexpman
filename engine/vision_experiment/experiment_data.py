@@ -40,6 +40,27 @@ def get_recording_filename(config, parameters, prefix):
 def get_recording_path(parameters, config, prefix = ''):
     return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters, prefix))
     
+def get_user_experiment_data_folder(config):
+    '''
+    Returns path to folder where user's experiment data can be saved
+    '''
+    for parname in ['user', 'EXPERIMENT_DATA_PATH']:
+        if not hasattr(config, parname):
+            raise RuntimeError('{0} parameter is not available'.format(parname))
+    user_experiment_data_folder = os.path.join(config.EXPERIMENT_DATA_PATH, config.user)
+    if not os.path.exists(user_experiment_data_folder):
+        os.makedirs(user_experiment_data_folder)
+    return user_experiment_data_folder
+    
+def find_recording_filename(id, config_or_path):
+    if isinstance(config_or_path,str):
+        foldername = config_or_path
+    else:
+        foldername = get_user_experiment_data_folder(config_or_path)
+    res = [fn for fn in listdir_fullpath(foldername) if id in fn]
+    if len(res)==1:
+        return res[0]
+    
 def parse_recording_filename(filename):
     items = {}
     items['folder'] = os.path.split(filename)[0]

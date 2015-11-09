@@ -476,13 +476,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         try:
             self.prepare()
-            self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
+            self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
             time.sleep(0.1)
             
             if self.machine_config.PLATFORM=='hi_mea':
                 #send start signal
                 self._send_himea_cmd("start")
-            else:
+            elif self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.send({'trigger':'stim started'})
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             self.run()
@@ -490,12 +490,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
-            else:
+            elif self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if not self.abort:
-                self.printl('Stimulation ended, saving data to file')
+                self.printl('Stimulation ended')
                 self._save2file()
-            self.send({'trigger':'stim data ready'})
+                self.printl('Data saved to {0}'.format(self.datafilename))
+            if self.machine_config.PLATFORM=='elphys_retinal_ca':
+                self.send({'trigger':'stim data ready'})
             self.frame_rates = numpy.array(self.frame_rates)
             fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
             self.log.info(fri, source = 'stim')
@@ -554,7 +556,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self._data2matfile_compatible()
             if self.machine_config.PLATFORM == 'hi_mea':
                 #the latest file's name with a specific format
-                latest_file = fileop.find_latest(os.path.split(fileop.get_user_experiment_data_folder(self.machine_config))[0],extension=None)#TODO: extension tbd
+                latest_file = fileop.find_latest(os.path.split(experiment_data.get_user_experiment_data_folder(self.machine_config))[0],extension=None)#TODO: extension tbd
                 if latest_file is None:
                     filename_prefix = ''
                 else:
@@ -564,7 +566,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             else:
                 filename_prefix = 'stim'
                 fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
-            scipy.io.savemat(fn, self.datafile, oned_as = 'column') 
+            self.datafilename=fn
+            scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
     def _data2matfile_compatible(self):
         '''Make sure that keys are not longer than 31 characters'''
@@ -676,7 +679,7 @@ class ExperimentControl(object):#OBSOLETE
         message = self._prepare_experiment(context)
         if message is not None:
             message_to_screen += message
-            message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
+            message = '{0} started at {1}' .format(self.name, utils.datetime_string())
             if context.has_key('experiment_count'):
                 message = '{0} {1}'.format( context['experiment_count'],  message)
             message_to_screen += self.printl(message,  application_log = True) + '\n'
@@ -1197,8 +1200,7 @@ class ExperimentControl(object):#OBSOLETE
                                     'generated_data' : self.experiment_specific_data, 
                                     'experiment_source' : experiment_source, 
                                     'software_environment' : software_environment, 
-                                    'experiment_name': self.experiment_name, 
-                                    'experiment_config_name': self.experiment_config_name, 
+                                    'experiment_name': self.name, 
                                     }
         if len(self.parameters.keys()) > 0:#Empty dictionary not saved
             data_to_file['call_parameters'] = self.parameters
@@ -1567,7 +1569,7 @@ class TestCaImaging(unittest.TestCase):
         saved = numpy.cast['float'](image_context['save'][1])
         displayed = image_context['display'][:,:,0]
         numpy.testing.assert_almost_equal(saved/scaling16bit*(maxpmtvoltage+2*maxnoiselevel) - maxnoiselevel, displayed*maxpmtvoltage,3)
-        datafiles = fileop.listdir_fullpath(fileop.get_user_experiment_data_folder( self.context['machine_config']))
+        datafiles = experiment_data.listdir_fullpath(fileop.get_user_experiment_data_folder( self.context['machine_config']))
         datafiles.sort()
         self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)
         #check content of datafiles

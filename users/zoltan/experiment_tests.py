@@ -1,8 +1,8 @@
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
-class NaturalBarsConfig1(experiment.ExperimentConfig):
-    def _create_parameters(self):
+class NaturalBarsExperiment1(experiment.Stimulus):
+    def stimulus_configuration(self):
         self.SPEED = [800, 400,1500.0]#um/s
         self.SPEED = [400]
         self.REPEATS = 2 #5
@@ -11,24 +11,23 @@ class NaturalBarsConfig1(experiment.ExperimentConfig):
         self.BACKGROUND_TIME = 0
         self.BACKGROUND_COLOR = 0.5
         self.ALWAYS_FLY_IN_OUT = not False
-        self.runnable = 'NaturalBarsExperiment1'
-        self._create_parameters_from_locals(locals())
 
-class NaturalBarsExperiment1(experiment.Experiment):
-    def prepare(self):
-        self.stimulus_duration = self.experiment_config.DURATION
+    def calculate_stimulus_duration(self):
+        self.duration = self.DURATION
         
     def run(self):
-        self.show_fullscreen(duration = self.experiment_config.DURATION, color =  self.experiment_config.BACKGROUND_COLOR)
+        self.show_fullscreen(duration = self.DURATION, color =  self.BACKGROUND_COLOR)
 
 class Flash(experiment.Stimulus):
     def stimulus_configuration(self):
-        self.DURATION=0.2
+        self.DURATION=0.5
         
     def calculate_stimulus_duration(self):
-        self.duration=self.DURATION
+        self.duration=self.DURATION*3
         
     def run(self):
+        self.show_fullscreen(color=0.0,duration=self.DURATION)
+        self.show_fullscreen(color=0.5,duration=self.DURATION)
         self.show_fullscreen(color=1.0,duration=self.DURATION)
 
 if __name__ == "__main__":

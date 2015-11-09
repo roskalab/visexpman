@@ -346,7 +346,7 @@ def write_text_file(filename, content):
     f.close()
 
 ################# Vision experiment manager related ####################
-
+#TODO: This shoudl go to experiment_data
 def visexpman_package_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
 
@@ -355,18 +355,6 @@ def get_user_module_folder(config):
     Returns folder path where user's stimulation files or other source files reside
     '''
     return os.path.join(visexpman_package_path(), 'users', config.user)
-
-def get_user_experiment_data_folder(config):
-    '''
-    Returns path to folder where user's experiment data can be saved
-    '''
-    for parname in ['user', 'EXPERIMENT_DATA_PATH']:
-        if not hasattr(config, parname):
-            raise RuntimeError('{0} parameter is not available'.format(parname))
-    user_experiment_data_folder = os.path.join(config.EXPERIMENT_DATA_PATH, config.user)
-    if not os.path.exists(user_experiment_data_folder):
-        os.makedirs(user_experiment_data_folder)
-    return user_experiment_data_folder
 
 def get_context_filename(config):
     '''
@@ -378,19 +366,11 @@ def get_context_filename(config):
     filename = 'context_{0}_{1}_{2}.hdf5'.format(config.user_interface_name, config.user, platform.uname()[1])
     return os.path.join(config.CONTEXT_PATH, filename)
 
-def find_recording_filename(id, config_or_path):
-    if isinstance(config_or_path,str):
-        foldername = config_or_path
-    else:
-        foldername = get_user_experiment_data_folder(config_or_path)
-    res = [fn for fn in listdir_fullpath(foldername) if id in fn]
-    if len(res)==1:
-        return res[0]
-
 def cleanup_files(config):
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
     if os.path.exists(get_context_filename(config)):
         os.remove(get_context_filename(config))
+        
 ################# Experiment file related ####################
 
 def generate_animal_filename(animal_parameters):

@@ -601,7 +601,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.context_filename = fileop.get_context_filename(self.machine_config)
         self.load_context()
         self.widget_status = {}
-        self.last_periodic = time.time()
+        self.last_network_check=time.time()
         
     def load_context(self):
         self.guidata = GUIData()
@@ -665,22 +665,34 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         parameter_name: name of parameter changed
         Depending on which parameter changed certain things has to be recalculated
         '''
-                
+
     def check_network_status(self):
+        now=time.time()
+        if now-self.last_network_check<4:
+            return
+        self.last_network_check=now
         self.connected_nodes = ''
         n_connected = 0
         n_connections = len(self.socket_queues.keys())
         for remote_node_name, socket in self.socket_queues.items():
-            if self.ping(timeout=0.3, connection=remote_node_name):
+            if self.ping(timeout=0.5, connection=remote_node_name):
                 self.connected_nodes += remote_node_name + ' '
                 n_connected += 1
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
+        
+    def check_network_messages(self):
+        for connname in self.socket_queues.keys():
+            msg=self.recv(connname)
+            if msg is not None and 'ping' not in msg  and 'pong' not in msg:
+                if isinstance(msg,str):
+                    self.printc('{0} {1}'.format(connname.upper(),msg))
         
     def run(self):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                self.periodic()
+                self.check_network_status()
+                self.check_network_messages()
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()
                     if msg == 'terminate':
@@ -707,25 +719,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.close_open_files()
             time.sleep(20e-3)
         self.close()
-        
-    def periodic(self):
-        if self.last_run-self.last_periodic>1.0:
-            self.last_periodic=time.time()
-            self.one_second_periodic()
-            
-    def one_second_periodic(self):
-        pass
-        
-    def update_network_connection_status(self):
-        #Check for network connection status
-        self.connected_nodes = ''
-        n_connected = 0
-        n_connections = len(self.socket_queues.keys())
-        for remote_node_name, socket in self.socket_queues.items():
-            if self.ping(timeout=1.0, connection=remote_node_name):
-                self.connected_nodes += remote_node_name + ' '
-                n_connected += 1
-        self.printc('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes))
         
     def close_open_files(self):
         if hasattr(self, 'datafile') and self.datafile.h5f.isopen==1:

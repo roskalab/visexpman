@@ -1498,6 +1498,7 @@ class testVisionExperimentGui(unittest.TestCase):
         Load animal parameter files from data storage, copy second to experiment data, then modify it.
         Finally create a new animal file
         '''
+        from visexpman.engine.vision_experiment import experiment_data
         #Create animal file in tmp
         self._create_animal_parameter_file('data_storage1')
         self._create_animal_parameter_file('data_storage2')
@@ -1507,13 +1508,13 @@ class testVisionExperimentGui(unittest.TestCase):
         context = self._read_context()
         self._check_logfile(context)
         for fn in context['variables']['self.animal_file.animal_files.keys']:
-            if 'data_storage2' in fn and  fileop.get_user_experiment_data_folder(self.machine_config) in fn:
+            if 'data_storage2' in fn and  experiment_data.get_user_experiment_data_folder(self.machine_config) in fn:
                 copied_animal_file = fn
                 break
         self.assertEqual((
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], 'data_storage1'), 
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], 'data_storage2'), 
-            stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], fileop.get_user_experiment_data_folder(self.machine_config)), 
+            stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], experiment_data.get_user_experiment_data_folder(self.machine_config)), 
             len(context['variables']['self.animal_file.animal_files.keys']), 
             utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)), 
             utils.array2object(hdf5io.read_item(copied_animal_file, 'animal_parameters', self.machine_config)),

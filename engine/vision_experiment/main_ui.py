@@ -83,6 +83,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.setColumnCount(1)
         self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
         self.setMaximumWidth(350)
+        self.setMinimumHeight(400)
         self.populate()
         self.itemDoubleClicked.connect(self.stimulus_selected)
         self.itemSelectionChanged.connect(self.get_selected_stimulus)
@@ -419,18 +420,19 @@ class MainUI(gui.VisexpmanMainWindow):
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        self.image = Image(self)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
-        self.adjust=gui.ImageAdjust(self)
-        self.adjust.setFixedHeight(40)
-        self.adjust.low.setValue(0)
-        self.adjust.high.setValue(99)
-        self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
-        self.plot = gui.Plot(self)
-        self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-        self.plot.setMaximumWidth(self.image.width())
-        self.plot.plot.setLabels(bottom='sec')
-        self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.image = Image(self)
+            self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+            self.adjust=gui.ImageAdjust(self)
+            self.adjust.setFixedHeight(40)
+            self.adjust.low.setValue(0)
+            self.adjust.high.setValue(99)
+            self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
+            self.plot = gui.Plot(self)
+            self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
+            self.plot.setMaximumWidth(self.image.width())
+            self.plot.plot.setLabels(bottom='sec')
+            self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         
         self.stimulusbrowser = StimulusTree(self, fileop.get_user_module_folder(self.machine_config) )
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
@@ -466,9 +468,10 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+            self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+            self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
-        self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
-        self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+        
         
         self.network_status_timer=QtCore.QTimer()
         if 0: self.network_status_timer.start(2000)#ms
@@ -541,21 +544,20 @@ class MainUI(gui.VisexpmanMainWindow):
         fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
         fw2.sort()
         self.params_config = [
-                {'name': 'Experiment', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
+                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Cell Name', 'type': 'str', 'value': ''},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
                     {'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''},
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Projector On', 'type': 'bool', 'value': False},
+                    {'name': 'Projector On', 'type': 'bool', 'value': False, 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye'},
                     {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     ]},
-                
                     ]
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.params_config.extend(
