@@ -7,7 +7,32 @@ try:
 except:
     pass
 from visexpman.engine.generic import utils,fileop
-from visexpman.engine.vision_experiment.configuration import HiMEAConfig
+from visexpman.engine.vision_experiment.configuration import HiMEAConfig,MCMEAConfig
+
+class CRTMEASetup(MCMEAConfig):
+    def _set_user_parameters(self):
+        COORDINATE_SYSTEM='center'
+        self.root_folder = fileop.select_folder_exists(['/tmp', 'c:\\temp'])
+        LOG_PATH = self.root_folder
+        CONTEXT_PATH = self.root_folder
+        FILTERWHEEL = [{
+                'connected to': 'main_ui',
+                'port' :  'TBD',
+                'baudrate' : 115200,
+                'filters' : {
+                                        
+                                        }
+                },
+                {
+                'connected to': '',
+                'port' :  'TBD',
+                'baudrate' : 115200,
+                'filters' : {
+                                      
+                                        }
+                }]
+        self.GUI['SIZE'] =  utils.cr((1280,1024))
+        self._create_parameters_from_locals(locals())
 
 class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):

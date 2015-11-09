@@ -75,7 +75,8 @@ class ExperimentHandler(object):
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
-        self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
 
 class Analysis(object):
