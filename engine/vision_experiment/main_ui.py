@@ -471,11 +471,6 @@ class MainUI(gui.VisexpmanMainWindow):
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
-        
-        
-        self.network_status_timer=QtCore.QTimer()
-        if 0: self.network_status_timer.start(2000)#ms
-        self.connect(self.network_status_timer, QtCore.SIGNAL('timeout()'), self.check_network_status)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -554,7 +549,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Projector On', 'type': 'bool', 'value': False, 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye'},
+                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     ]},
@@ -586,7 +581,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
         
     def stop_action(self):
-        pass
+        self.to_engine.put({'function': 'stop_experiment', 'args':[]})
         
     def refresh_stimulus_files_action(self):
         self.stimulusbrowser.populate()

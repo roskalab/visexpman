@@ -414,6 +414,7 @@ class MCMEAConfig(VisionExperimentConfig):
         PLATFORM = 'mc_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
         STIM_RECORDS_ANALOG_SIGNALS = False
+        START_STOP_TRIGGER_WIDTH=[50e-3,[1e-3,1]]
         self._create_parameters_from_locals(locals())
 
 class HiMEAConfig(VisionExperimentConfig):

@@ -60,6 +60,23 @@ class ExperimentHandler(object):
         import subprocess
         process = subprocess.Popen(['gedit', filename], shell=self.machine_config.OS != 'Linux')
         
+    def check_parameter_changes(self, parameter_name):
+        '''
+        parameter_name: name of parameter changed
+        Depending on which parameter changed certain things has to be recalculated
+        '''
+        if parameter_name == 'Bullseye On':
+            self.send({'function': 'toggle_bullseye','args':[]},'stim')
+        elif parameter_name == 'Bullseye Size':
+            self.send({'function': 'set_variable','args':['bullseye_size',self.guidata.read('Bullseye Size')]},'stim')
+        elif parameter_name == 'Bullseye Shape':
+            self.send({'function': 'set_variable','args':['bullseye_type',self.guidata.read('Bullseye Shape')]},'stim')
+        elif parameter_name == 'Grey Level':
+            self.send({'function': 'set_context_variable','args':['background_color',self.guidata.read('Grey Level')*1e-2]},'stim')            
+        elif parameter_name == 'Stimulus Center X' or parameter_name == 'Stimulus Center Y':
+            v=utils.rc((self.guidata.read('Stimulus Center Y'), self.guidata.read('Stimulus Center X')))
+            self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')            
+        
     def start_experiment(self):
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
@@ -78,6 +95,12 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        
+    def stop_experiment(self):
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.send({'function': 'stop_all','args':[]},'ca_imaging')
+        self.send({'function': 'stop_all','args':[]},'stim')
+        
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -594,7 +617,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.unittest=unittest
         self.log=log
         self.machine_config = machine_config
-        #queued_socket.QueuedSocketHelpers.__init__(self, self.socket_queues)
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
@@ -659,12 +681,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         '''
         for k,v in status.items():
             self.widget_status[k]=v
-            
-    def check_parameter_changes(self, parameter_name):
-        '''
-        parameter_name: name of parameter changed
-        Depending on which parameter changed certain things has to be recalculated
-        '''
 
     def check_network_status(self):
         now=time.time()
@@ -702,7 +718,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 #parse message
                 if msg.has_key('data'):#expected format: {'data': value, 'path': gui path, 'name': name}
                     self.guidata.add(msg['name'], msg['data'], msg['path'])#Storing gui data
-                    self.check_parameter_changes(msg['name'])
+                    [getattr(c,'check_parameter_changes')(self,msg['name']) for c in self.__class__.__bases__ if hasattr(c,'check_parameter_changes')]
                 elif msg.has_key('read'):#gui might need to read guidata database
                     value = self.guidata.read(**msg)
                     getattr(self, 'to_gui').put(value)
@@ -732,10 +748,6 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
         GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
         Analysis.__init__(self, machine_config)
-        
-    def one_second_periodic(self):
-        return
-        self.update_network_connection_status()
 
     def close(self):
         self.close_analysis()

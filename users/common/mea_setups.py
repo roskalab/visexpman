@@ -28,6 +28,10 @@ class CRTMEASetup(MCMEAConfig):
                 'baudrate' : 115200,
                 'filters' : {'TBD':1}
                 }]
+                
+        #DIGITAL_IO_PORT='COM4'
+        BLOCK_TRIGGER_PIN=1
+        FRAME_TRIGGER_PIN=2
         self.GUI['SIZE'] =  utils.cr((1024,768))
         main_ui_ip = '127.0.0.1'
         stim_ip = '127.0.0.1'

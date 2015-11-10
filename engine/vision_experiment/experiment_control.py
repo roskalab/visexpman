@@ -484,6 +484,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self._send_himea_cmd("start")
             elif self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.send({'trigger':'stim started'})
+            elif self.machine_config.PLATFORM=='mc_mea':
+                self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH)
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             self.run()
             self.log.resume()
@@ -496,8 +498,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl('Stimulation ended')
                 self._save2file()
                 self.printl('Data saved to {0}'.format(self.datafilename))
-            if self.machine_config.PLATFORM=='elphys_retinal_ca':
-                self.send({'trigger':'stim data ready'})
+                if self.machine_config.PLATFORM=='elphys_retinal_ca':
+                    self.send({'trigger':'stim data ready'})
+            else:
+                self.printl('Stimulation stopped')
+            if self.machine_config.PLATFORM=='mc_mea':
+                self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH)
             self.frame_rates = numpy.array(self.frame_rates)
             fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
             self.log.info(fri, source = 'stim')

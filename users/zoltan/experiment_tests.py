@@ -13,10 +13,15 @@ class NaturalBarsExperiment1(experiment.Stimulus):
         self.ALWAYS_FLY_IN_OUT = not False
 
     def calculate_stimulus_duration(self):
-        self.duration = self.DURATION
+        self.duration = self.DURATION*3*2
         
     def run(self):
-        self.show_fullscreen(duration = self.DURATION, color =  self.BACKGROUND_COLOR)
+        for i in range(3):
+            self.show_fullscreen(duration = self.DURATION/2, color =  self.BACKGROUND_COLOR)
+            self.block_start()
+            self.show_fullscreen(duration = self.DURATION, color =  1.0)
+            self.block_end()
+            self.show_fullscreen(duration = self.DURATION/2, color =  self.BACKGROUND_COLOR)
 
 class Flash(experiment.Stimulus):
     def stimulus_configuration(self):
