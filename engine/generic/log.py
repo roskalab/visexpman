@@ -8,7 +8,10 @@ import shutil
 import unittest
 import threading
 import copy
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+except IOError:
+    pass
 from visexpman.engine.generic import utils,fileop,stringop
 
 class LoggingError(Exception):

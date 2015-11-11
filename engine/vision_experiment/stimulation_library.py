@@ -14,11 +14,14 @@ try:
 except ImportError:
     print 'opengl not installed'
 
-import command_handler
 import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
 from visexpman.engine.vision_experiment import screen
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+    test_mode=True
+except IOError:
+    test_mode=False
 
 import unittest
 command_extract = re.compile('SOC(.+)EOC')
@@ -1514,138 +1517,138 @@ class AdvancedStimulation(StimulationHelpers):
             from visexpman.engine.hardware_interface.scanner_control import ScannerError
             raise ScannerError('Position(s) are beyond the scanner\'s operational range')
         daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
+if test_mode:
+    class TestStimulationPatterns(unittest.TestCase):
         
-class TestStimulationPatterns(unittest.TestCase):
+        @unittest.skip('')
+        def test_01_curtain(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
     
-    @unittest.skip('')
-    def test_01_curtain(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
-
-    @unittest.skip('')
-    def test_02_moving_shape(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        from visexpman.users.test.test_stimulus import TestMovingShapeConfig
-        context = stimulation_tester('test', 'GUITestConfig', 'TestMovingShapeConfig', ENABLE_FRAME_CAPTURE = True)
-        ec = TestMovingShapeConfig(context['machine_config'])
-        bgcolor = colors.convert_color(ec.SHAPE_BACKGROUND, context['machine_config'])[0]*255
-        calculated_duration = float(fileop.read_text_file(context['logger'].filename).split('\n')[0].split(' ')[-1])
-        captured_files = map(os.path.join, len(os.listdir(context['machine_config'].CAPTURE_PATH))*[context['machine_config'].CAPTURE_PATH],os.listdir(context['machine_config'].CAPTURE_PATH))
-        captured_files.sort()
-        captured_files=captured_files[1:]#Drop first frame which is some garbage from the video buffer
-        #remove menu frames (red)
-        stim_frames = [captured_file for captured_file in captured_files if not (numpy.asarray(Image.open(captured_file))[:,:,0].sum() > 0 and numpy.asarray(Image.open(captured_file))[:,:,1:].sum() == 0)]
-        #Check pause durations
-        overall_intensity = [numpy.asarray(Image.open(f)).sum() for f in stim_frames]
-        mean_intensity_per_frame = overall_intensity/(context['machine_config'].SCREEN_RESOLUTION['row']*context['machine_config'].SCREEN_RESOLUTION['col']*3)
-        edges = signal.trigger_indexes(mean_intensity_per_frame)
-        pauses = numpy.diff(edges[1:-1])[::2]/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE)
-        self.assertGreaterEqual(pauses.min(), ec.PAUSE_BETWEEN_DIRECTIONS)
-        #TODO: check captured files: shape size, speed
-        numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
-
-    @unittest.skip('')
-    def test_03_natural_stim_spectrum(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        from PIL import Image
-        from visexpman.engine.generic import fileop
-        spd = 300
-        duration = 1.5
-        repeats = 2
-        context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = True,
-                DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd)
-        intensities = []
-        fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
-        #Check if number of frames generated corresponds to duration, repeat and frame rate
-        self.assertAlmostEqual(len(fns), duration*repeats*context['machine_config'].SCREEN_EXPECTED_FRAME_RATE,delta=5)
-        fns.sort()
-        for f in fns[1:]:#First frame might be some garbage in the frame buffer
-            im = numpy.asarray(Image.open(f))
-            first_column = im[:,0]
-            self.assertEqual(first_column.std(),0)#Check if columns have the same color
-            intensities.append(first_column.mean())
-        intensities = numpy.array(intensities)
-        spectrum = abs(numpy.fft.fft(intensities))/2/intensities.shape[0]
-        spectrum = spectrum[:spectrum.shape[0]/2]
-        #TODO: test for checking periodicity
-        #TODO: test for checking 1/x spectrum
-
-    @unittest.skip('')
-    def test_04_natural_export(self):
-        export = True
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
-                STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
-                EXPORT_INTENSITY_PROFILE = export,
-                DURATION = 3.0, REPEATS = 2, DIRECTIONS = range(0, 360, 180), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
-
-#    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
-    @unittest.skip('')
-    def test_05_export2video(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
-        videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
-        self.assertTrue(os.path.exists(videofile))
-        self.assertGreater(os.path.getsize(videofile), 30e3)
-        os.remove(videofile)
+        @unittest.skip('')
+        def test_02_moving_shape(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.users.test.test_stimulus import TestMovingShapeConfig
+            context = stimulation_tester('test', 'GUITestConfig', 'TestMovingShapeConfig', ENABLE_FRAME_CAPTURE = True)
+            ec = TestMovingShapeConfig(context['machine_config'])
+            bgcolor = colors.convert_color(ec.SHAPE_BACKGROUND, context['machine_config'])[0]*255
+            calculated_duration = float(fileop.read_text_file(context['logger'].filename).split('\n')[0].split(' ')[-1])
+            captured_files = map(os.path.join, len(os.listdir(context['machine_config'].CAPTURE_PATH))*[context['machine_config'].CAPTURE_PATH],os.listdir(context['machine_config'].CAPTURE_PATH))
+            captured_files.sort()
+            captured_files=captured_files[1:]#Drop first frame which is some garbage from the video buffer
+            #remove menu frames (red)
+            stim_frames = [captured_file for captured_file in captured_files if not (numpy.asarray(Image.open(captured_file))[:,:,0].sum() > 0 and numpy.asarray(Image.open(captured_file))[:,:,1:].sum() == 0)]
+            #Check pause durations
+            overall_intensity = [numpy.asarray(Image.open(f)).sum() for f in stim_frames]
+            mean_intensity_per_frame = overall_intensity/(context['machine_config'].SCREEN_RESOLUTION['row']*context['machine_config'].SCREEN_RESOLUTION['col']*3)
+            edges = signal.trigger_indexes(mean_intensity_per_frame)
+            pauses = numpy.diff(edges[1:-1])[::2]/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE)
+            self.assertGreaterEqual(pauses.min(), ec.PAUSE_BETWEEN_DIRECTIONS)
+            #TODO: check captured files: shape size, speed
+            numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
     
-    @unittest.skip('Funtion is not ready')
-    def test_06_texture(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
+        @unittest.skip('')
+        def test_03_natural_stim_spectrum(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            from PIL import Image
+            from visexpman.engine.generic import fileop
+            spd = 300
+            duration = 1.5
+            repeats = 2
+            context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = True,
+                    DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd)
+            intensities = []
+            fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
+            #Check if number of frames generated corresponds to duration, repeat and frame rate
+            self.assertAlmostEqual(len(fns), duration*repeats*context['machine_config'].SCREEN_EXPECTED_FRAME_RATE,delta=5)
+            fns.sort()
+            for f in fns[1:]:#First frame might be some garbage in the frame buffer
+                im = numpy.asarray(Image.open(f))
+                first_column = im[:,0]
+                self.assertEqual(first_column.std(),0)#Check if columns have the same color
+                intensities.append(first_column.mean())
+            intensities = numpy.array(intensities)
+            spectrum = abs(numpy.fft.fft(intensities))/2/intensities.shape[0]
+            spectrum = spectrum[:spectrum.shape[0]/2]
+            #TODO: test for checking periodicity
+            #TODO: test for checking 1/x spectrum
+    
+        @unittest.skip('')
+        def test_04_natural_export(self):
+            export = True
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
+                    STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
+                    EXPORT_INTENSITY_PROFILE = export,
+                    DURATION = 3.0, REPEATS = 2, DIRECTIONS = range(0, 360, 180), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
+    
+    #    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
+        @unittest.skip('')
+        def test_05_export2video(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
+            videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
+            self.assertTrue(os.path.exists(videofile))
+            self.assertGreater(os.path.getsize(videofile), 30e3)
+            os.remove(videofile)
         
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-    def test_07_point_laser_beam(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
-
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-    def test_08_point_laser_beam_out_of_range(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
-        self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
+        @unittest.skip('Funtion is not ready')
+        def test_06_texture(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+        def test_07_point_laser_beam(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
+    
+        @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+        def test_08_point_laser_beam_out_of_range(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
+            self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
+            
+        @unittest.skip('')
+        def test_09_show_grating_non_texture(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.users.test.test_stimulus import TestMovingShapeConfig
+            context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
         
-    @unittest.skip('')
-    def test_09_show_grating_non_texture(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        from visexpman.users.test.test_stimulus import TestMovingShapeConfig
-        context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
-    
-    @unittest.skip('')
-    def test_10_block_trigger(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        import hdf5io
-        from visexpman.users.test.test_stimulus import TestStimulusBlockParams
-        context = stimulation_tester('test', 'GUITestConfig', 'TestStimulusBlockParams')
-        ec = TestStimulusBlockParams(context['machine_config'])
-        stim_context = hdf5io.read_item(fileop.get_context_filename(context['machine_config']), 'context', filelocking=False)
-        sfi=utils.array2object(stim_context)['last_experiment_stimulus_frame_info']
-        expected_number_of_blocks = len(ec.COLORS)*2**2+len(ec.IMAGE_FOLDERS)*len(ec.IMAGE_STRETCHES)+len(ec.SHAPES)*len(ec.T_SHAPE)*len(ec.POSITIONS)*len(ec.SIZES)*len(ec.COLORS)
-        expected_number_of_blocks += numpy.prod(map(len, [getattr(ec, p) for p in ['T_GRATING', 'GRATING_PROFILES', 'GRATING_WIDTH', 'GRATING_SPEEDS']]))
-        expected_number_of_blocks += 2
-        if 0:
-            for s in sfi:
-                if s.has_key('block_start') or s.has_key('block_end'):
-                    print s.keys()
-                else:
-                    print s['stimulus_type']
-        self.assertEqual(len([s for s in sfi if 'block_start' in s]), expected_number_of_blocks)
-        self.assertEqual(len([s for s in sfi if 'block_end' in s]), expected_number_of_blocks)
-        #block start and block end entries must be adjacent, no stimulus info should be in between
-        self.assertEqual((numpy.array([i for i in range(len(sfi)) if 'block_end' in sfi[i]])-numpy.array([i for i in range(len(sfi)) if 'block_start' in sfi[i]])).sum(), expected_number_of_blocks)
-        #Check if block indexes are increasing:
-        bidiff = numpy.diff(numpy.array([s['block_start' if s.has_key('block_start') else 'block_end'] for s in sfi if 'block_start' in s or 'block_end' in s]))
-        self.assertGreaterEqual(bidiff.min(),0)
-    
-    @unittest.skip('')    
-    def test_11_checkerboard(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestCheckerboardConfig', ENABLE_FRAME_CAPTURE = False)
-    
-    #@unittest.skip('')
-    def test_12_movinggrating(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
+        @unittest.skip('')
+        def test_10_block_trigger(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            import hdf5io
+            from visexpman.users.test.test_stimulus import TestStimulusBlockParams
+            context = stimulation_tester('test', 'GUITestConfig', 'TestStimulusBlockParams')
+            ec = TestStimulusBlockParams(context['machine_config'])
+            stim_context = hdf5io.read_item(fileop.get_context_filename(context['machine_config']), 'context', filelocking=False)
+            sfi=utils.array2object(stim_context)['last_experiment_stimulus_frame_info']
+            expected_number_of_blocks = len(ec.COLORS)*2**2+len(ec.IMAGE_FOLDERS)*len(ec.IMAGE_STRETCHES)+len(ec.SHAPES)*len(ec.T_SHAPE)*len(ec.POSITIONS)*len(ec.SIZES)*len(ec.COLORS)
+            expected_number_of_blocks += numpy.prod(map(len, [getattr(ec, p) for p in ['T_GRATING', 'GRATING_PROFILES', 'GRATING_WIDTH', 'GRATING_SPEEDS']]))
+            expected_number_of_blocks += 2
+            if 0:
+                for s in sfi:
+                    if s.has_key('block_start') or s.has_key('block_end'):
+                        print s.keys()
+                    else:
+                        print s['stimulus_type']
+            self.assertEqual(len([s for s in sfi if 'block_start' in s]), expected_number_of_blocks)
+            self.assertEqual(len([s for s in sfi if 'block_end' in s]), expected_number_of_blocks)
+            #block start and block end entries must be adjacent, no stimulus info should be in between
+            self.assertEqual((numpy.array([i for i in range(len(sfi)) if 'block_end' in sfi[i]])-numpy.array([i for i in range(len(sfi)) if 'block_start' in sfi[i]])).sum(), expected_number_of_blocks)
+            #Check if block indexes are increasing:
+            bidiff = numpy.diff(numpy.array([s['block_start' if s.has_key('block_start') else 'block_end'] for s in sfi if 'block_start' in s or 'block_end' in s]))
+            self.assertGreaterEqual(bidiff.min(),0)
+        
+        @unittest.skip('')    
+        def test_11_checkerboard(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestCheckerboardConfig', ENABLE_FRAME_CAPTURE = False)
+        
+        #@unittest.skip('')
+        def test_12_movinggrating(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
         
     
 

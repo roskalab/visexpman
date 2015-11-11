@@ -12,9 +12,12 @@ import numpy
 import shutil
 import itertools
 import tables
-
-import hdf5io
-from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
+try:
+    import hdf5io
+    context_file_format='hdf5'
+except ImportError:
+    context_file_format='mat'
+from visexpman.engine.vision_experiment import experiment_data, cone_data
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
@@ -620,7 +623,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
-        self.context_filename = fileop.get_context_filename(self.machine_config)
+        self.context_filename = fileop.get_context_filename(self.machine_config,context_file_format)
         self.load_context()
         self.widget_status = {}
         self.last_network_check=time.time()
@@ -628,10 +631,14 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
     def load_context(self):
         self.guidata = GUIData()
         if os.path.exists(self.context_filename):
-            self.guidata.from_dict(utils.array2object(hdf5io.read_item(self.context_filename, 'guidata', filelocking=False)))
+            if context_file_format=='hdf5':
+                context_stream = hdf5io.read_item(self.context_filename, 'guidata', filelocking=False)
+            elif context_file_format=='mat':
+                context_stream = scipy.io.loadmat(self.context_filename,mat_dtype=True)['guidata'].flatten()
+            self.guidata.from_dict(utils.array2object(context_stream))
         else:
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
-            
+
     def dump(self, filename=None):
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
@@ -643,12 +650,20 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         dump_data['machine_config'] = self.machine_config.serialize()
         if filename is None:
             import tempfile
-            filename = os.path.join(tempfile.gettempdir(), 'dump_{0}.hdf5'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-')))
-        hdf5io.save_item(filename, 'dump_data', utils.object2array(dump_data), filelocking=False)
+            filename = os.path.join(tempfile.gettempdir(), 'dump_{0}.{1}'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-'),context_file_format))
+        dump_stream=utils.object2array(dump_data)            
+        if context_file_format=='hdf5':            
+            hdf5io.save_item(filename, 'dump_data', dump_stream, filelocking=False)
+        elif context_file_format=='mat':
+            scipy.io.savemat(filename,{'dump':dump_stream},oned_as='column',do_compression=True)
         self.printc('GUI engine dumped to {0}'.format(filename))
             
     def save_context(self):
-        hdf5io.save_item(self.context_filename, 'guidata', utils.object2array(self.guidata.to_dict()), filelocking=False, overwrite=True)
+        context_stream=utils.object2array(self.guidata.to_dict())
+        if context_file_format=='hdf5':            
+            hdf5io.save_item(self.context_filename, 'guidata', context_stream, filelocking=False, overwrite=True)
+        elif context_file_format=='mat':            
+            scipy.io.savemat(self.context_filename,{'guidata':context_stream},oned_as='column',do_compression=True)
         
     def get_queues(self):
         return self.from_gui, self.to_gui

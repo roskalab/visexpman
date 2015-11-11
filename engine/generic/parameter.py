@@ -2,7 +2,10 @@ import os.path
 import numpy
 import unittest
 import os
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+except IOError:
+    pass
 
 class InvalidParameterValue(Exception):
     pass

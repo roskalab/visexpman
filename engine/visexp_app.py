@@ -12,14 +12,17 @@ import os.path
 import numpy
 import warnings
 import visexpman.engine
-from visexpman.engine.visexp_gui import VisionExperimentGui
 from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.engine.vision_experiment.screen import StimulationScreen
-from visexpman.engine.vision_experiment import experiment_control
 from visexpman.engine.generic import utils,fileop,introspect
-import hdf5io
+try:
+    import hdf5io#TODO: thismoves with StimulationLoop
+    context_file_type='hdf5'
+except ImportError:
+    import scipy.io
+    context_file_type='mat'
 
-class StimulationLoop(ServerLoop, StimulationScreen):
+class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be moved to stim.py
     def __init__(self, machine_config, socket_queues, command, log):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
         self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
@@ -36,9 +39,13 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         '''
         Loads stim application's context
         '''
-        context_filename = fileop.get_context_filename(self.config)
+        context_filename = fileop.get_context_filename(self.config,context_file_type)
         if os.path.exists(context_filename):
-            self.stim_context = utils.array2object(hdf5io.read_item(context_filename, 'context', self.config))
+            if context_file_type=='hdf5':
+                context_stream = hdf5io.read_item(context_filename, 'context', self.config)
+            elif context_file_type == 'mat':
+                context_stream = scipy.io.loadmat(context_filename,mat_dtype=True)['context'].flatten()
+            self.stim_context = utils.array2object(context_stream)
         else:
             self.stim_context = {}
         if not self.stim_context.has_key('screen_center'):
@@ -51,7 +58,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             self.stim_context['bullseye_size'] = 100.0
 
     def save_stim_context(self):
-        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(self.stim_context), self.config,  overwrite = True)
+        fn=fileop.get_context_filename(self.config,context_file_type)
+        context_stream = utils.object2array(self.stim_context)
+        if context_file_type=='hdf5':
+            hdf5io.save_item(fn, 'context', context_stream, self.config,  overwrite = True)
+        elif context_file_type == 'mat':
+            scipy.io.savemat(fn,{'context':context_stream},oned_as='column',do_compression=True)
         
     def _set_background_color(self,color):
         self.stim_context['background_color'] = color
@@ -252,12 +264,9 @@ def run_stim(context, timeout = None):
 def run_ca_imaging(context, timeout = None):
     context['logger'].add_source('engine')
     context['logger'].start()
-    if 1:
-        from visexpman.engine.vision_experiment import ca_imaging
-        ca_imaging.CaImaging(context=context)
-    else:
-        stim = experiment_control.CaImagingLoop(context['machine_config'], context['socket_queues']['ca_imaging'], context['command'], context['logger'])
-        stim.run(timeout=timeout)
+    from visexpman.engine.vision_experiment import ca_imaging
+    ca_imaging.CaImaging(context=context)
+    
 
 def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''

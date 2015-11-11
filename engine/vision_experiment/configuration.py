@@ -35,8 +35,10 @@ except:
 
 import tempfile
 import unittest
-
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+except IOError:
+    pass
 
 class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

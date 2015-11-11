@@ -23,13 +23,19 @@ import experiment_data
 import visexpman.engine
 from visexpman.engine.generic import log,utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
-from visexpman.engine.hardware_interface import mes_interface,instrument,daq_instrument,stage_control,digital_io,scanner_control,queued_socket
+from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
-import hdf5io
+try:
+    import hdf5io
+except ImportError:
+    print 'hdf5io not installed'
 
 from visexpman.engine.generic.command_parser import ServerLoop
-
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+    test_mode=True
+except IOError:
+    test_mode=False
 import unittest
 
 ENABLE_16_BIT = True
@@ -1372,225 +1378,225 @@ class ExperimentControl(object):#OBSOLETE
         if hasattr(self, 'log') and experiment_log:
             self.log.info(str(message))
         return message
-        
-class TestCaImaging(unittest.TestCase):
-    def setUp(self):
-        self.configname = 'GUITestConfig'
-        #Erase work folder, including context files
-        import visexpman.engine.vision_experiment.configuration
-        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
-        self.machine_config.user_interface_name='ca_imaging'
-        self.machine_config.user = 'test'
-        fileop.cleanup_files(self.machine_config)
-        self.context = visexpman.engine.application_init(user = 'test', config = self.configname, user_interface_name = 'ca_imaging')
-        self.dont_kill_processes = introspect.get_python_processes()
-        self._scanning_params()
-        
-    def tearDown(self):
-        print 1
-        if hasattr(self, 'context'):
-            visexpman.engine.stop_application(self.context)
-            print 2
-        introspect.kill_python_processes(self.dont_kill_processes)
-        
-    def _send_commands_to_stim(self, commands):
-        from visexpman.engine.hardware_interface import queued_socket
-        import multiprocessing
-        client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'ca_imaging'), 
-                                                                                    False, 
-                                                                                    10001,
-                                                                                    multiprocessing.Queue(), 
-                                                                                    multiprocessing.Queue(), 
-                                                                                    ip= '127.0.0.1',
-                                                                                    log=None)
-        client.start()
-        for command in commands:
-            client.send(command)
-        return client
-        
-    def _scanning_params(self):
-        parameters = {
-            'recording_channels' : ['SIDE', 'TOP'], 
-            'enable_scanner_synchronization' : False, 
-            'save2file' : True,
-            'scanning_range' : utils.rc((110.0, 100.0)),
-            'resolution' : 1.0, 
-            'resolution_unit' : 'um/pixel', 
-            'scan_center' : utils.rc((120.0, 120.0)),
-            'trigger_width' : 0.0,
-            'trigger_delay' : 0.0,
-            'status' : 'preparing', 
-            'averaging':2,
-            'id':str(int(numpy.round(time.time(), 2)*100)),
-            'analog_input_sampling_rate': 500000,
-            'analog_output_sampling_rate': 500000,
-            'stimulus_flash_trigger_duty_cycle' : 0.5, 
-            'stimulus_flash_trigger_delay' : 0.0, }
-        constraints = {}
-        constraints['enable_flybackscan']=False
-        constraints['enable_scanner_phase_characteristics']=True
-        constraints['scanner_position_to_voltage']=self.machine_config.POSITION_TO_SCANNER_VOLTAGE
-        constraints['xmirror_max_frequency']=self.machine_config.XMIRROR_MAX_FREQUENCY
-        constraints['ymirror_flyback_time']=self.machine_config.Y_MIRROR_MIN_FLYBACK_TIME
-        constraints['sample_frequency']=parameters['analog_output_sampling_rate']
-        constraints['max_linearity_error']=5e-2
-        constraints['phase_characteristics']=self.machine_config.SCANNER_CHARACTERISTICS['PHASE']
-        constraints['gain_characteristics']=self.machine_config.SCANNER_CHARACTERISTICS['GAIN']
-        #Generate scanner signals and data mask
-        xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
-                            scanner_control.generate_scanner_signals(parameters['scanning_range'], 
-                                                                                parameters['resolution'], 
-                                                                                parameters['scan_center'], 
-                                                                                constraints)
-        #Generate stimulus strigger signal
-        stimulus_flash_trigger_signal, signal_attributes['real_duty_cycle'] = scanner_control.generate_stimulus_flash_trigger(
-                                                                                                                    parameters['stimulus_flash_trigger_duty_cycle'], 
-                                                                                                                    parameters['stimulus_flash_trigger_delay'], 
-                                                                                                                    signal_attributes, 
-                                                                                                                    constraints)
-        for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask']:
-            parameters[pn] = locals()[pn]
-        parameters.update(constraints)
-        parameters.update(signal_attributes)
-        self.parameters=parameters
-        
-    def test_01_ca_imaging_app(self):
-        from visexpman.engine.visexp_app import run_ca_imaging
-        commands = [{'function': 'test'}]
-        commands.append({'function': 'exit_application'})
-        client = self._send_commands_to_stim(commands)
-        run_ca_imaging(self.context, timeout=None)
-        t0=time.time()
-        while True:
-            msg = client.recv()
-            if msg is not None or time.time() - t0>20.0:
-                break
-            time.sleep(1.0)
-        client.terminate()
-        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
-        self.assertIn('test1', fileop.read_text_file(self.context['logger'].filename).lower())
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-    def test_02_run_experiment(self):
-        source = fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test', 'test_stimulus.py'))
-        experiment_names = ['GUITestExperimentConfig', 'TestCommonExperimentConfig']
-        parameters = {
-            'experiment_name': '',
-            'experiment_config_source_code' : source,
-            'cell_name': 'cell0', 
-            'averaging':1,
-            'stimulation_device' : '', 
-            'recording_channels' : ['SIDE'], 
-            'save2file' : True,
-            'enable_scanner_synchronization' : False, 
-            'scanning_range' : utils.rc((100.0, 100.0)),
-            'resolution' : 1.0, 
-            'resolution_unit' : 'um/pixel', 
-            'scan_center' : utils.rc((0.0, 0.0)),
-            'trigger_width' : 0.0,
-            'trigger_delay' : 0.0,
-            'status' : 'preparing', 
-            'id':str(int(numpy.round(time.time(), 2)*100)),
-            'xsignal':numpy.ones(10000),
-            'ysignal':numpy.ones(10000),
-            'stimulus_flash_trigger_signal':numpy.ones(10000),
-            'frame_trigger_signal':numpy.ones(10000),
-            'analog_input_sampling_rate': 10000,
-            'analog_output_sampling_rate': 10000,}
-        commands = []
-        for experiment_name in experiment_names:
-            import copy
-            pars = copy.deepcopy(parameters)
-            pars['experiment_name'] = experiment_name
-            commands.append({'function': 'start_imaging', 'args': [pars]})
-        commands.append({'function': 'exit_application'})
-        client = self._send_commands_to_stim(commands)
-        from visexpman.engine.visexp_app import run_ca_imaging
-        run_ca_imaging(self.context, timeout=None)
-        t0=time.time()
-        while True:
-            msg = client.recv()
-            if msg is not None or time.time() - t0>20.0:
-                break
-            time.sleep(1.0)
-        client.terminate()
-        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_daq, 'Daq tests disabled')
-    def test_03_snap_and_live_imaging(self):
-        commands = []
-        commands.append({'function': 'live_scan_start', 'args': [self.parameters]})
-        commands.append({'function': 'live_scan_stop'})
-        p2=copy.deepcopy(self.parameters)
-        time.sleep(0.1)
-        p2['id'] = str(int(numpy.round(time.time(), 2)*100))
-        commands.append({'function': 'snap_ca_image', 'args': [p2]})
-        commands.append({'function': 'live_scan_stop'})
-        p3=copy.deepcopy(self.parameters)
-        time.sleep(0.1)
-        p3['id'] = str(int(numpy.round(time.time(), 2)*100))
-        commands.append({'function': 'live_scan_start', 'args': [p3]})
-        commands.extend([{'function': 'dummy'} for i in range(10)])
-        commands.append({'function': 'live_scan_stop'})
-        p4=copy.deepcopy(self.parameters)
-        time.sleep(0.1)
-        p4['id'] = str(int(numpy.round(time.time(), 2)*100))
-        commands.append({'function': 'snap_ca_image', 'args': [p4]})
-        commands.append({'function': 'exit_application'})
-        client = self._send_commands_to_stim(commands)
-        from visexpman.engine.visexp_app import run_ca_imaging
-        run_ca_imaging(self.context, timeout=None)
-        t0=time.time()
-        while True:
-            msg = client.recv()
-            if msg is not None or time.time() - t0>20.0:
-                break
-            time.sleep(1.0)
-        client.terminate()
-        time.sleep(2)
-        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
-        #check context file
-        image_context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']),'context', filelocking=False))
-        self.assertIn('save', image_context.keys())
-        self.assertIn('display', image_context.keys())
-        self.assertEqual(image_context['display'].shape, (self.parameters['scanning_range']['row']*self.parameters['resolution'],self.parameters['scanning_range']['col']*self.parameters['resolution'],3))
-        self.assertEqual(image_context['save'].shape, 
-                    (len(self.parameters['recording_channels']),
-                    self.parameters['scanning_range']['row']*self.parameters['resolution'],
-                    self.parameters['scanning_range']['col']*self.parameters['resolution']))
-        self.assertLess(abs(image_context['save'][0].std(axis=0)).max(), 10e-3*2**16)#no big difference between lines
-        self.assertLess(abs(image_context['save'][1].std(axis=1)).max(), 10e-3*2**16)#no big difference between columns
-        self.assertLess(numpy.diff(numpy.cast['float'](image_context['save'][0,0,:])).max(),0)#The intensity in each line decreases
-        self.assertGreater(numpy.diff(numpy.cast['float'](image_context['save'][1,:,0])).min(),0)#The intensity in each column increase
-        #saved and displayed images should be the same
-        #return numpy.cast['uint16'](((image_cut+self.config.MAX_PMT_NOISE_LEVEL)/(2*self.config.MAX_PMT_NOISE_LEVEL+self.config.MAX_PMT_VOLTAGE))*(2**16-1))
-        display_vs_scaled_image_scaling_factor = \
-                    self.context['machine_config'].MAX_PMT_VOLTAGE/(self.context['machine_config'].MAX_PMT_VOLTAGE+2*self.context['machine_config'].MAX_PMT_NOISE_LEVEL)
-        maxpmtvoltage = self.context['machine_config'].MAX_PMT_VOLTAGE
-        maxnoiselevel = self.context['machine_config'].MAX_PMT_NOISE_LEVEL
-        scaling16bit = (2**16-1)
-        saved = numpy.cast['float'](image_context['save'][0])
-        displayed = image_context['display'][:,:,1]
-        numpy.testing.assert_almost_equal(saved/scaling16bit*(maxpmtvoltage+2*maxnoiselevel) - maxnoiselevel, displayed*maxpmtvoltage,3)
-        saved = numpy.cast['float'](image_context['save'][1])
-        displayed = image_context['display'][:,:,0]
-        numpy.testing.assert_almost_equal(saved/scaling16bit*(maxpmtvoltage+2*maxnoiselevel) - maxnoiselevel, displayed*maxpmtvoltage,3)
-        datafiles = experiment_data.listdir_fullpath(fileop.get_user_experiment_data_folder( self.context['machine_config']))
-        datafiles.sort()
-        self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)
-        #check content of datafiles
-        for datafile in datafiles:
-            print datafile
-            h=hdf5io.Hdf5io(datafile,filelocking=False)
-            saved_parameters = h.findvar('imaging_parameters')
-            nframes = h.findvar('imaging_run_info')['acquired_frames']
-            self.assertTrue(isinstance(saved_parameters,dict))
-            h.load('raw_data')
-            self.assertEqual(h.raw_data.shape[1], len(self.parameters['recording_channels']))#Check if number of recorded channels is correct            
-            for frame_i in range(h.raw_data.shape[0]):
-                numpy.testing.assert_almost_equal(numpy.cast['float'](h.raw_data[frame_i,0]),numpy.cast['float'](image_context['save'][0,:,:]),-2)
-                numpy.testing.assert_almost_equal(numpy.cast['float'](h.raw_data[frame_i,1]),numpy.cast['float'](image_context['save'][1,:,:]),-2)
-            h.close()
+if test_mode:        
+    class TestCaImaging(unittest.TestCase):
+        def setUp(self):
+            self.configname = 'GUITestConfig'
+            #Erase work folder, including context files
+            import visexpman.engine.vision_experiment.configuration
+            self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            self.machine_config.user_interface_name='ca_imaging'
+            self.machine_config.user = 'test'
+            fileop.cleanup_files(self.machine_config)
+            self.context = visexpman.engine.application_init(user = 'test', config = self.configname, user_interface_name = 'ca_imaging')
+            self.dont_kill_processes = introspect.get_python_processes()
+            self._scanning_params()
+            
+        def tearDown(self):
+            print 1
+            if hasattr(self, 'context'):
+                visexpman.engine.stop_application(self.context)
+                print 2
+            introspect.kill_python_processes(self.dont_kill_processes)
+            
+        def _send_commands_to_stim(self, commands):
+            from visexpman.engine.hardware_interface import queued_socket
+            import multiprocessing
+            client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'ca_imaging'), 
+                                                                                        False, 
+                                                                                        10001,
+                                                                                        multiprocessing.Queue(), 
+                                                                                        multiprocessing.Queue(), 
+                                                                                        ip= '127.0.0.1',
+                                                                                        log=None)
+            client.start()
+            for command in commands:
+                client.send(command)
+            return client
+            
+        def _scanning_params(self):
+            parameters = {
+                'recording_channels' : ['SIDE', 'TOP'], 
+                'enable_scanner_synchronization' : False, 
+                'save2file' : True,
+                'scanning_range' : utils.rc((110.0, 100.0)),
+                'resolution' : 1.0, 
+                'resolution_unit' : 'um/pixel', 
+                'scan_center' : utils.rc((120.0, 120.0)),
+                'trigger_width' : 0.0,
+                'trigger_delay' : 0.0,
+                'status' : 'preparing', 
+                'averaging':2,
+                'id':str(int(numpy.round(time.time(), 2)*100)),
+                'analog_input_sampling_rate': 500000,
+                'analog_output_sampling_rate': 500000,
+                'stimulus_flash_trigger_duty_cycle' : 0.5, 
+                'stimulus_flash_trigger_delay' : 0.0, }
+            constraints = {}
+            constraints['enable_flybackscan']=False
+            constraints['enable_scanner_phase_characteristics']=True
+            constraints['scanner_position_to_voltage']=self.machine_config.POSITION_TO_SCANNER_VOLTAGE
+            constraints['xmirror_max_frequency']=self.machine_config.XMIRROR_MAX_FREQUENCY
+            constraints['ymirror_flyback_time']=self.machine_config.Y_MIRROR_MIN_FLYBACK_TIME
+            constraints['sample_frequency']=parameters['analog_output_sampling_rate']
+            constraints['max_linearity_error']=5e-2
+            constraints['phase_characteristics']=self.machine_config.SCANNER_CHARACTERISTICS['PHASE']
+            constraints['gain_characteristics']=self.machine_config.SCANNER_CHARACTERISTICS['GAIN']
+            #Generate scanner signals and data mask
+            xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
+                                scanner_control.generate_scanner_signals(parameters['scanning_range'], 
+                                                                                    parameters['resolution'], 
+                                                                                    parameters['scan_center'], 
+                                                                                    constraints)
+            #Generate stimulus strigger signal
+            stimulus_flash_trigger_signal, signal_attributes['real_duty_cycle'] = scanner_control.generate_stimulus_flash_trigger(
+                                                                                                                        parameters['stimulus_flash_trigger_duty_cycle'], 
+                                                                                                                        parameters['stimulus_flash_trigger_delay'], 
+                                                                                                                        signal_attributes, 
+                                                                                                                        constraints)
+            for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask']:
+                parameters[pn] = locals()[pn]
+            parameters.update(constraints)
+            parameters.update(signal_attributes)
+            self.parameters=parameters
+            
+        def test_01_ca_imaging_app(self):
+            from visexpman.engine.visexp_app import run_ca_imaging
+            commands = [{'function': 'test'}]
+            commands.append({'function': 'exit_application'})
+            client = self._send_commands_to_stim(commands)
+            run_ca_imaging(self.context, timeout=None)
+            t0=time.time()
+            while True:
+                msg = client.recv()
+                if msg is not None or time.time() - t0>20.0:
+                    break
+                time.sleep(1.0)
+            client.terminate()
+            self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
+            self.assertIn('test1', fileop.read_text_file(self.context['logger'].filename).lower())
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+        def test_02_run_experiment(self):
+            source = fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test', 'test_stimulus.py'))
+            experiment_names = ['GUITestExperimentConfig', 'TestCommonExperimentConfig']
+            parameters = {
+                'experiment_name': '',
+                'experiment_config_source_code' : source,
+                'cell_name': 'cell0', 
+                'averaging':1,
+                'stimulation_device' : '', 
+                'recording_channels' : ['SIDE'], 
+                'save2file' : True,
+                'enable_scanner_synchronization' : False, 
+                'scanning_range' : utils.rc((100.0, 100.0)),
+                'resolution' : 1.0, 
+                'resolution_unit' : 'um/pixel', 
+                'scan_center' : utils.rc((0.0, 0.0)),
+                'trigger_width' : 0.0,
+                'trigger_delay' : 0.0,
+                'status' : 'preparing', 
+                'id':str(int(numpy.round(time.time(), 2)*100)),
+                'xsignal':numpy.ones(10000),
+                'ysignal':numpy.ones(10000),
+                'stimulus_flash_trigger_signal':numpy.ones(10000),
+                'frame_trigger_signal':numpy.ones(10000),
+                'analog_input_sampling_rate': 10000,
+                'analog_output_sampling_rate': 10000,}
+            commands = []
+            for experiment_name in experiment_names:
+                import copy
+                pars = copy.deepcopy(parameters)
+                pars['experiment_name'] = experiment_name
+                commands.append({'function': 'start_imaging', 'args': [pars]})
+            commands.append({'function': 'exit_application'})
+            client = self._send_commands_to_stim(commands)
+            from visexpman.engine.visexp_app import run_ca_imaging
+            run_ca_imaging(self.context, timeout=None)
+            t0=time.time()
+            while True:
+                msg = client.recv()
+                if msg is not None or time.time() - t0>20.0:
+                    break
+                time.sleep(1.0)
+            client.terminate()
+            self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_daq, 'Daq tests disabled')
+        def test_03_snap_and_live_imaging(self):
+            commands = []
+            commands.append({'function': 'live_scan_start', 'args': [self.parameters]})
+            commands.append({'function': 'live_scan_stop'})
+            p2=copy.deepcopy(self.parameters)
+            time.sleep(0.1)
+            p2['id'] = str(int(numpy.round(time.time(), 2)*100))
+            commands.append({'function': 'snap_ca_image', 'args': [p2]})
+            commands.append({'function': 'live_scan_stop'})
+            p3=copy.deepcopy(self.parameters)
+            time.sleep(0.1)
+            p3['id'] = str(int(numpy.round(time.time(), 2)*100))
+            commands.append({'function': 'live_scan_start', 'args': [p3]})
+            commands.extend([{'function': 'dummy'} for i in range(10)])
+            commands.append({'function': 'live_scan_stop'})
+            p4=copy.deepcopy(self.parameters)
+            time.sleep(0.1)
+            p4['id'] = str(int(numpy.round(time.time(), 2)*100))
+            commands.append({'function': 'snap_ca_image', 'args': [p4]})
+            commands.append({'function': 'exit_application'})
+            client = self._send_commands_to_stim(commands)
+            from visexpman.engine.visexp_app import run_ca_imaging
+            run_ca_imaging(self.context, timeout=None)
+            t0=time.time()
+            while True:
+                msg = client.recv()
+                if msg is not None or time.time() - t0>20.0:
+                    break
+                time.sleep(1.0)
+            client.terminate()
+            time.sleep(2)
+            self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
+            #check context file
+            image_context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']),'context', filelocking=False))
+            self.assertIn('save', image_context.keys())
+            self.assertIn('display', image_context.keys())
+            self.assertEqual(image_context['display'].shape, (self.parameters['scanning_range']['row']*self.parameters['resolution'],self.parameters['scanning_range']['col']*self.parameters['resolution'],3))
+            self.assertEqual(image_context['save'].shape, 
+                        (len(self.parameters['recording_channels']),
+                        self.parameters['scanning_range']['row']*self.parameters['resolution'],
+                        self.parameters['scanning_range']['col']*self.parameters['resolution']))
+            self.assertLess(abs(image_context['save'][0].std(axis=0)).max(), 10e-3*2**16)#no big difference between lines
+            self.assertLess(abs(image_context['save'][1].std(axis=1)).max(), 10e-3*2**16)#no big difference between columns
+            self.assertLess(numpy.diff(numpy.cast['float'](image_context['save'][0,0,:])).max(),0)#The intensity in each line decreases
+            self.assertGreater(numpy.diff(numpy.cast['float'](image_context['save'][1,:,0])).min(),0)#The intensity in each column increase
+            #saved and displayed images should be the same
+            #return numpy.cast['uint16'](((image_cut+self.config.MAX_PMT_NOISE_LEVEL)/(2*self.config.MAX_PMT_NOISE_LEVEL+self.config.MAX_PMT_VOLTAGE))*(2**16-1))
+            display_vs_scaled_image_scaling_factor = \
+                        self.context['machine_config'].MAX_PMT_VOLTAGE/(self.context['machine_config'].MAX_PMT_VOLTAGE+2*self.context['machine_config'].MAX_PMT_NOISE_LEVEL)
+            maxpmtvoltage = self.context['machine_config'].MAX_PMT_VOLTAGE
+            maxnoiselevel = self.context['machine_config'].MAX_PMT_NOISE_LEVEL
+            scaling16bit = (2**16-1)
+            saved = numpy.cast['float'](image_context['save'][0])
+            displayed = image_context['display'][:,:,1]
+            numpy.testing.assert_almost_equal(saved/scaling16bit*(maxpmtvoltage+2*maxnoiselevel) - maxnoiselevel, displayed*maxpmtvoltage,3)
+            saved = numpy.cast['float'](image_context['save'][1])
+            displayed = image_context['display'][:,:,0]
+            numpy.testing.assert_almost_equal(saved/scaling16bit*(maxpmtvoltage+2*maxnoiselevel) - maxnoiselevel, displayed*maxpmtvoltage,3)
+            datafiles = experiment_data.listdir_fullpath(fileop.get_user_experiment_data_folder( self.context['machine_config']))
+            datafiles.sort()
+            self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)
+            #check content of datafiles
+            for datafile in datafiles:
+                print datafile
+                h=hdf5io.Hdf5io(datafile,filelocking=False)
+                saved_parameters = h.findvar('imaging_parameters')
+                nframes = h.findvar('imaging_run_info')['acquired_frames']
+                self.assertTrue(isinstance(saved_parameters,dict))
+                h.load('raw_data')
+                self.assertEqual(h.raw_data.shape[1], len(self.parameters['recording_channels']))#Check if number of recorded channels is correct            
+                for frame_i in range(h.raw_data.shape[0]):
+                    numpy.testing.assert_almost_equal(numpy.cast['float'](h.raw_data[frame_i,0]),numpy.cast['float'](image_context['save'][0,:,:]),-2)
+                    numpy.testing.assert_almost_equal(numpy.cast['float'](h.raw_data[frame_i,1]),numpy.cast['float'](image_context['save'][1,:,:]),-2)
+                h.close()
                 
 if __name__=='__main__':
     unittest.main()

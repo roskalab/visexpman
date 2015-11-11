@@ -23,7 +23,10 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import log
 from visexpman.engine.generic import fileop
 import traceback
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+except:
+    pass
 from visexpman.engine.generic.introspect import list_type
 import multiprocessing
 try:

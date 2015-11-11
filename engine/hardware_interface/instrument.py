@@ -12,7 +12,11 @@ import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils, fileop, log
 import logging
 import visexpman
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+    test_mode=True
+except IOError:
+    test_mode=False
 
 class InstrumentProcess(threading.Thread, log.LoggerHelper):
     '''
@@ -348,60 +352,61 @@ class testLogClass():
         self.log.addHandler(self.handler)
         self.log.setLevel(logging.INFO)
         self.log.info('instrument test')
-   
-class TestParallelPort(unittest.TestCase):
-    def setUp(self):
-        self.state = 'experiment running'
-        self.config = testConfig()
-        self.experiment_control = testLogClass(self.config)
-        
-    def tearDown(self):
-        self.experiment_control.handler.flush()
-        
-#== Parallel port ==
 
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_01_set_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, 1)
-        self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_02_set_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, True)
-        self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_03_set_invalid_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        self.assertRaises(RuntimeError,  p.set_data_bit,  -1, 1)
-        p.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_04_set_invalid_value_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        self.assertRaises(RuntimeError,  p.set_data_bit, 0, 1.0)
-        p.release_instrument()
+if test_mode:   
+    class TestParallelPort(unittest.TestCase):
+        def setUp(self):
+            self.state = 'experiment running'
+            self.config = testConfig()
+            self.experiment_control = testLogClass(self.config)
+            
+        def tearDown(self):
+            self.experiment_control.handler.flush()
+            
+    #== Parallel port ==
     
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_05_toggle_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, True)
-        time.sleep(0.1)
-        p.set_data_bit(0, False)
-        self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_01_set_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, 1)
+            self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_02_set_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, True)
+            self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_03_set_invalid_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            self.assertRaises(RuntimeError,  p.set_data_bit,  -1, 1)
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_04_set_invalid_value_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            self.assertRaises(RuntimeError,  p.set_data_bit, 0, 1.0)
+            p.release_instrument()
         
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_06_parallel_port_call_when_disabled(self):        
-        self.config.ENABLE_PARALLEL_PORT = False
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, True)        
-        self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()        
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_05_toggle_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, True)
+            time.sleep(0.1)
+            p.set_data_bit(0, False)
+            self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_06_parallel_port_call_when_disabled(self):        
+            self.config.ENABLE_PARALLEL_PORT = False
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, True)        
+            self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()        
         
 class DummyInstrumentProcess(InstrumentProcess):
     def run(self):

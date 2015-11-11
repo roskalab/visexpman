@@ -12,7 +12,11 @@ import unittest
 import instrument
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+    test_mode=True
+except IOError:
+    test_mode=False
 
 extract_goniometer_axis1 = re.compile('\rX(.+)\n')
 extract_goniometer_axis2 = re.compile('\rY(.+)\n')
@@ -400,100 +404,100 @@ class MotorTestConfig(visexpman.engine.generic.configuration.Config):
         self._create_parameters_from_locals(locals())
         
         #Test with different positions, speeds and accelerations, log, disabled
-#class TestAllegraStage(unittest.TestCase):
-class TestAllegraStage(unittest.TestCase):
-    def setUp(self):
-        self.config = MotorTestConfig()
-        self.stage = AllegraStage(self.config, None)
-
-    def tearDown(self):
-        self.stage.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
-    def test_01_initialize_stage(self):
-        self.assertEqual((hasattr(self.stage, 'SPEED'), hasattr(self.stage, 'ACCELERATION'), 
-                        hasattr(self.stage, 'position'), hasattr(self.stage, 'position_ustep')),
-                        (True, True, True, True))
-
-    #For some reason the absolute movement does not work reliably
-#     def test_02_absolute_movement(self):
-#         initial_position = self.motor.position
-#         target_position = initial_position + numpy.array([100.0,0.0,0.0])
-#         result1 = self.motor.move(target_position, relative = False)
-#         result2 = self.motor.move(initial_position, relative = False)
-#         self.assertEqual((result1, result2, (abs(self.motor.position - initial_position)).sum()), (True, True, 0.0))
-
-    @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
-    def test_03_relative_movement(self):
-        initial_position = self.stage.position
-        movement_vector = numpy.array([10000.0,1000.0,10.0])
-        result1 = self.stage.move(movement_vector)
-        result2 = self.stage.move(-movement_vector)
-        self.assertEqual((result1, result2, (abs(self.stage.position - initial_position)).sum()), (True, True, 0.0))
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
-    def test_04_movements_stage_disabled(self):
-        self.config.STAGE[0]['ENABLE'] = False
-        self.stage.release_instrument()
-        self.stage = AllegraStage(self.config, None)
-        initial_position = self.stage.position
-        movement_vector = numpy.array([10000.0,1000.0,10.0])
-        result1 = self.stage.move(movement_vector)        
-        self.assertEqual((result1, (abs(self.stage.position - initial_position)).sum()), (False, 0.0))
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
-    def test_05_big_movement_at_different_speeds(self):
-        initial_position = self.stage.position
-        movement_vector = numpy.array([300000.0,-50000.0,100.0])
-        result = True
-        spd = [10000000, 1000000, 100000]
-        accel = [1000000, 100000]
-        
-        for i in range(len(spd)):
-            for j in range(len(accel)):
-                if not self.stage.move(movement_vector, speed = spd[i], acceleration = accel[j]):
-                    result = False
-                movement_vector = - movement_vector
-#                 print '{0}\t{1}\t{2}\t{3}\t{4}' .format(spd[i], accel[j], self.motor.movement, self.motor.movement_time, self.motor.expected_move_time)
-        
-        self.assertEqual((result, (abs(self.stage.position - initial_position)).sum()), (True, 0.0))
-        
-    def test_06_debug_stage(self):
-        pass
-
-class TestMotorizedGoniometer(unittest.TestCase):
-    def setUp(self):
-        self.config = MotorTestConfig()
-        self.mg = MotorizedGoniometer(self.config, id = 1)
-
-    def tearDown(self):
-        self.mg.release_instrument()
-
-    @unittest.skipIf(not unittest_aggregator.TEST_goniometer,  'Stage tests disabled')
-    def test_01_goniometer_small_movement(self):
-        angle_factor = -16.0
-        movements = [angle_factor * numpy.array([1.0, 1.0])]#, -angle_factor * numpy.array([1.0, 2.0])]
-        results = []
-        if self.mg.set_speed(300):
-            for m in movements:
-                results.append(self.mg.move(m))
-                time.sleep(0.0)
-        self.assertEqual(False in results,  False)
-        
-class TestRemoteFocus(unittest.TestCase):
-    def setUp(self):
-        self.rf = RemoteFocus('COM3')
-
-    def tearDown(self):
-        self.rf.close()
-
-    @unittest.skipIf(not unittest_aggregator.TEST_remote_focus,  'Stage tests disabled')
-    def test_01(self):
-        pos = [10.0,100.,-201.,0., -15]
-        for p in pos:
-            self.rf.move(p)
-            print p,self.rf.read_position()
-            self.assertEqual(self.rf.read_position(),p)
+if test_mode:
+    class TestAllegraStage(unittest.TestCase):
+        def setUp(self):
+            self.config = MotorTestConfig()
+            self.stage = AllegraStage(self.config, None)
+    
+        def tearDown(self):
+            self.stage.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
+        def test_01_initialize_stage(self):
+            self.assertEqual((hasattr(self.stage, 'SPEED'), hasattr(self.stage, 'ACCELERATION'), 
+                            hasattr(self.stage, 'position'), hasattr(self.stage, 'position_ustep')),
+                            (True, True, True, True))
+    
+        #For some reason the absolute movement does not work reliably
+    #     def test_02_absolute_movement(self):
+    #         initial_position = self.motor.position
+    #         target_position = initial_position + numpy.array([100.0,0.0,0.0])
+    #         result1 = self.motor.move(target_position, relative = False)
+    #         result2 = self.motor.move(initial_position, relative = False)
+    #         self.assertEqual((result1, result2, (abs(self.motor.position - initial_position)).sum()), (True, True, 0.0))
+    
+        @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
+        def test_03_relative_movement(self):
+            initial_position = self.stage.position
+            movement_vector = numpy.array([10000.0,1000.0,10.0])
+            result1 = self.stage.move(movement_vector)
+            result2 = self.stage.move(-movement_vector)
+            self.assertEqual((result1, result2, (abs(self.stage.position - initial_position)).sum()), (True, True, 0.0))
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
+        def test_04_movements_stage_disabled(self):
+            self.config.STAGE[0]['ENABLE'] = False
+            self.stage.release_instrument()
+            self.stage = AllegraStage(self.config, None)
+            initial_position = self.stage.position
+            movement_vector = numpy.array([10000.0,1000.0,10.0])
+            result1 = self.stage.move(movement_vector)        
+            self.assertEqual((result1, (abs(self.stage.position - initial_position)).sum()), (False, 0.0))
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_stage,  'Stage tests disabled')
+        def test_05_big_movement_at_different_speeds(self):
+            initial_position = self.stage.position
+            movement_vector = numpy.array([300000.0,-50000.0,100.0])
+            result = True
+            spd = [10000000, 1000000, 100000]
+            accel = [1000000, 100000]
+            
+            for i in range(len(spd)):
+                for j in range(len(accel)):
+                    if not self.stage.move(movement_vector, speed = spd[i], acceleration = accel[j]):
+                        result = False
+                    movement_vector = - movement_vector
+    #                 print '{0}\t{1}\t{2}\t{3}\t{4}' .format(spd[i], accel[j], self.motor.movement, self.motor.movement_time, self.motor.expected_move_time)
+            
+            self.assertEqual((result, (abs(self.stage.position - initial_position)).sum()), (True, 0.0))
+            
+        def test_06_debug_stage(self):
+            pass
+    
+    class TestMotorizedGoniometer(unittest.TestCase):
+        def setUp(self):
+            self.config = MotorTestConfig()
+            self.mg = MotorizedGoniometer(self.config, id = 1)
+    
+        def tearDown(self):
+            self.mg.release_instrument()
+    
+        @unittest.skipIf(not unittest_aggregator.TEST_goniometer,  'Stage tests disabled')
+        def test_01_goniometer_small_movement(self):
+            angle_factor = -16.0
+            movements = [angle_factor * numpy.array([1.0, 1.0])]#, -angle_factor * numpy.array([1.0, 2.0])]
+            results = []
+            if self.mg.set_speed(300):
+                for m in movements:
+                    results.append(self.mg.move(m))
+                    time.sleep(0.0)
+            self.assertEqual(False in results,  False)
+            
+    class TestRemoteFocus(unittest.TestCase):
+        def setUp(self):
+            self.rf = RemoteFocus('COM3')
+    
+        def tearDown(self):
+            self.rf.close()
+    
+        @unittest.skipIf(not unittest_aggregator.TEST_remote_focus,  'Stage tests disabled')
+        def test_01(self):
+            pos = [10.0,100.,-201.,0., -15]
+            for p in pos:
+                self.rf.move(p)
+                print p,self.rf.read_position()
+                self.assertEqual(self.rf.read_position(),p)
         
 if __name__ == "__main__":
     unittest.main()

@@ -7,10 +7,17 @@ import scipy.interpolate
 import os.path
 import copy
 import unittest
-import hdf5io
+try:
+    import hdf5io
+except ImportError:
+    pass
 import itertools
-from visexpA.engine.dataprocessors import roi
-from visexpA.engine.dataprocessors import signal as signal2
+try:
+    from visexpA.engine.dataprocessors import roi
+    from visexpA.engine.dataprocessors import signal as signal2
+except ImportError:
+    print 'cell detector not installed'
+
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import scipy.optimize
