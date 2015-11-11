@@ -82,8 +82,8 @@ def filter(elphys, cutoff,order,fs,pool=None):
         lowpassfiltered[i]=res[i][0]
         highpassfiltered[i]=res[i][1]
     return lowpassfiltered, highpassfiltered
-    
-def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_binning):
+       
+def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_window_time):
     '''
     1) Extract data from raw file
     2) Filter signal, separate baseline and high frequency part
@@ -105,7 +105,7 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_bi
     edges=repetition_boundaries(digital, sample_rate,pre,post)
     nrepetitions=edges.shape[0]/2
     repetition_window_length=numpy.diff(edges)[::2].max()
-    spike_binnings=int(spike_binning*sample_rate)
+    spike_binnings=int(spike_window_time*sample_rate)
     bins=numpy.arange(repetition_window_length/spike_binnings)*spike_binnings
     trep=(bins+0.5*spike_binnings)/sample_rate
     spiking_frqs=[]
@@ -122,7 +122,7 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_bi
             spiking_map[rep/2][spike_times_in_rep]=1
         spiking_maps.append(spiking_map)
         hist,bins=numpy.histogram(aggr_per_channel,bins)
-        spiking_frq=hist/spike_binning/edges.shape[0]/2
+        spiking_frq=hist/spike_window_time/edges.shape[0]/2
         spiking_frqs.append(spiking_frq)
     spiking_frqs=numpy.array(spiking_frqs)
     return spiking_frqs,low_frequency_avg,spiking_maps
@@ -212,11 +212,8 @@ class CWidget(QtGui.QWidget):
         self.df.setMaximumWidth(500)
         self.df.setMinimumHeight(400)
         params_config=[\
-                {'name': 'Enable mcd to mat File Conversion', 'type': 'bool', 'value': False},
-                {'name': 'Enable filtering at file open', 'type': 'bool', 'value': True},
                 {'name': 'Filter Order', 'type': 'int', 'value': 3},
-                {'name': 'Lowpass Cut Frequency', 'type': 'float', 'value': 300, 'siPrefix': True, 'suffix': 'Hz'},
-                {'name': 'Highpass Cut Frequency', 'type': 'float', 'value': 300, 'siPrefix': True, 'suffix': 'Hz'},
+                {'name': 'Filter Cut Frequency', 'type': 'float', 'value': 300, 'siPrefix': True, 'suffix': 'Hz'},
                 {'name': 'Spike Threshold', 'type': 'float', 'value': 3, 'suffix': 'std','siPrefix': True},
                 {'name': 'Spiking Frequency Window Size', 'type': 'float', 'value': 5e-3, 'suffix': 's','siPrefix': True},
                 {'name': 'Pre Stimulus Time', 'type': 'float', 'value': 200e-3, 'suffix': 's','siPrefix': True},
@@ -273,11 +270,13 @@ class ElphysViewer(gui.SimpleAppWindow):
             pre=params['Pre Stimulus Time']
             post=params['Post Stimulus Time']
             filter_order=params['Filter Order']
-            fcut=params['Lowpass Cut Frequency']
-            fcut=params['Lowpass Cut Frequency']
+            fcut=params['Filter Cut Frequency']
             spike_threshold_std=params['Spike Threshold']
-            spike_binning=params['Spiking Frequency Window Size']
-            self.spiking_frqs,self.low_frequency_avg,self.spiking_maps = raw2spikes(self.filename,pre,post,filter_order,fcut,spike_threshold_std, spike_binning)
+            spike_window_time=params['Spiking Frequency Window Size']
+            self.pb = gui.Progressbar(10)
+            self.pb.show()
+
+            self.spiking_frqs,self.low_frequency_avg,self.spiking_maps = raw2spikes(self.filename,pre,post,filter_order,fcut,spike_threshold_std, spike_window_time)
             
         elif ext == 'mat':
             data=scipy.io.loadmat(self.filename,mat_dtype=True)
