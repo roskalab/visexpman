@@ -19,6 +19,7 @@ class IRLaserRandomStimulation(experiment.Experiment):
     Flashes externally connected blue led controller by generating analog control signals using daq analog output
     '''
     def prepare(self):
+        import tables
         h=tables.open_file(self.experiment_config.FILENAME)
         self.states=h.root.stateBoolean.read().flatten()
         h.close()
