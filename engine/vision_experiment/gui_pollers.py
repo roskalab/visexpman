@@ -17,7 +17,7 @@ try:
     import Image
 except ImportError:
     from PIL import Image
-
+    
 if os.name == 'nt':
     import winsound
 else:

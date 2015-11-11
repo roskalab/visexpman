@@ -12,7 +12,7 @@ class InvalidParameterValue(Exception):
     
 class OutOfRangeParameterValue(Exception):
     pass  
-
+    
 class Parameter(object):
     '''
     Parameter class determines the type of parameter automatically. Then performs range check or other checks when it is applicable.

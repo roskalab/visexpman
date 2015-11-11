@@ -17,7 +17,7 @@ try:
     test_mode=True
 except IOError:
     test_mode=False
-
+    
 class InstrumentProcess(threading.Thread, log.LoggerHelper):
     '''
     Superclass of instrument control related operations that need to run in a separate process

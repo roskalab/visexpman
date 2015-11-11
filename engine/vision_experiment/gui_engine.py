@@ -597,7 +597,7 @@ class Analysis(object):
         
     def nop(self):
         pass
-        
+
     def meanimage2tiff(self,fn):
         import tifffile
         tifffile.imsave(fn, numpy.cast['uint16'](signal.scale(self.meanimage)*(2**16-1)))

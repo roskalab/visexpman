@@ -1,7 +1,6 @@
 '''
 This module contains Calcim imaging related analysis functions
 '''
-
 import numpy
 import scipy.interpolate
 import os.path
