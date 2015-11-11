@@ -8,7 +8,7 @@ import time
 class IRLaserRandomConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.PRESENTATION_RATE = 40#Hz
-        self.FILENAME='c:\\temp\\booleanState.h5'
+        self.FILENAME=os.path.join(os.path.dirname(__file__),'booleanState.h5')
         self.FLASH_AMPLITUDE = 5.0 #max 10.0
         self.DELAY_BEFORE_FIRST_FLASH = 5.0
         self.runnable = 'IRLaserRandomStimulation'
