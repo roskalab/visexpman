@@ -83,6 +83,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.setColumnCount(1)
         self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
         self.setMaximumWidth(350)
+        self.setMinimumHeight(400)
         self.populate()
         self.itemDoubleClicked.connect(self.stimulus_selected)
         self.itemSelectionChanged.connect(self.get_selected_stimulus)
@@ -407,7 +408,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         self._set_window_title()
         #Set up toobar
-        self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit'])
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']
+        elif self.machine_config.PLATFORM=='mc_mea':
+            toolbar_buttons = ['start_experiment', 'stop',  'exit']
+        self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
         #Add dockable widgets
@@ -415,30 +420,32 @@ class MainUI(gui.VisexpmanMainWindow):
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        self.image = Image(self)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
-        self.adjust=gui.ImageAdjust(self)
-        self.adjust.setFixedHeight(40)
-        self.adjust.low.setValue(0)
-        self.adjust.high.setValue(99)
-        self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
-        self.plot = gui.Plot(self)
-        self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-        self.plot.setMaximumWidth(self.image.width())
-        self.plot.plot.setLabels(bottom='sec')
-        self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.image = Image(self)
+            self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+            self.adjust=gui.ImageAdjust(self)
+            self.adjust.setFixedHeight(40)
+            self.adjust.low.setValue(0)
+            self.adjust.high.setValue(99)
+            self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
+            self.plot = gui.Plot(self)
+            self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
+            self.plot.setMaximumWidth(self.image.width())
+            self.plot.plot.setLabels(bottom='sec')
+            self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         
         self.stimulusbrowser = StimulusTree(self, fileop.get_user_module_folder(self.machine_config) )
-        self.cellbrowser=CellBrowser(self)
-        self.analysis = QtGui.QWidget(self)
-        self.analysis.parent=self
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.cellbrowser=CellBrowser(self)
+            self.analysis = QtGui.QWidget(self)
+            self.analysis.parent=self
         
-        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat', 'tif', 'mp4'])
-        self.analysis_helper = AnalysisHelper(self.analysis)
-        self.analysis.layout = QtGui.QGridLayout()
-        self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
-        self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
-        self.analysis.setLayout(self.analysis.layout)
+            self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat', 'tif', 'mp4'])
+            self.analysis_helper = AnalysisHelper(self.analysis)
+            self.analysis.layout = QtGui.QGridLayout()
+            self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
+            self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
+            self.analysis.setLayout(self.analysis.layout)
         
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
@@ -448,8 +455,9 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        self.main_tab.addTab(self.analysis, 'Analysis')
-        self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.main_tab.addTab(self.analysis, 'Analysis')
+            self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.advanced, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -457,15 +465,12 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self.load_all_parameters()
         self.show()
-        self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
-        self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
+            self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+            self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+            self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
-        self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
-        self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
-        
-        self.network_status_timer=QtCore.QTimer()
-        if 0: self.network_status_timer.start(2000)#ms
-        self.connect(self.network_status_timer, QtCore.SIGNAL('timeout()'), self.check_network_status)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -534,45 +539,49 @@ class MainUI(gui.VisexpmanMainWindow):
         fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
         fw2.sort()
         self.params_config = [
-                {'name': 'Experiment', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
+                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Cell Name', 'type': 'str', 'value': ''},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
                     {'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''},
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Projector On', 'type': 'bool', 'value': False},
+                    {'name': 'Projector On', 'type': 'bool', 'value': False, 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye'},
+                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     ]},
-                {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
-                    {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
-                    {'name': 'Background Threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Cell Detection', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Minimum Cell Radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
-                        {'name': 'Maximum Cell Radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
-                        {'name': 'Sigma', 'type': 'float', 'value': 1.0},
-                        {'name': 'Threshold Factor', 'type': 'float', 'value': 1.0}
-                        ]
-                    },
-                    {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
                     ]
-                    },                    
-                    {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
-                        {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
-                    ]},
-                    ]
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.params_config.extend(
+                                                  {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
+                            {'name': 'Background Threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
+                            {'name': 'Cell Detection', 'type': 'group', 'expanded' : False, 'children': [
+                                {'name': 'Minimum Cell Radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
+                                {'name': 'Maximum Cell Radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
+                                {'name': 'Sigma', 'type': 'float', 'value': 1.0},
+                                {'name': 'Threshold Factor', 'type': 'float', 'value': 1.0}
+                                ]
+                            },
+                            {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
+                            ]
+                            },                    
+                            {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
+                                {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
+                                {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+                            ]},                 
+                        )
+                        
 
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
         
     def stop_action(self):
-        pass
+        self.to_engine.put({'function': 'stop_experiment', 'args':[]})
         
     def refresh_stimulus_files_action(self):
         self.stimulusbrowser.populate()

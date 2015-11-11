@@ -74,7 +74,9 @@ class Experiment(stimulation_library.AdvancedStimulation):
         self.experiment_config = experiment_config
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
+        self.name='{0}/{1}'.format(self.experiment_name,self.experiment_config_name)
         stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
+        
 
     def prepare(self):
         '''
@@ -144,6 +146,7 @@ class Stimulus(stimulation_library.AdvancedStimulation):
     def __init__(self, machine_config, queues = None, parameters = None, log=None):
         stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
         self.stimulus_configuration()
+        self.name=self.__class__.__name__
         
         
     def stimulus_configuration(self):
@@ -233,8 +236,8 @@ def get_experiment_duration(experiment_config_class, config, source=None):
     else:
         ec=None
         experiment_class_object.prepare()
-    if hasattr(experiment_class_object, 'stimulus_duration'):
-        return experiment_class_object.stimulus_duration
+    if hasattr(experiment_class_object, 'duration'):
+        return experiment_class_object.duration
     elif hasattr(ec, 'duration'):
         return ec.duration
     else:
@@ -298,6 +301,8 @@ class testExperimentHelpers(unittest.TestCase):
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=source)
         self.assertEqual(duration, 15.0)
         self.assertEqual(isinstance(get_experiment_duration('TestCommonExperimentConfig', conf, source=source), float), True)#Testing something from the common folder
+        conf.user='zoltan'
+        source = fileop.read_text_file(os.path.join(fileop.get_user_module_folder(conf), 'experiment_tests.py'))
         
     def test_04_not_existing_experiment_class(self):
         from visexpman.users.test.test_configurations import GUITestConfig

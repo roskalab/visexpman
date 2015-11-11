@@ -60,6 +60,23 @@ class ExperimentHandler(object):
         import subprocess
         process = subprocess.Popen(['gedit', filename], shell=self.machine_config.OS != 'Linux')
         
+    def check_parameter_changes(self, parameter_name):
+        '''
+        parameter_name: name of parameter changed
+        Depending on which parameter changed certain things has to be recalculated
+        '''
+        if parameter_name == 'Bullseye On':
+            self.send({'function': 'toggle_bullseye','args':[]},'stim')
+        elif parameter_name == 'Bullseye Size':
+            self.send({'function': 'set_variable','args':['bullseye_size',self.guidata.read('Bullseye Size')]},'stim')
+        elif parameter_name == 'Bullseye Shape':
+            self.send({'function': 'set_variable','args':['bullseye_type',self.guidata.read('Bullseye Shape')]},'stim')
+        elif parameter_name == 'Grey Level':
+            self.send({'function': 'set_context_variable','args':['background_color',self.guidata.read('Grey Level')*1e-2]},'stim')            
+        elif parameter_name == 'Stimulus Center X' or parameter_name == 'Stimulus Center Y':
+            v=utils.rc((self.guidata.read('Stimulus Center Y'), self.guidata.read('Stimulus Center X')))
+            self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')            
+        
     def start_experiment(self):
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
@@ -75,8 +92,15 @@ class ExperimentHandler(object):
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
-        self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        
+    def stop_experiment(self):
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.send({'function': 'stop_all','args':[]},'ca_imaging')
+        self.send({'function': 'stop_all','args':[]},'stim')
+        
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -593,14 +617,13 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.unittest=unittest
         self.log=log
         self.machine_config = machine_config
-        #queued_socket.QueuedSocketHelpers.__init__(self, self.socket_queues)
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
         self.context_filename = fileop.get_context_filename(self.machine_config)
         self.load_context()
         self.widget_status = {}
-        self.last_periodic = time.time()
+        self.last_network_check=time.time()
         
     def load_context(self):
         self.guidata = GUIData()
@@ -658,28 +681,34 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         '''
         for k,v in status.items():
             self.widget_status[k]=v
-            
-    def check_parameter_changes(self, parameter_name):
-        '''
-        parameter_name: name of parameter changed
-        Depending on which parameter changed certain things has to be recalculated
-        '''
-                
+
     def check_network_status(self):
+        now=time.time()
+        if now-self.last_network_check<4:
+            return
+        self.last_network_check=now
         self.connected_nodes = ''
         n_connected = 0
         n_connections = len(self.socket_queues.keys())
         for remote_node_name, socket in self.socket_queues.items():
-            if self.ping(timeout=0.3, connection=remote_node_name):
+            if self.ping(timeout=0.5, connection=remote_node_name):
                 self.connected_nodes += remote_node_name + ' '
                 n_connected += 1
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
+        
+    def check_network_messages(self):
+        for connname in self.socket_queues.keys():
+            msg=self.recv(connname)
+            if msg is not None and 'ping' not in msg  and 'pong' not in msg:
+                if isinstance(msg,str):
+                    self.printc('{0} {1}'.format(connname.upper(),msg))
         
     def run(self):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                self.periodic()
+                self.check_network_status()
+                self.check_network_messages()
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()
                     if msg == 'terminate':
@@ -689,7 +718,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 #parse message
                 if msg.has_key('data'):#expected format: {'data': value, 'path': gui path, 'name': name}
                     self.guidata.add(msg['name'], msg['data'], msg['path'])#Storing gui data
-                    self.check_parameter_changes(msg['name'])
+                    [getattr(c,'check_parameter_changes')(self,msg['name']) for c in self.__class__.__bases__ if hasattr(c,'check_parameter_changes')]
                 elif msg.has_key('read'):#gui might need to read guidata database
                     value = self.guidata.read(**msg)
                     getattr(self, 'to_gui').put(value)
@@ -707,25 +736,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             time.sleep(20e-3)
         self.close()
         
-    def periodic(self):
-        if self.last_run-self.last_periodic>1.0:
-            self.last_periodic=time.time()
-            self.one_second_periodic()
-            
-    def one_second_periodic(self):
-        pass
-        
-    def update_network_connection_status(self):
-        #Check for network connection status
-        self.connected_nodes = ''
-        n_connected = 0
-        n_connections = len(self.socket_queues.keys())
-        for remote_node_name, socket in self.socket_queues.items():
-            if self.ping(timeout=1.0, connection=remote_node_name):
-                self.connected_nodes += remote_node_name + ' '
-                n_connected += 1
-        self.printc('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes))
-        
     def close_open_files(self):
         if hasattr(self, 'datafile') and self.datafile.h5f.isopen==1:
             self.datafile.close()
@@ -738,10 +748,6 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
         GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
         Analysis.__init__(self, machine_config)
-        
-    def one_second_periodic(self):
-        return
-        self.update_network_connection_status()
 
     def close(self):
         self.close_analysis()

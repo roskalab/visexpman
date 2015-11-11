@@ -47,6 +47,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             self.stim_context['background_color'] = self.config.BACKGROUND_COLOR
         if not self.stim_context.has_key('user_background_color'):            
             self.stim_context['user_background_color'] = 0.75
+        if not self.stim_context.has_key('bullseye_size'):            
+            self.stim_context['bullseye_size'] = 100.0
 
     def save_stim_context(self):
         hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(self.stim_context), self.config,  overwrite = True)
@@ -164,9 +166,18 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         Screen center, background color can be set with this function
         '''
         if not self.stim_context.has_key(varname):
-            self.send('{0} variable does not exists'.format(varname))
+            self.send('{0} context variable does not exists'.format(varname))
         else:
             self.stim_context[varname] = value
+            
+    def set_variable(self, varname, value):
+        '''
+        Screen center, background color can be set with this function
+        '''
+        if not hasattr(self,varname):
+            self.send('{0} variable does not exists'.format(varname))
+        else:
+            setattr(self,varname,value)
             
     def set_filterwheel(self, channel, filter):
         raise NotImplementedError('')
@@ -190,7 +201,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         elif parameters.has_key('stimulus_source_code'):
             introspect.import_code(parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
-            self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.socket_queues, \
+            self.experiment_config = getattr(experiment_module, parameters['stimclass'])(self.config, self.socket_queues, \
                                                                                                   parameters, self.log)
         else:
             #Source code not provided, existing experiment config module is instantiated
