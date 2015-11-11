@@ -34,7 +34,7 @@ class Config(object):
         self.RUN_THRESHOLD=0.8#The speed at 80% of the time when mouse is expected to run shall be above MOVE_THRESHOLD
         #7 cm: 803-5,988-21,1072-75,1172-270,1341-293,1338-466: 7 cm = 930 pixel -> 1 pixel = 0.0075214899713467055
         self.PIXEL2SPEED=0.0075214899713467055
-        self.MOVE_THRESHOLD=10*self.PIXEL2SPEED#Above this speed the mouse is considered to be moving
+        self.MOVE_THRESHOLD=1#Above this speed the mouse is considered to be moving
         #Protocol specific parameters
         self.PROTOCOL_STOP_REWARD={}
         self.PROTOCOL_STOP_REWARD['run time']=2#sec
