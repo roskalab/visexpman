@@ -555,7 +555,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     ]},
                     ]
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
-            self.params_config.extend(
+            self.params_config.extend([
                                                   {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
                             {'name': 'Background Threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
@@ -572,7 +572,7 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
                                 {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
                                 {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
-                            ]},                 
+                            ]},  ]               
                         )
                         
 
