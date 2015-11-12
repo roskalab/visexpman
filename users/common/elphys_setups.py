@@ -22,9 +22,10 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         EXPERIMENT_DATA_PATH = self.root_folder
 #        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'datastorage')
         CONTEXT_PATH = self.root_folder
-        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
+        if 0:
+            CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
+            os.mkdir(CAPTURE_PATH)
         self.DELETED_FILES_PATH = 'd:\\deleted_files'
-        os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]

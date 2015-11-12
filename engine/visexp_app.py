@@ -39,12 +39,9 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
         '''
         Loads stim application's context
         '''
-        context_filename = fileop.get_context_filename(self.config,context_file_type)
+        context_filename = fileop.get_context_filename(self.config,'npy')
         if os.path.exists(context_filename):
-            if context_file_type=='hdf5':
-                context_stream = hdf5io.read_item(context_filename, 'context', self.config)
-            elif context_file_type == 'mat':
-                context_stream = scipy.io.loadmat(context_filename,mat_dtype=True)['context'].flatten()
+            context_stream = numpy.load(context_filename)
             self.stim_context = utils.array2object(context_stream)
         else:
             self.stim_context = {}
@@ -58,12 +55,9 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
             self.stim_context['bullseye_size'] = 100.0
 
     def save_stim_context(self):
-        fn=fileop.get_context_filename(self.config,context_file_type)
+        fn=fileop.get_context_filename(self.config,'npy')
         context_stream = utils.object2array(self.stim_context)
-        if context_file_type=='hdf5':
-            hdf5io.save_item(fn, 'context', context_stream, self.config,  overwrite = True)
-        elif context_file_type == 'mat':
-            scipy.io.savemat(fn,{'context':context_stream},oned_as='column',do_compression=True)
+        numpy.save(self.stim_context,context_stream)
         
     def _set_background_color(self,color):
         self.stim_context['background_color'] = color
