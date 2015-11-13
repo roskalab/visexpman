@@ -11,30 +11,23 @@ from visexpman.engine.vision_experiment.configuration import HiMEAConfig,MCMEACo
 
 class CRTMEASetup(MCMEAConfig):
     def _set_user_parameters(self):
+        FULLSCREEN = True
+        SCREEN_RESOLUTION = utils.cr([1024, 768])
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        SCREEN_EXPECTED_FRAME_RATE=75.0
         COORDINATE_SYSTEM='center'
-        self.root_folder = fileop.select_folder_exists(['/tmp', 'c:\\temp'])
+        self.root_folder = fileop.select_folder_exists(['/tmp', 'c:\\data', 'c:\\temp'])
         LOG_PATH = self.root_folder
         EXPERIMENT_DATA_PATH=self.root_folder
         CONTEXT_PATH = self.root_folder
-        FILTERWHEEL = [{
-                'connected to': 'main_ui',
-                'port' :  'TBD',
-                'baudrate' : 115200,
-                'filters' : {'TBD':1}
-                },
-                {
-                'connected to': '',
-                'port' :  'TBD',
-                'baudrate' : 115200,
-                'filters' : {'TBD':1}
-                }]
-                
-        #DIGITAL_IO_PORT='COM4'
+        DIGITAL_IO_PORT='COM7'
+        ACQUISITION_TRIGGER_PIN=0
+        ACQUISITION_TRIGGER_POLARITY = False
         BLOCK_TRIGGER_PIN=1
-        FRAME_TRIGGER_PIN=2
+        FRAME_TRIGGER_PIN=-1
         self.GUI['SIZE'] =  utils.cr((1024,768))
-        main_ui_ip = '127.0.0.1'
-        stim_ip = '127.0.0.1'
+        main_ui_ip = '192.168.161.153'
+        stim_ip = '192.168.161.148'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = main_ui_ip
         self.BASE_PORT = 10000

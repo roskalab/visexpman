@@ -303,7 +303,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):#OBSOLETE
             setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
             nodes2save = ['imaging_parameters', 'imaging_run_info', 'software_environment_{0}'.format(self.machine_config.user_interface_name), 'configs_{0}'.format(self.machine_config.user_interface_name)]
             self.datafile.save(nodes2save)
-            self.printl('Data saved to {0}'.format(self.datafile.filename))
+            self.printl('Stimulus info saved to {0}'.format(self.datafile.filename))
             self.datafile.close()
         
     def _save_data(self,frame):
@@ -481,7 +481,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         try:
-            self.prepare()
+            self.prepare()#Computational intensive precalculations for stimulus
             self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
             time.sleep(0.1)
             
@@ -491,25 +491,25 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.send({'trigger':'stim started'})
             elif self.machine_config.PLATFORM=='mc_mea':
-                self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH)
+                pass
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             self.run()
             self.log.resume()
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
-            elif self.machine_config.PLATFORM=='elphys_retinal_ca':
+            elif self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='mc_mea':
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if not self.abort:
                 self.printl('Stimulation ended')
                 self._save2file()
-                self.printl('Data saved to {0}'.format(self.datafilename))
+                self.printl('Stimulus info saved to {0}'.format(self.datafilename))
                 if self.machine_config.PLATFORM=='elphys_retinal_ca':
                     self.send({'trigger':'stim data ready'})
             else:
                 self.printl('Stimulation stopped')
             if self.machine_config.PLATFORM=='mc_mea':
-                self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH)
+                self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH,polarity=self.machine_config.ACQUISITION_TRIGGER_POLARITY)
             self.frame_rates = numpy.array(self.frame_rates)
             fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
             self.log.info(fri, source = 'stim')

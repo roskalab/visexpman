@@ -142,9 +142,11 @@ class Stimulus(stimulation_library.AdvancedStimulation):
     '''
     Superclass for all user defined stimuli. Stimulus logic and parameters are also included in this class.
     '''
-    def __init__(self, machine_config, queues = None, parameters = None, log=None):
-        stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
+    def __init__(self, machine_config, queues = None, parameters = None, log=None, init_hardware=True):
+        if init_hardware:
+            stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
         self.stimulus_configuration()
+        self.calculate_stimulus_duration()
         self.name=self.__class__.__name__
         
         

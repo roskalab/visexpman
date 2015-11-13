@@ -444,5 +444,48 @@ class TestInstrument(unittest.TestCase):
         self.assertFalse(ip.queues['data'].empty())
         self.assertTrue(ip.queues['response'].empty())
         
+class ProScanIIIShutter(object):
+    def __init__(self, serial_port, baudrate=9600,timeout=1):
+        self.s=serial.Serial(serial_port,baudrate=baudrate)
+        self.s.setTimeout(timeout)
+        self.s.write('?\r')
+        txt=self.s.read(1000)
+        import pdb
+        #pdb.set_trace()
+        if len(txt)==0:
+            raise RuntimeError('Serial communication does not work to ProscanIII Shutter')
+        elif not ('PROSCAN' in txt and 'SHUTTERS' in txt):
+            raise RuntimeError('Invalid device')
+        
+        
+    def _toggle_shutter(self,state):
+        self.s.write('8,A,{0}\r'.format('0' if state else '1'))
+        if self.s.read(2)!='R\r':
+            raise RuntimeError('Shutter may not be accessible')
+            
+    def open_shutter(self):
+        self._toggle_shutter(True)
+        
+    def close_shutter(self):
+        self._toggle_shutter(False)
+        
+    def flash(self,duration):
+        self.open_shutter()
+        time.sleep(duration)
+        self.close_shutter()
+        
+    def close(self):
+        self.s.close()
+        
+class TestShutter(unittest.TestCase):
+    def test_01_shutteronoff(self):
+        s=ProScanIIIShutter('COM6')
+        s.open_shutter()
+        time.sleep(2)
+        s.close_shutter()
+        time.sleep(3)
+        s.flash(1)
+        s.close()
+        
 if __name__ == "__main__":    
     unittest.main()

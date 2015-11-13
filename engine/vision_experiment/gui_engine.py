@@ -16,7 +16,7 @@ try:
     import hdf5io
 except ImportError:
     pass
-from visexpman.engine.vision_experiment import experiment_data, cone_data
+from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
@@ -68,7 +68,7 @@ class ExperimentHandler(object):
         Depending on which parameter changed certain things has to be recalculated
         '''
         if parameter_name == 'Bullseye On':
-            self.send({'function': 'toggle_bullseye','args':[]},'stim')
+            self.send({'function': 'toggle_bullseye','args':[self.guidata.read('Bullseye On')]},'stim')
         elif parameter_name == 'Bullseye Size':
             self.send({'function': 'set_variable','args':['bullseye_size',self.guidata.read('Bullseye Size')]},'stim')
         elif parameter_name == 'Bullseye Shape':
@@ -97,11 +97,20 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        self.printc('Experiment is starting, expected duration is {0} s'.format(experiment_duration))
+        self.enable_check_network_status=False
         
     def stop_experiment(self):
+        self.printc('Aborting experiment, please wait...')
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         self.send({'function': 'stop_all','args':[]},'stim')
+        
+    def trigger_handler(self,trigger_name):
+        if trigger_name == 'stim done':
+            if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
+                self.enable_check_network_status=True
+                
         
 
 class Analysis(object):
@@ -626,6 +635,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.load_context()
         self.widget_status = {}
         self.last_network_check=time.time()
+        self.enable_check_network_status=True
         
     def load_context(self):
         self.guidata = GUIData()
@@ -708,12 +718,16 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if msg is not None and 'ping' not in msg  and 'pong' not in msg:
                 if isinstance(msg,str):
                     self.printc('{0} {1}'.format(connname.upper(),msg))
+                elif msg.has_key('trigger'):
+                    if hasattr(self,'trigger_handler'):
+                        self.trigger_handler(msg['trigger'])
         
     def run(self):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                self.check_network_status()
+                if self.enable_check_network_status:
+                    self.check_network_status()
                 self.check_network_messages()
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()

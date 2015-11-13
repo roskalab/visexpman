@@ -534,10 +534,15 @@ class MainUI(gui.VisexpmanMainWindow):
             
                 
     def _init_variables(self):
-        fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
-        fw1.sort()
-        fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
-        fw2.sort()
+        if hasattr(self.machine_config,'FILTERWHEEL'):
+            fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
+            fw1.sort()
+            fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
+            fw2.sort()
+        else:
+            fw1=[]
+            fw2=[]
+            
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Cell Name', 'type': 'str', 'value': ''},

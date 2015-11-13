@@ -68,7 +68,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ############## Ranges ###############
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
-        PARALLEL_PORT_PIN_RANGE = [0, 7]
+        PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
@@ -83,7 +83,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.BASE_PORT = 10000
         CONNECTIONS = {
         'stim': {'port': self.BASE_PORT, 'ip': {'stim': '', 'main_ui': ''}},
-        'analysis': {'port': self.BASE_PORT+2, 'ip': {'analysis': '', 'main_ui': ''}},
         }
         NETWORK_COMMUNICATION_TIMEOUT = [10, [0,60]]
         STIMULATION_AND_IMAGING_START_TIMEOUT = [10, [0,60]]
@@ -143,6 +142,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         BLOCK_TRIGGER_PIN = [3,  PARALLEL_PORT_PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        ACQUISITION_TRIGGER_POLARITY = True
         ENABLE_SHUTTER = False
         
         ############# Graphical User Interface related ######################

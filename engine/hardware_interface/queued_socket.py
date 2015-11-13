@@ -173,7 +173,7 @@ def start_sockets(uiname, config, log, enable_sockets):
                                                                                     config.CONNECTIONS[server_name]['port'],
                                                                                     multiprocessing.Queue(), 
                                                                                     multiprocessing.Queue(), 
-                                                                                    ip= config.CONNECTIONS[server_name]['ip']['main_ui'],
+                                                                                    ip= config.CONNECTIONS[server_name]['ip'][server_name],
                                                                                     log=log)
     else:
         sockets[uiname] = QueuedSocket('{0}-{1} socket'.format(uiname, 'main_ui'), 

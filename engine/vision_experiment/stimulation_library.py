@@ -110,20 +110,21 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def _append_to_stimulus_frame_info(self,values):
         self.stimulus_frame_info[-1]['parameters'].update(values)
             
-    def trigger_pulse(self, pin, width):
+    def trigger_pulse(self, pin, width,polarity=True):
         '''
         Generates trigger pulses
         '''
         if hasattr(self.digital_output,'set_data_bit'):
-            self.digital_output.set_data_bit(pin, 1, log = False)
+            self.digital_output.set_data_bit(pin, int(polarity), log = False)
             time.sleep(width)
-            self.digital_output.set_data_bit(pin, 0, log = False)
+            self.digital_output.set_data_bit(pin, int(not polarity), log = False)
 
     def _frame_trigger_pulse(self):
         '''
         Generates frame trigger pulses
         '''
-        self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
+        if self.config.FRAME_TRIGGER_PIN!=-1:
+            self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
             
     def block_start(self, block_name = 'stimulus function'):
         if hasattr(self.digital_output,'set_data_bit'):
