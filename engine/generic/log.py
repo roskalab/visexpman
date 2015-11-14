@@ -52,6 +52,9 @@ class LoggerHelper(object):
     def error(self, msg, source='default', queue = None):
         self.add_entry(msg, source, 'ERROR', queue)
         
+    def debug(self, msg, source='default', queue = None):
+        self.add_entry(msg, source, 'DEBUG', queue)
+        
     def add_entry(self, msg, source, loglevel, queue):
         entry = [time.time(), loglevel, source, msg]
         if not hasattr(self, 'sources'):

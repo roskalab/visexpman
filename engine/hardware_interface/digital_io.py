@@ -41,6 +41,9 @@ class SerialPortDigitalIO(instrument.Instrument):
         self.set_data_bit(channel, True, log = log)
         time.sleep(width)
         self.set_data_bit(channel, False, log = log)
+
+    def set_pin(self, channel,value):
+        self.set_data_bit(channel, value)
         
     def set_data_bit(self, channel, value, log = True):
         '''

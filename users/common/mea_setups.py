@@ -18,6 +18,7 @@ class CRTMEASetup(MCMEAConfig):
         COORDINATE_SYSTEM='center'
         self.root_folder = fileop.select_folder_exists(['/tmp', 'c:\\data', 'c:\\temp'])
         LOG_PATH = self.root_folder
+        MC_DATA_FOLDER = 'e:\\ME64 Data'
         EXPERIMENT_DATA_PATH=self.root_folder
         CONTEXT_PATH = self.root_folder
         DIGITAL_IO_PORT='COM7'

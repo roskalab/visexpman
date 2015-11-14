@@ -80,6 +80,8 @@ class ExperimentHandler(object):
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')            
         
     def start_experiment(self):
+        if not self.check_mcd_recording_started():
+            return
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
         filename=os.sep.join(cf.split(os.sep)[:-1])
@@ -99,6 +101,7 @@ class ExperimentHandler(object):
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.printc('Experiment is starting, expected duration is {0} s'.format(experiment_duration))
         self.enable_check_network_status=False
+        self.current_experiment_parameters=experiment_parameters
         
     def stop_experiment(self):
         self.printc('Aborting experiment, please wait...')
@@ -106,10 +109,41 @@ class ExperimentHandler(object):
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         self.send({'function': 'stop_all','args':[]},'stim')
         
+    def check_mcd_recording_started(self):
+        if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
+            #Find latest mcd file and save experiment metadata to the same folder
+            dt=time.time()-os.path.getmtime(fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd'))
+            res=True
+            if dt>5:
+                res= self.ask4confirmation('MEA recording may not be started, do you want to continue?')
+            return res
+                    
+        
+        
     def trigger_handler(self,trigger_name):
         if trigger_name == 'stim done':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
+                if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
+                    #Find latest mcd file and save experiment metadata to the same folder
+                    self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd')
+                    txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
+                            .format(\
+                            self.guidata.read('name'),
+                            self.guidata.read('Bandpass filter'),
+                            self.guidata.read('ND filter'),
+                            self.guidata.read('Comment'))
+                    for k,v in self.current_experiment_parameters.items():
+                        if k !='stimulus_source_code' or k!='status':
+                            txt+='{0}\t{1}\r'.format(k,v)
+                    txt+=self.current_experiment_parameters['stimulus_source_code']
+                        
+                    outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
+                    if os.path.exists(outfile):
+                        if not self.ask4confirmation ('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
+                            return
+                    fileop.write_text_file(outfile,txt)
+                    self.printc('Experiment info saved to {0}'.format(outfile))
                 
         
 

@@ -11,10 +11,12 @@ from visexpman.engine.generic import fileop,introspect,gui
 
 ELECTRODE_ORDER=[16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]#TODO: add this to parameter tree
 
-def mcd2raw(filename):
-    cmdfile=os.path.join(fileop.visexpman_package_path(), 'data', 'mcd2raw16.cmd')
+def mcd2raw(filename, nchannels=16,outfolder=None):
+    cmdfile=os.path.join(fileop.visexpman_package_path(), 'data', 'mcd2raw{0}.cmd'.format(nchannels))
     cmdfiletxt=fileop.read_text_file(cmdfile)
-    outfile=os.path.join(tempfile.gettempdir(),os.path.basename(filename).replace('.mcd','.raw'))
+    if outfolder is None:
+        outfolder=tempfile.gettempdir()
+    outfile=os.path.join(outfolder,os.path.basename(filename).replace('.mcd','.raw'))
     cmdfiletxt=cmdfiletxt.replace('infile', filename).replace('outfile', outfile)
     tmpcmdfile=os.path.join(tempfile.gettempdir(), 'cmd.cmd')
     fileop.write_text_file(tmpcmdfile, cmdfiletxt)
@@ -37,7 +39,7 @@ def read_raw(filename):
     ad_scaling=float([item for item in header if 'El = ' in item][0].split('=')[2].split('\xb5V')[0])*1e-6
     channel_names=[item for item in header if 'Streams = ' in item][0].split('=')[1].strip().split(';')
     if data.shape[0]%len(channel_names) != 0:
-        raise IOError('Invalid data in {0}. Datapoints: {1}, Channels: {2}'.format(filename, data.shape[0], nchannels))
+        raise IOError('Invalid data in {0}. Datapoints: {1}, Channels: {2}'.format(filename, data.shape[0], len(channel_names)))
     data=data.reshape((data.shape[0]/len(channel_names),len(channel_names))).T
     digital=data[0]+2**15
     elphys=data[1:]

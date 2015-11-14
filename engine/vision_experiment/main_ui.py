@@ -545,7 +545,7 @@ class MainUI(gui.VisexpmanMainWindow):
             
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
-                    {'name': 'Cell Name', 'type': 'str', 'value': ''},
+                    {'name': 'Name', 'type': 'str', 'value': ''},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
@@ -579,6 +579,13 @@ class MainUI(gui.VisexpmanMainWindow):
                                 {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
                             ]},  ]               
                         )
+        if self.machine_config.PLATFORM=='mc_mea':
+            self.params_config[0]['children'].extend([
+                {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
+                {'name': 'ND filter', 'type': 'str', 'value': ''},
+                {'name': 'Comment', 'type': 'str', 'value': ''},
+            
+            ])
                         
 
     ############# Actions #############
