@@ -5,6 +5,7 @@
 -i "infile"
 -o "outfile"
 
+-s "Analog Raw Data:A1"
 -s "Digital Data:D1"
 -s "Electrode Raw Data 1:47"
 -s "Electrode Raw Data 1:48"
@@ -66,7 +67,6 @@
 -s "Electrode Raw Data 1:56"
 -s "Electrode Raw Data 1:58"
 -s "Electrode Raw Data 1:57"
--s "Analog Raw Data:A1"
 
 -WriteHeader
 -ToSigned
