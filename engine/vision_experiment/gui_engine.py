@@ -646,7 +646,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         dump_data['machine_config'] = self.machine_config.serialize()
         dump_data['guidata'] = self.guidata.to_dict()
         if filename is None:
-            import tempfile
             filename = os.path.join(self.machine_config.LOG_PATH, 'dump_{0}.{1}'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-'),'npy'))
         dump_stream=utils.object2array(dump_data)
         numpy.save(filename,dump_stream)
