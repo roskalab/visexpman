@@ -11,38 +11,68 @@ from visexpman.engine.generic import fileop,introspect,gui
 
 ELECTRODE_ORDER=[16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]#TODO: add this to parameter tree
 
-def mcd2raw(filename):
-    cmdfile=os.path.join(fileop.visexpman_package_path(), 'data', 'mcd2raw16.cmd')
-    cmdfiletxt=fileop.read_text_file(cmdfile)
-    outfile=os.path.join(tempfile.gettempdir(),os.path.basename(filename).replace('.mcd','.raw'))
-    cmdfiletxt=cmdfiletxt.replace('infile', filename).replace('outfile', outfile)
+def mcd2raw(filename, nchannels=16,outfolder=None,header_separately=False):
+    cmdfile=os.path.join(fileop.visexpman_package_path(), 'data', 'mcd2raw{0}.cmd'.format(nchannels))
+    cmdfiletxt_template=fileop.read_text_file(cmdfile)
+    if outfolder is None:
+        outfolder=tempfile.gettempdir()
+    outfile=os.path.join(outfolder,os.path.basename(filename).replace('.mcd','.raw'))
+    cmdfiletxt=cmdfiletxt_template.replace('infile', filename).replace('outfile', outfile)
+    if header_separately:
+        cmdfiletxt=cmdfiletxt.replace('-WriteHeader\n','')
     tmpcmdfile=os.path.join(tempfile.gettempdir(), 'cmd.cmd')
     fileop.write_text_file(tmpcmdfile, cmdfiletxt)
     mcdatatoolpath='c:\\Program Files (x86)\\Multi Channel Systems\\MC_DataTool\MC_DataTool'
     cmd='"{0}" -file {1}'.format(mcdatatoolpath, tmpcmdfile)
-    if subprocess.call(cmd, shell=True) == 0:
+    if header_separately:
+        cmdfiletxt=cmdfiletxt_template.replace('infile', filename).replace('outfile', outfile.replace('.raw', 'h.raw'))
+        tmpcmdfile2=os.path.join(tempfile.gettempdir(), 'cmd2.cmd')
+        cmd2='"{0}" -file {1}'.format(mcdatatoolpath, tmpcmdfile2)
+        fileop.write_text_file(tmpcmdfile2, cmdfiletxt)
+    res1=subprocess.call(cmd, shell=True)==0
+    res2= subprocess.call(cmd2, shell=True) == 0 if header_separately else True
+    if all([res1,res2]):
         return outfile
         
 def read_raw(filename):
     header=[]
-    with open(filename) as f:
+    if os.path.exists(filename.replace('.raw', 'h.raw')):
+        headerfile=filename.replace('.raw', 'h.raw')
+        read_data_separately=True
+    else:
+        headerfile=filename
+        read_data_separately=False
+    with open(headerfile) as f:
         for line in f:
             header.append(line)
             if 'EOH' in line:
                 headerlen=len(''.join(header))
-                f.seek(headerlen)
-                data=numpy.fromfile(f,dtype=numpy.int16)
+                if read_data_separately:
+                    data=numpy.fromfile(filename,dtype=numpy.int16)
+                else:
+                    f.seek(headerlen)
+                    data=numpy.fromfile(f,dtype=numpy.int16)
                 break
     sample_rate=float([item for item in header if 'Sample rate = ' in item][0].split('=')[1])
-    ad_scaling=float([item for item in header if 'El = ' in item][0].split('=')[2].split('\xb5V')[0])*1e-6
+    ad_scaling=float([item for item in header if 'El = ' in item][0].split('El =')[1].split('\xb5V')[0])*1e-6
+    if len([item for item in header if 'An = ' in item])>0:
+        ai_scaling=float([item for item in header if 'An = ' in item][0].split('El =')[1].split('\xb5V')[0])*1e-6
+    else:
+        ai_scaling=None
     channel_names=[item for item in header if 'Streams = ' in item][0].split('=')[1].strip().split(';')
     if data.shape[0]%len(channel_names) != 0:
-        raise IOError('Invalid data in {0}. Datapoints: {1}, Channels: {2}'.format(filename, data.shape[0], nchannels))
+        raise IOError('Invalid data in {0}. Datapoints: {1}, Channels: {2}'.format(filename, data.shape[0], len(channel_names)))
     data=data.reshape((data.shape[0]/len(channel_names),len(channel_names))).T
-    digital=data[0]+2**15
-    elphys=data[1:]
+    digital=data[1]+2**15
+    if ai_scaling is not None:
+        analog=data[0]*ai_scaling
+        offset=2
+    else:
+        analog=None
+        offset=1
+    elphys=data[offset:]
     t=numpy.linspace(0,digital.shape[0]/sample_rate,digital.shape[0])
-    return t,digital,elphys,channel_names,sample_rate,ad_scaling
+    return t,analog,digital,elphys,channel_names,sample_rate,ad_scaling
     
 def repetition_boundaries(digital,fsample,pre,post):
     pres=int(pre*fsample)

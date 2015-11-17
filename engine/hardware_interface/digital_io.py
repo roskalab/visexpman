@@ -22,7 +22,6 @@ class SerialPortDigitalIO(instrument.Instrument):
             self.s = [serial.Serial(self.config.DIGITAL_IO_PORT)]
         if os.name != 'nt':
             self.s.open()
-        self.clear_pins()
             
     def clear_pins(self):
         if isinstance(self.config.DIGITAL_IO_PORT, list):
@@ -34,7 +33,6 @@ class SerialPortDigitalIO(instrument.Instrument):
             self.set_data_bit(i*2+1,0)
         
     def release_instrument(self):
-        self.clear_pins()
         for s in self.s:
             s.close()
 
@@ -43,6 +41,9 @@ class SerialPortDigitalIO(instrument.Instrument):
         self.set_data_bit(channel, True, log = log)
         time.sleep(width)
         self.set_data_bit(channel, False, log = log)
+
+    def set_pin(self, channel,value):
+        self.set_data_bit(channel, value)
         
     def set_data_bit(self, channel, value, log = True):
         '''

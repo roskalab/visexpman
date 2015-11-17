@@ -57,7 +57,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
     def save_stim_context(self):
         fn=fileop.get_context_filename(self.config,'npy')
         context_stream = utils.object2array(self.stim_context)
-        numpy.save(self.stim_context,context_stream)
+        numpy.save(fn,context_stream)
         
     def _set_background_color(self,color):
         self.stim_context['background_color'] = color
@@ -188,8 +188,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
     def set_filterwheel(self, channel, filter):
         raise NotImplementedError('')
         
-    def toggle_bullseye(self):
-        self.show_bullseye = not self.show_bullseye
+    def toggle_bullseye(self,state):
+        self.show_bullseye = state
         
     def set_experiment_config(self,source_code, experiment_config_name):
         '''

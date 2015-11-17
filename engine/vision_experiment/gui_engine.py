@@ -16,7 +16,7 @@ try:
     import hdf5io
 except ImportError:
     pass
-from visexpman.engine.vision_experiment import experiment_data, cone_data
+from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
 
@@ -68,7 +68,7 @@ class ExperimentHandler(object):
         Depending on which parameter changed certain things has to be recalculated
         '''
         if parameter_name == 'Bullseye On':
-            self.send({'function': 'toggle_bullseye','args':[]},'stim')
+            self.send({'function': 'toggle_bullseye','args':[self.guidata.read('Bullseye On')]},'stim')
         elif parameter_name == 'Bullseye Size':
             self.send({'function': 'set_variable','args':['bullseye_size',self.guidata.read('Bullseye Size')]},'stim')
         elif parameter_name == 'Bullseye Shape':
@@ -80,6 +80,8 @@ class ExperimentHandler(object):
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')            
         
     def start_experiment(self):
+        if not self.check_mcd_recording_started():
+            return
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
         filename=os.sep.join(cf.split(os.sep)[:-1])
@@ -97,11 +99,52 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        self.printc('Experiment is starting, expected duration is {0} s'.format(experiment_duration))
+        self.enable_check_network_status=False
+        self.current_experiment_parameters=experiment_parameters
         
     def stop_experiment(self):
+        self.printc('Aborting experiment, please wait...')
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         self.send({'function': 'stop_all','args':[]},'stim')
+        
+    def check_mcd_recording_started(self):
+        if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
+            #Find latest mcd file and save experiment metadata to the same folder
+            dt=time.time()-os.path.getmtime(fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd'))
+            res=True
+            if dt>5:
+                res= self.ask4confirmation('MEA recording may not be started, do you want to continue?')
+            return res
+                    
+        
+        
+    def trigger_handler(self,trigger_name):
+        if trigger_name == 'stim done':
+            if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
+                self.enable_check_network_status=True
+                if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
+                    #Find latest mcd file and save experiment metadata to the same folder
+                    self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd')
+                    txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
+                            .format(\
+                            self.guidata.read('name'),
+                            self.guidata.read('Bandpass filter'),
+                            self.guidata.read('ND filter'),
+                            self.guidata.read('Comment'))
+                    for k,v in self.current_experiment_parameters.items():
+                        if k !='stimulus_source_code' or k!='status':
+                            txt+='{0}\t{1}\r'.format(k,v)
+                    txt+=self.current_experiment_parameters['stimulus_source_code']
+                        
+                    outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
+                    if os.path.exists(outfile):
+                        if not self.ask4confirmation ('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
+                            return
+                    fileop.write_text_file(outfile,txt)
+                    self.printc('Experiment info saved to {0}'.format(outfile))
+                
         
 
 class Analysis(object):
@@ -626,6 +669,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.load_context()
         self.widget_status = {}
         self.last_network_check=time.time()
+        self.enable_check_network_status=True
         
     def load_context(self):
         self.guidata = GUIData()
@@ -707,12 +751,16 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if msg is not None and 'ping' not in msg  and 'pong' not in msg:
                 if isinstance(msg,str):
                     self.printc('{0} {1}'.format(connname.upper(),msg))
+                elif msg.has_key('trigger'):
+                    if hasattr(self,'trigger_handler'):
+                        self.trigger_handler(msg['trigger'])
         
     def run(self):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                self.check_network_status()
+                if self.enable_check_network_status:
+                    self.check_network_status()
                 self.check_network_messages()
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()

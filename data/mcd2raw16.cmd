@@ -2,8 +2,8 @@
 # MC_DataTool -file filename
 
 -bin
--i infile
--o outfile
+-i "infile"
+-o "outfile"
 
 -s "Digital Data:D1"
 -s "Electrode Raw Data:01"
