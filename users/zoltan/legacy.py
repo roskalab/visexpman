@@ -54,8 +54,9 @@ class PhysTiff2Hdf5(object):
         pairs = []
         for pf in processable_physfiles:
             regexp = pf
-            found = [tf for tf in tiffiles if os.path.split(regexp.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
-            if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3 and [pf,found[0]] not in self.processed_pairs:
+            tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
+            found = [tf for tf in tiffiles_current_folder if os.path.split(regexp.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
+            if len(found)>0 and [pf,found[0]] not in self.processed_pairs and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3:
                 id = str(experiment_data.get_id(os.path.getmtime(pf)))
                 if len([f for f in self.outfiles if id in f])==0:
                     pairs.append([pf, found[0]])
