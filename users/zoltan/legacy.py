@@ -35,6 +35,9 @@ class PhysTiff2Hdf5(object):
         
     def detect_and_convert(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
+        now=time.time()
+        excluded_extensions=['txt','mat','hdf5','tif' if not self.use_tiff else 'csv']
+        self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600 and not 'timestamp' in f and fileop.file_extension(f)!='txt' and fileop.file_extension(f)not in excluded_extensions]#Considering files not older than 2 weeks
         self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
         
         if self.irlaser:
@@ -44,8 +47,8 @@ class PhysTiff2Hdf5(object):
         tiffiles = [f for f in self.allfiles if fileop.file_extension(f)==('tif' if self.use_tiff else 'csv')]
         if self.irlaser:
             tiffiles = [tf for tf in tiffiles if tf not in physfiles]
-        if not self.use_tiff:
-            tiffiles = [f for f in tiffiles if not 'timestamp' in f]
+#        if not self.use_tiff:
+#            tiffiles = [f for f in tiffiles if not 'timestamp' in f]
         processable_physfiles = []
         phys_ids = [[str(experiment_data.get_id(os.path.getmtime(f))),f] for f in physfiles]
         out_ids= [str(os.path.split(of)[1].split('_')[-2]) for of in self.outfiles]
@@ -235,6 +238,7 @@ class PhysTiff2Hdf5(object):
         h.close()
         fileop.set_file_dates(filename, id)
         self.backup_files(fphys,ftiff,filename)
+        print '{0} s, {1} done'.format(time.time()-t0,filename)
         return filename
         
     def parse_stimulus_name(self,metadata):
