@@ -47,6 +47,9 @@ class Config(object):
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']=0.5#sec
         self.PROTOCOL_STIM_STOP_REWARD['delay after run']=2#sec
         
+        self.PROTOCOL_KEEP_RUNNING_REWARD={}
+        self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=10.0
+        
     def get_protocol_names(self):
         return [vn.replace('PROTOCOL_','') for vn in dir(self) if 'PROTOCOL_' in vn]
         
@@ -266,6 +269,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.stimulus_fired=False
         self.stop_complete=False
         self.generate_run_time()#Generate the randomized expected runtime for start stop stim protocol
+        self.last_reward = 0
         
     def stop_experiment(self):
         if not self.running: return
@@ -383,6 +387,19 @@ class Behavioral(gui.SimpleAppWindow):
                         self.checkdata=numpy.copy(self.empty)
                         self.generate_run_time()#generate a new randomized runtime 
                         
+    def keep_running_reward(self):
+        '''
+        If mouse is running for at least 10 seconds and the last reward was given 10 sec ago
+        '''
+        if self.checkdata[0,-1]-self.checkdata[0,0]>self.config.PROTOCOL_KEEP_RUNNING_REWARD['run time']:
+            t=self.checkdata[0]-self.checkdata[0,0]#Time is shifted to 0
+            t0index=numpy.where(t>t.max()-self.config.PROTOCOL_KEEP_RUNNING_REWARD['run time'])[0].min()
+            ismoving=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)[t0index:]
+            run=ismoving.sum()>self.config.RUN_THRESHOLD*ismoving.shape[0]#Decide wheather at the run part was the speed above thershold
+            if run and self.checkdata[0,-1]-self.last_reward>=self.config.PROTOCOL_KEEP_RUNNING_REWARD['run time']:
+                self.reward()#... give reward and...
+                self.checkdata=numpy.copy(self.empty)#Reset checkdata
+                        
     def generate_run_time(self):
         '''
         Stim stop protocol expected runtime has a random part that needs to be recalculated
@@ -413,6 +430,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.hwcommand.put(['reward'])#hardware handler is notified to generate reward 
         self.valve_state=True
         self.log('reward')
+        self.last_reward=time.time()
         
     def save_data(self):
         '''
