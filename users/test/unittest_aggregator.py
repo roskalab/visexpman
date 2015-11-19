@@ -199,7 +199,7 @@ def prepare_test_data(modulename, working_folder=None, clean_working_dir = True,
     elif not os.path.exists(working_folder):
         os.mkdir(working_folder)
     print 'preparing test data for {0}'.format(modulename)
-    if clean_working_dir:
+    if clean_working_dir and os.path.exists(working_folder):
         shutil.rmtree(working_folder)
         os.mkdir(working_folder)
     for filename in os.listdir(ref_folder):

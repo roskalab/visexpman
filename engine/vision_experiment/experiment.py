@@ -260,6 +260,7 @@ def parse_stimulation_file(filename):
     experiment_module = __import__('experiment_module')
     experiment_config_classes = {}
     for c in inspect.getmembers(experiment_module,inspect.isclass):
+        print c
         if 'ExperimentConfig' in introspect.class_ancestors(c[1]):
             try:
                 expconfig_lines = source_code.split('class '+c[0])[1].split('def _create_parameters')[1].split('def')[0].split('\n')
@@ -281,6 +282,7 @@ class testExperimentHelpers(unittest.TestCase):
                           experiment_config_classes.has_key('TestStim'), 
                           ), 
                           (True, True, True))
+        parse_stimulation_file(os.path.join(fileop.visexpman_package_path(), 'users','volker','plot_mcd.py'))
     
     def test_02_read_experiment_duration(self):
         from visexpman.users.test.test_configurations import GUITestConfig

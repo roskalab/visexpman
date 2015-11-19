@@ -21,7 +21,7 @@ class Config(object):
         self.STIM_CHANNELS=['Dev1/ao0','Dev1/ao1']#Physical channels of usb-daq device
         self.DIO_PORT = 'COM4'#serial port which controls the valve
         self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()#Default data folder
-        self.VALVE_OPEN_TIME=8e-3
+        self.VALVE_OPEN_TIME=20e-3
         self.STIMULUS_DURATION=1.0
         self.CURSOR_RESET_POSITION=0.0#Reset position of the cursor, 0.01 means that the reet positions will be 0.01*screen_width and 0.99*screen_width
         self.CURSOR_POSITION_UPDATE_PERIOD = 50e-3#second, The period time for calling the cursor handler. Cursor position is sampled and speed is calculated when curor handler is called
@@ -31,7 +31,7 @@ class Config(object):
         self.POWER_VOLTAGE_RANGE=[0,10]#The minimum and maximum accepted values for controlling the stimulus
         self.RUN_DIRECTION=1#Polarity of speed signal
 
-        self.RUN_THRESHOLD=0.8#The speed at 80% of the time when mouse is expected to run shall be above MOVE_THRESHOLD
+        self.RUN_THRESHOLD=0.5#The speed at 50% of the time when mouse is expected to run shall be above MOVE_THRESHOLD
         #7 cm: 803-5,988-21,1072-75,1172-270,1341-293,1338-466: 7 cm = 930 pixel -> 1 pixel = 0.0075214899713467055
         self.PIXEL2SPEED=0.0075214899713467055
         self.MOVE_THRESHOLD=1#Above this speed the mouse is considered to be moving
