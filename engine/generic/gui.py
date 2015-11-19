@@ -209,6 +209,43 @@ class SimpleAppWindow(Qt.QMainWindow):
     def notify_user(self, title, message):
         QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
 
+class Progressbar(QtGui.QWidget):
+    def __init__(self, maxtime, name = '', autoclose = False, timer=False):
+        self.maxtime = maxtime
+        self.autoclose = autoclose
+        QtGui.QWidget.__init__(self)
+        self.setWindowTitle(name)
+        self.progressbar = QtGui.QProgressBar(self)
+        self.progressbar.setTextVisible(False)
+        self.progressbar.setRange(0, maxtime)
+        self.progressbar.setMinimumWidth(300)
+        self.progressbar.setMinimumHeight(30)
+        self.setMinimumWidth(320)
+        self.setMinimumHeight(50)
+        self.l = QtGui.QGridLayout()
+        self.l.addWidget(self.progressbar, 0, 0, 1, 1)
+        self.setLayout(self.l)
+        self.t0=time.time()
+        if timer:
+            self.maxtime=100
+            self.timer=QtCore.QTimer()
+            self.timer.start(200)#ms
+            self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_time)
+    
+    def update(self,value):
+        self.progressbar.setValue(value)
+        if self.autoclose and value == 100:
+            self.close()
+        
+    def update_time(self):
+        now=time.time()
+        dt=now-self.t0
+        if dt>self.maxtime:
+            dt = self.maxtime
+            self.timer.stop()
+            if self.autoclose:
+                self.close()
+        self.progressbar.setValue(dt)
 
 class ToolBar(QtGui.QToolBar):
     '''

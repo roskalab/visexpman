@@ -190,31 +190,6 @@ class StimulusTree(pyqtgraph.TreeWidget):
     def _give_not_stimulus_selected_warning(self):
         QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)        
 
-class Progressbar(QtGui.QWidget):
-    def __init__(self, maxtime, name = '', autoclose = False):
-        self.maxtime = maxtime
-        self.autoclose = autoclose
-        QtGui.QWidget.__init__(self)
-        self.setWindowTitle(name)
-        self.progressbar = QtGui.QProgressBar(self)
-        self.progressbar.setRange(0, maxtime)
-        self.progressbar.setMinimumWidth(300)
-        self.progressbar.setMinimumHeight(50)
-        self.t0=time.time()
-        self.timer=QtCore.QTimer()
-        self.timer.start(200)#ms
-        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update)
-        
-    def update(self):
-        now=time.time()
-        dt=now-self.t0
-        if dt>self.maxtime:
-            dt = self.maxtime
-            self.timer.stop()
-            if self.autoclose:
-                self.close()
-        self.progressbar.setValue(dt)
-
 class RoiShift(gui.ArrowButtons):
     def __init__(self,parent):
         gui.ArrowButtons.__init__(self, 'Shift Rois', parent)
