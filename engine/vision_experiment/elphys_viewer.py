@@ -449,7 +449,7 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.hf_plots.plot(self.tplothf,self.spiking_frqs[electrode_order],label='Hz',spike=True)
         
         self.lf_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'],stimulus_time=stimulus_time_lf)
-        self.lf_plots.setWindowTitle('DC')
+        self.lf_plots.setWindowTitle('Baseline')
         self.lf_plots.plot(self.tplotlf,self.low_frequency_avg[electrode_order]*1e6,label='uV')
 
         self.images=MultipleImages(None,self.nchannels,params['Electrode Spacing'])
