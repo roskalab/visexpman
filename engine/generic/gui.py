@@ -222,6 +222,7 @@ class Progressbar(QtGui.QWidget):
         self.progressbar.setMinimumHeight(30)
         self.setMinimumWidth(320)
         self.setMinimumHeight(50)
+        self.move(10,10)
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.progressbar, 0, 0, 1, 1)
         self.setLayout(self.l)
@@ -294,7 +295,7 @@ class ParameterTable(ParameterTree):
         self.params = Parameter.create(name='params', type='group', children=params)
         self.setParameters(self.params, showTop=False)
         
-    def get_parameter_tree(self, return_dict = False):
+    def get_parameter_tree(self, return_dict = False,variable_names=False):
         nodes = [[children for children in self.params.children()]]
         import itertools
         while True:
@@ -323,11 +324,38 @@ class ParameterTable(ParameterTree):
         if return_dict:
             res = {}
             for i in range(len(paths)):
-                res[paths[i][-1]]=values[i]
+                k=paths[i][-1]
+                if variable_names:
+                    k=stringop.to_variable_name(k)
+                res[k]=values[i]
             return res
         else:
             return values, paths, refs
             
+    
+class AddNote(QtGui.QWidget):
+    def __init__(self, parent,text):
+        QtGui.QWidget.__init__(self, parent)
+        self.text=QtGui.QTextEdit(self)
+        self.text.setPlainText(text)
+        self.text.ensureCursorVisible()
+        self.text.setCursorWidth(1)
+        self.text.moveCursor(QtGui.QTextCursor.End)
+        self.text.setFixedWidth(250)
+        self.text.setFixedHeight(80)
+        self.move(100,100)
+        self.save=QtGui.QPushButton('Save' ,parent=self)
+        self.l = QtGui.QGridLayout()
+        self.l.addWidget(self.text, 0, 0, 1, 1)
+        self.l.addWidget(self.save, 0, 1, 1, 1)
+        self.setLayout(self.l)
+        self.connect(self.save, QtCore.SIGNAL('clicked()'), self.save_note)
+        self.show()
+        
+    def save_note(self):
+        self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
+        self.close()
+        
     
 class TextOut(QtGui.QTextEdit):
     def __init__(self, parent):
