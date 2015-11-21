@@ -1,4 +1,4 @@
-import sys,multiprocessing
+import sys,multiprocessing,time
 import subprocess,tempfile,os,unittest,numpy,scipy.io,scipy.signal
 from pylab import *
 
@@ -67,7 +67,7 @@ def read_raw(filename):
         analog=data[0]*ai_scaling
         offset=2
     else:
-        analog=None
+        analog=0
         offset=1
     digital=data[offset-1]+2**15
     elphys=data[offset:]
@@ -88,11 +88,7 @@ def extract_repetitions(digital,elphys,fsample,pre,post):
     fragment_length=min([f.shape[1] for f in fragments])
     repetitions = numpy.array([f[:,:fragment_length] for f in fragments])
     return repetitions
-    
-def save2mat(filename,**datafields):
-    field_names=['t','digital','elphys','channel_names','sample_rate','ad_scaling,repetitions']
-    scipy.io.savemat(filename,datafields,oned_as='column',do_compression=True)
-    
+       
 def filter_trace(pars):
     lowpass, highpass,signal=pars
     lowpassfiltered=scipy.signal.filtfilt(lowpass[0],lowpass[1], signal).real
@@ -145,6 +141,7 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_wi
     if hasattr(queue,'put'):
         queue.put('Reading file')
     t,analog,digital,elphys,channel_names,sample_rate,ad_scaling = read_raw(filename)
+    filedata={'t':t,'analog': analog,'digital': digital, 'elphys': elphys, 'channel_names': numpy.array(channel_names),'sample_rate': sample_rate,'ad_scaling': ad_scaling}
     if hasattr(queue,'put'):
         queue.put('Filtering data')
     l,h=filter(elphys,fcut,filter_order,sample_rate)
@@ -178,7 +175,7 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_wi
     spiking_frqs=numpy.array(spiking_frqs)
     spiking_maps = numpy.array(spiking_maps)
     if hasattr(queue,'put'):
-        queue.put([spiking_frqs,low_frequency_avg*ad_scaling,spiking_maps,sample_rate])
+        queue.put([spiking_frqs,low_frequency_avg*ad_scaling,spiking_maps,sample_rate,filedata])
     return spiking_frqs,low_frequency_avg*ad_scaling,spiking_maps,sample_rate
         
 class TestElphysViewerFunctions(unittest.TestCase):
@@ -268,13 +265,17 @@ class DataFileBrowser(QtGui.QWidget):
         self.filetree.set_root(folder)
     
 class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent,nplots,electrode_spacing):
+    def __init__(self,parent,nplots,electrode_spacing,stimulus_time=None):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setMinimumWidth(1024)
+        self.setMinimumHeight(768)
+        self.move(0,0)
         self.nplots=nplots
         self.electrode_spacing=electrode_spacing
         self.setBackground((255,255,255))
         self.setAntialiasing(True)
         self.plots=[]
+        self.stimulus_time=stimulus_time
         for i in range(nplots):
             p=self.addPlot()
             p.enableAutoRange()
@@ -291,16 +292,23 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
             self.plots[i].setLabels(left='{1}, {0:1.0f} um'.format(-self.electrode_spacing*i*1e6,label), bottom='time [ms]')
             self.plots[i].setYRange(ymin,ymax)
             if spike:
-                curve = self.plots[i].plot(pen=pen,stepMode=True, fillLevel=0, brush=(0,0,255,150))
-                curve.setData(x, y[i][1:])
+                curve = self.plots[i].plot(pen=pen,stepMode=True, fillLevel=0, brush=(0,0,0,150))
+                curve.setData(x, y[i][:-1])
             else:
                 curve = self.plots[i].plot(pen=pen)
                 curve.setData(x, y[i])
+            if self.stimulus_time is not None:
+                c=(30,30,30,80)
+                linear_region = pyqtgraph.LinearRegionItem(self.stimulus_time, movable=False, brush = c)
+                self.plots[i].addItem(linear_region)
             
 class MultipleImages(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, nplots,electrode_spacing):
         self.nplots=nplots
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setMinimumWidth(1024)
+        self.setMinimumHeight(768)
+        self.move(0,0)
         self.setBackground((255,255,255))
         self.plots=[]
         self.imgs=[]
@@ -337,7 +345,7 @@ class CWidget(QtGui.QWidget):
                 {'name': 'Pre Stimulus Time', 'type': 'float', 'value': 200e-3, 'suffix': 's','siPrefix': True},
                 {'name': 'Post Stimulus Time', 'type': 'float', 'value': 400e-3, 'suffix': 's','siPrefix': True},
                 {'name': 'Electrode Spacing', 'type': 'float', 'value': 50e-6, 'suffix': 'm','siPrefix': True},
-                {'name': 'Electrode Order', 'type': 'list', 'value': [16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]},
+                {'name': 'Electrode Order', 'type': 'list', 'value': ELECTRODE_ORDER,'readonly':True},
                     ]
 
         self.params = gui.ParameterTable(self, params_config)
@@ -352,10 +360,10 @@ class CWidget(QtGui.QWidget):
 
 class ElphysViewer(gui.SimpleAppWindow):
     #TODO: context
-    #TODO: save params to file
     def init_gui(self):
-        self.toolbar = gui.ToolBar(self, ['add_note', 'save','reconvert_all', 'concatenate_files', 'exit'])
+        self.toolbar = gui.ToolBar(self, ['convert_mcd_files', 'add_note', 'save','reconvert_all', 'concatenate_files', 'exit'])
         TOOLBAR_HELP = '''
+        Convert Mcd Files: All mcd files in the current folder will be converted to raw
         Add Note: note will be saved to currently open file
         Save: 
         Reconvert All: With current settings apply filtering/spike detection/calculation for all files in selected folder
@@ -368,8 +376,9 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.setCentralWidget(self.cw)
         self.debugw.setMinimumWidth(800)
         self.debugw.setMinimumHeight(250)
-        self.setMinimumWidth(1200)
-        self.setMinimumHeight(750)
+        self.setMinimumWidth(1000)
+        self.setMinimumHeight(600)
+        self.move(100,120)
         self.maximized=False
         self.cw.df.filetree.doubleClicked.connect(self.open_file)
         self.queue_timer=QtCore.QTimer()
@@ -377,13 +386,16 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.connect(self.queue_timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         self.queue=multiprocessing.Queue()
         self.progressbar_states={'reading':0, 'filtering':5,'spikes':50,'spiking map':80}
+        self.matsaver_started=False
+        self.note=''
+        self.max_savetime=60
         
     def check_queue(self):
         if not self.queue.empty():
             msg=self.queue.get()
             if isinstance(msg,list):
                 self.worker.join()
-                self.spiking_frqs,self.low_frequency_avg,self.spiking_maps,self.fsample = msg
+                self.spiking_frqs,self.low_frequency_avg,self.spiking_maps,self.fsample, self.filedata= msg
                 self.show_data()
                 self.pb.update(100)
                 del self.pb
@@ -394,6 +406,13 @@ class ElphysViewer(gui.SimpleAppWindow):
                     if len(p)==1:
                         self.pb.update(p[0])
                 self.log(msg)
+        if self.matsaver_started and not self.matsaver.is_alive():
+            self.log('Done')
+            self.matsaver_started=False
+            self.pb.update(self.max_savetime)
+            time.sleep(0.1)
+            self.pb.close()
+            del self.pb
         
     def open_file(self, index):
         self.clear_plotwidgets()
@@ -410,23 +429,27 @@ class ElphysViewer(gui.SimpleAppWindow):
             spike_window=params['Spiking Frequency Window Size']
             self.worker=multiprocessing.Process(target=raw2spikes,args=(self.filename,pre,post,filter_order,fcut,spike_threshold_std, spike_window,self.queue))
             self.worker.start()
+            self.log('Opening {0}'.format(self.filename))
             self.pb = gui.Progressbar(100,autoclose=True,name='Opening and processing file')
             self.pb.show()
         
     def show_data(self):
         params=self.cw.params.get_parameter_tree(True)
         spike_window=params['Spiking Frequency Window Size']
-        electrode_order=numpy.array(ELECTRODE_ORDER)-1
+        post=params['Post Stimulus Time']
+        pre=params['Pre Stimulus Time']
+        electrode_order=numpy.array(params['Electrode Order'])-1
         self.tplothf=1e3*numpy.linspace(0,self.spiking_frqs.shape[1]*spike_window,self.spiking_frqs.shape[1])
         self.tplotlf=1e3*numpy.linspace(0,self.low_frequency_avg.shape[1]/self.fsample,self.low_frequency_avg.shape[1])
         self.nchannels=self.spiking_frqs.shape[0]
-        
-        self.hf_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'])
+        stimulus_time_hf = [self.tplothf[numpy.where(self.tplothf<pre*1e3)[0].max()],self.tplothf[numpy.where(self.tplothf>self.tplothf.max()-post*1e3)[0].min()]]
+        stimulus_time_lf = [self.tplotlf[numpy.where(self.tplotlf<pre*1e3)[0].max()],self.tplotlf[numpy.where(self.tplotlf>self.tplotlf.max()-post*1e3)[0].min()]]
+        self.hf_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'],stimulus_time=stimulus_time_hf)
         self.hf_plots.setWindowTitle('Spiking Frequency')
         self.hf_plots.plot(self.tplothf,self.spiking_frqs[electrode_order],label='Hz',spike=True)
         
-        self.lf_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'])
-        self.lf_plots.setWindowTitle('DC')
+        self.lf_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'],stimulus_time=stimulus_time_lf)
+        self.lf_plots.setWindowTitle('Baseline')
         self.lf_plots.plot(self.tplotlf,self.low_frequency_avg[electrode_order]*1e6,label='uV')
 
         self.images=MultipleImages(None,self.nchannels,params['Electrode Spacing'])
@@ -446,31 +469,56 @@ class ElphysViewer(gui.SimpleAppWindow):
     def exit_action(self):
         self.clear_plotwidgets()
         self.close()
-        
             
     def clear_plotwidgets(self):
-        [getattr(self,w).close() for w in ['hf_plots', 'lf_plots','images'] if hasattr(self, w)]
+        [getattr(self,w).close() for w in ['hf_plots', 'lf_plots','images','addnote'] if hasattr(self, w)]
         if hasattr(self, 'lf_plots'):
             del self.lf_plots
         if hasattr(self, 'hf_plots'):
             del self.hf_plots
         if hasattr(self, 'images'):
             del self.images
+        if hasattr(self, 'addnote'):
+            del self.addnote
         
     def save_action(self):
+        if not hasattr(self, 'spiking_frqs'):
+            self.notify_user('Warning','No file opened')
+            return
+        if hasattr(self,'matsaver') and self.matsaver.is_alive():
+            self.notify_user('Warning','Saving in progress')
+            return
+        data2save = {}
+        data2save['parameters']=self.cw.params.get_parameter_tree(True,True)
+        data2save['spiking_frqs'] = self.spiking_frqs
+        data2save['low_frequency_avg'] = self.low_frequency_avg
+        data2save['spiking_maps'] = self.spiking_maps
+        data2save['fsample'] = self.fsample
+        data2save['note'] = self.note
+        data2save.update(self.filedata)
+        filename=self.filename.replace(fileop.file_extension(self.filename),'mat')
+        self.matsaver=multiprocessing.Process(target=scipy.io.savemat,kwargs={'file_name':filename,'mdict':data2save,'oned_as':'column','do_compression':True})
+        self.matsaver.start()
+        self.matsaver_started=True
+        self.log('Saving to {0}'.format(filename))
+        self.pb = gui.Progressbar(self.max_savetime,name='Saving file',timer=True)
+        self.pb.show()
+        
+    def convert_mcd_files_action(self):
         pass
         
     def add_note_action(self):
-        pass
+        self.addnote=gui.AddNote(None,self.note)
+        self.addnote.connect(self.addnote, QtCore.SIGNAL('addnote'),self.store_note)
+        
+    def store_note(self,note):
+        self.note=note
         
     def reconvert_all_action(self):
         pass
 
     def concatenate_files_action(self):
         pass
-
-def worker(par):
-    return par**3
 
 if __name__=='__main__':
     if len(sys.argv)==1:
