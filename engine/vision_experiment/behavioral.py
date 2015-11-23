@@ -21,11 +21,11 @@ class Config(object):
         self.STIM_CHANNELS=['Dev1/ao0','Dev1/ao1']#Physical channels of usb-daq device
         self.DIO_PORT = 'COM4'#serial port which controls the valve
         self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()#Default data folder
-        self.VALVE_OPEN_TIME=20e-3
+        self.VALVE_OPEN_TIME=10e-3
         self.STIMULUS_DURATION=1.0
         self.CURSOR_RESET_POSITION=0.0#Reset position of the cursor, 0.01 means that the reet positions will be 0.01*screen_width and 0.99*screen_width
         self.CURSOR_POSITION_UPDATE_PERIOD = 50e-3#second, The period time for calling the cursor handler. Cursor position is sampled and speed is calculated when curor handler is called
-        self.CAMERA_UPDATE_RATE=20#Hz, Frame rate of camera. This value will be used for the output video file too
+        self.CAMERA_UPDATE_RATE=16#Hz, Frame rate of camera. This value will be used for the output video file too
         self.CAMERA_FRAME_WIDTH=640/2
         self.CAMERA_FRAME_HEIGHT=480/2
         self.POWER_VOLTAGE_RANGE=[0,10]#The minimum and maximum accepted values for controlling the stimulus
@@ -48,7 +48,7 @@ class Config(object):
         self.PROTOCOL_STIM_STOP_REWARD['delay after run']=2#sec
         
         self.PROTOCOL_KEEP_RUNNING_REWARD={}
-        self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=10.0
+        self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=5.0
         
     def get_protocol_names(self):
         return [vn.replace('PROTOCOL_','') for vn in dir(self) if 'PROTOCOL_' in vn]
@@ -73,7 +73,35 @@ class FrameSaver(multiprocessing.Process):
                     Image.fromarray(frame).save(filename)#Saving the image
             else:
                 time.sleep(1e-3)#Ensuring that this process does not consume all the time of the processor where it is running
-
+                
+class FileSaver(multiprocessing.Process):
+    '''
+    This process saves the images transmitted through the input queue. 
+    It is running on a different processor core from the main thread to ensure higher video recording framerate.
+    '''
+    def __init__(self,queue):
+        multiprocessing.Process.__init__(self)
+        self.queue=queue
+        
+    def run(self):
+        while True:
+            if not self.queue.empty():
+                msg=self.queue.get()
+                if msg=='terminate':#If message contains this string, stop the process
+                    break
+                else:
+                    filename, data2save, frame_folder, fps=msg
+                    self.save(filename, data2save, frame_folder, fps)
+            else:
+                time.sleep(1e-3)#Ensuring that this process does not consume all the time of the processor where it is running
+                
+    def save(self, filename, data2save, frame_folder, fps):
+        scipy.io.savemat(filename, data2save,oned_as='row', do_compression=True)
+        vfilename=filename.replace('.mat','.mp4')
+        #frames saved to a temporary folder are used for generating an mpeg4 video file.
+        videofile.images2mpeg4(frame_folder, vfilename,fps)
+        shutil.rmtree(frame_folder)
+        
 class HardwareHandler(threading.Thread):
     '''
     Runs parallel with the main thread. Via queues it receives commands to open/close the valve or generate a stimulus
@@ -153,11 +181,20 @@ class CWidget(QtGui.QWidget):
         self.stop = QtGui.QPushButton('Stop', parent=self)#Stop recording/experiment session
         self.stop.setMaximumWidth(100)
         
+        self.enable_periodic_data_save=gui.LabeledCheckBox(self,'Enable Periodic Save')
+        self.enable_periodic_data_save.input.setCheckState(2)
+        self.save_period = gui.LabeledInput(self, 'Data Save Period [s]')
+        self.save_period.input.setText('60')
+        self.save_period.input.setFixedWidth(40)
+        
+        
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
-        self.l.addWidget(self.image, 0, 0, 4, 2)
+        self.l.addWidget(self.image, 0, 0, 5, 2)
         self.l.addWidget(self.plotw, 0, 2, 1, 5)
         self.l.addWidget(self.select_protocol, 1, 2, 1, 2)
         self.l.addWidget(self.stim_power, 2, 5, 1, 1)
+        self.l.addWidget(self.enable_periodic_data_save, 3, 4, 1, 1)
+        self.l.addWidget(self.save_period, 3, 5, 1, 1)
         self.l.addWidget(self.select_folder, 1, 4, 1, 1)
         self.l.addWidget(self.selected_folder, 1, 5, 1, 1)
         self.l.addWidget(self.open_valve, 1, 6, 1, 1)
@@ -215,6 +252,9 @@ class Behavioral(gui.SimpleAppWindow):
         self.framequeue=multiprocessing.Queue()#Queue for sending video frames for the frame saver
         self.framesaver=FrameSaver(self.framequeue)#Create frame saver process
         self.framesaver.start()#Start the process
+        self.filesaver_q=multiprocessing.Queue()
+        self.filesaver=FileSaver(self.filesaver_q)
+        self.filesaver.start()
         #Initialize state variables:
         self.stim_state=0#0 when no stimulus is presented, 1 when LED1 and 2 when LED2 is on
         self.valve_state=False#True when valve is open
@@ -257,9 +297,12 @@ class Behavioral(gui.SimpleAppWindow):
         self.data=numpy.copy(self.empty)#self.data stores the all the speed, valve state, stimulus state data
         self.frame_times=[]
         self.frames=[]
+        self.save_period=float(self.cw.save_period.input.text())
+        self.enable_periodic_data_save=self.cw.enable_periodic_data_save.input.checkState()==2
+        self.recording_start_time=time.time()
         self.log('start experiment')
         
-        self.frame_folder=os.path.join(tempfile.gettempdir(), 'vf')#Create temporary folder for video frames
+        self.frame_folder=os.path.join(tempfile.gettempdir(), 'vf_{0}'.format(time.time()))#Create temporary folder for video frames
         if os.path.exists(self.frame_folder):#If already exists, delete it with its content
             shutil.rmtree(self.frame_folder)
         os.mkdir(self.frame_folder)
@@ -270,6 +313,16 @@ class Behavioral(gui.SimpleAppWindow):
         self.stop_complete=False
         self.generate_run_time()#Generate the randomized expected runtime for start stop stim protocol
         self.last_reward = 0
+        
+    def check_recording_restart(self):
+        if not self.enable_periodic_data_save:return
+        now=time.time()
+        #Restart is enabled if last reward was within a second or it was a long time ago (20 sec).
+        dt=now-self.last_reward
+        if now-self.recording_start_time>self.save_period and ((dt<2.0 and dt>0.5) or dt>20):
+            self.stop_experiment()
+            self.start_experiment()
+            
         
     def stop_experiment(self):
         if not self.running: return
@@ -294,6 +347,7 @@ class Behavioral(gui.SimpleAppWindow):
         '''
         if not self.running:
             return
+        self.check_recording_restart()
         self.cursor_position = QtGui.QCursor.pos().x()#Reading the mouse position (x)
         self.now=time.time()#Save the current time for timestamping later the data
         reset_position=None
@@ -449,13 +503,8 @@ class Behavioral(gui.SimpleAppWindow):
         data2save['config']=[(vn, getattr(self.config,vn)) for vn in dir(self.config) if vn.isupper()]
         data2save['frametime']=self.frame_times
         self.log('Video capture frame rate was {0}'.format(1/numpy.diff(self.frame_times).mean()))
-        #Write data to mat file
-        scipy.io.savemat(filename, data2save,oned_as='row', do_compression=True)
-        self.log('Data saved to {0}'.format(filename))
-        vfilename=filename.replace('.mat','.mp4')
-        #frames saved to a temporary folder are used for generating an mpeg4 video file.
-        videofile.images2mpeg4(self.frame_folder, vfilename, self.config.CAMERA_UPDATE_RATE)
-        self.log('Video saved to {0}'.format(vfilename))
+        self.log('Saving data to {0}, saving video to {1}'.format(filename,filename.replace('.mat','.mp4')))
+        self.filesaver_q.put((filename, data2save, self.frame_folder,  self.config.CAMERA_UPDATE_RATE))
         
     def select_folder(self):
         #Pop up a dialog asking the user for folder selection
@@ -470,6 +519,8 @@ class Behavioral(gui.SimpleAppWindow):
         self.hwh.join()#Wait till thread ends
         self.framequeue.put('terminate')#Terminate frame saver process and ...
         self.framesaver.join()#Wait until it terminates
-    
+        self.filesaver_q.put('terminate')
+        self.filesaver.join()
+            
 if __name__ == '__main__':
     gui = Behavioral()
