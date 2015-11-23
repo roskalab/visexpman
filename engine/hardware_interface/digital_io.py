@@ -88,7 +88,31 @@ class Photointerrupter(threading.Thread):
                     self.state[id] = current_state
                     self.queues[id].put((now, self.state[id]))
             time.sleep(5e-3)
-            
+           
+          
+class AduinoIO(object):
+    def __init__(self,port):
+        self.s=serial.Serial(port, baudrate=115200)
+        self.s.setTimeout(1)
+        self.state=0
+        self.set_do(self.state)
+        
+    def set_pin(self,channel,value):
+        if value:
+            self.state|=1<<channel
+        else:
+            self.state&=~(1<<channel)
+        self.set_do(self.state)
+        #self.s.write('p(\xff)');self.s.read(100)
+        
+    def set_do(self,value):
+        self.s.write('d'+chr(value))
+        
+    def pulse_trigger(self,channel):
+        self.s.write('p'+chr(1<<channel))
+        
+    def __del__(self):
+        self.s.close()
            
 class TestConfig(object):
     def __init__(self):
@@ -153,6 +177,16 @@ class TestDigitalIO(unittest.TestCase):
                 s.set_data_bit(1, False)
                 time.sleep(toff)
         s.release_instrument()
+        
+    def test_05_AIO(self):
+        a=AduinoIO('/dev/ttyACM0')
+        a.pulse_trigger(6)
+        for i in range(100):
+            a.set_pin(6,1)
+            time.sleep(1e-3)
+            a.set_pin(6,0)
+            time.sleep(1e-3)
+        pass
 
 if __name__ == '__main__':
     unittest.main()
