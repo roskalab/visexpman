@@ -517,8 +517,6 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         self.CONNECTIONS['stim']['ip']['main_ui'] = '127.0.0.1'
         self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '127.0.0.1'
         self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '127.0.0.1'
-        self.CONNECTIONS['analysis']['ip']['analysis'] = '127.0.0.1'
-        self.CONNECTIONS['analysis']['ip']['main_ui'] = '127.0.0.1'
         SCREEN_UM_TO_PIXEL_SCALE = 0.5
         self.GAMMA_CORRECTION = numpy.array([
                                              [0.0, 0.0], 

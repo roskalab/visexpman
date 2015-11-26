@@ -1250,6 +1250,33 @@ class TestUtils(unittest.TestCase):
         for o in objects:
             res.append(array2object(object2array(o)))
         self.assertEqual(objects, res)
+        
+    def test_18_shuffle_positions(self):
+        from visexpman.users.test import unittest_aggregator
+        positions=array2object(numpy.load(os.path.join(unittest_aggregator.prepare_test_data('shuffle_positions'),'positions.npy')))
+        col=[1.0,0.0]
+        import itertools
+        pc=[[c,p] for p,c in itertools.product(positions,col)]
+        shuffle_positions_avoid_adjacent(pc,rc((150,150)))
+        
+def shuffle_positions_avoid_adjacent(positions,shape_distance):
+    remaining=copy.deepcopy(positions)
+    shuffled=[]
+    while True:
+        selected_i = random.choice(range(len(remaining)))
+        if len(shuffled)>0:
+            while True:
+                coords=numpy.array([shuffled[-1][1],remaining[selected_i][1]])
+                print abs(numpy.diff(coords['row'])[0]),abs(numpy.diff(coords['col'])[0]),shape_distance['row'],shape_distance['col']
+                if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
+                    selected_i = random.choice(range(len(remaining)))
+                else:
+                    break
+        shuffled.append(remaining[selected_i])
+        del remaining[selected_i]
+        if len(remaining)==0:
+            break
+    return shuffled
             
 if __name__ == "__main__":
     module_names, visexpman_module_paths = imported_modules()
@@ -1317,7 +1344,6 @@ if __name__ == "__main__":
 
             
     mytest = unittest.TestSuite()
-    mytest.addTest(TestUtils('test_numpy_circles'))
     mytest.addTest(TestUtils('test_01_pulse_train'))
     mytest.addTest(TestUtils('test_02_pulse_train'))
     mytest.addTest(TestUtils('test_03_pulse_train'))
@@ -1329,6 +1355,7 @@ if __name__ == "__main__":
     mytest.addTest(TestUtils('test_13_rcd_pack'))
     mytest.addTest(TestUtils('test_14_rcd_pack'))
     mytest.addTest(TestUtils('test_15_rcd_pack'))
+    mytest.addTest(TestUtils('test_18_shuffle_positions'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)

@@ -1336,16 +1336,19 @@ class AdvancedStimulation(StimulationHelpers):
                                                                             on_time = on_time,
                                                                             off_time = off_time)
         if random_order:
-            import random
-            random.seed(0)
-            random.shuffle(positions)
+            import random,itertools
+            #random.seed(0)
+            positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]#shuffling colors and positions
+            positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+            #random.shuffle(positions_and_colors)
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
-            for p in positions:
-                for color in shape_colors:
+            for color,p in positions_and_colors:            
+            #for p in positions:
+             #   for color in shape_colors:
                     for r2 in range(flash_repeat):
                         if self.abort:
                             break
@@ -1646,10 +1649,14 @@ if test_mode:
             from visexpman.engine.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestCheckerboardConfig', ENABLE_FRAME_CAPTURE = False)
         
-        #@unittest.skip('')
+        @unittest.skip('')
         def test_12_movinggrating(self):
             from visexpman.engine.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
+            
+        def test_13_receptive_field(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNew', ENABLE_FRAME_CAPTURE = False)
         
     
 

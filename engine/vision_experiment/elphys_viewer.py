@@ -377,7 +377,7 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.debugw.setMinimumWidth(800)
         self.debugw.setMinimumHeight(250)
         self.setMinimumWidth(1000)
-        self.setMinimumHeight(600)
+        self.setMinimumHeight(800)
         self.move(100,120)
         self.maximized=False
         self.cw.df.filetree.doubleClicked.connect(self.open_file)

@@ -107,11 +107,13 @@ class AduinoIO(object):
         
     def set_do(self,value):
         self.s.write('d'+chr(value))
+        time.sleep(2e-3)#On windows computers this delays prevents firmware crash
         
     def pulse_trigger(self,channel):
         self.s.write('p'+chr(1<<channel))
+        time.sleep(2e-3)
         
-    def __del__(self):
+    def close(self):
         self.s.close()
            
 class TestConfig(object):
@@ -142,7 +144,7 @@ class TestDigitalIO(unittest.TestCase):
             time.sleep(10e-3)
         s.release_instrument()
     
-    @unittest.skip('')    
+    @unittest.skip('')
     def test_03_test_photointerrupter(self):
         class Config():
             def __init__(self):
@@ -159,7 +161,8 @@ class TestDigitalIO(unittest.TestCase):
             while not pi.queues[id].empty():
                 transition = pi.queues[id].get()
                 print transition[0] - pi.t0, transition[1]
-                
+    
+    @unittest.skip('')    
     def test_04_pwm(self):
         config = TestConfig()
         s = SerialPortDigitalIO(config)
@@ -179,14 +182,17 @@ class TestDigitalIO(unittest.TestCase):
         s.release_instrument()
         
     def test_05_AIO(self):
-        a=AduinoIO('/dev/ttyACM0')
-        a.pulse_trigger(6)
+        a=AduinoIO('COM4' if os.name=='nt' else '/dev/ttyACM1')
+        #time.sleep(5e-3)
+        for i in range(100):
+            a.pulse_trigger(6)
+            #time.sleep(5e-3)
         for i in range(100):
             a.set_pin(6,1)
-            time.sleep(1e-3)
+            time.sleep(5e-3)
             a.set_pin(6,0)
-            time.sleep(1e-3)
-        pass
+            time.sleep(5e-3)
+        a.close()
 
 if __name__ == '__main__':
     unittest.main()

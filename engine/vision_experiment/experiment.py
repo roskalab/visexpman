@@ -23,7 +23,7 @@ class ExperimentConfig(Config):
     log
     '''
     def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None):
-        Config.__init__(self, ignore_range = True)
+        Config.__init__(self, machine_config=machine_config,ignore_range = True)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         if machine_config != None:
             self.create_runnable(machine_config, queues, experiment_module, parameters, log) # needs to be called so that runnable is instantiated and other checks are done

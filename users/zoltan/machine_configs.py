@@ -163,9 +163,6 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         self.CONNECTIONS['stim']['ip']['main_ui'] = main_ui_ip
         self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = ca_imaging_ip#bind to specific network card
         self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = ca_imaging_ip
-        self.CONNECTIONS['analysis']['ip']['analysis'] = None
-        self.CONNECTIONS['analysis']['ip']['main_ui'] = main_ui_ip
-
         self.BASE_PORT = 10000
         
         COORDINATE_SYSTEM='center'
