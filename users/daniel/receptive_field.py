@@ -8,15 +8,16 @@ from visexpman.engine.vision_experiment import experiment
 class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.COLORS = [1.0]
-        self.BACKGROUND_COLOR = 0.0
+        self.COLORS = [1.0,0.0]
+        self.BACKGROUND_COLOR = 0.5
 #        self.SHAPE_SIZE = 300.0
-        self.DISPLAY_SIZE = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col'])
-        self.DISPLAY_SIZE = utils.rc((self.DISPLAY_SIZE, self.DISPLAY_SIZE))
-        self.NROWS = 8
+#        self.DISPLAY_SIZE = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col'])
+#        self.DISPLAY_SIZE = utils.rc((self.DISPLAY_SIZE, self.DISPLAY_SIZE))
+        self.DISPLAY_SIZE=self.machine_config.SCREEN_SIZE_UM
+        self.NROWS = 6
         self.NCOLUMNS = 8
-        self.ON_TIME = 1.0
-        self.OFF_TIME = 2.0
+        self.ON_TIME = 0.5
+        self.OFF_TIME = 1.5
         self.REPEATS = 1
         self.REPEAT_SEQUENCE = 1
         self.ENABLE_RANDOM_ORDER = not False
@@ -68,4 +69,5 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     shape_colors = self.experiment_config.COLORS, 
                                     random_order = self.experiment_config.ENABLE_RANDOM_ORDER)
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
+        print self.shape_size,self.machine_config.SCREEN_SIZE_UM,self.ncolumns,self.nrows
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}

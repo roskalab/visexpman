@@ -202,7 +202,7 @@ class ReceptiveFieldPlotter(SmallApp):
         
         self.image = gui.Image(self)
         self.plots = gui.Plots(self)
-        if len(sys.argv)==2 and sys.argv[1]=='rec':
+        if len(sys.argv)==3 and sys.argv[2]=='rec':
             self.plots.setMinimumWidth(1600)
             self.resize(2000,900)
             self.plots.setMinimumHeight(900)
@@ -212,8 +212,7 @@ class ReceptiveFieldPlotter(SmallApp):
             self.resize(1500,800)
             self.image.setMinimumWidth(500)
             self.image.setMinimumHeight(500)
-        
-        
+#        self.plots.show()
         self.open_file_button = QtGui.QPushButton('Open file', self)
         self.update_plots_button = QtGui.QPushButton('Update plots', self)
         help='First roi: cell, second roi: background'
@@ -267,10 +266,11 @@ class ReceptiveFieldPlotter(SmallApp):
         idnode=hh.findvar(cg.select_measurement(hh).split('\\')[-1])
         from visexpA.engine.datahandlers.importers import load_configs
         self.machine_config, self.experiment_config = load_configs(hh)
-        self.synct=numpy.linspace(0, idnode['sync_data'].shape[0]/float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE']), idnode['sync_data'].shape[0])
-        self.sync_data=idnode['sync_data'][:, 0]
-        self.sync_visual_stim=idnode['sync_data'][:, 1]
-        self.sync_l_stim=idnode['sync_data'][:, 2]
+        if not self.is_recfield_stim:
+            self.synct=numpy.linspace(0, idnode['sync_data'].shape[0]/float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE']), idnode['sync_data'].shape[0])
+            self.sync_data=idnode['sync_data'][:, 0]
+            self.sync_visual_stim=idnode['sync_data'][:, 1]
+            self.sync_l_stim=idnode['sync_data'][:, 2]
         if self.rawdata is None:
             self.notify_user('Warning', 'Not yet prcessed by Jobhandler')
             self.plots.setFixedWidth(1000)
@@ -353,7 +353,7 @@ class ReceptiveFieldPlotter(SmallApp):
             raw_trace=masked.mean(axis=1).mean(axis=1)
             self.update_image(self.meanimage,mask*self.meanimage.max()*0.7)
             self.p=self.plots.addPlot()
-            self.p.plot(self.t, raw_trace-raw_trace.min(), pen=(255, 0, 0))
+            self.p.plot(self.t[:raw_trace.shape[0]], raw_trace-raw_trace.min(), pen=(255, 0, 0))
             self.p.plot(self.synct, numpy.where(self.sync_visual_stim>1.6, 1, 0), pen=(0, 128, 0))
             if hasattr(self.experiment_config,  'FLASH_AMPLITUDE'):
                 if self.experiment_config.FLASH_AMPLITUDE>0.1:
@@ -483,8 +483,8 @@ def run_gui():
     3. small application class name
     Example: python visexp_smallapp.py peter MEASetup FlowmeterLogger
     '''
-    if len(sys.argv) < 4 and len(sys.argv) != 2:
-        raise RuntimeError('The following commandline parameters are required: username machine_config and smallapp class name')
+#    if len(sys.argv) < 4 and len(sys.argv) != 2:
+#        raise RuntimeError('The following commandline parameters are required: username machine_config and smallapp class name')
     app = Qt.QApplication(sys.argv)
     if len(sys.argv) ==4:
         gui = getattr(sys.modules[__name__], sys.argv[3])(sys.argv[1], sys.argv[2])

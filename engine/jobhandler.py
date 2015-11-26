@@ -463,13 +463,16 @@ class CommandInterface(command_parser.CommandParser):
                         from visexpA.users.zoltan import converters
                         converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
                         #Generate a mean pixel curve
+                        time.sleep(3)
                         h = hdf5io.Hdf5io(full_fragment_path, filelocking = False)
                         rawdata = h.findvar('rawdata')
+                        #time.sleep(2)
                         trace=rawdata.mean(axis=0).mean(axis=0)[:, 0]
                         t = h.findvar('sync_signal')['data_frame_start_ms']*1e-3
+                        #time.sleep(1)
                         from pylab import clf, plot, savefig, xlabel
                         clf()
-                        plot(t, trace)
+                        plot(t[:trace.shape[0]], trace)
                         xlabel('times [s]')
                         savefig(full_fragment_path.replace('.hdf5', '.png'), dpi=200)
                         h.close()
