@@ -1201,7 +1201,8 @@ class StimulationSequences(Stimulations):
             import random,itertools
             #random.seed(0)
             positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]#shuffling colors and positions
-            random.shuffle(positions_and_colors)
+            #random.shuffle(positions_and_colors)
+            positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
             for color,p in positions_and_colors:

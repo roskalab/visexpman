@@ -1204,6 +1204,24 @@ class TestUtils(unittest.TestCase):
         for p in pars:
             img = numpy_circles(p[0], p[1], p[2], p[3])
             pass
+def shuffle_positions_avoid_adjacent(positions,shape_distance):
+    remaining=copy.deepcopy(positions)
+    shuffled=[]
+    while True:
+        selected_i = random.choice(range(len(remaining)))
+        if len(shuffled)>0:
+            while True:
+                coords=numpy.array([shuffled[-1][1],remaining[selected_i][1]])
+                print abs(numpy.diff(coords['row'])[0]),abs(numpy.diff(coords['col'])[0]),shape_distance['row'],shape_distance['col']
+                if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
+                    selected_i = random.choice(range(len(remaining)))
+                else:
+                    break
+        shuffled.append(remaining[selected_i])
+        del remaining[selected_i]
+        if len(remaining)==0:
+            break
+    return shuffled
             
 if __name__ == "__main__":
     #commented out by Daniel:
