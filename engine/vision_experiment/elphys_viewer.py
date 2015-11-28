@@ -284,7 +284,7 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
             if (i+1)%2==0 and i!=0:
                 self.nextRow()
                 
-    def plot(self,x,y,pen=(0,0,0),label='',spike=False):
+    def plot(self,x,y,pen=(0,0,0),label='',spike=False,text = []):
         yi=numpy.array(y)
         ymin=y.min()
         ymax=y.max()
@@ -301,6 +301,10 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
                 c=(30,30,30,80)
                 linear_region = pyqtgraph.LinearRegionItem(self.stimulus_time, movable=False, brush = c)
                 self.plots[i].addItem(linear_region)
+            if len(text)>0:
+                textw = pyqtgraph.TextItem(text=text[i], color=(0,0,0), anchor=(-1,-1), border=(0,0,0,0), fill=(0, 0, 0, 0))
+                self.plots[i].addItem(textw)
+                textw.setPos(0, y.max())
             
 class MultipleImages(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, nplots,electrode_spacing):
@@ -450,7 +454,10 @@ class ElphysViewer(gui.SimpleAppWindow):
         
         self.lf_plots=MultiplePlots(None,self.nchannels,params['Electrode Spacing'],stimulus_time=stimulus_time_lf)
         self.lf_plots.setWindowTitle('Baseline')
-        self.lf_plots.plot(self.tplotlf,self.low_frequency_avg[electrode_order]*1e6,label='uV')
+        mini=numpy.where(self.tplotlf>stimulus_time_lf[0])[0].min()
+        maxi=numpy.where(self.tplotlf<stimulus_time_lf[1])[0].max()
+        t=['min={0:0.2f}'.format(trace.min()) for trace in (self.low_frequency_avg[electrode_order]*1e6)[:,mini:maxi]]
+        self.lf_plots.plot(self.tplotlf,self.low_frequency_avg[electrode_order]*1e6,label='uV',text=t)
 
         self.images=MultipleImages(None,self.nchannels,params['Electrode Spacing'])
         self.images.setWindowTitle('Spike maps')
