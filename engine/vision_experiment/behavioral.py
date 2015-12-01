@@ -19,7 +19,7 @@ class Config(object):
     '''
     def __init__(self):
         self.STIM_CHANNELS=['Dev1/ao0','Dev1/ao1']#Physical channels of usb-daq device
-        self.DIO_PORT = 'COM4'#serial port which controls the valve
+        self.DIO_PORT = 'COM4' if os.name=='nt' else '/dev/ttyUSB1'#serial port which controls the valve
         self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()#Default data folder
         self.VALVE_OPEN_TIME=10e-3
         self.STIMULUS_DURATION=1.0
@@ -187,7 +187,6 @@ class CWidget(QtGui.QWidget):
         self.save_period.input.setText('60')
         self.save_period.input.setFixedWidth(40)
         
-        
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
         self.l.addWidget(self.image, 0, 0, 5, 2)
         self.l.addWidget(self.plotw, 0, 2, 1, 5)
@@ -252,6 +251,8 @@ class Behavioral(gui.SimpleAppWindow):
         self.framequeue=multiprocessing.Queue()#Queue for sending video frames for the frame saver
         self.framesaver=FrameSaver(self.framequeue)#Create frame saver process
         self.framesaver.start()#Start the process
+        self.video_counter=0
+        self.frame_counter=0
         self.filesaver_q=multiprocessing.Queue()
         self.filesaver=FileSaver(self.filesaver_q)
         self.filesaver.start()
@@ -285,10 +286,18 @@ class Behavioral(gui.SimpleAppWindow):
             self.cw.image.set_image(numpy.rot90(frame_color_corrected,3),alpha=1.0)#Setting the image with correct colors on the user interface. A 90 degree rotation is necessary
             if self.running:#If the experiment is running...
                 self.frame_times.append(time.time())#... the time of image acquisition is saved
-                self.frames.append(frame_color_corrected)#Saving the frame to the memory (might not be necessary)
+                #self.frames.append(frame_color_corrected)#Saving the frame to the memory (might not be necessary)
                 if self.cw.save_data.input.checkState()==2:#If the data save checkbox is checked...
                     #... The image and the filename of the image file is sent via a queue to the frame saver. The images are saved to a temporary folder
-                    self.framequeue.put([copy.deepcopy(frame_color_corrected), os.path.join(self.frame_folder, 'f{0:0=5}.png'.format(len(self.frames)))])
+                    self.framequeue.put([copy.deepcopy(frame_color_corrected), os.path.join(self.frame_folder, 'f{0:0=5}.png'.format(self.frame_counter))])
+                    self.frame_counter+=1
+            
+    def _get_new_frame_folder(self):
+        self.frame_folder=os.path.join(tempfile.gettempdir(), 'vf_{0}'.format(self.video_counter))#Create temporary folder for video frames
+        self.video_counter+=1
+        if os.path.exists(self.frame_folder):#If already exists, delete it with its content
+            shutil.rmtree(self.frame_folder)
+        os.mkdir(self.frame_folder)
             
     def start_experiment(self):
         if self.running: return#Do nothing when already running
@@ -296,17 +305,14 @@ class Behavioral(gui.SimpleAppWindow):
         self.checkdata=numpy.copy(self.empty)#checkdata contains the speed values for checking whether the mouse reached run for x seconds or stop for y seconds condition
         self.data=numpy.copy(self.empty)#self.data stores the all the speed, valve state, stimulus state data
         self.frame_times=[]
-        self.frames=[]
         self.save_period=float(self.cw.save_period.input.text())
         self.enable_periodic_data_save=self.cw.enable_periodic_data_save.input.checkState()==2
         self.recording_start_time=time.time()
+        self.last_save_time=time.time()
+        self.data_index=0
         self.log('start experiment')
         
-        self.frame_folder=os.path.join(tempfile.gettempdir(), 'vf_{0}'.format(time.time()))#Create temporary folder for video frames
-        if os.path.exists(self.frame_folder):#If already exists, delete it with its content
-            shutil.rmtree(self.frame_folder)
-        os.mkdir(self.frame_folder)
-        
+        self._get_new_frame_folder()
         #Protocol specific
         self.run_complete=False
         self.stimulus_fired=False
@@ -314,14 +320,22 @@ class Behavioral(gui.SimpleAppWindow):
         self.generate_run_time()#Generate the randomized expected runtime for start stop stim protocol
         self.last_reward = 0
         
-    def check_recording_restart(self):
+    def check_recording_save(self):
         if not self.enable_periodic_data_save:return
         now=time.time()
         #Restart is enabled if last reward was within a second or it was a long time ago (20 sec).
         dt=now-self.last_reward
-        if now-self.recording_start_time>self.save_period and ((dt<2.0 and dt>0.5) or dt>20):
-            self.stop_experiment()
-            self.start_experiment()
+        if now-self.last_save_time>self.save_period:# and ((dt<2.0 and dt>0.5) or dt>20):
+            self.save_data()
+            self._get_new_frame_folder()
+            self.last_save_time=now
+            self.frame_counter=0
+            if self.data[0,-1]-self.data[0,0]>3*60:
+                self.data=self.data[:,
+            self.data_index=self.data.shape[1]
+            
+            #self.stop_experiment()
+            #self.start_experiment()
             
         
     def stop_experiment(self):
@@ -347,7 +361,7 @@ class Behavioral(gui.SimpleAppWindow):
         '''
         if not self.running:
             return
-        self.check_recording_restart()
+        self.check_recording_save()
         self.cursor_position = QtGui.QCursor.pos().x()#Reading the mouse position (x)
         self.now=time.time()#Save the current time for timestamping later the data
         reset_position=None
@@ -494,14 +508,14 @@ class Behavioral(gui.SimpleAppWindow):
         filename=os.path.join(self.output_folder, '{1}_{0}.mat'.format(utils.timestamp2ymdhms(time.time()).replace(':', '-').replace(' ', '_'),str(self.cw.select_protocol.input.currentText()).lower()))
         #Aggregating the data to be saved
         data2save={}
-        data2save['time']=self.data[0]
-        data2save['position']=self.data[1]
-        data2save['speed']=self.data[2]
-        data2save['reward']=self.data[3]
-        data2save['stim']=self.data[4]
+        data2save['time']=self.data[0,self.data_index:]
+        data2save['position']=self.data[1,self.data_index:]
+        data2save['speed']=self.data[2,self.data_index:]
+        data2save['reward']=self.data[3,self.data_index:]
+        data2save['stim']=self.data[4,self.data_index:]
         #configuration values are also saved
         data2save['config']=[(vn, getattr(self.config,vn)) for vn in dir(self.config) if vn.isupper()]
-        data2save['frametime']=self.frame_times
+        data2save['frametime']=self.frame_times[self.data_index:]
         self.log('Video capture frame rate was {0}'.format(1/numpy.diff(self.frame_times).mean()))
         self.log('Saving data to {0}, saving video to {1}'.format(filename,filename.replace('.mat','.mp4')))
         self.filesaver_q.put((filename, data2save, self.frame_folder,  self.config.CAMERA_UPDATE_RATE))
