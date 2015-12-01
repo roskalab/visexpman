@@ -34,6 +34,13 @@ def mcd2raw(filename, nchannels=16,outfolder=None,header_separately=False):
     if all([res1,res2]):
         return outfile
         
+def mcd2raws(folder,queue):
+    fns=[f for f in os.listdir(folder) if f[-3:]=='mcd']
+    for f in fns:
+        fn=os.path.join(folder,f)
+        outfile=mcd2raw(fn,outfolder=folder)
+        queue.put('Converted {2}/{3}, {0}->{1}'.format(fn,outfile, fns.index(f)+1, len(fns)))
+        
 def read_raw(filename):
     header=[]
     if os.path.exists(filename.replace('.raw', 'h.raw')):
@@ -82,8 +89,12 @@ def calculate_repetition_boundaries(digital,fsample,pre,post):
     boundaries[1::2]+=posts
     return boundaries
     
-def extract_repetitions(digital,elphys,fsample,pre,post):
+def extract_repetitions(digital,elphys,fsample,pre,post, is_movingbar=False):
     repetition_boundaries=calculate_repetition_boundaries(digital, fsample,pre,post)
+    if is_movingbar:
+        ndirections=4
+        repetition_boundaries=repetition_boundaries[-ndirections*(repetition_boundaries.shape[0]/ndirections):]#assuming unexpected transitions at the beginning of the sync signal
+        repetition_boundaries = repetition_boundaries[::2][::4]
     fragments = numpy.split(elphys,repetition_boundaries,axis=1)[1::2]
     fragment_length=min([f.shape[1] for f in fragments])
     repetitions = numpy.array([f[:,:fragment_length] for f in fragments])
@@ -145,7 +156,7 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_wi
     if hasattr(queue,'put'):
         queue.put('Filtering data')
     l,h=filter(elphys,fcut,filter_order,sample_rate)
-    low_frequency_avg=extract_repetitions(digital,l,sample_rate,pre,post).mean(axis=0)
+    low_frequency_avg=extract_repetitions(digital,l,sample_rate,pre,post,is_movingbar='bar' in os.path.basename(filename)).mean(axis=0)
     if hasattr(queue,'put'):
         queue.put('Detecting spikes')
     #threshold for spike detection:
@@ -223,7 +234,7 @@ class TestElphysViewerFunctions(unittest.TestCase):
         self.wf=unittest_aggregator.prepare_test_data('mcdraw')
 #        self.generate_datafile()
         for f in fileop.listdir_fullpath(self.wf):
-            raw2spikes(f,200e-3,350e-3,3,300,2,5e-3)
+            raw2spikes(f,0 if 'bar' in f else 200e-3,0 if 'bar' in f else 350e-3,3,300,2,5e-3)
 #            t,digital,elphys,channel_names,sample_rate,ad_scaling = read_raw(f)
 #            self.assertEqual(t.shape[0],digital.shape[0])
 #            self.assertEqual(elphys.shape[0]+1,len(channel_names))
@@ -333,7 +344,8 @@ class CWidget(QtGui.QWidget):
     '''
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
-        self.df=DataFileBrowser(self,'/tmp',['mat', 'mcd', 'raw'])
+        self.root = sys.argv[1] if os.path.exists(sys.argv[1]) else '/tmp'
+        self.df=DataFileBrowser(self,self.root,['mat', 'mcd', 'raw'])
         self.df.setMinimumWidth(400)
         self.df.setMaximumWidth(500)
         self.df.setMinimumHeight(400)
@@ -387,6 +399,7 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.queue=multiprocessing.Queue()
         self.progressbar_states={'reading':0, 'filtering':5,'spikes':50,'spiking map':80}
         self.matsaver_started=False
+        self.mcd_converter_started=False
         self.note=''
         self.max_savetime=60
         
@@ -405,11 +418,21 @@ class ElphysViewer(gui.SimpleAppWindow):
                     p=[v for k,v in self.progressbar_states.items() if k in msg.lower()]
                     if len(p)==1:
                         self.pb.update(p[0])
+                    elif 'Converted' in msg:
+                        progress = map(float,msg.split(',')[0].split('Converted')[1].split('/'))
+                        progress=int(progress[0]/progress[1]*100)
+                        self.pb.update(progress)
                 self.log(msg)
-        if self.matsaver_started and not self.matsaver.is_alive():
+        if (self.matsaver_started and not self.matsaver.is_alive()):
             self.log('Done')
-            self.matsaver_started=False
+            self.mcd_converter_started=False
             self.pb.update(self.max_savetime)
+            time.sleep(0.1)
+            self.pb.close()
+            del self.pb
+        if self.mcd_converter_started and not self.mcd_converter.is_alive():
+            self.mcd_converter_started=False
+            self.log('Done')
             time.sleep(0.1)
             self.pb.close()
             del self.pb
@@ -505,7 +528,17 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.pb.show()
         
     def convert_mcd_files_action(self):
-        pass
+        self.mcd_folder=self.ask4foldername('MCD file conversion, select folder', self.cw.root)
+        if os.name!='nt':
+            self.notify_user('Warning','mcd file conversion is supported only on Windows OS')
+            return
+        #mcd2raws(self.mcd_folder, self.queue)
+        self.mcd_converter=multiprocessing.Process(target=mcd2raws,args=(self.mcd_folder, self.queue))
+        self.mcd_converter.start()
+        self.mcd_converter_started=True
+        self.log('Conversion started')
+        self.pb = gui.Progressbar(100,name='Mcd to raw')
+        self.pb.show()
         
     def add_note_action(self):
         self.addnote=gui.AddNote(None,self.note)

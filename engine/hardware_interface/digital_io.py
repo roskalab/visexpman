@@ -182,7 +182,7 @@ class TestDigitalIO(unittest.TestCase):
         s.release_instrument()
         
     def test_05_AIO(self):
-        a=AduinoIO('COM4' if os.name=='nt' else '/dev/ttyACM1')
+        a=AduinoIO('COM4' if os.name=='nt' else '/dev/ttyACM0')
         #time.sleep(5e-3)
         for i in range(100):
             a.pulse_trigger(6)

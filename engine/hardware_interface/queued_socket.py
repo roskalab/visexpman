@@ -28,11 +28,14 @@ class QueuedSocketHelpers(object):
         
     def recv(self, connection=None, put_message_back=False):
         queue = self._get_queue(connection)
-        if not queue.empty():
-            m=queue.get()
-            if put_message_back:
-                queue.put(m)
-            return m
+        try:
+            if not queue.empty():
+                m=queue.get()
+                if put_message_back:
+                    queue.put(m)
+                return m
+        except IOError:
+            pass
 
     def send(self, msg, connection=None):
         if connection == None:

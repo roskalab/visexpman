@@ -260,7 +260,6 @@ def parse_stimulation_file(filename):
     experiment_module = __import__('experiment_module')
     experiment_config_classes = {}
     for c in inspect.getmembers(experiment_module,inspect.isclass):
-        print c
         if 'ExperimentConfig' in introspect.class_ancestors(c[1]):
             try:
                 expconfig_lines = source_code.split('class '+c[0])[1].split('def _create_parameters')[1].split('def')[0].split('\n')
