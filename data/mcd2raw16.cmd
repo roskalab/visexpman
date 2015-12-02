@@ -24,4 +24,4 @@
 -s "Electrode Raw Data:16"
 
 -WriteHeader
--ToSigned
+-ToUnsigned

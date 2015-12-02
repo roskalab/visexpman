@@ -10,7 +10,6 @@ import pyqtgraph
 from visexpman.engine.generic import fileop,introspect,gui
 
 ELECTRODE_ORDER=[16,1,15,2,12,5,13,4,10,7,9,8,11,6,14,3]#TODO: add this to parameter tree
-NDIRECTIONS=4
 
 def mcd2raw(filename, nchannels=16,outfolder=None,header_separately=False):
     cmdfile=os.path.join(fileop.visexpman_package_path(), 'data', 'mcd2raw{0}.cmd'.format(nchannels))
@@ -59,10 +58,15 @@ def read_raw(filename):
                     data=numpy.fromfile(filename,dtype=numpy.int16)
                 else:
                     f.seek(headerlen)
-                    data=numpy.fromfile(f,dtype=numpy.int16)
+                    data=numpy.fromfile(f,dtype=numpy.uint16)
                 break
     sample_rate=float([item for item in header if 'Sample rate = ' in item][0].split('=')[1])
     ad_scaling=float([item for item in header if 'El = ' in item][0].split('El =')[1].split('\xb5V')[0])*1e-6
+    
+    try:
+        adc_offset=int([item for item in header if 'ADC zero' in item][0].split(' = ')[1])
+    except IndexError:
+        adc_offset=0
     if len([item for item in header if 'An = ' in item])>0:
         ai_scaling=float([item for item in header if 'An = ' in item][0].split('El =')[1].split('\xb5V')[0])*1e-6
     else:
@@ -77,28 +81,29 @@ def read_raw(filename):
     else:
         analog=0
         offset=1
-    digital=data[offset-1]+2**15
+    digital=data[offset-1]
     elphys=data[offset:]
+    elphys = numpy.cast['int'](elphys)-adc_offset
     t=numpy.linspace(0,digital.shape[0]/sample_rate,digital.shape[0])
-    return t,analog,digital,elphys,channel_names,sample_rate,ad_scaling
+    return t,analog,digital,elphys,channel_names,sample_rate,ad_scaling,adc_offset
     
-def calculate_repetition_boundaries(digital,fsample,pre,post,is_movingbar):
+def calculate_repetition_boundaries(digital,fsample,pre,post,is_movingbar,ndirections=None):
     pres=int(pre*fsample)
     posts=int(post*fsample)
     boundaries=numpy.nonzero(numpy.diff(digital))[0]
     boundaries[0::2]-=pres
     boundaries[1::2]+=posts
     if is_movingbar:
-        boundaries=boundaries[-NDIRECTIONS*(boundaries.shape[0]/NDIRECTIONS):]#assuming unexpected transitions at the beginning of the sync signal
+        boundaries=boundaries[-ndirections*(boundaries.shape[0]/ndirections):]#assuming unexpected transitions at the beginning of the sync signal
         #assuming the duration of the last sweep:
-        last_sweep_duration = int(numpy.diff(boundaries)[2*NDIRECTIONS-1::2*NDIRECTIONS].mean())
+        last_sweep_duration = int(numpy.diff(boundaries)[2*ndirections-1::2*ndirections].mean())
         boundaries = numpy.append(boundaries,boundaries[-1]+last_sweep_duration)
-        boundaries = boundaries[::2][::NDIRECTIONS]
+        boundaries = boundaries[::2][::ndirections]
         boundaries = numpy.repeat(boundaries,2)[1:-1]
     return boundaries
     
-def extract_repetitions(digital,elphys,fsample,pre,post, is_movingbar=False):
-    repetition_boundaries=calculate_repetition_boundaries(digital, fsample,pre,post,is_movingbar)
+def extract_repetitions(digital,elphys,fsample,pre,post, is_movingbar=False,ndirections=None):
+    repetition_boundaries=calculate_repetition_boundaries(digital, fsample,pre,post,is_movingbar,ndirections)
     fragments = numpy.split(elphys,repetition_boundaries,axis=1)[1::2]
     fragment_length=min([f.shape[1] for f in fragments])
     repetitions = numpy.array([f[:,:fragment_length] for f in fragments])
@@ -155,12 +160,15 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_wi
     '''
     if hasattr(queue,'put'):
         queue.put('Reading file')
-    t,analog,digital,elphys,channel_names,sample_rate,ad_scaling = read_raw(filename)
+    t,analog,digital,elphys,channel_names,sample_rate,ad_scaling,adc_offset = read_raw(filename)
     filedata={'t':t,'analog': analog,'digital': digital, 'elphys': elphys, 'channel_names': numpy.array(channel_names),'sample_rate': sample_rate,'ad_scaling': ad_scaling}
     if hasattr(queue,'put'):
         queue.put('Filtering data')
     l,h=filter(elphys,fcut,filter_order,sample_rate)
-    low_frequency_avg=extract_repetitions(digital,l,sample_rate,pre,post,is_movingbar='bar' in os.path.basename(filename)).mean(axis=0)
+    stimulus_name,stimulus_parameters=filename2stimulusname(filename)
+    is_movingbar='movingbar' == stimulus_name
+    ndirections=stimulus_parameters.get('ndirections',None)
+    low_frequency_avg=extract_repetitions(digital,l,sample_rate,pre,post,is_movingbar=is_movingbar, ndirections=ndirections).mean(axis=0)
     if hasattr(queue,'put'):
         queue.put('Detecting spikes')
     #threshold for spike detection:
@@ -172,7 +180,7 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_wi
     spike_times=[spike_indexes[1][numpy.where(spike_indexes[0]==channel)[0]] for channel in set(spike_indexes[0])]
     if hasattr(queue,'put'):
         queue.put('Calculating spiking frequency and spiking maps')
-    repetition_boundaries=calculate_repetition_boundaries(digital, sample_rate,pre,post,is_movingbar='bar' in os.path.basename(filename))
+    repetition_boundaries=calculate_repetition_boundaries(digital, sample_rate,pre,post,is_movingbar=is_movingbar,ndirections=ndirections)
     nrepetitions=repetition_boundaries.shape[0]/2
     repetition_window_length=numpy.diff(repetition_boundaries)[::2].max()
     nsampe_in_spike_window=int(spike_window*sample_rate)
@@ -192,18 +200,36 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_wi
         spiking_frqs.append(spiking_frq)
     spiking_frqs=numpy.array(spiking_frqs)
     spiking_maps = numpy.array(spiking_maps)
-#    if 'bar' in filename:
-#        #cut lines in spiking maps
-#        reordered_spiking_maps=numpy.zeros_like(spiking_maps)
-#        for direction in range(NDIRECTIONS):
-#            linestart=direction*spiking_maps.shape[2]/NDIRECTIONS
-#            lineend=(direction+1)*spiking_maps.shape[2]/NDIRECTIONS
-#            reordered_spiking_maps[:,:,linestart:lineend]=spiking_maps[:,:,direction::NDIRECTIONS]
-#        spiking_maps=reordered_spiking_maps
     if hasattr(queue,'put'):
         queue.put([spiking_frqs,low_frequency_avg*ad_scaling,spiking_maps,sample_rate,filedata])
     return spiking_frqs,low_frequency_avg*ad_scaling,spiking_maps,sample_rate
-        
+    
+def concatenate_rawfiles(filenames,channel):
+    orderedfn=filenames
+    orderedfn.sort()
+    data2concat=[]
+    for filename in orderedfn:
+        t,analog,digital,elphys,channel_names,sample_rate,ad_scaling,adc_offset = read_raw(filename)
+        data2concat.append(elphys[channel])
+    data2concat = numpy.concatenate(data2concat)
+    output_filename=fileop.generate_filename(os.path.join(os.path.dirname(filenames[0]),'{2}_concat_electrode_{0}_nfiles_{1}.bin'.format(channel, len(filenames),os.path.basename(os.path.dirname(filenames[0])))))
+    fp=open(output_filename,'wb')
+    numpy.save(fp,numpy.cast['uint16'](data2concat+adc_offset))
+    fp.close()
+    return output_filename
+
+def filename2ndirections(filename):
+    return int(os.path.basename(filename).split('bar')[0])
+    
+def filename2stimulusname(filename):
+    fn=os.path.basename(filename).lower()
+    if 'led' in fn:
+        return 'led',{}
+    elif 'bars' in fn:
+        return 'movingbar', {'ndirections':filename2ndirections(filename)}
+    else:
+        return 'unknown', {}
+
 class TestElphysViewerFunctions(unittest.TestCase):
     def generate_datafile(self):
         header=[]
@@ -250,22 +276,11 @@ class TestElphysViewerFunctions(unittest.TestCase):
 #        self.generate_datafile()
         for f in fileop.listdir_fullpath(self.wf):
             raw2spikes(f,0 if 'bar' in f else 200e-3,0 if 'bar' in f else 350e-3,3,300,2,20e-3 if 'bar' in f else 5e-3)
-#            t,digital,elphys,channel_names,sample_rate,ad_scaling = read_raw(f)
-#            self.assertEqual(t.shape[0],digital.shape[0])
-#            self.assertEqual(elphys.shape[0]+1,len(channel_names))
-#            repetitions=extract_repetitions(digital,elphys,sample_rate,200e-3,200e-3)
-#            self.assertTrue(all([r.shape[1] for r in repetitions]))#All elements equal
-#            data2mat={}
-#            data2mat['t']=t
-#            data2mat['digital']=digital
-#            data2mat['elphys']=elphys
-#            data2mat['channel_names']=channel_names
-#            data2mat['sample_rate']=sample_rate
-#            data2mat['ad_scaling']=ad_scaling
-#            
-#            l,h=filter(elphys, 300,3,sample_rate)
-#            
-#            save2mat(os.path.join('/tmp',os.path.basename(f)).replace('.raw','.mat'),**data2mat)
+
+    def test_03_concat(self):
+        from visexpman.users.test import unittest_aggregator
+        self.wf=unittest_aggregator.prepare_test_data('mcdraw')
+        concatenate_rawfiles(fileop.listdir_fullpath(self.wf),0)
             
     
             
@@ -324,15 +339,25 @@ class MultiplePlots(pyqtgraph.GraphicsLayoutWidget):
                 curve = self.plots[i].plot(pen=pen)
                 curve.setData(x, y[i])
             if self.stimulus_time is not None:
-                c=(30,30,30,80)
                 if len(self.stimulus_time)==2:
+                    c=(30,30,30,80)
                     linear_region = pyqtgraph.LinearRegionItem(self.stimulus_time, movable=False, brush = c)
                     self.plots[i].addItem(linear_region)
                 else:
-                    linear_region = pyqtgraph.LinearRegionItem(self.stimulus_time[:2], movable=False, brush = c)
-                    self.plots[i].addItem(linear_region)
-                    linear_region = pyqtgraph.LinearRegionItem(self.stimulus_time[-2:], movable=False, brush = c)
-                    self.plots[i].addItem(linear_region)
+                    boundaries=self.stimulus_time.tolist()
+                    boundaries.append(x[-1])
+                    c=[0,0,0,80]
+                    for section in range(len(boundaries)-1):
+                        if section%2==1:continue
+                        import copy
+                        c_=copy.deepcopy(c)
+                        c_[section/2]=30
+                        linear_region = pyqtgraph.LinearRegionItem(boundaries[section:section+2], movable=False, brush = tuple(c_))
+                        self.plots[i].addItem(linear_region)
+#                    linear_region = pyqtgraph.LinearRegionItem(self.stimulus_time[:2], movable=False, brush = c)
+#                    self.plots[i].addItem(linear_region)
+#                    linear_region = pyqtgraph.LinearRegionItem(self.stimulus_time[-2:], movable=False, brush = c)
+#                    self.plots[i].addItem(linear_region)
             if len(text)>0:
                 textw = pyqtgraph.TextItem(text=text[i], color=(0,0,0), anchor=(-1,-1), border=(0,0,0,0), fill=(0, 0, 0, 0))
                 self.plots[i].addItem(textw)
@@ -398,13 +423,14 @@ class CWidget(QtGui.QWidget):
 class ElphysViewer(gui.SimpleAppWindow):
     #TODO: context
     def init_gui(self):
-        self.toolbar = gui.ToolBar(self, ['convert_mcd_files', 'add_note', 'save','reconvert_all', 'concatenate_files', 'exit'])
+        self.toolbar = gui.ToolBar(self, ['convert_mcd_files', 'add_note', 'save','reconvert_all', 'concatenate_files', 'close_plots', 'exit'])
         TOOLBAR_HELP = '''
         Convert Mcd Files: All mcd files in the current folder will be converted to raw
-        Add Note: note will be saved to currently open file
-        Save: 
+        Add Note: note will be saved to current file
+        Save: Save current file to mat
         Reconvert All: With current settings apply filtering/spike detection/calculation for all files in selected folder
-        Concatenate Files: concatenate electrophysiology traces in all files in a selected folder and save to a raw format.
+        Concatenate Files: concatenate selected electrophysiology channel data in selected files and save it to a binary file.
+        Close Plots: close all currently displayed plot windows
         '''
         self.addToolBar(self.toolbar)
         self.toolbar.setToolTip(TOOLBAR_HELP)
@@ -451,9 +477,9 @@ class ElphysViewer(gui.SimpleAppWindow):
                         progress=int(progress[0]/progress[1]*100)
                         self.pb.update(progress)
                 self.log(msg)
-        if (self.matsaver_started and not self.matsaver.is_alive()):
+        if self.matsaver_started and not self.matsaver.is_alive():
             self.log('Done')
-            self.mcd_converter_started=False
+            self.matsaver_started=False
             self.pb.update(self.max_savetime)
             time.sleep(0.1)
             self.pb.close()
@@ -466,14 +492,16 @@ class ElphysViewer(gui.SimpleAppWindow):
             del self.pb
         
     def open_file(self, index):
-        #self.clear_plotwidgets()
         self.filename = gui.index2filename(index).replace('\\\\','\\')
         if os.path.isdir(self.filename): return#Double click on folder is ignored
         ext = fileop.file_extension(self.filename)
         params=self.cw.params.get_parameter_tree(True)
         if ext == 'raw':
-            pre=0 if 'bar' in self.filename else params['Pre Stimulus Time']
-            post=0 if 'bar' in self.filename else params['Post Stimulus Time']
+            self.stimulus_name,self.stimulus_parameters=filename2stimulusname(self.filename)
+            self.is_movingbar='movingbar' == self.stimulus_name
+            self.ndirections=self.stimulus_parameters.get('ndirections',None)
+            pre=0 if self.is_movingbar else params['Pre Stimulus Time']
+            post=0 if self.is_movingbar else params['Post Stimulus Time']
             filter_order=params['Filter Order']
             fcut=params['Filter Cut Frequency']
             spike_threshold_std=params['Spike Threshold']
@@ -493,9 +521,9 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.tplothf=1e3*numpy.linspace(0,self.spiking_frqs.shape[1]*spike_window,self.spiking_frqs.shape[1])
         self.tplotlf=1e3*numpy.linspace(0,self.low_frequency_avg.shape[1]/self.fsample,self.low_frequency_avg.shape[1])
         self.nchannels=self.spiking_frqs.shape[0]
-        if 'bar' in os.path.basename(self.filename):
-            self.stimulus_time_hf = numpy.arange(0,NDIRECTIONS)*self.tplothf.max()/NDIRECTIONS
-            self.stimulus_time_lf = numpy.arange(0,NDIRECTIONS)*self.tplotlf.max()/NDIRECTIONS
+        if self.is_movingbar:
+            self.stimulus_time_hf = numpy.arange(0,self.ndirections)*self.tplothf.max()/self.ndirections
+            self.stimulus_time_lf = numpy.arange(0,self.ndirections)*self.tplotlf.max()/self.ndirections
         else:
             self.stimulus_time_hf = numpy.array([self.tplothf[numpy.where(self.tplothf<pre*1e3)[0].max()],self.tplothf[numpy.where(self.tplothf>self.tplothf.max()-post*1e3)[0].min()]])
             self.stimulus_time_lf = numpy.array([self.tplotlf[numpy.where(self.tplotlf<pre*1e3)[0].max()],self.tplotlf[numpy.where(self.tplotlf>self.tplotlf.max()-post*1e3)[0].min()]])
@@ -507,16 +535,27 @@ class ElphysViewer(gui.SimpleAppWindow):
         self.lf_plots[-1].setWindowTitle('{0} Baselines'.format(os.path.basename(self.filename)))
         mini=numpy.where(self.tplotlf>self.stimulus_time_lf[0])[0].min()
         maxi=numpy.where(self.tplotlf<self.stimulus_time_lf[1])[0].max()
-        t=['min={0:0.2f}'.format(trace.min()) for trace in (self.low_frequency_avg[electrode_order]*1e6)[:,mini:maxi]]
+        t=['min={0:0.2f}, dt={1:0.0f}'.format(trace.min(),1000*trace.argmin()/float(self.fsample)) for trace in (self.low_frequency_avg[electrode_order]*1e6)[:,mini:maxi]]
         self.lf_plots[-1].plot(self.tplotlf,self.low_frequency_avg[electrode_order]*1e6,label='uV',text=t)
 
         self.images.append(MultipleImages(None,self.nchannels,params['Electrode Spacing']))
         self.images[-1].setWindowTitle('{0} Spike Maps'.format(os.path.basename(self.filename)))
-        #Scale maps
-        self.scaled_maps=[]
+        #Color spiking maps
+        self.colored_maps=[]
         for i in range(self.spiking_maps.shape[0]):
-            self.scaled_maps.append(numpy.repeat(self.spiking_maps[i],int(1.0/spike_window),axis=1))
-        self.scaled_maps=numpy.array(self.scaled_maps)
+            self.colored_maps.append(numpy.tile(self.spiking_maps[i],(3,1,1)))
+        self.colored_maps=numpy.array(self.colored_maps)
+        self.map_coloring_boundaries = numpy.round(self.stimulus_time_hf*1e-3/spike_window)
+        if self.map_coloring_boundaries.shape[0]==2:
+            self.colored_maps[:,2,self.map_coloring_boundaries[0]:self.map_coloring_boundaries[1],:]=1.0#blue
+        else:
+            for section in range(self.map_coloring_boundaries.shape[0]):
+                end = self.tplothf[-1]*1e-3/spike_window if section+1==self.map_coloring_boundaries.shape[0] else self.map_coloring_boundaries[section+1]
+                if section%2==1:continue
+                self.colored_maps[:,section/2,self.map_coloring_boundaries[section]:end,:]=1.0
+        #Scale maps
+        self.scaled_maps=numpy.repeat(self.colored_maps,int(1.0/spike_window),axis=3)
+        self.scaled_maps=numpy.rollaxis(self.scaled_maps,1,4)
         self.images[-1].set(self.scaled_maps[electrode_order])
         [img.setScale(spike_window) for img in self.images[-1].imgs]
         
@@ -536,7 +575,6 @@ class ElphysViewer(gui.SimpleAppWindow):
         if hasattr(self,'add_note'):
             widgets.append(self.addnote)
         [w.close() for w in widgets]
-#        [[w.close() for widget in getattr(self,w)] for w in ['hf_plots', 'lf_plots','images','addnote'] if hasattr(self, w)]
         if hasattr(self, 'lf_plots'):
             del self.lf_plots
         if hasattr(self, 'hf_plots'):
@@ -593,7 +631,21 @@ class ElphysViewer(gui.SimpleAppWindow):
         pass
 
     def concatenate_files_action(self):
-        pass
+        self.files2concatenate = self.ask4filenames('Select raw files to concatenate', self.cw.df.root, '*.raw')
+        if len(self.files2concatenate)==0: return
+        depths=-numpy.arange(len(ELECTRODE_ORDER))*self.cw.params.get_parameter_tree(True)['Electrode Spacing']*1e6
+        selected_depth, ok = QtGui.QInputDialog.getItem(self,'', 'Select electrode', ['{0:.0f} um'.format(depth) for depth in depths])
+        if not ok: return
+        self.selected_electrode = ELECTRODE_ORDER[numpy.where(depths==float(str(selected_depth).split(' ')[0]))[0][0]]
+        self.log('Electrode {0} selected'.format(self.selected_electrode))
+        outfile=concatenate_rawfiles(self.files2concatenate,self.selected_electrode-1)
+        self.log('Concatenated data saved to {0}'.format(outfile))
+        
+    def close_plots_action(self):
+        self.clear_plotwidgets()
+        self.lf_plots=[]
+        self.hf_plots=[]
+        self.images=[]
 
 if __name__=='__main__':
     if len(sys.argv)==1:
