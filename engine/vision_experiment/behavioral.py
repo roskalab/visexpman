@@ -293,7 +293,7 @@ class Behavioral(gui.SimpleAppWindow):
                     self.frame_counter+=1
             
     def _get_new_frame_folder(self):
-        self.frame_folder=os.path.join(tempfile.gettempdir(), 'vf_{0}'.format(self.video_counter))#Create temporary folder for video frames
+        self.frame_folder=os.path.join(tempfile.gettempdir(), 'vf_{0}_{1}'.format(self.video_counter,time.time()))#Create temporary folder for video frames
         self.video_counter+=1
         if os.path.exists(self.frame_folder):#If already exists, delete it with its content
             shutil.rmtree(self.frame_folder)
@@ -310,8 +310,8 @@ class Behavioral(gui.SimpleAppWindow):
         self.recording_start_time=time.time()
         self.last_save_time=time.time()
         self.data_index=0
+        self.frame_counter=0
         self.log('start experiment')
-        
         self._get_new_frame_folder()
         #Protocol specific
         self.run_complete=False
@@ -330,8 +330,9 @@ class Behavioral(gui.SimpleAppWindow):
             self._get_new_frame_folder()
             self.last_save_time=now
             self.frame_counter=0
-            if self.data[0,-1]-self.data[0,0]>3*60:
-                self.data=self.data[:,
+            if self.data[0,-1]-self.data[0,0]>2*60:
+                index=numpy.where(self.data[0]>self.data[0,-1]-60.0)[0].min()
+                self.data=self.data[:,index:]
             self.data_index=self.data.shape[1]
             
             #self.stop_experiment()
