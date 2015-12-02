@@ -514,8 +514,11 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             ULED_SERIAL_PORT = 'COM4'
         else:
             SCREEN_DISTANCE_FROM_MOUSE_EYE = [320.0, [0, 300]] #mm 
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [220.0, [0, 300]] #mm , screen
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+            SCREEN_PIXEL_WIDTH = [477.0/1280., [0, 0.99]] # mm, screen
             SCREEN_RESOLUTION = utils.cr([800, 600])
+            SCREEN_RESOLUTION = utils.cr([1280, 720])#screen
             FULLSCREEN = True
             SCREEN_EXPECTED_FRAME_RATE = 60.0
             SCREEN_MAX_FRAME_RATE = 60.0
