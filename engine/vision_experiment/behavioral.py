@@ -37,8 +37,8 @@ class Config(object):
         self.MOVE_THRESHOLD=1#Above this speed the mouse is considered to be moving
         #Protocol specific parameters
         self.PROTOCOL_STOP_REWARD={}
-        self.PROTOCOL_STOP_REWARD['run time']=2#sec
-        self.PROTOCOL_STOP_REWARD['stop time']=2#sec
+        self.PROTOCOL_STOP_REWARD['run time']=5#sec
+        self.PROTOCOL_STOP_REWARD['stop time']=0.3#sec
         
         self.PROTOCOL_STIM_STOP_REWARD={}
         self.PROTOCOL_STIM_STOP_REWARD['run time']=2#sec
@@ -48,7 +48,7 @@ class Config(object):
         self.PROTOCOL_STIM_STOP_REWARD['delay after run']=2#sec
         
         self.PROTOCOL_KEEP_RUNNING_REWARD={}
-        self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=5.0
+        self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=15.0
         
     def get_protocol_names(self):
         return [vn.replace('PROTOCOL_','') for vn in dir(self) if 'PROTOCOL_' in vn]
