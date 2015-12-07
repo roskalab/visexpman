@@ -19,7 +19,7 @@ class Config(object):
     '''
     def __init__(self):
         self.STIM_CHANNELS=['Dev1/ao0','Dev1/ao1']#Physical channels of usb-daq device
-        self.DIO_PORT = 'COM4' if os.name=='nt' else '/dev/ttyUSB1'#serial port which controls the valve
+        self.DIO_PORT = 'COM4' if os.name=='nt' else '/dev/ttyUSB0'#serial port which controls the valve
         self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()#Default data folder
         self.VALVE_OPEN_TIME=10e-3
         self.STIMULUS_DURATION=1.0
@@ -37,15 +37,17 @@ class Config(object):
         self.MOVE_THRESHOLD=1#Above this speed the mouse is considered to be moving
         #Protocol specific parameters
         self.PROTOCOL_STOP_REWARD={}
-        self.PROTOCOL_STOP_REWARD['run time']=5#sec
-        self.PROTOCOL_STOP_REWARD['stop time']=0.3#sec
+        self.PROTOCOL_STOP_REWARD['run time']=10#sec
+        self.PROTOCOL_STOP_REWARD['stop time']=.5#sec
         
         self.PROTOCOL_STIM_STOP_REWARD={}
         self.PROTOCOL_STIM_STOP_REWARD['run time']=2#sec
-        self.PROTOCOL_STIM_STOP_REWARD['stop time']=2#sec
+        self.PROTOCOL_STIM_STOP_REWARD['stop time']=0.5#sec
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time range']=10#sec
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']=0.5#sec
         self.PROTOCOL_STIM_STOP_REWARD['delay after run']=2#sec
+        self.PROTOCOL_STIM_STOP_REWARD['n stimulus channels'] = 1
+        self.PROTOCOL_STIM_STOP_REWARD['stimulus till stop'] = True
         
         self.PROTOCOL_KEEP_RUNNING_REWARD={}
         self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=15.0
@@ -122,10 +124,18 @@ class HardwareHandler(threading.Thread):
                 if cmd[0]=='terminate':#Terminate the command loop and stop thread
                     break
                 elif cmd[0] == 'stimulate':
-                    daq_instrument.set_voltage(cmd[2],cmd[1])#cmd[2] contains the physical channel name of the usb daq device, cmd[1] is the voltage
+                    if os.name=='nt':
+                        daq_instrument.set_voltage(cmd[2],cmd[1])#cmd[2] contains the physical channel name of the usb daq device, cmd[1] is the voltage
                     time.sleep(self.config.STIMULUS_DURATION)#Wait while the duration of the stimulus is over
-                    daq_instrument.set_voltage(cmd[2],0)#Set the analog output to 0V
+                    if os.name=='nt':
+                        daq_instrument.set_voltage(cmd[2],0)#Set the analog output to 0V
                     self.response.put('stim ready')#Signal the main thread that the stimulus is ready
+                elif cmd[0] == 'stim on':
+                    if os.name=='nt':
+                        daq_instrument.set_voltage(cmd[2],cmd[1])
+                elif cmd[0] == 'stim off':
+                    if os.name=='nt':
+                        daq_instrument.set_voltage(cmd[2],0)
                 elif cmd[0] == 'reward':
                     s.setBreak(1)#Set the orange wire to 0 V which opens the valve (it has double inverted logic)
                     time.sleep(self.config.VALVE_OPEN_TIME)
@@ -168,7 +178,7 @@ class CWidget(QtGui.QWidget):
         self.selected_folder = QtGui.QLabel(parent.config.DATA_FOLDER, self)#Displays the data folder
         
         self.stim_power = gui.LabeledInput(self, 'Stimulus Intensity [V]')#The voltages controlling the stimulus devices can be set here
-        self.stim_power.input.setText('1,1')#The default value is 1 V for both channels
+        self.stim_power.input.setText('7,4')#The default value is 4 V for both channels
         self.stim_power.input.setFixedWidth(40)
         
         self.open_valve=gui.LabeledCheckBox(self,'Open Valve')#This checkbox is for controlling the valve manually
@@ -436,21 +446,28 @@ class Behavioral(gui.SimpleAppWindow):
             if self.run_complete:
                 if not self.stimulus_fired:#If stimulus not yet fired but run part is completed by mouse...
                     self.mouse_run_complete=self.now
-                    self.stimulate()#... present stimulus
+                    if self.config.PROTOCOL_STIM_STOP_REWARD['stimulus till stop']:
+                        self.stim_on()
+                    else:
+                        self.stimulate()#... present stimulus
                     self.stimulus_fired=True
                 else:#If stimulus was fired, ...
                     index=numpy.where(t>t.max()-self.config.PROTOCOL_STIM_STOP_REWARD['stop time'])[0].min()#... we look back for the last "stop time" duration
                     stop_speed=speed[index:]#Cut out this part from the speed vector
                     self.stop_complete = stop_speed.sum()==0#Check if the mouse was really stopped
                     if self.now-self.mouse_run_complete>self.config.PROTOCOL_STIM_STOP_REWARD['delay after run']+self.config.PROTOCOL_STIM_STOP_REWARD['stop time'] and not self.stop_complete:
-                        #TImeout, start from the beginning if time elapsed since the run complete event is bigger than "delay after run" and "stop time" (expected time to stay stopped"
+                        #Timeout, start from the beginning if time elapsed since the run complete event is bigger than "delay after run" and "stop time" (expected time to stay stopped"
                         self.log('no reward')
+                        if self.config.PROTOCOL_STIM_STOP_REWARD['stimulus till stop']:
+                            self.stim_off()
                         self.run_complete=False#Reset all the state variables
                         self.stimulus_fired=False
                         self.checkdata=numpy.copy(self.empty)
                         self.generate_run_time()#generate a new randomized runtime 
                     elif self.stop_complete:
                         self.reward()#If mouse stopped afterthe run complete for a certain amount of time, reward is given
+                        if self.config.PROTOCOL_STIM_STOP_REWARD['stimulus till stop']:
+                            self.stim_off()
                         self.run_complete=False#Reset state variables
                         self.stimulus_fired=False
                         self.checkdata=numpy.copy(self.empty)
@@ -479,7 +496,7 @@ class Behavioral(gui.SimpleAppWindow):
         random_time=self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']*int(random.random()*self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time range']/self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution'])
         self.actual_runtime = self.config.PROTOCOL_STIM_STOP_REWARD['run time']+random_time
         
-    def stimulate(self):
+    def _parse_stim_power_and_channel(self):
         try:
             power=map(float, str(self.cw.stim_power.input.text()).split(','))#read power intensity values from user interface
         except:
@@ -490,10 +507,26 @@ class Behavioral(gui.SimpleAppWindow):
             #Check if the provided value falls into the expected range, otherwise give warning
             self.log('stimulus intensity shall be within this range: {0}'.format(self.config.POWER_VOLTAGE_RANGE))
             power=[0,0]
-        channel = random.choice(range(2))#Make a random choice from the two stimulus channels
+        channel = random.choice(range(self.config.PROTOCOL_STIM_STOP_REWARD['n stimulus channels']))#Make a random choice from the two stimulus channels
+        return power, channel
+        
+    def stimulate(self):
+        power, channel = self._parse_stim_power_and_channel()
         self.hwcommand.put(['stimulate', power[channel], self.config.STIM_CHANNELS[channel]])#Send command to hardware handler to generate stimulation
         self.stim_state=channel+1#Stim state is 0 when no stimulus is shown, otherwise the id of the stimulus channel
         self.log('stim at channel {0}'.format(self.stim_state))
+        
+    def stim_on(self):
+        power, channel = self._parse_stim_power_and_channel()
+        self.hwcommand.put(['stim on', power[channel], self.config.STIM_CHANNELS[channel]])#Send command to hardware handler to generate stimulation
+        self.stim_state=channel+1#Stim state is 0 when no stimulus is shown, otherwise the id of the stimulus channel
+        self.log('stim on at channel {0}'.format(self.stim_state))
+        
+    def stim_off(self):
+        power, channel = self._parse_stim_power_and_channel()
+        self.hwcommand.put(['stim off', 0, self.config.STIM_CHANNELS[self.stim_state-1]])
+        self.stim_state=0
+        self.log('stim off at channel {0}'.format(self.stim_state))
         
     def reward(self):
         self.hwcommand.put(['reward'])#hardware handler is notified to generate reward 
