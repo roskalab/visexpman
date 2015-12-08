@@ -505,6 +505,9 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         folders = [EXPERIMENT_DATA_PATH, DATA_STORAGE_PATH, LOG_PATH, REMOTE_LOG_PATH]
         fileop.mkdir_notexists(folders, remove_if_exists=self.clear_files)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.SCREEN_DISTANCE_FROM_MOUSE_EYE=225
+        self.SCREEN_PIXEL_WIDTH=480/1280.
+        SCREEN_RESOLUTION = utils.cr([1280, 720])
 #        import time
 #        while True:
 #            time.sleep(1)

@@ -1266,8 +1266,7 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
         selected_i = random.choice(range(len(remaining)))
         if len(shuffled)>0:
             while True:
-                coords=numpy.array([shuffled[-1][1],remaining[selected_i][1]])
-                print abs(numpy.diff(coords['row'])[0]),abs(numpy.diff(coords['col'])[0]),shape_distance['row'],shape_distance['col']
+                coords=rc(numpy.array([nd(shuffled[-1][1]),nd(remaining[selected_i][1])]))
                 if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
                     selected_i = random.choice(range(len(remaining)))
                 else:

@@ -1308,6 +1308,20 @@ class AdvancedStimulation(StimulationHelpers):
         self._save_stimulus_frame_info(inspect.currentframe())
         self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, block_trigger = block_trigger, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+    def angle2screen_pos(self,angle,axis=None):
+        distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.sin(numpy.radians(angle))
+        if axis!=None:
+            distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
+        self.machine_config.SCREEN_PIXEL_WIDTH#mm
+        return (distance_from_center/self.machine_config.SCREEN_PIXEL_WIDTH)/self.machine_config.SCREEN_UM_TO_PIXEL_SCALE#um coordinate
+        
+    def angle2size(self,size_deg, pos_deg):
+        minangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'-')
+        maxangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'+')
+        size_row=self.angle2screen_pos(maxangle['row'],'row')-self.angle2screen_pos(minangle['row'],'row')
+        size_col=self.angle2screen_pos(maxangle['col'],'col')-self.angle2screen_pos(minangle['col'],'col')
+        return utils.rc((size_row,size_col))
 
     def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
         '''        
@@ -1335,18 +1349,31 @@ class AdvancedStimulation(StimulationHelpers):
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
                                                                             off_time = off_time)
-        if random_order:
-            import random,itertools
+        self.display_size=display_size
+        import random,itertools
+        positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
+        if random_order and 0:
             #random.seed(0)
-            positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]#shuffling colors and positions
             positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
             #random.shuffle(positions_and_colors)
+        if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
+            #Conider positions in degree units and convert them to real screen positions
+            #correct for screen center
+            positions_and_colors = [[c,utils.rc((p['row']-self.machine_config.SCREEN_CENTER['row'], p['col']-self.machine_config.SCREEN_CENTER['col']))] for c,p in positions_and_colors]
+            #Correct for display center
+            center_angle_correction=utils.rc_multiply(display_size,self.experiment_config.DISPLAY_CENTER)
+            positions_and_colors = [[c,utils.rc((p['row']+center_angle_correction['row'], p['col']+center_angle_correction['col']))] for c,p in positions_and_colors]
+            #Convert angles to positions
+            positions_and_colors = [[self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
+            pass
+        else:
+            positions_and_colors= [[shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
-            for color,p in positions_and_colors:            
+            for shape_size_i, color,p in positions_and_colors:            
             #for p in positions:
              #   for color in shape_colors:
                     for r2 in range(flash_repeat):
@@ -1356,7 +1383,7 @@ class AdvancedStimulation(StimulationHelpers):
                             self.block_start(block_name = 'position')
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         self.show_shape(shape = 'rect',
-                                    size = shape_size,
+                                    size = shape_size_i,
                                     color = color,
                                     background_color = background_color,
                                     duration = on_time,
@@ -1656,7 +1683,7 @@ if test_mode:
             
         def test_13_receptive_field(self):
             from visexpman.engine.visexp_app import stimulation_tester
-            context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNew', ENABLE_FRAME_CAPTURE = False)
+            context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNewAngle', ENABLE_FRAME_CAPTURE = False)
         
     
 
