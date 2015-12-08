@@ -1310,7 +1310,7 @@ class AdvancedStimulation(StimulationHelpers):
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def angle2screen_pos(self,angle,axis=None):
-        distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.sin(numpy.radians(angle))
+        distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.tan(numpy.radians(angle))
         if axis!=None:
             distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
         self.machine_config.SCREEN_PIXEL_WIDTH#mm
@@ -1352,20 +1352,28 @@ class AdvancedStimulation(StimulationHelpers):
         self.display_size=display_size
         import random,itertools
         positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
-        if random_order and 0:
+        if random_order:
             #random.seed(0)
             positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
             #random.shuffle(positions_and_colors)
         if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
-            #Conider positions in degree units and convert them to real screen positions
+            #Consider positions in degree units and convert them to real screen positions
             #correct for screen center
-            positions_and_colors = [[c,utils.rc((p['row']-self.machine_config.SCREEN_CENTER['row'], p['col']-self.machine_config.SCREEN_CENTER['col']))] for c,p in positions_and_colors]
+            screen_center_um=self.machine_config.SCREEN_CENTER
+            positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
             #Correct for display center
-            center_angle_correction=utils.rc_multiply(display_size,self.experiment_config.DISPLAY_CENTER)
-            positions_and_colors = [[c,utils.rc((p['row']+center_angle_correction['row'], p['col']+center_angle_correction['col']))] for c,p in positions_and_colors]
+            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
+            
+            positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
             #Convert angles to positions
             positions_and_colors = [[self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
-            pass
+            pos=numpy.array([p for d,c,p in positions_and_colors])
+            offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
+            #offset=utils.rc_add(offset,screen_center_um,'+')
+            positions_and_colors = [[d,c,utils.rc_add(p,offset,'-')] for d,c, p in positions_and_colors]
+            #Convert to ulcorner
+            if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
+                positions_and_colors = [[d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for d,c, p in positions_and_colors]
         else:
             positions_and_colors= [[shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
@@ -1373,7 +1381,8 @@ class AdvancedStimulation(StimulationHelpers):
         self.shape_size=shape_size
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
-            for shape_size_i, color,p in positions_and_colors:            
+            for shape_size_i, color,p in positions_and_colors:
+                    #print shape_size_i['row']
             #for p in positions:
              #   for color in shape_colors:
                     for r2 in range(flash_repeat):

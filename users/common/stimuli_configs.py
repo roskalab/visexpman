@@ -32,13 +32,18 @@ class ReceptiveFieldExploreNewInverted(ReceptiveFieldExploreNew):
 class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
-        self.COLORS = [0.0]
-        self.BACKGROUND_COLOR = 1.0        
-        self.DISPLAY_SIZE = utils.rc((53,90))
-        self.NROWS = 5
+        self.COLORS = [1.0]
+        self.BACKGROUND_COLOR = 0.0
+        self.DISPLAY_SIZE = utils.rc((57,90))
+        self.NROWS = 6
         self.NCOLUMNS = 9
-        self.DISPLAY_CENTER = utils.rc((0.5-0.1923,0.0))#0,0 is the screen center
+        self.DISPLAY_CENTER = utils.rc((41.5,45.0))
+        #self.DISPLAY_CENTER = utils.rc((45,45.0))
+        
+        self.ENABLE_RANDOM_ORDER = not False
         self.SIZE_DIMENSION='angle'
+        self.ON_TIME = 0.3
+        self.OFF_TIME = 0
         
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester

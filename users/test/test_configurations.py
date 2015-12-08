@@ -506,21 +506,24 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         fileop.mkdir_notexists(folders, remove_if_exists=self.clear_files)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.SCREEN_DISTANCE_FROM_MOUSE_EYE=225
-        self.SCREEN_PIXEL_WIDTH=480/1280.
+        self.SCREEN_PIXEL_WIDTH=477/1280.
         SCREEN_RESOLUTION = utils.cr([1280, 720])
+        degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
+        self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*self.SCREEN_DISTANCE_FROM_MOUSE_EYE/self.SCREEN_PIXEL_WIDTH #1 um on the retina is this many pixels on
 #        import time
 #        while True:
 #            time.sleep(1)
 #            if all(map(os.path.exists,folders)):
 #                break
-        COORDINATE_SYSTEM='center'
+        COORDINATE_SYSTEM='ulcorner'
+        #COORDINATE_SYSTEM='center'
         self.GUI['SIZE'] =  utils.cr((1280,1024))
         self.GUI['EXPERIMENT_LOG_UPDATE_PERIOD']=10.0
         self.CONNECTIONS['stim']['ip']['stim'] = '127.0.0.1'
         self.CONNECTIONS['stim']['ip']['main_ui'] = '127.0.0.1'
         self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '127.0.0.1'
         self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '127.0.0.1'
-        SCREEN_UM_TO_PIXEL_SCALE = 0.5
+        #SCREEN_UM_TO_PIXEL_SCALE = 0.5
         self.GAMMA_CORRECTION = numpy.array([
                                              [0.0, 0.0], 
                                              [0.5, 25.0], 
