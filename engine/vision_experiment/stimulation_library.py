@@ -317,7 +317,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
 
     def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  
                 orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None, L_shape_config = None, X_shape_angle = None,
-                flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
+                flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False,angle=None):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -1357,31 +1357,32 @@ class AdvancedStimulation(StimulationHelpers):
             positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
             #random.shuffle(positions_and_colors)
         if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
+            positions_and_colors_angle=positions_and_colors
             #Consider positions in degree units and convert them to real screen positions
             #correct for screen center
             screen_center_um=self.machine_config.SCREEN_CENTER
             positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
             #Correct for display center
             center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
-            
             positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
             #Convert angles to positions
-            positions_and_colors = [[self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
-            pos=numpy.array([p for d,c,p in positions_and_colors])
+            positions_and_colors = [[p,self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
+            pos=numpy.array([p for a,d,c,p in positions_and_colors])
             offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
             #offset=utils.rc_add(offset,screen_center_um,'+')
-            positions_and_colors = [[d,c,utils.rc_add(p,offset,'-')] for d,c, p in positions_and_colors]
+            positions_and_colors = [[a,d,c,utils.rc_add(p,offset,'-')] for a,d,c, p in positions_and_colors]
             #Convert to ulcorner
             if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
-                positions_and_colors = [[d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for d,c, p in positions_and_colors]
+                positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
         else:
-            positions_and_colors= [[shape_size,c,p] for c,p in positions_and_colors]
+            positions_and_colors= [[a,shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
-            for shape_size_i, color,p in positions_and_colors:
+            for angle,shape_size_i, color,p in positions_and_colors:
+                    print angle
                     #print shape_size_i['row']
             #for p in positions:
              #   for color in shape_colors:
@@ -1396,7 +1397,8 @@ class AdvancedStimulation(StimulationHelpers):
                                     color = color,
                                     background_color = background_color,
                                     duration = on_time,
-                                    pos = p)
+                                    pos = p,
+                                    angle=angle)
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         if hasattr(self, 'block_end'):
                             self.block_end(block_name = 'position')
@@ -1469,7 +1471,6 @@ class AdvancedStimulation(StimulationHelpers):
                     trajectory_directions.append(direction)
         duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
         return trajectories, trajectory_directions, duration
-        
         
     def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=None, pause=0.0, repetition = 1, center = utils.rc((0,0)), block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
         '''
