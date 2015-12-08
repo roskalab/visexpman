@@ -47,7 +47,7 @@ class ReceptiveFieldExploreAutosizeConfig(experiment.ExperimentConfig):
         self.ENABLE_RANDOM_ORDER = True
         if self.AUTOSIZE_SHAPE:
             self.SHAPE_SIZE = utils.rc((self.machine_config.SCREEN_SIZE_UM['row']/self.MESH_XY['row'],self.machine_config.SCREEN_SIZE_UM['col']/self.MESH_XY['col']))
-        self.runnable='ReceptiveFieldExplore'
+        self.runnable='ReceptiveFieldExplore1'
         self.pre_runnable='BlackPre'
         self._create_parameters_from_locals(locals())
 
@@ -66,11 +66,11 @@ class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
         self.SELECTED_POSITION = 1
         self.ZOOM_MESH_XY = utils.rc((3,3))
         self.ENABLE_RANDOM_ORDER = True
-        self.runnable='ReceptiveFieldExplore'
+        self.runnable='ReceptiveFieldExplore1'
         self.pre_runnable='BlackPre'
         self._create_parameters_from_locals(locals())
         
-class ReceptiveFieldExplore(experiment.Experiment):
+class ReceptiveFieldExplore1(experiment.Experiment):
     def calculate_positions(self, display_range, center, repeats, mesh_xy, colors=None):
         positions = []
         step = {}

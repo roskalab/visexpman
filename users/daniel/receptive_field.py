@@ -7,20 +7,24 @@ from visexpman.engine.vision_experiment import experiment
 
 class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
     def _create_parameters(self):
+	# x = 4248 um,  y = 2389 um
         self.SHAPE = 'rect'
         self.COLORS = [1.0]
         self.BACKGROUND_COLOR = 0
-        self.SHAPE_SIZE = 325.0
+
 #        self.DISPLAY_SIZE = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col'])
 #        self.DISPLAY_SIZE = utils.rc((self.DISPLAY_SIZE, self.DISPLAY_SIZE))
         self.DISPLAY_SIZE=self.machine_config.SCREEN_SIZE_UM
-        self.NROWS = 7
-        self.NCOLUMNS = 13
-        self.ON_TIME = 1.0
-        self.OFF_TIME = 3.0
+#        self.SHAPE_SIZE = 325.0
+#        self.NROWS = 7
+#        self.NCOLUMNS = 13
+        self.NROWS = 8  #303.42857142857144, 298.625
+        self.NCOLUMNS = 14
+        self.ON_TIME = 0.5
+        self.OFF_TIME = 2.0
         self.REPEATS = 1
         self.REPEAT_SEQUENCE = 1
-        self.ENABLE_RANDOM_ORDER = not False
+        self.ENABLE_RANDOM_ORDER =  not False
         self.runnable='ReceptiveFieldExplore'
         self._create_parameters_from_locals(locals())
         
@@ -30,7 +34,17 @@ class ReceptiveFieldExploreNewInverted(ReceptiveFieldExploreNew):
         ReceptiveFieldExploreNew._create_parameters(self)
         self.COLORS = [0.0]
         self.BACKGROUND_COLOR = 1.0
-       
+
+class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.DISPLAY_SIZE = utils.rc((57.0,90.0))
+        self.NROWS = 6
+        self.NCOLUMNS = 9
+        self.DISPLAY_CENTER = utils.rc((41.5,45.0))
+        self.SIZE_DIMENSION='angle'
+        #self.OFF_TIME = 0
+        #self.ON_TIME = 2.0
 
 class ReceptiveFieldExplore(experiment.Experiment):
     '''
@@ -39,6 +53,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
     Supported use cases: fixed size squares are presented with no gaps and no overlaps. Fractional squares are not shown at the edges
     '''
     def prepare(self):
+#	print self.machine_config.SCREEN_SIZE_UM
         shape_size, nrows, ncolumns, display_size, shape_colors, background_color = \
                 self._parse_receptive_field_parameters(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None,
                                                     self.experiment_config.NROWS if hasattr(self.experiment_config, 'NROWS') else None,

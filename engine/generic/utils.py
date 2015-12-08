@@ -174,7 +174,7 @@ def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  en
 def coordinate_system(type, SCREEN_RESOLUTION=None):
     '''looks up proper settings for commonly used coordinate system conventions'''
     if type=='ulcorner':
-        if SCREEN_RESOLUTION == None: raise ValueError('Screen resolution is needed for converting to upper-left corner origo coordinate system.')
+        if SCREEN_RESOLUTION is None: raise ValueError('Screen resolution is needed for converting to upper-left corner origo coordinate system.')
         ORIGO = cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
         HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
         VERTICAL_AXIS_POSITIVE_DIRECTION = 'down'
@@ -1211,8 +1211,7 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
         selected_i = random.choice(range(len(remaining)))
         if len(shuffled)>0:
             while True:
-                coords=numpy.array([shuffled[-1][1],remaining[selected_i][1]])
-                print abs(numpy.diff(coords['row'])[0]),abs(numpy.diff(coords['col'])[0]),shape_distance['row'],shape_distance['col']
+                coords=rc(numpy.array([nd(shuffled[-1][1]),nd(remaining[selected_i][1])]))
                 if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
                     selected_i = random.choice(range(len(remaining)))
                 else:

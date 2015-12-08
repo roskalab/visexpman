@@ -203,8 +203,8 @@ class ReceptiveFieldPlotter(SmallApp):
         self.image = gui.Image(self)
         self.plots = gui.Plots(self)
         if len(sys.argv)==3 and sys.argv[2]=='rec':
-            self.plots.setMinimumWidth(1600)
-            self.resize(2000,900)
+            self.plots.setMinimumWidth(2200)
+            self.resize(2500,900)
             self.plots.setMinimumHeight(900)
         else:
             self.plots.setMinimumWidth(800)
@@ -315,7 +315,12 @@ class ReceptiveFieldPlotter(SmallApp):
         sfi = copy.deepcopy(idnode['stimulus_frame_info'])
         imaging_time = signal.trigger_indexes(sd[:,0])[::2]/self.sync_sample_rate
         block_times, stimulus_parameter_times,block_info, self.organized_blocks = experiment_data.process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
-        positions = [o[0]['sig'][2]['pos'] for o in self.organized_blocks]
+        try:
+            positions = [o[0]['sig'][2]['angle'] for o in self.organized_blocks]
+            self.angles=True
+        except:
+            positions = [o[0]['sig'][2]['pos'] for o in self.organized_blocks]
+            self.angles=False
         colors = [o[0]['sig'][2]['color'] for o in self.organized_blocks]
         boundaries = []
         for o in self.organized_blocks:
@@ -412,7 +417,14 @@ class ReceptiveFieldPlotter(SmallApp):
         ncols = len(set([p['col'] for p in self.positions]))
         col_start = min(set([p['col'] for p in self.positions]))
         row_start = min(set([p['row'] for p in self.positions]))
-        grid_size = self.organized_blocks[0][0]['sig'][2]['size']['row']
+        if self.angles:
+            row_vals=list(set(numpy.array(self.positions)['row']))
+            row_vals.sort()
+            col_vals=list(set(numpy.array(self.positions)['col']))
+            col_vals.sort()
+            grid_size = utils.rc((numpy.diff(row_vals)[0],numpy.diff(col_vals)[0]))
+        else:
+            grid_size = self.organized_blocks[0][0]['sig'][2]['size']
         traces = []
         for r in range(nrows):
             traces1 = []
@@ -426,8 +438,8 @@ class ReceptiveFieldPlotter(SmallApp):
             for i in range(len(positions)):
                 p=positions[i]
                 plot_color = tuple([0, 0, int(128*colors[i])])
-                r=int(round((positions[i]['row']-row_start)/grid_size))
-                c=int(round((positions[i]['col']-col_start)/grid_size))
+                r=int(round((positions[i]['row']-row_start)/grid_size['row']))
+                c=int(round((positions[i]['col']-col_start)/grid_size['col']))
                 scx=self.machine_config.SCREEN_CENTER['col']
                 scy=self.machine_config.SCREEN_CENTER['row']
     #            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']-scx), int(p['row']-scy), int(p['col']-scx), int(p['row']-scy))

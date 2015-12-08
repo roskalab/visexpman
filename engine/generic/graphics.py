@@ -233,19 +233,23 @@ class Screen(object):
         right = 0.5 * self.config.SCREEN_RESOLUTION['col']
         bottom = 0.5 * self.config.SCREEN_RESOLUTION['row']
         top = -0.5 * self.config.SCREEN_RESOLUTION['row']
-        
+        if hasattr(self.config, 'SCREEN_UPSIDE_DOWN') and self.config.SCREEN_UPSIDE_DOWN:
+            f=-1
+        else:
+            f=1
+            
         if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
-            left = left * -1.0 + self.config.ORIGO['col']
-            right = right * -1.0 + self.config.ORIGO['col']
+            left = f*left * -1.0 + self.config.ORIGO['col']
+            right = f*right * -1.0 + self.config.ORIGO['col']
         elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
-            left = left - self.config.ORIGO['col']
-            right = right - self.config.ORIGO['col']
+            left = f*left - self.config.ORIGO['col']
+            right = f*right - self.config.ORIGO['col']
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
-            top = top * -1.0 - self.config.ORIGO['row']
-            bottom = bottom * -1.0 - self.config.ORIGO['row']
+            top = f*top * -1.0 - self.config.ORIGO['row']
+            bottom = f*bottom * -1.0 - self.config.ORIGO['row']
         elif self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
-            top = top + self.config.ORIGO['row']
-            bottom = bottom + self.config.ORIGO['row']
+            top = f*top + self.config.ORIGO['row']
+            bottom = f*bottom + self.config.ORIGO['row']
         
         z_range = max(self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col'])
         glOrtho(left, right, bottom, top,  -z_range, z_range)

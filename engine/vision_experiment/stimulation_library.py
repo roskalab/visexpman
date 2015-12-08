@@ -379,7 +379,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True, L_shape_config = None, X_shape_angle = None, ncorners = None,  inner_radius=None, save_sfi = True):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True, L_shape_config = None, X_shape_angle = None, ncorners = None,  inner_radius=None, save_sfi = True,angle=None):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -1168,6 +1168,20 @@ class StimulationSequences(Stimulations):
                     self.show_fullscreen(color = background_color, duration = duration)
                 state = not state
             
+    def angle2screen_pos(self,angle,axis=None):
+        distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.tan(numpy.radians(angle))
+        if axis!=None:
+            distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
+        self.machine_config.SCREEN_PIXEL_WIDTH#mm
+        return (distance_from_center/self.machine_config.SCREEN_PIXEL_WIDTH)/self.machine_config.SCREEN_UM_TO_PIXEL_SCALE#um coordinate
+        
+    def angle2size(self,size_deg, pos_deg):
+        minangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'-')
+        maxangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'+')
+        size_row=self.angle2screen_pos(maxangle['row'],'row')-self.angle2screen_pos(minangle['row'],'row')
+        size_col=self.angle2screen_pos(maxangle['col'],'col')-self.angle2screen_pos(minangle['col'],'col')
+        return utils.rc((size_row,size_col))
+
     def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
         '''        
         Aka Marching Squares
@@ -1194,34 +1208,60 @@ class StimulationSequences(Stimulations):
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
                                                                             off_time = off_time)
+        self.display_size=display_size
+        import random,itertools
+        positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
+        if random_order:
+            #random.seed(0)
+            positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+            #random.shuffle(positions_and_colors)
+        if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
+            positions_and_colors_angle=positions_and_colors
+            #Consider positions in degree units and convert them to real screen positions
+            #correct for screen center
+            screen_center_um=self.machine_config.SCREEN_CENTER
+            positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
+            #Correct for display center
+            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
+            positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
+            #Convert angles to positions
+            positions_and_colors = [[p,self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
+            pos=numpy.array([p for a,d,c,p in positions_and_colors])
+            offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
+            #offset=utils.rc_add(offset,screen_center_um,'+')
+            positions_and_colors = [[a,d,c,utils.rc_add(p,offset,'-')] for a,d,c, p in positions_and_colors]
+            #Convert to ulcorner
+            if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
+                positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
+        else:
+            positions_and_colors= [[a,shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
-        if random_order:
-            import random,itertools
-            #random.seed(0)
-            positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]#shuffling colors and positions
-            #random.shuffle(positions_and_colors)
-            positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+        
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
-            for color,p in positions_and_colors:
-#                for color in shape_colors:
+            for angle,shape_size_i, color,p in positions_and_colors:
+                    print angle
+                    #print shape_size_i['row']
+            #for p in positions:
+             #   for color in shape_colors:
                     for r2 in range(flash_repeat):
                         if self.abort:
                             break
                         if hasattr(self, 'block_start'):
-                            self.block_start()
+                            self.block_start(block_name = 'position')
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         self.show_shape(shape = 'rect',
-                                    size = shape_size,
+                                    size = shape_size_i,
                                     color = color,
                                     background_color = background_color,
                                     duration = on_time,
-                                    pos = p)
+                                    pos = p,
+                                    angle=angle)
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         if hasattr(self, 'block_end'):
-                            self.block_end()
+                            self.block_end(block_name = 'position')
         
     def _parse_receptive_field_parameters(self, shape_size, nrows, ncolumns, display_size, shape_colors, background_color):
         if background_color is None:
