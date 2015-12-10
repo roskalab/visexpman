@@ -812,11 +812,12 @@ class AoMicroscopeSetup(VisionExperimentConfig):
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         self.PREFERRED_STIMULI = ['MovingGratingWithFlashConfig','MovingGratingAdrianQuickSearch', 'MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
-                            'LedKamill2Config', 'ReceptiveFieldExploreConfig', 'ReceptiveFieldExploreAutosizeConfig',
+                            'LedKamill2Config', 'LedKamill10mWConfig', 'LedKamill1mWConfig', 'LedKamill100uWConfig', 'ReceptiveFieldExploreConfig', 'ReceptiveFieldExploreAutosizeConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
                             'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
                             'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig', 'ProjectorFlashConfig',
-                            'TouchStimulatorConfig', 'TouchStimulator1Config','ThermoStimulatorConfig','ThermoStimulatorShortConfig', 'ShortMovingGratingConfig', 'IRLaserConfig']
+                            'ShortMovingGratingConfig', 'IRLaserConfig', 'IRLaser0p01V', 'IRLaser0p05V', 'IRLaser0p1V', 'IRLaser0p2V', 'IRLaser0p3V', 'IRLaser0p4V', 'IRLaser0p5V', 'IRLaser0p7V', 'IRLaser0p9V', 'IRLaser1p1V', 'IRLaser1p3V','IRLaser1p5V','IRLaser1p7V', 'IRLaser1p9V',
+                            'KamillMovingGratingNoMarchingConfig']
         FULLSCREEN = not True
         self.COLOR_MASK = [1.0, 1.0, 1.0]
         self.TRIGGER_MES = not False

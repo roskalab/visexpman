@@ -232,6 +232,8 @@ if 1:
             
     class KamillMovingGratingNoMarchingConfig(MovingGratingConfig):
         def _create_parameters(self):
+            self.COLOR=1.0
+            self.BACKGROUND=0.5
             #Timing
             self.NUMBER_OF_MARCHING_PHASES = 5
             self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 8
@@ -379,6 +381,12 @@ class MovingGrating(experiment.Experiment):
         segment_pointer = 0
         self.fragmented_stimulus_units = [self.stimulus_units]
         self.experiment_specific_data = {}
+        if hasattr(self.experiment_config, 'COLOR'):
+            self.contrast=self.experiment_config.COLOR-self.experiment_config.BACKGROUND
+            self.offset=0.5*(self.experiment_config.COLOR-self.experiment_config.BACKGROUND)+self.experiment_config.BACKGROUND
+        else:
+            self.contrast=1.0
+            self.offset=0.5
 
     def run(self, fragment_id = 0):
         import sys
@@ -412,6 +420,7 @@ class MovingGrating(experiment.Experiment):
                         self.show_grating(duration = static_grating_duration, 
                                     profile = profile, 
                                     orientation = orientation, 
+                                    color_contrast = self.contrast,  color_offset = self.offset,
                                     velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                                     duty_cycle = stimulus_unit['duty_cycle'],
                                     starting_phase = phase+stimulus_unit['starting_phase'])
@@ -420,6 +429,7 @@ class MovingGrating(experiment.Experiment):
                 self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
                             orientation = orientation, 
+                            color_contrast = self.contrast,  color_offset = self.offset,
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
@@ -430,6 +440,7 @@ class MovingGrating(experiment.Experiment):
                     self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
                             profile = profile, 
                             orientation = orientation, 
+                            color_contrast = self.contrast,  color_offset = self.offset,
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],)
                 #Save segment info to help synchronizing stimulus with measurement data
