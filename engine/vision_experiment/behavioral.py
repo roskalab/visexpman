@@ -8,7 +8,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 from visexpman.engine.generic import gui,utils,videofile
-from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.engine.hardware_interface import daq_instrument, digital_io
 #TODO: test stim channel info in mat file
 #TODO: check video frame rate 
 #TODO: trace labels
@@ -20,6 +20,8 @@ class Config(object):
     def __init__(self):
         self.STIM_CHANNELS=['Dev1/ao1','Dev1/ao0']#Physical channels of usb-daq device
         self.DIO_PORT = 'COM4' if os.name=='nt' else '/dev/ttyUSB0'#serial port which controls the valve
+        self.VALVE_PIN=0
+        self.ARDUINO_BASED_DIO=False
         self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()#Default data folder
         self.VALVE_OPEN_TIME=10e-3
         self.STIMULUS_DURATION=1.0
@@ -36,23 +38,10 @@ class Config(object):
         self.PIXEL2SPEED=0.0075214899713467055
         self.MOVE_THRESHOLD=1#Above this speed the mouse is considered to be moving
         self.STOP_TIME=0.5
-        #Protocol specific parameters
-        self.PROTOCOL_STOP_REWARD={}
-        self.PROTOCOL_STOP_REWARD['run time']=10#sec
-        self.PROTOCOL_STOP_REWARD['stop time']=self.STOP_TIME#sec
+        self.init_setup_specific_parameters()
         
-        self.PROTOCOL_STIM_STOP_REWARD={}
-        self.PROTOCOL_STIM_STOP_REWARD['run time']=5#sec
-        self.PROTOCOL_STIM_STOP_REWARD['stop time']=self.STOP_TIME#sec
-        self.PROTOCOL_STIM_STOP_REWARD['stimulus time range']=10#sec
-        self.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']=0.5#sec
-        self.PROTOCOL_STIM_STOP_REWARD['delay after run']=5#sec equivalent to flash time. After run condition is fulfilled and led is turned on, the mouse is expected to stop...
-        #...If it does not happen in this time (5sec) stim is turned off and the software generates a new random duration and the mouse is expected to run for this duration ...
-        self.PROTOCOL_STIM_STOP_REWARD['n stimulus channels'] = 1
-        self.PROTOCOL_STIM_STOP_REWARD['stimulus till stop'] = True
-        
-        self.PROTOCOL_KEEP_RUNNING_REWARD={}
-        self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=15.0
+    def init_setup_specific_parameters(self):
+        pass
         
     def get_protocol_names(self):
         return [vn.replace('PROTOCOL_','') for vn in dir(self) if 'PROTOCOL_' in vn]
@@ -116,10 +105,19 @@ class HardwareHandler(threading.Thread):
         self.config=config
         threading.Thread.__init__(self)
         
+    def valve_on(self):
+        self.s.set_pin(self.config.VALVE_PIN,1)
+        
+    def valve_off(self):
+        self.s.set_pin(self.config.VALVE_PIN,0)
+        
     def run(self):
-        s=serial.Serial(self.config.DIO_PORT)#Opening the serial port
-        s.setBreak(0)#Bringing the orange wire to a known state
-        s.setRTS(1)#Same for the green one
+        if self.config.ARDUINO_BASED_DIO:
+            self.s=digital_io.AduinoIO(self.config.DIO_PORT)
+        else:
+            s=serial.Serial(self.config.DIO_PORT)#Opening the serial port
+            s.setBreak(0)#Bringing the orange wire to a known state
+            s.setRTS(1)#Same for the green one
         while True:
             if not self.command.empty():
                 cmd=self.command.get()
@@ -139,20 +137,34 @@ class HardwareHandler(threading.Thread):
                     if os.name=='nt':
                         daq_instrument.set_voltage(cmd[2],0)
                 elif cmd[0] == 'reward':
-                    s.setBreak(1)#Set the orange wire to 0 V which opens the valve (it has double inverted logic)
+                    if self.config.ARDUINO_BASED_DIO:
+                        self.valve_on()
+                    else:
+                        s.setBreak(1)#Set the orange wire to 0 V which opens the valve (it has double inverted logic)
                     time.sleep(self.config.VALVE_OPEN_TIME)
-                    s.setBreak(0)#Close the valve
+                    if self.config.ARDUINO_BASED_DIO:
+                        self.valve_off()
+                    else:
+                        s.setBreak(0)#Close the valve
                     self.response.put('reward ready')#signalling the main thread that delivering the reward is done
                 elif cmd[0] == 'open_valve':
-                    s.setBreak(1)#Opening the valve for debug purposes
+                    if self.config.ARDUINO_BASED_DIO:
+                        self.valve_on()
+                    else:
+                        s.setBreak(1)#Opening the valve for debug purposes
                 elif cmd[0] == 'close_valve':
-                    s.setBreak(0)#Close tha valve 
+                    if self.config.ARDUINO_BASED_DIO:
+                        self.valve_off()
+                    else:
+                        s.setBreak(0)#Close tha valve 
             else:
                 time.sleep(10e-3)
-                
-        s.setBreak(0)#Bring the orange and green wires to a safe state
-        s.setRTS(1)
-        s.close()#Close the serial port
+        if self.config.ARDUINO_BASED_DIO:
+            self.s.close()
+        else:
+            s.setBreak(0)#Bring the orange and green wires to a safe state
+            s.setRTS(1)
+            s.close()#Close the serial port
 
 HELP='''Start experiment: Ctrl+a
 Stop experiment: Ctrl+s
@@ -223,7 +235,7 @@ class Behavioral(gui.SimpleAppWindow):
     Main application class and main thread of the behavioral control software.
     '''
     def init_gui(self):
-        self.config=Config()#The Config class is created which holds the configuration values
+        self.config=getattr(sys.modules[__name__],sys.argv[1])()#The Config class is created which holds the configuration values
         self.setWindowTitle('Behavioral Experiment Control')
         self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
         self.cw.setMinimumHeight(500)#Adjusting its geometry
@@ -338,6 +350,8 @@ class Behavioral(gui.SimpleAppWindow):
         self.stop_complete=False
         self.generate_run_time()#Generate the randomized expected runtime for start stop stim protocol
         self.last_reward = 0
+        self.punishment=False
+        self.punishment_counter =0
         self.reward_counter=0
         self.stimulus_counter=0
         self.stop_counter=0
@@ -519,6 +533,64 @@ class Behavioral(gui.SimpleAppWindow):
             if run and self.checkdata[0,-1]-self.last_reward>=self.config.PROTOCOL_KEEP_RUNNING_REWARD['run time']:
                 self.reward()#... give reward and...
                 self.checkdata=numpy.copy(self.empty)#Reset checkdata
+                
+    def keep_stop_reward(self):
+        if not hasattr(self, 'keep_stop_time'):
+            self.reward_period=self.config.PROTOCOL_KEEP_STOP_REWARD['reward period']
+        speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
+        if speed.sum()>0:
+            if self.punishment:
+                self.punishment_start_time=time.time()
+                self.checkdata=numpy.copy(self.empty)    
+            else:
+                self.log('Start of water deprivation');
+                self.punishment = True
+                self.punishment_counter+=1
+                self.punishment_start_time=time.time()
+                self.checkdata=numpy.copy(self.empty)  
+        else:
+            if self.punishment:
+                if time.time()-self.punishment_start_time>self.config.PROTOCOL_KEEP_STOP_REWARD['punishment time']:
+                    self.punishment = False
+                    self.log('End of water deprivation')
+            else:
+                if self.checkdata[0,-1]-self.checkdata[0,0]>self.reward_period:
+                    speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
+                    t=self.checkdata[0]-self.checkdata[0,0]#Time is shifted to 0
+                    #Calculate index for last stoptime duration
+                    index=numpy.where(t>t.max()-self.reward_period)[0].min()
+                    stop_speed=speed[index:]#...and the stop part
+                    stop=stop_speed.sum()==0#All elements of the stop part shall be below threshold
+                    if stop:
+                        self.reward()#... give reward and...
+                        self.checkdata=numpy.copy(self.empty)#Reset checkdata
+        
+#        if not self.punishment:#punishment is a certain period of time while no reward is given
+#            if self.checkdata[0,-1]-self.checkdata[0,0]>self.reward_period:
+#                speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
+#                t=self.checkdata[0]-self.checkdata[0,0]#Time is shifted to 0
+#                #Calculate index for last stoptime duration
+#                index=numpy.where(t>t.max()-self.reward_period)[0].min()
+#                stop_speed=speed[index:]#...and the stop part
+#                stop=stop_speed.sum()==0#All elements of the stop part shall be below threshold
+#                if stop:
+#                    self.reward()#... give reward and...
+#                    self.checkdata=numpy.copy(self.empty)#Reset checkdata
+#                else:
+#                    self.log('Start of water deprivation');
+#                    self.punishment = True
+#                    self.punishment_counter+=1
+#                    self.punishment_start_time=time.time()
+#                    self.checkdata=numpy.copy(self.empty)    
+#        else:
+#            speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
+#            if speed.sum()>0:
+#                self.punishment_start_time=time.time()
+#                self.checkdata=numpy.copy(self.empty)    
+#            if time.time()-self.punishment_start_time>self.config.PROTOCOL_KEEP_STOP_REWARD['punishment time']:
+#                self.punishment = False
+#                self.log('End of water deprivation');
+        
                         
     def generate_run_time(self):
         '''
@@ -527,8 +599,9 @@ class Behavioral(gui.SimpleAppWindow):
         The random part is between 0...'stimulus time range' and has its values are generated in 'stimulus time resolution' steps
         The random part i added to the "run time"
         '''
-        random_time=self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']*int(random.random()*self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time range']/self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution'])
-        self.actual_runtime = self.config.PROTOCOL_STIM_STOP_REWARD['run time']+random_time
+        if str(self.cw.select_protocol.input.currentText()).upper()=='STIM_STOP_REWARD':
+            random_time=self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']*int(random.random()*self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time range']/self.config.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution'])
+            self.actual_runtime = self.config.PROTOCOL_STIM_STOP_REWARD['run time']+random_time
         
     def _parse_stim_power_and_channel(self):
         try:
@@ -610,6 +683,36 @@ class Behavioral(gui.SimpleAppWindow):
         self.framesaver.join()#Wait until it terminates
         self.filesaver_q.put('terminate')
         self.filesaver.join()
-            
+
+class UltrasonicSetup(Config):
+    def init_setup_specific_parameters(self):
+        self.VALVE_PIN=7
+        self.ARDUINO_BASED_DIO=True
+        self.PROTOCOL_KEEP_STOP_REWARD={}
+        self.PROTOCOL_KEEP_STOP_REWARD['reward period']=5#sec
+        self.PROTOCOL_KEEP_STOP_REWARD['punishment time']=10.0#sec
+        self.PROTOCOL_KEEP_STOP_REWARD['reward period increment']=5.0#sec
+        self.PROTOCOL_KEEP_STOP_REWARD['max reward perdion']=3600.0#sec
+
+class BehavioralSetup(Config):
+    def init_setup_specific_parameters(self):
+        self.PROTOCOL_STOP_REWARD={}
+        self.PROTOCOL_STOP_REWARD['run time']=10#sec
+        self.PROTOCOL_STOP_REWARD['stop time']=self.STOP_TIME#sec
+        
+        self.PROTOCOL_STIM_STOP_REWARD={}
+        self.PROTOCOL_STIM_STOP_REWARD['run time']=5#sec
+        self.PROTOCOL_STIM_STOP_REWARD['stop time']=self.STOP_TIME#sec
+        self.PROTOCOL_STIM_STOP_REWARD['stimulus time range']=10#sec
+        self.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']=0.5#sec
+        self.PROTOCOL_STIM_STOP_REWARD['delay after run']=5#sec equivalent to flash time. After run condition is fulfilled and led is turned on, the mouse is expected to stop...
+        #...If it does not happen in this time (5sec) stim is turned off and the software generates a new random duration and the mouse is expected to run for this duration ...
+        self.PROTOCOL_STIM_STOP_REWARD['n stimulus channels'] = 1
+        self.PROTOCOL_STIM_STOP_REWARD['stimulus till stop'] = True
+        
+        self.PROTOCOL_KEEP_RUNNING_REWARD={}
+        self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=15.0
+
+
 if __name__ == '__main__':
     gui = Behavioral()

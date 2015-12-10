@@ -9,7 +9,7 @@ byte par;
 void setup() {
   Serial.begin(115200);
   PIND=0xFC;
-  PORTD=0x0;
+  PORTD=0x00;
   state=IDLE_ST;
 }
 
