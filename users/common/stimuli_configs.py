@@ -22,7 +22,6 @@ class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
         self.runnable='ReceptiveFieldExplore'
         self._create_parameters_from_locals(locals())
         
-        
 class ReceptiveFieldExploreNewInverted(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)

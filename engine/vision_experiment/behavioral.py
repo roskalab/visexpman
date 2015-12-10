@@ -18,7 +18,7 @@ class Config(object):
     This configuration class is for storing all the parameters
     '''
     def __init__(self):
-        self.STIM_CHANNELS=['Dev1/ao0','Dev1/ao1']#Physical channels of usb-daq device
+        self.STIM_CHANNELS=['Dev1/ao1','Dev1/ao0']#Physical channels of usb-daq device
         self.DIO_PORT = 'COM4' if os.name=='nt' else '/dev/ttyUSB0'#serial port which controls the valve
         self.DATA_FOLDER = 'c:\\temp' if os.name == 'nt' else tempfile.gettempdir()#Default data folder
         self.VALVE_OPEN_TIME=10e-3
@@ -35,17 +35,19 @@ class Config(object):
         #7 cm: 803-5,988-21,1072-75,1172-270,1341-293,1338-466: 7 cm = 930 pixel -> 1 pixel = 0.0075214899713467055
         self.PIXEL2SPEED=0.0075214899713467055
         self.MOVE_THRESHOLD=1#Above this speed the mouse is considered to be moving
+        self.STOP_TIME=0.5
         #Protocol specific parameters
         self.PROTOCOL_STOP_REWARD={}
         self.PROTOCOL_STOP_REWARD['run time']=10#sec
-        self.PROTOCOL_STOP_REWARD['stop time']=.5#sec
+        self.PROTOCOL_STOP_REWARD['stop time']=self.STOP_TIME#sec
         
         self.PROTOCOL_STIM_STOP_REWARD={}
-        self.PROTOCOL_STIM_STOP_REWARD['run time']=2#sec
-        self.PROTOCOL_STIM_STOP_REWARD['stop time']=0.5#sec
+        self.PROTOCOL_STIM_STOP_REWARD['run time']=5#sec
+        self.PROTOCOL_STIM_STOP_REWARD['stop time']=self.STOP_TIME#sec
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time range']=10#sec
         self.PROTOCOL_STIM_STOP_REWARD['stimulus time resolution']=0.5#sec
-        self.PROTOCOL_STIM_STOP_REWARD['delay after run']=2#sec
+        self.PROTOCOL_STIM_STOP_REWARD['delay after run']=5#sec equivalent to flash time. After run condition is fulfilled and led is turned on, the mouse is expected to stop...
+        #...If it does not happen in this time (5sec) stim is turned off and the software generates a new random duration and the mouse is expected to run for this duration ...
         self.PROTOCOL_STIM_STOP_REWARD['n stimulus channels'] = 1
         self.PROTOCOL_STIM_STOP_REWARD['stimulus till stop'] = True
         
@@ -178,7 +180,7 @@ class CWidget(QtGui.QWidget):
         self.selected_folder = QtGui.QLabel(parent.config.DATA_FOLDER, self)#Displays the data folder
         
         self.stim_power = gui.LabeledInput(self, 'Stimulus Intensity [V]')#The voltages controlling the stimulus devices can be set here
-        self.stim_power.input.setText('7,4')#The default value is 4 V for both channels
+        self.stim_power.input.setText('7,5')#The default value is 4 V for both channels
         self.stim_power.input.setFixedWidth(40)
         
         self.open_valve=gui.LabeledCheckBox(self,'Open Valve')#This checkbox is for controlling the valve manually
@@ -193,6 +195,9 @@ class CWidget(QtGui.QWidget):
         
         self.enable_periodic_data_save=gui.LabeledCheckBox(self,'Enable Periodic Save')
         self.enable_periodic_data_save.input.setCheckState(2)
+        
+        self.counter = QtGui.QLabel('', self)
+        
         self.save_period = gui.LabeledInput(self, 'Data Save Period [s]')
         self.save_period.input.setText('60')
         self.save_period.input.setFixedWidth(40)
@@ -202,6 +207,7 @@ class CWidget(QtGui.QWidget):
         self.l.addWidget(self.plotw, 0, 2, 1, 5)
         self.l.addWidget(self.select_protocol, 1, 2, 1, 2)
         self.l.addWidget(self.stim_power, 2, 5, 1, 1)
+        self.l.addWidget(self.counter, 3, 6, 1, 1)
         self.l.addWidget(self.enable_periodic_data_save, 3, 4, 1, 1)
         self.l.addWidget(self.save_period, 3, 5, 1, 1)
         self.l.addWidget(self.select_folder, 1, 4, 1, 1)
@@ -308,7 +314,10 @@ class Behavioral(gui.SimpleAppWindow):
         if os.path.exists(self.frame_folder):#If already exists, delete it with its content
             shutil.rmtree(self.frame_folder)
         os.mkdir(self.frame_folder)
-            
+        
+    def update_counter(self):
+        self.cw.counter.setText('rewards {0}, stimuli {1}, stop {2} {3}'.format(self.reward_counter, self.stimulus_counter, self.stop_counter,self.is_stop))
+                    
     def start_experiment(self):
         if self.running: return#Do nothing when already running
         self.running=True
@@ -329,22 +338,29 @@ class Behavioral(gui.SimpleAppWindow):
         self.stop_complete=False
         self.generate_run_time()#Generate the randomized expected runtime for start stop stim protocol
         self.last_reward = 0
+        self.reward_counter=0
+        self.stimulus_counter=0
+        self.stop_counter=0
+        self.is_stop=True
         
     def check_recording_save(self):
         if not self.enable_periodic_data_save:return
         now=time.time()
         #Restart is enabled if last reward was within a second or it was a long time ago (20 sec).
         dt=now-self.last_reward
-        if now-self.last_save_time>self.save_period:# and ((dt<2.0 and dt>0.5) or dt>20):
+        if now-self.last_save_time>self.save_period and dt>1:# and ((dt<2.0 and dt>0.5) or dt>20):
             self.save_data()
             self._get_new_frame_folder()
             self.last_save_time=now
             self.frame_counter=0
-            if self.data[0,-1]-self.data[0,0]>2*60:
-                index=numpy.where(self.data[0]>self.data[0,-1]-60.0)[0].min()
-                self.data=self.data[:,index:]
-            self.data_index=self.data.shape[1]
-            
+            self.data=numpy.copy(self.empty)
+#            if self.data[0,-1]-self.data[0,0]>2*60:
+#                index=numpy.where(self.data[0]>self.data[0,-1]-60.0)[0].min()
+#                self.data=self.data[:,index:]
+#            self.data_index=self.data.shape[1]
+            self.reward_counter=0
+            self.stimulus_counter=0
+            self.stop_counter=0
             #self.stop_experiment()
             #self.start_experiment()
             
@@ -409,6 +425,24 @@ class Behavioral(gui.SimpleAppWindow):
                 self.stim_state=0#...set the stim_state to 0
             elif resp == 'reward ready':#Same for valve state
                 self.valve_state=False
+        self.is_stopped()
+        self.update_counter()
+        
+    def is_stopped(self):
+        if self.checkdata.shape[1]==0: return
+        if self.checkdata[0,-1]-self.checkdata[0,0]>self.config.STOP_TIME:
+            speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
+            t=self.checkdata[0]-self.checkdata[0,0]#Time is shifted to 0
+            #Calculate index for last 2*stoptime duration
+            t0index=numpy.where(t>t.max()-(self.config.STOP_TIME))[0].min()
+            #Calculate index for last stoptime duration
+            index=numpy.where(t>t.max()-self.config.STOP_TIME)[0].min()
+            stop_speed=speed[index:]#...and the stop part
+            stop=stop_speed.sum()==0#All elements of the stop part shall be below threshold
+            if self.is_stop!=stop:
+                self.is_stop=stop
+                if stop:
+                    self.stop_counter+=1
         
     def stop_reward(self):
         '''
@@ -515,12 +549,14 @@ class Behavioral(gui.SimpleAppWindow):
         self.hwcommand.put(['stimulate', power[channel], self.config.STIM_CHANNELS[channel]])#Send command to hardware handler to generate stimulation
         self.stim_state=channel+1#Stim state is 0 when no stimulus is shown, otherwise the id of the stimulus channel
         self.log('stim at channel {0}'.format(self.stim_state))
+        self.stimulus_counter+=1
         
     def stim_on(self):
         power, channel = self._parse_stim_power_and_channel()
         self.hwcommand.put(['stim on', power[channel], self.config.STIM_CHANNELS[channel]])#Send command to hardware handler to generate stimulation
         self.stim_state=channel+1#Stim state is 0 when no stimulus is shown, otherwise the id of the stimulus channel
         self.log('stim on at channel {0}'.format(self.stim_state))
+        self.stimulus_counter+=1
         
     def stim_off(self):
         power, channel = self._parse_stim_power_and_channel()
@@ -533,6 +569,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.valve_state=True
         self.log('reward')
         self.last_reward=time.time()
+        self.reward_counter+=1
         
     def save_data(self):
         '''
@@ -542,6 +579,7 @@ class Behavioral(gui.SimpleAppWindow):
         filename=os.path.join(self.output_folder, '{1}_{0}.mat'.format(utils.timestamp2ymdhms(time.time()).replace(':', '-').replace(' ', '_'),str(self.cw.select_protocol.input.currentText()).lower()))
         #Aggregating the data to be saved
         data2save={}
+        self.data_index=0
         data2save['time']=self.data[0,self.data_index:]
         data2save['position']=self.data[1,self.data_index:]
         data2save['speed']=self.data[2,self.data_index:]
@@ -550,6 +588,9 @@ class Behavioral(gui.SimpleAppWindow):
         #configuration values are also saved
         data2save['config']=[(vn, getattr(self.config,vn)) for vn in dir(self.config) if vn.isupper()]
         data2save['frametime']=self.frame_times[self.data_index:]
+        data2save['reward_counter']=self.reward_counter
+        data2save['stimulus_counter']=self.stimulus_counter
+        data2save['stop_counter']=self.stop_counter
         self.log('Video capture frame rate was {0}'.format(1/numpy.diff(self.frame_times).mean()))
         self.log('Saving data to {0}, saving video to {1}'.format(filename,filename.replace('.mat','.mp4')))
         self.filesaver_q.put((filename, data2save, self.frame_folder,  self.config.CAMERA_UPDATE_RATE))
