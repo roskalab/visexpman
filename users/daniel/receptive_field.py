@@ -70,6 +70,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                                             on_time = self.experiment_config.ON_TIME,
                                                                             off_time = self.experiment_config.OFF_TIME)
         self.fragment_durations=[self.stimulus_duration]
+        
             
     def run(self):
         self.receptive_field_explore(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None, 

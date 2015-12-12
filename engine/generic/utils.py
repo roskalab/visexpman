@@ -1206,21 +1206,28 @@ class TestUtils(unittest.TestCase):
             pass
 def shuffle_positions_avoid_adjacent(positions,shape_distance):
     remaining=copy.deepcopy(positions)
+    success=True
     shuffled=[]
     while True:
         selected_i = random.choice(range(len(remaining)))
         if len(shuffled)>0:
+            ct=0
             while True:
+                ct+=1
                 coords=rc(numpy.array([nd(shuffled[-1][1]),nd(remaining[selected_i][1])]))
                 if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
-                    selected_i = random.choice(range(len(remaining)))
+                    if len(remaining)>1:
+                        selected_i = random.choice(range(len(remaining)))
+                    else:
+                        success=False
+                        break
                 else:
                     break
         shuffled.append(remaining[selected_i])
         del remaining[selected_i]
         if len(remaining)==0:
             break
-    return shuffled
+    return shuffled,success
             
 if __name__ == "__main__":
     #commented out by Daniel:
