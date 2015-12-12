@@ -817,10 +817,12 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                             'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
                             'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig', 'ProjectorFlashConfig',
                             'ShortMovingGratingConfig', 'IRLaserConfig', 'IRLaser0p01V', 'IRLaser0p05V', 'IRLaser0p1V', 'IRLaser0p2V', 'IRLaser0p3V', 'IRLaser0p4V', 'IRLaser0p5V', 'IRLaser0p7V', 'IRLaser0p9V', 'IRLaser1p1V', 'IRLaser1p3V','IRLaser1p5V','IRLaser1p7V', 'IRLaser1p9V',
-                            'KamillMovingGratingNoMarchingConfig']
-        FULLSCREEN = not True
+                            'KamillMovingGratingNoMarchingConfig',
+                            'ContrastGrating045Deg','ContrastGrating90Deg','ContrastGrating135Deg','ContrastGrating180Deg',
+                            'ContrastGrating225Deg','ContrastGrating270Deg','ContrastGrating315Deg','ContrastGrating0Deg',]
+        FULLSCREEN = True
         self.COLOR_MASK = [1.0, 1.0, 1.0]
-        self.TRIGGER_MES = not False
+        self.TRIGGER_MES =  not False
         self.CONTINUE_STIMULUS_TRIGGER = not  True
         self.MES_RECORD_START_DELAY = 15.0
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])

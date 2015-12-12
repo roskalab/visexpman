@@ -233,7 +233,7 @@ if 1:
     class KamillMovingGratingNoMarchingConfig(MovingGratingConfig):
         def _create_parameters(self):
             self.COLOR=1.0
-            self.BACKGROUND=0.5
+            self.BACKGROUND=0.0
             #Timing
             self.NUMBER_OF_MARCHING_PHASES = 5
             self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 8
