@@ -1353,8 +1353,16 @@ class AdvancedStimulation(StimulationHelpers):
         import random,itertools
         positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
         if random_order:
-            #random.seed(0)
-            positions_and_colors = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+            ct=0
+            while True:
+                positions_and_colors,success = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+                if success:
+                    break
+                else:
+                    ct+=1
+                if ct>=10:
+                    raise RuntimeError('Could not generate non adjacent random order of squares')
+                    
             #random.shuffle(positions_and_colors)
         if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
             positions_and_colors_angle=positions_and_colors
