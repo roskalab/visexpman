@@ -18,6 +18,7 @@ class Config(object):
     This configuration class is for storing all the parameters
     '''
     def __init__(self):
+        self.ENABLE_CAMERA=True
         self.STIM_CHANNELS=['Dev1/ao1','Dev1/ao0']#Physical channels of usb-daq device
         self.DIO_PORT = 'COM4' if os.name=='nt' else '/dev/ttyUSB0'#serial port which controls the valve
         self.VALVE_PIN=0
@@ -245,12 +246,18 @@ class Behavioral(gui.SimpleAppWindow):
         self.debugw.setMinimumHeight(250)#the superclass of Behavioral. The debug widget displays the logfile and provides a python console
         self.setMinimumWidth(1200)#Setting the minimum size of the main user interface
         self.setMinimumHeight(750)
+        self.camera=None
+        if self.config.ENABLE_CAMERA:
+            try:
+                self.camera = cv2.VideoCapture(0)#Initialize video capturing
+                self.camera.set(3, self.config.CAMERA_FRAME_WIDTH)#Set camera resolution
+                self.camera.set(4, self.config.CAMERA_FRAME_HEIGHT)
+            except:
+                print 'no camera present'
+                
         self.camera_reader = QtCore.QTimer()#Timer for periodically reading out the camera
         self.camera_reader.timeout.connect(self.read_camera)#Assigning the function which reads out the camera to this timer
         self.camera_reader.start(int(1000./self.config.CAMERA_UPDATE_RATE))#Setting the update rate of the timer
-        self.camera = cv2.VideoCapture(0)#Initialize video capturing
-        self.camera.set(3, self.config.CAMERA_FRAME_WIDTH)#Set camera resolution
-        self.camera.set(4, self.config.CAMERA_FRAME_HEIGHT)
         #Assign the keyboard hortcuts to functions, more details check the value of HELP variable
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Ctrl+a'), self), QtCore.SIGNAL('activated()'), self.start_experiment)
         self.connect(QtGui.QShortcut(QtGui.QKeySequence('Ctrl+s'), self), QtCore.SIGNAL('activated()'), self.stop_experiment)
@@ -302,6 +309,8 @@ class Behavioral(gui.SimpleAppWindow):
         '''
         Reads the camera periiodically, displays the image and sends it to the frame saver process when a session is running
         '''
+        if self.camera is None:
+            return
         ret, frame = self.camera.read()#Reading the raw frame from the camera
         if frame is None:
             return
@@ -328,7 +337,7 @@ class Behavioral(gui.SimpleAppWindow):
         os.mkdir(self.frame_folder)
         
     def update_counter(self):
-        self.cw.counter.setText('rewards {0}, stimuli {1}, stop {2} {3}'.format(self.reward_counter, self.stimulus_counter, self.stop_counter,self.is_stop))
+        self.cw.counter.setText('rewards {0}, stimuli {1}, stop {2}, punishment {3}'.format(self.reward_counter, self.stimulus_counter, self.stop_counter,self.punishment_counter))
                     
     def start_experiment(self):
         if self.running: return#Do nothing when already running
@@ -537,7 +546,7 @@ class Behavioral(gui.SimpleAppWindow):
     def keep_stop_reward(self):
         if not hasattr(self, 'keep_stop_time'):
             self.reward_period=self.config.PROTOCOL_KEEP_STOP_REWARD['reward period']
-        speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
+        speed=numpy.where(abs(self.checkdata[2])>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
         if speed.sum()>0:
             if self.punishment:
                 self.punishment_start_time=time.time()
@@ -675,7 +684,8 @@ class Behavioral(gui.SimpleAppWindow):
 
     def closeEvent(self, e):
         #When the user interface is closed the following procedure is preformed
-        self.camera.release()#Stop camera operation
+        if hasattr(self.camera,'release'):
+            self.camera.release()#Stop camera operation
         self.hwcommand.put(['terminate'])#Terminate hardware handler thread
         e.accept()
         self.hwh.join()#Wait till thread ends
@@ -689,10 +699,11 @@ class UltrasonicSetup(Config):
         self.VALVE_PIN=7
         self.ARDUINO_BASED_DIO=True
         self.PROTOCOL_KEEP_STOP_REWARD={}
-        self.PROTOCOL_KEEP_STOP_REWARD['reward period']=5#sec
-        self.PROTOCOL_KEEP_STOP_REWARD['punishment time']=10.0#sec
-        self.PROTOCOL_KEEP_STOP_REWARD['reward period increment']=5.0#sec
+        self.PROTOCOL_KEEP_STOP_REWARD['reward period']=20#sec
+        self.PROTOCOL_KEEP_STOP_REWARD['punishment time']=30#sec
+        self.PROTOCOL_KEEP_STOP_REWARD['reward period increment']=0#sec
         self.PROTOCOL_KEEP_STOP_REWARD['max reward perdion']=3600.0#sec
+        self.ENABLE_CAMERA=False
 
 class BehavioralSetup(Config):
     def init_setup_specific_parameters(self):
