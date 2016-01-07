@@ -495,6 +495,12 @@ class CommandInterface(command_parser.CommandParser):
                         converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0],  config=self.analysis_config)
                         from visexpman.users.zoltan.mes2video import mes2video
                         mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
+                    #Try converting red channel
+                    if 1:
+                        from visexpA.users.zoltan import red_channel
+                        res=red_channel.red2mat(full_fragment_path.replace('.hdf5','.mat'))
+                        if res is not None:
+                            self.printl('Red channel data saved to {0}'.format(res))
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
                 else:
                     self.printl('Not existing ID: {0}'.format(id))

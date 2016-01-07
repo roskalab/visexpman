@@ -1208,7 +1208,9 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
     remaining=copy.deepcopy(positions)
     success=True
     shuffled=[]
+    cti=0
     while True:
+        cti+=1
         selected_i = random.choice(range(len(remaining)))
         if len(shuffled)>0:
             ct=0
@@ -1223,6 +1225,12 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
                         break
                 else:
                     break
+                if ct>len(positions)*2:
+                    success=False
+                    break
+        if cti>len(positions)*2:
+            success=False
+            break
         shuffled.append(remaining[selected_i])
         del remaining[selected_i]
         if len(remaining)==0:

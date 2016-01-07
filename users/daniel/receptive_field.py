@@ -43,7 +43,7 @@ class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):
         self.NCOLUMNS = 9
         self.DISPLAY_CENTER = utils.rc((41.5,45.0))
         self.SIZE_DIMENSION='angle'
-        #self.OFF_TIME = 0
+       # self.OFF_TIME = 0
         #self.ON_TIME = 2.0
 
 class ReceptiveFieldExplore(experiment.Experiment):
