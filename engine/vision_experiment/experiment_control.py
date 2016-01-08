@@ -125,10 +125,24 @@ class ExperimentControl(object):
                 if self.abort:
                     break
         self._finish_experiment()
+        self._backup_raw_files()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
         self.application_log.flush()
         return message_to_screen
+        
+    def _backup_raw_files(self):
+        return
+        for fragment_id in range(self.number_of_fragments):
+            mesfn=self.filenames['mes_fragments'][fragment_id]
+            hdf5fn=self.filenames['fragments'][fragment_id]
+            if os.path.exists(mesfn) and os.path.exists(hdf5fn):
+                target_dir=os.path.join(self.machine_config.BACKUP_PATH,self.parameters['user'],utils.timestamp2ymd(self.id),self.animal_parameters['id'])
+                if not os.path.exists(target_dir):
+                    os.makedirs(target_dir)
+                shutil.copy2(mesfn,target_dir)
+                shutil.copy2(hdf5fn,os.path.join(target_dir,os.path.basename(hdf5fn).replace('.hdf5', '_raw.hdf5')))
+                self.printl('{0} and {1} are backed up to {2}'.format(mesfn,hdf5fn,target_dir))
         
     def _load_experiment_parameters(self):
         if not self.parameters.has_key('id'):

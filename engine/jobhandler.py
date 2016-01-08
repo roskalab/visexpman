@@ -476,7 +476,6 @@ class CommandInterface(command_parser.CommandParser):
                         xlabel('times [s]')
                         savefig(full_fragment_path.replace('.hdf5', '.png'), dpi=200)
                         h.close()
-                        
                     elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
                         self.printl('Calculate timing, blocks and repetitions')
                         try:
@@ -495,12 +494,32 @@ class CommandInterface(command_parser.CommandParser):
                         converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0],  config=self.analysis_config)
                         from visexpman.users.zoltan.mes2video import mes2video
                         mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
-                    #Try converting red channel
-                    if 1:
+                    elif self.kwargs['export'] == 'DATA2MAT':
+                        nodes = ['idnode','rawdata', 'sync_signal', 'image_scale','quick_analysis']
+                        if 'movinggrating' in full_fragment_path.lower():
+                            nodes.extend(['soma_rois', 'roi_curves'])
+                        from visexpA.users.zoltan import converters
+                        self.printl('Converting to mat')
+                        converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0],  config=self.analysis_config)
+                        from visexpman.users.zoltan.mes2video import mes2video
+                        self.printl('Converting rawdata to video')
+                        mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
                         from visexpA.users.zoltan import red_channel
                         res=red_channel.red2mat(full_fragment_path.replace('.hdf5','.mat'))
                         if res is not None:
                             self.printl('Red channel data saved to {0}'.format(res))
+                        h = hdf5io.Hdf5io(full_fragment_path, filelocking = False)
+                        rawdata = h.findvar('rawdata')
+                        #time.sleep(2)
+                        trace=rawdata.mean(axis=0).mean(axis=0)[:, 0]
+                        t = h.findvar('sync_signal')['data_frame_start_ms']*1e-3
+                        #time.sleep(1)
+                        from pylab import clf, plot, savefig, xlabel
+                        clf()
+                        plot(t[:trace.shape[0]], trace)
+                        xlabel('times [s]')
+                        savefig(full_fragment_path.replace('.hdf5', '.png'), dpi=200)
+                        h.close()
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
                 else:
                     self.printl('Not existing ID: {0}'.format(id))
