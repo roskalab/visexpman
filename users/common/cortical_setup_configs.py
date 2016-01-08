@@ -2,7 +2,30 @@ import os
 import os.path
 import numpy
 from visexpman.engine.generic import utils
-from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImagingConfig
+from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImagingConfig,UltrasonicConfig
+
+class UltrasonicSetupConfig(UltrasonicConfig):
+    def _set_user_parameters(self):
+        FULLSCREEN = False
+        self.root_folder = 'd:\\Data'
+        LOG_PATH = self.root_folder
+        EXPERIMENT_DATA_PATH = self.root_folder
+        CONTEXT_PATH = self.root_folder
+        if 0:
+            CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
+            os.mkdir(CAPTURE_PATH)
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        ENABLE_FRAME_CAPTURE = not True
+        stim_computer_ip = 'localhost'
+        behavioral_computer_ip = 'localhost'
+        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
+        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
+        self.CONNECTIONS['behavioral']['ip']['analysis'] = behavioral_computer_ip
+        self.CONNECTIONS['behavioral']['ip']['main_ui'] = behavioral_computer_ip
+        self.SCREEN_RESOLUTION = utils.cr([1920, 1080])
+        self.GUI['SIZE'] =  utils.cr((600,400))
+        self._create_parameters_from_locals(locals())
+    
 
 class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):
     '''

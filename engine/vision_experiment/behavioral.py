@@ -70,8 +70,7 @@ class FrameSaver(multiprocessing.Process):
                 
 class FileSaver(multiprocessing.Process):
     '''
-    This process saves the images transmitted through the input queue. 
-    It is running on a different processor core from the main thread to ensure higher video recording framerate.
+    
     '''
     def __init__(self,queue):
         multiprocessing.Process.__init__(self)
@@ -93,8 +92,9 @@ class FileSaver(multiprocessing.Process):
         scipy.io.savemat(filename, data2save,oned_as='row', do_compression=True)
         vfilename=filename.replace('.mat','.mp4')
         #frames saved to a temporary folder are used for generating an mpeg4 video file.
-        videofile.images2mpeg4(frame_folder, vfilename,fps)
-        shutil.rmtree(frame_folder)
+        if frame_folder is not None:
+            videofile.images2mpeg4(frame_folder, vfilename,fps)
+            shutil.rmtree(frame_folder)
         
 class HardwareHandler(threading.Thread):
     '''
@@ -675,7 +675,7 @@ class Behavioral(gui.SimpleAppWindow):
         data2save['stop_counter']=self.stop_counter
         self.log('Video capture frame rate was {0}'.format(1/numpy.diff(self.frame_times).mean()))
         self.log('Saving data to {0}, saving video to {1}'.format(filename,filename.replace('.mat','.mp4')))
-        self.filesaver_q.put((filename, data2save, self.frame_folder,  self.config.CAMERA_UPDATE_RATE))
+        self.filesaver_q.put((filename, data2save, self.frame_folder if self.config.ENABLE_CAMERA else None,  self.config.CAMERA_UPDATE_RATE))
         
     def select_folder(self):
         #Pop up a dialog asking the user for folder selection

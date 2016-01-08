@@ -7,6 +7,8 @@ ElphysRetinalCaImagingConfig:
 RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
         Platform name: rc_cortical or ao_cortical
+UltrasonicConfig:
+        TBD
 MCMEAConfig:
         inherits VisionExperimentConfig and expands it with Multichannel multi electrode array specific parameters that are not used on other platforms
         Platfrom name: mc_mea
@@ -71,7 +73,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us', 'standalone', 'smallapp', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -408,6 +410,15 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         CorticalCaImagingConfig._create_application_parameters(self)
         PLATFORM = 'ao_cortical'
         
+        self._create_parameters_from_locals(locals())
+        
+class UltrasonicConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'us'
+        COORDINATE_SYSTEM='center'
+        self.BASE_PORT = 10000
+        self.CONNECTIONS['behavioral']= {'port': self.BASE_PORT+1, 'ip': {'behavioral': '', 'main_ui': ''}}
         self._create_parameters_from_locals(locals())
         
 class MCMEAConfig(VisionExperimentConfig):
