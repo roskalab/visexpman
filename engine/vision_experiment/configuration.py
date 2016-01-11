@@ -91,7 +91,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DATA_READY_TIMEOUT = [10, [0,60]]
         
         ############### Display/graphics parameters: ################
-        SCREEN_RESOLUTION = utils.rc([600, 800])        
+        SCREEN_RESOLUTION = utils.rc([600, 800])
+        SCREEN_POSITION = utils.rc([0, 0])
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_RATE_TOLERANCE = [4.0,  [1e-2,  10.0]] #in Hz
@@ -180,6 +181,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]]
+        self.MOUSE_1_VISUAL_DEGREE_ON_RETINA=300.0/10.0
     
         self._create_parameters_from_locals(locals())#this function call is compulsory
 

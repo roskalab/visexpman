@@ -16,13 +16,17 @@ class UltrasonicSetupConfig(UltrasonicConfig):
             os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         ENABLE_FRAME_CAPTURE = not True
-        stim_computer_ip = 'localhost'
-        behavioral_computer_ip = 'localhost'
+        stim_computer_ip = '127.0.0.1'
+        behavioral_computer_ip = '127.0.0.1'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         self.CONNECTIONS['behavioral']['ip']['analysis'] = behavioral_computer_ip
         self.CONNECTIONS['behavioral']['ip']['main_ui'] = behavioral_computer_ip
         self.SCREEN_RESOLUTION = utils.cr([1920, 1080])
+        self.SCREEN_POSITION=utils.cr([-1920, 0])
+        self.SCREEN_WIDTH=600#mm
+        self.SCREEN_MOUSE_DISTANCE=180#mm
+        self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.radians(1.0/self.MOUSE_1_VISUAL_DEGREE_ON_RETINA))*self.SCREEN_MOUSE_DISTANCE/(self.SCREEN_WIDTH/float(self.SCREEN_RESOLUTION['col']))        
         self.GUI['SIZE'] =  utils.cr((600,400))
         self._create_parameters_from_locals(locals())
     

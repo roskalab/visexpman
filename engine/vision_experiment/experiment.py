@@ -145,10 +145,15 @@ class Stimulus(stimulation_library.AdvancedStimulation):
     def __init__(self, machine_config, queues = None, parameters = None, log=None, init_hardware=True):
         if init_hardware:
             stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
+        self.default_stimulus_configuration()
         self.stimulus_configuration()
         self.calculate_stimulus_duration()
         self.name=self.__class__.__name__
         
+    def default_stimulus_configuration(self):
+        '''
+        Shall be used by Stimulus superclasses
+        '''
         
     def stimulus_configuration(self):
         '''

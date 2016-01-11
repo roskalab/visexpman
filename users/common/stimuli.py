@@ -1,3 +1,7 @@
+'''
+Most common stimulus patterns. Users should subclass these
+'''
+
 import numpy
 import copy
 import time
@@ -5,6 +9,61 @@ import random
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
+class MovingBarTemplate(experiment.Stimulus):
+    def default_stimulus_configuration(self):
+        self.BAR_WIDTH=5.0
+        self.BAR_HEIGHT=5.0
+        self.SPEED=100
+        self.DIRECTIONS=range(0,360,45)
+        self.COLOR=1.0
+        self.BACKGROUND=0.0
+        self.PAUSE_BETWEEN_SWEEPS=0.0
+        self.REPETITIONS=1
+        
+    def calculate_stimulus_duration(self):
+        trajectories, trajectory_directions, self.duration = self.moving_shape_trajectory(**self._call_params(duration_only=True))
+
+    def _call_params(self,duration_only=False):
+        p={}
+        p['size']=utils.rc((self.BAR_WIDTH,self.BAR_HEIGHT))
+        p['speeds']=self.SPEED if isinstance(self.SPEED,list) else [self.SPEED]
+        p['directions']=self.DIRECTIONS
+        p['pause']=self.PAUSE_BETWEEN_SWEEPS
+        p['repetition']=self.REPETITIONS
+        p['shape_starts_from_edge']=True
+        if not duration_only:
+            p['shape']='rect'
+            p['color']=self.COLOR
+            p['background_color']=self.BACKGROUND
+            p['block_trigger']=True
+        return p
+        
+    def run(self):
+        self.moving_shape(**self._call_params())
+        
+class MovingGrating(experiment.Stimulus):
+    def default_stimulus_configuration(self):
+        self.BAR_WIDTH=100
+        self.DUTY_CYCLE=0.5
+        self.SPEED=100
+        self.DIRECTIONS=range(0,360,45)
+        self.COLOR=1.0
+        self.BACKGROUND=0.0
+        self.PAUSE_BETWEEN_SWEEPS=0.0
+        self.REPETITIONS=1
+        self.MOVE_TIME=10.0
+        self.NSWEEPS=1
+        self.STAND_TIME=0.0
+        
+    def _calc_move_time(self):
+        return self.MOVE_TIME if self.NSWEEPS is None else self.NSWEEPS#TODO: NOT READY
+        
+    def calculate_stimulus_duration(self):
+        pass
+        
+    def run(self):
+        pass
+        
 class SpotWaveform(experiment.Experiment):
     '''
         Expected parameters:

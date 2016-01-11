@@ -80,7 +80,7 @@ class ExperimentHandler(object):
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')            
         
     def start_experiment(self):
-        if not self.check_mcd_recording_started():
+        if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
             return
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
