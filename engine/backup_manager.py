@@ -1,5 +1,6 @@
+#TODO: reis data
 
-import os,shutil,time,logging,datetime
+import os,shutil,time,logging,datetime,filecmp
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton'
 logfile_path='/mnt/datafast/log/backup_manager.txt'
@@ -24,8 +25,8 @@ def copy_file(f):
     try:
         p=f.replace(transient_backup_path+'/','')
         target_path=os.path.join(tape_path,p)
-        if os.path.exists(target_path):#Already backed up
-            #os.remove(f)
+        if os.path.exists(target_path) and filecmp.cmp(f,target_path):#Already backed up
+            os.remove(f)
             logging.info('Deleted {0}'.format(f))
             return
         if not os.path.exists(os.path.dirname(target_path)):
@@ -37,6 +38,7 @@ def copy_file(f):
         logging.error(traceback.format_exc())
     
 def run():
+    #Check if previous call of backup manager is complete
     with open(logfile_path) as f:
         txt=f.read()
     lines=txt.split('\n')[:-1]
@@ -64,4 +66,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-        
