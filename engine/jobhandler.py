@@ -717,7 +717,10 @@ def offline(folder,video=False):
             mes_extractor.hdfhandler.close()
             file.set_file_dates(full_fragment_path, file_info)
             from visexpA.users.zoltan import converters
-            converters.hdf52mat(full_fragment_path, rootnode_names = ['rawdata', 'sync_signal', 'image_scale', 'idnode'],  outtag = '_sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
+            nodes = ['idnode','rawdata', 'sync_signal', 'image_scale','quick_analysis']
+            if 'movinggrating' in full_fragment_path.lower():
+                nodes.extend(['soma_rois', 'roi_curves'])
+            converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
             if video:
                 from visexpman.users.zoltan.mes2video import mes2video
                 mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])

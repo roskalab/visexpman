@@ -156,6 +156,7 @@ class ExperimentControl(object):
                     hdf5fn_linux_dst=hdf5fn_linux_dst.replace('u:','/mnt/databig')
                     ssh.exec_command('cp {0} {1}'.format(mesfn_linux,td_linux))
                     ssh.exec_command('cp {0} {1}'.format(hdf5fn_linux_src,hdf5fn_linux_dst))
+                    ssh.exec_command('chmod 777 {0} -R'.format(td_linux))
                     
                     #shutil.copy2(mesfn,target_dir)
                     #shutil.copy2(mesfn,'d:\\tmp')
