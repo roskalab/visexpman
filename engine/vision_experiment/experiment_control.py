@@ -125,7 +125,6 @@ class ExperimentControl(object):
                 if self.abort:
                     break
         self._finish_experiment()
-        self._backup_raw_files()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
         self.application_log.flush()
@@ -414,6 +413,7 @@ class ExperimentControl(object):
                         time.sleep(0.1)
                         self.queues['gui']['out'].put('queue_put_problem_dummy_message')
                     time.sleep(0.1)
+                    self._backup_raw_files()
                     self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.id))#Notify gui about the new file
                     for i in range(5):
                         time.sleep(0.1)

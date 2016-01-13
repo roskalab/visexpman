@@ -534,6 +534,11 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             self.SCREEN_UPSIDE_DOWN=False
             SCREEN_RESOLUTION = utils.cr([800, 600])
             SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm HERE YOU CAN ADJUST SCREEN  - MOUSE EYE DISTANCE
+        if '--small_screen'in sys.argv:
+            SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+            self.SCREEN_UPSIDE_DOWN=False
+            SCREEN_RESOLUTION = utils.cr([800, 600])
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm HERE YOU CAN ADJUST SCREEN  - MOUSE EYE DISTANCE
         else:
             SCREEN_RESOLUTION = utils.cr([1280, 720])#screen
             self.SCREEN_UPSIDE_DOWN=True

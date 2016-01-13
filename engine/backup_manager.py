@@ -37,14 +37,13 @@ def copy_file(f):
             return
         if not os.path.exists(os.path.dirname(target_path)):
             os.makedirs(os.path.dirname(target_path))
-        if is_file_closed(f):
+        if not is_file_closed(f):
             return
         shutil.copy2(f,target_path)
         logging.info('Copied {0}'.format(f))
     except:
         import traceback
         logging.error(traceback.format_exc())
-        
         
 def rei_backup():
     try:

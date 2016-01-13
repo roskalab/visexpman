@@ -1063,6 +1063,49 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
+            
+    def white_noise(self, duration, pixel_size,save_frame_info=True):
+        '''
+        Generates white noise stimulus using numpy.random.random
+        
+        duration: duration of white noise stimulus in seconds
+        pixel_size: size of squares. Number of squares is calculated from screen size but fractional squares are not displayed.
+        The array of squares is centered
+        '''
+        if save_frame_info:
+            self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) + ')')
+            self._save_stimulus_frame_info(inspect.currentframe())
+        pixel_size_pixel = pixel_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
+        nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
+        ncheckers = utils.rc_multiply_with_constant(self.machine_config.SCREEN_SIZE_UM, 1.0/pixel_size)
+        ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
+        numpy.random.seed(0)
+        checker_colors = numpy.where(numpy.random.random((nframes,ncheckers['row'],ncheckers['col']))<0.5, False,True)
+        row_coords = numpy.arange(ncheckers['row'])-0.5*(ncheckers['row'] - 1)
+        col_coords = numpy.arange(ncheckers['col'])-0.5*(ncheckers['col'] -1)
+        rc, cc = numpy.meshgrid(row_coords, col_coords)
+        positions=numpy.rollaxis(numpy.array([rc,cc]),0,3)*pixel_size
+        params = {'colors': checker_colors, 'ncheckers':ncheckers, 'positions': positions}
+        if save_frame_info and 0:
+            self._append_to_stimulus_frame_info(params)
+        size = utils.rc_multiply_with_constant(ncheckers, pixel_size_pixel)
+        self._init_texture(size)
+        for frame_i in range(nframes):
+            texture = checker_colors[frame_i]
+            texture = numpy.rollaxis(numpy.array(3*[numpy.cast['float'](texture)]), 0,3)
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self.draw()
+            self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        self._deinit_texture()
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            #self._append_to_stimulus_frame_info(params)
+            
 
 class StimulationSequences(Stimulations):
 

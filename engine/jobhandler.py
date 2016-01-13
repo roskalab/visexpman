@@ -120,8 +120,10 @@ class CommandInterface(command_parser.CommandParser):
         if len(sys.argv) == 4 and sys.argv[3] != 'EXPORT_SYNC_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_VIDEO'and sys.argv[3] != 'DATA2MAT':
             aconfigname = sys.argv[3]
         else:
-            aconfigname = 'Config'
+            pass
+        aconfigname = 'Config'
         self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+        self.printl(self.analysis_config.ramlimit)
         self.copy_request_pending = False
         self.copy_request_time = 0
         self.sent_to_mesextractor = []
@@ -496,12 +498,8 @@ class CommandInterface(command_parser.CommandParser):
                         from visexpman.users.zoltan.mes2video import mes2video
                         mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
                     elif self.kwargs['export'] == 'DATA2MAT':
-                        nodes = ['idnode','rawdata', 'sync_signal', 'image_scale','quick_analysis']
-                        if 'movinggrating' in full_fragment_path.lower():
-                            nodes.extend(['soma_rois', 'roi_curves'])
-                        from visexpA.users.zoltan import converters
                         self.printl('Converting to mat')
-                        converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0],  config=self.analysis_config)
+                        hdf52mat(full_fragment_path)
                         if 0:
                             from visexpman.users.zoltan.mes2video import mes2video
                             self.printl('Converting rawdata to video')
@@ -579,6 +577,13 @@ class CommandInterface(command_parser.CommandParser):
 def fragment_name_to_short_string(filename):
     parts = file.parse_fragment_filename(filename)
     return '{0}, {1}, {2}, {3}'.format(parts['scan_mode'], parts['depth'], parts['stimulus_name'], parts['id'])
+    
+def hdf52mat(full_fragment_path):
+    from visexpA.users.zoltan import converters
+    nodes = ['idnode','rawdata', 'sync_signal', 'image_scale','quick_analysis']
+    if 'movinggrating' in full_fragment_path.lower():
+        nodes.extend(['soma_rois', 'roi_curves'])
+    converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
     
 class TestJobhandler(unittest.TestCase):
    
@@ -705,22 +710,23 @@ class TestJobhandler(unittest.TestCase):
 def offline(folder,video=False):
     import visexpA.engine.configuration
     analysis_config = utils.fetch_classes('visexpA.users.daniel', classname='Config', required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
-    for f in os.listdir(folder):
+    files=file.find_files_and_folders(folder)[1]
+    for f in files:
         if '.hdf5' not in f or 'fragment' not in f:
             continue
         try:
             print f
+            if '_raw' in f:
+                shutil.move(f,f.replace('_raw',''))
+                time.sleep(10)
+            f=f.replace('_raw','')
             full_fragment_path = os.path.join(folder, f)
             file_info = os.stat(full_fragment_path)
             mes_extractor = importers.MESExtractor(full_fragment_path, config = analysis_config)
             data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
             mes_extractor.hdfhandler.close()
             file.set_file_dates(full_fragment_path, file_info)
-            from visexpA.users.zoltan import converters
-            nodes = ['idnode','rawdata', 'sync_signal', 'image_scale','quick_analysis']
-            if 'movinggrating' in full_fragment_path.lower():
-                nodes.extend(['soma_rois', 'roi_curves'])
-            converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
+            hdf52mat(full_fragment_path)
             if video:
                 from visexpman.users.zoltan.mes2video import mes2video
                 mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
@@ -728,6 +734,8 @@ def offline(folder,video=False):
             import traceback
             txt= traceback.format_exc()
             print txt
+            import pdb
+            pdb.set_trace()
 
 if __name__=='__main__':
     if len(sys.argv)==1:

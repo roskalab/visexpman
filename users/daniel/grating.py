@@ -122,7 +122,23 @@ class MovingGratingNoMarchingConfig(MovingGratingConfig):
         self.pre_runnable = 'MovingGratingPre'
 #        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
-        
+
+
+class MovingGratingFiona(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME=4.0#
+        self.GRATING_STAND_TIME = 4.0
+        #self.GREY_INSTEAD_OF_MARCHING
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [200.0]#300
+        self.VELOCITIES = [800.0]#1800
+        #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+
 class MovingGratingAdrian(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
