@@ -237,14 +237,19 @@ class VisionExperimentGui(QtGui.QWidget):
             self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
         image_widget = self.images_widget.image_display[0]
-        if currentIndex == 0:
-            self.update_scan_regions()
-            self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
-        elif currentIndex == 1:
-            self.update_meanimage()
-            self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
-            self.update_cell_info()
-            self.update_cell_group_combobox()
+        try:
+            if currentIndex == 0:
+                self.update_scan_regions()
+                self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+            elif currentIndex == 1:
+                self.update_meanimage()
+                self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+                self.update_cell_info()
+                self.update_cell_group_combobox()
+        except:
+            import traceback
+            print traceback.format_exc()
+            print image_widget
             
     def gridline_checkbox_changed(self):
         self.update_gridlined_images()

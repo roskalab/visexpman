@@ -985,8 +985,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-
-    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True):
+            
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, offset=0.0, scale=1.0, fly_in=False, fly_out=False, save_frame_info =True, is_block = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
@@ -995,7 +995,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self.log_on_flip_message_continous = 'show_natural_bars'
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
             self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
@@ -1003,6 +1003,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
+        fly_in_out = self.config.BACKGROUND_COLOR[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
+        intensity_profile_length += (fly_in+fly_out)*fly_in_out.shape[0]
+        if fly_in:
+            alltexture=numpy.concatenate((fly_in_out,alltexture))
+        if fly_out:
+            alltexture=numpy.concatenate((alltexture,fly_in_out))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']#Because of different orienations, the stimulus size corresponds to the screen width
@@ -1038,14 +1044,17 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
             if end_index > alltexture.shape[0]:
                 end_index -= alltexture.shape[0]
+            if start_index > alltexture.shape[0]:
+                start_index -= alltexture.shape[0]
             if start_index < end_index:
                 texture = alltexture[start_index:end_index]
             else:
-                texture = numpy.zeros_like(texture)
-                texture[:-end_index] = alltexture[start_index:]
-                texture[-end_index:] = alltexture[:end_index]
-            if start_index >= intensity_profile_length:
                 break
+#                texture = numpy.zeros_like(texture)
+#                texture[:-end_index] = alltexture[start_index:]
+#                texture[-end_index:] = alltexture[:end_index]
+#            if start_index >= intensity_profile_length:
+#                break
             texture_pointer += ds
             frame_counter += 1
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
