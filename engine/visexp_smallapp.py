@@ -263,7 +263,7 @@ class ReceptiveFieldPlotter(SmallApp):
         #Read sync data
         import visexpA.engine.component_guesser as cg
         self.printc(cg.select_measurement(hh).split('\\')[-1])
-        idnode=hh.findvar(cg.select_measurement(hh).split('\\')[-1])
+        idnode=hh.findvar(cg.select_measurement(hh).split('.')[-1])
         from visexpA.engine.datahandlers.importers import load_configs
         self.machine_config, self.experiment_config = load_configs(hh)
         if not self.is_recfield_stim:
