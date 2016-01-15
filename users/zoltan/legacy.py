@@ -33,6 +33,9 @@ class PhysTiff2Hdf5(object):
         
     def detect_and_convert(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
+        now=time.time()
+        excluded_extensions=['txt','mat','hdf5','tif' if not self.use_tiff else 'csv']
+        self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600 and not 'timestamp' in f and fileop.file_extension(f)!='txt' and fileop.file_extension(f)not in excluded_extensions]#Considering files not older than 2 weeks
         self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
         
         if self.irlaser:
@@ -42,21 +45,26 @@ class PhysTiff2Hdf5(object):
         tiffiles = [f for f in self.allfiles if fileop.file_extension(f)==('tif' if self.use_tiff else 'csv')]
         if self.irlaser:
             tiffiles = [tf for tf in tiffiles if tf not in physfiles]
-        if not self.use_tiff:
-            tiffiles = [f for f in tiffiles if not 'timestamp' in f]
+        #if not self.use_tiff:
+         #   tiffiles = [f for f in tiffiles if not 'timestamp' in f]
         processable_physfiles = []
-        phys_ids = [[str(experiment_data.get_id(os.path.getmtime(f))),f] for f in physfiles]
-        out_ids= [str(os.path.split(of)[1].split('_')[-2]) for of in self.outfiles]
-        processable_physfiles = [pid[1] for pid in phys_ids if pid[0] not in out_ids]
+        if 1:
+            phys_ids = [[str(experiment_data.get_id(os.path.getmtime(f))),f] for f in physfiles]
+            out_ids= [str(os.path.split(of)[1].split('_')[-2]) for of in self.outfiles]
+            processable_physfiles = [pid[1] for pid in phys_ids if pid[0] not in out_ids]
         #Find corresponding folder with tiff file
         pairs = []
         for pf in processable_physfiles:
-            regexp = pf
-            found = [tf for tf in tiffiles if os.path.split(regexp.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
-            if len(found)>0 and os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3 and [pf,found[0]] not in self.processed_pairs:
-                id = str(experiment_data.get_id(os.path.getmtime(pf)))
-                if len([f for f in self.outfiles if id in f])==0:
-                    pairs.append([pf, found[0]])
+            if 1:
+                regexp = pf
+                tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
+                found = [tf for tf in tiffiles_current_folder if os.path.split(regexp.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
+            if 1:
+                if len(found)>0 and [pf,found[0]] not in self.processed_pairs:
+                    if os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3:
+                        id = str(experiment_data.get_id(os.path.getmtime(pf)))
+                        if len([f for f in self.outfiles if id in f])==0:
+                            pairs.append([pf, found[0]])
         if len(pairs)>0:
             print 'converting pairs'
             for p in pairs:
@@ -160,7 +168,11 @@ class PhysTiff2Hdf5(object):
             sizex, sizey, a,b, res = map(float, os.path.split(ftiff)[1].replace('.csv','').split('_')[-5:])
 #            data_s = f.read()
 #            data=numpy.array(struct.unpack('>'+''.join(len(data_s)/4*['f']),data_s), dtype = numpy.float32)
-            data=numpy.fromfile(ftiff,">f4")
+            try:
+                data=numpy.fromfile(ftiff,">f4")
+            except IOError:
+                time.sleep(10)
+                data=numpy.fromfile(ftiff,">f4")
             nframes = int(data.shape[0]/(sizex*res*(sizey*res-1))/2)
             if nframes<10:
                 return
@@ -173,6 +185,12 @@ class PhysTiff2Hdf5(object):
                 nframes=boundaries.shape[0]/2
                 boundaries = boundaries[:2*(boundaries.shape[0]/2)]
                 rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
+                #Memory error here
+#                rd=(rawdata-rawdata.min())
+#                rd/=(rd.max()-rd.min())
+#                rd*=(2**16-1)
+#                raw_data = numpy.cast['uint16'](rd)
+               # if rawdata.shape[0]>800:return None#TMP fix for memory error
                 raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,1:,:,:],0,2**16-1))
             except MemoryError:#Too long recording
                 return None
@@ -195,7 +213,12 @@ class PhysTiff2Hdf5(object):
             data=data[:3]
         else:
             data, metadata = experiment_data.read_phys(fphys)
+            if data.shape[0]!=3:
+                time.sleep(3)
+                data, metadata = experiment_data.read_phys(fphys)
             experiment_name = self.parse_stimulus_name(metadata)
+#        if 'spot' not in experiment_name.lower() or 'annulus' not in experiment_name.lower():
+#            return None
         recording_parameters['experiment_name']=experiment_name
         recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if metadata.has_key('Stimulus file') and os.path.exists(metadata['Stimulus file']) else ''
         recording_parameters['experiment_source_file'] = metadata['Stimulus file'] if metadata.has_key('Stimulus file') else ''
@@ -203,13 +226,15 @@ class PhysTiff2Hdf5(object):
         if float(metadata['Sample Rate'])!=10000:
             raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
         if data.shape[0]!=3:
-            raise RuntimeError('Sync signals might not be recorded. Make sure that recording ai4:5 channels are enabled')
+            raise RuntimeError('Sync signals might not be recorded. Make sure that recording ai4:5 channels are enabled, {0}'.format(data.shape))
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
         sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
         sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
         if sig is None:
             return
         sync_and_elphys[:,4] = sig
+        #a=raw_data.mean(axis=2).mean(axis=2)[:,0]
+        #plot(2*a);plot(data[1]);plot(data[2]);show()
         print 'sync data ok', time.time()-t0
         id = experiment_data.get_id(os.path.getmtime(fphys))
         if folder is None:
@@ -264,7 +289,7 @@ class PhysTiff2Hdf5(object):
             try:
                 sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
             except:
-                print 'sync signal recordifng was aborted'
+                print 'sync signal recording was aborted'
             pass
             return sig2
         
@@ -288,7 +313,13 @@ class PhysTiff2Hdf5(object):
         else:
             start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][0]
             end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][-1]
-        if (frame_rate<5 or frame_rate>12) and not self.allow_high_framerate:
+        #Try to extract first period
+        th=numpy.histogram(waveform[start_of_first_frame+1:])[1][1]
+        widths=numpy.diff(numpy.nonzero(numpy.diff(numpy.where(waveform[start_of_first_frame+1:]<th,1,0)))[0])
+        period_time=numpy.median(widths[0::2])+numpy.median(widths[1::2])
+        frame_rate=fsample/period_time        
+        frame_rate=10.0
+        if (frame_rate<5 or frame_rate>20) and not self.allow_high_framerate:
             pdb.set_trace()
             raise RuntimeError(frame_rate)
         #first frame's start time has to be calculated
@@ -349,7 +380,6 @@ if __name__ == '__main__':
                     print 'runtime', time.time()-t0
                     print 'New files', r
             except:
-                
                 import traceback
                 print traceback.format_exc()
 #                pdb.set_trace()

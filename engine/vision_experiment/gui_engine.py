@@ -440,7 +440,7 @@ class Analysis(object):
         h.parameter_distributions=self.parameter_distributions
         h.save(['stage_coordinates','cells', 'parameter_distributions'])
         h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True)
+        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
         self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
         self.to_gui.put({'display_cell_tree':self.cells})
         self.display_trace_parameter_distribution()
@@ -598,7 +598,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
-        self.context_filename = fileop.get_context_filename(self.machine_config)
+        self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         self.load_context()
         self.widget_status = {}
         self.last_periodic = time.time()
@@ -607,7 +607,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
     def load_context(self):
         self.guidata = GUIData()
         if os.path.exists(self.context_filename):
-            self.guidata.from_dict(utils.array2object(hdf5io.read_item(self.context_filename, 'guidata', filelocking=False)))
+            context_stream = numpy.load(self.context_filename)
+            self.guidata.from_dict(utils.array2object(context_stream))
         else:
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
             
@@ -615,20 +616,22 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers, Analysis, E
         #TODO: include logfile and context file content
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
-                    'aggregated_rois', 'context_filename', 'guidata', 'cells']
+                    'aggregated_rois', 'context_filename', 'cells']
         dump_data = {}
         for v in variables:
             if hasattr(self, v):
                 dump_data[v] = getattr(self,v)
         dump_data['machine_config'] = self.machine_config.serialize()
+        dump_data['guidata'] = self.guidata.to_dict()
         if filename is None:
-            import tempfile
-            filename = os.path.join(tempfile.gettempdir(), 'dump_{0}.hdf5'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-')))
-        hdf5io.save_item(filename, 'dump_data', utils.object2array(dump_data), filelocking=False)
+            filename = os.path.join(self.machine_config.LOG_PATH, 'dump_{0}.{1}'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-'),'npy'))
+        dump_stream=utils.object2array(dump_data)
+        numpy.save(filename,dump_stream)
         self.printc('GUI engine dumped to {0}'.format(filename))
             
     def save_context(self):
-        hdf5io.save_item(self.context_filename, 'guidata', utils.object2array(self.guidata.to_dict()), filelocking=False, overwrite=True)
+        context_stream=utils.object2array(self.guidata.to_dict())
+        numpy.save(self.context_filename,context_stream)
         
     def get_queues(self):
         return self.from_gui, self.to_gui

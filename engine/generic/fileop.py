@@ -368,14 +368,14 @@ def get_user_experiment_data_folder(config):
         os.makedirs(user_experiment_data_folder)
     return user_experiment_data_folder
 
-def get_context_filename(config):
+def get_context_filename(config,extension='hdf5'):
     '''
     Generate context filename from CONTEXT_PATH, username and application name
     '''
     if not hasattr(config, 'CONTEXT_PATH'):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
     import platform
-    filename = 'context_{0}_{1}_{2}.hdf5'.format(config.user_interface_name, config.user, platform.uname()[1])
+    filename = 'context_{0}_{1}_{2}.{3}'.format(config.user_interface_name, config.user, platform.uname()[1],extension)
     return os.path.join(config.CONTEXT_PATH, filename)
     
 def get_logfilename(config):

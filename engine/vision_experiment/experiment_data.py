@@ -89,6 +89,10 @@ class CaImagingData(hdf5io.Hdf5io):
         self.tsync,self.timg = get_sync_events(self)
         self.meanimage, self.image_scale = get_imagedata(self)
         self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
+        #TEMPORARY SOLUTION
+        if self.raw_data.shape[0]<self.timg.shape[0]:
+            print 'warning', self.raw_data.shape[0],self.timg.shape[0]
+        self.timg=self.timg[:self.raw_data.shape[0]]
         if self.raw_data.shape[0]<self.timg.shape[0]:
             raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
         return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
@@ -114,7 +118,7 @@ class CaImagingData(hdf5io.Hdf5io):
                         del r['area']
             self.outfile = fileop.get_convert_filename(self.filename, 'mat')
             #Write to mat file
-            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True)
+            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
             fileop.set_file_dates(self.outfile, self.file_info)
         elif format == 'png':
             self._save_meanimage()

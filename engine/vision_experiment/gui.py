@@ -18,7 +18,7 @@ import pyqtgraph.console
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-import PyQt4.Qwt5 as Qwt
+#import PyQt4.Qwt5 as Qwt
 
 import visexpman
 import hdf5io
@@ -1826,7 +1826,8 @@ class CaImagingVisualisationControl(gui.WidgetControl):
             self.poller.send(function_call,connection='ca_imaging')
             self.printc('Ca imaging display updated')
             
-class BarCurve(Qwt.QwtPlotCurve):
+#OBSOLETE
+class BarCurve():
     
     def drawFromTo(self, painter, xMap, yMap, start, stop):
         """Draws rectangles with the corners taken from the x- and y-arrays.
@@ -1850,7 +1851,8 @@ class BarCurve(Qwt.QwtPlotCurve):
             py2 = yMap.transform(self.y(i+1))
             painter.drawRect(px1, py1, (px2 - px1), (py2 - py1))
 
-class Plot(Qwt.QwtPlot):
+#OBSOLETE
+class Plot():
     def __init__(self, parent):
         Qwt.QwtPlot.__init__(self)
         self.setCanvasBackground(QtCore.Qt.white)
