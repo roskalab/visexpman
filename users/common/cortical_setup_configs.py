@@ -6,6 +6,7 @@ from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImag
 
 class UltrasonicSetupConfig(UltrasonicConfig):
     def _set_user_parameters(self):
+        self.BACKGROUND_COLOR=[0.0]*3
         FULLSCREEN = False
         self.root_folder = 'd:\\Data'
         LOG_PATH = self.root_folder

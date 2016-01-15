@@ -492,6 +492,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'trigger':'stim started'})
             elif self.machine_config.PLATFORM=='mc_mea':
                 pass
+            elif self.machine_config.PLATFORM=='us':
+                import serial
+                s=serial.Serial(port='COM1',baudrate=9600)
+                s.write('e')
+                s.close()
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             self.run()
             self.log.resume()
@@ -559,6 +564,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
             self.datafile.save(variables2save)
             self.datafile.close()
+            self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.datafile = {}
             self._prepare_data2save()
