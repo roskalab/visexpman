@@ -1226,6 +1226,58 @@ def gammatext2hdf5(filename):
     
 def yscanner2sync(waveform):
     pass
+    
+import paramiko
+class RlvivoBackup(object):
+    def __init__(self, files,user,id,animalid):
+        '''
+        Assumes that:
+        1) /mnt/databig is mounted as u drive
+        2) files reside on v: drive
+        3) v:\\codes\\jobhandler\\pw.txt is accessible
+        '''
+        if os.name!='nt':
+            raise RuntimeError('Not supported OS')
+        pwfile='v:\\codes\\jobhandler\\pw.txt'
+        if not os.path.exists(pwfile):
+            raise RuntimeError('Password file does not exist')
+        if not os.path.exists(config.BACKUP_PATH):
+            raise RuntimeError('Backup folder is not available')
+        self.file=files
+        self.user=user
+        self.id=id
+        self.animalid=animalid
+        self.connect()
+        self.target_folder()
+        self.copy()
+        self.close()
+        
+        
+    def connect(self):
+        self.ssh = paramiko.SSHClient()
+        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+        
+    def close(self):
+        self.ssh.close()
+        
+    def check_ssh_error(self,e):
+        emsg=e.readline()
+        if emsg!='':
+            raise RuntimeError(emsg)
+        
+    def target_folder(self):
+        self.target_dir='/'.join(['/mnt/databig/backup',user,utils.timestamp2ymd(float(self.id)),str(animalid)])
+        i,o,e1=ssh.exec_command('mkdirs -p {0}'.format(self.target_dir))
+        i,o,e2=ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
+        for e in [e1,e2]:
+            self.check_ssh_error(e)
+        
+    def copy(self):
+        for f in self.files:
+            flinux='/'.join(f.replace('v:\\', '/mnt/datafast').split('\\'))
+            o,e=ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
+            self.check_ssh_error(e)
 
 if __name__=='__main__':
     unittest.main()
