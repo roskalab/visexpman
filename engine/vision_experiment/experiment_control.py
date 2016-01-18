@@ -153,9 +153,14 @@ class ExperimentControl(object):
                     hdf5fn_linux_src=hdf5fn_linux_src.replace('V:','/mnt/datafast')
                     hdf5fn_linux_dst=os.path.join(target_dir,os.path.basename(hdf5fn).replace('.hdf5', '_raw.hdf5')).replace('\\','/')
                     hdf5fn_linux_dst=hdf5fn_linux_dst.replace('u:','/mnt/databig')
-                    ssh.exec_command('cp {0} {1}'.format(mesfn_linux,td_linux))
-                    ssh.exec_command('cp {0} {1}'.format(hdf5fn_linux_src,hdf5fn_linux_dst))
-                    ssh.exec_command('chmod 777 {0} -R'.format(td_linux))
+                    i,o,e1=ssh.exec_command('cp {0} {1}'.format(mesfn_linux,td_linux))
+                    i,o,e2=ssh.exec_command('cp {0} {1}'.format(hdf5fn_linux_src,hdf5fn_linux_dst))
+                    i,o,e3=ssh.exec_command('chmod 777 {0} -R'.format(td_linux))
+                    if 0:
+                        errmsg= ','.join([e.readline() for e in [e1,e2,e3]])
+                        if errmsg != '':
+                            raise RuntimeError('Backup failed, {0}'.format(errmsg))
+                        
                     
                     #shutil.copy2(mesfn,target_dir)
                     #shutil.copy2(mesfn,'d:\\tmp')

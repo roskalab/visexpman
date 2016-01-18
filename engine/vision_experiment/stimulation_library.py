@@ -986,24 +986,30 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, offset=0.0, scale=1.0, fly_in=False, fly_out=False, save_frame_info =True, is_block = False):
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,save_frame_info =True, is_block = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
         self.log_on_flip_message_initial = 'show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')'
         self.log_on_flip_message_continous = 'show_natural_bars'
-        if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        if 0:#For testing only
+            self.intensity_profile = numpy.linspace(0,1,self.intensity_profile.shape[0])
+            self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
+            self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
             self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
         intensity_profile_length = self.intensity_profile.shape[0]
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
-        fly_in_out = self.config.BACKGROUND_COLOR[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
+        bg=colors.convert_color(self.config.BACKGROUND_COLOR if background is None else background, self.config)
+        fly_in_out = bg[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
         intensity_profile_length += (fly_in+fly_out)*fly_in_out.shape[0]
         if fly_in:
             alltexture=numpy.concatenate((fly_in_out,alltexture))
@@ -1049,12 +1055,14 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             if start_index < end_index:
                 texture = alltexture[start_index:end_index]
             else:
-                break
-#                texture = numpy.zeros_like(texture)
-#                texture[:-end_index] = alltexture[start_index:]
-#                texture[-end_index:] = alltexture[:end_index]
-#            if start_index >= intensity_profile_length:
-#                break
+                if circular:
+                    texture = numpy.zeros_like(texture)
+                    texture[:-end_index] = alltexture[start_index:]
+                    texture[-end_index:] = alltexture[:end_index]
+                    if start_index >= intensity_profile_length:
+                        break
+                else:
+                    break
             texture_pointer += ds
             frame_counter += 1
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -1071,6 +1079,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisableClientState(GL_VERTEX_ARRAY)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
             
     def white_noise(self, duration, pixel_size,save_frame_info=True):

@@ -797,6 +797,8 @@ class MainPoller(Poller):
     def reset_jobhandler(self):
         self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
         
+    def get_user(self):
+        return 'default_user'
         
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
@@ -2092,7 +2094,7 @@ class MainPoller(Poller):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['user']='default_user'
+        self.experiment_parameters['user']=self.get_user()
         self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
         if not self.experiment_parameters['intrinsic']:
             self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
@@ -2572,6 +2574,23 @@ class MainPoller(Poller):
                 self.printc('Problem with copying mousefile to databig.')
                 self.printc('4')
             self.printc('5')
+            if 0:#New backup
+                #TOOD: target dir generation to be moved to a separate function
+                target_dir=os.path.join(self.machine_config.BACKUP_PATH,
+                                        self.get_user(),#TODO: this could come from animal parameters
+                                        utils.timestamp2ymd(float(self.id)),str(self.animal_parameters['id']))
+                td_linux=target_dir.replace('\\','/')
+                td_linux=td_linux.replace('u:','/mnt/databig')
+                if not os.path.exists(target_dir):
+                    os.makedirs(target_dir)
+
+                import paramiko
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+                i,o,e2=ssh.exec_command('cp {0} {1}'.format(hdf5fn_linux_src,hdf5fn_linux_dst))
+                i,o,e3=ssh.exec_command('chmod 777 {0} -R'.format(td_linux))
+                ssh.close()
 
     def cells2pickled_ready(self, cells):
         '''

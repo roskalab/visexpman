@@ -707,10 +707,12 @@ class TestJobhandler(unittest.TestCase):
                 print txt
         f.close()
         
-def offline(folder,video=False):
+def offline(folder,output_folder=None,video=False):
     import visexpA.engine.configuration
     analysis_config = utils.fetch_classes('visexpA.users.daniel', classname='Config', required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
     files=file.find_files_and_folders(folder)[1]
+    if output_folder is not None and not os.path.exists(output_folder):
+        os.makedirs(output_folder)
     for f in files:
         if '.hdf5' not in f or 'fragment' not in f:
             continue
@@ -730,6 +732,8 @@ def offline(folder,video=False):
             if video:
                 from visexpman.users.zoltan.mes2video import mes2video
                 mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
+            if os.path.exists(str(output_folder)):
+                shutil.copy2(f.replace('_raw',''), output_folder)
         except:
             import traceback
             txt= traceback.format_exc()

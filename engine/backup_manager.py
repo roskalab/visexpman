@@ -3,6 +3,7 @@
 import os,shutil,time,logging,datetime,filecmp
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton'
+mdrive='/mnt/mdrive/invivo/rc'
 logfile_path='/mnt/datafast/log/backup_manager.txt'
 rei_data='/mnt/databig/debug/cacone'
 rei_data_tape=os.path.join(tape_path,'retina')
@@ -15,7 +16,7 @@ def is_mounted():
             subprocess.call(u'fusermount -u /mnt/tape',shell=True)
         except:
             pass
-    return os.path.ismount('/mnt/tape')
+    return os.path.ismount('/mnt/tape') and os.path.ismount('/mnt/mdrive')
     
 def list_all_files(path):
     all_files = []
@@ -29,18 +30,24 @@ def is_file_closed(f):
     
 def copy_file(f):
     try:
-        p=f.replace(transient_backup_path+'/','')
-        target_path=os.path.join(tape_path,p)
-        if os.path.exists(target_path) and filecmp.cmp(f,target_path):#Already backed up
+        path=f.replace(transient_backup_path+'/','')
+        target_path_tape=os.path.join(tape_path,path)
+        target_path_m=os.path.join(mdrive,path)
+        if os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape) and os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m):#Already backed up
             os.remove(f)
             logging.info('Deleted {0}'.format(f))
             return
-        if not os.path.exists(os.path.dirname(target_path)):
-            os.makedirs(os.path.dirname(target_path))
+        for p in [target_path_tape,target_path_m]:
+            if not os.path.exists(os.path.dirname(p)):
+                os.makedirs(os.path.dirname(p))
         if not is_file_closed(f):
             return
-        shutil.copy2(f,target_path)
-        logging.info('Copied {0}'.format(f))
+        if not os.path.exists(target_path_tape):
+            shutil.copy2(f,target_path_tape)
+            logging.info('Copied to tape: {0}'.format(f))
+        if not os.path.exists(target_path_m):
+            shutil.copy2(f,target_path_m)
+            logging.info('Copied to m: {0}'.format(f))
     except:
         import traceback
         logging.error(traceback.format_exc())
@@ -82,7 +89,7 @@ def run():
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
     if not is_mounted():
-        logging.error('Tape not mounted')
+        logging.error('Tape or m mdirve not mounted')
         return
     logging.info('listing files')
     files = list_all_files(transient_backup_path)

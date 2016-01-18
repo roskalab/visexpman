@@ -10,8 +10,8 @@ class TestRestore(unittest.TestCase):
         wf='/mnt/databig/debug/6'
         if os.path.exists(wf):
             shutil.rmtree('/mnt/databig/debug/6')
-        shutil.copytree('/mnt/tape/hillier/invivocortex/TwoPhoton/default_user/2016111/151', wf)
-        jobhandler.offline(wf)
+        shutil.copytree('/mnt/tape/hillier/invivocortex/TwoPhoton/default_user/2016114/151', wf)
+        jobhandler.offline(wf,'/mnt/databig/debug/6a')
 
 
 if __name__=='__main__':
@@ -19,6 +19,7 @@ if __name__=='__main__':
         unittest.main()
     else:
         input_folder=sys.argv[1]
-        jobhandler.offline(input_folder)
+        output_folder=sys.argv[2]
+        jobhandler.offline(input_folder,output_folder)
 
         
