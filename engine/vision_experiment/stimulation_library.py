@@ -1778,7 +1778,7 @@ class AdvancedStimulation(StimulationHelpers):
         
         print len(contrast)     
         
-        if True:
+        if False:
             import matplotlib.pyplot as p
             p.plot(contrast)
             p.show()
@@ -1789,38 +1789,6 @@ class AdvancedStimulation(StimulationHelpers):
             p.plot(frequencies)
             p.show()
         
-#        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
-#        textures_size = textures.shape
-        
-        # Vertices that define the size of the texture (centered around (0,0) ), covers the whole screen:
-#        vertices = numpy.array([[-1,-1],[-1, 1],[ 1, 1],[ 1,-1]])*screen_size*0.5 #*numpy.sqrt(2.0)
-        
- #       glEnableClientState(GL_VERTEX_ARRAY)
- #       glVertexPointerf(vertices)
-        
- #       texture_piece = textures[0][:][:]
- #       glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)        
-        
-  #      glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-  #      glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-  #      glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        
-      #  glEnable(GL_TEXTURE_2D)
-     #   glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-        
-     #   texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
-     #   glTexCoordPointerf(texture_coordinates)
-        
-   #     def show_(texture_piece):
-   #         glPushMatrix()
-   #         glRotatef(90, 0,0,1)            
-                      
-   #         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)
-   #         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-   #         glColor3fv((1.0,1.0,1.0))
-   #         glDrawArrays(GL_POLYGON,  0, 4) 
-   #         glPopMatrix()
-            
         # Enter stimulus loop:
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
@@ -1836,10 +1804,6 @@ class AdvancedStimulation(StimulationHelpers):
         # Finish up
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        
-        #glDisable(GL_TEXTURE_2D)
-        #glDisableClientState(GL_TEXTURE_COORD_ARRAY)
-        #glDisableClientState(GL_VERTEX_ARRAY)
         # END OF chirp()        
         
 class TestStimulationPatterns(unittest.TestCase):

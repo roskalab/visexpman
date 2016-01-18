@@ -32,7 +32,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['DURATION'] = 15.0
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
         self.VARS['FingerPrinting']['REPEATS'] = 5
-                
+        
         self.STIM_TYPE_CLASS['Chirp_Amp'] = 'Chirp'
         self.VARS['Chirp_Amp'] = {}
         self.VARS['Chirp_Amp']['DURATION'] = 8
