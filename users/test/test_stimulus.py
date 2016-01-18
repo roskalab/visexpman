@@ -148,7 +148,7 @@ class TestNaturalStimExp(experiment.Experiment):
                     break
                 self.show_natural_bars(speed = self.machine_config.SPEED, repeats = 1, duration=self.machine_config.DURATION, 
                             minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
-                            intensity_levels = 255, direction = directions, save_frame_info =True, is_block = False)
+                            intensity_levels = 255, direction = directions, circular=False,fly_in=False,fly_out=False,save_frame_info =True, is_block = False)
         if utils.safe_istrue(self.machine_config, 'STIM2VIDEO') and hasattr(self.machine_config, 'OUT_PATH') and self.machine_config.OS == 'Linux':
             self.export2video(os.path.join(self.machine_config.OUT_PATH, 'natural_stim.mp4'))
         if utils.safe_istrue(self.machine_config, 'EXPORT_INTENSITY_PROFILE'):

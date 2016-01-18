@@ -930,16 +930,21 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,offset=0.0, scale=1.0, fly_in=False, fly_out=False, save_frame_info =True, is_block = False):
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,save_frame_info =True, is_block = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
         self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
-        if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        if 0:#For testing only
+            self.intensity_profile = numpy.linspace(0,1,self.intensity_profile.shape[0])
+            self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
+            self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
             self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
         intensity_profile_length = self.intensity_profile.shape[0]
@@ -994,16 +999,18 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if start_index < end_index:
                 texture = alltexture[start_index:end_index]
             else:
-                break
-#                texture = numpy.zeros_like(texture)
-#                texture[:-end_index] = alltexture[start_index:]
-#                texture[-end_index:] = alltexture[:end_index]
-#            if start_index >= intensity_profile_length:
-#                break
+                if circular:
+                    texture = numpy.zeros_like(texture)
+                    texture[:-end_index] = alltexture[start_index:]
+                    texture[-end_index:] = alltexture[:end_index]
+                    if start_index >= intensity_profile_length:
+                        break
+                else:
+                    break
             texture_pointer += ds
             frame_counter += 1
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
             self._flip(frame_trigger = True)
@@ -1017,6 +1024,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glDisableClientState(GL_VERTEX_ARRAY)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
     def white_noise(self, duration, square_size,save_frame_info=True):
         '''
@@ -1599,7 +1607,7 @@ if test_mode:
             #TODO: check captured files: shape size, speed
             numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
     
-        @unittest.skip('')
+        #@unittest.skip('')
         def test_03_natural_stim_spectrum(self):
             from visexpman.engine.visexp_app import stimulation_tester
             from PIL import Image
@@ -1701,7 +1709,8 @@ if test_mode:
         def test_12_movinggrating(self):
             from visexpman.engine.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
-            
+        
+        @unittest.skip('')            
         def test_13_receptive_field(self):
             from visexpman.engine.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNewAngle', ENABLE_FRAME_CAPTURE = False)
