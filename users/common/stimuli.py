@@ -603,7 +603,7 @@ class Chirp(experiment.Experiment):
         if hasattr(self.experiment_config, 'COLOR'):
             self.color = self.experiment_config.COLOR
         else:
-            self.color = [1.0, 1.0, 1.0]
+            self.color = numpy.array([1.0, 1.0, 1.0])
         
         
         #npatterns = self.experiment_config.DURATION*self.flickering_frequency
@@ -621,7 +621,7 @@ class Chirp(experiment.Experiment):
     def run(self):
         
         self.stimulus_frame_info.append({'super_block':'ChirpStimulus', 'is_last':0, 'counter':self.frame_counter})
-        self.chirp(duration = self.duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)
+        self.chirp(stimulus_duration = self.stimulus_duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)
         self.show_fullscreen(color=0.5)
         self.stimulus_frame_info.append({'super_block':'ChirpStimulus', 'is_last':1, 'counter':self.frame_counter})  
     # End of ChirpStimulus

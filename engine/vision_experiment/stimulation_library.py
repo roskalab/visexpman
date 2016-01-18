@@ -1765,19 +1765,29 @@ class AdvancedStimulation(StimulationHelpers):
         glDisableClientState(GL_VERTEX_ARRAY)
         # END OF white_noise()   
         
-    def chirp(self, duration, contrast_range, frequency_range, color):
+    def chirp(self, stimulus_duration, contrast_range, frequency_range, color, save_frame_info = True):
         '''
             ...
         '''               
-        nTimePoints =  duration*self.config.SCREEN_EXPECTED_FRAME_RATE
+        nTimePoints =  stimulus_duration*self.config.SCREEN_EXPECTED_FRAME_RATE
         amplitudes = numpy.linspace(contrast_range[0], contrast_range[1], nTimePoints)
         frequencies = numpy.linspace(frequency_range[0], frequency_range[1], nTimePoints)
-        time = numpy.linspace(0, duration, nTimePoints)
+        time = numpy.linspace(0, stimulus_duration, nTimePoints)
         
-        contrast = amplitudes*numpy.sin(frequencies*time)        
+        contrast = (amplitudes*numpy.sin(2*numpy.pi*frequencies*time) + 1.0) / 2.0    
         
+        print len(contrast)     
         
-        
+        if True:
+            import matplotlib.pyplot as p
+            p.plot(contrast)
+            p.show()
+            
+            p.plot(time)
+            p.show()
+            
+            p.plot(frequencies)
+            p.show()
         
 #        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
 #        textures_size = textures.shape
