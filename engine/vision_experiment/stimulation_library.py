@@ -50,6 +50,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         else:
             self.has = -1
         self.frame_counter = 0
+        self.precalculate_duration_mode=False
         self.stimulus_frame_info = []
         self.frame_rates = []
         
@@ -64,6 +65,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """
+        if self.precalculate_duration_mode:
+            self.frame_counter += 1
+            return
         current_texture_state = glGetBooleanv(GL_TEXTURE_2D)
         if current_texture_state:
             glDisable(GL_TEXTURE_2D)
@@ -935,14 +939,15 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
-        self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
+        if not self.precalculate_duration_mode:
+            self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
         self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
         if 0:#For testing only
             self.intensity_profile = numpy.linspace(0,1,self.intensity_profile.shape[0])
             self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
             self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
-        if save_frame_info:
+        if save_frame_info and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
@@ -1003,7 +1008,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     texture = numpy.zeros_like(texture)
                     texture[:-end_index] = alltexture[start_index:]
                     texture[-end_index:] = alltexture[:end_index]
-                    if start_index >= intensity_profile_length:
+                    if start_index >= intensity_profile_length-1:
                         break
                 else:
                     break
@@ -1022,7 +1027,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
-        if save_frame_info:
+        if save_frame_info and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
@@ -1612,11 +1617,11 @@ if test_mode:
             from visexpman.engine.visexp_app import stimulation_tester
             from PIL import Image
             from visexpman.engine.generic import fileop
-            spd = 300
-            duration = 1.5
-            repeats = 2
-            context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = True,
-                    DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd)
+            spd = 800
+            duration = 12
+            repeats = 1
+            context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = not True,
+                    DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd,MSP=120,CIRCULAR=True)
             intensities = []
             fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
             #Check if number of frames generated corresponds to duration, repeat and frame rate
