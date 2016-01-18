@@ -1530,7 +1530,7 @@ class AdvancedStimulation(StimulationHelpers):
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
         diagonal_px = numpy.sqrt(2) * numpy.max(screen_size)
         
-        # Size and number of repetiotions along the length of bar
+        # Size and number of repetitions along the length of bar
         wDist_px = (texture_size[0])/self.config.SCREEN_UM_TO_PIXEL_SCALE
         nRepW = int(numpy.ceil(diagonal_px/wDist_px))
         
@@ -1540,7 +1540,6 @@ class AdvancedStimulation(StimulationHelpers):
         
         # Vertices that define the size of the texture (centered around (0,0) )
         vertices = numpy.array([[-lDist_px, -wDist_px],[-lDist_px, wDist_px],[lDist_px, wDist_px],[lDist_px, -wDist_px]])*0.5
-        
         
         # Create gl texture
         glEnableClientState(GL_VERTEX_ARRAY)
@@ -1600,7 +1599,7 @@ class AdvancedStimulation(StimulationHelpers):
                 self._flip(frame_trigger = True)
         
         # Finish up
-        self._flip(frame_trigger = True)
+        #self._flip(frame_trigger = True)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
@@ -1764,7 +1763,74 @@ class AdvancedStimulation(StimulationHelpers):
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
-        # END OF my_whitenoise()        
+        # END OF white_noise()   
+        
+    def chirp(self, duration, contrast_range, frequency_range, color):
+        '''
+            ...
+        '''               
+        nTimePoints =  duration*self.config.SCREEN_EXPECTED_FRAME_RATE
+        amplitudes = numpy.linspace(contrast_range[0], contrast_range[1], nTimePoints)
+        frequencies = numpy.linspace(frequency_range[0], frequency_range[1], nTimePoints)
+        time = numpy.linspace(0, duration, nTimePoints)
+        
+        contrast = amplitudes*numpy.sin(frequencies*time)        
+        
+        
+        
+        
+#        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+#        textures_size = textures.shape
+        
+        # Vertices that define the size of the texture (centered around (0,0) ), covers the whole screen:
+#        vertices = numpy.array([[-1,-1],[-1, 1],[ 1, 1],[ 1,-1]])*screen_size*0.5 #*numpy.sqrt(2.0)
+        
+ #       glEnableClientState(GL_VERTEX_ARRAY)
+ #       glVertexPointerf(vertices)
+        
+ #       texture_piece = textures[0][:][:]
+ #       glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)        
+        
+  #      glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+  #      glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+  #      glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        
+      #  glEnable(GL_TEXTURE_2D)
+     #   glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        
+     #   texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
+     #   glTexCoordPointerf(texture_coordinates)
+        
+   #     def show_(texture_piece):
+   #         glPushMatrix()
+   #         glRotatef(90, 0,0,1)            
+                      
+   #         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)
+   #         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+   #         glColor3fv((1.0,1.0,1.0))
+   #         glDrawArrays(GL_POLYGON,  0, 4) 
+   #         glPopMatrix()
+            
+        # Enter stimulus loop:
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        idx = 0
+        while True:
+            if self.abort or idx >= nTimePoints:
+                break
+
+            self.screen.clear_screen(color = color * contrast[idx])
+            self._flip(frame_trigger = True)
+            idx += 1
+        
+        # Finish up
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+        #glDisable(GL_TEXTURE_2D)
+        #glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        #glDisableClientState(GL_VERTEX_ARRAY)
+        # END OF chirp()        
         
 class TestStimulationPatterns(unittest.TestCase):
     

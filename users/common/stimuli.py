@@ -578,6 +578,53 @@ class WhiteNoiseStimulus(experiment.Experiment):
         self.white_noise(textures = self.textures)
         self.show_fullscreen(color=0.5)
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})  
+    # End of WhiteNoiseStimulus
+
+class Chirp(experiment.Experiment):
+    '''
+        Required:
+            DURATION: in seconds
+            CONTRAST_RANGE
+            FREQUENCY_RANGE
+        Optional:
+            COLOR
+    '''
+    def prepare(self):
+        #self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
+        #if not self.experiment_config.N_WHITE_PIXELS:
+        #    self.n_white_pixels = None;
+        self.stimulus_duration = self.experiment_config.DURATION
+        self.contrast_range = numpy.array(self.experiment_config.CONTRAST_RANGE)
+        self.frequency_range = numpy.array(self.experiment_config.FREQUENCY_RANGE)
+                       
+        if any(self.frequency_range > self.config.SCREEN_EXPECTED_FRAME_RATE):
+            raise RuntimeError('This frequency range is not possible!')
+        
+        if hasattr(self.experiment_config, 'COLOR'):
+            self.color = self.experiment_config.COLOR
+        else:
+            self.color = [1.0, 1.0, 1.0]
+        
+        
+        #npatterns = self.experiment_config.DURATION*self.flickering_frequency
+        #screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        #pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
+        #if pixel_size.shape[0] == 1:
+        #    pixel_size = [pixel_size[0], pixel_size[0]]
+        
+        #npixels = numpy.round(screen_size/pixel_size)
+        #n_channels = 1
+        #color = numpy.zeros((npatterns, npixels[0], npixels[1], n_channels))
+        #numpy.random.seed(0)
+        #self.textures = numpy.round(numpy.random.random(color.shape[:-1]))
+        
+    def run(self):
+        
+        self.stimulus_frame_info.append({'super_block':'ChirpStimulus', 'is_last':0, 'counter':self.frame_counter})
+        self.chirp(duration = self.duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)
+        self.show_fullscreen(color=0.5)
+        self.stimulus_frame_info.append({'super_block':'ChirpStimulus', 'is_last':1, 'counter':self.frame_counter})  
+    # End of ChirpStimulus
 
 class BatchStimulus(experiment.Experiment):
     '''
