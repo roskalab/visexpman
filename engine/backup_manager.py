@@ -42,11 +42,11 @@ def copy_file(f):
                 os.makedirs(os.path.dirname(p))
         if not is_file_closed(f):
             return
-        if not os.path.exists(target_path_tape):
-            shutil.copy2(f,target_path_tape)
+        if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape):
+            shutil.copyfile(f,target_path_tape)
             logging.info('Copied to tape: {0}'.format(f))
-        if not os.path.exists(target_path_m):
-            shutil.copy2(f,target_path_m)
+        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_tape):
+            shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}'.format(f))
     except:
         import traceback

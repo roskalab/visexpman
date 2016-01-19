@@ -22,7 +22,7 @@ import unittest
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
     #Find out high and low voltage levels
     histogram, bin_edges = numpy.histogram(sync_signal, bins = 20)
-    if histogram.max() == histogram[0] or histogram.max() == histogram[-1]:
+    if histogram.max() == histogram[0] or histogram.max() == histogram[-1] or histogram.max() == histogram[1] or histogram.max() == histogram[-2]:
         pulses_detected = True
         low_voltage_level = 0.5 * (bin_edges[0] + bin_edges[1])
         high_voltage_level = 0.5 * (bin_edges[-1] + bin_edges[-2])
@@ -542,6 +542,59 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     return block_times, stimulus_parameter_times,block_info, organized_blocks
 
 
+import paramiko,platform,time
+class RlvivoBackup(object):
+    def __init__(self, files,user,id,animalid):
+        '''
+        Assumes that:
+        1) /mnt/databig is mounted as u drive
+        2) files reside on v: drive
+        3) v:\\codes\\jobhandler\\pw.txt is accessible
+        '''
+        if os.name!='nt':
+            raise RuntimeError('Not supported OS')
+        pwfile='v:\\codes\\jobhandler\\pw.txt'
+        if not os.path.exists(pwfile):
+            raise RuntimeError('Password file does not exist')
+        
+        fp=open('v:\\log\\bu_{0}.txt'.format(platform.node()),'at')
+        [fp.write('{0}\t{1}\n'.format(utils.timestamp2ymdhms(time.time()),f)) for f in files]
+        fp.close()
+        self.files=files
+        self.user=user
+        self.id=id if isinstance(id, str) else utils.timestamp2ymd(float(self.id),'')
+        self.animalid=animalid
+        self.connect()
+        self.target_folder()
+        self.copy()
+        self.close()
+        
+        
+    def connect(self):
+        self.ssh = paramiko.SSHClient()
+        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+        
+    def close(self):
+        self.ssh.close()
+        
+    def check_ssh_error(self,e):
+        emsg=e.readline()
+        if emsg!='':
+            raise RuntimeError(emsg)
+        
+    def target_folder(self):
+        self.target_dir='/'.join(['/mnt/databig/backup',self.user,self.id,str(self.animalid)])
+        i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
+        i,o,e2=self.ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
+        for e in [e1,e2]:
+            self.check_ssh_error(e)
+        
+    def copy(self):
+        for f in self.files:
+            flinux='/'.join(f.replace('v:\\', '/mnt/datafast/').replace('V:\\', '/mnt/datafast/').split('\\'))
+            i,o,e=self.ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
+            self.check_ssh_error(e)
 
 
 

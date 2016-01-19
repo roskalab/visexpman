@@ -259,6 +259,9 @@ class CommandInterface(command_parser.CommandParser):
             if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_DATA_TO_MAT':
                 p1=os.path.join(self.config.EXPERIMENT_DATA_PATH, filename)
                 shutil.copy(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat'))
+#                pred=p1.replace('.hdf5','_red.mat')
+#                if os.path.exists(pred):
+#                    shutil.copy(pred,databig_path.replace('.hdf5','_red.mat'))
             if os.path.exists(os.path.join(os.path.split(databig_path)[0], 'output', filename)):
                 shutil.rmtree(os.path.join(os.path.split(databig_path)[0], 'output', filename))
             else:

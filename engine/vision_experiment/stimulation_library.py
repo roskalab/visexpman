@@ -49,11 +49,14 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
         #Command buffer for keyboard commands during experiment
         self.command_buffer = ''
+        self.precalculate_duration_mode=False
         
     def _flip(self,  trigger = False,  saveFrame = False, count = True):
         """
-        Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
-        """        
+        """
+        if self.precalculate_duration_mode:
+            self.frame_counter += 1
+            return
         current_texture_state = glGetBooleanv(GL_TEXTURE_2D)
         if current_texture_state:
             glDisable(GL_TEXTURE_2D)
@@ -200,7 +203,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        if count:
+        if count and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe())
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
@@ -238,10 +241,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self._flip(trigger = frame_trigger)
                 if self.abort:
                     break
-                    
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        if count:
+        if count and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
@@ -999,7 +1001,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
             self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
-        if save_frame_info:
+        if save_frame_info and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
@@ -1059,7 +1061,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     texture = numpy.zeros_like(texture)
                     texture[:-end_index] = alltexture[start_index:]
                     texture[-end_index:] = alltexture[:end_index]
-                    if start_index >= intensity_profile_length:
+                    if start_index >= intensity_profile_length-1:
                         break
                 else:
                     break
@@ -1077,7 +1079,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
-        if save_frame_info:
+        if save_frame_info and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             

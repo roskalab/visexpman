@@ -132,44 +132,58 @@ class ExperimentControl(object):
         
     def _backup_raw_files(self):
         if self.abort: return
-        try:
-            import paramiko
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
-            #i,o,e=ssh.exec_command('ls -la')
-            for fragment_id in range(self.number_of_fragments):
-                mesfn=self.filenames['mes_fragments'][fragment_id]
-                hdf5fn=self.filenames['fragments'][fragment_id]
-                if os.path.exists(mesfn) and os.path.exists(hdf5fn):
-                    target_dir=os.path.join(self.machine_config.BACKUP_PATH,str(self.parameters['user']),utils.timestamp2ymd(float(self.id)),str(self.animal_parameters['id']))
-                    if not os.path.exists(target_dir):
-                        os.makedirs(target_dir)
-                    td_linux=target_dir.replace('\\','/')
-                    td_linux=td_linux.replace('u:','/mnt/databig')
-                    mesfn_linux=mesfn.replace('V:','/mnt/datafast')
-                    mesfn_linux=mesfn_linux.replace('\\','/')
-                    hdf5fn_linux_src=hdf5fn.replace('\\','/')
-                    hdf5fn_linux_src=hdf5fn_linux_src.replace('V:','/mnt/datafast')
-                    hdf5fn_linux_dst=os.path.join(target_dir,os.path.basename(hdf5fn).replace('.hdf5', '_raw.hdf5')).replace('\\','/')
-                    hdf5fn_linux_dst=hdf5fn_linux_dst.replace('u:','/mnt/databig')
-                    i,o,e1=ssh.exec_command('cp {0} {1}'.format(mesfn_linux,td_linux))
-                    i,o,e2=ssh.exec_command('cp {0} {1}'.format(hdf5fn_linux_src,hdf5fn_linux_dst))
-                    i,o,e3=ssh.exec_command('chmod 777 {0} -R'.format(td_linux))
-                    if 0:
-                        errmsg= ','.join([e.readline() for e in [e1,e2,e3]])
-                        if errmsg != '':
-                            raise RuntimeError('Backup failed, {0}'.format(errmsg))
+        if 1:
+            try:
+                files=[]
+                for fragment_id in range(self.number_of_fragments):
+                    files.extend([self.filenames['mes_fragments'][fragment_id],self.filenames['fragments'][fragment_id]])
+                id=str(self.animal_parameters['add_date']).split(' ')[0].replace('-','')
+                experiment_data.RlvivoBackup(files,str(self.parameters['user']),id,str(self.animal_parameters['id']))
+            except:
+                self.printl(traceback.format_exc())
+                self.printl('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')
+                import pdb
+                pdb.set_trace()
+                raise 
+        else:
+            try:
+                import paramiko
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+                #i,o,e=ssh.exec_command('ls -la')
+                for fragment_id in range(self.number_of_fragments):
+                    mesfn=self.filenames['mes_fragments'][fragment_id]
+                    hdf5fn=self.filenames['fragments'][fragment_id]
+                    if os.path.exists(mesfn) and os.path.exists(hdf5fn):
+                        target_dir=os.path.join(self.machine_config.BACKUP_PATH,str(self.parameters['user']),utils.timestamp2ymd(float(self.id)),str(self.animal_parameters['id']))
+                        if not os.path.exists(target_dir):
+                            os.makedirs(target_dir)
+                        td_linux=target_dir.replace('\\','/')
+                        td_linux=td_linux.replace('u:','/mnt/databig')
+                        mesfn_linux=mesfn.replace('V:','/mnt/datafast')
+                        mesfn_linux=mesfn_linux.replace('\\','/')
+                        hdf5fn_linux_src=hdf5fn.replace('\\','/')
+                        hdf5fn_linux_src=hdf5fn_linux_src.replace('V:','/mnt/datafast')
+                        hdf5fn_linux_dst=os.path.join(target_dir,os.path.basename(hdf5fn).replace('.hdf5', '_raw.hdf5')).replace('\\','/')
+                        hdf5fn_linux_dst=hdf5fn_linux_dst.replace('u:','/mnt/databig')
+                        i,o,e1=ssh.exec_command('cp {0} {1}'.format(mesfn_linux,td_linux))
+                        i,o,e2=ssh.exec_command('cp {0} {1}'.format(hdf5fn_linux_src,hdf5fn_linux_dst))
+                        i,o,e3=ssh.exec_command('chmod 777 {0} -R'.format(td_linux))
+                        if 0:
+                            errmsg= ','.join([e.readline() for e in [e1,e2,e3]])
+                            if errmsg != '':
+                                raise RuntimeError('Backup failed, {0}'.format(errmsg))
+                            
                         
-                    
-                    #shutil.copy2(mesfn,target_dir)
-                    #shutil.copy2(mesfn,'d:\\tmp')
-                    #shutil.copy2(hdf5fn,os.path.join(target_dir,os.path.basename(hdf5fn).replace('.hdf5', '_raw.hdf5')))
-                    self.printl('{0} and {1} are backed up to {2}'.format(os.path.basename(mesfn),os.path.basename(hdf5fn),target_dir))
-            ssh.close()
-        except:
-            self.printl(traceback.format_exc())
-            self.printl('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')
+                        #shutil.copy2(mesfn,target_dir)
+                        #shutil.copy2(mesfn,'d:\\tmp')
+                        #shutil.copy2(hdf5fn,os.path.join(target_dir,os.path.basename(hdf5fn).replace('.hdf5', '_raw.hdf5')))
+                        self.printl('{0} and {1} are backed up to {2}'.format(os.path.basename(mesfn),os.path.basename(hdf5fn),target_dir))
+                ssh.close()
+            except:
+                self.printl(traceback.format_exc())
+                self.printl('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')
         
     def _load_experiment_parameters(self):
         if not self.parameters.has_key('id'):
@@ -177,7 +191,7 @@ class ExperimentControl(object):
             return False
         self.parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['id']+'.hdf5')
         if not os.path.exists(self.parameter_file):
-            self.printl('Parameter file does NOT exists')
+            self.printl('Parameter file does NOT exist ({0})'.format(self.parameter_file))
             return False
         h = hdf5io.Hdf5io(self.parameter_file,filelocking=False)
         fields_to_load = ['parameters']
@@ -200,7 +214,10 @@ class ExperimentControl(object):
             else:
                 setattr(self, field,  value)
         h.close()
-        os.remove(self.parameter_file)
+        try:
+            os.remove(self.parameter_file)
+        except:
+            self.printl(traceback.format_exc())
         return True
 
     def _prepare_experiment(self, context):

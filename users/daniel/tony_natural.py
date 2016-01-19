@@ -30,8 +30,11 @@ class TonyNaturalBarsExperiment(experiment.Experiment):
     def prepare(self):
         if len(self.experiment_config.SPEED)>1:
             raise RuntimeError('Not supported')
-        fitime=self.machine_config.SCREEN_SIZE_UM['col']/self.experiment_config.SPEED[0]
-        self.fragment_durations = [(2*fitime+self.experiment_config.DURATION)*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)*len(self.experiment_config.SPEED)+self.experiment_config.BACKGROUND_TIME*self.experiment_config.REPEATS]
+        self.precalculate_duration_mode=True
+        self.run()
+        self.fragment_durations = [self.frame_counter/self.machine_config.SCREEN_EXPECTED_FRAME_RATE]
+        self.frame_counter = 0
+        self.precalculate_duration_mode=False
         
     def run(self):
         #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)

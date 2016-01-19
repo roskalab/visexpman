@@ -839,6 +839,8 @@ class MainPoller(Poller):
                         print traceback.format_exc()
         except:
             print traceback.format_exc()
+            import pdb
+            pdb.set_trace()
         
         time.sleep(3.0)
 
@@ -1755,11 +1757,12 @@ class MainPoller(Poller):
             region_name = 'r'
         if self.scan_regions.has_key(region_name):
             #Ask for confirmation to overwrite if region name already exists
-            self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
-            while self.gui_thread_queue.empty() :
-                time.sleep(0.1) 
-            if not self.gui_thread_queue.get():
-                self.printc('Region not saved')
+            #if not self.ask4confirmation('Overwriting scan region'):
+#            self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
+#            while self.gui_thread_queue.empty() :
+#                time.sleep(0.1) 
+#            if not self.gui_thread_queue.get():
+                self.printc('Region already exists, not saved')
                 return
         else:
             relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
@@ -2081,6 +2084,7 @@ class MainPoller(Poller):
             p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
             if os.path.exists(p):
                 os.remove(p)
+                self.printc('{0} cancelled'.format(id))
 
     def graceful_stop_experiment(self):
 #        command = 'SOCgraceful_stop_experimentEOCguiEOP'
@@ -2090,6 +2094,7 @@ class MainPoller(Poller):
             p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
             if os.path.exists(p):
                 os.remove(p)
+                self.printc('{0} cancelled'.format(id))
 
     def start_experiment(self):
         self.printc('Experiment started, please wait')
@@ -2144,11 +2149,11 @@ class MainPoller(Poller):
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
+        time.sleep(1.1)
         self.experiment_parameters['id'] = str(int(time.time()))
         if not hasattr(self, 'issued_ids'):
             self.issued_ids = []
-        else:
-            self.issued_ids.append(self.experiment_parameters['id'])
+        self.issued_ids.append(self.experiment_parameters['id'])
         if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('objective_positions'):
             self.experiment_parameters['objective_position'] = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']]
             objective_position = self.experiment_parameters['objective_position']
@@ -2574,24 +2579,16 @@ class MainPoller(Poller):
                 self.printc('Problem with copying mousefile to databig.')
                 self.printc('4')
             self.printc('5')
-            if 0:#New backup
-                #TOOD: target dir generation to be moved to a separate function
-                target_dir=os.path.join(self.machine_config.BACKUP_PATH,
-                                        self.get_user(),#TODO: this could come from animal parameters
-                                        utils.timestamp2ymd(float(self.id)),str(self.animal_parameters['id']))
-                td_linux=target_dir.replace('\\','/')
-                td_linux=td_linux.replace('u:','/mnt/databig')
-                if not os.path.exists(target_dir):
-                    os.makedirs(target_dir)
-
-                import paramiko
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
-                i,o,e2=ssh.exec_command('cp {0} {1}'.format(hdf5fn_linux_src,hdf5fn_linux_dst))
-                i,o,e3=ssh.exec_command('chmod 777 {0} -R'.format(td_linux))
-                ssh.close()
-
+            if 1:#New backup
+                try:
+                    files=[self.mouse_file]
+                    id=str(self.animal_parameters['add_date'].split(' ')[0].replace('-',''))
+                    experiment_data.RlvivoBackup(files,str(self.get_user()),id,str(self.animal_parameters['id']))
+                except:
+                    self.printc(traceback.format_exc())
+                    self.printc('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')
+                    raise 
+                
     def cells2pickled_ready(self, cells):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io
