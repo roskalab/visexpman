@@ -329,7 +329,8 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.imaging_channel_label, 6, 0, 1, 2)
         self.layout.addWidget(self.imaging_channel_checkbox, 6, 2, 1, 1)
         self.layout.addWidget(self.comments, 7, 0, 1, 3)
-        self.layout.addWidget(self.user, 8, 0, 1, 3)
+        self.layout.addWidget(self.user_label, 8, 0, 1, 1)
+        self.layout.addWidget(self.user, 8, 1, 1, 1)
         self.layout.addWidget(self.new_mouse_file_button, 9, 0, 1, 2)
         self.layout.addWidget(self.anesthesia_history_groupbox, 10, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
@@ -820,6 +821,8 @@ class MainPoller(Poller):
             h.last_mouse_file_name = os.path.split(self.mouse_file)[1]
             h.save(['last_region_name', 'last_mouse_file_name'], overwrite = True)
             h.close()
+            self.printc('Copy mouse file for jobhandler')
+            print self.mouse_file2jobhandler(mouse_file=self.mouse_file,tag = 'jobhandler_prev')
 #            mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
 #            if os.path.exists(mouse_file_copy):
 #                os.remove(mouse_file_copy)
@@ -2629,7 +2632,7 @@ class MainPoller(Poller):
                     else:
                         d=self.animal_parameters['add_date']
                     id=str(d.split(' ')[0].replace('-',''))
-                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user']),id,str(self.animal_parameters['id']))
+                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
                 except:
                     self.printc(traceback.format_exc())
                     self.printc('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')

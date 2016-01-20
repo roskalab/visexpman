@@ -138,7 +138,7 @@ class ExperimentControl(object):
                 for fragment_id in range(self.number_of_fragments):
                     files.extend([self.filenames['mes_fragments'][fragment_id],self.filenames['fragments'][fragment_id]])
                 id=str(self.scan_region['add_date']).split(' ')[0].replace('-','')
-                experiment_data.RlvivoBackup(files,str(self.animal_parameters['user']),id,str(self.animal_parameters['id']))
+                experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
             except:
                 self.printl(traceback.format_exc())
                 self.printl('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')

@@ -372,12 +372,17 @@ class CommandInterface(command_parser.CommandParser):
         try:
             paths = []
             for dir in [self.config.DATABIG_PATH,self.config.TAPE_PATH]:
+                self.datestring=utils.date_string().split(' ')[0].replace('-','')
                 if 'mouse' in filename:
                     animal_id = os.path.split(self.mouse_file)[1].split('_')[1]
+                    if not hasattr(self, 'datestring'):
+                        self.datestring=utils.date_string()
+                    self.datestring = self.datestring[0].split(' ')[0].replace('-','')
                 else:
                     idnode = ('_'.join(filename.split('_')[-3:])).split('.')[0]
                     animal_id = str(hdf5io.read_item(filename, idnode, self.analysis_config)['animal_parameters']['id'])
-                d = os.path.join(dir, utils.date_string().replace('-',''), animal_id)
+                    self.datestring=utils.timestamp2ymd(int(idnode.split('_')[1]),'')
+                d = os.path.join(dir, self.datestring, animal_id)
                 if not os.path.exists(d) and create_folder:
                     try:
                         os.makedirs(d)
