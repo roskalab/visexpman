@@ -31,6 +31,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
+USERS=['','adrian','daniel','kamill','fiona','stuart','zoltan']
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -298,6 +299,10 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.comments.setToolTip('Add comment')
         self.imaging_channel_label = QtGui.QLabel('Record red and green channels?',  self)
         self.imaging_channel_checkbox = QtGui.QCheckBox(self)
+        self.user_label = QtGui.QLabel('User',  self)
+        self.user = QtGui.QComboBox(self)
+        self.user.setEditable(True)
+        self.user.addItems(QtCore.QStringList(USERS))
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
         self.anesthesia_history_groupbox = AnesthesiaHistoryGroupbox(self)
         
@@ -324,8 +329,9 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.imaging_channel_label, 6, 0, 1, 2)
         self.layout.addWidget(self.imaging_channel_checkbox, 6, 2, 1, 1)
         self.layout.addWidget(self.comments, 7, 0, 1, 3)
-        self.layout.addWidget(self.new_mouse_file_button, 8, 0, 1, 2)
-        self.layout.addWidget(self.anesthesia_history_groupbox, 9, 0, 2, 4)
+        self.layout.addWidget(self.user, 8, 0, 1, 3)
+        self.layout.addWidget(self.new_mouse_file_button, 9, 0, 1, 2)
+        self.layout.addWidget(self.anesthesia_history_groupbox, 10, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -797,9 +803,6 @@ class MainPoller(Poller):
     def reset_jobhandler(self):
         self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
         
-    def get_user(self):
-        return 'default_user'
-        
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
         
@@ -916,9 +919,9 @@ class MainPoller(Poller):
                                 region_name, measurement_file_path, info = self.read_scan_regions(parameter)
                                 t1=time.time()
                                 id = parameter
-#                                if region_name is None or not hasattr(self.scan_regions, region_name):
-#                                    self.printc('{0} region cannot be found in current mouse file, {1}'.format(region_name, self.scan_regions.keys()))
-                                if 1:
+                                if region_name is None:
+                                    pass
+                                else:
                                     self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
                                     t2=time.time()
                                     soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois',filelocking=False)
@@ -952,7 +955,11 @@ class MainPoller(Poller):
     def mouse_file_changed(self):
         self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly
         self.wait_mouse_file_save()
-        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
+        newmousefn=os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
+        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and newmousefn !=self.mouse_file:
+            self.printc('Copy previous mouse file for jobhandler')
+            print self.mouse_file2jobhandler(mouse_file=self.mouse_file,tag = 'jobhandler_prev')
+        self.mouse_file = newmousefn
         self.load_mouse_file()
 #        self.backup_mousefile()
         self.reset_jobhandler()
@@ -1162,6 +1169,8 @@ class MainPoller(Poller):
 
     def set_process_status_flag(self, id, flag_names):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
+        if region_name is None:
+            return
         id_not_found = False
         for flag_name in flag_names:
             if self.scan_regions[region_name]['process_status'].has_key(id):
@@ -1177,6 +1186,8 @@ class MainPoller(Poller):
     
     def add_measurement_id(self, id):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
+        if region_name is None:
+            return
         if not self.scan_regions[region_name].has_key('process_status'):
             self.scan_regions[region_name]['process_status'] = {}
         if self.scan_regions[region_name]['process_status'].has_key(id):
@@ -1221,6 +1232,9 @@ class MainPoller(Poller):
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
+            return 3*[None]
+        if self.mouse_file != mouse_file:
+            self.printc('Mouse file was changed from {0} to {1}'.format(mouse_file, self.mouse_file))
             return 3*[None]
 #        if not self.scan_regions.has_key(call_parameters['region_name']):
 #            self.printc('{0} region does not exits, probably mouse file was changed recently'.format(call_parameters['region_name']))
@@ -1650,6 +1664,10 @@ class MainPoller(Poller):
         if id_text == '':
             self.printc('Providing ID is mandatory')
             return
+        user=str(self.parent.animal_parameters_widget.user.currentText())
+        if user=='':
+            self.printc('Select user!')
+            return
         self.animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
@@ -1662,11 +1680,15 @@ class MainPoller(Poller):
             'red_labeling' : str(self.parent.animal_parameters_widget.red_labeling.currentText()),
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
             'add_date' : utils.datetime_string().replace('_', ' '),
-            'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2)
+            'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2),
+            'user':user,
         }        
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
+        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
+            self.printc('Copy previous mouse file for jobhandler')
+            print self.mouse_file2jobhandler(mouse_file=self.mouse_file,tag = 'jobhandler_prev')
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
         
         if os.path.exists(self.mouse_file):
@@ -2118,7 +2140,7 @@ class MainPoller(Poller):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['user']=self.get_user()
+        self.experiment_parameters['user']=self.animal_parameters['user']
         self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
         if not self.experiment_parameters['intrinsic']:
             self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
@@ -2601,8 +2623,13 @@ class MainPoller(Poller):
             if 1:#New backup
                 try:
                     files=[self.mouse_file]
-                    id=str(self.animal_parameters['add_date'].split(' ')[0].replace('-',''))
-                    experiment_data.RlvivoBackup(files,str(self.get_user()),id,str(self.animal_parameters['id']))
+                    rn=[rn for rn in self.scan_regions.keys() if self.parent.get_current_region_name() in rn]
+                    if len(rn)==1:
+                        d=self.scan_regions[rn[0]]['add_date']
+                    else:
+                        d=self.animal_parameters['add_date']
+                    id=str(d.split(' ')[0].replace('-',''))
+                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user']),id,str(self.animal_parameters['id']))
                 except:
                     self.printc(traceback.format_exc())
                     self.printc('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')
