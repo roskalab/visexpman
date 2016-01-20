@@ -31,6 +31,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
+USERS=['','adrian','daniel','kamill','fiona','stuart','zoltan']
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -298,6 +299,10 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.comments.setToolTip('Add comment')
         self.imaging_channel_label = QtGui.QLabel('Record red and green channels?',  self)
         self.imaging_channel_checkbox = QtGui.QCheckBox(self)
+        self.user_label = QtGui.QLabel('User',  self)
+        self.user = QtGui.QComboBox(self)
+        self.user.setEditable(True)
+        self.user.addItems(QtCore.QStringList(USERS))
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
         self.anesthesia_history_groupbox = AnesthesiaHistoryGroupbox(self)
         
@@ -324,8 +329,10 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.imaging_channel_label, 6, 0, 1, 2)
         self.layout.addWidget(self.imaging_channel_checkbox, 6, 2, 1, 1)
         self.layout.addWidget(self.comments, 7, 0, 1, 3)
-        self.layout.addWidget(self.new_mouse_file_button, 8, 0, 1, 2)
-        self.layout.addWidget(self.anesthesia_history_groupbox, 9, 0, 2, 4)
+        self.layout.addWidget(self.user_label, 8, 0, 1, 1)
+        self.layout.addWidget(self.user, 8, 1, 1, 1)
+        self.layout.addWidget(self.new_mouse_file_button, 9, 0, 1, 2)
+        self.layout.addWidget(self.anesthesia_history_groupbox, 10, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -796,9 +803,6 @@ class MainPoller(Poller):
             
     def reset_jobhandler(self):
         self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
-        
-    def get_user(self):
-        return 'default_user'
         
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
@@ -1650,6 +1654,10 @@ class MainPoller(Poller):
         if id_text == '':
             self.printc('Providing ID is mandatory')
             return
+        user=str(self.parent.animal_parameters_widget.user.currentText())
+        if user=='':
+            self.printc('Select user!')
+            return
         self.animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
@@ -1662,7 +1670,8 @@ class MainPoller(Poller):
             'red_labeling' : str(self.parent.animal_parameters_widget.red_labeling.currentText()),
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
             'add_date' : utils.datetime_string().replace('_', ' '),
-            'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2)
+            'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2),
+            'user':user,
         }        
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
@@ -2118,7 +2127,7 @@ class MainPoller(Poller):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['user']=self.get_user()
+        self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
         self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
         if not self.experiment_parameters['intrinsic']:
             self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
@@ -2601,8 +2610,13 @@ class MainPoller(Poller):
             if 1:#New backup
                 try:
                     files=[self.mouse_file]
-                    id=str(self.animal_parameters['add_date'].split(' ')[0].replace('-',''))
-                    experiment_data.RlvivoBackup(files,str(self.get_user()),id,str(self.animal_parameters['id']))
+                    rn=[rn for rn in self.scan_regions.keys() if self.parent.get_current_region_name() in rn]
+                    if len(rn)==1:
+                        d=self.scan_regions[rn[0]]['add_date']
+                    else:
+                        d=self.animal_parameters['add_date']
+                    id=str(d.split(' ')[0].replace('-',''))
+                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
                 except:
                     self.printc(traceback.format_exc())
                     self.printc('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')

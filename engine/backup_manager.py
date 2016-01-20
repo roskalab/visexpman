@@ -2,7 +2,7 @@
 
 import os,shutil,time,logging,datetime,filecmp
 transient_backup_path='/mnt/databig/backup'
-tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton'
+tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton/new'
 mdrive='/mnt/mdrive/invivo/rc'
 logfile_path='/mnt/datafast/log/backup_manager.txt'
 rei_data='/mnt/databig/debug/cacone'
