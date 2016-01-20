@@ -920,9 +920,9 @@ class MainPoller(Poller):
                                 region_name, measurement_file_path, info = self.read_scan_regions(parameter)
                                 t1=time.time()
                                 id = parameter
-#                                if region_name is None or not hasattr(self.scan_regions, region_name):
-#                                    self.printc('{0} region cannot be found in current mouse file, {1}'.format(region_name, self.scan_regions.keys()))
-                                if 1:
+                                if region_name is None:
+                                    pass
+                                else:
                                     self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
                                     t2=time.time()
                                     soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois',filelocking=False)
@@ -1166,6 +1166,8 @@ class MainPoller(Poller):
 
     def set_process_status_flag(self, id, flag_names):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
+        if region_name is None:
+            return
         id_not_found = False
         for flag_name in flag_names:
             if self.scan_regions[region_name]['process_status'].has_key(id):
@@ -1181,6 +1183,8 @@ class MainPoller(Poller):
     
     def add_measurement_id(self, id):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
+        if region_name is None:
+            return
         if not self.scan_regions[region_name].has_key('process_status'):
             self.scan_regions[region_name]['process_status'] = {}
         if self.scan_regions[region_name]['process_status'].has_key(id):
@@ -1225,6 +1229,9 @@ class MainPoller(Poller):
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
+            return 3*[None]
+        if self.mouse_file != mouse_file:
+            self.printc('Mouse file was changed from {0} to {1}'.format(mouse_file, self.mouse_file))
             return 3*[None]
 #        if not self.scan_regions.has_key(call_parameters['region_name']):
 #            self.printc('{0} region does not exits, probably mouse file was changed recently'.format(call_parameters['region_name']))
