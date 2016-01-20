@@ -5,16 +5,37 @@ import os
 import numpy
 import time
 
-class TonyNaturalBarsConfig(experiment.ExperimentConfig):
+class TonyNaturalBarsCircularConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEED = [800,400,1200]#um/s
         self.SPEED = [800]#um/s
-        self.REPEATS = 5#6 #5
+        self.REPEATS = 1#5
         self.DIRECTIONS = [0,90,180,270] #range(0,360,90)
         self.DURATION = 12
         self.BACKGROUND_TIME = 2.5
         self.BACKGROUND_COLOR = 0.5
-        self.CIRCULAR=False#Not tested
+        self.CIRCULAR=True
+        self.ENABLE_FLYINOUT= True #True # False
+        self.ALWAYS_FLY_IN_OUT = True #True # False
+        if self.CIRCULAR:
+            self.ENABLE_FLYINOUT=False
+        #Advanced/Tuning
+        self.MINIMAL_SPATIAL_PERIOD= 120 #None
+        self.SCALE= 1.0
+        self.OFFSET=0.0
+        self.runnable = 'TonyNaturalBarsExperiment'
+        self._create_parameters_from_locals(locals())
+
+class TonyNaturalBarsConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SPEED = [800,400,1200]#um/s
+        self.SPEED = [800]#um/s
+        self.REPEATS = 1#5
+        self.DIRECTIONS = [0,90,180,270] #range(0,360,90)
+        self.DURATION = 12
+        self.BACKGROUND_TIME = 2.5
+        self.BACKGROUND_COLOR = 0.5
+        self.CIRCULAR=False
         self.ENABLE_FLYINOUT= True #True # False
         self.ALWAYS_FLY_IN_OUT = True #True # False
         if self.CIRCULAR:
@@ -30,11 +51,16 @@ class TonyNaturalBarsExperiment(experiment.Experiment):
     def prepare(self):
         if len(self.experiment_config.SPEED)>1:
             raise RuntimeError('Not supported')
-        self.precalculate_duration_mode=True
-        self.run()
-        self.fragment_durations = [self.frame_counter/self.machine_config.SCREEN_EXPECTED_FRAME_RATE]
-        self.frame_counter = 0
-        self.precalculate_duration_mode=False
+        fitime=self.machine_config.SCREEN_SIZE_UM['col']/self.experiment_config.SPEED[0]
+        if not self.experiment_config.CIRCULAR:
+            fitime*=2
+        self.fragment_durations = [(fitime+self.experiment_config.DURATION)*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)*len(self.experiment_config.SPEED)+self.experiment_config.BACKGROUND_TIME*self.experiment_config.REPEATS]
+#        self.precalculate_duration_mode=True
+#        self.abort=False
+#        self.run()
+#        self.fragment_durations = [self.frame_counter/self.machine_config.SCREEN_EXPECTED_FRAME_RATE]
+#        self.frame_counter = 0
+#        self.precalculate_duration_mode=False
         
     def run(self):
         #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
@@ -72,3 +98,4 @@ class TonyNaturalBarsExperiment(experiment.Experiment):
                             offset=self.experiment_config.OFFSET,
                             intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
                     #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        self.show_fullscreen(duration = 0, color =  self.experiment_config.BACKGROUND_COLOR, flip=True)

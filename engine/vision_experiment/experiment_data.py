@@ -586,7 +586,10 @@ class RlvivoBackup(object):
     def target_folder(self):
         self.target_dir='/'.join(['/mnt/databig/backup',self.user,self.id,str(self.animalid)])
         i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
+        print 'chmod 777 {0} -R'.format(self.target_dir)
         i,o,e2=self.ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
+        print o.readline()
+        print e2.readline()
         for e in [e1,e2]:
             self.check_ssh_error(e)
         

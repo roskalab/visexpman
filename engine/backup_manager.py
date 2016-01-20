@@ -43,11 +43,11 @@ def copy_file(f):
         if not is_file_closed(f):
             return
         if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape):
-            shutil.copyfile(f,target_path_tape)
-            logging.info('Copied to tape: {0}'.format(f))
+            shutil.copy2(f,target_path_tape)
+            logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(f)))
         if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_tape):
             shutil.copyfile(f,target_path_m)
-            logging.info('Copied to m: {0}'.format(f))
+            logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(f)))
     except:
         import traceback
         logging.error(traceback.format_exc())

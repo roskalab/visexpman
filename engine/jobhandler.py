@@ -92,6 +92,7 @@ class Jobhandler(object):
         self.close()
 
     def close(self):
+#        self.command_handler.save_jobdb()
         self.command_handler._save_files()
         if BACKGROUND_COPIER:
             self.command_handler.background_copier_command_queue.put('TERMINATE')
@@ -133,13 +134,20 @@ class CommandInterface(command_parser.CommandParser):
             self.zeromq_pusher = network_interface.ZeroMQPusher(5500, type='PUSH')
         self._check_freespace()
         self.not_copied_to_tape = []
+#        self.jobdatabase_fn='/mnt/datafast/context/jobdatabase.npy'
+#        if os.path.exists(self.jobdatabase_fn):
+#            self.jobdatabase=utils.array2object(numpy.load(self.jobdatabase_fn))
+#        else:
+#            self.jobdatabase={}
         if BACKGROUND_COPIER:
             import multiprocessing
             self.background_copier_command_queue = multiprocessing.Queue()
             self.background_copier = file.BackgroundCopier(self.background_copier_command_queue,postpone_seconds=5,debug=0,thread=0)
             self.background_copier.start()
         self.printl('Jobhandler started')
-
+        
+#    def save_jobdb(self):
+#        numpy.save(self.jobdatabase_fn, utils.object2array(self.jobdatabase))
             
     def _check_freespace(self):
         #Check free space on databig and tape
@@ -182,6 +190,12 @@ class CommandInterface(command_parser.CommandParser):
                 
             time.sleep(1.0)
             os.remove(self.mouse_file)
+#            animaid=os.path.split(self.mouse_file)[1].split('_')[1]
+#            if not self.jobdatabase.has_key(animaid):
+#                self.jobdatabase[animaid]={}
+#            self.jobdatabase[animaid].update(scan_regions)
+            
+            
             self.log.info('scan regions read')
             if hasattr(scan_regions, 'values'):
                 for scan_region in scan_regions.values():

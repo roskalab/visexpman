@@ -828,8 +828,8 @@ class MainPoller(Poller):
         #Delete MES tmp files
         try:
             for f in os.listdir(tempfile.gettempdir()):
+               #print f, tempfile.gettempdir()
                 fullpath = os.path.join(tempfile.gettempdir(), f)
-                print fullpath
                 if 'mat' in fullpath:
                     try:
                         os.remove(fullpath)
@@ -837,10 +837,11 @@ class MainPoller(Poller):
                         self.printc((fullpath, 'removed'))
                     except:
                         print traceback.format_exc()
+                        import pdb
+                        pdb.set_trace()
         except:
             print traceback.format_exc()
-            import pdb
-            pdb.set_trace()
+            
         
         time.sleep(3.0)
 
@@ -909,20 +910,32 @@ class MainPoller(Poller):
                             if self.config.ADD_CELLS_TO_MOUSE_FILE:
                                 self.add_cells_to_database(parameter)
                             else:
+                                from visexpman.engine.generic import introspect
                                 time.sleep(3)#TMP: Make sure that all data is saved to file
+                                t0=time.time()
                                 region_name, measurement_file_path, info = self.read_scan_regions(parameter)
+                                t1=time.time()
                                 id = parameter
-                                self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
-                                soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois',filelocking=False)
-                                if soma_rois is None or len(soma_rois) == 0:
-                                    number_of_new_cells = 0
-                                else:
-                                    number_of_new_cells = len(soma_rois)
-                                    if number_of_new_cells > 200:
-                                        number_of_new_cells = 200
-                                self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
-                                self.save2mouse_file(['scan_regions'])
-                                self.parent.update_jobhandler_process_status()
+#                                if region_name is None or not hasattr(self.scan_regions, region_name):
+#                                    self.printc('{0} region cannot be found in current mouse file, {1}'.format(region_name, self.scan_regions.keys()))
+                                if 1:
+                                    self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
+                                    t2=time.time()
+                                    soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois',filelocking=False)
+                                    t3=time.time()
+                                    if soma_rois is None or len(soma_rois) == 0:
+                                        number_of_new_cells = 0
+                                    else:
+                                        number_of_new_cells = len(soma_rois)
+                                        if number_of_new_cells > 200:
+                                            number_of_new_cells = 200
+                                    self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
+                                    t4=time.time()
+                                    self.save2mouse_file(['scan_regions'])
+                                    t5=time.time()
+                                    self.parent.update_jobhandler_process_status()
+                                    t6=time.time()
+                                    self.printc('Runtimes, scan region read: {0}, read meas file {1}. save mouse file {2}, update process status {3}'.format(t1-t0, t3-t2,t5-t4,t6-t5))
 #                                self.backup_mousefile()????
                         elif command == 'mouse_file_copy':
                             if parameter == '':
@@ -1189,18 +1202,18 @@ class MainPoller(Poller):
         measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
-            return 5*[None]
+            return 3*[None]
         measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path,filelocking=False)
         fromfile = measurement_hdfhandler.findvar(['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
         if not call_parameters.has_key('scan_mode'):
             self.printc('Scan mode does not exists')
             measurement_hdfhandler.close()
-            return 5*[None]
+            return 3*[None]
         if call_parameters['intrinsic']:
             self.printc('Intrinsic recording session, not adding to automated analysis')
             measurement_hdfhandler.close()
-            return 5*[None]
+            return 3*[None]
         laser_intensity = measurement_hdfhandler.findvar('laser_intensity', path = 'root.'+ '_'.join(cg.get_mes_name_timestamp(measurement_hdfhandler)))
         measurement_hdfhandler.close()
         info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':call_parameters['scan_mode'], 'laser_intensity': laser_intensity}
@@ -1208,10 +1221,13 @@ class MainPoller(Poller):
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
-            return 5*[None]
+            return 3*[None]
+#        if not self.scan_regions.has_key(call_parameters['region_name']):
+#            self.printc('{0} region does not exits, probably mouse file was changed recently'.format(call_parameters['region_name']))
+#            return 3*[None]
         if self.scan_regions[call_parameters['region_name']].has_key(id):
             self.printc('ID already exists: {0}'.format(id))
-            return 5*[None]
+            return 3*[None]
         return call_parameters['region_name'], measurement_file_path, info
  
     def rebuild_cell_database(self):
@@ -1835,6 +1851,7 @@ class MainPoller(Poller):
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
             self.save2mouse_file('scan_regions')
+            self.backup_mousefile()
             self.update_scan_regions()#This is probably redundant
             self.printc('XY scan updated')
         
@@ -1846,6 +1863,7 @@ class MainPoller(Poller):
             self.scan_regions[region_name]['xz'] = self.xz_scan
             self.scan_regions[region_name]['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'])
             self.save2mouse_file('scan_regions')
+            self.backup_mousefile()
             self.update_scan_regions()#This is probably redundant
             self.printc('XZ scan updated')
         
@@ -1859,6 +1877,7 @@ class MainPoller(Poller):
             if result and os.path.exists(line_scan_path):
                 self.scan_regions[region_name]['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
                 self.save2mouse_file('scan_regions')
+                self.backup_mousefile()
                 os.remove(line_scan_path)
                 self.update_scan_regions()#This is probably redundant
                 self.printc('XYT scan updated')
