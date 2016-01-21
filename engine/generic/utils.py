@@ -1153,6 +1153,28 @@ def printl(self, message, loglevel='info', stdio = True):
 def list_swap(l, i1, i2):
     l[i1], l[i2] = l[i2], l[i1]
     return l
+    
+def sendmail(to, subject, txt):
+    SENDMAIL = "/usr/sbin/sendmail" # sendmail location
+    # Prepare actual message
+
+    message = """\
+    From: %s
+    To: %s
+    Subject: %s
+
+    %s
+    """ % (platform.node()+'@fmi.ch', ", ".join([to]), subject, txt)
+
+    # Send the mail
+
+    import os
+
+    p = os.popen("%s -t -i" % SENDMAIL, "w")
+    p.write(message)
+    status = p.close()
+    return status
+        
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
