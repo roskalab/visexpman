@@ -811,9 +811,9 @@ def timestamp2ymdhm(timestamp):
     time_struct = time.localtime(timestamp)
     return '{0:0=4}-{1:0=2}-{2:0=2}+{3:0=2}:{4:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min).replace('+',' ')
 
-def timestamp2ymd(timestamp):
+def timestamp2ymd(timestamp,separator='-'):
     time_struct = time.localtime(timestamp)
-    return '{0:0=4}-{1:0=2}-{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday).replace('+',' ')
+    return '{0:0=4}{3}{1:0=2}{3}{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday,separator).replace('+',' ')
     
 def datestring2timestamp(ds,format="%d/%m/%Y"):
     return time.mktime(datetime.datetime.strptime(ds, format).timetuple())
