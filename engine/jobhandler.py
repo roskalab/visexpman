@@ -113,7 +113,7 @@ class CommandInterface(command_parser.CommandParser):
     def __init__(self, config, queues, log = None, zmq=True):
         self.config = config
         self.queues = queues
-        command_parser.CommandParser.__init__(self, [self.queues['gui']['in'], self.queues['low_priority_processor']['out']], self.queues['gui']['out'], log = log)
+        command_parser.CommandParser.__init__(self, [self.queues['low_priority_processor']['out'],self.queues['gui']['in']], self.queues['gui']['out'], log = log)
         user = 'daniel'
         import visexpA.engine.configuration
         #TODO: use argparse
@@ -245,15 +245,18 @@ class CommandInterface(command_parser.CommandParser):
     def _find_cells_ready(self, id =None, runtime=None):
         time.sleep(0.3)#Make sure that file is closed
         filename = file.get_measurement_file_path_from_id(id, self.config, filename_only = True)
+        filenamefull = file.get_measurement_file_path_from_id(id, self.config, filename_only = False)
         fullpath = fragment_name_to_short_string(filename)
         self.printl('Copying files to databig and tape')
-        databig_path, tape_path = self._generate_copypath(filename)
+        databig_path, tape_path = self._generate_copypath(filenamefull)
         exit = False
         try:
+            self.printl('Copy {0}, {1}'.format(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path))
             shutil.copy(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path)
             #TODO use argparse
             if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_DATA_TO_MAT':
                 p1=os.path.join(self.config.EXPERIMENT_DATA_PATH, filename)
+                self.printl('Copy {0}, {1}'.format(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat')))
                 shutil.copy(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat'))
             if os.path.exists(os.path.join(os.path.split(databig_path)[0], 'output', filename)):
                 shutil.rmtree(os.path.join(os.path.split(databig_path)[0], 'output', filename))
@@ -273,7 +276,9 @@ class CommandInterface(command_parser.CommandParser):
                 print '!!! Tape not mounted, measurement data is not backed up !!!'
             else:
                 self._save_files()
+                self.printl('sent to bg copier: {0}'.format((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path)))
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path))
+                self.printl('sent to bg copier: {0}'.format((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat'))))
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat')))
         else:
             try:
@@ -316,7 +321,17 @@ class CommandInterface(command_parser.CommandParser):
         try:
             paths = []
             for dir in [self.config.DATABIG_PATH,self.config.TAPE_PATH]:
-                d = os.path.join(dir, utils.date_string().replace('-',''), os.path.split(self.mouse_file)[1].split('_')[1])
+                self.datestring=utils.date_string().split(' ')[0].replace('-','')
+                if 'mouse' in filename:
+                    animal_id = os.path.split(self.mouse_file)[1].split('_')[1]
+                    if not hasattr(self, 'datestring'):
+                        self.datestring=utils.date_string()
+                    self.datestring = self.datestring[0].split(' ')[0].replace('-','')
+                else:
+                    idnode = ('_'.join(filename.split('_')[-3:])).split('.')[0]
+                    animal_id = str(hdf5io.read_item(filename, idnode, self.analysis_config)['animal_parameters']['id'])
+                    self.datestring=utils.timestamp2ymd(int(idnode.split('_')[1]),'')
+                d = os.path.join(dir, self.datestring, animal_id)
                 if not os.path.exists(d) and create_folder:
                     try:
                         os.makedirs(d)
