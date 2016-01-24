@@ -26,7 +26,7 @@ def list_all_files(path):
     
 def is_file_closed(f):
     now=time.time()
-    return now-os.path.getmtime(f)>600 and now-os.path.getctime(f)>600
+    return now-os.path.getmtime(f)>600# and now-os.path.getctime(f)>600
     
 def copy_file(f):
     try:

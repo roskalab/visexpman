@@ -45,6 +45,10 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
             self.timeout=0.5 #sec
             
         def run(self):
+            import logging
+            logging.basicConfig(filename= '/mnt/datafast/log/background_copier.txt',
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.DEBUG)
             fn = generate_filename('/tmp/log.txt')
             self.logfile=open(fn,'w+')
             try:
@@ -102,6 +106,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                                     current_exception='source file does not exist {0}'.format(item)
                                 elif not os.path.exists(target) or (os.path.exists(target) and os.stat(source).st_size!=os.stat(target).st_size):
                                     shutil.copy(source, target)
+                                    logging.info('{0} -> {1}'.format(source, target))
                                     if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
                                         if self.debug:
                                             current_exception='File '+source+' copied OK'
@@ -348,6 +353,11 @@ def read_text_file(path):
     txt =  f.read(os.path.getsize(path))
     f.close()
     return txt
+    
+def write_text_file(filename, content):
+    f = open(filename,  'wt')
+    f.write(content)
+    f.close()
 
 def listdir_fullpath(folder):
     files = os.listdir(folder)

@@ -124,7 +124,7 @@ class CommandInterface(command_parser.CommandParser):
             pass
         aconfigname = 'Config'
         self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
-        self.printl(self.analysis_config.ramlimit)
+        self.printl(self.analysis_config.ramlimit/1e9)
         self.copy_request_pending = False
         self.copy_request_time = 0
         self.sent_to_mesextractor = []
@@ -268,10 +268,12 @@ class CommandInterface(command_parser.CommandParser):
         databig_path, tape_path = self._generate_copypath(filenamefull)
         exit = False
         try:
+            self.printl('Copy {0}, {1}'.format(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path))
             shutil.copy(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path)
             #TODO use argparse
             if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_DATA_TO_MAT':
                 p1=os.path.join(self.config.EXPERIMENT_DATA_PATH, filename)
+                self.printl('Copy {0}, {1}'.format(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat')))
                 shutil.copy(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat'))
 #                pred=p1.replace('.hdf5','_red.mat')
 #                if os.path.exists(pred):
@@ -294,7 +296,9 @@ class CommandInterface(command_parser.CommandParser):
                 print '!!! Tape not mounted, measurement data is not backed up !!!'
             else:
                 self._save_files()
+                self.printl('sent to bg copier: {0}'.format((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path)))
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path))
+                self.printl('sent to bg copier: {0}'.format((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat'))))
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat')))
         else:
             try:
@@ -428,6 +432,7 @@ class CommandInterface(command_parser.CommandParser):
                 # tell file_pool to close the file and freeze it until jobhandler is done with it:
                #self.zeromq_pusher.send((('close', full_fragment_path)))
                 #self.zeromq_pusher.send((('suspend', full_fragment_path)))
+                self.printl(self.analysis_config.ramlimit/1e9)
                 mes_extractor = importers.MESExtractor(full_fragment_path, config = self.analysis_config, queue_out = self.queues['low_priority_processor']['out'])                
                 time.sleep(5)
                 data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = force_recreate)
@@ -464,6 +469,7 @@ class CommandInterface(command_parser.CommandParser):
                         if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
                             create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
                             export = ['roi_curves'] 
+                            self.printl(self.analysis_config.ramlimit/1e9)
                             h = hdf5io.iopen(full_fragment_path,self.analysis_config)
                             if h is not None:
                                 for c in create:
