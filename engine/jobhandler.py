@@ -92,7 +92,7 @@ class Jobhandler(object):
         self.close()
 
     def close(self):
-        self.command_handler.save_jobdb()
+#        self.command_handler.save_jobdb()
         self.command_handler._save_files()
         if BACKGROUND_COPIER:
             self.command_handler.background_copier_command_queue.put('TERMINATE')
@@ -134,13 +134,11 @@ class CommandInterface(command_parser.CommandParser):
             self.zeromq_pusher = network_interface.ZeroMQPusher(5500, type='PUSH')
         self._check_freespace()
         self.not_copied_to_tape = []
-        self.jobdatabase_fn='/mnt/datafast/context/jobdatabase.npy'
-        if os.path.exists(self.jobdatabase_fn):
-            self.jobdatabase=utils.array2object(numpy.load(self.jobdatabase_fn))
-            for job in self.jobdatabase:
-                self.queues['low_priority_processor']['out'].put(job)
-        else:
-            self.jobdatabase=[]
+#        self.jobdatabase_fn='/mnt/datafast/context/jobdatabase.npy'
+#        if os.path.exists(self.jobdatabase_fn):
+#            self.jobdatabase=utils.array2object(numpy.load(self.jobdatabase_fn))
+#        else:
+#            self.jobdatabase={}
         if BACKGROUND_COPIER:
             import multiprocessing
             self.background_copier_command_queue = multiprocessing.Queue()
@@ -148,19 +146,8 @@ class CommandInterface(command_parser.CommandParser):
             self.background_copier.start()
         self.printl('Jobhandler started')
         
-    def save_jobdb(self):
-        numpy.save(self.jobdatabase_fn, utils.object2array(self.jobdatabase))
-        
-    def add_jobdb(self,job):
-        self.jobdatabase.append(job)
-        self.save_jobdb()
-        
-    def remove_jobdb(self,job):
-        index=[i for i in range(len(self.jobdatabase)) if self.jobdatabase[i] ==job]
-        if len(index)!=1:
-            return
-        del self.jobdatabase[index[0]]
-        self.save_jobdb()
+#    def save_jobdb(self):
+#        numpy.save(self.jobdatabase_fn, utils.object2array(self.jobdatabase))
             
     def _check_freespace(self):
         #Check free space on databig and tape
@@ -193,18 +180,7 @@ class CommandInterface(command_parser.CommandParser):
 #                 print 'Wait file'
 #                 time.sleep(0.2)
             try:
-                current_mf=None
-                #search for _prev mouse file
-                pmf = [os.path.join(os.path.dirname(self.mouse_file),f) for f in os.listdir(os.path.dirname(self.mouse_file)) if 'mouse' in f and '_prev' in f and f[-5:]=='.hdf5']
-                if len(pmf)>0 and os.path.exists(pmf[0]):
-                    self.printl('processing {0}'.format(pmf[0]))
-                    scan_regions = hdf5io.read_item(pmf[0], 'scan_regions',filelocking=False)
-                    current_mf=pmf[0]
-                    prev=True
-                else:
-                    scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions',filelocking=False)#sometimes this read fails with tables.isPyTablesFile(self.filename), None is returned
-                    current_mf=self.mouse_file
-                    prev=True
+                scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions',filelocking=False)#sometimes this read fails with tables.isPyTablesFile(self.filename), None is returned
             except RuntimeError:
                 corrupted_filename = self.mouse_file+'corrupted'
                 if os.path.exists(corrupted_filename):
@@ -213,8 +189,7 @@ class CommandInterface(command_parser.CommandParser):
                     return
                 
             time.sleep(1.0)
-            if current_mf is not None:
-                os.remove(current_mf)
+            os.remove(self.mouse_file)
 #            animaid=os.path.split(self.mouse_file)[1].split('_')[1]
 #            if not self.jobdatabase.has_key(animaid):
 #                self.jobdatabase[animaid]={}
@@ -227,23 +202,13 @@ class CommandInterface(command_parser.CommandParser):
                     if scan_region.has_key('process_status'):
                         for id, measurment_unit in scan_region['process_status'].items():
                             if not measurment_unit['fragment_check_ready'] and not measurment_unit['mesextractor_ready'] and id not in self.sent_to_mesextractor:
-                                job='SOCcheck_and_preprocess_fragmentEOCid={0}EOP'.format(id)
-                                self.queues['low_priority_processor']['out'].put(job)
-                                self.add_jobdb(job)
-                                if prev:
-                                    job='SOCfind_cellsEOCid={0}EOP'.format(id)
-                                    self.queues['low_priority_processor']['out'].put(job)
-                                    self.add_jobdb(job)
-                                    self.sent_to_find_cells.append(id)
-                                    self.log.info('sent to finding cell: {0}'.format(id))
+                                self.queues['low_priority_processor']['out'].put('SOCcheck_and_preprocess_fragmentEOCid={0}EOP'.format(id))
                                 self.sent_to_mesextractor.append(id)#TODO: this mechanism might not be necessary
                                 self.log.info('sent to mesextractor: {0}'.format(id))
 #                                 break
                             elif not measurment_unit['find_cells_ready'] and measurment_unit['mesextractor_ready'] and id not in self.sent_to_find_cells:
                                 time.sleep(1.0)#Make sure that measurement data file is closed by GUI
-                                job='SOCfind_cellsEOCid={0}EOP'.format(id)
-                                self.queues['low_priority_processor']['out'].put(job)
-                                self.add_jobdb(job)
+                                self.queues['low_priority_processor']['out'].put('SOCfind_cellsEOCid={0}EOP'.format(id))
                                 self.sent_to_find_cells.append(id)
                                 self.log.info('sent to finding cell: {0}'.format(id))
 #                                 break
@@ -303,10 +268,12 @@ class CommandInterface(command_parser.CommandParser):
         databig_path, tape_path = self._generate_copypath(filenamefull)
         exit = False
         try:
+            self.printl('Copy {0}, {1}'.format(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path))
             shutil.copy(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path)
             #TODO use argparse
             if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_DATA_TO_MAT':
                 p1=os.path.join(self.config.EXPERIMENT_DATA_PATH, filename)
+                self.printl('Copy {0}, {1}'.format(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat')))
                 shutil.copy(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat'))
 #                pred=p1.replace('.hdf5','_red.mat')
 #                if os.path.exists(pred):
@@ -329,7 +296,9 @@ class CommandInterface(command_parser.CommandParser):
                 print '!!! Tape not mounted, measurement data is not backed up !!!'
             else:
                 self._save_files()
+                self.printl('sent to bg copier: {0}'.format((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path)))
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path))
+                self.printl('sent to bg copier: {0}'.format((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat'))))
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat')))
         else:
             try:
@@ -471,7 +440,7 @@ class CommandInterface(command_parser.CommandParser):
                 mes_extractor.hdfhandler.close()
                 file.set_file_dates(full_fragment_path, file_info)
                 self.queues['low_priority_processor']['out'].put('SOC_mesextractor_readyEOCid={0}EOP' .format(id))
-                self.remove_jobdb(job)
+#                self.remove_jobdb(job)
             else:
                 self.printl('MESExtractor skipped')
         except:
@@ -484,7 +453,7 @@ class CommandInterface(command_parser.CommandParser):
             if self.config.ENABLE_CELL_DETECTION:
                 full_fragment_path = file.get_measurement_file_path_from_id(id, self.config)
                 if full_fragment_path is not None:
-                    job='SOCfind_cellsEOCid={0}EOP'.format(id)
+#                    job='SOCfind_cellsEOCid={0}EOP'.format(id)
                     fragment_path = os.path.split(full_fragment_path)[1]
                     self.printl('Start finding cells: {0}'.format(fragment_name_to_short_string(fragment_path)))
                     file_info = os.stat(full_fragment_path)
@@ -582,7 +551,7 @@ class CommandInterface(command_parser.CommandParser):
                         if res is not None:
                             self.printl('Red channel data saved to {0}'.format(res))
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
-                    self.remove_jobdb(job)
+#                    self.remove_jobdb(job)
                 else:
                     self.printl('Not existing ID: {0}'.format(id))
             else:
@@ -641,7 +610,7 @@ def fragment_name_to_short_string(filename):
     
 def hdf52mat(full_fragment_path):
     from visexpA.users.zoltan import converters
-    nodes = ['idnode','rawdata', 'sync_signal', 'image_scale','quick_analysis']
+    nodes = ['idnode','blockpar', 'call_parameters', 'rawdata', 'sync_signal', 'stimpar', 'position', 'image_origin', 'image_scale','quick_analysis','experiment_name','experiment_config_name', 'stimulus_class', 'pmt_percent', 'laser_percent', 'objective_origin', 'exptype', 'data_class']
     if 'movinggrating' in full_fragment_path.lower():
         nodes.extend(['soma_rois', 'roi_curves'])
     converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)

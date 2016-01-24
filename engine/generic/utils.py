@@ -1,4 +1,4 @@
-import sys
+import sys,platform
 import math
 import random
 import numpy
@@ -1113,6 +1113,20 @@ def safe_has_key(var, key):
             result = True
     return result
 
+def sendmail(to, subject, txt):
+    import subprocess,file
+    message = """\
+    Subject: %s
+
+    %s
+    """ % (subject, txt)
+    fn='/tmp/email.txt'
+    file.write_text_file(fn,message)
+    # Send the mail
+    cmd='sendmail {0} < {1}'.format(to,fn)
+    res=subprocess.call(cmd,shell=True)
+    os.remove(fn)
+    return res==0
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
@@ -1201,6 +1215,8 @@ class TestUtils(unittest.TestCase):
         rc_value = rc(data)
         self.assertEqual((rc_value['row'], rc_value['col']), data)
          
+    def test_19_sendmail(self):
+            self.assertTrue(sendmail('zoltan.raics@fmi.ch','test','c'))
             
     def test_numpy_circles(self):
         pars = [ [[10, 25], (rc((1, 1)), rc((25, 25))), (64, 64), 255],  #
@@ -1317,6 +1333,7 @@ if __name__ == "__main__":
     mytest.addTest(TestUtils('test_13_rcd_pack'))
     mytest.addTest(TestUtils('test_14_rcd_pack'))
     mytest.addTest(TestUtils('test_15_rcd_pack'))
+    mytest.addTest(TestUtils('test_19_sendmail'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)

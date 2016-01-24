@@ -770,6 +770,7 @@ class MainPoller(Poller):
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
         self.parent.connect(self, QtCore.SIGNAL('update_widgets_when_mouse_file_changed'),  self.parent.update_widgets_when_mouse_file_changed)
         self.parent.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
+        self.parent.connect(self, QtCore.SIGNAL('notify'),  self.parent.notify)
         self.parent.connect(self, QtCore.SIGNAL('select_cell_changed'),  self.parent.select_cell_changed)
     
     def init_run(self):
@@ -950,6 +951,8 @@ class MainPoller(Poller):
                                 tag = parameter
                             if self.mouse_file2jobhandler(tag = tag):
                                 self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
+                        elif command == 'notify':
+                            self.notify(parameter)
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
@@ -2543,6 +2546,10 @@ class MainPoller(Poller):
         while self.gui_thread_queue.empty() :
             time.sleep(0.1) 
         return self.gui_thread_queue.get()
+        
+        
+    def notify(self, msg):
+        self.emit(QtCore.SIGNAL('notify'), msg)
         
     def save2mouse_file(self, fields, wait_save = False):
 #        #Wait till mouse file handler finishes with copying data fields

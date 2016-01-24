@@ -10,7 +10,7 @@ class TestRestore(unittest.TestCase):
         wf='/mnt/databig/debug/6'
         if os.path.exists(wf):
             shutil.rmtree('/mnt/databig/debug/6')
-        shutil.copytree('/mnt/tape/hillier/invivocortex/TwoPhoton/default_user/2016114/151', wf)
+        shutil.copytree('/mnt/mdrive/invivo/rc/default_user/20160121/151', wf)
         jobhandler.offline(wf,'/mnt/databig/debug/6a')
 
 

@@ -130,6 +130,67 @@ class ExperimentControl(object):
         self.application_log.flush()
         return message_to_screen
         
+    def notify_jobhandler(self):
+        try:
+            data={'id':self.id, 
+                    'stimulus': self.experiment_config_name, 
+                    'region': str(self.parameters['region_name']), 
+                    'user':str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),
+                    'animal_id': str(self.animal_parameters['id']),
+                    'region_add_date':str(self.scan_region['add_date']),
+                    'recording_started': self.recording_start_time,
+                    'is_measurement_ready': True,
+                    'is_measurement_ready_time': time.time(),
+                    'laser': self.laser_intensity,
+                    'depth':self.objective_position,
+                    'filename': os.path.basename(self.filenames['fragments'][0])}
+            
+            import zmq, cPickle as pickle
+            context=zmq.Context()
+            pusher = context.socket(zmq.PUSH)
+            port=self.config.JOBHANDLER_PUSHER_PORT
+            ip=self.machine_config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['GUI_ANALYSIS']['ANALYSIS']['LOCAL_IP']
+            lip=self.machine_config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['GUI_STIM']['STIM']['LOCAL_IP']
+            pusher.bind('tcp://{0}:{1}'.format(lip,port))
+            pusher.connect('tcp://{0}:{1}'.format(ip,port))
+            pusher.send(pickle.dumps(data,2),flags=zmq.NOBLOCK)
+            self.printl('File sent for analysis')
+            #Check if there is any job in context file
+            fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
+            h=hdf5io.Hdf5io(fn,filelocking=False)
+            h.load('jobs')
+            if not hasattr(h,'jobs'):
+                h.close()
+            else:
+                h.jobs=utils.array2object(h.jobs)
+                sent=0
+                for i in range(len(h.jobs)):
+                    print h.jobs[i]['id']
+                    pusher.send(pickle.dumps(h.jobs[i],2),flags=zmq.NOBLOCK)
+                    sent+=1
+                h.jobs=[]
+                if sent>0:
+                    self.printl('{0} files are resent for analysis'.format(sent))
+                h.jobs=utils.object2array(h.jobs)
+                h.save('jobs')
+                h.close()
+            pusher.close()
+        except:
+            #Save unsubmitted data to context file
+            fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
+            h=hdf5io.Hdf5io(fn,filelocking=False)
+            h.load('jobs')
+            if not hasattr(h,'jobs'):
+                h.jobs=[]
+            else:
+                h.jobs=utils.array2object(h.jobs)
+            h.jobs.append(data)
+            h.jobs=utils.object2array(h.jobs)
+            h.save('jobs')
+            h.close()
+            self.printl(traceback.format_exc())
+            self.printl('SOCnotifyEOCSending datafile to jobhandler failed, check error mesage on consoleEOP')
+        
     def _backup_raw_files(self):
         if self.abort: return
         if 1:
@@ -141,7 +202,7 @@ class ExperimentControl(object):
                 experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
             except:
                 self.printl(traceback.format_exc())
-                self.printl('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')
+                self.printl('SOCnotifyEOCWARNING: Automatic backup failed, please make sure that files are copied to u:\\backupEOP')
                 import pdb
                 pdb.set_trace()
                 raise 
@@ -312,6 +373,7 @@ class ExperimentControl(object):
                     scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                         parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
                 if scan_start_success:
+                    self.recording_start_time=time.time()
                     time.sleep(1.0)
                 else:
                     self.printl('Scan start ERROR, check netwok connection to MES, restart experiment or rename scan region')
@@ -398,7 +460,8 @@ class ExperimentControl(object):
                         time.sleep(0.1)
                         self.queues['gui']['out'].put('queue_put_problem_dummy_message')
                     time.sleep(0.1)
-                    self._backup_raw_files()
+                    self._backup_raw_files()#Backup comes first then notifying jobhandler. This ensures that even if notification fails backup takes place
+                    self.notify_jobhandler()
                     self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.id))#Notify gui about the new file
                     for i in range(5):
                         time.sleep(0.1)

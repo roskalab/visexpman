@@ -683,6 +683,9 @@ class VisionExperimentGui(QtGui.QWidget):
             self.poller.gui_thread_queue.put(False)
         else:
             self.poller.gui_thread_queue.put(True)
+            
+    def notify(self, msg):
+        QtGui.QMessageBox.question(self, '', msg, QtGui.QMessageBox.Ok)
 
     def execute_python(self):
         try:
