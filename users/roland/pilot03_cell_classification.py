@@ -57,6 +57,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['Chirp_Sweep']['FREQUENCY_RANGE'] = [1.0, 4.0]
         self.VARS['Chirp_Sweep']['STATIC_FREQUENCY'] = 2.0
         self.VARS['Chirp_Sweep']['REPEATS'] = 2
+        self.VARS['Chirp_Sweep']['COLOR'] = [1, 1, 0]        
         
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}

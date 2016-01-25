@@ -656,56 +656,40 @@ class ChirpSweep(experiment.Experiment):
             raise RuntimeError('This frequency range is not possible!')
         
         if hasattr(self.experiment_config, 'COLOR'):
-            self.color = self.experiment_config.COLOR
+            self.color = numpy.array(self.experiment_config.COLOR)
         else:
             self.color = numpy.array([1.0, 1.0, 1.0])
         
     def run(self):
         mid_contrast = numpy.mean(self.contrast_range)
-        all_contrasts = numpy.array([]).reshape(0,3)
     
         self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':0, 'counter':self.frame_counter})
         for rep in range(self.experiment_config.REPEATS):
             
             # Full Field:
-            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
 
-            #print shown_colors
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
-            #all_contrasts = numpy.array(shown_colors, ndmin=2)       
-            #print all_contrasts
+            self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[1])
             
-            shown_colors = self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[1])
-            #print shown_colors
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
-            #print all_contrasts
-            
-            shown_colors = self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[0])
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[0])
             
             # Frequency Chirp:
-            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
-            shown_colors = self.chirp(stimulus_duration = self.duration_freq, 
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast) 
+            self.chirp(stimulus_duration = self.duration_freq, 
                        contrast_range = numpy.array([self.contrast_range[1], self.contrast_range[1]]), 
                        frequency_range = self.frequency_range, color = self.color)
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
             
             # Contrast Chirp:
-            shown_colors = self.chirp(stimulus_duration = self.duration_contrast,
+            self.chirp(stimulus_duration = self.duration_contrast,
                         contrast_range = self.contrast_range,
                         frequency_range = numpy.array([self.static_frequency,self.static_frequency]),
                         color = self.color)
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
             
-            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
             
-            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
             
-        print all_contrasts
-        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter, 'contrasts': all_contrasts})
+        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter})
     # End of ChirpSweep
 
 class BatchStimulus(experiment.Experiment):
