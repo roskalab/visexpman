@@ -49,14 +49,14 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
 
         self.STIM_TYPE_CLASS['Chirp_Sweep'] = 'ChirpSweep'
         self.VARS['Chirp_Sweep'] = {}
-        self.VARS['Chirp_Sweep']['DURATION_BREAKS'] = 1.5
-        self.VARS['Chirp_Sweep']['DURATION_FULLFIELD'] = 4
+        self.VARS['Chirp_Sweep']['DURATION_BREAKS'] = 0.1 #1.5
+        self.VARS['Chirp_Sweep']['DURATION_FULLFIELD'] = 0.1 #4
         self.VARS['Chirp_Sweep']['DURATION_FREQ'] = 8
         self.VARS['Chirp_Sweep']['DURATION_CONTRAST'] = 8
         self.VARS['Chirp_Sweep']['CONTRAST_RANGE'] = [0.0, 1.0]
         self.VARS['Chirp_Sweep']['FREQUENCY_RANGE'] = [1.0, 4.0]
         self.VARS['Chirp_Sweep']['STATIC_FREQUENCY'] = 2.0
-        self.VARS['Chirp_Sweep']['REPEATS'] = 5
+        self.VARS['Chirp_Sweep']['REPEATS'] = 2
         
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}

@@ -607,10 +607,16 @@ class Chirp(experiment.Experiment):
     def run(self):
         
         self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':0, 'counter':self.frame_counter})
+        
+        all_contrasts = numpy.array([]).reshape(0,3)        
         for rep in range(self.experiment_config.REPEATS):
-            self.chirp(stimulus_duration = self.stimulus_duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)
-            self.show_fullscreen(color=0.5)
-        self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':1, 'counter':self.frame_counter})  
+            shown_colors = self.chirp(stimulus_duration = self.stimulus_duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)         
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            
+            shown_colors = self.show_fullscreen(color=0.5)
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            
+        self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':1, 'counter':self.frame_counter, 'contrasts': all_contrasts})  
     # End of Chirp
 
 class ChirpSweep(experiment.Experiment):
@@ -656,30 +662,50 @@ class ChirpSweep(experiment.Experiment):
         
     def run(self):
         mid_contrast = numpy.mean(self.contrast_range)
-               
+        all_contrasts = numpy.array([]).reshape(0,3)
+    
         self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':0, 'counter':self.frame_counter})
         for rep in range(self.experiment_config.REPEATS):
             
             # Full Field:
-            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
-            self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[1])
-            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+
+            #print shown_colors
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            #all_contrasts = numpy.array(shown_colors, ndmin=2)       
+            #print all_contrasts
+            
+            shown_colors = self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[1])
+            #print shown_colors
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            #print all_contrasts
+            
+            shown_colors = self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[0])
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
             
             # Frequency Chirp:
-            self.chirp(stimulus_duration = self.stimulus_duration, 
+            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            shown_colors = self.chirp(stimulus_duration = self.duration_freq, 
                        contrast_range = numpy.array([self.contrast_range[1], self.contrast_range[1]]), 
                        frequency_range = self.frequency_range, color = self.color)
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
             
-            # Amplitude Chirp:
-            self.chirp(stimulus_duration = self.stimulus_duration,
-                       contrast_range = self.contrast_range,
-                       frequency_range = numpy.array([self.static_frequency,self.static_frequency]),
+            # Contrast Chirp:
+            shown_colors = self.chirp(stimulus_duration = self.duration_contrast,
+                        contrast_range = self.contrast_range,
+                        frequency_range = numpy.array([self.static_frequency,self.static_frequency]),
                         color = self.color)
-            self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
             
-            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
             
-        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter})  
+            shown_colors = self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
+            
+        print all_contrasts
+        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter, 'contrasts': all_contrasts})
     # End of ChirpSweep
 
 class BatchStimulus(experiment.Experiment):

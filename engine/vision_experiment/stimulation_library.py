@@ -228,6 +228,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.log.info('show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')', source='stim')
             self._save_stimulus_frame_info(inspect.currentframe())
         self.screen.clear_screen(color = color_to_set)
+        shown_colors = [color_to_set]
+        
         if duration == 0.0:
             if flip:
                 self._flip(frame_trigger = frame_trigger, count = count)
@@ -236,24 +238,28 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             while not self.abort:
                 if i == 1:
                     self.screen.clear_screen(color = color_to_set)
+                    shown_colors.append(color_to_set)
                 if flip:
                     self._flip(frame_trigger = True, count = count)
                 i += 1
+                
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
             for i in range(nframes):
                 if i == 1:
-                    self.screen.clear_screen(color = color_to_set)
+                    self.screen.clear_screen(color = color_to_set)                    
                 if flip:
                     self._add_block_start(is_block, i, nframes)
                     self._flip(frame_trigger = frame_trigger, count = count)
                     self._add_block_end(is_block, i, nframes)
                 if self.abort:
                     break
+                shown_colors.append(color_to_set)
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         if count and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        return numpy.array(shown_colors)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, flip = True, is_block = False):
         '''
@@ -1776,7 +1782,8 @@ class AdvancedStimulation(StimulationHelpers):
         
         contrast = (amplitudes*numpy.sin(2*numpy.pi*frequencies*time) + 1.0) / 2.0    
         
-        print len(contrast)     
+        #print 'In stimulation_library.py chirp():'
+        #print self.config.SCREEN_EXPECTED_FRAME_RATE    
         
         if False:
             import matplotlib.pyplot as p
@@ -1793,17 +1800,25 @@ class AdvancedStimulation(StimulationHelpers):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         idx = 0
+        
+        shown_colors = []
+        
         while True:
             if self.abort or idx >= nTimePoints:
                 break
 
             self.screen.clear_screen(color = color * contrast[idx])
             self._flip(frame_trigger = True)
+            
+           # print color*contrast[idx]
+            shown_colors.append(color*contrast[idx])
             idx += 1
+            
         
         # Finish up
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        return numpy.array(shown_colors)
         # END OF chirp()        
         
 class TestStimulationPatterns(unittest.TestCase):
