@@ -586,17 +586,16 @@ class Chirp(experiment.Experiment):
             DURATION: in seconds
             CONTRAST_RANGE
             FREQUENCY_RANGE
+            REPEATS
         Optional:
             COLOR
     '''
     def prepare(self):
-        #self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
-        #if not self.experiment_config.N_WHITE_PIXELS:
-        #    self.n_white_pixels = None;
-        self.stimulus_duration = self.experiment_config.DURATION
+        self.repeats = self.experiment_config.REPEATS
+        self.stimulus_duration = self.experiment_config.DURATION*self.experiment_config.REPEATS
         self.contrast_range = numpy.array(self.experiment_config.CONTRAST_RANGE)
         self.frequency_range = numpy.array(self.experiment_config.FREQUENCY_RANGE)
-                       
+        
         if any(self.frequency_range > self.config.SCREEN_EXPECTED_FRAME_RATE):
             raise RuntimeError('This frequency range is not possible!')
         
@@ -605,26 +604,83 @@ class Chirp(experiment.Experiment):
         else:
             self.color = numpy.array([1.0, 1.0, 1.0])
         
-        
-        #npatterns = self.experiment_config.DURATION*self.flickering_frequency
-        #screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
-        #pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
-        #if pixel_size.shape[0] == 1:
-        #    pixel_size = [pixel_size[0], pixel_size[0]]
-        
-        #npixels = numpy.round(screen_size/pixel_size)
-        #n_channels = 1
-        #color = numpy.zeros((npatterns, npixels[0], npixels[1], n_channels))
-        #numpy.random.seed(0)
-        #self.textures = numpy.round(numpy.random.random(color.shape[:-1]))
-        
     def run(self):
         
-        self.stimulus_frame_info.append({'super_block':'ChirpStimulus', 'is_last':0, 'counter':self.frame_counter})
-        self.chirp(stimulus_duration = self.stimulus_duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)
-        self.show_fullscreen(color=0.5)
-        self.stimulus_frame_info.append({'super_block':'ChirpStimulus', 'is_last':1, 'counter':self.frame_counter})  
-    # End of ChirpStimulus
+        self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':0, 'counter':self.frame_counter})
+        for rep in range(self.experiment_config.REPEATS):
+            self.chirp(stimulus_duration = self.stimulus_duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)
+            self.show_fullscreen(color=0.5)
+        self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':1, 'counter':self.frame_counter})  
+    # End of Chirp
+
+class ChirpSweep(experiment.Experiment):
+    '''
+        Similar to Chirp stimulus, but designed such that there will be a full 
+        field stimulus first (contrast defined by maximal contrast_range), then
+        a frequency sweep and followed by an amplitude sweep.
+        During the breaks  before and after the full filed stimulus, as well as
+        after the second chirp, we will display the minimal contrast value.
+        (see Baden et al. 2016)
+        
+        Required:
+            DURATION_BREAKS
+            DURATION_FULLFIELD
+            DURATION_FREQ
+            DURATION_CONTRAST
+            FREQUENCY_RANGE
+            CONTRAST_RANGE
+            STATIC_FREQUENCY
+            REPEATS
+        Optional:
+            COLOR
+    '''
+    def prepare(self):
+        self.repeats = self.experiment_config.REPEATS
+        self.duration_freq = self.experiment_config.DURATION_FREQ
+        self.duration_contrast = self.experiment_config.DURATION_CONTRAST
+        self.duration_fullfield = self.experiment_config.DURATION_FULLFIELD
+        self.duration_breaks = self.experiment_config.DURATION_BREAKS
+        
+        self.stimulus_duration = self.experiment_config.REPEATS*(self.duration_freq+self.duration_contrast+self.duration_fullfield+2*self.duration_breaks)
+        self.contrast_range = numpy.array(self.experiment_config.CONTRAST_RANGE)
+        self.frequency_range = numpy.array(self.experiment_config.FREQUENCY_RANGE)
+        self.static_frequency = self.experiment_config.STATIC_FREQUENCY        
+        
+        if any(self.frequency_range > self.config.SCREEN_EXPECTED_FRAME_RATE):
+            raise RuntimeError('This frequency range is not possible!')
+        
+        if hasattr(self.experiment_config, 'COLOR'):
+            self.color = self.experiment_config.COLOR
+        else:
+            self.color = numpy.array([1.0, 1.0, 1.0])
+        
+    def run(self):
+        mid_contrast = numpy.mean(self.contrast_range)
+               
+        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':0, 'counter':self.frame_counter})
+        for rep in range(self.experiment_config.REPEATS):
+            
+            # Full Field:
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+            self.show_fullscreen(duration = self.duration_fullfield, color = self.color*self.contrast_range[1])
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+            
+            # Frequency Chirp:
+            self.chirp(stimulus_duration = self.stimulus_duration, 
+                       contrast_range = numpy.array([self.contrast_range[1], self.contrast_range[1]]), 
+                       frequency_range = self.frequency_range, color = self.color)
+            
+            # Amplitude Chirp:
+            self.chirp(stimulus_duration = self.stimulus_duration,
+                       contrast_range = self.contrast_range,
+                       frequency_range = numpy.array([self.static_frequency,self.static_frequency]),
+                        color = self.color)
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
+            
+            self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
+            
+        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter})  
+    # End of ChirpSweep
 
 class BatchStimulus(experiment.Experiment):
     '''

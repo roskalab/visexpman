@@ -38,14 +38,26 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['Chirp_Amp']['DURATION'] = 8
         self.VARS['Chirp_Amp']['CONTRAST_RANGE'] = [0.0, 1.0]
         self.VARS['Chirp_Amp']['FREQUENCY_RANGE'] = [2.0, 2.0]
-
+        self.VARS['Chirp_Amp']['REPEATS'] = 3
+        
         self.STIM_TYPE_CLASS['Chirp_Freq'] = 'Chirp'
         self.VARS['Chirp_Freq'] = {}
         self.VARS['Chirp_Freq']['DURATION'] = 8
         self.VARS['Chirp_Freq']['CONTRAST_RANGE'] = [1.0, 1.0]
         self.VARS['Chirp_Freq']['FREQUENCY_RANGE'] = [1.0, 4.0]
+        self.VARS['Chirp_Freq']['REPEATS'] = 5   
 
-
+        self.STIM_TYPE_CLASS['Chirp_Sweep'] = 'ChirpSweep'
+        self.VARS['Chirp_Sweep'] = {}
+        self.VARS['Chirp_Sweep']['DURATION_BREAKS'] = 1.5
+        self.VARS['Chirp_Sweep']['DURATION_FULLFIELD'] = 4
+        self.VARS['Chirp_Sweep']['DURATION_FREQ'] = 8
+        self.VARS['Chirp_Sweep']['DURATION_CONTRAST'] = 8
+        self.VARS['Chirp_Sweep']['CONTRAST_RANGE'] = [0.0, 1.0]
+        self.VARS['Chirp_Sweep']['FREQUENCY_RANGE'] = [1.0, 4.0]
+        self.VARS['Chirp_Sweep']['STATIC_FREQUENCY'] = 2.0
+        self.VARS['Chirp_Sweep']['REPEATS'] = 5
+        
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
         self.VARS['WhiteNoise']['DURATION_MINS'] = 30.0 # min
@@ -106,6 +118,13 @@ class Pilot03ChirpFreq(Pilot03BatchConfig):
     def _create_parameters(self):
         Pilot03BatchConfig._create_parameters(self)
         self.sub_stimulus = 'Chirp_Freq'
+        Pilot03BatchConfig.extract_experiment_type(self, self)
+        self._create_parameters_from_locals(locals())
+     
+class Pilot03ChirpSweep(Pilot03BatchConfig):
+    def _create_parameters(self):
+        Pilot03BatchConfig._create_parameters(self)
+        self.sub_stimulus = 'Chirp_Sweep'
         Pilot03BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
         
