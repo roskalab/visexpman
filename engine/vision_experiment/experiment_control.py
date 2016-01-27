@@ -14,6 +14,7 @@ import traceback
 import gc
 import shutil
 import copy
+import zmq
 
 import experiment
 import experiment_data
@@ -54,7 +55,8 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
-
+                    
+        
     def run_experiment(self, context):
         '''
         Runs a series or a single experiment depending on the call parameters
@@ -85,6 +87,8 @@ class ExperimentControl(object):
         '''
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
+        if context.has_key('pusher'):
+            self.pusher=context['pusher']
         message_to_screen = ''
         if not self.connections['mes'].connected_to_remote_client(timeout = 3.0) and self.config.PLATFORM == 'mes':
             message_to_screen = self.printl('No connection with MES, {0}'.format(self.connections['mes'].endpoint_name))
@@ -130,6 +134,24 @@ class ExperimentControl(object):
         self.application_log.flush()
         return message_to_screen
         
+    def wait4jobhandler_resp(self,socket):
+        t0=time.time()
+#        time.sleep(5)
+#        try:
+#            resp=socket.recv()
+#        except zmq.ZMQError:
+#            resp='timeout'
+        while True:
+            try:
+                resp=socket.recv(flags=zmq.NOBLOCK)
+                break
+            except zmq.ZMQError:
+                if time.time()-t0>7:
+                    resp='timeout'
+                    break
+            time.sleep(0.5)
+        return resp
+                        
     def notify_jobhandler(self):
         try:
             data={'id':self.id, 
@@ -140,57 +162,41 @@ class ExperimentControl(object):
                     'region_add_date':str(self.scan_region['add_date']),
                     'recording_started': self.recording_start_time,
                     'is_measurement_ready': True,
-                    'is_measurement_ready_time': time.time(),
+                    'measurement_ready_time': time.time(),
                     'laser': self.laser_intensity,
                     'depth':self.objective_position,
                     'filename': os.path.basename(self.filenames['fragments'][0])}
-            
-            import zmq, cPickle as pickle
-            context=zmq.Context()
-            pusher = context.socket(zmq.PUSH)
-            port=self.config.JOBHANDLER_PUSHER_PORT
-            ip=self.machine_config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['GUI_ANALYSIS']['ANALYSIS']['LOCAL_IP']
-            lip=self.machine_config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['GUI_STIM']['STIM']['LOCAL_IP']
-            pusher.bind('tcp://{0}:{1}'.format(lip,port))
-            pusher.connect('tcp://{0}:{1}'.format(ip,port))
-            pusher.send(pickle.dumps(data,2),flags=zmq.NOBLOCK)
-            self.printl('File sent for analysis')
-            #Check if there is any job in context file
-            fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
-            h=hdf5io.Hdf5io(fn,filelocking=False)
-            h.load('jobs')
-            if not hasattr(h,'jobs'):
-                h.close()
-            else:
-                h.jobs=utils.array2object(h.jobs)
-                sent=0
-                for i in range(len(h.jobs)):
-                    print h.jobs[i]['id']
-                    pusher.send(pickle.dumps(h.jobs[i],2),flags=zmq.NOBLOCK)
-                    sent+=1
-                h.jobs=[]
-                if sent>0:
-                    self.printl('{0} files are resent for analysis'.format(sent))
-                h.jobs=utils.object2array(h.jobs)
-                h.save('jobs')
-                h.close()
-            pusher.close()
+            self.savejob2stimcontext(data)
+#            self.printl('Sending to jobhandler')
+#            self.pusher.send(pickle.dumps(data,2),flags=zmq.NOBLOCK)
+#            resp=self.wait4jobhandler_resp(self.pusher)
+##            print resp
+##            pusher.close()
+#            if resp != self.id:
+#                self.printl('No response from jobhandler. Make sure that jobhandler is running')
+#                self.savejob2stimcontext(data)
+##                pusher.close()
+#                return
+#            self.printl('File sent for analysis')
         except:
-            #Save unsubmitted data to context file
-            fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
-            h=hdf5io.Hdf5io(fn,filelocking=False)
-            h.load('jobs')
-            if not hasattr(h,'jobs'):
-                h.jobs=[]
-            else:
-                h.jobs=utils.array2object(h.jobs)
-            h.jobs.append(data)
-            h.jobs=utils.object2array(h.jobs)
-            h.save('jobs')
-            h.close()
+#            pusher.close()
             self.printl(traceback.format_exc())
-            self.printl('SOCnotifyEOCSending datafile to jobhandler failed, check error mesage on consoleEOP')
+#            self.printl('Sending datafile to jobhandler failed, check error mesage on console')
+#            self.savejob2stimcontext(data)
+            
+    def savejob2stimcontext(self,job):
+        fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
+        h=hdf5io.Hdf5io(fn,filelocking=False)
+        h.load('jobs')
+        if not hasattr(h,'jobs'):
+            h.jobs=[]
         
+        h.jobs.append(job)
+        #h.jobs=utils.object2array(h.jobs)
+        h.save('jobs')
+        h.close()
+        self.printl('Job is saved to local context')
+                
     def _backup_raw_files(self):
         if self.abort: return
         if 1:
@@ -202,7 +208,7 @@ class ExperimentControl(object):
                 experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
             except:
                 self.printl(traceback.format_exc())
-                self.printl('SOCnotifyEOCWARNING: Automatic backup failed, please make sure that files are copied to u:\\backupEOP')
+                self.printl('SOCnotifyEOCERROR: Automatic backup failed, please make sure that files are copied to u:\\backupEOP')
                 import pdb
                 pdb.set_trace()
                 raise 

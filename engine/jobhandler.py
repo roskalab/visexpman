@@ -758,7 +758,10 @@ def offline(folder,output_folder=None,video=False):
             data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
             mes_extractor.hdfhandler.close()
             file.set_file_dates(full_fragment_path, file_info)
-            hdf52mat(full_fragment_path)
+            h=tables.open_file(full_fragment_path,mode='r')
+            rootnodes=[v for v in dir(h.root) if v[0]!='_']
+            h.close()
+            hdf52mat(full_fragment_path, rootnodes, '_mat')
             if video:
                 from visexpman.users.zoltan.mes2video import mes2video
                 mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])

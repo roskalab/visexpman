@@ -7,6 +7,22 @@ rei_data='/mnt/databig/debug/cacone'
 rei_data_tape=os.path.join(tape_path,'retina')
 last_file_access_timout=300
 
+def is_id_on_drive(id, drive):
+    return len([f for f in list_all_files(drive) if str(id) in os.path.basename(f) and os.path.getsize(f)>0])==2
+
+def check_backup(id):
+    #Check tape first
+    status=''
+    if is_id_on_drive(id, tape_path):
+        status='tape'
+    if is_id_on_drive(id, mdrive):
+        status+=' m drive'
+    if is_id_on_drive(id, transient_backup_path):
+        status +=' databig'
+    if status=='':
+        status='not found'
+    return status
+
 def sendmail(to, subject, txt):
     import subprocess,file
     message = """\

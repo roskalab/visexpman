@@ -544,7 +544,7 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
 
 import paramiko,platform,time
 class RlvivoBackup(object):
-    def __init__(self, files,user,id,animalid):
+    def __init__(self, files,user,id,animalid, todatabig=False):
         '''
         Assumes that:
         1) /mnt/databig is mounted as u drive
@@ -567,8 +567,10 @@ class RlvivoBackup(object):
         self.connect()
         self.target_folder()
         self.copy()
+        if todatabig:
+            self.target_folder(root='/mnt/databig/data')
+            self.copy()
         self.close()
-        
         
     def connect(self):
         self.ssh = paramiko.SSHClient()
@@ -583,21 +585,19 @@ class RlvivoBackup(object):
         if emsg!='':
             raise RuntimeError(emsg)
         
-    def target_folder(self):
-        self.target_dir='/'.join(['/mnt/databig/backup',self.user,self.id,str(self.animalid)])
+    def target_folder(self,root='/mnt/databig/backup'):
+        self.target_dir='/'.join([root,self.user,self.id,str(self.animalid)])
         i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
         i,o,e2=self.ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
-        for e in [e1,e2]:
-            self.check_ssh_error(e)
+        #for e in [e1,e2]:
+        print e2.readline()
+        self.check_ssh_error(e1)
         
     def copy(self):
         for f in self.files:
             flinux='/'.join(f.replace('v:\\', '/mnt/datafast/').replace('V:\\', '/mnt/datafast/').split('\\'))
             i,o,e=self.ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
             self.check_ssh_error(e)
-
-
-
    
 class TestExperimentData(unittest.TestCase):
     @unittest.skip("")

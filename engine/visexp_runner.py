@@ -1,7 +1,7 @@
 #TODO: ENABLE_UDP shall be replaced with udp config dictionary (similar to mes interface)
 import os.path
 import sys
-import threading
+import threading,multiprocessing
 import time
 import unittest
 import os.path

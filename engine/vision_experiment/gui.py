@@ -570,6 +570,7 @@ class MainWidget(QtGui.QWidget):
     def create_widgets(self):
         #MES related
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
+        self.resendjobs_button = QtGui.QPushButton('Resend Jobs', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -583,6 +584,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 6, 2)
         
         self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
+        self.layout.addWidget(self.resendjobs_button, 9, 1, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -1489,6 +1491,10 @@ class MainPoller(Poller):
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCstopEOP')
         self.printc('Stage stopped')
+        
+    def resendjobs(self):
+        self.queues['stim']['out'].put('SOCresendjobsEOCEOP')
+        self.printc('Stim is requested to resend jobs to Jobhandler')
 
 ################### MES #######################
     def set_objective(self):
@@ -1672,7 +1678,7 @@ class MainPoller(Poller):
             return
         user=str(self.parent.animal_parameters_widget.user.currentText())
         if user=='':
-            self.printc('Select user!')
+            self.notify('Select user!')
             return
         self.animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
@@ -2639,10 +2645,12 @@ class MainPoller(Poller):
                     else:
                         d=self.animal_parameters['add_date']
                     id=str(d.split(' ')[0].replace('-',''))
-                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
+                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']),todatabig=True)
                 except:
                     self.printc(traceback.format_exc())
-                    self.printc('WARNING: Automatic backup failed, please make sure that files are copied to u:\\backup')
+                    msg='ERROR: Automatic backup failed, please make sure that files are copied to u:\\backup'
+                    self.printc(msg)
+                    self.notify(msg)
                     raise 
                 
     def cells2pickled_ready(self, cells):

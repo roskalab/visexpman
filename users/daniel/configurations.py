@@ -489,6 +489,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         else:            
             v_drive_folder = '/mnt/datafast'
             BACKUP_PATH='/mnt/databig/backup'
+        ANIMAL_FOLDER='/mnt/datafast/animals'
         v_drive_data_folder = os.path.join(v_drive_folder,  'experiment_data')
         LOG_PATH = os.path.join(v_drive_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -548,8 +549,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_PIXEL_WIDTH = [477.0/1280., [0, 0.99]] # mm, screen
             gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         IMAGE_PROJECTED_ON_RETINA = False
-        FULLSCREEN = '--debug'not in sys.argv
-        
+        FULLSCREEN = False
+        ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led']
     
 
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
@@ -558,6 +559,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         PLATFORM = 'mes'
 #        PLATFORM = 'standalone'
         #=== Network ===
+        self.JOBHANDLER_PUSHER_PORT=10100
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True

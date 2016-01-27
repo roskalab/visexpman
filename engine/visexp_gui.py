@@ -203,6 +203,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.common_widget.register_button, 'register')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
+        self.connect_and_map_signal(self.main_widget.resendjobs_button, 'resendjobs')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
