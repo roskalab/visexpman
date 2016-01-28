@@ -571,6 +571,7 @@ class MainWidget(QtGui.QWidget):
         #MES related
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
         self.resendjobs_button = QtGui.QPushButton('Resend Jobs', self)
+        self.updatejobs_button = QtGui.QPushButton('Update Jobs', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -585,6 +586,7 @@ class MainWidget(QtGui.QWidget):
         
         self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
         self.layout.addWidget(self.resendjobs_button, 9, 1, 1, 1)
+        self.layout.addWidget(self.updatejobs_button, 9, 2, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -764,6 +766,33 @@ class MainPoller(Poller):
         self.init_variables()
         self.load_context()
         self.initialize_mouse_file()
+        #Timer for updating process status
+        self.process_status_timer = QtCore.QTimer()
+        self.process_status_timer.timeout.connect(self.update_process_status)
+        self.process_status_timer.start(10000)
+        
+    def update_process_status(self):
+        animalid= os.path.basename(self.mouse_file).split('_')[1]
+        region=self.parent.get_current_region_name()
+        user=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
+        path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
+        if os.path.exists(path):
+            sig=sum([i for i in os.stat(path)])
+            if not hasattr(self, 'lastmtime') or self.lastmtime!=sig or (hasattr(self, 'last_update') and time.time()-self.last_update>120):
+                txt=file.read_text_file(path)
+                self.lastmtime=sig
+                self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
+                self.last_update=time.time()
+        else:
+            self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('')
+            
+    def processstatus2gui(self):
+        animalid= os.path.basename(self.mouse_file).split('_')[1]
+        region=self.parent.get_current_region_name()
+        user=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
+        path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
+        if os.path.exists(path):
+            self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
         
     def connect_signals(self):
         Poller.connect_signals(self)
@@ -825,10 +854,7 @@ class MainPoller(Poller):
             h.save(['last_region_name', 'last_mouse_file_name'], overwrite = True)
             h.close()
             self.printc('Copy mouse file for jobhandler')
-            print self.mouse_file2jobhandler(mouse_file=self.mouse_file,tag = 'jobhandler_prev')
-#            mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
-#            if os.path.exists(mouse_file_copy):
-#                os.remove(mouse_file_copy)
+            
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -902,7 +928,8 @@ class MainPoller(Poller):
                             self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                             os.remove(self.z_stack_path)
                         elif command == 'measurement_ready':
-                            self.add_measurement_id(parameter)
+                            if 0:
+                                self.add_measurement_id(parameter)
                         elif command == 'fragment_check_ready':
                             #ID is saved, flag will be updated in mouse later when the measurement file is closed
                             self.fragment_check_ready_id = parameter
@@ -964,14 +991,12 @@ class MainPoller(Poller):
         self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly
         self.wait_mouse_file_save()
         newmousefn=os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and newmousefn !=self.mouse_file:
-            self.printc('Copy previous mouse file for jobhandler')
-            print self.mouse_file2jobhandler(mouse_file=self.mouse_file,tag = 'jobhandler_prev')
-        self.mouse_file = newmousefn
-        self.load_mouse_file()
-#        self.backup_mousefile()
-        self.reset_jobhandler()
-        self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
+        if newmousefn!=self.mouse_file:
+            self.mouse_file = newmousefn
+            self.load_mouse_file()
+    #        self.backup_mousefile()
+            self.reset_jobhandler()
+            self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
         
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
@@ -1698,9 +1723,6 @@ class MainPoller(Poller):
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
-        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
-            self.printc('Copy previous mouse file for jobhandler')
-            print self.mouse_file2jobhandler(mouse_file=self.mouse_file,tag = 'jobhandler_prev')
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
         
         if os.path.exists(self.mouse_file):
@@ -2255,6 +2277,7 @@ class MainPoller(Poller):
         h.close()
         self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
+        time.sleep(0.5)
         self.queues['stim']['out'].put(command)
         
     def previous_experiment(self):
@@ -2555,7 +2578,7 @@ class MainPoller(Poller):
         
         
     def notify(self, msg):
-        self.emit(QtCore.SIGNAL('notify'), msg)
+        self.emit(QtCore.SIGNAL('notify'), str(msg))
         
     def save2mouse_file(self, fields, wait_save = False):
 #        #Wait till mouse file handler finishes with copying data fields

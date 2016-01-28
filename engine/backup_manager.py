@@ -1,11 +1,14 @@
 import os,shutil,time,logging,datetime,filecmp
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton/new'
-mdrive='/mnt/mdrive/invivo/rc'
+mdrive='/mnt/mdrive/invivo/rc/raw'
 logfile_path='/mnt/datafast/log/backup_manager.txt'
 rei_data='/mnt/databig/debug/cacone'
 rei_data_tape=os.path.join(tape_path,'retina')
 last_file_access_timout=300
+
+transient_processed_files='/mnt/databig/processed'
+mdrive_processed='/mnt/mdrive/invivo/rc/processed'
 
 def is_id_on_drive(id, drive):
     return len([f for f in list_all_files(drive) if str(id) in os.path.basename(f) and os.path.getsize(f)>0])==2
@@ -75,6 +78,27 @@ def copy_file(f):
         if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape):
             shutil.copy2(f,target_path_tape)
             logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(target_path_tape)))
+        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m):#Mouse file may be updated with scan regions
+            shutil.copyfile(f,target_path_m)
+            logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
+    except:
+        import traceback
+        msg=traceback.format_exc()
+        logging.error(msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager cortical file copy error', msg)
+        
+def copy_processed_file(f):
+    try:
+        path=f.replace(transient_processed_files+'/','')
+        target_path_m=os.path.join(mdrive_processed,path)
+        if os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m):#Already copied up
+            os.remove(f)
+            logging.info('Deleted {0}'.format(f))
+            return
+        if not os.path.exists(os.path.dirname(target_path_m)):
+            os.makedirs(os.path.dirname(target_path_m))
+        if not is_file_closed(f):
+            return
         if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_tape):
             shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
@@ -130,6 +154,13 @@ def run():
     
     for f in files:
         copy_file(f)
+        
+    #Copy processed datafiles from rlvivo to m drive
+    files = list_all_files(transient_processed_files)
+    files.sort()
+    for f in files:
+        copy_file(f)
+        
     rei_backup()
     logging.info('done')
 

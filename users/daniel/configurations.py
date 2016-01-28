@@ -501,6 +501,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         if os.name != 'nt':
             DATABIG_PATH = '/mnt/databig/data'
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
+            self.PROCESSED_FILES_PATH='/mnt/databig/processed'
         else:
             DATABIG_PATH = 'u:\\data'
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
@@ -549,7 +550,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_PIXEL_WIDTH = [477.0/1280., [0, 0.99]] # mm, screen
             gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         IMAGE_PROJECTED_ON_RETINA = False
-        FULLSCREEN = False
+        FULLSCREEN = not False
         ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led']
     
 

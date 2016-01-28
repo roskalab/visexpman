@@ -75,7 +75,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
-        
+
     def create_gui(self):
         self.main_widget = gui.MainWidget(self, self.config)
         self.animal_parameters_widget = gui.AnimalParametersWidget(self, self.config)
@@ -204,6 +204,7 @@ class VisionExperimentGui(QtGui.QWidget):
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
         self.connect_and_map_signal(self.main_widget.resendjobs_button, 'resendjobs')
+        self.connect_and_map_signal(self.main_widget.updatejobs_button, 'processstatus2gui')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
@@ -449,7 +450,8 @@ class VisionExperimentGui(QtGui.QWidget):
                 status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
         else:
             status_text = ''
-        self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
+        if 0:
+            self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
 
     def update_cell_list(self):
         region_name = self.get_current_region_name()

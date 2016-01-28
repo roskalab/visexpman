@@ -14,9 +14,7 @@ from visexpman.engine import backup_manager
 dbfilelock=threading.Lock()
 THREAD=True
 GUI_CONN=not False
-#TODO: P1: analysis fails for some reason, ignore it
-#TODO: P1:, generate current scan region message for gui, for testing: add job
-#TODO: P2: consider recent scan region,background jobs: backup animal files, check backup status, check files (mouse file too) on u:\data, consider current user too,take most recent for copy and convert,  mesextractor after same file's analysis
+#TODO: P2:backup animal files, check backup status, check files (mouse file too) on u:\data,
 
 class Jobhandler(object):
     def __init__(self,user,config_class):
@@ -78,11 +76,10 @@ class Jobhandler(object):
                     self.process_job(nextfunction, nextpars)
             except:
                 self.printl(traceback.format_exc(),'error')
-                pdb.set_trace()
+                #pdb.set_trace()
             if utils.enter_hit(): break
             time.sleep(0.01)
             if int(time.time())%20==0:
-                #self.show_current_region()
                 logging.debug('alive')
                 time.sleep(1)
         self.printl('Jobhandler is shutting down')
@@ -96,17 +93,11 @@ class Jobhandler(object):
     def process_job(self,nextfunction, nextpars):
         getattr(self,nextfunction)(*nextpars)
         
-    def show_current_region(self):
-        ca=self.get_active_animal()
-        h=DatafileDatabase(self.current_animal)
-        files=dict([(r['recording_started'], [r['region'], r['stimulus'], r['depth'], r['id'], r['is_mesextractor'],r['is_analyzed'], r['is_converted']]) for r in h.hdf5.root.datafiles])
-        h.close()
-        
     def get_active_animal(self):
         afiles= fileop.find_files_and_folders(self.config.ANIMAL_FOLDER)[1]
         now=time.time()
         #Exclude files which have not been modified in the last 30 days
-        recent_files=[a for a in afiles if now-os.stat(a).st_mtime<30*86400]
+        recent_files=[a for a in afiles if now-os.stat(a).st_mtime<30*86400 and a[-5:]=='.hdf5']
         if len(recent_files)==0:
             return
         #Read status info from files
@@ -141,10 +132,10 @@ class Jobhandler(object):
         try:
             h=tables.open_file(self.current_animal, mode = "r")
             recent_scan_regions=dict([(row['recording_started'],row['region']) for row in h.root.datafiles.where('(~is_analyzed | ~is_mesextractor | ~is_converted) & is_measurement_ready')])
-            recent_scan_region=recent_scan_regions[max(recent_scan_regions.keys())]
+            current_scan_region=recent_scan_regions[max(recent_scan_regions.keys())]
             allfiles=fileop.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH)[1]
             jobs={}
-            for row in h.root.datafiles.where('(~is_converted | ~is_analyzed | ~is_mesextractor) & is_measurement_ready'):
+            for row in h.root.datafiles.where('(~is_converted | ~is_analyzed | ~is_mesextractor) & is_measurement_ready & ~is_error'):
                 if not row['is_mesextractor']:
                     weight=1
                     offset=0
@@ -154,6 +145,9 @@ class Jobhandler(object):
                 elif row['is_mesextractor'] and row['is_analyzed']:
                     weight=0
                     offset=0
+#                if row['region']==current_scan_region:#Increase priority for current scan regions
+#                    weight+=2
+                    
                 priority=10**(numpy.ceil(numpy.log10(row['recording_started']))+1)*weight+row['recording_started']+offset
                 filename=[f for f in allfiles if os.path.basename(f)==row['filename']][0]
                 next_params=[filename]
@@ -187,19 +181,33 @@ class Jobhandler(object):
             return  nextfunction, nextpars
         else:
             self.printl('Job cannot be selected')
+            pdb.set_trace()
             return None,None
         
     def mesextractor(self,filename):
-        file_info = os.stat(filename)
-        mes_extractor = importers.MESExtractor(filename, config = self.analysis_config)
-        data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
-        mes_extractor.hdfhandler.close()
-        fileop.set_file_dates(filename, file_info)
-        self.printl('MESextractor done')
+        if not os.path.exists(filename):
+            error_msg='hdf5 file not found'
+        elif not os.path.exists(filename.replace('.hdf5','.mat')):
+            error_msg='mat file not found'
+        elif os.path.getsize(filename)<1e6:
+           error_msg='hdf5 file corrupt'
+        elif os.path.getsize(filename.replace('.hdf5','.mat'))<5e6:
+            error_msg= 'mat file corrupt'
+        else:
+            error_msg=''
+            file_info = os.stat(filename)
+            mes_extractor = importers.MESExtractor(filename, config = self.analysis_config)
+            data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
+            mes_extractor.hdfhandler.close()
+            fileop.set_file_dates(filename, file_info)
+            self.printl('MESextractor done')
         dbfilelock.acquire()
         try:
             db=DatafileDatabase(self.current_animal)
-            db.update(filename=os.path.basename(filename), is_mesextractor=True, mesextractor_time=time.time())
+            if error_msg=='':
+                db.update(filename=os.path.basename(filename), is_mesextractor=True, mesextractor_time=time.time())
+            else:
+                db.update(filename=os.path.basename(filename), error_message=error_msg, is_error=True)
         except:
             self.printl(traceback.format_exc(),'error')
         finally:
@@ -254,7 +262,7 @@ class Jobhandler(object):
             mat_data={}
             for rn in rootnodes:
                 mat_data[rn]=h.findvar(rn)
-            if mat_data['soma_rois_manual_info']['roi_centers']=={}:
+            if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
                 del mat_data['soma_rois_manual_info']
             h.close()
             matfile=filename.replace('.hdf5', '_mat.mat')
@@ -262,7 +270,10 @@ class Jobhandler(object):
             self.printl('Converted to {0}'.format(matfile))
             files2copy.append(matfile)
         #dst folder
-        dst_folder=os.path.join(self.config.DATABIG_PATH,user,region_add_date.split(' ')[0].replace('-',''),animal_id)
+        if user=='daniel' or user=='default_user':
+            dst_folder=os.path.join(self.config.DATABIG_PATH,region_add_date.split(' ')[0].replace('-',''),animal_id)
+        else:
+            dst_folder=os.path.join(self.config.PROCESSED_FILES_PATH,user,region_add_date.split(' ')[0].replace('-',''),animal_id)
         if not os.path.exists(dst_folder):
             logging.info('Creating {0}'.format(dst_folder))
             os.makedirs(dst_folder)
@@ -273,12 +284,16 @@ class Jobhandler(object):
         #Copy pngs if exists
         pngfolder=os.path.join(os.path.dirname(filename),'output', os.path.basename(filename))
         if os.path.exists(pngfolder) and len(os.listdir(pngfolder))>0:
-            dst_pngfolder=os.path.join(dst_folder,'output')
-            if not os.path.exists(dst_pngfolder):
-                logging.info('Creating {0}'.format(dst_pngfolder))
-                os.makedirs(dst_pngfolder)
-                os.chmod(dst_pngfolder,0777)
-            shutil.copytree(pngfolder,dst_pngfolder)
+            dst_pngfolder=os.path.join(dst_folder,'output',os.path.basename(filename))
+#            if not os.path.exists(dst_pngfolder):
+#                logging.info('Creating {0}'.format(dst_pngfolder))
+#                os.makedirs(dst_pngfolder)
+#                os.chmod(dst_pngfolder,0777)
+            try:
+                shutil.copytree(pngfolder,dst_pngfolder)
+            except:
+                self.printl(traceback.format_exc())
+                pdb.set_trace()
             logging.info('copy files from {0} to {1}'.format(pngfolder, dst_pngfolder))
         self.printl('File copy done')
         dbfilelock.acquire()
@@ -379,6 +394,7 @@ class Datafile(tables.IsDescription):
     converted_time = tables.Float64Col()
     backup_status = tables.StringCol(16)#on databig/on tape/on m drive/on tape and m drive/not found
     backup_ok_time = tables.Float64Col()
+    is_error = tables.BoolCol()
     error_message=tables.StringCol(256)
     laser = tables.Float64Col()
     depth = tables.Float64Col()
@@ -395,6 +411,7 @@ class DatafileDatabase(object):
             os.chmod(os.path.dirname(self.filename),0777)
         chmod=os.path.exists(self.filename)
         self.hdf5 = tables.open_file(self.filename, mode = "a" if not chmod else 'r+', title = animal_id)
+        self.file_changed=False
         if not chmod:
             os.chmod(self.filename,0777)
         logging.info('Opening {0}'.format(self.filename))
@@ -419,6 +436,7 @@ class DatafileDatabase(object):
         item.append()
         self.hdf5.root.last_job_added[0]+=int(time.time())
         self.hdf5.flush()
+        self.file_changed=True
         logging.info('{0} added to database'.format(kwargs['id']))
 
     def update(self,**kwargs):
@@ -439,6 +457,8 @@ class DatafileDatabase(object):
                     row[f]=v
                 row.update()
             self.hdf5.flush()
+            logging.info('{0} updated'.format(key))
+            self.file_changed=True
 
     def check(self):
         '''
@@ -451,12 +471,32 @@ class DatafileDatabase(object):
         '''
         pass
         
-    def current_region(self):
-        pass
+    def export(self):
+        '''
+        Export database to txt format which can be displayed by a webpage
+        '''
+        regions=list(set([r['region'] for r in self.hdf5.root.datafiles]))
+        for region in regions:
+            lines={}
+            for row in self.hdf5.root.datafiles.where('(region=="{0}")'.format(region)):
+                state= [row['is_measurement_ready'],row['is_mesextractor'],row['is_analyzed'],row['is_converted']]
+                state=''.join(['*' if s else ' ' for s in state ])
+                line='{0},{1},{5}%,{2} {3}{4}\r\n'.format(row['stimulus'],row['depth'],row['id'], state, 'e' if row['is_error'] else '',int(row['laser']))
+                lines[row['id']]=line
+                pass
+            export_filename=self.filename.replace('.hdf5','_{0}.txt'.format(region))
+            fp=open(export_filename,'w')
+            ids=lines.keys()
+            ids.sort()
+            [fp.write(lines[i]) for i in ids]
+            fp.close()
 
     def close(self):
         logging.info('Closing {0}'.format(self.filename))
+        if self.file_changed:
+            self.export()
         self.hdf5.close()
+        
 
 class TestDatafileDatabase(unittest.TestCase):
     def test_01(self):
@@ -486,13 +526,41 @@ class TestDatafileDatabase(unittest.TestCase):
         print t0-time.time()
         
         
-        
+        dfdb.export()
         #Tests
         self.assertEqual(dfdb.hdf5.root.datafiles.nrows-initial_nrows, n+3)
         self.assertEqual(len([i for i in dfdb.hdf5.root.datafiles.where('id=={0}'.format(id))]),1)
         self.assertGreaterEqual(len([i for i in dfdb.hdf5.root.datafiles.where('filename==\'okokok\'')]),n)
+        
         dfdb.close()
         print sum(t)/1000
+        
+        
+def folder2stimcontext(folder):
+    fn=os.path.join('/mnt/datafast/context','stim.hdf5')
+    h=hdf5io.Hdf5io(fn,filelocking=False)
+    h.load('jobs')
+    if not hasattr(h,'jobs'):
+        h.jobs=[]
+    #fragment_xy_region5_37_201_-72.6_MovingGratingNoMarching_1453402731_0.hdf5
+    for f in fileop.listdir_fullpath(folder):
+        if f[-5:]!='.hdf5' and 'fragment' in f:continue
+        tags=os.path.basename(f).split('_')
+        data={'id':tags[-2], 
+                    'stimulus': tags[-3], 
+                    'region': '_'.join(tags[2:-4]), 
+                    'user':'zoltan',
+                    'animal_id': 'TT001',
+                    'region_add_date':'20170101 000',
+                    'recording_started': int(tags[-2]),
+                    'is_measurement_ready': True,
+                    'measurement_ready_time': float(tags[-2]),
+                    'laser': 10.0,
+                    'depth':float(tags[-4]),
+                    'filename': os.path.basename(f)}
+        h.jobs.append(data)
+    h.save('jobs')
+    h.close()
         
 if __name__=='__main__':
     if len(sys.argv)==1:

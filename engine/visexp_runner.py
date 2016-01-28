@@ -107,6 +107,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
                 if now - last_stage_read > 60.0:#DEBUG
                     last_stage_read = now
                     self.stage('read',togui=False)
+                #self.resendjobs()
                 #To avoid race condition
                 time.sleep(0.1)
         except:

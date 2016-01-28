@@ -47,6 +47,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             if self.stage_origin == None:
                 self.stage_origin = numpy.zeros(3)
         self.initzmq()
+        self.last_send_time=time.time()
+        self.job_resend_period=40#second
                 
     def initzmq(self):
         context=zmq.Context()
@@ -94,13 +96,17 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 resp=socket.recv(flags=zmq.NOBLOCK)
                 break
             except zmq.ZMQError:
-                if time.time()-t0>10:
+                if time.time()-t0>2:
                     resp='timeout'
                     break
             time.sleep(0.5)
         return resp
         
     def resendjobs(self):
+#        if time.time()-self.last_send_time<self.job_resend_period:
+#            self.last_send_time=time.time()
+#            return 'not'
+        print 'send'
         fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
         h=hdf5io.Hdf5io(fn,filelocking=False)
         h.load('jobs')
@@ -114,19 +120,20 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                     h.close()
                     return 'not sent'
                 self.printl('Sending jobs')
-            for i in range(len(h.jobs)):
-                self.pusher.send(pickle.dumps(h.jobs[i],2),flags=zmq.NOBLOCK)
-                resp=self.wait4jobhandler_resp(self.pusher)
-                if resp==h.jobs[i]['id']:
-                    sent.append(h.jobs[i]['id'])
-                    self.printl(h.jobs[i]['id'])
-                else:
-                    self.printl('Sending failed, {0}'.format(resp))
-                    break#Do not continue if does not work
-            h.jobs=[j for j in h.jobs if j['id'] not in sent]
-            if len(sent)>0:
-                self.printl('Done')
-                h.save('jobs')
+                for i in range(len(h.jobs)):
+                    self.pusher.send(pickle.dumps(h.jobs[i],2),flags=zmq.NOBLOCK)
+                    resp=self.wait4jobhandler_resp(self.pusher)
+                    self.last_send_time=time.time()
+                    if resp==h.jobs[i]['id']:
+                        sent.append(h.jobs[i]['id'])
+                        self.printl(h.jobs[i]['id'])
+                    else:
+                        self.printl('Sending failed, {0}'.format(resp))
+                        break#Do not continue if does not work
+                h.jobs=[j for j in h.jobs if j['id'] not in sent]
+                if len(sent)>0:
+                    self.printl('Done')
+                    h.save('jobs')
             h.close()
         return 'sent'
 
@@ -251,7 +258,6 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         context = {}
         context['stage_origin'] = self.stage_origin
         context['pusher'] = self.pusher
-        self.resendjobs()
         result = self.experiment_config.runnable.run_experiment(context)
         self.resendjobs()
         return result
