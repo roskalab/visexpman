@@ -7,7 +7,7 @@ from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImag
 class UltrasonicSetupConfig(UltrasonicConfig):
     def _set_user_parameters(self):
         self.BACKGROUND_COLOR=[0.0]*3
-        FULLSCREEN = False
+        FULLSCREEN = not False
         self.root_folder = 'd:\\Data'
         LOG_PATH = self.root_folder
         EXPERIMENT_DATA_PATH = self.root_folder
@@ -29,6 +29,23 @@ class UltrasonicSetupConfig(UltrasonicConfig):
         self.SCREEN_MOUSE_DISTANCE=180#mm
         self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.radians(1.0/self.MOUSE_1_VISUAL_DEGREE_ON_RETINA))*self.SCREEN_MOUSE_DISTANCE/(self.SCREEN_WIDTH/float(self.SCREEN_RESOLUTION['col']))        
         self.GUI['SIZE'] =  utils.cr((600,400))
+        
+        
+        #at 500nm
+        self.GAMMA_CORRECTION = numpy.array([
+                                    [0.0, 0.0067e-6],
+                                    [0.1, 0.0112e-6],
+                                    [0.2, 0.0207e-6],
+                                    [0.3, 0.0331e-6],
+                                    [0.4, 0.0488e-6],
+                                    [0.5, 0.0678e-6],
+                                    [0.6, 0.0928e-6],
+                                    [0.7, 0.1222e-6],
+                                    [0.8, 0.1577e-6],
+                                    [0.9, 0.1963e-6],
+                                    [1.0, 0.2403e-6]])
+        
+        
         self._create_parameters_from_locals(locals())
     
 

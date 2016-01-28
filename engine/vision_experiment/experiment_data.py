@@ -989,6 +989,17 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     return block_times, stimulus_parameter_times,block_info, organized_blocks
 
 class TestExperimentData(unittest.TestCase):
+    
+    def test_00_rlvivobackup(self):
+        from visexpman.engine.generic import introspect
+        user='default_user'
+        animalid='test'
+        id=int(time.time())
+        files=fileop.listdir_fullpath('v:\\debug\\log')
+        with introspect.Timer():
+            RlvivoBackup(files,user,id,animalid)
+        pass
+    
     @unittest.skip("")
     def test_01_read_merge_rois(self):
         path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
@@ -1241,11 +1252,9 @@ class RlvivoBackup(object):
         pwfile='v:\\codes\\jobhandler\\pw.txt'
         if not os.path.exists(pwfile):
             raise RuntimeError('Password file does not exist')
-        if not os.path.exists(config.BACKUP_PATH):
-            raise RuntimeError('Backup folder is not available')
-        self.file=files
+        self.files=files
         self.user=user
-        self.id=id
+        self.id=id if isinstance(id, str) else utils.timestamp2ymd(float(self.id),'')
         self.animalid=animalid
         self.connect()
         self.target_folder()
@@ -1256,7 +1265,7 @@ class RlvivoBackup(object):
     def connect(self):
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+        self.ssh.connect('rlvivo1.fmi.ch', username='mouse',password=fileop.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
         
     def close(self):
         self.ssh.close()
@@ -1267,16 +1276,16 @@ class RlvivoBackup(object):
             raise RuntimeError(emsg)
         
     def target_folder(self):
-        self.target_dir='/'.join(['/mnt/databig/backup',user,utils.timestamp2ymd(float(self.id)),str(animalid)])
-        i,o,e1=ssh.exec_command('mkdirs -p {0}'.format(self.target_dir))
-        i,o,e2=ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
+        self.target_dir='/'.join(['/mnt/databig/backup',self.user,self.id,str(self.animalid)])
+        i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
+        i,o,e2=self.ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
         for e in [e1,e2]:
             self.check_ssh_error(e)
         
     def copy(self):
         for f in self.files:
-            flinux='/'.join(f.replace('v:\\', '/mnt/datafast').split('\\'))
-            o,e=ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
+            flinux='/'.join(f.replace('v:\\', '/mnt/datafast/').split('\\'))
+            i,o,e=self.ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
             self.check_ssh_error(e)
 
 if __name__=='__main__':
