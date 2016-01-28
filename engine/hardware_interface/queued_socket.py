@@ -134,7 +134,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                     message = utils.str2object(message)
                     if hasattr(message,'has_key') and message.has_key('sync'):
                         if message['sync'].has_key('t2'):
-                            message['sync']['t1*'] = time.time()
+                            message['sync']['t1'] = time.time()
                             self.socket_queues['fromsocket'].put(message)
                         else:
                             message['sync']['t2']=time.time()
