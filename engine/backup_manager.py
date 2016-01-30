@@ -75,7 +75,7 @@ def copy_file(f):
                 os.makedirs(os.path.dirname(p))
         if not is_file_closed(f):
             return
-        if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape):
+        if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape) or 'animal' in os.path.dirname(f):
             shutil.copy2(f,target_path_tape)
             logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(target_path_tape)))
         if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m):#Mouse file may be updated with scan regions

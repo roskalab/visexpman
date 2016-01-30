@@ -363,7 +363,18 @@ class JobReceiver(threading.Thread):
             self.printl(traceback.format_exc(),'error')
         finally:
             dbf.close()
+            self.backup_animal_file(dbf.filename)
             dbfilelock.release()
+            
+    def backup_animal_file(self, filename):
+        dst_folder=os.path.join(self.config.BACKUP_PATH, 'animals', os.path.basename(os.path.dirname(filename)))
+        if not os.path.exists(dst_folder):
+            logging.info('Creating {0}'.format(dst_folder))
+            os.makedirs(dst_folder)
+            os.chmod(dst_folder,0777)
+        shutil.copy2(filename,dst_folder)
+        logging.info('Copied  {0} to {1}'.format(filename,dst_folder))
+        
     
 def database_status(filename):
     dbfilelock.acquire()

@@ -118,6 +118,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 if not self.is_jobhandler_connected():
                     self.printl('Jobhandler not connected')
                     h.close()
+                    self.log.info('exit resend function')
                     return 'not sent'
                 self.printl('Sending jobs')
                 for i in range(len(h.jobs)):
@@ -135,6 +136,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                     self.printl('Done')
                     h.save('jobs')
             h.close()
+        self.log.info('exit resend function')
         return 'sent'
 
     def quit(self):
@@ -260,6 +262,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         context['pusher'] = self.pusher
         result = self.experiment_config.runnable.run_experiment(context)
         self.resendjobs()
+        self.log.info('after resend')
         return result
 
 class CommandSender(QtCore.QThread):
