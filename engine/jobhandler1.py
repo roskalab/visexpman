@@ -505,12 +505,14 @@ class DatafileDatabase(object):
             ids.sort()
             [fp.write(lines[i]) for i in ids]
             fp.close()
+            os.chmod(export_filename,0777)
 
     def close(self):
         logging.info('Closing {0}'.format(self.filename))
         if self.file_changed:
             self.export()
         self.hdf5.close()
+        os.chmod(self.filename,0777)
         
 
 class TestDatafileDatabase(unittest.TestCase):
