@@ -3,10 +3,45 @@
 import os,shutil,time,logging,datetime,filecmp
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton/new'
-mdrive='/mnt/mdrive/invivo/rc'
+mdrive='/mnt/mdrive/invivo/rc/raw'
 logfile_path='/mnt/datafast/log/backup_manager.txt'
 rei_data='/mnt/databig/debug/cacone'
 rei_data_tape=os.path.join(tape_path,'retina')
+last_file_access_timout=300
+
+transient_processed_files='/mnt/databig/processed'
+mdrive_processed='/mnt/mdrive/invivo/rc/processed'
+
+def is_id_on_drive(id, drive):
+    return len([f for f in list_all_files(drive) if str(id) in os.path.basename(f) and os.path.getsize(f)>0])==2
+
+def check_backup(id):
+    #Check tape first
+    status=''
+    if is_id_on_drive(id, tape_path):
+        status='tape'
+    if is_id_on_drive(id, mdrive):
+        status+=' m drive'
+    if is_id_on_drive(id, transient_backup_path):
+        status +=' databig'
+    if status=='':
+        status='not found'
+    return status
+
+def sendmail(to, subject, txt):
+    import subprocess,file
+    message = """\
+    Subject: %s
+
+    %s
+    """ % (subject, txt)
+    fn='/tmp/email.txt'
+    file.write_text_file(fn,message)
+    # Send the mail
+    cmd='sendmail {0} < {1}'.format(to,fn)
+    res=subprocess.call(cmd,shell=True)
+    os.remove(fn)
+    return res==0
 
 def is_mounted():
     if not os.path.ismount('/mnt/tape'):
@@ -26,7 +61,7 @@ def list_all_files(path):
     
 def is_file_closed(f):
     now=time.time()
-    return now-os.path.getmtime(f)>600# and now-os.path.getctime(f)>600
+    return now-os.path.getmtime(f)>last_file_access_timout# and now-os.path.getctime(f)>last_file_access_timout#ctime is the change of metadata
     
 def copy_file(f):
     try:
@@ -44,13 +79,36 @@ def copy_file(f):
             return
         if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape):
             shutil.copy2(f,target_path_tape)
-            logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(f)))
-        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_tape):
+            logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(target_path_tape)))
+        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m):#Mouse file may be updated with scan regions
             shutil.copyfile(f,target_path_m)
-            logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(f)))
+            logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
     except:
         import traceback
-        logging.error(traceback.format_exc())
+        msg=traceback.format_exc()
+        logging.error(msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager cortical file copy error', msg)
+        
+def copy_processed_file(f):
+    try:
+        path=f.replace(transient_processed_files+'/','')
+        target_path_m=os.path.join(mdrive_processed,path)
+        if os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m):#Already copied up
+            os.remove(f)
+            logging.info('Deleted {0}'.format(f))
+            return
+        if not os.path.exists(os.path.dirname(target_path_m)):
+            os.makedirs(os.path.dirname(target_path_m))
+        if not is_file_closed(f):
+            return
+        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_tape):
+            shutil.copyfile(f,target_path_m)
+            logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
+    except:
+        import traceback
+        msg=traceback.format_exc()
+        logging.error(msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager cortical file copy error', msg)
         
 def rei_backup():
     try:
@@ -70,7 +128,8 @@ def rei_backup():
                 logging.info('Copied {0}'.format(f))
     except:
         import traceback
-        logging.error(traceback.format_exc())
+        logging.error(msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager retinal file copy error', msg)
     
 def run():
     #Check if previous call of backup manager is complete
@@ -78,7 +137,7 @@ def run():
         txt=f.read()
     lines=txt.split('\n')[:-1]
     done_lines = [lines.index(l) for l in lines if 'done' in l]
-    started_lines = [lines.index(l) for l in lines if 'listing files' in l]
+    started_lines = [lines.index(l) for l in lines if 'listing' in l]
     if done_lines[-1]<started_lines[-1]:
         ds=[l.split('\t')[0] for l in lines][started_lines[-1]].split(',')[0]
         format="%Y-%m-%d %H:%M:%S"
@@ -91,12 +150,20 @@ def run():
     if not is_mounted():
         logging.error('Tape or m mdirve not mounted')
         return
-    logging.info('listing files')
+    logging.info('listing rawdata files')
     files = list_all_files(transient_backup_path)
     files.sort()
     
     for f in files:
         copy_file(f)
+        
+    #Copy processed datafiles from rlvivo to m drive
+    logging.info('listing processed files')
+    files = list_all_files(transient_processed_files)
+    files.sort()
+    for f in files:
+        copy_processed_file(f)
+        
     rei_backup()
     logging.info('done')
 
