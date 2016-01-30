@@ -261,7 +261,11 @@ class Jobhandler(object):
             rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' and v not in ignore_nodes]
             mat_data={}
             for rn in rootnodes:
-                mat_data[rn]=h.findvar(rn)
+                if os.path.basename(filename).split('_')[-2] in rn:
+                    rnt='idnode'
+                else:
+                    rnt=rn
+                mat_data[rnt]=h.findvar(rn)
             if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
                 del mat_data['soma_rois_manual_info']
             h.close()

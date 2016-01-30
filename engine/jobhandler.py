@@ -738,7 +738,7 @@ class TestJobhandler(unittest.TestCase):
         f.close()
         
 def offline(folder,output_folder=None,video=False):
-    import visexpA.engine.configuration
+    import visexpA.engine.configuration,tables
     analysis_config = utils.fetch_classes('visexpA.users.daniel', classname='Config', required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
     files=file.find_files_and_folders(folder)[1]
     if output_folder is not None and not os.path.exists(output_folder):
@@ -757,16 +757,39 @@ def offline(folder,output_folder=None,video=False):
             mes_extractor = importers.MESExtractor(full_fragment_path, config = analysis_config)
             data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
             mes_extractor.hdfhandler.close()
+            create = ['roi_curves','soma_rois_manual_info']
+            export = ['roi_curves'] 
+            ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led']
+            stimulus=os.path.basename(f).split('_')[-3]
+            if len([sn for sn in ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.lower()])>0 and 1:
+                h = hdf5io.iopen(f,analysis_config)
+                if h is not None:
+                    for c in create:
+                        print('create_'+c)
+                        h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
+                    for e in export:
+                        print('export_'+e)
+                        getattr(h,'export_'+e)()
+                    h.close()
             file.set_file_dates(full_fragment_path, file_info)
-            h=tables.open_file(full_fragment_path,mode='r')
-            rootnodes=[v for v in dir(h.root) if v[0]!='_']
+            h=hdf5io.Hdf5io(full_fragment_path,config=analysis_config)
+            ignore_nodes=['hashes']
+            rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+            mat_data={}
+            for rn in rootnodes:
+                mat_data[rn]=h.findvar(rn)
+            if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+                del mat_data['soma_rois_manual_info']
             h.close()
-            hdf52mat(full_fragment_path, rootnodes, '_mat')
+            matfile=full_fragment_path.replace('.hdf5', '_mat.mat')
+            import scipy.io
+            scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
             if video:
                 from visexpman.users.zoltan.mes2video import mes2video
                 mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
             if os.path.exists(str(output_folder)):
                 shutil.copy2(f.replace('_raw',''), output_folder)
+                shutil.copy2(matfile, output_folder)
         except:
             import traceback
             txt= traceback.format_exc()

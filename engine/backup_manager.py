@@ -135,7 +135,7 @@ def run():
         txt=f.read()
     lines=txt.split('\n')[:-1]
     done_lines = [lines.index(l) for l in lines if 'done' in l]
-    started_lines = [lines.index(l) for l in lines if 'listing files' in l]
+    started_lines = [lines.index(l) for l in lines if 'listing' in l]
     if done_lines[-1]<started_lines[-1]:
         ds=[l.split('\t')[0] for l in lines][started_lines[-1]].split(',')[0]
         format="%Y-%m-%d %H:%M:%S"
@@ -148,7 +148,7 @@ def run():
     if not is_mounted():
         logging.error('Tape or m mdirve not mounted')
         return
-    logging.info('listing files')
+    logging.info('listing rawdata files')
     files = list_all_files(transient_backup_path)
     files.sort()
     
@@ -156,10 +156,11 @@ def run():
         copy_file(f)
         
     #Copy processed datafiles from rlvivo to m drive
+    logging.info('listing processed files')
     files = list_all_files(transient_processed_files)
     files.sort()
     for f in files:
-        copy_file(f)
+        copy_processed_file(f)
         
     rei_backup()
     logging.info('done')

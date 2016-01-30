@@ -773,8 +773,8 @@ class MainPoller(Poller):
         
     def update_process_status(self):
         animalid= os.path.basename(self.mouse_file).split('_')[1]
-        region=self.parent.get_current_region_name()
-        user=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
+        region=str(self.parent.get_current_region_name())
+        user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
         path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
         if os.path.exists(path):
             sig=sum([i for i in os.stat(path)])
@@ -785,6 +785,7 @@ class MainPoller(Poller):
                 self.last_update=time.time()
         else:
             self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('')
+    
             
     def processstatus2gui(self):
         animalid= os.path.basename(self.mouse_file).split('_')[1]
@@ -991,7 +992,7 @@ class MainPoller(Poller):
         self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly
         self.wait_mouse_file_save()
         newmousefn=os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        if newmousefn!=self.mouse_file:
+        if newmousefn!=self.mouse_file or 1:
             self.mouse_file = newmousefn
             self.load_mouse_file()
     #        self.backup_mousefile()

@@ -1307,7 +1307,7 @@ class StimulationSequences(Stimulations):
             if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
                 positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
         else:
-            positions_and_colors= [[a,shape_size,c,p] for c,p in positions_and_colors]
+            positions_and_colors= [[0,shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size

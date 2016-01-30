@@ -134,10 +134,11 @@ class MovingGratingFiona(MovingGratingNoMarchingConfig):
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1800.0]#1800
+        self.VELOCITIES = [1200.0]#1800
         #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0
+        self.BLACK_SCREEN_DURATION=5.0
 
 class MovingGratingAdrian(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
@@ -420,6 +421,8 @@ class MovingGrating(experiment.Experiment):
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus(self.experiment_config.TIMING, flash_color = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
+        if hasattr(self.experiment_config,  'BLACK_SCREEN_DURATION'):
+            self.show_fullscreen(color = 0.0, duration = self.experiment_config.BLACK_SCREEN_DURATION)
         if hasattr(self.experiment_config, 'PROFILE'):
             profile = self.experiment_config.PROFILE
         else:
