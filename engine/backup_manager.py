@@ -27,14 +27,16 @@ def check_backup(id):
     return status
 
 def sendmail(to, subject, txt):
-    import subprocess,file
+    import subprocess
     message = """\
     Subject: %s
 
     %s
     """ % (subject, txt)
     fn='/tmp/email.txt'
-    file.write_text_file(fn,message)
+    fp=open(fn,'w')
+    fp.write(message)
+    fp.close()
     # Send the mail
     cmd='sendmail {0} < {1}'.format(to,fn)
     res=subprocess.call(cmd,shell=True)
@@ -85,7 +87,7 @@ def copy_file(f):
         import traceback
         msg=traceback.format_exc()
         logging.error(msg)
-        sendmail('zoltan.raics@fmi.ch', 'backup manager cortical file copy error', msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager raw cortical file copy error', msg)
         
 def copy_processed_file(f):
     try:
@@ -106,7 +108,7 @@ def copy_processed_file(f):
         import traceback
         msg=traceback.format_exc()
         logging.error(msg)
-        sendmail('zoltan.raics@fmi.ch', 'backup manager cortical file copy error', msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager processed cortical file copy error', msg)
         
 def rei_backup():
     try:
@@ -136,10 +138,10 @@ def run():
     lines=txt.split('\n')[:-1]
     done_lines = [lines.index(l) for l in lines if 'done' in l]
     started_lines = [lines.index(l) for l in lines if 'listing' in l]
-    if done_lines[-1]<started_lines[-1]:
+    if done_lines[-1]<started_lines[-1] and 0:
         ds=[l.split('\t')[0] for l in lines][started_lines[-1]].split(',')[0]
         format="%Y-%m-%d %H:%M:%S"
-        if time.time()-time.mktime(datetime.datetime.strptime(ds, format).timetuple())<5*60*60:#If last start happend 3 hours before, assume that there was an error and backup can be started again
+        if time.time()-time.mktime(datetime.datetime.strptime(ds, format).timetuple())<2*60*60:#If last start happend 3 hours before, assume that there was an error and backup can be started again
             return
         
     logging.basicConfig(filename= logfile_path,
