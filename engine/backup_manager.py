@@ -28,18 +28,16 @@ def check_backup(id):
 
 def sendmail(to, subject, txt):
     import subprocess
-    message = """\
-    Subject: %s
-
-    %s
-    """ % (subject, txt)
+    message = 'Subject:{0}\n\n{1}\n'.format(subject, txt)
+    logging.info('Sending mail')
     fn='/tmp/email.txt'
     fp=open(fn,'w')
     fp.write(message)
     fp.close()
     # Send the mail
-    cmd='sendmail {0} < {1}'.format(to,fn)
+    cmd='/usr/sbin/sendmail {0} < {1}'.format(to,fn)
     res=subprocess.call(cmd,shell=True)
+    logging.info(str(res))
     os.remove(fn)
     return res==0
 
@@ -101,7 +99,7 @@ def copy_processed_file(f):
             os.makedirs(os.path.dirname(target_path_m))
         if not is_file_closed(f):
             return
-        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_tape):
+        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m):
             shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
     except:
