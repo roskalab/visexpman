@@ -1,5 +1,5 @@
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
-import scipy.io,multiprocessing
+import scipy.io,multiprocessing,stat
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 try:
@@ -15,6 +15,12 @@ dbfilelock=threading.Lock()
 THREAD=True
 GUI_CONN=not False
 #TODO: P2:backup animal files, check backup status, check files (mouse file too) on u:\data,
+
+def chmod(f):
+    try:
+        os.chmod(f,stat.S_IRWXG|stat.S_IRWXO|stat.S_IRWXU)
+    except:
+        logging.error(traceback.format_exc())
 
 class Jobhandler(object):
     def __init__(self,user,config_class):
@@ -271,6 +277,7 @@ class Jobhandler(object):
             h.close()
             matfile=filename.replace('.hdf5', '_mat.mat')
             scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+            chmod(matfile)
             self.printl('Converted to {0}'.format(matfile))
             files2copy.append(matfile)
         #dst folder
@@ -281,7 +288,7 @@ class Jobhandler(object):
         if not os.path.exists(dst_folder):
             logging.info('Creating {0}'.format(dst_folder))
             os.makedirs(dst_folder)
-            os.chmod(dst_folder,0777)
+            chmod(dst_folder)
         for f in files2copy:
             shutil.copy2(f,dst_folder)
             logging.info('copy {0} to {1}'.format(f, dst_folder))
@@ -315,6 +322,7 @@ class Jobhandler(object):
             self.printl(traceback.format_exc(),'error')
         finally:
             db.close()
+            backup_animal_file(db.filename,self.config)
             dbfilelock.release()
         
 class JobReceiver(threading.Thread):
@@ -363,17 +371,20 @@ class JobReceiver(threading.Thread):
             self.printl(traceback.format_exc(),'error')
         finally:
             dbf.close()
-            self.backup_animal_file(dbf.filename)
+            backup_animal_file(dbf.filename,self.config)
             dbfilelock.release()
             
-    def backup_animal_file(self, filename):
-        dst_folder=os.path.join(self.config.BACKUP_PATH, 'animals', os.path.basename(os.path.dirname(filename)))
-        if not os.path.exists(dst_folder):
-            logging.info('Creating {0}'.format(dst_folder))
-            os.makedirs(dst_folder)
-            os.chmod(dst_folder,0777)
+def backup_animal_file(filename,config):
+    dst_folder=os.path.join(config.BACKUP_PATH, 'animals', os.path.basename(os.path.dirname(filename)))
+    if not os.path.exists(dst_folder):
+        logging.info('Creating {0}'.format(dst_folder))
+        os.makedirs(dst_folder)
+        chmod(dst_folder)
+    try:
         shutil.copy2(filename,dst_folder)
-        logging.info('Copied  {0} to {1}'.format(filename,dst_folder))
+    except:
+        logging.error(traceback.format_exc())
+    logging.info('Copied  {0} to {1}'.format(filename,dst_folder))
         
     
 def database_status(filename):
@@ -423,12 +434,12 @@ class DatafileDatabase(object):
             self.filename=os.path.join(folder, user, animal_id+'.hdf5')
         if not os.path.exists(os.path.dirname(self.filename)):
             os.makedirs(os.path.dirname(self.filename))
-            os.chmod(os.path.dirname(self.filename),0777)
-        chmod=os.path.exists(self.filename)
-        self.hdf5 = tables.open_file(self.filename, mode = "a" if not chmod else 'r+', title = animal_id)
+            chmod(os.path.dirname(self.filename))
+        do_chmod=os.path.exists(self.filename)
+        self.hdf5 = tables.open_file(self.filename, mode = "a" if not do_chmod else 'r+', title = animal_id)
         self.file_changed=False
-        if not chmod:
-            os.chmod(self.filename,0777)
+        if not do_chmod:
+            chmod(self.filename)
         logging.info('Opening {0}'.format(self.filename))
         if not hasattr(self.hdf5.root, 'datafiles'):
             self.create()
@@ -505,14 +516,14 @@ class DatafileDatabase(object):
             ids.sort()
             [fp.write(lines[i]) for i in ids]
             fp.close()
-            os.chmod(export_filename,0777)
+            #chmod(export_filename)
 
     def close(self):
         logging.info('Closing {0}'.format(self.filename))
         if self.file_changed:
             self.export()
         self.hdf5.close()
-        os.chmod(self.filename,0777)
+        #chmod(self.filename)
         
 
 class TestDatafileDatabase(unittest.TestCase):

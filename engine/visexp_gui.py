@@ -89,6 +89,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.main_tab.addTab(self.roi_widget, 'ROI')
         self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
         self.main_tab.addTab(self.helpers_widget, 'Helpers')
+        self.debug=gui.PythonConsole(self,self)
+        self.main_tab.addTab(self.debug, 'Debug')
         self.main_tab.setCurrentIndex(0)
         #Image tab
         self.image_tab = QtGui.QTabWidget(self)

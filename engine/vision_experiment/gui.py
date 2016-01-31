@@ -39,6 +39,9 @@ BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following forma
 
 ENABLE_SCAN_REGION_SERIALIZATION= False
 
+
+
+
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
@@ -69,18 +72,18 @@ class Poller(QtCore.QThread):
 
     def run(self):
         self.init_run()
-        last_time = time.time()
-        startup_time = last_time
+        self.last_time = time.time()
+        startup_time = self.last_time
         while not self.abort:
             now = time.time()
-            elapsed_time = now - last_time
+            elapsed_time = now - self.last_time
             if elapsed_time > self.config.GUI_REFRESH_PERIOD:
-                last_time = now
+                self.last_time = now
                 self.periodic()
             self.run_in_all_iterations()
             self.handle_commands()
             self.handle_events()
-            time.sleep(1e-2)
+            time.sleep(1e-1)
         self.close()
         self.printc('poller stopped')
 
@@ -772,20 +775,23 @@ class MainPoller(Poller):
         self.process_status_timer.start(10000)
         
     def update_process_status(self):
-        animalid= os.path.basename(self.mouse_file).split('_')[1]
-        region=str(self.parent.get_current_region_name())
-        user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
-        path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
-        if os.path.exists(path):
-            sig=sum([i for i in os.stat(path)])
-            if not hasattr(self, 'lastmtime') or self.lastmtime!=sig or (hasattr(self, 'last_update') and time.time()-self.last_update>120):
-                txt=file.read_text_file(path)
-                self.lastmtime=sig
-                self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
-                self.last_update=time.time()
-        else:
-            self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('')
-    
+        try:
+            animalid= os.path.basename(self.mouse_file).split('_')[1]
+            region=str(self.parent.get_current_region_name())
+            user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
+            path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
+            if os.path.exists(path):
+                sig=sum([i for i in os.stat(path)])
+                if not hasattr(self, 'lastmtime') or self.lastmtime!=sig or (hasattr(self, 'last_update') and time.time()-self.last_update>120):
+                    txt=file.read_text_file(path)
+                    self.lastmtime=sig
+                    self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
+                    self.last_update=time.time()
+            else:
+                self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('')
+        except:
+            self.printc(traceback.format_exc())
+            
             
     def processstatus2gui(self):
         animalid= os.path.basename(self.mouse_file).split('_')[1]
@@ -882,14 +888,16 @@ class MainPoller(Poller):
         time.sleep(3.0)
 
     def periodic(self):
-        are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
+        #are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
+        are_new_file=False
         if are_new_file:
             self.emit(QtCore.SIGNAL('mouse_file_list_changed'))
-        self.init_jobhandler()
+        #self.init_jobhandler()
         now = time.time()
         if now - self.prev_date_updated > ANESTHESIA_HISTORY_UPDATE_PERIOD:
             self.parent.update_anesthesia_history_date_widget()
             self.prev_date_updated = now
+            #print time.time()
 
     def handle_commands(self):
         '''
@@ -931,56 +939,6 @@ class MainPoller(Poller):
                         elif command == 'measurement_ready':
                             if 0:
                                 self.add_measurement_id(parameter)
-                        elif command == 'fragment_check_ready':
-                            #ID is saved, flag will be updated in mouse later when the measurement file is closed
-                            self.fragment_check_ready_id = parameter
-                        elif command == 'mesextractor_ready':
-                            flags = [command]
-                            if hasattr(self, 'fragment_check_ready_id') and self.fragment_check_ready_id is not None and parameter == self.fragment_check_ready_id:
-                                #Assuming that by this time the measurement file is closed
-                                flags.append('fragment_check_ready')
-                                self.fragment_check_ready_id = None
-                            else:#Not handled situation: consecutive fragment_check_ready and mesextractor_ready flags are associated to different ids
-                                pass
-                            self.set_process_status_flag(parameter, flags)
-                        elif command == 'find_cells_ready':
-                            if self.config.ADD_CELLS_TO_MOUSE_FILE:
-                                self.add_cells_to_database(parameter)
-                            else:
-                                from visexpman.engine.generic import introspect
-                                time.sleep(3)#TMP: Make sure that all data is saved to file
-                                t0=time.time()
-                                region_name, measurement_file_path, info = self.read_scan_regions(parameter)
-                                t1=time.time()
-                                id = parameter
-                                if region_name is None:
-                                    pass
-                                else:
-                                    self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
-                                    t2=time.time()
-                                    soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois',filelocking=False)
-                                    t3=time.time()
-                                    if soma_rois is None or len(soma_rois) == 0:
-                                        number_of_new_cells = 0
-                                    else:
-                                        number_of_new_cells = len(soma_rois)
-                                        if number_of_new_cells > 200:
-                                            number_of_new_cells = 200
-                                    self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
-                                    t4=time.time()
-                                    self.save2mouse_file(['scan_regions'])
-                                    t5=time.time()
-                                    self.parent.update_jobhandler_process_status()
-                                    t6=time.time()
-                                    self.printc('Runtimes, scan region read: {0}, read meas file {1}. save mouse file {2}, update process status {3}'.format(t1-t0, t3-t2,t5-t4,t6-t5))
-#                                self.backup_mousefile()????
-                        elif command == 'mouse_file_copy':
-                            if parameter == '':
-                                tag = 'jobhandler'
-                            else:
-                                tag = parameter
-                            if self.mouse_file2jobhandler(tag = tag):
-                                self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                         elif command == 'notify':
                             self.notify(parameter)
                         else:
@@ -2225,7 +2183,7 @@ class MainPoller(Poller):
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
-        time.sleep(1.1)
+        time.sleep(1.0)
         self.experiment_parameters['id'] = str(int(time.time()))
         if not hasattr(self, 'issued_ids'):
             self.issued_ids = []
@@ -2247,7 +2205,7 @@ class MainPoller(Poller):
         #generate parameter file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
         if os.path.exists(parameter_file):
-            time.sleep(1.1)
+            time.sleep(0.7)
             self.experiment_parameters['id'] = str(int(time.time()))
             parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
             if os.path.exists(parameter_file):
@@ -2638,28 +2596,29 @@ class MainPoller(Poller):
             except:
                 self.printc('Backing up mouse file was not successful')
                 return
-            self.printc('1')
-            dir = os.path.join(self.config.DATABIG_PATH,  utils.date_string().replace('-',''), self.animal_parameters['id'])
-            #Mouse file is backed up if 1) backup path exists or 2) animal parameters were created max 8 hours ago
-#            import datetime#TODO: mouse file is backed up at mouse file change (at startup, not backed up when databig folder created only if region save happens
-#            animal_parameter_save_timestamp =  time.mktime(datetime.datetime.strptime(self.animal_parameters['add_date'], "%Y-%m-%d %H-%M-%S").timetuple())
-            if not os.path.exists(dir):# and time.time() - animal_parameter_save_timestamp<8*3600:
-                os.makedirs(dir)
-#            if not os.path.exists(dir):
-#                self.printc('Backing up mouse file aborted')
-#                return
-            self.printc('2')
-            databig_path = os.path.join(dir, os.path.split(self.mouse_file)[1])
-            if os.path.exists(databig_path):
-                os.remove(databig_path)
-            try:
-                shutil.copy(self.mouse_file, databig_path)
-                self.printc('3')
-            except:
-                self.printc(traceback.format_exc())
-                self.printc('Problem with copying mousefile to databig.')
-                self.printc('4')
-            self.printc('5')
+            if 0:
+                self.printc('1')
+                dir = os.path.join(self.config.DATABIG_PATH,  utils.date_string().replace('-',''), self.animal_parameters['id'])
+                #Mouse file is backed up if 1) backup path exists or 2) animal parameters were created max 8 hours ago
+    #            import datetime#TODO: mouse file is backed up at mouse file change (at startup, not backed up when databig folder created only if region save happens
+    #            animal_parameter_save_timestamp =  time.mktime(datetime.datetime.strptime(self.animal_parameters['add_date'], "%Y-%m-%d %H-%M-%S").timetuple())
+                if not os.path.exists(dir):# and time.time() - animal_parameter_save_timestamp<8*3600:
+                    os.makedirs(dir)
+    #            if not os.path.exists(dir):
+    #                self.printc('Backing up mouse file aborted')
+    #                return
+                self.printc('2')
+                databig_path = os.path.join(dir, os.path.split(self.mouse_file)[1])
+                if os.path.exists(databig_path):
+                    os.remove(databig_path)
+                try:
+                    shutil.copy(self.mouse_file, databig_path)
+                    self.printc('3')
+                except:
+                    self.printc(traceback.format_exc())
+                    self.printc('Problem with copying mousefile to databig.')
+                    self.printc('4')
+                self.printc('5')
             if 1:#New backup
                 try:
                     files=[self.mouse_file]
@@ -2838,11 +2797,21 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         
 
 def update_mouse_files_list(config, current_mouse_files = []):
-    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
-    new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
+    
+#    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
+   # new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
+    #print len(os.listdir(config.EXPERIMENT_DATA_PATH))
+    fns=os.listdir(config.EXPERIMENT_DATA_PATH)
+#    if len(fns)>1000:
+#        print  'WARNING: too many files in {0}, please remove the old ones.'.format(config.EXPERIMENT_DATA_PATH)
+    new_mouse_files=[fn for fn in os.listdir(config.EXPERIMENT_DATA_PATH) if 'mouse' in fn and '.hdf5'==fn[-5:]]
+    #print 0.05
+    new_mouse_files=[fn for fn in new_mouse_files if '_jobhandler' not in fn and '_stim' not in fn]
+    #print 0.1
     new_mouse_files.sort()
     current_mouse_files1= current_mouse_files
     current_mouse_files1.sort()
+    #print 0.2
     if current_mouse_files1 != new_mouse_files:
         are_new_files = True
     else:

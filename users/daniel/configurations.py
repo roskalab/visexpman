@@ -470,7 +470,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):
         TEXT_COLOR = [0.8, 0.0, 0.0]
-        GUI_REFRESH_PERIOD = 5.0
+        GUI_REFRESH_PERIOD = 10.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
         EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'

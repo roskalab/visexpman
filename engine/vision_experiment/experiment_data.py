@@ -568,7 +568,8 @@ class RlvivoBackup(object):
         self.target_folder()
         self.copy()
         if todatabig:
-            self.target_folder(root='/mnt/databig/data')
+            root= '/mnt/databig/data' if user=='daniel' or user=='default_user' else  '/mnt/databig/processed'
+            self.target_folder(root=root)
             self.copy()
         self.close()
         
