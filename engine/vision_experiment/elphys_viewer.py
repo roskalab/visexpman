@@ -149,7 +149,7 @@ def image_column_binning(img,binning):
     flattened=img[:,:img.shape[1]-img.shape[1]%binning].flatten()
     return flattened.reshape(img.shape[0],(img.shape[1]-img.shape[1]%binning)/binning,binning).mean(axis=2)
 
-def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_window,queue=None):
+def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_window,repetition_range,queue=None):
     '''
     1) Extract data from raw file
     2) Filter signal, separate baseline and high frequency part
@@ -181,6 +181,9 @@ def raw2spikes(filename,pre,post,filter_order,fcut,spike_threshold_std, spike_wi
     if hasattr(queue,'put'):
         queue.put('Calculating spiking frequency and spiking maps')
     repetition_boundaries=calculate_repetition_boundaries(digital, sample_rate,pre,post,is_movingbar=is_movingbar,ndirections=ndirections)
+    #Select repetitions:
+    if len(repetition_range)==2:
+        repetition_boundaries=repetition_boundaries[repetition_range[0]*2:repetition_range[1]*2]
     nrepetitions=repetition_boundaries.shape[0]/2
     repetition_window_length=numpy.diff(repetition_boundaries)[::2].max()
     nsampe_in_spike_window=int(spike_window*sample_rate)
@@ -407,6 +410,7 @@ class CWidget(QtGui.QWidget):
                 {'name': 'Pre Stimulus Time', 'type': 'float', 'value': 200e-3, 'suffix': 's','siPrefix': True},
                 {'name': 'Post Stimulus Time', 'type': 'float', 'value': 400e-3, 'suffix': 's','siPrefix': True},
                 {'name': 'Electrode Spacing', 'type': 'float', 'value': 50e-6, 'suffix': 'm','siPrefix': True},
+                {'name': 'Repetition Range', 'type': 'str', 'value': '', },
                 {'name': 'Electrode Order', 'type': 'list', 'value': ELECTRODE_ORDER,'readonly':True},
                     ]
 
@@ -506,7 +510,11 @@ class ElphysViewer(gui.SimpleAppWindow):
             fcut=params['Filter Cut Frequency']
             spike_threshold_std=params['Spike Threshold']
             spike_window=params['Spiking Frequency Window Size']
-            self.worker=multiprocessing.Process(target=raw2spikes,args=(self.filename,pre,post,filter_order,fcut,spike_threshold_std, spike_window,self.queue))
+            if params['Repetition Range']!='':
+                repetition_range=map(int,params['Repetition Range'].split(','))
+            else:
+                repetition_range=[]
+            self.worker=multiprocessing.Process(target=raw2spikes,args=(self.filename,pre,post,filter_order,fcut,spike_threshold_std, spike_window,repetition_range,self.queue))
             self.worker.start()
             self.log('Opening {0}'.format(self.filename))
             self.pb = gui.Progressbar(100,autoclose=True,name='Opening and processing file')
