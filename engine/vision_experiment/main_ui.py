@@ -524,11 +524,8 @@ class MainUI(gui.VisexpmanMainWindow):
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Name', 'type': 'str', 'value': ''},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
-                    {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
-                    {'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''},
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True                    
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Projector On', 'type': 'bool', 'value': False, 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
@@ -536,7 +533,12 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     ]},
                     ]
+        if len(fw1)>0:
+            self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
+        if len(fw2)>0:
+            self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
             self.params_config.extend([
                                                   {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
@@ -561,8 +563,17 @@ class MainUI(gui.VisexpmanMainWindow):
                 {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
                 {'name': 'ND filter', 'type': 'str', 'value': ''},
                 {'name': 'Comment', 'type': 'str', 'value': ''},
-            
             ])
+        if self.machine_config.PLATFORM=='us':
+            self.params_config.append(
+            {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
+                    {'name': 'Protocol', 'type': 'list', 'values': self.machine_config.ULTRASOUND_PROTOCOLS},
+                    {'name': 'Number of Trials', 'type': 'int', 'value': 10},
+                    {'name': 'Enable Motor Positions', 'type': 'bool', 'value': False, },
+                    {'name': 'Motor Positions', 'type': 'str', 'value': ''},
+                    ]},
+            
+            )
                         
 
     ############# Actions #############

@@ -7,7 +7,7 @@ ElphysRetinalCaImagingConfig:
 RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
         Platform name: rc_cortical or ao_cortical
-UltrasonicConfig:
+UltrasoundConfig:
         TBD
 MCMEAConfig:
         inherits VisionExperimentConfig and expands it with Multichannel multi electrode array specific parameters that are not used on other platforms
@@ -414,7 +414,7 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         
         self._create_parameters_from_locals(locals())
         
-class UltrasonicConfig(VisionExperimentConfig):
+class UltrasoundConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'us'

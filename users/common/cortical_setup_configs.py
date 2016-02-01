@@ -2,13 +2,15 @@ import os
 import os.path
 import numpy
 from visexpman.engine.generic import utils
-from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImagingConfig,UltrasonicConfig
+from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImagingConfig,UltrasoundConfig
 
-class UltrasonicSetupConfig(UltrasonicConfig):
+class UltrasoundSetupConfig(UltrasoundConfig):
     def _set_user_parameters(self):
         self.BACKGROUND_COLOR=[0.0]*3
         FULLSCREEN = not False
         self.root_folder = 'd:\\Data'
+        if not os.path.exists(self.root_folder):
+            self.root_folder='c:\\temp'
         LOG_PATH = self.root_folder
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
@@ -45,7 +47,7 @@ class UltrasonicSetupConfig(UltrasonicConfig):
                                     [0.9, 0.1963e-6],
                                     [1.0, 0.2403e-6]])
         
-        
+        self.ULTRASOUND_PROTOCOLS=['default']
         self._create_parameters_from_locals(locals())
     
 
