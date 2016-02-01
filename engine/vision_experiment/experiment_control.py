@@ -223,6 +223,9 @@ class ExperimentControl(object):
         if not os.path.exists(self.parameter_file):
             self.printl('Parameter file does NOT exist ({0})'.format(self.parameter_file))
             return False
+        if not os.path.getsize(self.parameter_file)<200e3:
+            self.printl('Parameter file may be corrupt (file size: {0})'.format(os.path.getsize(self.parameter_file)))
+            return False
         h = hdf5io.Hdf5io(self.parameter_file,filelocking=False)
         fields_to_load = ['parameters']
         for field in fields_to_load:
@@ -376,6 +379,10 @@ class ExperimentControl(object):
                     elif self.scan_mode == 'xy':
                         if hasattr(self, 'scan_region'):
                             self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                            if os.path.getsize(self.filenames['mes_fragments'][fragment_id])<300e3:
+                                scan_start_success=False
+                                self.printl('MES scan config file may be corrupt')
+                                return scan_start_success
                     scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                         parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
                 if scan_start_success:
