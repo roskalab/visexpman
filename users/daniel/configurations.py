@@ -226,6 +226,7 @@ class RcMicroscopeSetup(RcCorticalCaImagingConfig):
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
         PLATFORM = 'rc_cortical'
         #=== Network ===
+        self.COMMAND_RELAY_SERVER = {}
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
