@@ -1155,25 +1155,16 @@ def list_swap(l, i1, i2):
     return l
     
 def sendmail(to, subject, txt):
-    SENDMAIL = "/usr/sbin/sendmail" # sendmail location
-    # Prepare actual message
-
-    message = """\
-    From: %s
-    To: %s
-    Subject: %s
-
-    %s
-    """ % (platform.node()+'@fmi.ch', ", ".join([to]), subject, txt)
-
+    import subprocess,fileop
+    message = 'Subject:{0}\n\n{1}\n'.format(subject, txt)
+    fn='/tmp/email.txt'
+    fileop.write_text_file(fn,message)
     # Send the mail
-
-    import os
-
-    p = os.popen("%s -t -i" % SENDMAIL, "w")
-    p.write(message)
-    status = p.close()
-    return status
+    cmd='/usr/sbin/sendmail {0} < {1}'.format(to,fn)
+    res=subprocess.call(cmd,shell=True)
+    os.remove(fn)
+    return res==0
+    
         
 
 class TestUtils(unittest.TestCase):
@@ -1280,6 +1271,9 @@ class TestUtils(unittest.TestCase):
         import itertools
         pc=[[c,p] for p,c in itertools.product(positions,col)]
         shuffle_positions_avoid_adjacent(pc,rc((150,150)))
+
+    def test_19_sendmail(self):
+        self.assertTrue(sendmail('zoltan.raics@fmi.ch','test','c'))
         
 def shuffle_positions_avoid_adjacent(positions,shape_distance):
     remaining=copy.deepcopy(positions)
@@ -1382,6 +1376,7 @@ if __name__ == "__main__":
     mytest.addTest(TestUtils('test_14_rcd_pack'))
     mytest.addTest(TestUtils('test_15_rcd_pack'))
     mytest.addTest(TestUtils('test_18_shuffle_positions'))
+    mytest.addTest(TestUtils('test_19_sendmail'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)
