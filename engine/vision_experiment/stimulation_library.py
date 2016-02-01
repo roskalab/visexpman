@@ -50,7 +50,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         else:
             self.has = -1
         self.frame_counter = 0
-        self.precalculate_duration_mode=False
         self.stimulus_frame_info = []
         self.frame_rates = []
         
@@ -65,9 +64,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """
-        if self.precalculate_duration_mode:
-            self.frame_counter += 1
-            return
         current_texture_state = glGetBooleanv(GL_TEXTURE_2D)
         if current_texture_state:
             glDisable(GL_TEXTURE_2D)
@@ -934,12 +930,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,save_frame_info =True, is_block = False):
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,duration_calc_only=False,save_frame_info =True, is_block = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
-        if not self.precalculate_duration_mode:
+        if not duration_calc_only:
             self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
         self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
         if 0:#For testing only
@@ -947,7 +943,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
             self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
-        if save_frame_info and not self.precalculate_duration_mode:
+        if save_frame_info and not duration_calc_only:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
@@ -963,6 +959,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             alltexture=numpy.concatenate((fly_in_out,alltexture))
         if fly_out:
             alltexture=numpy.concatenate((alltexture,fly_in_out))
+        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        if duration_calc_only:
+            return (alltexture.shape[0]-(0 if circular else self.config.SCREEN_RESOLUTION['col']))/(ds*float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
@@ -989,7 +988,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              [1.0, 0.0],
                              ])
         glTexCoordPointerf(texture_coordinates)
-        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         t0=time.time()
         texture_pointer = 0
         frame_counter = 0
@@ -1027,7 +1025,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
-        if save_frame_info and not self.precalculate_duration_mode:
+        if save_frame_info and not duration_calc_only:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
@@ -1621,7 +1619,7 @@ if test_mode:
             duration = 12
             repeats = 1
             context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = not True,
-                    DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd,MSP=120,CIRCULAR=True)
+                    DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd,MSP=120,CIRCULAR= True)
             intensities = []
             fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
             #Check if number of frames generated corresponds to duration, repeat and frame rate
