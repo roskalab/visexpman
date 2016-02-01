@@ -564,7 +564,7 @@ class MesInterface(object):
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = line_scan_path, timeout = timeout)
         elif os.path.exists(parameter_file):
             line_scan_path = parameter_file
-            line_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+            line_scan_path_on_mes = parameter_file#file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result = True
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)

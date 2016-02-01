@@ -244,10 +244,12 @@ class VisionExperimentGui(QtGui.QWidget):
         try:
             if currentIndex == 0:
                 self.update_scan_regions()
-                self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+                if hasattr(image_widget,'raw_image'):
+                    self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
             elif currentIndex == 1:
                 self.update_meanimage()
-                self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+                if hasattr(image_widget,'raw_image'):
+                    self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
                 self.update_cell_info()
                 self.update_cell_group_combobox()
         except:

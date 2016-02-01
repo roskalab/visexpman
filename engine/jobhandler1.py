@@ -187,7 +187,7 @@ class Jobhandler(object):
             return  nextfunction, nextpars
         else:
             self.printl('Job cannot be selected')
-            pdb.set_trace()
+            #pdb.set_trace()
             return None,None
         
     def mesextractor(self,filename):

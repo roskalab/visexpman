@@ -223,7 +223,7 @@ class ExperimentControl(object):
         if not os.path.exists(self.parameter_file):
             self.printl('Parameter file does NOT exist ({0})'.format(self.parameter_file))
             return False
-        if not os.path.getsize(self.parameter_file)<200e3:
+        if os.path.getsize(self.parameter_file)<200e3:
             self.printl('Parameter file may be corrupt (file size: {0})'.format(os.path.getsize(self.parameter_file)))
             return False
         h = hdf5io.Hdf5io(self.parameter_file,filelocking=False)
@@ -541,12 +541,15 @@ class ExperimentControl(object):
         self.filenames['local_fragments'] = []#fragment files are first saved to a local, temporary file
         self.filenames['mes_fragments'] = []
         self.fragment_names = []
+        userfolder=os.path.join(self.config.EXPERIMENT_DATA_PATH, self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
+        if not os.path.exists(userfolder):
+            os.makedirs(userfolder)
         for fragment_id in range(self.number_of_fragments):
             if self.config.EXPERIMENT_FILE_FORMAT == 'mat':
                 fragment_name = 'fragment_{0}' .format(self.name_tag)
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
                 fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.id, fragment_id)
-            fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
+            fragment_filename = os.path.join(userfolder, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'mes':
                 if hasattr(self, 'objective_position'):
                     if self.parameters.has_key('region_name'):

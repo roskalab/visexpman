@@ -31,7 +31,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
-USERS=['','adrian','daniel','kamill','fiona','stuart','zoltan']
+USERS=['','adrian','daniel','fiona','kamill','stuart','zoltan']
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -943,6 +943,8 @@ class MainPoller(Poller):
                             self.notify(parameter)
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
+                            if 'error' in message.lower() and k.upper()=='STIM':
+                                self.notify(message)
         except:
             self.printc(traceback.format_exc())
                 
@@ -1682,7 +1684,10 @@ class MainPoller(Poller):
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
-        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
+        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH,self.generate_animal_filename('mouse', self.animal_parameters))
+#        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(user),self.generate_animal_filename('mouse', self.animal_parameters))
+#        if not os.path.exists(os.path.dirname(self.mouse_file)):
+#            os.makedirs(os.path.dirname(self.mouse_file))
         
         if os.path.exists(self.mouse_file):
             self.printc('Animal parameter file already exists')
@@ -2801,10 +2806,11 @@ def update_mouse_files_list(config, current_mouse_files = []):
 #    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
    # new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
     #print len(os.listdir(config.EXPERIMENT_DATA_PATH))
-    fns=os.listdir(config.EXPERIMENT_DATA_PATH)
+    #fns=os.listdir(config.EXPERIMENT_DATA_PATH)
 #    if len(fns)>1000:
 #        print  'WARNING: too many files in {0}, please remove the old ones.'.format(config.EXPERIMENT_DATA_PATH)
     new_mouse_files=[fn for fn in os.listdir(config.EXPERIMENT_DATA_PATH) if 'mouse' in fn and '.hdf5'==fn[-5:]]
+    #new_mouse_files=[fn for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH)[1] if 'mouse' in fn and '.hdf5'==fn[-5:]]
     #print 0.05
     new_mouse_files=[fn for fn in new_mouse_files if '_jobhandler' not in fn and '_stim' not in fn]
     #print 0.1
