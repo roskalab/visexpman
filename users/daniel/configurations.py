@@ -685,7 +685,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         #=== screen ===
         import sys
        
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [120.0, [0, 1000]] #mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [250.0, [0, 1000]] #mm
         SCREEN_PIXEL_WIDTH = [0.375, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_RESOLUTION = utils.cr([1366, 768])
@@ -811,18 +811,20 @@ class AoMicroscopeSetup(VisionExperimentConfig):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
-        self.PREFERRED_STIMULI = ['MovingGratingWithFlashConfig','MovingGratingAdrianQuickSearch', 'MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
+        self.PREFERRED_STIMULI_KAMILL = ['MovingGratingWithFlashConfig','MovingGratingAdrianQuickSearch', 'MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
                             'LedKamill2Config', 'LedKamill10mWConfig', 'LedKamill1mWConfig', 'LedKamill100uWConfig', 'ReceptiveFieldExploreConfig', 'ReceptiveFieldExploreAutosizeConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
                             'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
                             'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig', 'ProjectorFlashConfig',
                             'ShortMovingGratingConfig', 'IRLaserConfig', 'IRLaser0p01V', 'IRLaser0p05V', 'IRLaser0p1V', 'IRLaser0p2V', 'IRLaser0p3V', 'IRLaser0p4V', 'IRLaser0p5V', 'IRLaser0p7V', 'IRLaser0p9V', 'IRLaser1p1V', 'IRLaser1p3V','IRLaser1p5V','IRLaser1p7V', 'IRLaser1p9V',
                             'KamillMovingGratingNoMarchingConfig',
-                            'ContrastGrating045Deg','ContrastGrating90Deg','ContrastGrating135Deg','ContrastGrating180Deg',
-                            'ContrastGrating225Deg','ContrastGrating270Deg','ContrastGrating315Deg','ContrastGrating0Deg',]
-        FULLSCREEN = True
+                            'ContrastGrating045Deg','ContrastGrating090Deg','ContrastGrating135Deg','ContrastGrating180Deg',
+                            'ContrastGrating225Deg','ContrastGrating270Deg','ContrastGrating315Deg','ContrastGrating0Deg','ContrastGrating0DegFog',]
+                            
+        self.PREFERRED_STIMULI = ['MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'BlankScreenConfig', 'TonyNaturalBarsConfig','ReceptiveFieldExploreBWG','ProjectorFlashC']
+        FULLSCREEN = not True
         self.COLOR_MASK = [1.0, 1.0, 1.0]
-        self.TRIGGER_MES =  not False
+        self.TRIGGER_MES = not False
         self.CONTINUE_STIMULUS_TRIGGER = not  True
         self.MES_RECORD_START_DELAY = 15.0
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])

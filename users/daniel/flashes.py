@@ -5,11 +5,11 @@ import numpy
 import os.path
 import os
 
-class ProjectorFlashConfig(experiment.ExperimentConfig):
+class ProjectorFlashC(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0
-        self.NUMBER_OF_FLASHES = 5.0
-        self.FLASH_DURATION = 5.0
+        self.PAUSE_BETWEEN_FLASHES = 3.0
+        self.NUMBER_OF_FLASHES = 10.0
+        self.FLASH_DURATION = 1.0
         self.FLASH_AMPLITUDE = 1.0 #max 1.0
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
         self.FLASH_COLOR = [1.0, 1.0, 1.0] #rgb

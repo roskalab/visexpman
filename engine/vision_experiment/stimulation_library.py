@@ -392,7 +392,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True,save_frame_info=True):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, angle=None,flip = True,save_frame_info=True):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -907,24 +907,36 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-
-    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True):
+            
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,save_frame_info =True, is_block = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
         self.log_on_flip_message_initial = 'show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')'
         self.log_on_flip_message_continous = 'show_natural_bars'
-        if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        if 0:#For testing only
+            self.intensity_profile = numpy.linspace(0,1,self.intensity_profile.shape[0])
+            self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
+            self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
             self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
         intensity_profile_length = self.intensity_profile.shape[0]
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
+        bg=colors.convert_color(self.config.BACKGROUND_COLOR if background is None else background, self.config)
+        fly_in_out = bg[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
+        intensity_profile_length += (fly_in+fly_out)*fly_in_out.shape[0]
+        if fly_in:
+            alltexture=numpy.concatenate((fly_in_out,alltexture))
+        if fly_out:
+            alltexture=numpy.concatenate((alltexture,fly_in_out))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']#Because of different orienations, the stimulus size corresponds to the screen width
@@ -960,14 +972,19 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
             if end_index > alltexture.shape[0]:
                 end_index -= alltexture.shape[0]
+            if start_index > alltexture.shape[0]:
+                start_index -= alltexture.shape[0]
             if start_index < end_index:
                 texture = alltexture[start_index:end_index]
             else:
-                texture = numpy.zeros_like(texture)
-                texture[:-end_index] = alltexture[start_index:]
-                texture[-end_index:] = alltexture[:end_index]
-            if start_index >= intensity_profile_length:
-                break
+                if circular:
+                    texture = numpy.zeros_like(texture)
+                    texture[:-end_index] = alltexture[start_index:]
+                    texture[-end_index:] = alltexture[:end_index]
+                    if start_index >= intensity_profile_length-1:
+                        break
+                else:
+                    break
             texture_pointer += ds
             frame_counter += 1
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -982,6 +999,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
@@ -1000,6 +1020,141 @@ class StimulationSequences(Stimulations):
                     self.show_fullscreen(color = background_color, duration = duration)
                 state = not state
             
+    def angle2screen_pos(self,angle,axis=None):
+        distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.tan(numpy.radians(angle))
+        if axis!=None:
+            distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
+        self.machine_config.SCREEN_PIXEL_WIDTH#mm
+        return (distance_from_center/self.machine_config.SCREEN_PIXEL_WIDTH)/self.machine_config.SCREEN_UM_TO_PIXEL_SCALE#um coordinate
+        
+    def angle2size(self,size_deg, pos_deg):
+        minangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'-')
+        maxangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'+')
+        size_row=self.angle2screen_pos(maxangle['row'],'row')-self.angle2screen_pos(minangle['row'],'row')
+        size_col=self.angle2screen_pos(maxangle['col'],'col')-self.angle2screen_pos(minangle['col'],'col')
+        return utils.rc((size_row,size_col))
+
+    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
+        '''        
+        Aka Marching Squares
+    
+        Input parameters/use cases
+        1) nrows, ncolumns -> if None, automatically calculate for the whole screen surface
+        2) shape size -> if none, nrows and ncolumns and screen size will be used for determining the shape size
+        3) optional: display area
+        4) Random order
+        5) Colors
+        6) On time, off time
+        7) flash repeat
+        8) Sequence repeat
+        9) Background color
+    
+        '''
+        shape_size, nrows, ncolumns, display_size, shape_colors, background_color = \
+                self._parse_receptive_field_parameters(shape_size, nrows, ncolumns, display_size, shape_colors, background_color)
+        duration, positions = self.receptive_field_explore_durations_and_positions(shape_size=shape_size, 
+                                                                            nrows = nrows,
+                                                                            ncolumns = ncolumns,
+                                                                            shape_colors = shape_colors,
+                                                                            flash_repeat = flash_repeat,
+                                                                            sequence_repeat = sequence_repeat,
+                                                                            on_time = on_time,
+                                                                            off_time = off_time)
+        self.display_size=display_size
+        import random,itertools
+        positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
+        import pdb
+#        pdb.set_trace()
+        if random_order:
+            ct=0
+            while True:
+                positions_and_colors,success = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+                if success:
+                    break
+                else:
+                    ct+=1
+                if ct>=10:
+                    raise RuntimeError('Could not generate non adjacent random order of squares')
+                    
+            #random.shuffle(positions_and_colors)
+        if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
+            positions_and_colors_angle=positions_and_colors
+            #Consider positions in degree units and convert them to real screen positions
+            #correct for screen center
+            screen_center_um=self.machine_config.SCREEN_CENTER
+            positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
+            #Correct for display center
+            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
+            positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
+            #Convert angles to positions
+            positions_and_colors = [[p,self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
+            pos=numpy.array([p for a,d,c,p in positions_and_colors])
+            offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
+            #offset=utils.rc_add(offset,screen_center_um,'+')
+            positions_and_colors = [[a,d,c,utils.rc_add(p,offset,'-')] for a,d,c, p in positions_and_colors]
+            #Convert to ulcorner
+            if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
+                positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
+        else:
+            positions_and_colors= [[0,shape_size,c,p] for c,p in positions_and_colors]
+        self.nrows=nrows
+        self.ncolumns=ncolumns
+        self.shape_size=shape_size
+        self.show_fullscreen(color = background_color, duration = off_time)
+        for r1 in range(sequence_repeat):
+            for angle,shape_size_i, color,p in positions_and_colors:
+                    #print angle
+                    #print shape_size_i['row']
+            #for p in positions:
+             #   for color in shape_colors:
+                    for r2 in range(flash_repeat):
+                        if self.abort:
+                            break
+                        if hasattr(self, 'block_start'):
+                            self.block_start(block_name = 'position')
+                        self.show_fullscreen(color = background_color, duration = off_time*0.5)
+                        self.show_shape(shape = 'rect',
+                                    size = shape_size_i,
+                                    color = color,
+                                    background_color = background_color,
+                                    duration = on_time,
+                                    pos = p,
+                                    angle=angle)
+                        self.show_fullscreen(color = background_color, duration = off_time*0.5)
+                        if hasattr(self, 'block_end'):
+                            self.block_end(block_name = 'position')
+        
+    def _parse_receptive_field_parameters(self, shape_size, nrows, ncolumns, display_size, shape_colors, background_color):
+        if background_color is None:
+            background_color = self.experiment_config.BACKGROUND_COLOR
+        if not isinstance(shape_colors, list):
+            shape_colors = [shape_colors]
+        if display_size is None:
+            display_size = self.machine_config.SCREEN_SIZE_UM
+        if shape_size is None:
+            shape_size = utils.rc((display_size['row']/float(nrows), display_size['col']/float(ncolumns)))
+        elif not hasattr(shape_size, 'dtype'):
+            shape_size = utils.rc((shape_size, shape_size))
+        if nrows is None and ncolumns is None:
+            nrows = int(numpy.floor(display_size['row']/float(shape_size['row'])))
+            ncolumns = int(numpy.floor(display_size['col']/float(shape_size['row'])))
+        return shape_size, nrows, ncolumns, display_size, shape_colors, background_color
+        
+    def _receptive_field_explore_positions(self,shape_size, nrows, ncolumns):
+        if shape_size.shape == (1, ):
+            shape_size = shape_size[0]
+        y_dir = 1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
+        first_position = utils.rc_add(self.machine_config.SCREEN_CENTER, utils.rc((shape_size['row']*(0.5*nrows-0.5)*y_dir, shape_size['col']*(0.5*ncolumns-0.5))), '-')
+        positions = []
+        for r in range(nrows):
+            for c in range(ncolumns):
+                p=utils.rc_add(first_position, utils.rc((y_dir*r*shape_size['row'], c*shape_size['col'])))
+                positions.append(p)
+        return positions
+        
+    def receptive_field_explore_durations_and_positions(self, **kwargs):
+        positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
+        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
     def moving_grating_stimulus(self):
         pass

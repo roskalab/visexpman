@@ -6,7 +6,7 @@ import random
 import copy
 
 
-class ContrastGrating0Deg(experiment.ExperimentConfig):
+class ContrastGrating0DegFog(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.COLOR_BASELINE = 0.5#
         self.PAUSE_BETWEEN_GRATING=0.0
@@ -14,33 +14,32 @@ class ContrastGrating0Deg(experiment.ExperimentConfig):
         self.WHITE_BAR_WIDTH = 300.0
         self.DUTY_CYCLE = 3.0
         self.CONTRAST_TIMING = [
-                [0.1, 30.0],#contrast,duration in seconds
-                [1.0, 30.0],
-                [0.1, 30.0],
+                [1.0, 20.0],#contrast,duration in seconds
+                [0.1, 15.0],
                 ]
         self.REPEATS=1
         self.ORIENTATION=float(self.__class__.__name__.split('Grating')[1].split('Deg')[0])
         self.runnable='ContrastGrating'
         
-class ContrastGrating090Deg(ContrastGrating0Deg):
+class ContrastGrating090DegFog(ContrastGrating0DegFog):
     pass
 
-class ContrastGrating180Deg(ContrastGrating0Deg):
+class ContrastGrating180DegFog(ContrastGrating0DegFog):
     pass
     
-class ContrastGrating270Deg(ContrastGrating0Deg):
+class ContrastGrating270DegFog(ContrastGrating0DegFog):
     pass
 
-class ContrastGrating045Deg(ContrastGrating0Deg):
+class ContrastGrating045DegFog(ContrastGrating0DegFog):
     pass
     
-class ContrastGrating135Deg(ContrastGrating0Deg):
+class ContrastGrating135DegFog(ContrastGrating0DegFog):
     pass
 
-class ContrastGrating225Deg(ContrastGrating0Deg):
+class ContrastGrating225DegFog(ContrastGrating0DegFog):
     pass
 
-class ContrastGrating315Deg(ContrastGrating0Deg):
+class ContrastGrating315DegFog(ContrastGrating0DegFog):
     pass
 
 class ContrastGrating(experiment.Experiment):
