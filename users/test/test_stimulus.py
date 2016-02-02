@@ -204,7 +204,7 @@ class WhiteNoiseParameters(experiment.ExperimentConfig):
 
 class WhiteNoiseExperiment(experiment.Experiment):
     def run(self):
-        self.white_noise(duration = self.experiment_config.DURATION,
+        self.show_white_noise(duration = self.experiment_config.DURATION,
             pixel_size = self.experiment_config.PIXEL_SIZE, 
             flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY, 
             colors = self.experiment_config.COLORS,
@@ -326,7 +326,7 @@ class TestCheckerboardExp(experiment.Experiment):
         #White noise
         checker_size = 20#75
         duration = 20*60/100
-        self.white_noise(duration, checker_size)
+        self.show_white_noise(duration, checker_size)
         
 class TestGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

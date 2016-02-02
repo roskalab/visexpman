@@ -252,7 +252,7 @@ class WhiteNoiseParameters(experiment.ExperimentConfig):
 class WhiteNoiseExperiment(experiment.Experiment):
     def run(self):
         random.seed(0)
-        self.white_noise(duration = self.experiment_config.DURATION,
+        self.show_white_noise(duration = self.experiment_config.DURATION,
             pixel_size = self.experiment_config.PIXEL_SIZE, 
             flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY, 
             colors = self.experiment_config.COLORS,
