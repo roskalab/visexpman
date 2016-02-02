@@ -507,7 +507,7 @@ class DatafileDatabase(object):
             for row in self.hdf5.root.datafiles.where('(region=="{0}")'.format(region)):
                 state= [row['is_measurement_ready'],row['is_mesextractor'],row['is_analyzed'],row['is_converted']]
                 state=''.join(['*' if s else ' ' for s in state ])
-                line='{0},{1},{5}%,{2} {3}{4}\r\n'.format(row['stimulus'],row['depth'],row['id'], state, 'e' if row['is_error'] else '',int(row['laser']))
+                line='{0},{1},{5}%,{2} {3}{4}\r\n'.format(row['stimulus'],int(row['depth']),row['id'], state, 'e' if row['is_error'] else '',int(row['laser']))
                 lines[row['id']]=line
                 pass
             export_filename=self.filename.replace('.hdf5','_{0}.txt'.format(region))

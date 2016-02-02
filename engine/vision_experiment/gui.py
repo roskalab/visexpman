@@ -776,6 +776,8 @@ class MainPoller(Poller):
         
     def update_process_status(self):
         try:
+            if not hasattr(self,'mouse_file'):
+                return
             animalid= os.path.basename(self.mouse_file).split('_')[1]
             region=str(self.parent.get_current_region_name())
             user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
