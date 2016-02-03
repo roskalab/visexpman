@@ -8,8 +8,10 @@ import numpy
 import random
 import os
 import os.path
-import serial
-
+try:
+    import serial
+except ImportError:
+    pass
 import visexpman
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import utils

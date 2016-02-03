@@ -19,7 +19,11 @@ from pylab import show,plot,imshow,figure,title,subplot
 
 from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
 from visexpman.engine import generic
-import hdf5io
+try:
+    import hdf5io
+    hdf5io_installed=True
+except ImportError:
+    hdf5io_installed=False
 
 import unittest
 
@@ -80,7 +84,8 @@ def get_id(timestamp=None):
     return str(int(numpy.round(timestamp-epoch, 1)*10))
 
 ############### Preprocess measurement data ####################
-class CaImagingData(hdf5io.Hdf5io):
+superclass= hdf5io.Hdf5io if hdf5io_installed else object
+class CaImagingData(superclass):
     def __init__(self,filename,filelocking=False):
         self.file_info = os.stat(filename)
         hdf5io.Hdf5io.__init__(self, filename, filelocking=False)

@@ -21,7 +21,10 @@ import PyQt4.QtCore as QtCore
 #import PyQt4.Qwt5 as Qwt
 
 import visexpman
-import hdf5io
+try:
+    import hdf5io
+except ImportError:
+    pass
 from visexpman.engine.vision_experiment import experiment, experiment_data, cone_data
 from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError

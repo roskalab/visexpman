@@ -28,7 +28,10 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils, fileop, stringop, log, introspect
 from visexpman.engine import generic, MachineConfigError
 from visexpman.users.test import unittest_aggregator
-import hdf5io
+try:
+    import hdf5io
+except ImportError:
+    pass
 
 
 MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 30

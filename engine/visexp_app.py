@@ -18,7 +18,10 @@ from visexpman.engine.vision_experiment.screen import StimulationScreen
 from visexpman.engine.vision_experiment import experiment_control
 from visexpman.engine.generic.graphics import check_keyboard
 from visexpman.engine.generic import utils,fileop,introspect
-import hdf5io
+try:
+    import hdf5io
+except ImportError:
+    pass
 
 class StimulationLoop(ServerLoop, StimulationScreen):
     def __init__(self, machine_config, socket_queues, command, log):
@@ -39,7 +42,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         '''
         context_filename = fileop.get_context_filename(self.config)
         if os.path.exists(context_filename):
-            self.stim_context = utils.array2object(hdf5io.read_item(context_filename, 'context', self.config))
+            self.stim_context = utils.array2object(numpy.load(context_filename))
         else:
             self.stim_context = {}
         if not self.stim_context.has_key('screen_center'):
@@ -50,7 +53,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             self.stim_context['user_background_color'] = 0.75
 
     def save_stim_context(self):
-        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(self.stim_context), self.config,  overwrite = True)
+        numpy.save(fileop.get_context_filename(self.config),utils.object2array(self.stim_context))
         
     def _set_background_color(self,color):
         self.stim_context['background_color'] = color

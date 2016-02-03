@@ -20,7 +20,7 @@ class StimulusDevelopment(VisionExperimentConfig):
         CONTEXT_PATH = self.root_folder
         for p in [CAPTURE_PATH, LOG_PATH]:
             if not os.path.exists(p):
-                os.mkdir(p)
+                os.makedirs(p)
         DATA_PATH = self.root_folder
         EXPERIMENT_DATA_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH

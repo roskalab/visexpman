@@ -16,7 +16,10 @@ from visexpman.engine.generic import utils
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine.hardware_interface import instrument
-import hdf5io
+try:
+    import hdf5io
+except ImportError:
+    pass
 
 find_experiment_class_name = re.compile('class (.+)\(experiment.Experiment\)')
 find_experiment_config_class_name = re.compile('class (.+)\(experiment.ExperimentConfig\)')

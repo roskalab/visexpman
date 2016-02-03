@@ -33,7 +33,10 @@ from visexpman.engine.generic import gui as gui_generic
 if 0:
     from visexpA.engine.datadisplay import imaged
     from visexpA.engine.datahandlers import matlabfile
-import hdf5io
+try:
+    import hdf5io
+except ImportError:
+    pass
 from visexpman.engine.hardware_interface import queued_socket
 try:
     import visexpA.engine.component_guesser as cg

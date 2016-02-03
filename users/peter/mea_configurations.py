@@ -1,6 +1,9 @@
 import os
 import os.path
-import serial
+try:
+    import serial
+except ImportError:
+    pass
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment.configuration import HiMEAConfig, MCMEAConfig
 
