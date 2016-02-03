@@ -18,7 +18,8 @@ except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
-from visexpman.engine.generic import fileop, signal,stringop,utils,introspect
+from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
+from visexpman.engine.visexp_app import stimulation_tester
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):
@@ -117,8 +118,6 @@ class ExperimentHandler(object):
             if dt>5:
                 res= self.ask4confirmation('MEA recording may not be started, do you want to continue?')
             return res
-                    
-        
         
     def trigger_handler(self,trigger_name):
         if trigger_name == 'stim done':
@@ -144,6 +143,25 @@ class ExperimentHandler(object):
                             return
                     fileop.write_text_file(outfile,txt)
                     self.printc('Experiment info saved to {0}'.format(outfile))
+                    
+    def convert_stimulus_to_video(self):
+        self.printc('Converting stimulus to video started, please wait')
+        cf=self.guidata.read('Selected experiment class')
+        classname=cf.split(os.sep)[-1]
+        c=stimulation_tester(self.machine_config.user, self.machine_config.__class__.__name__, classname,ENABLE_FRAME_CAPTURE = True)
+        videofilename=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, os.path.basename(os.path.dirname(cf))+'-'+os.path.basename(cf)+'.mp4')
+        #Remove first frame because it is the menu
+        ff=os.listdir(c['machine_config'].CAPTURE_PATH)
+        ff.sort()
+        os.remove(os.path.join(c['machine_config'].CAPTURE_PATH,ff[0]))
+        #Convert png files to video
+        self.printc('Merging frames to video file')
+        videofile.images2mpeg4(c['machine_config'].CAPTURE_PATH, videofilename,self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+        self.printc('Stimulus exported to {0}, raw frames in {1}'.format(videofilename,c['machine_config'].CAPTURE_PATH))
+        
+        
+        
+        
                 
         
 

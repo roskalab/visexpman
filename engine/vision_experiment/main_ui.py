@@ -384,11 +384,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self._set_window_title()
         #Set up toobar
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
-            toolbar_buttons = ['start_experiment', 'stop',  'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -620,6 +620,9 @@ class MainUI(gui.VisexpmanMainWindow):
         
     def delete_all_rois_action(self):
         self.to_engine.put({'function': 'delete_all_rois', 'args':[]})
+        
+    def convert_stimulus_to_video_action(self):
+        self.to_engine.put({'function': 'convert_stimulus_to_video', 'args':[]})
         
     def exit_action(self):
         if hasattr(self, 'tpp'):
