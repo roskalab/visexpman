@@ -267,6 +267,7 @@ def run_application():
     warnings.simplefilter("always")
     with warnings.catch_warnings(record=True) as w:
         context = visexpman.engine.application_init()
+        print w
         context['warning'] = w
         globals()['run_{0}'.format(context['user_interface_name'])](context)
         visexpman.engine.stop_application(context)

@@ -80,24 +80,104 @@ def application_init(**kwargs):
         try:
             args['single_file'] = kwargs['single_file']
         except:
-            args['single_file'] = None   
-        
-    #Instantiate machine config
-    import visexpman.engine.vision_experiment.configuration
-    config_class = utils.fetch_classes('visexpman.users.common', classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False, single_file=args['single_file'])
-    if len(config_class) == 0:#Try user's folder if not found in common folder 
-        config_class = utils.fetch_classes('visexpman.users.' + args['user'], classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
-        if len(config_class) == 0:#Machine config class not found
-            raise RuntimeError('{0} user\'s {1} machine configuration class cannot be found'.format(args['user'], args['config']))
-    machine_config = config_class[0][1]()
-    #Add app name and user to machine config
-    machine_config.user = args['user']
-    machine_config.user_interface_name = args['user_interface_name']
+            args['single_file'] = None
+    
     #Add testmode
     if 'parsed_args' in locals():
         tm=getattr(parsed_args,'testmode')
-        if tm is not None:
-            machine_config.testmode = int(tm)
+    
+    return application_init_py(user = args['user'],
+                    config = args['config'],
+                    user_interface_name = args['user_interface_name'],
+                    single_file=args['single_file'],
+                    log_sources = utils.get_key(kwargs, 'log_sources'),
+                    log_start = utils.get_key(kwargs, 'log_start'),
+                    enable_sockets = kwargs.get('enable_sockets', True),
+                    test_mode = tm)
+#    #Instantiate machine config
+#    import visexpman.engine.vision_experiment.configuration
+#    config_class = utils.fetch_classes('visexpman.users.common', classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False, single_file=args['single_file'])
+#    if len(config_class) == 0:#Try user's folder if not found in common folder 
+#        config_class = utils.fetch_classes('visexpman.users.' + args['user'], classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
+#        if len(config_class) == 0:#Machine config class not found
+#            raise RuntimeError('{0} user\'s {1} machine configuration class cannot be found'.format(args['user'], args['config']))
+#    machine_config = config_class[0][1]()
+#    #Add app name and user to machine config
+#    machine_config.user = args['user']
+#    machine_config.user_interface_name = args['user_interface_name']
+#    #Add testmode
+#    if 'parsed_args' in locals():
+#        tm=getattr(parsed_args,'testmode')
+#        if tm is not None:
+#            machine_config.testmode = int(tm)
+#    #Check free space
+#    for parname in dir(machine_config):
+#        if '_PATH' == parname[-5:]:
+#            free_space = fileop.free_space(getattr(machine_config, parname))
+#            if  free_space<machine_config.FREE_SPACE_ERROR_THRESHOLD: 
+#                raise FreeSpaceError('No free space on {0}. Only {1} MB is available.'
+#                               .format(getattr(machine_config, parname), fileop.free_space(getattr(machine_config, parname))/2**20))
+#            elif free_space<machine_config.FREE_SPACE_WARNING_THRESHOLD: 
+#                warnings.warn('Running out of free space on {0} ({1}). Only {2} MB is available.'
+#                               .format(getattr(machine_config, parname), parname, fileop.free_space(getattr(machine_config, parname))/2**20))
+#    #Check network connection
+#    if not utils.is_network_available():
+#        warnings.warn('Check network connection')
+#    #Set up application logging
+#    if not hasattr(machine_config,'REMOTE_LOG_PATH'):
+#        remote_logpath = ''
+#    else:
+#        remote_logpath = machine_config.REMOTE_LOG_PATH
+#    logger = log.Logger(filename=fileop.get_logfilename(machine_config), 
+#                                    remote_logpath = remote_logpath)
+#    log_sources = utils.get_key(kwargs, 'log_sources')
+#    if log_sources is not None:
+#        map(logger.add_source, log_sources)
+#    logger.add_source(machine_config.user_interface_name)
+#    #add application specific log sources
+#    if machine_config.user_interface_name=='ca_imaging' or machine_config.user_interface_name=='main_ui':
+#        logger.add_source('daq')
+#    #Set up network connections
+#    sockets = queued_socket.start_sockets(machine_config.user_interface_name, machine_config, logger, kwargs.get('enable_sockets', True))
+#    if machine_config.PLATFORM == 'rc_cortical' or machine_config.PLATFORM == 'ac_cortical' :
+#        raise NotImplementedError('Here comes the initialization of MES non zmq sockets')
+#    if utils.get_key(kwargs, 'log_start') :
+#        logger.start()
+#    context = {}
+#    context['machine_config'] = machine_config
+#    context['logger'] = logger
+#    context['sockets'] = sockets
+#    context['socket_queues'] = queued_socket.get_queues(sockets)
+#    context['user_interface_name'] = args['user_interface_name']
+#    context['command'] = multiprocessing.Queue()
+#    context['warning'] = []
+#    context['single_file'] = args['single_file']
+#    return context
+            
+
+def application_init_py(user, config, user_interface_name, single_file, 
+                        log_sources = None, log_start = False, enable_sockets = True, test_mode = None):
+    
+    print user
+    print config
+    print user_interface_name
+    print single_file
+    
+    #Instantiate machine config
+    import visexpman.engine.vision_experiment.configuration
+    config_class = utils.fetch_classes('visexpman.users.common', classname = config, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False, single_file=single_file)
+    if len(config_class) == 0:#Try user's folder if not found in common folder 
+        config_class = utils.fetch_classes('visexpman.users.' + user, classname = config, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
+        if len(config_class) == 0:#Machine config class not found
+            raise RuntimeError('{0} user\'s {1} machine configuration class cannot be found'.format(user, config))
+    machine_config = config_class[0][1]()
+    #Add app name and user to machine config
+    machine_config.user = user
+    machine_config.user_interface_name = user_interface_name
+    
+    if test_mode is not None:
+        machine_config.testmode = int(tm)
+    
     #Check free space
     for parname in dir(machine_config):
         if '_PATH' == parname[-5:]:
@@ -118,7 +198,7 @@ def application_init(**kwargs):
         remote_logpath = machine_config.REMOTE_LOG_PATH
     logger = log.Logger(filename=fileop.get_logfilename(machine_config), 
                                     remote_logpath = remote_logpath)
-    log_sources = utils.get_key(kwargs, 'log_sources')
+    
     if log_sources is not None:
         map(logger.add_source, log_sources)
     logger.add_source(machine_config.user_interface_name)
@@ -126,21 +206,22 @@ def application_init(**kwargs):
     if machine_config.user_interface_name=='ca_imaging' or machine_config.user_interface_name=='main_ui':
         logger.add_source('daq')
     #Set up network connections
-    sockets = queued_socket.start_sockets(machine_config.user_interface_name, machine_config, logger, kwargs.get('enable_sockets', True))
+    sockets = queued_socket.start_sockets(machine_config.user_interface_name, machine_config, logger, enable_sockets)
     if machine_config.PLATFORM == 'rc_cortical' or machine_config.PLATFORM == 'ac_cortical' :
         raise NotImplementedError('Here comes the initialization of MES non zmq sockets')
-    if utils.get_key(kwargs, 'log_start') :
+    if log_start:
         logger.start()
     context = {}
     context['machine_config'] = machine_config
     context['logger'] = logger
     context['sockets'] = sockets
     context['socket_queues'] = queued_socket.get_queues(sockets)
-    context['user_interface_name'] = args['user_interface_name']
+    context['user_interface_name'] = user_interface_name
     context['command'] = multiprocessing.Queue()
     context['warning'] = []
-    context['single_file'] = args['single_file']
+    context['single_file'] = single_file
     return context
+    
     
 def stop_application(context):
     #Terminate sockets
