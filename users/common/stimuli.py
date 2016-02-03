@@ -608,15 +608,11 @@ class Chirp(experiment.Experiment):
         
         self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':0, 'counter':self.frame_counter})
         
-        all_contrasts = numpy.array([]).reshape(0,3)        
         for rep in range(self.experiment_config.REPEATS):
-            shown_colors = self.chirp(stimulus_duration = self.stimulus_duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)         
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
-            
-            shown_colors = self.show_fullscreen(color=0.5)
-            all_contrasts = numpy.vstack((all_contrasts,shown_colors))
-            
-        self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':1, 'counter':self.frame_counter, 'contrasts': all_contrasts})  
+            self.chirp(stimulus_duration = self.stimulus_duration, contrast_range = self.contrast_range, frequency_range = self.frequency_range, color = self.color)         
+            self.show_fullscreen(color=0.5)
+        
+        self.stimulus_frame_info.append({'super_block':'Chirp', 'is_last':1, 'counter':self.frame_counter})
     # End of Chirp
 
 class ChirpSweep(experiment.Experiment):
