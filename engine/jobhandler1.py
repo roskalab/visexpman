@@ -1,5 +1,5 @@
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
-import scipy.io,multiprocessing,stat
+import scipy.io,multiprocessing,stat,subprocess
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 try:
@@ -235,6 +235,10 @@ class Jobhandler(object):
                     getattr(h,'export_'+e)()
                 h.close()
                 fileop.set_file_dates(filename, file_info)
+                pngfolder=os.path.join(os.path.dirname(filename),'output', os.path.basename(filename))
+                if os.path.exists(pngfolder):#Make png folder accessible for everybody
+                    res=subprocess.call('chmod 777 {0} -R'.format(pngfolder),shell=True)
+                    logging.info(res)
                 self.printl('Analysis done')
         else:
             self.printl('Online analysis is not available')

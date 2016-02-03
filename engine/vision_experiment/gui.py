@@ -776,6 +776,8 @@ class MainPoller(Poller):
         
     def update_process_status(self):
         try:
+            if not hasattr(self, 'mouse_file'):
+                return
             animalid= os.path.basename(self.mouse_file).split('_')[1]
             region=str(self.parent.get_current_region_name())
             user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
@@ -951,8 +953,8 @@ class MainPoller(Poller):
     def mouse_file_changed(self):
         self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly
         self.wait_mouse_file_save()
-        newmousefn=os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        if newmousefn!=self.mouse_file or 1:
+        newmousefn=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH) if os.path.basename(fn)== str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText())][0]
+        if newmousefn!=self.mouse_file:
             self.mouse_file = newmousefn
             self.load_mouse_file()
     #        self.backup_mousefile()
@@ -978,7 +980,7 @@ class MainPoller(Poller):
                 mouse_file = self.last_mouse_file_name
             else:
                 mouse_file = self.mouse_files[0]
-            self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, mouse_file)
+            self.mouse_file = [fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH) if os.path.basename(fn)== mouse_file][0]
             self.load_mouse_file()
             
     def load_mouse_file(self):
@@ -1684,10 +1686,10 @@ class MainPoller(Poller):
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
-        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH,self.generate_animal_filename('mouse', self.animal_parameters))
-#        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(user),self.generate_animal_filename('mouse', self.animal_parameters))
-#        if not os.path.exists(os.path.dirname(self.mouse_file)):
-#            os.makedirs(os.path.dirname(self.mouse_file))
+        #self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH,self.generate_animal_filename('mouse', self.animal_parameters))
+        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(user),self.generate_animal_filename('mouse', self.animal_parameters))
+        if not os.path.exists(os.path.dirname(self.mouse_file)):
+            os.makedirs(os.path.dirname(self.mouse_file))
         
         if os.path.exists(self.mouse_file):
             self.printc('Animal parameter file already exists')
@@ -2809,7 +2811,7 @@ def update_mouse_files_list(config, current_mouse_files = []):
     #fns=os.listdir(config.EXPERIMENT_DATA_PATH)
 #    if len(fns)>1000:
 #        print  'WARNING: too many files in {0}, please remove the old ones.'.format(config.EXPERIMENT_DATA_PATH)
-    new_mouse_files=[fn for fn in os.listdir(config.EXPERIMENT_DATA_PATH) if 'mouse' in fn and '.hdf5'==fn[-5:]]
+    new_mouse_files=[os.path.basename(fn) for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH)[0] if 'mouse' in fn and '.hdf5'==fn[-5:]]
     #new_mouse_files=[fn for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH)[1] if 'mouse' in fn and '.hdf5'==fn[-5:]]
     #print 0.05
     new_mouse_files=[fn for fn in new_mouse_files if '_jobhandler' not in fn and '_stim' not in fn]

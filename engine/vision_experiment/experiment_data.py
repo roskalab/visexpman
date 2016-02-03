@@ -556,7 +556,6 @@ class RlvivoBackup(object):
         pwfile='v:\\codes\\jobhandler\\pw.txt'
         if not os.path.exists(pwfile):
             raise RuntimeError('Password file does not exist')
-        
         fp=open('v:\\log\\bu_{0}.txt'.format(platform.node()),'at')
         [fp.write('{0}\t{1}\n'.format(utils.timestamp2ymdhms(time.time()),f)) for f in files]
         fp.close()
