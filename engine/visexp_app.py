@@ -267,7 +267,14 @@ def run_application():
     warnings.simplefilter("always")
     with warnings.catch_warnings(record=True) as w:
         context = visexpman.engine.application_init()
-        print w
+        context['warning'] = w
+        globals()['run_{0}'.format(context['user_interface_name'])](context)
+        visexpman.engine.stop_application(context)
+
+def run_application_py(user, config, user_interface_name, single_file = ''):
+    warnings.simplefilter("always")
+    with warnings.catch_warnings(record=True) as w:
+        context = visexpman.engine.application_init_py(user, config, user_interface_name, single_file)
         context['warning'] = w
         globals()['run_{0}'.format(context['user_interface_name'])](context)
         visexpman.engine.stop_application(context)

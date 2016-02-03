@@ -157,12 +157,7 @@ def application_init(**kwargs):
 
 def application_init_py(user, config, user_interface_name, single_file, 
                         log_sources = None, log_start = False, enable_sockets = True, test_mode = None):
-    
-    print user
-    print config
-    print user_interface_name
-    print single_file
-    
+       
     #Instantiate machine config
     import visexpman.engine.vision_experiment.configuration
     config_class = utils.fetch_classes('visexpman.users.common', classname = config, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False, single_file=single_file)
