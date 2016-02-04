@@ -373,6 +373,46 @@ def cleanup_files(config):
         
 ################# Experiment file related ####################
 
+
+class DataAcquisitionFile(object):
+    '''
+    Opens an hdf5 file and data can be saved sequentally
+    '''
+    def __init__(self,nchannels,dataname, datarange,filename=None,compression_level=5):
+        self.nchannels=nchannels
+        self.datarange=datarange
+        self.scale=(2**16-1)/(datarange[1]-datarange[0])
+        self.offset=-datarange[0]
+        self.dataname=dataname
+        if filename is None:
+            self.filename=os.path.join(tempfile.gettempdir(), 'recorded.hdf5')
+            if os.path.exists(self.filename):
+                os.remove(self.filename)
+        else:
+            self.filename=filename
+        import hdf5io,tables
+        self.hdf5 = hdf5io.Hdf5io(self.filename,filelocking=False)
+        setattr(self.hdf5,dataname+'_scaling', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
+        self.hdf5.save(dataname+'_scaling')
+        datacompressor = tables.Filters(complevel=compression_level, complib='blosc', shuffle = 1)
+        datatype = tables.UInt16Atom(self.nchannels)
+        setattr(self,self.dataname, self.hdf5.h5f.create_earray(self.hdf5.h5f.root, dataname, datatype, (0,),filters=datacompressor))
+                    
+    def _scale(self,data):
+        clipped=numpy.where(data<self.datarange[0],self.datarange[0],data)
+        clipped=numpy.where(clipped>self.datarange[1],self.datarange[1],clipped)
+        return numpy.cast['uint16']((clipped+self.offset)*self.scale)
+            
+    def add(self,data):
+        if data.shape[1]!=self.nchannels:
+            raise RuntimeError('Invalid number of channels: {0}, expected: {1}'.format(data.shape[1],self.nchannel))
+        getattr(self, self.dataname).append(self._scale(data))
+#        getattr(self, self.dataname).append(data)
+            
+    def close(self):
+        self.hdf5.close()
+        
+
 def generate_animal_filename(animal_parameters):
     '''
     Generate animal file name from animal parameters.
@@ -735,6 +775,23 @@ class TestFileops(unittest.TestCase):
         for k in ['imaging_channels', 'red_labeling', 'green_labeling', 'injection_target', 'comment', 'gender']:
             del ap[k]
         self.assertEqual(ap, ap_parsed)
+        
+    def test_04_dataacq_file(self):
+        daf=DataAcquisitionFile(5,'sync', [-10.0,20.0])
+        dd=numpy.empty((0,5))
+        for i in range(20):
+            s=2
+            d=numpy.array(5*range(s)).reshape(5,s).T+0.1*i-8
+            d[:,1]*=0.5
+            daf.add(d)
+            dd=numpy.append(dd,d,axis=0)
+        daf.close()
+        import hdf5io
+        h=hdf5io.Hdf5io(daf.filename, filelocking=False)
+        h.load('sync')
+        s=h.findvar('sync_scaling')
+        numpy.testing.assert_array_almost_equal(h.sync/s['scale']-s['offset'],dd,3)
+        h.close()
         
 if __name__=='__main__':
 #    import sys
