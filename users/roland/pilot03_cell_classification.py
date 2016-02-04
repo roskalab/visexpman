@@ -7,7 +7,7 @@ Created on Mon Jan 18 14:43:38 2016
 from visexpman.engine.vision_experiment import experiment
 
 from collections import OrderedDict
-from stimuli import *
+#from stimuli import *
 
 class Pilot03BatchConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

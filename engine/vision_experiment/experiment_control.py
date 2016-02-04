@@ -493,7 +493,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self._send_himea_cmd("stop")
             else:
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
-            if not self.abort:
+            
+            do_save = True
+            if hasattr(self.config, 'SAVEFILE'):
+                do_save = self.config.SAVEFILE
+            if do_save and not self.abort:
                 self.printl('Stimulation ended, saving data to file')
                 self._save2file()
             self.send({'trigger':'stim data ready'})

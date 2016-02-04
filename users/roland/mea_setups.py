@@ -88,5 +88,23 @@ class MEAConfigDebug(MEAConfig):
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = self.root_folder
+        
 
+class MEAConfigLightChar(MEAConfig):
+    def _set_user_parameters(self):
+        MEAConfig._set_user_parameters(self)
+        self.FULLSCREEN = True
+        folder = '/home/rolandd/rolandd-fileshare/tmp'       
+        self.ENABLE_MEA_START_COMMAND = False
+        
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        self.root_folder = []#folder
+        LOG_PATH = self.root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH
+        ENABLE_PARALLEL_PORT = False
+        EXPERIMENT_DATA_PATH = self.root_folder
+        CONTEXT_PATH = self.root_folder
+        CAPTURE_PATH = self.root_folder
+        self.SAVEFILE = False
         
