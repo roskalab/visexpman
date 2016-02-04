@@ -694,7 +694,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.filesaver_q.put('terminate')
         self.filesaver.join()
 
-class UltrasonicSetup(Config):
+class UltrasoundSetup(Config):
     def init_setup_specific_parameters(self):
         self.VALVE_PIN=7
         self.ARDUINO_BASED_DIO=True
