@@ -3,14 +3,12 @@ import os, re
 import os.path
 import ctypes
 import platform
-import sys
 import shutil
 import numpy
 import tempfile
 import time
 import subprocess as sub
 import multiprocessing,threading,Queue
-import time
 from distutils import file_util,  dir_util
 try:
     import psutil
@@ -405,7 +403,7 @@ class DataAcquisitionFile(object):
             
     def add(self,data):
         if data.shape[1]!=self.nchannels:
-            raise RuntimeError('Invalid number of channels: {0}, expected: {1}'.format(data.shape[1],self.nchannel))
+            raise RuntimeError('Invalid number of channels: {0}, expected: {1}'.format(data.shape[1],self.nchannels))
         getattr(self, self.dataname).append(self._scale(data))
 #        getattr(self, self.dataname).append(data)
             

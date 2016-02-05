@@ -14,9 +14,6 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
-        if 0:
-            CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
-            os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'mat'
         ENABLE_FRAME_CAPTURE = not True
         stim_computer_ip = '127.0.0.1'
@@ -51,6 +48,14 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         
         self.ULTRASOUND_PROTOCOLS=['default']
         self._create_parameters_from_locals(locals())
+        
+class UltrasoundSetupConfigDebug(UltrasoundSetupConfig):
+    def _set_user_parameters(self):
+        UltrasoundSetupConfig._set_user_parameters(self)
+        self.EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.SCREEN_RESOLUTION = utils.cr([800,600])
+        self.SCREEN_POSITION=utils.cr([0, 0])
+        
     
 
 class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):

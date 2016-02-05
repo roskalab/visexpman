@@ -4,7 +4,6 @@ import copy
 import cPickle as pickle
 import os
 import os.path
-import time
 import threading,multiprocessing
 import Queue
 import unittest,traceback
@@ -62,6 +61,7 @@ class ExperimentHandler(object):
                             'data': multiprocessing.Queue()}
             self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
             self.sync_recorder.start()
+            self.sync_recording_started=False
     
     def open_stimulus_file(self, filename, classname):
         if not os.path.exists(filename):
@@ -111,18 +111,20 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM!='mc_mea':
-            self.syncdatafile=os.path.join(tempfile.gettempdir(), 'sync.hdf5')
-            if os.path.exists(self.syncdatafile):
-                os.remove(self.syncdatafile)
+            nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
+            nchannels=nchannels[1]-nchannels[0]+1
+            self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',[-5,5])
             #Start sync signal recording
             self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
+            self.sync_recording_started=True
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.printc('Experiment is starting, expected duration is {0} s'.format(experiment_duration))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         
     def finish_experiment(self):
+        self.printc('Finishing experiment')
         if self.machine_config.PLATFORM=='mc_mea':
             if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
                 #Find latest mcd file and save experiment metadata to the same folder
@@ -145,10 +147,26 @@ class ExperimentHandler(object):
                 fileop.write_text_file(outfile,txt)
                 self.printc('Experiment info saved to {0}'.format(outfile))
         else:
-            unread_data=self.sync_recorder.stop_daq()
+            self._stop_sync_recorder()
+            
+    def save_experiment_files(self):
+        self.daqdatafile.filename
         
     def read_sync_recorder(self):
-        self.sync_recorder.read_ai()
+        d=self.sync_recorder.read_ai()
+        if d !=None:
+            self.daqdatafile.add(d)
+            
+    def _stop_sync_recorder(self):
+        if self.sync_recording_started:
+            self.sync_recording_started=False
+            d,n=self.sync_recorder.stop_daq()
+            self.daqdatafile.add(d[0])
+            self.daqdatafile.close()
+            
+    def run_all_iterations(self):
+        if self.sync_recording_started:
+            self.read_sync_recorder()
         
     def stop_experiment(self):
         self.printc('Aborting experiment, please wait...')
@@ -157,7 +175,7 @@ class ExperimentHandler(object):
         self.send({'function': 'stop_all','args':[]},'stim')
         self.enable_check_network_status=True
         if self.machine_config.PLATFORM!='mc_mea':
-            self.sync_recorder.stop_daq()
+            self._stop_sync_recorder()
         
     def check_mcd_recording_started(self):
         if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
@@ -173,8 +191,8 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
             self.finish_experiment()
-            
-            
+        elif trigger_name=='stim data ready':
+            self.save_experiment_files()
                     
     def convert_stimulus_to_video(self):
         self.printc('Converting stimulus to video started, please wait')
@@ -193,6 +211,7 @@ class ExperimentHandler(object):
         
     def on_exit(self):
         if self.machine_config.PLATFORM!='mc_mea':
+            self._stop_sync_recorder()
             #Stop sync recorder
             self.sync_recorder.queues['command'].put('terminate')
             self.sync_recorder.join()
@@ -809,6 +828,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
+                self.run_all_iterations()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 self.check_network_messages()
@@ -838,6 +858,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.close_open_files()
             time.sleep(20e-3)
         self.close()
+        
+    def run_all_iterations(self):
+        pass
         
     def close_open_files(self):
         if hasattr(self, 'datafile') and self.datafile.h5f.isopen==1:

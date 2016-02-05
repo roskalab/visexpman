@@ -503,13 +503,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
-            elif self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='mc_mea':
+            elif self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='us_cortical':
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if not self.abort:
                 self.printl('Stimulation ended')
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM=='elphys_retinal_ca':
+                if self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='us_cortical':
                     self.send({'trigger':'stim data ready'})
             else:
                 self.printl('Stimulation stopped')
