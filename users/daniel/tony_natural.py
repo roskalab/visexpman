@@ -99,3 +99,4 @@ class TonyNaturalBarsExperiment(experiment.Experiment):
                             intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
                     #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         self.show_fullscreen(duration = 0, color =  self.experiment_config.BACKGROUND_COLOR, flip=True)
+        self.show_fullscreen(duration = 0, color =  0, flip=True)
