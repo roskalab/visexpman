@@ -73,7 +73,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us', 'standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -417,7 +417,7 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
 class UltrasoundConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
-        PLATFORM = 'us'
+        PLATFORM = 'us_cortical'
         COORDINATE_SYSTEM='center'
         self.BASE_PORT = 10000
         self.CONNECTIONS['behavioral']= {'port': self.BASE_PORT+1, 'ip': {'behavioral': '', 'main_ui': ''}}

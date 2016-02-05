@@ -7,7 +7,7 @@ from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImag
 class UltrasoundSetupConfig(UltrasoundConfig):
     def _set_user_parameters(self):
         self.BACKGROUND_COLOR=[0.0]*3
-        FULLSCREEN = not False
+        FULLSCREEN = False
         self.root_folder = 'd:\\Data'
         if not os.path.exists(self.root_folder):
             self.root_folder='c:\\temp'
@@ -17,7 +17,7 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         if 0:
             CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
             os.mkdir(CAPTURE_PATH)
-        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        EXPERIMENT_FILE_FORMAT = 'mat'
         ENABLE_FRAME_CAPTURE = not True
         stim_computer_ip = '127.0.0.1'
         behavioral_computer_ip = '127.0.0.1'
@@ -31,7 +31,9 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         self.SCREEN_MOUSE_DISTANCE=180#mm
         self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.radians(1.0/self.MOUSE_1_VISUAL_DEGREE_ON_RETINA))*self.SCREEN_MOUSE_DISTANCE/(self.SCREEN_WIDTH/float(self.SCREEN_RESOLUTION['col']))        
         self.GUI['SIZE'] =  utils.cr((600,400))
-        
+        self.SYNC_RECORDER_CHANNELS='Dev2/ai0:4'#stim sync and block trigger, ultrasound frame sync, behavioral reward, video recorder sync
+        self.SYNC_RECORDER_SAMPLE_RATE=5000
+        self.SYNC_RECORDING_BUFFER_TIME=5.0
         
         #at 500nm
         self.GAMMA_CORRECTION = numpy.array([

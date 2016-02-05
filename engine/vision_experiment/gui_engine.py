@@ -5,7 +5,7 @@ import cPickle as pickle
 import os
 import os.path
 import time
-import threading
+import threading,multiprocessing
 import Queue
 import unittest,traceback
 import numpy
@@ -55,6 +55,14 @@ class ExperimentHandler(object):
     Takes care of all microscope, hardware related tasks
     Handles stimulus files, initiates recording and stimulation, 
     '''
+    def __init__(self):
+        if self.machine_config.PLATFORM!='mc_mea':
+            self.queues = {'command': multiprocessing.Queue(), 
+                            'response': multiprocessing.Queue(), 
+                            'data': multiprocessing.Queue()}
+            self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
+            self.sync_recorder.start()
+    
     def open_stimulus_file(self, filename, classname):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
@@ -97,18 +105,59 @@ class ExperimentHandler(object):
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
+        if self.machine_config.PLATFORM=='us_cortical':
+            for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Motor Positions']:
+                experiment_parameters[pn]=self.guidata.read(pn)
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
+        if self.machine_config.PLATFORM!='mc_mea':
+            self.syncdatafile=os.path.join(tempfile.gettempdir(), 'sync.hdf5')
+            if os.path.exists(self.syncdatafile):
+                os.remove(self.syncdatafile)
+            #Start sync signal recording
+            self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
+                                ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.printc('Experiment is starting, expected duration is {0} s'.format(experiment_duration))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
+        
+    def finish_experiment(self):
+        if self.machine_config.PLATFORM=='mc_mea':
+            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
+                #Find latest mcd file and save experiment metadata to the same folder
+                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd')
+                txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
+                        .format(\
+                        self.guidata.read('name'),
+                        self.guidata.read('Bandpass filter'),
+                        self.guidata.read('ND filter'),
+                        self.guidata.read('Comment'))
+                for k,v in self.current_experiment_parameters.items():
+                    if k !='stimulus_source_code' or k!='status':
+                        txt+='{0}\t{1}\r'.format(k,v)
+                txt+=self.current_experiment_parameters['stimulus_source_code']
+                    
+                outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
+                if os.path.exists(outfile):
+                    if not self.ask4confirmation ('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
+                        return
+                fileop.write_text_file(outfile,txt)
+                self.printc('Experiment info saved to {0}'.format(outfile))
+        else:
+            unread_data=self.sync_recorder.stop_daq()
+        
+    def read_sync_recorder(self):
+        self.sync_recorder.read_ai()
         
     def stop_experiment(self):
         self.printc('Aborting experiment, please wait...')
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         self.send({'function': 'stop_all','args':[]},'stim')
+        self.enable_check_network_status=True
+        if self.machine_config.PLATFORM!='mc_mea':
+            self.sync_recorder.stop_daq()
         
     def check_mcd_recording_started(self):
         if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
@@ -123,32 +172,15 @@ class ExperimentHandler(object):
         if trigger_name == 'stim done':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
-                if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
-                    #Find latest mcd file and save experiment metadata to the same folder
-                    self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd')
-                    txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
-                            .format(\
-                            self.guidata.read('name'),
-                            self.guidata.read('Bandpass filter'),
-                            self.guidata.read('ND filter'),
-                            self.guidata.read('Comment'))
-                    for k,v in self.current_experiment_parameters.items():
-                        if k !='stimulus_source_code' or k!='status':
-                            txt+='{0}\t{1}\r'.format(k,v)
-                    txt+=self.current_experiment_parameters['stimulus_source_code']
-                        
-                    outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
-                    if os.path.exists(outfile):
-                        if not self.ask4confirmation ('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
-                            return
-                    fileop.write_text_file(outfile,txt)
-                    self.printc('Experiment info saved to {0}'.format(outfile))
+            self.finish_experiment()
+            
+            
                     
     def convert_stimulus_to_video(self):
         self.printc('Converting stimulus to video started, please wait')
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
-        c=stimulation_tester(self.machine_config.user, self.machine_config.__class__.__name__, classname,ENABLE_FRAME_CAPTURE = True)
+        c=stimulation_tester(self.machine_config.user, self.machine_config.__class__.__name__, classname,ENABLE_FRAME_CAPTURE = True,FULLSCREEN=False)
         videofilename=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, os.path.basename(os.path.dirname(cf))+'-'+os.path.basename(cf)+'.mp4')
         #Remove first frame because it is the menu
         ff=os.listdir(c['machine_config'].CAPTURE_PATH)
@@ -159,11 +191,11 @@ class ExperimentHandler(object):
         videofile.images2mpeg4(c['machine_config'].CAPTURE_PATH, videofilename,self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         self.printc('Stimulus exported to {0}, raw frames in {1}'.format(videofilename,c['machine_config'].CAPTURE_PATH))
         
-        
-        
-        
-                
-        
+    def on_exit(self):
+        if self.machine_config.PLATFORM!='mc_mea':
+            #Stop sync recorder
+            self.sync_recorder.queues['command'].put('terminate')
+            self.sync_recorder.join()
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -819,8 +851,10 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
         GUIEngine.__init__(self, machine_config,log, socket_queues, unittest)
         Analysis.__init__(self, machine_config)
+        ExperimentHandler.__init__(self)
 
     def close(self):
+        self.on_exit()
         self.close_analysis()
         GUIEngine.close(self)
 

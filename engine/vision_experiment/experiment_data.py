@@ -1237,8 +1237,12 @@ def gammatext2hdf5(filename):
     
 def yscanner2sync(waveform):
     pass
+
+try:
+    import paramiko
+except ImportError:
+    pass
     
-import paramiko
 class RlvivoBackup(object):
     def __init__(self, files,user,id,animalid):
         '''

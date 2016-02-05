@@ -387,7 +387,7 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
-        elif self.machine_config.PLATFORM=='us':
+        elif self.machine_config.PLATFORM=='us_cortical':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
@@ -564,7 +564,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 {'name': 'ND filter', 'type': 'str', 'value': ''},
                 {'name': 'Comment', 'type': 'str', 'value': ''},
             ])
-        if self.machine_config.PLATFORM=='us':
+        if self.machine_config.PLATFORM=='us_cortical':
             self.params_config.append(
             {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
                     {'name': 'Protocol', 'type': 'list', 'values': self.machine_config.ULTRASOUND_PROTOCOLS},

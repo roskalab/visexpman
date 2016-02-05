@@ -492,7 +492,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'trigger':'stim started'})
             elif self.machine_config.PLATFORM=='mc_mea':
                 pass
-            elif self.machine_config.PLATFORM=='us':
+            elif self.machine_config.PLATFORM=='us_cortical':
                 import serial
                 s=serial.Serial(port='COM1',baudrate=9600)
                 s.write('e')
