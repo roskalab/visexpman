@@ -237,6 +237,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe())
         self.screen.clear_screen(color = color_to_set)
         shown_colors = [color_to_set]
+        shown_contrasts = [color]
         
         if duration == 0.0:
             if flip:
@@ -266,7 +267,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         if count and save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True, info = {'contrasts':  numpy.array(shown_colors[:-1])})
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True, info = {'contrasts', numpy.array(shown_contrasts), 'colors':  numpy.array(shown_colors)})# {'contrasts':  numpy.array(shown_colors[:-1])})
         
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, flip = True, is_block = False):
@@ -1810,22 +1811,25 @@ class AdvancedStimulation(StimulationHelpers):
         idx = 0
         
         shown_colors = []
+        shown_contrasts = []
         
         while True:
             if self.abort or idx >= nTimePoints:
                 break
-
-            self.screen.clear_screen(color = color * contrast[idx])
+            
+            color_to_set = colors.convert_color(color*contrast[idx], self.config)
+            self.screen.clear_screen(color_to_set)
             self._flip(frame_trigger = True)
             
            # print color*contrast[idx]
-            shown_colors.append(color*contrast[idx])
+            shown_contrasts.append(color*contrast[idx])
+            shown_colors.append(color_to_set)
             idx += 1
         
         
         # Finish up
         if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True, info = {'contrasts':  numpy.array(shown_colors)})
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True, info = {'contrasts', numpy.array(shown_contrasts), 'colors':  numpy.array(shown_colors)})
         # END OF chirp()        
         
 class TestStimulationPatterns(unittest.TestCase):
