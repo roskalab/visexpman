@@ -106,5 +106,8 @@ class MEAConfigLightChar(MEAConfig):
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = self.root_folder
+ 
+        delattr(self, 'GAMMA_CORRECTION')                
+        
         self.SAVEFILE = False
         

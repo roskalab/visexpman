@@ -227,6 +227,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             color_to_set = self.config.BACKGROUND_COLOR
         else:
             color_to_set = colors.convert_color(color, self.config)
+            
+        #print 'in show_fullscreen:'
+        #print color
+        #print color_to_set
+    
         if count and save_frame_info:
             self.log.info('show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')', source='stim')
             self._save_stimulus_frame_info(inspect.currentframe())
