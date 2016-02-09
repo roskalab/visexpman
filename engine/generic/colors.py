@@ -24,8 +24,8 @@ def convert_color(color, config = None):
         #print  config.COLOR_MASK
         converted_color = config.COLOR_MASK * numpy.array(converted_color)
     if hasattr(config, 'GAMMA_CORRECTION'):
-        print 'in engine.generic.color.convert_color()'
-        print  config.GAMMA_CORRECTION
+        #print 'in engine.generic.color.convert_color()'
+        #print  config.GAMMA_CORRECTION
         converted_color =config.GAMMA_CORRECTION(converted_color).tolist()
     return converted_color
 
