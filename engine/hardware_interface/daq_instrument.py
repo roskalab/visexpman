@@ -31,12 +31,11 @@ class DaqInstrumentError(Exception):
 def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None):
     n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
     if os.name=='nt':
-        ai_data = numpy.zeros(waveform.shape[0]*n_ai_channels, dtype=numpy.float64)
         analog_output = PyDAQmx.Task()
         analog_output.CreateAOVoltageChan(ao_channel,
                                         'ao',
-                                        waveform.min(), 
-                                        waveform.max(), 
+                                        waveform.min()-0.1, 
+                                        waveform.max()+0.1, 
                                         DAQmxConstants.DAQmx_Val_Volts,
                                         None)
         analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(ai_channel.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
@@ -89,6 +88,45 @@ def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None):
         time.sleep(waveform.shape[0]/float(sample_rate))
         ai_data = numpy.zeros((waveform.shape[0],n_ai_channels), dtype=numpy.float64)
     return ai_data
+    
+def analogi(ai_channel,sample_rate,duration, timeout=1):
+    n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+    nsamples=int(duration*sample_rate)
+    if os.name=='nt':
+        ai_data = numpy.zeros(nsamples*n_ai_channels, dtype=numpy.float64)
+        analog_input = PyDAQmx.Task()
+        analog_input.CreateAIVoltageChan(ai_channel,
+                                        'ai',
+                                        DAQmxConstants.DAQmx_Val_RSE,
+                                        -5, 
+                                        5, 
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+        read = DAQmxTypes.int32()
+        analog_input.CfgSampClkTiming("OnboardClock",
+                                        sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                        nsamples)
+        analog_input.StartTask()
+        time.sleep(duration)
+        analog_input.ReadAnalogF64(int(ai_data.shape[0]/n_ai_channels),
+                                    timeout,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    ai_data,
+                                    ai_data.shape[0],
+                                    DAQmxTypes.byref(read),
+                                    None)
+        ai_data = ai_data[:read.value * n_ai_channels]
+        ai_data = ai_data.flatten('F').reshape((n_ai_channels, read.value)).transpose()
+        analog_input.StopTask()
+    else:
+        if callable(action):
+            action()
+        time.sleep(duration)
+        ai_data = numpy.zeros((ai_data.shape[0],n_ai_channels), dtype=numpy.float64)
+    return ai_data
+
 
 class ControlLoop():
     def __init__(self):
