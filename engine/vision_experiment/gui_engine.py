@@ -2,7 +2,7 @@ import time
 import scipy.io
 import copy
 import cPickle as pickle
-import os
+import os,platform
 import os.path
 import threading,multiprocessing
 import Queue
@@ -55,7 +55,7 @@ class ExperimentHandler(object):
     Handles stimulus files, initiates recording and stimulation, 
     '''
     def __init__(self):
-        if self.machine_config.PLATFORM!='mc_mea':
+        if self.machine_config.PLATFORM!='mc_mea' and platform.system()=='Windows':
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
@@ -110,7 +110,7 @@ class ExperimentHandler(object):
                 experiment_parameters[pn]=self.guidata.read(pn)
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
-        if self.machine_config.PLATFORM!='mc_mea':
+        if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
             nchannels=nchannels[1]-nchannels[0]+1
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',[-5,5])
@@ -174,7 +174,7 @@ class ExperimentHandler(object):
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         self.send({'function': 'stop_all','args':[]},'stim')
         self.enable_check_network_status=True
-        if self.machine_config.PLATFORM!='mc_mea':
+        if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         
     def check_mcd_recording_started(self):
@@ -210,7 +210,7 @@ class ExperimentHandler(object):
         self.printc('Stimulus exported to {0}, raw frames in {1}'.format(videofilename,c['machine_config'].CAPTURE_PATH))
         
     def on_exit(self):
-        if self.machine_config.PLATFORM!='mc_mea':
+        if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
             #Stop sync recorder
             self.sync_recorder.queues['command'].put('terminate')
