@@ -250,7 +250,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 if i == 1:
                     self.screen.clear_screen(color = color_to_set)
                     shown_colors.append(color_to_set)
-                    colors.append(color)
+                    shown_contrasts.append(color)
                 if flip:
                     self._flip(frame_trigger = True, count = count)
                 i += 1
@@ -267,7 +267,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 if self.abort:
                     break
                 shown_colors.append(color_to_set)
-                colors.append(color)
+                shown_contrasts.append(color)
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         if count and save_frame_info:
