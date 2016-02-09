@@ -659,9 +659,10 @@ class ChirpSweep(experiment.Experiment):
     def run(self):
         mid_contrast = numpy.mean(self.contrast_range)
     
-        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':0, 'counter':self.frame_counter})
+        #self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':0, 'counter':self.frame_counter})
         for rep in range(self.experiment_config.REPEATS):
-            
+            self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':0, 'counter':self.frame_counter})
+        
             # Full Field:
             self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
 
@@ -684,8 +685,9 @@ class ChirpSweep(experiment.Experiment):
             self.show_fullscreen(duration = self.duration_breaks, color = self.color*mid_contrast)
             self.show_fullscreen(duration = self.duration_breaks, color = self.color*self.contrast_range[0])
             
+            self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter})
             
-        self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter})
+        #self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter})
     # End of ChirpSweep
 
 class BatchStimulus(experiment.Experiment):
