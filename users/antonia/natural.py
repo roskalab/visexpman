@@ -74,16 +74,16 @@ class NaturalBarsConfig(experiment.ExperimentConfig):
         self.MINIMAL_SPATIAL_PERIOD= 120 #None
         self.SCALE= 1.0
         self.OFFSET=0.0
-        self.runnable = 'NaturalBarsExperiment'
+        self.runnable = 'NaturalBarsExperiment1'
         self._create_parameters_from_locals(locals())
         
 
-class NaturalBarsExperiment(experiment.Experiment):
+class NaturalBarsExperiment1(experiment.Experiment):
     def prepare(self):
         self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)]
         
     def run(self):
-        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         for rep in range(self.experiment_config.REPEATS):
             if self.abort:
                 break
@@ -111,12 +111,12 @@ class NaturalBarsExperiment(experiment.Experiment):
                     if not self.experiment_config.ENABLE_FLYINOUT:
                         fly_in = False
                         fly_out = False
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                    #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
                     self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
                             scale=self.experiment_config.SCALE,
                             offset=self.experiment_config.OFFSET,
                             intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                    #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):

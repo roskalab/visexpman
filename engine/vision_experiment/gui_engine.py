@@ -268,14 +268,16 @@ class Analysis(object):
             self._extract_roi_curves()
             self._normalize_roi_curves()
             self.current_roi_index = 0
+            self.selected_roi_indexes=[]
             self.display_roi_rectangles()
             self.display_roi_curve()
             self._roi_area2image()
-        elif self.rois is None:#No reference rois, noting is loaded from file
+        elif self.rois is None:#No reference rois, nothing is loaded from file
             self.rois=[]
             self._init_meanimge_w_rois()
         else:
             self.current_roi_index = 0
+            self.selected_roi_indexes=[]
             self.display_roi_rectangles()
             self.display_roi_curve()
             self._roi_area2image()
@@ -399,13 +401,21 @@ class Analysis(object):
         if len(self.rois)>0:
             self.to_gui.put({'remove_roi_rectangle' : numpy.array(self.rois[self.current_roi_index]['rectangle'][:2])*self.image_scale})
         
-    def roi_mouse_selected(self,x,y):
+    def roi_mouse_selected(self,x,y, multiple_selection):
         if len(self.rois)==0:
             return
         roi_centers = numpy.array([r['rectangle'][:2] for r in self.rois])
         p=numpy.array([x,y])
+        prev=self.current_roi_index
         self.current_roi_index = ((roi_centers-p)**2).sum(axis=1).argmin()
-        self.display_roi_curve()
+        if multiple_selection:
+            if prev!=self.current_roi_index:
+                self.selected_roi_indexes.append(prev)
+            self.selected_roi_indexes.append(self.current_roi_index)
+            self.to_gui.put({'highlight_multiple_rois': [self.selected_roi_indexes]})
+        else:
+            self.selected_roi_indexes=[]
+            self.display_roi_curve()
         
     def previous_roi(self):
         if not hasattr(self, 'current_roi_index'):
@@ -426,11 +436,19 @@ class Analysis(object):
     def delete_roi(self):
         if not hasattr(self, 'current_roi_index'):
             return
-        if not self.unittest and not self.ask4confirmation('Removing this ROI. Are you sure?'):
-            return
-        self.remove_roi_rectangle()
-        self.printc('Removing roi: {0}'.format(self.rois[self.current_roi_index]['rectangle']))
-        del self.rois[self.current_roi_index]
+        if len(self.selected_roi_indexes)==0:
+            if not self.unittest and not self.ask4confirmation('Removing this ROI. Are you sure?'):
+                return
+            self.remove_roi_rectangle()
+            self.printc('Removing roi: {0}'.format(self.rois[self.current_roi_index]['rectangle']))
+            del self.rois[self.current_roi_index]
+        else:
+            if not self.unittest and not self.ask4confirmation('Removing all the highlighted ROIs. Are you sure?'):
+                return
+            for index in self.selected_roi_indexes:
+                self.to_gui.put({'remove_roi_rectangle' : numpy.array(self.rois[index]['rectangle'][:2])*self.image_scale})
+            self.rois=[self.rois[roi_i] for roi_i in range(len(self.rois)) if roi_i not in self.selected_roi_indexes]
+        self.selected_roi_indexes=[]
         if len(self.rois)==0:
             self.current_roi_index = 0
         elif len(self.rois)<=self.current_roi_index:
