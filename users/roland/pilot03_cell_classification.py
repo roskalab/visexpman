@@ -33,19 +33,19 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
         self.VARS['FingerPrinting']['REPEATS'] = 5
         
-        self.STIM_TYPE_CLASS['Chirp_Amp'] = 'Chirp'
-        self.VARS['Chirp_Amp'] = {}
-        self.VARS['Chirp_Amp']['DURATION'] = 8
-        self.VARS['Chirp_Amp']['CONTRAST_RANGE'] = [0.0, 1.0]
-        self.VARS['Chirp_Amp']['FREQUENCY_RANGE'] = [2.0, 2.0]
-        self.VARS['Chirp_Amp']['REPEATS'] = 3
+        #self.STIM_TYPE_CLASS['Chirp_Amp'] = 'Chirp'
+        #self.VARS['Chirp_Amp'] = {}
+        #self.VARS['Chirp_Amp']['DURATION'] = 8
+        #self.VARS['Chirp_Amp']['CONTRAST_RANGE'] = [0.0, 1.0]
+        #self.VARS['Chirp_Amp']['FREQUENCY_RANGE'] = [2.0, 2.0]
+        #self.VARS['Chirp_Amp']['REPEATS'] = 3
         
-        self.STIM_TYPE_CLASS['Chirp_Freq'] = 'Chirp'
-        self.VARS['Chirp_Freq'] = {}
-        self.VARS['Chirp_Freq']['DURATION'] = 8
-        self.VARS['Chirp_Freq']['CONTRAST_RANGE'] = [1.0, 1.0]
-        self.VARS['Chirp_Freq']['FREQUENCY_RANGE'] = [1.0, 4.0]
-        self.VARS['Chirp_Freq']['REPEATS'] = 5   
+        #self.STIM_TYPE_CLASS['Chirp_Freq'] = 'Chirp'
+        #self.VARS['Chirp_Freq'] = {}
+        #self.VARS['Chirp_Freq']['DURATION'] = 8
+        #self.VARS['Chirp_Freq']['CONTRAST_RANGE'] = [1.0, 1.0]
+        #self.VARS['Chirp_Freq']['FREQUENCY_RANGE'] = [1.0, 4.0]
+        #self.VARS['Chirp_Freq']['REPEATS'] = 5   
 
         self.STIM_TYPE_CLASS['Chirp_Sweep'] = 'ChirpSweep'
         self.VARS['Chirp_Sweep'] = {}
@@ -62,7 +62,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
         self.VARS['WhiteNoise']['DURATION_MINS'] = 30.0 # min
-        self.VARS['WhiteNoise']['PIXEL_SIZE'] = [50.0] # um
+        self.VARS['WhiteNoise']['PIXEL_SIZE'] = [25.0] # um
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [0.0, 1.0]
         
@@ -108,19 +108,19 @@ class Pilot03FingerPrinting(Pilot03BatchConfig):
         Pilot03BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
 
-class Pilot03ChirpAmp(Pilot03BatchConfig):
-    def _create_parameters(self):
-        Pilot03BatchConfig._create_parameters(self)
-        self.sub_stimulus = 'Chirp_Amp'
-        Pilot03BatchConfig.extract_experiment_type(self, self)
-        self._create_parameters_from_locals(locals())
+#class Pilot03ChirpAmp(Pilot03BatchConfig):
+#    def _create_parameters(self):
+#        Pilot03BatchConfig._create_parameters(self)
+#        self.sub_stimulus = 'Chirp_Amp'
+#        Pilot03BatchConfig.extract_experiment_type(self, self)
+#        self._create_parameters_from_locals(locals())
 
-class Pilot03ChirpFreq(Pilot03BatchConfig):
-    def _create_parameters(self):
-        Pilot03BatchConfig._create_parameters(self)
-        self.sub_stimulus = 'Chirp_Freq'
-        Pilot03BatchConfig.extract_experiment_type(self, self)
-        self._create_parameters_from_locals(locals())
+#class Pilot03ChirpFreq(Pilot03BatchConfig):
+#    def _create_parameters(self):
+#        Pilot03BatchConfig._create_parameters(self)
+#        self.sub_stimulus = 'Chirp_Freq'
+#        Pilot03BatchConfig.extract_experiment_type(self, self)
+#        self._create_parameters_from_locals(locals())
      
 class Pilot03ChirpSweep(Pilot03BatchConfig):
     def _create_parameters(self):
