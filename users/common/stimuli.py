@@ -544,7 +544,7 @@ class WhiteNoiseStimulus(experiment.Experiment):
         Required:
             DURATION_MINS: in minutes (!)
             PIXEL_SIZE
-            COLOR
+            COLORS
         Optional:
             FLICKERING_FREQUENCY
     '''
@@ -559,7 +559,7 @@ class WhiteNoiseStimulus(experiment.Experiment):
         except:
             self.flickering_frequency = self.config.SCREEN_EXPECTED_FRAME_RATE
         
-        self.color = self.experiment_config.COLOR
+        self.colors = self.experiment_config.COLORS
         npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
@@ -577,7 +577,7 @@ class WhiteNoiseStimulus(experiment.Experiment):
     def run(self):
         #random.seed(0)
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':0, 'counter':self.frame_counter})
-        self.white_noise(textures = self.textures, color = self.color)
+        self.white_noise(textures = self.textures, color_0 = self.colors[0], color_1 = self.colors[1])
         self.show_fullscreen(color=0.5)
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})  
     # End of WhiteNoiseStimulus

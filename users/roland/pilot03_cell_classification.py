@@ -64,7 +64,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['WhiteNoise']['DURATION_MINS'] = 30.0 # min
         self.VARS['WhiteNoise']['PIXEL_SIZE'] = [25.0] # um
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
-        self.VARS['WhiteNoise']['COLOR'] = [0.0, 1.0, 1.0]#[0.0, 1.0]
+        self.VARS['WhiteNoise']['COLORS'] = [[0.0, 0.0, 0.0],[0.0, 1.0, 1.0]]
         
         self.STIM_TYPE_CLASS['Gratings'] = 'MovingGrating'
         self.VARS['Gratings'] = {}   

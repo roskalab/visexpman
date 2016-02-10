@@ -1720,13 +1720,14 @@ class AdvancedStimulation(StimulationHelpers):
         # END OF fingerprinting()
         
          
-    def white_noise(self, textures, color, save_frame_info = True):
+    def white_noise(self, textures, color_0, color_1, save_frame_info = True):
         '''
             This stimulus flashes textures one after the other at the given 
             frame rate.
             Required:
             - textures: NxLxW object of grayscale values (N: time dimension)
-            - color: RGB values
+            - color_0: RGB values, corresponding to zero value in texture array
+            - color_1: RGB values, corresponding to one value in texture array
             Optional:
             - save_frame_info: default to True
         '''
@@ -1751,15 +1752,19 @@ class AdvancedStimulation(StimulationHelpers):
         
         texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
         glTexCoordPointerf(texture_coordinates)
-                
+       
+        
         def show_(texture_piece):
             glPushMatrix()
             glRotatef(90, 0,0,1)            
-                      
+            
+            #glClearColor(1.0, 0.5, 0.0, 1.0)             
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            #glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)          
             glColor3fv((1.0,1.0,1.0))
-            glDrawArrays(GL_POLYGON,  0, 4) 
+            glDrawArrays(GL_POLYGON,  0, 4)
             glPopMatrix()
             
         # Enter stimulus loop:
@@ -1767,8 +1772,10 @@ class AdvancedStimulation(StimulationHelpers):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         idx = 0
 
-        colorM = numpy.tile(color, (textures.shape[1], textures.shape[2]) ).reshape(textures.shape[1], textures.shape[2], 3)
-                
+        color0 = numpy.tile(color_0, (textures.shape[1], textures.shape[2]) ).reshape(textures.shape[1], textures.shape[2], 3)
+        color1 = numpy.tile(color_1, (textures.shape[1], textures.shape[2]) ).reshape(textures.shape[1], textures.shape[2], 3)
+        color1 = color1 - color0        
+        
         while True:
             if self.abort or idx >= textures_size[0]:
                 break
@@ -1778,7 +1785,7 @@ class AdvancedStimulation(StimulationHelpers):
             texture_piece = numpy.repeat(texture_piece, 3).reshape(textures.shape[1], textures.shape[2], 3)
                        
             
-            show_(texture_piece*colorM)          
+            show_(texture_piece*color1 + color0)          
             self._flip(frame_trigger = True)
             idx += 1
         
