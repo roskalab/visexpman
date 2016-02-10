@@ -1002,8 +1002,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
-        if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
 
 class StimulationSequences(Stimulations):
