@@ -1720,12 +1720,13 @@ class AdvancedStimulation(StimulationHelpers):
         # END OF fingerprinting()
         
          
-    def white_noise(self, textures, save_frame_info = True):
+    def white_noise(self, textures, color, save_frame_info = True):
         '''
             This stimulus flashes textures one after the other at the given 
             frame rate.
             Required:
             - textures: NxLxW object of grayscale values (N: time dimension)
+            - color: RGB values
             Optional:
             - save_frame_info: default to True
         '''
@@ -1750,7 +1751,7 @@ class AdvancedStimulation(StimulationHelpers):
         
         texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
         glTexCoordPointerf(texture_coordinates)
-        
+                
         def show_(texture_piece):
             glPushMatrix()
             glRotatef(90, 0,0,1)            
@@ -1765,14 +1766,19 @@ class AdvancedStimulation(StimulationHelpers):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         idx = 0
+
+        colorM = numpy.tile(color, (textures.shape[1], textures.shape[2]) ).reshape(textures.shape[1], textures.shape[2], 3)
+                
         while True:
             if self.abort or idx >= textures_size[0]:
                 break
             
             texture_piece = textures[idx][:][:]
-            texture_piece = numpy.repeat(texture_piece,3).reshape(texture_piece.shape[0],texture_piece.shape[1],3)
+            #texture_piece = numpy.repeat(texture_piece,3).reshape(texture_piece.shape[0],texture_piece.shape[1],3)
+            texture_piece = numpy.repeat(texture_piece, 3).reshape(textures.shape[1], textures.shape[2], 3)
+                       
             
-            show_(texture_piece)          
+            show_(texture_piece*colorM)          
             self._flip(frame_trigger = True)
             idx += 1
         
