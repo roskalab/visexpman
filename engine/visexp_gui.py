@@ -338,7 +338,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.common_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
     def update_animal_parameter_display(self):
-        if hasattr(self.poller, 'animal_parameters'):
+        if hasattr(self.poller, 'animalvisexp_gui.py_parameters'):
             animal_parameters = self.poller.animal_parameters
             if not animal_parameters.has_key('both_channels'):
                 channel = ''

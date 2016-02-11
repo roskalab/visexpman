@@ -1,5 +1,5 @@
 import shutil
-import time
+import time,datetime
 import numpy
 import re
 import Queue
@@ -951,10 +951,10 @@ class MainPoller(Poller):
             self.printc(traceback.format_exc())
                 
     def mouse_file_changed(self):
-        self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly
         self.wait_mouse_file_save()
-        newmousefn=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH) if os.path.basename(fn)== str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText())][0]
+        newmousefn=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText())][0]
         if newmousefn!=self.mouse_file:
+            self.printc('Mouse file has changed to {0}'.format(newmousefn))
             self.mouse_file = newmousefn
             self.load_mouse_file()
     #        self.backup_mousefile()
@@ -969,18 +969,20 @@ class MainPoller(Poller):
         self.files_to_delete = []
         self.jobhandler_reset_issued = False
         self.prev_date_updated = 0.0
+        self.issued_ids = []
         
     def initialize_mouse_file(self):
         '''
         Finds out which mouse file to load and loadds data from it
         '''
-        are_new_files, self.mouse_files = update_mouse_files_list(self.config)
+        are_new_files, self.mouse_files, mouse_files_full = update_mouse_files_list(self.config)
         if len(self.mouse_files)>0:
             if self.last_mouse_file_name in self.mouse_files:
                 mouse_file = self.last_mouse_file_name
             else:
                 mouse_file = self.mouse_files[0]
-            self.mouse_file = [fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH) if os.path.basename(fn)== mouse_file][0]
+#            self.mouse_file = [fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== mouse_file][0]
+            self.mouse_file = [fn for fn in mouse_files_full if os.path.basename(fn)== mouse_file][0]
             self.load_mouse_file()
             
     def load_mouse_file(self):
@@ -1700,7 +1702,7 @@ class MainPoller(Poller):
             if os.path.exists(self.local_mouse_file):#Remove existing temp mouse file
                 os.remove(self.local_mouse_file)
             hdf5io.save_item(self.local_mouse_file, variable_name, self.animal_parameters,filelocking=False)
-            are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
+            are_new_file, self.mouse_files, full = update_mouse_files_list(self.config, self.mouse_files)
             time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
             self.parent.update_mouse_files_combobox(set_to_value = os.path.split(self.mouse_file)[-1])
@@ -2147,6 +2149,14 @@ class MainPoller(Poller):
             region_name = self.parent.get_current_region_name()
             if len(region_name)>0:
                 self.experiment_parameters['region_name'] = region_name
+            region_add_timestamp=time.mktime(datetime.datetime.strptime(self.scan_regions[self.experiment_parameters['region_name']]['add_date'], "%Y-%m-%d %H-%M-%S").timetuple())    
+            dt=(time.time()-region_add_timestamp)/3600
+            if dt>self.config.SCAN_REGION_TIMEOUT:
+                if not self.ask4confirmation('Scan region was created {0} hours ago. Are you sure you want to record from this scan region?'):
+                    return
+                else:
+                    if self.ask4confirmation('Overwrite current scan region\'s add date?'):
+                        self.scan_regions[self.experiment_parameters['region_name']]['add_date']=scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         objective_range_string = str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
             objective_positions = map(float, objective_range_string.split(','))
@@ -2182,8 +2192,13 @@ class MainPoller(Poller):
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
         self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo')
-        #Start experiment batch
-        self.generate_experiment_start_command()
+        if self.experiment_parameters.has_key('objective_positions') and self.ask4confirmation('Generate command for all depths?'):
+            while True:
+                if self.next_experiment()==None:
+                    break
+        else:
+            #Start experiment batch
+            self.generate_experiment_start_command()
 
     def generate_experiment_start_command(self):
         #TODO:  INTRINSIC: do not expect mouse file and scan regions, chck checkbox which enables intrinsic
@@ -2192,8 +2207,6 @@ class MainPoller(Poller):
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
         time.sleep(1.0)
         self.experiment_parameters['id'] = str(int(time.time()))
-        if not hasattr(self, 'issued_ids'):
-            self.issued_ids = []
         self.issued_ids.append(self.experiment_parameters['id'])
         if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('objective_positions'):
             self.experiment_parameters['objective_position'] = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']]
@@ -2260,6 +2273,7 @@ class MainPoller(Poller):
             self.experiment_parameters['current_objective_position_index'] += 1
             if self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
                 self.generate_experiment_start_command()
+                return True
        
     ############ 3d scan test ###############
     def show_rc_scan_results(self):
@@ -2628,7 +2642,8 @@ class MainPoller(Poller):
                 self.printc('5')
             if 1:#New backup
                 try:
-                    files=[self.mouse_file]
+                    #files=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== self.mouse_file]
+                    files=[fn for fn in list_mouse_files(self.config) if os.path.basename(fn)== os.path.basename(self.mouse_file)]
                     rn=[rn for rn in self.scan_regions.keys() if self.parent.get_current_region_name() in rn]
                     if len(rn)==1:
                         d=self.scan_regions[rn[0]]['add_date']
@@ -2802,6 +2817,19 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         self.plots[-1].addItem(linear_region)
         self.plots[-1].setMaximumHeight(90)
         
+def list_mouse_files(config):
+    mfiles=[]
+    for dirname in os.listdir(config.EXPERIMENT_DATA_PATH):
+        if dirname=='output':
+            continue
+        dirname=os.path.join(config.EXPERIMENT_DATA_PATH, dirname)
+        if os.path.isdir(dirname):
+            mfiles.extend([os.path.join(dirname, fn) for fn in os.listdir(dirname) if fn[-5:]=='.hdf5' and 'mouse' in fn])
+        elif dirname[-5:]=='.hdf5' and 'mouse' in dirname:
+            mfiles.append(dirname)
+    return mfiles
+
+        
 
 def update_mouse_files_list(config, current_mouse_files = []):
     
@@ -2811,7 +2839,9 @@ def update_mouse_files_list(config, current_mouse_files = []):
     #fns=os.listdir(config.EXPERIMENT_DATA_PATH)
 #    if len(fns)>1000:
 #        print  'WARNING: too many files in {0}, please remove the old ones.'.format(config.EXPERIMENT_DATA_PATH)
-    new_mouse_files=[os.path.basename(fn) for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH)[0] if 'mouse' in fn and '.hdf5'==fn[-5:]]
+    #new_mouse_files=[os.path.basename(fn) for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if 'mouse' in fn and '.hdf5'==fn[-5:]]
+    new_mouse_files_full=list_mouse_files(config)
+    new_mouse_files=[os.path.basename(fn) for fn in new_mouse_files_full]
     #new_mouse_files=[fn for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH)[1] if 'mouse' in fn and '.hdf5'==fn[-5:]]
     #print 0.05
     new_mouse_files=[fn for fn in new_mouse_files if '_jobhandler' not in fn and '_stim' not in fn]
@@ -2824,7 +2854,7 @@ def update_mouse_files_list(config, current_mouse_files = []):
         are_new_files = True
     else:
         are_new_files = False
-    return are_new_files, new_mouse_files
+    return are_new_files, new_mouse_files, new_mouse_files_full
 
 if __name__ == '__main__':
     pass

@@ -114,6 +114,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
         GREEN_LABELING = ['']
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
+        SCAN_REGION_TIMEOUT=[12.0, [1.0, 168.0]]
         #realignment parameters
         MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
         ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
