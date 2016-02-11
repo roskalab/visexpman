@@ -35,7 +35,8 @@ class PhysTiff2Hdf5(object):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
         now=time.time()
         excluded_extensions=['txt','mat','hdf5','tif' if not self.use_tiff else 'csv']
-        self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600 and not 'timestamp' in f and fileop.file_extension(f)!='txt' and fileop.file_extension(f)not in excluded_extensions]#Considering files not older than 2 weeks
+        self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and fileop.file_extension(f) not in excluded_extensions]
+        self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600]#Considering files not older than 2 weeks
         self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
         
         if self.irlaser:

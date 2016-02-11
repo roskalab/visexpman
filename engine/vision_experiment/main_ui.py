@@ -538,6 +538,8 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.cellbrowser.populate(msg['display_cell_tree'])
             elif msg.has_key('update_network_status'):
                 self.statusbar.showMessage(msg['update_network_status'])
+            elif msg.has_key('highlight_multiple_rois'):
+                self.image.highlight_roi(msg['highlight_multiple_rois'][0])
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             
@@ -724,8 +726,8 @@ class MainUI(gui.VisexpmanMainWindow):
         self.to_engine.put({'data': state==2, 'path': 'analysis_helper/show_repetitions/input', 'name': 'show_repetitions'})
         self.to_engine.put({'function': 'display_roi_curve', 'args':[]})
         
-    def roi_mouse_selected(self,x,y):
-        self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y]})
+    def roi_mouse_selected(self,x,y,multiple_select):
+        self.to_engine.put({'function': 'roi_mouse_selected', 'args':[x,y,multiple_select]})
     
     def parameter_changed(self, param, changes):
         self.send_widget_status()

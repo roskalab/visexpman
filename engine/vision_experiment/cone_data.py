@@ -359,7 +359,7 @@ def roi_redetect(rectangle, meanimage, subimage_size=3):
     try:
         area=numpy.where(labeled==labeled[binary.shape[0]/2,binary.shape[1]/2])
     except IndexError:
-        raise RuntimeError('CHECK THIS ERROR: binary.shape {0}, labeled.shape {1}'.format(binary.shape,labeled.shape))
+        raise RuntimeError('CHECK THIS ERROR: binary.shape {0}, labeled.shape {1}, subimage.shape: {2}'.format(binary.shape,labeled.shape,subimage.shape))
     area=numpy.copy(area)
     area[0]+=rectangle[0]-rectangle[2]*0.5*subimage_size
     area[1]+=rectangle[1]-rectangle[3]*0.5*subimage_size

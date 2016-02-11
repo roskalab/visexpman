@@ -279,6 +279,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
 
     def mouse_clicked(self,e):
         p=self.img.mapFromScene(e.scenePos())
+        ctrl_pressed=int(QtGui.QApplication.keyboardModifiers())&QtCore.Qt.ControlModifier!=0
         if e.double():
             if int(e.buttons()) == 1:
                 self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
@@ -288,7 +289,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 self.emit(QtCore.SIGNAL('wheel_double_click'), p.x(), p.y())
             self.update_roi_info()
         elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2:
-            self.emit(QtCore.SIGNAL('roi_mouse_selected'), p.x(), p.y())
+            self.emit(QtCore.SIGNAL('roi_mouse_selected'), p.x(), p.y(),ctrl_pressed)
         
     def add_roi(self,x,y, size=None, type='rect', movable = True):
         if size is None:
@@ -340,10 +341,16 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         
     def highlight_roi(self, index):
         for i in range(len(self.rois)):
-            if i == index:
-                self.rois[i].setPen(self.selected_color)
+            if isinstance(index,list):
+                if i in index:
+                    self.rois[i].setPen(self.selected_color)
+                else:
+                    self.rois[i].setPen(self.unselected_color)
             else:
-                self.rois[i].setPen(self.unselected_color)
+                if i == index:
+                    self.rois[i].setPen(self.selected_color)
+                else:
+                    self.rois[i].setPen(self.unselected_color)
         
 class FileTree(QtGui.QTreeView):
     def __init__(self,parent, root, extensions = []):
