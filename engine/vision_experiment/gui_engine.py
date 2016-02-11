@@ -409,9 +409,12 @@ class Analysis(object):
         prev=self.current_roi_index
         self.current_roi_index = ((roi_centers-p)**2).sum(axis=1).argmin()
         if multiple_selection:
-            if prev!=self.current_roi_index:
-                self.selected_roi_indexes.append(prev)
-            self.selected_roi_indexes.append(self.current_roi_index)
+            if self.current_roi_index in self.selected_roi_indexes:
+                self.selected_roi_indexes.remove(self.current_roi_index)
+            else:
+                if prev!=self.current_roi_index and prev not in self.selected_roi_indexes:
+                    self.selected_roi_indexes.append(prev)
+                self.selected_roi_indexes.append(self.current_roi_index)
             self.to_gui.put({'highlight_multiple_rois': [self.selected_roi_indexes]})
         else:
             self.selected_roi_indexes=[]
