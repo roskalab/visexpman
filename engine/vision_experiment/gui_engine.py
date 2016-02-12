@@ -104,6 +104,7 @@ class ExperimentHandler(object):
         #Collect experiment parameters
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
+        experiment_parameters['name']=self.guidata.read('Name')
         experiment_parameters['stimulus_source_code']=stimulus_source_code
         experiment_parameters['stimclass']=classname
         experiment_parameters['duration']=experiment_duration
@@ -167,6 +168,7 @@ class ExperimentHandler(object):
         if self.sync_recording_started:
             self.sync_recording_started=False
             d,n=self.sync_recorder.stop_daq()
+            self.printc('Sync signal recording stopped')
             self.daqdatafile.add(d)
             self.daqdatafile.hdf5.machine_config=experiment_data.pack_configs(self)
             self.daqdatafile.hdf5.save('machine_config')
@@ -195,12 +197,15 @@ class ExperimentHandler(object):
             return res
         
     def trigger_handler(self,trigger_name):
-        if trigger_name == 'stim done':
+        if trigger_name == 'stim started':
+            self.printc('WARNING: no stim started trigger timeout implemented')
+        elif trigger_name == 'stim done':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
             self.finish_experiment()
         elif trigger_name=='stim data ready':
             self.save_experiment_files()
+            self.printc('Experiment ready')
                     
     def convert_stimulus_to_video(self):
         self.printc('Converting stimulus to video started, please wait')

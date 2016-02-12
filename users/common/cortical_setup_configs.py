@@ -13,7 +13,10 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
         CONTEXT_PATH = os.path.join(self.root_folder,'context')
         EXPERIMENT_FILE_FORMAT = 'mat'
-        ENABLE_FRAME_CAPTURE = not True
+        ENABLE_FRAME_CAPTURE = False
+        DIGITAL_IO_PORT='COM3'
+        BLOCK_TRIGGER_PIN=0
+        FRAME_TRIGGER_PIN=1
         stim_computer_ip = '192.168.2.4'
         behavioral_computer_ip = '192.168.2.3'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
@@ -45,6 +48,7 @@ class UltrasoundSetupConfig(UltrasoundConfig):
                                     [1.0, 0.2403e-6]])
         
         self.ULTRASOUND_PROTOCOLS=['default']
+        self.ENABLE_ULTRASOUND_TRIGGERING=False
         self._create_parameters_from_locals(locals())
         
 class UltrasoundSetupConfigDebug(UltrasoundSetupConfig):
@@ -52,8 +56,9 @@ class UltrasoundSetupConfigDebug(UltrasoundSetupConfig):
         UltrasoundSetupConfig._set_user_parameters(self)
         self.EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.SCREEN_RESOLUTION = utils.cr([800,600])
+        self.SCREEN_RESOLUTION = utils.cr([1366, 768])
         self.SCREEN_POSITION=utils.cr([0, 0])
-        self.FULLSCREEN=False
+        self.FULLSCREEN=not False
         
         
     

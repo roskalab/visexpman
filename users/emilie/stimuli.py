@@ -16,7 +16,7 @@ class Flash(experiment.Stimulus):
         
     def run(self):
         for i in range(self.NFLASHES):
-            self.show_fullscreen(color=self.ON_COLOR,duration=self.ON_TIME)
+            self.show_fullscreen(color=self.ON_COLOR,duration=self.ON_TIME,is_block=True)
             self.show_fullscreen(color=self.OFF_COLOR,duration=self.OFF_TIME)
             
 class MovingBar(st.MovingBarTemplate):

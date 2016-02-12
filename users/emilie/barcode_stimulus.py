@@ -51,7 +51,7 @@ class NaturalBarsConfig(experiment.Stimulus):
                         background=self.BACKGROUND_COLOR,
                         scale=self.SCALE,
                         offset=self.OFFSET,
-                        intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
+                        intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out,is_block=True)
                 self.show_fullscreen(duration = self.WAIT_TIME, color =  self.BACKGROUND_COLOR, flip=True)
                     
 class NaturalBarsDebug(NaturalBarsConfig):
@@ -59,7 +59,7 @@ class NaturalBarsDebug(NaturalBarsConfig):
         NaturalBarsConfig.stimulus_configuration(self)
         self.SPEED = 800
         self.REPEATS = 2 #5
-        self.DIRECTIONS = [0,30]
+        self.DIRECTIONS = [0,90]
         self.DURATION = 24
         
 
