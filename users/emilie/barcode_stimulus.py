@@ -54,3 +54,13 @@ class NaturalBarsConfig(experiment.Stimulus):
                         intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
                 self.show_fullscreen(duration = self.WAIT_TIME, color =  self.BACKGROUND_COLOR, flip=True)
                     
+class NaturalBarsDebug(NaturalBarsConfig):
+    def stimulus_configuration(self):
+        NaturalBarsConfig.stimulus_configuration(self)
+        self.SPEED = 800
+        self.REPEATS = 2 #5
+        self.DIRECTIONS = [0,30]
+        self.DURATION = 24
+        
+
+

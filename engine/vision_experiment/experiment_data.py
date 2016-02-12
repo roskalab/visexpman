@@ -149,7 +149,10 @@ def get_id(timestamp=None):
     if timestamp is None:
         timestamp = time.time()
     epoch = time.mktime((2014, 11, 01, 0,0,0,0,0,0))
-    return str(int(numpy.round(timestamp-epoch, 1)*10))
+    if 0:
+        return str(int(numpy.round(timestamp-epoch, 1)*10))
+    else:
+        return str(int(numpy.round(timestamp, 1)*10))
 
 ############### Preprocess measurement data ####################
 if hdf5io_available:
@@ -388,6 +391,8 @@ def pack_configs(self):
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
+    if len([True for c in self.__class__.__bases__  if c.__name__=='Stimulus'])>0:
+        configs['experiment_config']=self.config2dict()
     return configs
     
 def read_machine_config(h):

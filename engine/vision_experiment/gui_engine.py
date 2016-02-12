@@ -91,6 +91,10 @@ class ExperimentHandler(object):
     def start_experiment(self):
         if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
             return
+        if self.sync_recording_started:
+            self.notify('Warning', 'Experiment already running')
+            return
+            
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
         filename=os.sep.join(cf.split(os.sep)[:-1])
@@ -119,7 +123,7 @@ class ExperimentHandler(object):
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
         self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
-        self.printc('Experiment is starting, expected duration is {0} s'.format(experiment_duration))
+        self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_duration))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         
@@ -150,7 +154,9 @@ class ExperimentHandler(object):
             self._stop_sync_recorder()
             
     def save_experiment_files(self):
-        self.daqdatafile.filename
+        fn=experiment_data.get_recording_path(self.current_experiment_parameters, self.machine_config, prefix = 'sync')
+        shutil.move(self.daqdatafile.filename,fn)
+        self.printc('{0} saved'.format(fn))
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
@@ -161,7 +167,9 @@ class ExperimentHandler(object):
         if self.sync_recording_started:
             self.sync_recording_started=False
             d,n=self.sync_recorder.stop_daq()
-            self.daqdatafile.add(d[0])
+            self.daqdatafile.add(d)
+            self.daqdatafile.hdf5.machine_config=experiment_data.pack_configs(self)
+            self.daqdatafile.hdf5.save('machine_config')
             self.daqdatafile.close()
             
     def run_all_iterations(self):

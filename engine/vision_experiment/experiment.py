@@ -182,6 +182,13 @@ class Stimulus(stimulation_library.AdvancedStimulation):
         '''
         Stimulus pattern generation on idle screen
         '''
+        
+    def config2dict(self):
+        d={}
+        for vn in dir(self):
+            if vn.isupper():
+                d[vn]=getattr(self,vn)
+        return d
 
 ######################### Restore experiment config from measurement data #########################
 

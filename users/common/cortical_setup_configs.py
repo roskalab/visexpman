@@ -7,23 +7,21 @@ from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImag
 class UltrasoundSetupConfig(UltrasoundConfig):
     def _set_user_parameters(self):
         self.BACKGROUND_COLOR=[0.0]*3
-        FULLSCREEN = False
-        self.root_folder = 'd:\\Data'
-        if not os.path.exists(self.root_folder):
-            self.root_folder='c:\\temp'
-        LOG_PATH = self.root_folder
-        EXPERIMENT_DATA_PATH = self.root_folder
-        CONTEXT_PATH = self.root_folder
+        FULLSCREEN = True
+        self.root_folder = 'v:\\'
+        LOG_PATH = os.path.join(self.root_folder,'log')
+        EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
+        CONTEXT_PATH = os.path.join(self.root_folder,'context')
         EXPERIMENT_FILE_FORMAT = 'mat'
         ENABLE_FRAME_CAPTURE = not True
-        stim_computer_ip = '127.0.0.1'
-        behavioral_computer_ip = '127.0.0.1'
+        stim_computer_ip = '192.168.2.4'
+        behavioral_computer_ip = '192.168.2.3'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
-        self.CONNECTIONS['behavioral']['ip']['analysis'] = behavioral_computer_ip
+        self.CONNECTIONS['behavioral']['ip']['behavioral'] = behavioral_computer_ip
         self.CONNECTIONS['behavioral']['ip']['main_ui'] = behavioral_computer_ip
         self.SCREEN_RESOLUTION = utils.cr([1920, 1080])
-        self.SCREEN_POSITION=utils.cr([-1920, 0])
+        self.SCREEN_POSITION=utils.cr([0, 0])#utils.cr([-1920, 0])
         self.SCREEN_WIDTH=600#mm
         self.SCREEN_MOUSE_DISTANCE=180#mm
         self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.radians(1.0/self.MOUSE_1_VISUAL_DEGREE_ON_RETINA))*self.SCREEN_MOUSE_DISTANCE/(self.SCREEN_WIDTH/float(self.SCREEN_RESOLUTION['col']))        
@@ -55,6 +53,8 @@ class UltrasoundSetupConfigDebug(UltrasoundSetupConfig):
         self.EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.SCREEN_RESOLUTION = utils.cr([800,600])
         self.SCREEN_POSITION=utils.cr([0, 0])
+        self.FULLSCREEN=False
+        
         
     
 
