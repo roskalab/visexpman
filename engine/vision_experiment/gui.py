@@ -2152,11 +2152,11 @@ class MainPoller(Poller):
             region_add_timestamp=time.mktime(datetime.datetime.strptime(self.scan_regions[self.experiment_parameters['region_name']]['add_date'], "%Y-%m-%d %H-%M-%S").timetuple())    
             dt=(time.time()-region_add_timestamp)/3600
             if dt>self.config.SCAN_REGION_TIMEOUT:
-                if not self.ask4confirmation('Scan region was created {0} hours ago. Are you sure you want to record from this scan region?'):
+                if not self.ask4confirmation('Scan region was created {0:.0f} hours ago. Are you sure you want to record from this scan region?'.format(dt)):
                     return
                 else:
-                    if self.ask4confirmation('Overwrite current scan region\'s add date?'):
-                        self.scan_regions[self.experiment_parameters['region_name']]['add_date']=scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
+                    if self.ask4confirmation('Overwrite current scan region\'s add date?\r\nIf yes, datafiles will be copied to today\'s folder, no: datafiles are copied to the folder corresponds to scan region creation date '):
+                        self.scan_regions[self.experiment_parameters['region_name']]['add_date']= utils.datetime_string().replace('_', ' ')
         objective_range_string = str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
             objective_positions = map(float, objective_range_string.split(','))
