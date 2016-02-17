@@ -127,18 +127,18 @@ class MovingGratingNoMarchingConfig(MovingGratingConfig):
 class MovingGratingFiona(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 6
-        self.MARCH_TIME=4.0#
-        self.GRATING_STAND_TIME = 4.0
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME=3.0#
+        self.GRATING_STAND_TIME = 3.0
         #self.GREY_INSTEAD_OF_MARCHING
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = range(45, 315, 90)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
         #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 2
-        self.PAUSE_BEFORE_AFTER = 5.0
-        self.BLACK_SCREEN_DURATION=5.0
+        self.PAUSE_BEFORE_AFTER = 2.0
+        self.BLACK_SCREEN_DURATION=2.0
 
 class MovingGratingAdrian(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
@@ -240,7 +240,7 @@ if 1:
             self.MARCH_TIME = 0.5
             self.GRATING_STAND_TIME = 0.5
             #Grating parameters        
-            self.ORIENTATIONS = [0,45,90,135,180,225,270,315]
+            self.ORIENTATIONS = [0,45,90,135,180,225,270,315][::2]
             self.WHITE_BAR_WIDTHS = [300.0]#300
             self.PAUSE_BEFORE_AFTER = 0.0
             self.REPEATS = 1
@@ -407,6 +407,8 @@ class MovingGrating(experiment.Experiment):
         self.fragment_durations = self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER 
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.fragment_durations += self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()
+        if hasattr(self.experiment_config,  'BLACK_SCREEN_DURATION'):
+            self.fragment_durations += self.experiment_config.BLACK_SCREEN_DURATION
         self.fragment_durations = [self.fragment_durations]
         self.number_of_fragments = len(self.fragment_durations)
         #Group stimulus units into fragments

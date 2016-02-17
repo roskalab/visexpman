@@ -567,7 +567,7 @@ class RlvivoBackup(object):
         self.target_folder()
         self.copy()
         if todatabig:
-            root= '/mnt/databig/data' if user=='daniel' or user=='default_user' else  '/mnt/databig/processed'
+            root= '/mnt/databig/data' if (user=='daniel' or user=='default_user') else  '/mnt/databig/processed'
             self.target_folder(root=root)
             self.copy()
         self.close()
@@ -586,11 +586,17 @@ class RlvivoBackup(object):
             raise RuntimeError(emsg)
         
     def target_folder(self,root='/mnt/databig/backup'):
-        self.target_dir='/'.join([root,self.user,self.id,str(self.animalid)])
+        if (self.user=='daniel' or self.user=='default_user')  and 'backup' not in root:
+            self.target_dir='/'.join([root,self.id,str(self.animalid)])
+        else:
+            self.target_dir='/'.join([root,self.user,self.id,str(self.animalid)])
         i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
         i,o,e2=self.ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
-        #for e in [e1,e2]:
-        print e2.readline()
+        msg=e2.readline()
+        if len(msg)>0:
+            print e2.readline()
+            i,o,e3=self.ssh.exec_command('ls -la {0}'.format(os.dirname(self.target_dir)))
+            print e3.readline()
         self.check_ssh_error(e1)
         
     def copy(self):

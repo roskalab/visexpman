@@ -952,7 +952,7 @@ class MainPoller(Poller):
                 
     def mouse_file_changed(self):
         self.wait_mouse_file_save()
-        newmousefn=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText())][0]
+        newmousefn=[fn for fn in list_mouse_files(self.config) if os.path.basename(fn)== str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText())][0]
         if newmousefn!=self.mouse_file:
             self.printc('Mouse file has changed to {0}'.format(newmousefn))
             self.mouse_file = newmousefn
@@ -1004,6 +1004,7 @@ class MainPoller(Poller):
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
             self.animal_parameters = getattr(h, varname)
+            self.printc('Loading scan regions')
             scan_regions = h.findvar('scan_regions')
             if scan_regions is None:
                 self.scan_regions = {}
@@ -1017,17 +1018,18 @@ class MainPoller(Poller):
                             self.scan_regions[srn] = utils.array2object(copy.deepcopy(scan_regions[srn]))
                 else:
                     self.scan_regions = copy.deepcopy(scan_regions)
-            self.printc('Loading cells')
-            cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
-            if cells is not None:
-                if hasattr(cells, 'dtype'):
-                    self.cells = utils.array2object(cells)
-                else:
-                    self.cells = cells
-            self.printc('Loading mean images')
-            images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
-            if images is not None:
-                self.images = images
+            if 0:
+                self.printc('Loading cells')
+                cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
+                if cells is not None:
+                    if hasattr(cells, 'dtype'):
+                        self.cells = utils.array2object(cells)
+                    else:
+                        self.cells = cells
+                self.printc('Loading mean images')
+                images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
+                if images is not None:
+                    self.images = images
             anesthesia_history = copy.deepcopy(h.findvar('anesthesia_history'))#Takes long to load images
             if anesthesia_history is not None:
                 self.anesthesia_history = copy.deepcopy(anesthesia_history)
@@ -1706,7 +1708,7 @@ class MainPoller(Poller):
             time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
             self.parent.update_mouse_files_combobox(set_to_value = os.path.split(self.mouse_file)[-1])
-            self.parent.update_cell_group_combobox()
+            #self.parent.update_cell_group_combobox()
             #Clear image displays showing regions
             self.emit(QtCore.SIGNAL('clear_image_display'), 1)
             self.emit(QtCore.SIGNAL('clear_image_display'), 3)
@@ -1716,7 +1718,8 @@ class MainPoller(Poller):
             self.anesthesia_history = []
             self.save2mouse_file('anesthesia_history')
             self.parent.update_anesthesia_history()
-            self.printc('Animal parameter file saved')
+            self.parent.update_combo_box_list(self.parent.main_widget.scan_region_groupbox.scan_regions_combobox, [])
+            self.printc('{0} animal parameter file saved'.format(id_text))
             
             
     def add_to_anesthesia_history(self):
@@ -1778,15 +1781,19 @@ class MainPoller(Poller):
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
-        result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        if not result:
-            self.printc('MES does not respond')
-            return
-        result, laser_intensity = self.mes_interface.read_laser_intensity()
-        if not result:
-            self.printc('MES does not respond')
-            return
-        if not self.read_stage(display_coords = False):
+        if 0:
+            result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
+            if not result:
+                self.printc('MES does not respond')
+                return
+        if 0:
+            result, laser_intensity = self.mes_interface.read_laser_intensity()
+            if not result:
+                self.printc('MES does not respond')
+                return
+        else:
+                laser_intensity=0
+        if not self.read_stage(display_coords = False):#Objective position also read
             self.printc('Stage cannot be accessed')
             return
         if self.scan_regions == None:

@@ -379,6 +379,15 @@ class ExperimentControl(object):
                     elif self.scan_mode == 'xy':
                         if hasattr(self, 'scan_region'):
                             self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                            #Wait till the file is completely written
+                            filesize_prev=os.path.getsize(self.filenames['mes_fragments'][fragment_id])
+                            while True:
+                                filesize=os.path.getsize(self.filenames['mes_fragments'][fragment_id])
+                                if filesize==filesize_prev:
+                                    break
+                                else:
+                                    filesize_prev=filesize
+                                    time.sleep(0.1)
                             if os.path.getsize(self.filenames['mes_fragments'][fragment_id])<300e3:
                                 scan_start_success=False
                                 self.printl('MES scan config file may be corrupt')
