@@ -595,8 +595,8 @@ class RlvivoBackup(object):
         msg=e2.readline()
         if len(msg)>0:
             print e2.readline()
-            i,o,e3=self.ssh.exec_command('ls -la {0}'.format(os.dirname(self.target_dir)))
-            print e3.readline()
+            i,o,e3=self.ssh.exec_command('ls -la {0}'.format(os.path.dirname(self.target_dir)))
+            print o.readline()
         self.check_ssh_error(e1)
         
     def copy(self):

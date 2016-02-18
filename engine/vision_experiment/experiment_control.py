@@ -379,18 +379,20 @@ class ExperimentControl(object):
                     elif self.scan_mode == 'xy':
                         if hasattr(self, 'scan_region'):
                             self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
-                            #Wait till the file is completely written
-                            filesize_prev=os.path.getsize(self.filenames['mes_fragments'][fragment_id])
-                            while True:
-                                filesize=os.path.getsize(self.filenames['mes_fragments'][fragment_id])
-                                if filesize==filesize_prev:
-                                    break
-                                else:
-                                    filesize_prev=filesize
-                                    time.sleep(0.1)
+                            file.wait4file_ready(self.filenames['mes_fragments'][fragment_id])
+                            try:
+                                scipy.io.loadmat(self.filenames['mes_fragments'][fragment_id])
+                            except:
+                                self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                                file.wait4file_ready(self.filenames['mes_fragments'][fragment_id])
+                                try:
+                                    scipy.io.loadmat(self.filenames['mes_fragments'][fragment_id])
+                                except:
+                                    self.printl('MES scan config file error: it may be corrupt')
+                                    return False
                             if os.path.getsize(self.filenames['mes_fragments'][fragment_id])<300e3:
                                 scan_start_success=False
-                                self.printl('MES scan config file may be corrupt')
+                                self.printl('MES scan config file error: it may be corrupt')
                                 return scan_start_success
                     scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                         parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)

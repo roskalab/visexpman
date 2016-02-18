@@ -264,7 +264,10 @@ class Jobhandler(object):
             
         Finally: backup status is checked
         '''
-        files2copy=[filename]
+        if user!='fiona':
+            files2copy=[filename]
+        else:
+            files2copy=[]
         if user!='daniel':
             h=hdf5io.Hdf5io(filename,config=self.analysis_config)
             ignore_nodes=['hashes']

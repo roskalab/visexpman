@@ -434,8 +434,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
         self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 3)
         self.layout.addWidget(self.animal_parameters_label, 1, 0, 1, 4)
-        self.layout.addWidget(self.use_saved_scan_settings_label, 2, 1, 1, 1)
-        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 2, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_label, 3, 4, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 4, 4, 1, 1)
         self.layout.addWidget(self.get_xy_scan_button, 3, 3, 1, 1)
         self.layout.addWidget(self.xz_scan_button, 3, 2, 1, 1)
         self.layout.addWidget(self.add_button, 3, 0, 1, 1)
@@ -1721,7 +1721,6 @@ class MainPoller(Poller):
             self.parent.update_combo_box_list(self.parent.main_widget.scan_region_groupbox.scan_regions_combobox, [])
             self.printc('{0} animal parameter file saved'.format(id_text))
             
-            
     def add_to_anesthesia_history(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
             if not hasattr(self, 'anesthesia_history'):
@@ -2170,6 +2169,9 @@ class MainPoller(Poller):
             if len(objective_positions) != 3:
                 self.printc('Objective range is not in correct format')
                 return
+            elif objective_positions[0]>0 or objective_positions[1]>0:
+                if not self.ask4confirmation('Objective positions should be negative, do you want to continue with these values? {0}'.format(objective_positions[:2])):
+                    return
             if objective_positions[0] > objective_positions[1]:
                 reverse = True
                 tmp = objective_positions[0]
@@ -2199,20 +2201,17 @@ class MainPoller(Poller):
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
         self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo')
-        if self.experiment_parameters.has_key('objective_positions') and self.ask4confirmation('Generate command for all depths?'):
+        self.generate_experiment_start_command()
+        if self.experiment_parameters.has_key('objective_positions') and self.ask4confirmation('Issue command for all depths?'):
             while True:
                 if self.next_experiment()==None:
                     break
-        else:
-            #Start experiment batch
-            self.generate_experiment_start_command()
 
     def generate_experiment_start_command(self):
         #TODO:  INTRINSIC: do not expect mouse file and scan regions, chck checkbox which enables intrinsic
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
-        time.sleep(1.0)
         self.experiment_parameters['id'] = str(int(time.time()))
         self.issued_ids.append(self.experiment_parameters['id'])
         if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('objective_positions'):
@@ -2220,7 +2219,7 @@ class MainPoller(Poller):
             objective_position = self.experiment_parameters['objective_position']
             self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo {0} um'.format(objective_position))
             #Update redo and next buttons
-            time.sleep(0.2)
+            time.sleep(0.1)
             if self.experiment_parameters['current_objective_position_index']+1 < self.experiment_parameters['objective_positions'].shape[0]:
                 objective_position = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']+1]
                 self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next {0} um'.format(objective_position))
@@ -2232,7 +2231,7 @@ class MainPoller(Poller):
         #generate parameter file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
         if os.path.exists(parameter_file):
-            time.sleep(0.7)
+            time.sleep(1.1)
             self.experiment_parameters['id'] = str(int(time.time()))
             parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
             if os.path.exists(parameter_file):
@@ -2261,7 +2260,8 @@ class MainPoller(Poller):
             fields_to_save += ['xz_config', 'rois', 'roi_locations']
         h.save(fields_to_save)
         h.close()
-        self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
+        file.wait4file_ready(parameter_file)
+        self.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         time.sleep(0.5)
         self.queues['stim']['out'].put(command)

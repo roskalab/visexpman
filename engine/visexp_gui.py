@@ -338,7 +338,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.common_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
     def update_animal_parameter_display(self):
-        if hasattr(self.poller, 'animalvisexp_gui.py_parameters'):
+        if hasattr(self.poller, 'animal_parameters'):
             animal_parameters = self.poller.animal_parameters
             if not animal_parameters.has_key('both_channels'):
                 channel = ''
@@ -346,10 +346,10 @@ class VisionExperimentGui(QtGui.QWidget):
                 channel = 'both'
             else:
                 channel = 'green'
-            self.animal_parameters_str = '{6}, {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {7}'\
+            self.animal_parameters_str = '{7} {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {6}'\
             .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
-                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'], animal_parameters['id'],
-                    channel)
+                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],
+                    channel, animal_parameters['user'])
             self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             
     def update_region_names_combobox(self, selected_region = None):
