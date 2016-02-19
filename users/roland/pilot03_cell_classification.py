@@ -15,7 +15,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS = OrderedDict()
         self.STIM_TYPE_CLASS = {}
     
-        self.STIM_TYPE_CLASS['FullFieldFlashes'] = 'FullFieldFlashesExperiment'
+        self.STIM_TYPE_CLASS['FullFieldFlashes'] = 'FullFieldFlashesStimulus'
         self.VARS['FullFieldFlashes'] = {}   
         self.VARS['FullFieldFlashes']['BACKGROUND'] = 0.5
         self.VARS['FullFieldFlashes']['COLORS'] = [0.0, 1.0]
@@ -31,7 +31,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['SPEEDS'] = [300.0, 1000.0] #[500, 1600]      
         self.VARS['FingerPrinting']['DURATION'] = 15.0
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
-        self.VARS['FingerPrinting']['REPEATS'] = 5
+        self.VARS['FingerPrinting']['REPEATS'] = 2
         
         #self.STIM_TYPE_CLASS['Chirp_Amp'] = 'Chirp'
         #self.VARS['Chirp_Amp'] = {}
@@ -61,12 +61,12 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
-        self.VARS['WhiteNoise']['DURATION_MINS'] = 20.0 # min
+        self.VARS['WhiteNoise']['DURATION_MINS'] = 30.0 # min
         self.VARS['WhiteNoise']['PIXEL_SIZE'] = [25.0] # um
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [[0.0, 0.0, 0.0],[0.0, 1.0, 1.0]]
         
-        self.STIM_TYPE_CLASS['Gratings'] = 'MovingGrating'
+        self.STIM_TYPE_CLASS['Gratings'] = 'MovingGratingStimulus'
         self.VARS['Gratings'] = {}   
         self.VARS['Gratings']['REPEATS'] = 3
         self.VARS['Gratings']['N_BAR_ADVANCES_OVER_POINT'] = 10
@@ -89,7 +89,8 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['DashStimulus']['SPEEDS'] = [300]
         self.VARS['DashStimulus']['DIRECTIONS'] = range(0,360,45)
         self.VARS['DashStimulus']['BAR_COLOR'] = 0.5 
-        
+        self.VARS['DashStimulus']['REPETITIONS'] = 1
+       
         self.runnable = 'BatchStimulus'
         self._create_parameters_from_locals(locals())
 
