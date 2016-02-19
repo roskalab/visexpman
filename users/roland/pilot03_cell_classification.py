@@ -23,7 +23,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         self.VARS['FullFieldFlashes']['OFF_TIME'] = 2.0
         self.VARS['FullFieldFlashes']['REPETITIONS'] = 10
         
-        self.STIM_TYPE_CLASS['FingerPrinting'] = 'FingerPrinting'
+        self.STIM_TYPE_CLASS['FingerPrinting'] = 'FingerPrintingStimulus'
         self.VARS['FingerPrinting'] = {}
         self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
         self.VARS['FingerPrinting']['FF_PAUSE_COLOR'] = 0.5
@@ -61,7 +61,7 @@ class Pilot03BatchConfig(experiment.ExperimentConfig):
         
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
-        self.VARS['WhiteNoise']['DURATION_MINS'] = 30.0 # min
+        self.VARS['WhiteNoise']['DURATION_MINS'] = 20.0 # min
         self.VARS['WhiteNoise']['PIXEL_SIZE'] = [25.0] # um
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [[0.0, 0.0, 0.0],[0.0, 1.0, 1.0]]
