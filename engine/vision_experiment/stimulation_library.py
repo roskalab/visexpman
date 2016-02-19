@@ -1032,7 +1032,7 @@ class StimulationSequences(Stimulations):
         size_col=self.angle2screen_pos(maxangle['col'],'col')-self.angle2screen_pos(minangle['col'],'col')
         return utils.rc((size_row,size_col))
 
-    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
+    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False, is_block=False):
         '''        
         Aka Marching Squares
     
@@ -1111,6 +1111,8 @@ class StimulationSequences(Stimulations):
                         if hasattr(self, 'block_start'):
                             self.block_start(block_name = 'position')
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
+                        if is_block:
+                            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
                         self.show_shape(shape = 'rect',
                                     size = shape_size_i,
                                     color = color,
@@ -1118,6 +1120,8 @@ class StimulationSequences(Stimulations):
                                     duration = on_time,
                                     pos = p,
                                     angle=angle)
+                        if is_block:
+                            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         if hasattr(self, 'block_end'):
                             self.block_end(block_name = 'position')

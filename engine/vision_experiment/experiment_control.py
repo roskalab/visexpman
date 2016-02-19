@@ -309,27 +309,36 @@ class ExperimentControl(object):
                     self.printl('Continuing wih stimulation')
                 #TMP0612
                 line_scan_path_on_mes = os.path.join(self.config.EXPERIMENT_DATA_PATH, os.path.split(self.filenames['local_fragments'][fragment_id])[1].replace('.hdf5', '.mat'))
+                self.recording_start_timestamp=time.time()
                 if self.config.TRIGGER_MES:
-                    self.queues['mes']['out'].put('SOCstart_recordingEOC{0}EOP' .format(int(1000*self.mes_record_time)))
+                    mesfn=self.filenames['fragments'][0].replace('.hdf5', '.mat')
+                    fp=open(mesfn,'wt')
+                    fp.write(str(int(1000*self.mes_record_time)))
+                    fp.close()
+                    self.queues['mes']['out'].put('SOCstart_recordingEOC{0}EOP' .format(mesfn))
                     if self.mes_record_time>60:
                         time.sleep(10.0)
 #                    if not self.queues['mes']['in'].empty():
 #                        self.printl(self.queues['mes']['in'].get())
                     t0=time.time()
                     while True:
-                        if not self.queues['mes']['in'].empty():
-                            msg = self.queues['mes']['in'].get()
-                            self.printl(msg)
-                            if msg == 'SOCstart_recordingEOCstartedEOP':
-                                time.sleep(1.0)
-                                break
-                            elif 'error' in msg:
+                            q =self.queues['mes']['in']
+                            if not q.empty():
+                                msg = q.get()
                                 self.printl(msg)
+                                if msg == 'SOCstart_recordingEOCstartedEOP':
+                                    time.sleep(1.0)
+                                    break
+                                elif 'error' in msg:
+                                    self.printl(msg)
+                                    return False
+#                                elif 'abort' in msg:
+#                                    self.printl("Aborting experiment")
+#                                    return False
+                            if abs(t0-time.time())>30.0:
+                                self.printl('AOD/MES did not start')
                                 return False
-                        if abs(t0-time.time())>30.0:
-                            self.printl('AOD/MES did not start')
-                            return False
-                        time.sleep(1.0)
+                            time.sleep(1.0)
 
 #                from visexpman.engine.hardware import network_interface
 #                network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_line_scanEOCstartedEOP', timeout = self.config.MES_TIMEOUT, 
@@ -352,7 +361,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mes':
-            self.mes_timeout = 0.5 * self.fragment_durations[fragment_id]            
+            self.mes_timeout = 0.5 * self.fragment_durations[fragment_id]
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
             if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
@@ -365,8 +374,17 @@ class ExperimentControl(object):
             else:
                 data_acquisition_stop_success =  False
         elif self.config.PLATFORM == 'standalone':
-            data_acquisition_stop_success =  True
-        #Stop acquiring analog signals
+            self.mes_timeout = 0.5 * self.fragment_durations[fragment_id]
+            if 0:
+                data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
+                if not data_acquisition_stop_success:
+                        self.printl('Line scan complete ERROR')
+            else:
+                wait=1.05*self.mes_record_time-(time.time()-self.recording_start_timestamp)
+                if wait>0 and not self.abort:
+                    self.printl('Waiting {0:.0f} s for MES'.format(wait))
+                    time.sleep(wait)
+                data_acquisition_stop_success=True
         if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
             self.printl('Analog acquisition finished')
         return data_acquisition_stop_success
@@ -391,7 +409,11 @@ class ExperimentControl(object):
                     scan_data_save_success = False
                 result = scan_data_save_success
             else:
-                pass
+                if 1:
+                    self.printl('Wait for data save complete')
+                    result = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)#AOD
+                else:
+                    result=True
             if not aborted: #TMP and result:
                 if self.config.PLATFORM == 'mes':
                     if self.mes_record_time > 30.0 and self.scan_mode != 'xy':
@@ -401,16 +423,19 @@ class ExperimentControl(object):
                                 self.printl('Post experiment scan was NOT successful')
                         except:
                             self.printl(traceback.format_exc())
-                self._save_fragment_data(fragment_id)
-                if self.config.PLATFORM == 'mes':
-                    for i in range(5):#Workaround for the temporary failure of queue.put().
-                        time.sleep(0.1)
-                        self.queues['gui']['out'].put('queue_put_problem_dummy_message')
+                if result:
+                    self._save_fragment_data(fragment_id)
+                for i in range(5):#Workaround for the temporary failure of queue.put().
                     time.sleep(0.1)
+                    self.queues['gui']['out'].put('queue_put_problem_dummy_message')
+                time.sleep(0.1)
+                if self.config.PLATFORM == 'mes':
                     self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.id))#Notify gui about the new file
-                    for i in range(5):
-                        time.sleep(0.1)
-                        self.queues['gui']['out'].put('queue_put_problem_dummy_message')
+                elif self.config.PLATFORM == 'standalone':
+                    self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.filenames['fragments'][fragment_id]))#Notify gui about the new file
+                for i in range(5):
+                    time.sleep(0.1)
+                    self.queues['gui']['out'].put('queue_put_problem_dummy_message')
         else:
             result = False
             self.printl('Data acquisition stopped with error')
@@ -444,6 +469,8 @@ class ExperimentControl(object):
         self.analog_input = None #This is instantiated at the beginning of each fragment
         if self.config.PLATFORM == 'mes':
             self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
+            self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
+        else:
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
         #TMP0612
 #        self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
@@ -566,7 +593,7 @@ class ExperimentControl(object):
         software_environment = self._pack_software_environment()
         self.printl('Collecting data')
         data_to_file = {
-                                    'sync_data' : analog_input_data, 
+                                    'sync_data' : numpy.cast['int16'](analog_input_data*1000), 
                                     'current_fragment' : fragment_id, #deprecated
                                     'actual_fragment' : fragment_id,
                                     'rising_edges_indexes' : rising_edges_indexes, 
@@ -576,6 +603,8 @@ class ExperimentControl(object):
                                     'software_environment' : software_environment, 
                                     'machine_config': experiment_data.pickle_config(self.config), 
                                     'experiment_config': experiment_data.pickle_config(self.experiment_config), 
+                                    'recording_start_timestamp': self.recording_start_timestamp, 
+                                    'mes_record_time': self.mes_record_time, 
                                     }
         if self.user_data != {}:
             data_to_file['user_data'] = self.user_data

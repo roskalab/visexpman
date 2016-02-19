@@ -9,11 +9,14 @@ import os.path
 import webbrowser
 import copy
 import traceback
-import tempfile
+import tempfile,multiprocessing
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
+
+import pyqtgraph
+import pyqtgraph.console
 
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
@@ -26,12 +29,24 @@ from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay.plot import Qt4Plot
+from visexpA.users.zoltan import ao_plotter
 import visexpA.engine.component_guesser as cg
 
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
+
+
+
+
+
+
+class PythonConsole(pyqtgraph.console.ConsoleWidget):
+    def __init__(self, parent, selfw = None):
+        if selfw == None:
+            selfw = parent.parent
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils,  'numpy': numpy}, text = 'self: main gui widget, numpy, utils, fileop, signal')
 
 class Poller(QtCore.QThread):
     '''
@@ -550,10 +565,13 @@ class MainWidget(QtGui.QWidget):
         
     def create_widgets(self):
         #MES related
-        self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
-        self.continue_button = QtGui.QPushButton('Continue stimulation', self)
+        #self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
+        #self.continue_button = QtGui.QPushButton('Continue stimulation', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
+        self.export2mat_label = QtGui.QLabel('Export to mat', self)
+        self.export2mat_checkbox = QtGui.QCheckBox(self)
+        self.export2mat_checkbox.setCheckState(2)
 #        self.scan_region_groupbox = ScanRegionGroupBox(self)
 #        self.measurement_datafile_status_groupbox = MeasurementDatafileStatusGroupbox(self)
         
@@ -564,8 +582,8 @@ class MainWidget(QtGui.QWidget):
 #        self.layout.addWidget(self.scan_region_groupbox, 4, 0, 2, 4)
 #        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 6, 2)
         
-        self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
-        self.layout.addWidget(self.continue_button, 9, 1, 1, 1)
+        self.layout.addWidget(self.export2mat_label, 9, 0, 1, 1)
+        self.layout.addWidget(self.export2mat_checkbox, 9, 1, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -824,6 +842,12 @@ class MainPoller(Poller):
         time.sleep(3.0)
 
     def periodic(self):
+        if hasattr(self, 'preprocessors'):
+            for i in range(len(self.preprocessors)):
+                if not self.preprocessors[i].is_alive():
+                    self.preprocessors[i].join()
+                    del self.preprocessors[i]
+                
         are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
         if are_new_file:
             self.emit(QtCore.SIGNAL('mouse_file_list_changed'))
@@ -838,6 +862,9 @@ class MainPoller(Poller):
         Handle commands coming via queues (mainly from network thread
         '''
         try:
+            if hasattr(self,'q'):
+                while not self.q.empty():
+                    self.printc(utils.time_stamp_to_hm(time.time())+' PREPROC '+self.q.get())
             for k, queue in self.queues.items():                
                 if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
                     messages = queue['in'].get()
@@ -871,7 +898,8 @@ class MainPoller(Poller):
                             self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                             os.remove(self.z_stack_path)
                         elif command == 'measurement_ready':
-                            self.add_measurement_id(parameter)
+                            self.printc('Preprocessing measurement files')
+                            self.preprocess(parameter)
                         elif command == 'fragment_check_ready':
                             #ID is saved, flag will be updated in mouse later when the measurement file is closed
                             self.fragment_check_ready_id = parameter
@@ -912,6 +940,16 @@ class MainPoller(Poller):
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
+            
+    def preprocess(self,filename):
+        self.em=(self.parent.main_widget.export2mat_checkbox.checkState())==2
+        if not hasattr(self, 'preprocessors'):
+            self.preprocessors=[]
+            self.q=multiprocessing.Queue()
+        pars= (filename, self.em, self.q)
+        preprocessor=multiprocessing.Process(target=ao_plotter.preprocess_ao, args=(pars,)) 
+        preprocessor.start()
+        self.preprocessors.append(preprocessor)
                 
     def mouse_file_changed(self):
         self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly

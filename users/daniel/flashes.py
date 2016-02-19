@@ -13,10 +13,10 @@ class ProjectorFlashC(experiment.ExperimentConfig):
         self.FLASH_AMPLITUDE = 1.0 #max 1.0
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
         self.FLASH_COLOR = [1.0, 1.0, 1.0] #rgb
-        self.runnable = 'ProjectorFlashExp'
+        self.runnable = 'ProjectorFlashExp1'
         self._create_parameters_from_locals(locals())
 
-class ProjectorFlashExp(experiment.Experiment):
+class ProjectorFlashExp1(experiment.Experiment):
     def prepare(self):
         self.period_time = self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES
         self.fragment_repeats = [self.experiment_config.NUMBER_OF_FLASHES]

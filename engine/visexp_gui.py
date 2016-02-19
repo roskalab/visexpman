@@ -90,6 +90,8 @@ class VisionExperimentGui(QtGui.QWidget):
 #        self.main_tab.addTab(self.roi_widget, 'ROI')
         self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
         self.main_tab.addTab(self.helpers_widget, 'Helpers')
+        self.debug=gui.PythonConsole(self,self)
+        self.main_tab.addTab(self.debug, 'Debug')
         self.main_tab.setCurrentIndex(0)
         #Image tab
         if self.config.PLATFORM == 'mes' or True:
@@ -215,8 +217,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.common_widget.set_objective_button, 'set_objective')
         self.connect_and_map_signal(self.common_widget.register_button, 'register')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
-        self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
-        self.connect_and_map_signal(self.main_widget.continue_button, 'continue_with_stimulation')
+#        self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
+#        self.connect_and_map_signal(self.main_widget.continue_button, 'continue_with_stimulation')
 #        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
 #        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
 #        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')

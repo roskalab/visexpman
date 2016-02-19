@@ -78,7 +78,7 @@ class NaturalMorseConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
 
-class NaturalBarsExperiment(experiment.Experiment):
+class NaturalBarsExperiment1(experiment.Experiment):
     def prepare(self):
         self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)]
         

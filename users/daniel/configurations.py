@@ -654,7 +654,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         TEXT_COLOR = [0.8, 0.0, 0.0]
         GUI_REFRESH_PERIOD = 5.0
         EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
-        
+        self.BACKGROUND_COLOR=3*[0.5]
         MES_TIMEOUT = 15.0
         CELL_MERGE_DISTANCE = 3.0
         ROI_PATTERN_SIZE = 4
@@ -688,7 +688,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [250.0, [0, 1000]] #mm
         SCREEN_PIXEL_WIDTH = [0.375, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_RESOLUTION = utils.cr([1366, 768])
+        SCREEN_RESOLUTION = utils.cr([1280, 800])
         SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
@@ -763,7 +763,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 50000,
-                    'AI_CHANNEL' : 'Dev1/ai0:4',
+                    'AI_CHANNEL' : 'Dev1/ai0:3',#ai0: ao trigger, ai1: frame sync, ai2: led control (if present), ai3: ao frame sync,
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
@@ -822,11 +822,11 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                             'ContrastGrating225Deg','ContrastGrating270Deg','ContrastGrating315Deg','ContrastGrating0Deg','ContrastGrating0DegFog',]
                             
         self.PREFERRED_STIMULI = ['MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'BlankScreenConfig', 'TonyNaturalBarsConfig','ReceptiveFieldExploreBWG','ProjectorFlashC']
-        FULLSCREEN = not True
+        FULLSCREEN =True
         self.COLOR_MASK = [1.0, 1.0, 1.0]
         self.TRIGGER_MES = not False
         self.CONTINUE_STIMULUS_TRIGGER = not  True
-        self.MES_RECORD_START_DELAY = 15.0
+        self.MES_RECORD_START_DELAY = 12.0
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         self._create_parameters_from_locals(locals())
 

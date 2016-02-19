@@ -390,6 +390,7 @@ class MovingGrating(experiment.Experiment):
 
     def run(self, fragment_id = 0):
         import sys
+        self.contrast_enable=1
         self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         if '--MICROLED'in sys.argv:
             self.config.STIMULUS2MEMORY = True
@@ -420,7 +421,7 @@ class MovingGrating(experiment.Experiment):
                         self.show_grating(duration = static_grating_duration, 
                                     profile = profile, 
                                     orientation = orientation, 
-                                    color_contrast = self.contrast,  color_offset = self.offset,
+                                    color_contrast = self.contrast*self.contrast_enable,  color_offset = self.offset*self.contrast_enable,
                                     velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                                     duty_cycle = stimulus_unit['duty_cycle'],
                                     starting_phase = phase+stimulus_unit['starting_phase'])
@@ -440,7 +441,7 @@ class MovingGrating(experiment.Experiment):
                     self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
                             profile = profile, 
                             orientation = orientation, 
-                            color_contrast = self.contrast,  color_offset = self.offset,
+                            color_contrast = self.contrast*self.contrast_enable,  color_offset = self.offset*self.contrast_enable,
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],)
                 #Save segment info to help synchronizing stimulus with measurement data

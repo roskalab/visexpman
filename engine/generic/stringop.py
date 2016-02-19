@@ -22,7 +22,7 @@ def extract_common_string(flist, to_remove=['\)-r\d-']):
 def join(*args):
     '''Same functionality as os.path.join but for paths using dot as separator'''
     items = [text.replace('.', '/') for text in args]
-    joined = os.path.join(*items)
+    joined = '/'.join(items)
     return joined.replace('/', '.')
     
 def split(dotted_path):

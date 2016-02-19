@@ -23,7 +23,7 @@ class TonyNaturalBarsCircularConfig(experiment.ExperimentConfig):
         self.MINIMAL_SPATIAL_PERIOD= 120 #None
         self.SCALE= 1.0
         self.OFFSET=0.0
-        self.runnable = 'TonyNaturalBarsExperiment'
+        self.runnable = 'NaturalBarsExperiment'
         self._create_parameters_from_locals(locals())
 
 class TonyNaturalBarsConfig(experiment.ExperimentConfig):
@@ -44,10 +44,10 @@ class TonyNaturalBarsConfig(experiment.ExperimentConfig):
         self.MINIMAL_SPATIAL_PERIOD= 120 #None
         self.SCALE= 1.0
         self.OFFSET=0.0
-        self.runnable = 'TonyNaturalBarsExperiment'
+        self.runnable = 'NaturalBarsExperiment'
         self._create_parameters_from_locals(locals())
         
-class TonyNaturalBarsExperiment(experiment.Experiment):
+class NaturalBarsExperiment(experiment.Experiment):
     def prepare(self):
         if len(self.experiment_config.SPEED)>1:
             raise RuntimeError('Not supported')
@@ -90,12 +90,12 @@ class TonyNaturalBarsExperiment(experiment.Experiment):
                     if not self.experiment_config.ENABLE_FLYINOUT:
                         fly_in = False
                         fly_out = False
-                    #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
                     self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
                             background=self.experiment_config.BACKGROUND_COLOR,
                             circular=self.experiment_config.CIRCULAR,
                             scale=self.experiment_config.SCALE,
                             offset=self.experiment_config.OFFSET,
                             intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
-                    #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         self.show_fullscreen(duration = 0, color =  self.experiment_config.BACKGROUND_COLOR, flip=True)

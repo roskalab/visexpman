@@ -70,6 +70,8 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                                             on_time = self.experiment_config.ON_TIME,
                                                                             off_time = self.experiment_config.OFF_TIME)
         self.fragment_durations=[self.stimulus_duration]
+        if self.stimulus_duration>400:
+            self.printl('WARNING: stimulus is too long and memory error can happen at saving sync data')
         
             
     def run(self):
@@ -83,7 +85,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     sequence_repeat = self.experiment_config.REPEAT_SEQUENCE,
                                     background_color = self.experiment_config.BACKGROUND_COLOR, 
                                     shape_colors = self.experiment_config.COLORS, 
-                                    random_order = self.experiment_config.ENABLE_RANDOM_ORDER)
+                                    random_order = self.experiment_config.ENABLE_RANDOM_ORDER,is_block=True)
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
         #print self.shape_size,self.machine_config.SCREEN_SIZE_UM,self.ncolumns,self.nrows
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
