@@ -171,6 +171,8 @@ class Jobhandler(object):
         finally:
             h.close()
             dbfilelock.release() 
+        if jobs=={}:
+            return None,None
         job_order=jobs.keys()
         job_order.sort()
         job_order.reverse()
@@ -207,6 +209,8 @@ class Jobhandler(object):
             mes_extractor.hdfhandler.close()
             fileop.set_file_dates(filename, file_info)
             self.printl('MESextractor done')
+        if error_msg!='':
+            raise RuntimeError(error_msg)
         dbfilelock.acquire()
         try:
             db=DatafileDatabase(self.current_animal)
@@ -460,7 +464,7 @@ class DatafileDatabase(object):
             else:
                 item[f]=Datafile.columns[f].dflt
         item.append()
-        self.hdf5.root.last_job_added[0]+=int(time.time())
+        self.hdf5.root.last_job_added[0]=int(time.time())
         self.hdf5.flush()
         self.file_changed=True
         logging.info('{0} added to database'.format(kwargs['id']))

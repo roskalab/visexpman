@@ -539,6 +539,7 @@ class MesInterface(object):
         #Acquire line scan if MES is connected
         if self.connection.connected_to_remote_client():
             self.queues['mes']['out'].put('SOCacquire_line_scan_templateEOC{0}EOP' .format(line_scan_path_on_mes))
+            print timeout
             result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_line_scan_templateEOCsaveOKEOP', timeout = timeout, 
                                                          from_gui_queue = self.from_gui_queue)
             if not result:
@@ -615,7 +616,7 @@ class MesInterface(object):
             self._log_info('No MES response')
         return result
 
-    def _log_info(self, message, enable_print=False):
+    def _log_info(self, message, enable_print=True):
         if self.log != None:
             self.log.info(message)
         if enable_print:
