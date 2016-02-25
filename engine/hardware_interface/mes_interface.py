@@ -547,6 +547,10 @@ class MesInterface(object):
             self._log_info('mes not connected')
             result = False
         time.sleep(1.5)#This delay is nccessary to ensure that the parameter file is completely written to the disk
+        try:
+            scipy.io.loadmat(line_scan_path)
+        except:
+            raise RuntimeError('line scan parameter file {0} is corrupt'.format(line_scan_path))
         return result, line_scan_path, line_scan_path_on_mes
         
     def start_line_scan(self, timeout = -1, parameter_file = '', scan_time = None, scan_mode = 'xy', channels = None, autozigzag = None):
@@ -615,7 +619,7 @@ class MesInterface(object):
             self._log_info('No MES response')
         return result
 
-    def _log_info(self, message, enable_print=False):
+    def _log_info(self, message, enable_print=True):
         if self.log != None:
             self.log.info(message)
         if enable_print:

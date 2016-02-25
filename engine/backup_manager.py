@@ -63,14 +63,18 @@ def is_file_closed(f):
     
 def copy_file(f):
     try:
+        copy2m= os.path.basename(os.path.dirname(os.path.dirname(f)))!='daniel'
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
         target_path_m=os.path.join(mdrive,path)
-        if os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape) and os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m):#Already backed up
+        if os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape) and (copy2m and os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m)):#Already backed up
             os.remove(f)
             logging.info('Deleted {0}'.format(f))
             return
-        for p in [target_path_tape,target_path_m]:
+        folders=[target_path_tape]
+        if copy2m:
+            folders.append(target_path_m)
+        for p in folders:
             if not os.path.exists(os.path.dirname(p)):
                 os.makedirs(os.path.dirname(p))
         if not is_file_closed(f):
@@ -78,7 +82,7 @@ def copy_file(f):
         if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape) or 'animal' in os.path.dirname(f):
             shutil.copy2(f,target_path_tape)
             logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(target_path_tape)))
-        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m):#Mouse file may be updated with scan regions
+        if copy2m and (not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m)):#Mouse file may be updated with scan regions
             shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
     except:

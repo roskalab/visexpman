@@ -48,6 +48,8 @@ class VisionExperimentGui(QtGui.QWidget):
     '''
     def __init__(self, user, config_class):
         #Fetching classes takes long time
+        if file.free_space('c:\\')/1e9<20:
+            raise RuntimeError('Not enough free space on c:\\. Please delete unnecessary files because datafile may be lost!')
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
         self.config.user = user
         self.console_text = ''

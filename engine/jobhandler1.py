@@ -171,6 +171,8 @@ class Jobhandler(object):
         finally:
             h.close()
             dbfilelock.release() 
+        if jobs=={}:
+            return None,None
         job_order=jobs.keys()
         job_order.sort()
         job_order.reverse()
@@ -187,7 +189,7 @@ class Jobhandler(object):
             return  nextfunction, nextpars
         else:
             self.printl('Job cannot be selected')
-            #pdb.set_trace()
+            pdb.set_trace()
             return None,None
         
     def mesextractor(self,filename):
@@ -207,6 +209,8 @@ class Jobhandler(object):
             mes_extractor.hdfhandler.close()
             fileop.set_file_dates(filename, file_info)
             self.printl('MESextractor done')
+        if error_msg!='':
+            raise RuntimeError(error_msg)
         dbfilelock.acquire()
         try:
             db=DatafileDatabase(self.current_animal)
@@ -467,7 +471,7 @@ class DatafileDatabase(object):
             else:
                 item[f]=Datafile.columns[f].dflt
         item.append()
-        self.hdf5.root.last_job_added[0]+=int(time.time())
+        self.hdf5.root.last_job_added[0]=int(time.time())
         self.hdf5.flush()
         self.file_changed=True
         logging.info('{0} added to database'.format(kwargs['id']))
@@ -514,7 +518,7 @@ class DatafileDatabase(object):
             for row in self.hdf5.root.datafiles.where('(region=="{0}")'.format(region)):
                 state= [row['is_measurement_ready'],row['is_mesextractor'],row['is_analyzed'],row['is_converted']]
                 state=''.join(['*' if s else ' ' for s in state ])
-                line='{0},{1},{5}%,{2} {3}{4}\r\n'.format(row['stimulus'],row['depth'],row['id'], state, 'e' if row['is_error'] else '',int(row['laser']))
+                line='{0},{1},{5}%,{2} {3}{4}\r\n'.format(row['stimulus'],int(row['depth']),row['id'], state, 'e' if row['is_error'] else '',int(row['laser']))
                 lines[row['id']]=line
                 pass
             export_filename=self.filename.replace('.hdf5','_{0}.txt'.format(region))

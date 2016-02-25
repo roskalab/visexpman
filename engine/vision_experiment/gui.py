@@ -874,7 +874,7 @@ class MainPoller(Poller):
             for f in os.listdir(tempfile.gettempdir()):
                #print f, tempfile.gettempdir()
                 fullpath = os.path.join(tempfile.gettempdir(), f)
-                if 'mat' in fullpath:
+                if '.mat' == fullpath[-4:] or '.hdf5' == fullpath[-5:]:
                     try:
                         os.remove(fullpath)
                         print (fullpath, 'removed')
@@ -1912,7 +1912,7 @@ class MainPoller(Poller):
                 self.update_scan_regions()#This is probably redundant
                 self.printc('XYT scan updated')
             else:
-                self.printl('XYT scan parameters cannot be read')
+                self.printc('XYT scan parameters from {0} cannot be read, {1}'.format(line_scan_path,result))
 
     def remove_scan_region(self):
         selected_region = self.parent.get_current_region_name()
@@ -2233,6 +2233,7 @@ class MainPoller(Poller):
         if os.path.exists(parameter_file):
             time.sleep(1.1)
             self.experiment_parameters['id'] = str(int(time.time()))
+            self.issued_ids[-1]=self.experiment_parameters['id']
             parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
             if os.path.exists(parameter_file):
                 self.printc('Experiment ID already exists')
