@@ -799,6 +799,7 @@ class MainPoller(Poller):
         animalid= os.path.basename(self.mouse_file).split('_')[1]
         region=self.parent.get_current_region_name()
         user=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
+        print 'v:\\animals', user, '{0}_{1}.txt'.format(animalid,region)
         path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
         if os.path.exists(path):
             self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
@@ -1698,6 +1699,7 @@ class MainPoller(Poller):
         if os.path.exists(self.mouse_file):
             self.printc('Animal parameter file already exists')
         else:
+            self.scan_regions = {}
             variable_name = 'animal_parameters_{0}'.format(int(time.time()))
             hdf5io.save_item(self.mouse_file, variable_name, self.animal_parameters,filelocking=False)
             self.local_mouse_file = os.path.join(tempfile.gettempdir(), os.path.split(self.mouse_file)[1])

@@ -43,6 +43,8 @@ class Jobhandler(object):
             self.connections = {}
             self.connections['gui'] = network_interface.start_client(self.config, 'ANALYSIS', 'GUI_ANALYSIS', self.queues['gui']['in'], self.queues['gui']['out'])
         self.printl('Jobhandler started')
+        import getpass
+        self.printl('Current user is {0}'.format(getpass.getuser()))
         logging.info(sys.argv)
         self._check_freespace()
         self.issued_jobs=[]
@@ -188,7 +190,7 @@ class Jobhandler(object):
         if job_selected:
             return  nextfunction, nextpars
         else:
-            self.printl('Job cannot be selected')
+            self.printl('Job cannot be selected. Try restarting jobhandler')
             pdb.set_trace()
             return None,None
         

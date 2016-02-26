@@ -63,11 +63,11 @@ def is_file_closed(f):
     
 def copy_file(f):
     try:
-        copy2m= os.path.basename(os.path.dirname(os.path.dirname(f)))!='daniel'
+        copy2m= os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(f))))!='daniel'#Daniel's fiels are not copied to m drive only to tape
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
         target_path_m=os.path.join(mdrive,path)
-        if os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape) and (copy2m and os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m)):#Already backed up
+        if os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape) and (not copy2m or (os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m))):#Already backed up
             os.remove(f)
             logging.info('Deleted {0}'.format(f))
             return

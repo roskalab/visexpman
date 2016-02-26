@@ -394,6 +394,7 @@ class ExperimentControl(object):
                                 scan_start_success=False
                                 self.printl('MES scan config file error: it may be corrupt')
                                 return scan_start_success
+                            self.printl('scan config file OK')
                     scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                         parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
                 if scan_start_success:
