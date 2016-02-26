@@ -208,7 +208,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
             introspect.import_code(parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.experiment_config = getattr(experiment_module, parameters['stimclass'])(self.config, self.socket_queues, \
-                                                                                                  parameters, self.log)
+                                                                                                  parameters, self.log,
+                                                                                                  screen=self.screen if self.machine_config.SCREEN_MODE=='psychopy' else None)
         else:
             #Source code not provided, existing experiment config module is instantiated
             experiment_module = None
@@ -218,7 +219,6 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
                     experiment_config_class.extend(utils.fetch_classes('visexpman.users.'+ u, classname = parameters['experiment_name'],  
                                                         required_ancestors = ancestor, direct=False))
             if len(experiment_config_class)==0:
-                
                 from visexpman.engine import ExperimentConfigError
                 raise ExperimentConfigError('{0} user\'s {1} experiment config cannot be fetched or does not exists'
                                             .format(self.machine_config.user, parameters['experiment_name']))

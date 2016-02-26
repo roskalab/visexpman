@@ -162,6 +162,8 @@ class PhysTiff2Hdf5(object):
             import tifffile
             raw_data = tifffile.imread(tmptiff)[1::2]
             raw_data = raw_data.reshape((raw_data.shape[0], 1, raw_data.shape[1], raw_data.shape[2]))
+            #Up-down flip
+            raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
         else:
 #            import struct
 #            f =open(ftiff, 'rb')

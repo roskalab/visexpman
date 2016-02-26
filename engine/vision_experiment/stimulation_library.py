@@ -34,11 +34,15 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.config=machine_config#TODO: eliminate self.config
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
-        self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
+        if self.kwargs.has_key('screen') and self.kwargs['screen'] !=None:
+            self.screen=self.kwargs['screen']
+        else:
+            self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
         experiment_control.StimulationControlHelper.__init__(self, machine_config, parameters, queues, application_log)
-        self.grating_texture = glGenTextures(1)
-        glBindTexture(GL_TEXTURE_2D, self.grating_texture)
-        glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+        if self.config.SCREEN_MODE != 'psychopy':
+            self.grating_texture = glGenTextures(1)
+            glBindTexture(GL_TEXTURE_2D, self.grating_texture)
+            glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         #Calculate axis factors
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1

@@ -91,6 +91,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DATA_READY_TIMEOUT = [10, [0,60]]
         
         ############### Display/graphics parameters: ################
+        SCREEN_MODE=['pygame',['pygame','psychopy','undefined']]
         SCREEN_RESOLUTION = utils.rc([600, 800])
         SCREEN_POSITION = utils.rc([0, 0])
         FULLSCREEN = False

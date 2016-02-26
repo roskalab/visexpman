@@ -501,7 +501,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 s.close()
                 self.send({'trigger':'stim started'})
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
-            self.run()
+            try:
+                self.run()
+            except:
+                self.send({'trigger':'stim error'})
+                exc_info = sys.exc_info()
+                raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
             self.log.resume()
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
@@ -519,8 +524,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='mc_mea':
                 self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH,polarity=self.machine_config.ACQUISITION_TRIGGER_POLARITY)
             self.frame_rates = numpy.array(self.frame_rates)
-            fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
-            self.log.info(fri, source = 'stim')
+            if len(self.frame_rates)>0:
+                fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
+                self.log.info(fri, source = 'stim')
         except:
             exc_info = sys.exc_info()
             raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it

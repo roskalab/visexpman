@@ -154,14 +154,17 @@ class ExperimentHandler(object):
         else:
             self._stop_sync_recorder()
             
-    def save_experiment_files(self):
+    def save_experiment_files(self, aborted=False):
         fn=experiment_data.get_recording_path(self.current_experiment_parameters, self.machine_config, prefix = 'sync')
-        shutil.move(self.daqdatafile.filename,fn)
-        self.printc('{0} saved'.format(fn))
+        if aborted:
+            os.remove(self.daqdatafile.filename)
+        else:
+            shutil.move(self.daqdatafile.filename,fn)
+            self.printc('{0} saved'.format(fn))
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
-        if d !=None:
+        if d!=None:
             self.daqdatafile.add(d)
             
     def _stop_sync_recorder(self):
@@ -206,8 +209,17 @@ class ExperimentHandler(object):
         elif trigger_name=='stim data ready':
             self.save_experiment_files()
             self.printc('Experiment ready')
+        elif trigger_name=='stim error':
+            if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
+                self.enable_check_network_status=True
+            self.finish_experiment()
+            self.save_experiment_files(aborted=True)
+            self.printc('Experiment finished with error')
                     
     def convert_stimulus_to_video(self):
+        if hasattr(self.machine_config, 'SCREEN_MODE') and self.machine_config.SCREEN_MODE == 'psychopy':
+            self.notify('This function is not supported in SCREEN_MODE = psychopy')
+            return
         self.printc('Converting stimulus to video started, please wait')
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]

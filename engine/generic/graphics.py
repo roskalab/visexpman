@@ -89,15 +89,13 @@ class Screen(object):
         if self.init_mode == 'create_screen':
             glutInit()
             #create screen using parameters in config
-            self.create_screen()        
-        #setting background color to clear color
-            glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-            glEnable(GL_DEPTH_TEST)        
-            
-            self.scale_screen()
-        
+            self.create_screen()
+            if self.config.SCREEN_MODE != 'psychopy':
+                #setting background color to clear color
+                glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
+                glEnable(GL_DEPTH_TEST)
+                self.scale_screen()
         self.image_texture_id = glGenTextures(1)
-        
         self.initialization()
         
     def init_flip_variables(self):
@@ -116,29 +114,43 @@ class Screen(object):
         '''
         Create pygame screen using SCREEN_RESOLUTION and FULLSCREEN parameters
         '''
-        if not self.config.FULLSCREEN:
-            import os
-            os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (self.config.SCREEN_POSITION['col'],self.config.SCREEN_POSITION['row'])
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
-        if self.config.FULLSCREEN:            
-            flags = flags | pygame.FULLSCREEN
-        self.screen = pygame.display.set_mode((self.screen_resolution['col'], self.screen_resolution['row']), flags)
-        pygame.display.set_caption(utils.get_window_title(self.config))
-#            glxext_arb.glXSwapIntervalSGI(0)
-        #Hide mouse cursor
-        pygame.mouse.set_visible(not self.config.FULLSCREEN)
-        self.clock = pygame.time.Clock()
-#        elif self.window_type == 'pyglet':
-#            if self.config.FULLSCREEN:
-#                self.screen = pyglet.window.Window(fullscreen = self.config.FULLSCREEN, 
-#                                                vsync = True)
-#            else:
-#                self.screen = pyglet.window.Window(self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'], fullscreen = self.config.FULLSCREEN, 
-#                                                vsync = True)
-#            self.screen.set_mouse_visible(False)
+        if self.config.SCREEN_MODE=='psychopy':
+            self.create_psychopy_screen()
+        elif self.config.SCREEN_MODE=='pygame':
+            if not self.config.FULLSCREEN:
+                import os
+                os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (self.config.SCREEN_POSITION['col'],self.config.SCREEN_POSITION['row'])
+            flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
+            if self.config.FULLSCREEN:            
+                flags = flags | pygame.FULLSCREEN
+            self.screen = pygame.display.set_mode((self.screen_resolution['col'], self.screen_resolution['row']), flags)
+            pygame.display.set_caption(utils.get_window_title(self.config))
+    #            glxext_arb.glXSwapIntervalSGI(0)
+            #Hide mouse cursor
+            pygame.mouse.set_visible(not self.config.FULLSCREEN)
+            self.clock = pygame.time.Clock()
+    #        elif self.window_type == 'pyglet':
+    #            if self.config.FULLSCREEN:
+    #                self.screen = pyglet.window.Window(fullscreen = self.config.FULLSCREEN, 
+    #                                                vsync = True)
+    #            else:
+    #                self.screen = pyglet.window.Window(self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'], fullscreen = self.config.FULLSCREEN, 
+    #                                                vsync = True)
+    #            self.screen.set_mouse_visible(False)
+
+    def create_psychopy_screen(self):
+        from psychopy import visual
+        kwargs={'size':(self.screen_resolution['col'],self.screen_resolution['row']), 'fullscr' :self.config.FULLSCREEN, 'screen':0, 'allowGUI':False, 'allowStencil':False,
+             'color':[-1,-1,-1], 'colorSpace':'rgb','blendMode':'avg'}
+        if self.config.PSYCHOPY_MONITOR_NAME!=None:
+            kwargs['monitor']=self.config.PSYCHOPY_MONITOR_NAME
+        self.screen = visual.Window(**kwargs)
         
     def close_screen(self):
-        pygame.quit()
+        if self.config.SCREEN_MODE=='psychopy':
+            self.screen.close()
+        elif self.config.SCREEN_MODE=='pygame':
+            pygame.quit()
         
     def __del__(self):
         if self.init_mode == 'create_screen':
@@ -214,7 +226,10 @@ class Screen(object):
 #            self.prev = count.value
             
 #            glxext_arb.glXWaitVideoSyncSGI(2, (count.value+1)%2, ctypes.byref(count))
-            pygame.display.flip()
+            if self.config.SCREEN_MODE=='psychopy':
+                self.screen.flip()
+            elif self.config.SCREEN_MODE=='pygame':
+                pygame.display.flip()
 
 #        elif window_type == 'pyglet':
 #            self.screen.flip()
@@ -528,10 +543,15 @@ def check_keyboard():
     Get pressed key
     '''        
     keys_pressed = []
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            key_pressed = pygame.key.name(event.key)                
-            keys_pressed.append(key_pressed)
+    try:
+        events=pygame.event.get()
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                key_pressed = pygame.key.name(event.key)
+                keys_pressed.append(key_pressed)
+    except:
+        from psychopy import event
+        keys_pressed = event.getKeys()
     return keys_pressed
     
 def is_key_pressed(key):
