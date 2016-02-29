@@ -209,9 +209,9 @@ class ExperimentControl(object):
             except:
                 self.printl(traceback.format_exc())
                 self.printl('SOCnotifyEOCERROR: Automatic backup failed, please make sure that files are copied to u:\\backupEOP')
-                import pdb
-                pdb.set_trace()
-                raise 
+                #import pdb
+                #pdb.set_trace()
+                #raise 
         else:
           pass
         

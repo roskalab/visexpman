@@ -559,7 +559,10 @@ class MesInterface(object):
             try:
                 scipy.io.loadmat(line_scan_path)
             except:
-                raise RuntimeError('line scan parameter file {0} is corrupt'.format(line_scan_path))
+                msg='line scan parameter file {0} is corrupt'.format(line_scan_path)
+                print msg
+                self._log_info(msg)
+                result=False
         return result, line_scan_path, line_scan_path_on_mes
         
     def start_line_scan(self, timeout = -1, parameter_file = '', scan_time = None, scan_mode = 'xy', channels = None, autozigzag = None):
