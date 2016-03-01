@@ -89,6 +89,67 @@ def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None):
         ai_data = numpy.zeros((waveform.shape[0],n_ai_channels), dtype=numpy.float64)
     return ai_data
     
+class SimpleAIO(object):
+    def __init__(self,ai_channel,ao_channel,sample_rate,waveform,timeout=1):
+        self.timeout=timeout
+        n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+        analog_output = PyDAQmx.Task()
+        analog_output.CreateAOVoltageChan(ao_channel,
+                                        'ao',
+                                        waveform.min()-0.1, 
+                                        waveform.max()+0.1, 
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+        analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(ai_channel.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
+        ai_data = numpy.zeros(waveform.shape[0]*n_ai_channels, dtype=numpy.float64)
+        analog_input = PyDAQmx.Task()
+        analog_input.CreateAIVoltageChan(ai_channel,
+                                        'ai',
+                                        DAQmxConstants.DAQmx_Val_RSE,
+                                        -5, 
+                                        5, 
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+        self.read = DAQmxTypes.int32()
+        analog_output.CfgSampClkTiming("OnboardClock",
+                                        sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                        waveform.shape[0])
+        analog_input.CfgSampClkTiming("OnboardClock",
+                                        sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                        waveform.shape[0])
+        analog_output.WriteAnalogF64(waveform.shape[0],
+                                        False,
+                                        timeout,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        waveform,
+                                        None,
+                                        None)
+        analog_output.StartTask()
+        analog_input.StartTask()
+        self.analog_input=analog_input
+        self.analog_output=analog_output
+        self.ai_data=ai_data
+        self.n_ai_channels=n_ai_channels
+        
+    def finish(self):
+        n_ai_channels=self.n_ai_channels
+        self.analog_input.ReadAnalogF64(int(self.ai_data.shape[0]/n_ai_channels),
+                                    self.timeout,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    self.ai_data,
+                                    self.ai_data.shape[0],
+                                    DAQmxTypes.byref(self.read),
+                                    None)
+        self.ai_data = self.ai_data[:self.read.value * n_ai_channels]
+        self.ai_data = self.ai_data.flatten('F').reshape((n_ai_channels, self.read.value)).transpose()
+        self.analog_output.StopTask()
+        self.analog_input.StopTask()
+        return self.ai_data
+    
 def analogi(ai_channel,sample_rate,duration, timeout=1):
     n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
     nsamples=int(duration*sample_rate)
@@ -237,6 +298,17 @@ def set_digital_line(channel, value):
                                     None,
                                     None)
     digital_output.ClearTask()
+    
+def read_digital_line(channel):
+    digital_input = PyDAQmx.Task()
+    digital_input.CreateDIChan(channel,'di', DAQmxConstants.DAQmx_Val_ChanPerLine)
+    data = numpy.zeros((1,), dtype=numpy.uint8 )
+    total_samps = DAQmxTypes.int32()
+    total_bytes = DAQmxTypes.int32()
+    digital_input.ReadDigitalLines(1,0.1,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+    digital_input.ClearTask()
+    return data[0]
+    
 
 def set_voltage(channel, voltage):
     set_waveform(channel, numpy.ones((parse_channel_string(channel)[1], 10))*voltage,1000)
