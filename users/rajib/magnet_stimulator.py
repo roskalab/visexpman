@@ -28,33 +28,6 @@ class CWidget(QtGui.QWidget):
         self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)
         self.selected_folder = QtGui.QLabel(fileop.select_folder_exists(['d:\\', '/tmp','c:\\temp']), self)#Displays the data folder
         
-#        self.select_protocol=gui.LabeledComboBox(self,'Select protocol', parent.config.get_protocol_names())#With this combobox the stimulus protocol can be selected
-#        self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)#Clicking this button the data save folder can be selected
-#        self.selected_folder = QtGui.QLabel(parent.config.DATA_FOLDER, self)#Displays the data folder
-#        
-#        self.stim_power = gui.LabeledInput(self, 'Stimulus Intensity [V]')#The voltages controlling the stimulus devices can be set here
-#        self.stim_power.input.setText('7,5')#The default value is 4 V for both channels
-#        self.stim_power.input.setFixedWidth(40)
-#        
-#        self.open_valve=gui.LabeledCheckBox(self,'Open Valve')#This checkbox is for controlling the valve manually
-#        self.open_valve.setToolTip('When checked, the valve is open')
-#        self.save_data=gui.LabeledCheckBox(self,'Save Data')#Checking this checkbox enables saving the video and the speed signal of a session
-#        self.save_data.input.setCheckState(2)
-#        
-#        self.start = QtGui.QPushButton('Start', parent=self)#Start recording/experiment session
-#        self.start.setMaximumWidth(100)
-#        self.stop = QtGui.QPushButton('Stop', parent=self)#Stop recording/experiment session
-#        self.stop.setMaximumWidth(100)
-#        
-#        self.enable_periodic_data_save=gui.LabeledCheckBox(self,'Enable Periodic Save')
-#        self.enable_periodic_data_save.input.setCheckState(2)
-#        
-#        self.counter = QtGui.QLabel('', self)
-#        
-#        self.save_period = gui.LabeledInput(self, 'Data Save Period [s]')
-#        self.save_period.input.setText('60')
-#        self.save_period.input.setFixedWidth(40)
-        
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
         self.l.addWidget(self.plotw, 0, 0, 1, 5)
         self.l.addWidget(self.settings, 0, 5, 1, 3)
@@ -87,10 +60,12 @@ class CWidget(QtGui.QWidget):
 
 class MagnetStimulator(gui.SimpleAppWindow):
     def init_gui(self):
-        self.setToolTip('''
+        icon_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'icons')
+        self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop','exit'], icon_folder = icon_folder)
+        self.toolbar.setToolTip('''
         Coonections:
             USB-6259:   AO0 - AI0 and connect to MOSFET driver
-                        AO1 - AI1 and Orange wire of the power supply (voltage control) | Also connect (black) ground wires
+                        AO1 - AI1 and Orange wire of the power supply (voltage control) | Also connect (blue) ground wires
                         AO2 - AI2 and Green wire of the power supply (current control)  |
                         AI3 - Arduino board D13 (ground wire too)
                         
@@ -98,8 +73,6 @@ class MagnetStimulator(gui.SimpleAppWindow):
             1. Make sure that power supply mode is set to Remote Ctrl (switch is on the rear)
             
         ''')
-        icon_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'icons')
-        self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop','exit'], icon_folder = icon_folder)
         self.addToolBar(self.toolbar)
         self.setWindowTitle('Magnet Stimulator')
         self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
