@@ -197,8 +197,10 @@ class Jobhandler(object):
         if job_selected:
             return  nextfunction, nextpars
         else:
-            self.printl('Job cannot be selected. Try restarting jobhandler. Current animal is {0}. Is that correct?'.format(self.current_animal))
-            pdb.set_trace()
+            logging.error('Job cannot be selected. Latest datafile may have some errors. Current animal is {0}.'.format(self.current_animal))
+            if 0:
+                self.printl('Job cannot be selected. Latest datafile may have some errors. Current animal is {0}. Is that correct?'.format(self.current_animal))
+                pdb.set_trace()
             return None,None
         
     def mesextractor(self,filename):
@@ -210,6 +212,8 @@ class Jobhandler(object):
            error_msg='hdf5 file corrupt'
         elif os.path.getsize(filename.replace('.hdf5','.mat'))<5e6:
             error_msg= 'mat file corrupt'
+        elif not os.access(filename,os.R_OK|os.W_OK):
+            error_msg= 'file acces error'
         else:
             error_msg=''
             file_info = os.stat(filename)
@@ -219,7 +223,7 @@ class Jobhandler(object):
             fileop.set_file_dates(filename, file_info)
             self.printl('MESextractor done')
         if error_msg!='':
-            raise RuntimeError(error_msg)
+            raise RuntimeError(filename+' '+error_msg)
         dbfilelock.acquire()
         try:
             db=DatafileDatabase(self.current_animal)

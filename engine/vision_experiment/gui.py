@@ -943,6 +943,7 @@ class MainPoller(Poller):
                             if 0:
                                 self.add_measurement_id(parameter)
                         elif command == 'notify':
+                            self.printc(parameter)
                             self.notify(parameter)
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
