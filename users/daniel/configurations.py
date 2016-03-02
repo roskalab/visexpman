@@ -665,6 +665,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         BLACK_SCREEN_DURING_PRE_SCAN = True
         TEXT_COLOR = [0.3,0.0,0.0]
         SYNC_SIGNAL_MIN_AMPLITUDE = 1.3
+        
         #gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io

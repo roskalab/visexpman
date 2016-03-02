@@ -1,3 +1,4 @@
+#TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
 import scipy.io,multiprocessing,stat,subprocess
 from visexpman.engine.hardware_interface import network_interface
@@ -86,7 +87,7 @@ class Jobhandler(object):
                 self.printl(traceback.format_exc(),'error')
                 #pdb.set_trace()
             if utils.enter_hit(): break
-            time.sleep(0.01)
+            time.sleep(0.1)
             if int(time.time())%20==0:
                 logging.debug('alive')
                 time.sleep(1)
@@ -118,6 +119,7 @@ class Jobhandler(object):
             #No active files found
             return
         current_animal=[k for k, v in active_animals.items() if v ==max(active_animals.values())][0]
+        logging.debug('Active animals: {0}'.format(active_animals))
         return current_animal
                 
     def nextjob(self):
@@ -157,7 +159,12 @@ class Jobhandler(object):
 #                    weight+=2
                     
                 priority=10**(numpy.ceil(numpy.log10(row['recording_started']))+1)*weight+row['recording_started']+offset
-                filename=[f for f in allfiles if os.path.basename(f)==row['filename']][0]
+                filename=[f for f in allfiles if os.path.basename(f)==row['filename']]
+                if filename==[]:
+                    self.printl('{0} does not exists'.format(row['filename']))
+                    continue
+                else:
+                    filename=filename[0]
                 next_params=[filename]
                 if not row['is_mesextractor'] and not row['is_analyzed'] and not row['is_converted']:
                     nextfunction='mesextractor'
@@ -190,7 +197,7 @@ class Jobhandler(object):
         if job_selected:
             return  nextfunction, nextpars
         else:
-            self.printl('Job cannot be selected. Try restarting jobhandler')
+            self.printl('Job cannot be selected. Try restarting jobhandler. Current animal is {0}. Is that correct?'.format(self.current_animal))
             pdb.set_trace()
             return None,None
         

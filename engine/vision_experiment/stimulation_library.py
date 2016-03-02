@@ -1271,7 +1271,6 @@ class StimulationSequences(Stimulations):
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
                                                                             off_time = off_time)
-        self.display_size=display_size
         import random,itertools
         positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
         import pdb

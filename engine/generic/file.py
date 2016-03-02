@@ -15,9 +15,16 @@ except ImportError:
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 def wait4file_ready(f):
-    filesize_prev=os.path.getsize(f)
+    if os.path.exists(f):
+        filesize_prev=os.path.getsize(f)
+    else:
+        filesize_prev=0
     while True:
-        filesize=os.path.getsize(f)
+        if os.path.exists(f):
+            filesize=os.path.getsize(f)
+        else:
+            time.sleep(0.5)
+            filesize=os.path.getsize(f)
         if filesize==filesize_prev:
             break
         else:

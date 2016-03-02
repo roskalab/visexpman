@@ -1467,7 +1467,7 @@ class MainPoller(Poller):
         self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
         self.printc('movement {0}, {1}'.format(movement[0], movement[1]))
         if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
-            self.printc('Stage does not respond')
+            self.printc('Stage does not respond, 1')
             return False
         while not self.queues['stim']['in'].empty():
             response = self.queues['stim']['in'].get()
@@ -1477,7 +1477,7 @@ class MainPoller(Poller):
                 self.parent.update_position_display()
                 self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
                 return True
-        self.printc('Stage does not respond')
+        self.printc('Stage does not respond, 2')
         return False
 
     def stop_stage(self):

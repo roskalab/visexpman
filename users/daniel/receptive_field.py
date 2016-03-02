@@ -20,8 +20,8 @@ class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
 #        self.NCOLUMNS = 13
         self.NROWS = 8  #303.42857142857144, 298.625
         self.NCOLUMNS = 14
-        self.ON_TIME = 0.5
-        self.OFF_TIME = 2.0
+        self.ON_TIME = 0.5*2
+        self.OFF_TIME = 2.0*0
         self.REPEATS = 1
         self.REPEAT_SEQUENCE = 1
         self.ENABLE_RANDOM_ORDER =  not False
@@ -38,11 +38,12 @@ class ReceptiveFieldExploreNewInverted(ReceptiveFieldExploreNew):
 class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
-        self.DISPLAY_SIZE = utils.rc((57.0,90.0))
         self.NROWS = 6
         self.NCOLUMNS = 9
-        self.DISPLAY_CENTER = utils.rc((41.5,45.0))
         self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees
+#        self.SHAPE_SIZE = 10
        # self.OFF_TIME = 0
         #self.ON_TIME = 2.0
 
