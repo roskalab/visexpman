@@ -1668,7 +1668,10 @@ class MainPoller(Poller):
 
         id_text = str(self.parent.animal_parameters_widget.id.currentText())
         if id_text == '':
-            self.printc('Providing ID is mandatory')
+            self.notify('Please provide animal name')
+            return
+        if not id_text.isalnum():
+            self.notify('Animal name can contain only alphanumeric characters')
             return
         user=str(self.parent.animal_parameters_widget.user.currentText())
         if user=='':
