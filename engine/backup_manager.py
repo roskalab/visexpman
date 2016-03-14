@@ -140,7 +140,7 @@ def run():
     lines=txt.split('\n')[:-1]
     done_lines = [lines.index(l) for l in lines if 'done' in l]
     started_lines = [lines.index(l) for l in lines if 'listing' in l]
-    if done_lines[-1]<started_lines[-1] and 0:
+    if done_lines[-1]<started_lines[-1]:
         ds=[l.split('\t')[0] for l in lines][started_lines[-1]].split(',')[0]
         format="%Y-%m-%d %H:%M:%S"
         if time.time()-time.mktime(datetime.datetime.strptime(ds, format).timetuple())<2*60*60:#If last start happend 3 hours before, assume that there was an error and backup can be started again
@@ -150,7 +150,9 @@ def run():
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
     if not is_mounted():
-        logging.error('Tape or m mdirve not mounted')
+        msg='Tape or m mdrive not mounted: m: {0}, tape: {1}'.format(os.path.ismount('/mnt/tape'), os.path.ismount('/mnt/mdrive'))
+        logging.error(msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager mount error', msg)
         return
     logging.info('listing rawdata files')
     files = list_all_files(transient_backup_path)
