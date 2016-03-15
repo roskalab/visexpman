@@ -12,7 +12,7 @@ from visexpman.engine.generic import fileop
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
-ALTERNATIVE_TIMING = False
+ALTERNATIVE_TIMING = True
 
 def get_screen_size():
     import platform

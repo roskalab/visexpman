@@ -144,12 +144,20 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         if background_color is not None:
             cols = numpy.ones_like(cols)*numpy.array(background_color)
         t0 = time.time()
+        deltat=[]
+        prevt=time.time()
+        import copy
         for color in cols:
             self.clear_screen(color = colors.convert_color(color, self.config))
             self.flip()
+            t=time.time()
+            deltat.append(t-prevt)
+            prevt=copy.deepcopy(t)
         runtime = time.time()-t0
+        deltat=numpy.array(deltat)[1:-1]
+        #print deltat
         frame_rate = (self.config.SCREEN_EXPECTED_FRAME_RATE*duration)/runtime
-        self.printl('Runtime: {0:.2f} s, measured frame rate: {1:.2f} Hz, expected frame rate: {2} Hz'.format(runtime, frame_rate, self.config.SCREEN_EXPECTED_FRAME_RATE))
+        self.printl('Runtime: {0:.2f} s, measured frame rate: {1:.2f} Hz, expected frame rate: {2} Hz, \r\nstd: {3:.4f}, min: {4:.4f}, max: {5:.4f}'.format(runtime, frame_rate, self.config.SCREEN_EXPECTED_FRAME_RATE, 1000*deltat.std(),1000*deltat.min(),1000*deltat.max()))
         if abs(frame_rate-self.config.SCREEN_EXPECTED_FRAME_RATE)>self.config.FRAME_RATE_TOLERANCE:
             from visexpman.engine import HardwareError
             raise HardwareError('Measured frame rate ({0:1.2f}) is out of acceptable range. Check projector\'s frame rate or graphics card settings.'.format(frame_rate))

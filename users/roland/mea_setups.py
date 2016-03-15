@@ -17,6 +17,7 @@ class MEAConfig(HiMEAConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60
         COLOR_MASK = numpy.array([1.0, 1.0, 1.0])
         PLATFORM = 'hi_mea'
+        INSERT_FLIP_DELAY=True
         
         # Scale:
         self.ELECTRODE_PITCH=17.5
