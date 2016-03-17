@@ -18,17 +18,25 @@ class Advanced(QtGui.QWidget):
         QtGui.QWidget.__init__(self,parent)
         self.fix=QtGui.QPushButton('Fix rois, reexport files' ,parent=self)
         self.test=QtGui.QPushButton('Test' ,parent=self)
+        self.check_stim_timing=QtGui.QPushButton('Check stim timing' ,parent=self)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.fix, 0, 0)
         self.layout.addWidget(self.test, 1, 0)
+        self.layout.addWidget(self.check_stim_timing, 2, 0)
         self.setLayout(self.layout)
         self.connect(self.fix, QtCore.SIGNAL('clicked()'), self.fix_clicked)
         self.connect(self.test, QtCore.SIGNAL('clicked()'), self.test_clicked)
+        self.connect(self.check_stim_timing, QtCore.SIGNAL('clicked()'), self.check_stim_timing_clicked)
         
     def fix_clicked(self):
         folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.machine_config.EXPERIMENT_DATA_PATH))
         if os.path.exists(folder):
             self.parent.to_engine.put({'function': 'fix_files', 'args':[folder]})
+            
+    def check_stim_timing_clicked(self):
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.machine_config.EXPERIMENT_DATA_PATH))
+        if os.path.exists(folder):
+            self.parent.to_engine.put({'function': 'check_stim_timing', 'args':[folder]})
             
     def test_clicked(self):
         raise RuntimeError('ok')

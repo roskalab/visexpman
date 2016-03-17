@@ -16,7 +16,7 @@ from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
 import time
-FIX1KHZ=False
+FIX1KHZ=not False
 
 class PhysTiff2Hdf5(object):
     '''
@@ -314,7 +314,7 @@ class PhysTiff2Hdf5(object):
             except:
                 print 'sync signal recording was aborted'
             SR=(10000.0 if not FIX1KHZ else 1000.0)
-            if indexes.shape[0]/(sig.shape[0]/SR)>80:
+            if indexes.shape[0]/(sig.shape[0]/SR)>66:
                 sig2=numpy.zeros_like(sig)
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
             

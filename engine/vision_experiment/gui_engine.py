@@ -612,6 +612,30 @@ class Analysis(object):
         self.printc('DONE')
         self.notify('Info', 'ROI fixing is ready')
         
+    def check_stim_timing(self,folder):
+        files=fileop.listdir_fullpath(folder)
+        files.sort()
+        self.abort=False
+        problematic_files=[]
+        for f in files:
+            if 'hdf5' not in f: continue
+            try:
+                self.open_datafile(f)
+                if self.tsync[0]>11:
+                    problematic_files.append(f)
+            except:
+                import traceback
+                self.printc(traceback.format_exc())
+                problematic_files.append(f)
+                self.datafile.close()
+            if self.abort:break
+        self.printc('Problematic files')
+        [os.remove(f) for f in problematic_files]
+        problematic_files=[os.path.basename(f).split('_')[1] for f in problematic_files]
+        problematic_files.sort()
+        for f in problematic_files:
+            self.printc(f)
+        self.printc('DONE')
         
     def meanimage2tiff(self,fn):
         import tifffile
