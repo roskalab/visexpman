@@ -371,6 +371,26 @@ class Analysis(object):
         self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
         
+    def readd_rois(self, filename):
+        rois=hdf5io.read_item(filename,'rois',filelocking=False)
+        h=experiment_data.CaImagingData(self.filename)
+        h.repetition_link=hdf5io.read_item(filename,'repetition_link',filelocking=False)
+        h.save('repetition_link')
+        h.close()
+        rectangles=[r['rectangle'] for r in rois]
+        areas=[r['area'] for r in rois]
+        
+        self.rois=[]
+        for i in range(len(rectangles)):
+            self.rois.append({'area':areas[i], 'rectangle':rectangles[i]})
+        
+        self._extract_roi_curves()
+        self._normalize_roi_curves()
+        self._roi_area2image()
+        self.current_roi_index = 0
+        self.display_roi_rectangles()
+        self.display_roi_curve()
+        
     def _check_unsaved_rois(self, warning_only=False):
         if not hasattr(self,'filename'):
             return

@@ -22,7 +22,7 @@ timestamp_re = re.compile('.*(\d{10,10}).*')
 ################# File name related ####################
 
 def file_extension(filename):
-    return os.path.split(filename)[1].split('.')[-1]
+    return os.path.basename(filename).split('.')[-1]
     
 def is_first_tag(fn, tag):
     return tag == os.path.split(fn)[1][:len(tag)]

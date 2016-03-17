@@ -16,6 +16,7 @@ from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
 import time
+FIX1KHZ=False
 
 class PhysTiff2Hdf5(object):
     '''
@@ -32,12 +33,21 @@ class PhysTiff2Hdf5(object):
         self.irlaser = len(sys.argv) == 3 and sys.argv[2]=='irlaser'
         
     def detect_and_convert(self):
-        self.allfiles = fileop.find_files_and_folders(self.folder)[1]
         now=time.time()
+        recent_folders=[f for f in fileop.listdir_fullpath(self.folder) if os.path.isdir(f) and now-os.path.getctime(f)<3600*168*2]
+        self.allfiles=[]
+        for folder in recent_folders:
+            self.allfiles.extend(fileop.find_files_and_folders(folder)[1])
+        if self.outfolder==self.folder:
+            self.outfiles=self.allfiles
+            self.outfiles = [f for f in self.outfiles if fileop.file_extension(f)=='hdf5']
+        else:
+            self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
+        
         excluded_extensions=['txt','mat','hdf5','tif' if not self.use_tiff else 'csv']
         self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and fileop.file_extension(f) not in excluded_extensions]
-        self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600]#Considering files not older than 2 weeks
-        self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
+        #self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600]#Considering files not older than 2 weeks
+        
         
         if self.irlaser:
             physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='csv' and 'rect' not in f and 'timestamps' not in f]
@@ -55,16 +65,17 @@ class PhysTiff2Hdf5(object):
             processable_physfiles = [pid[1] for pid in phys_ids if pid[0] not in out_ids]
         #Find corresponding folder with tiff file
         pairs = []
+        #ids=[str(os.path.basename(o).split('_')[-2]) for o in self.outfiles]
         for pf in processable_physfiles:
             if 1:
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
-                found = [tf for tf in tiffiles_current_folder if os.path.split(regexp.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
+                found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(fileop.file_extension(pf),''))[:-1] in tf]
             if 1:
                 if len(found)>0 and [pf,found[0]] not in self.processed_pairs:
                     if os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3:
-                        id = str(experiment_data.get_id(os.path.getmtime(pf)))
-                        if len([f for f in self.outfiles if id in f])==0:
+#                        id = str(experiment_data.get_id(os.path.getmtime(pf)))
+#                        if id not in ids:# len([f for f in self.outfiles if id in f])==0
                             pairs.append([pf, found[0]])
         if len(pairs)>0:
             print 'converting pairs'
@@ -81,7 +92,15 @@ class PhysTiff2Hdf5(object):
 #                pass
         
         self.processed_pairs.extend(pairs)
-        converted=[self.build_hdf5(p[0],p[1], self.outfolder) for p in pairs]
+        converted=[]
+        for p in pairs:
+            try:
+                res=self.build_hdf5(p[0],p[1], self.outfolder)
+                converted.append(res)
+            except:
+                import traceback
+                print traceback.format_exc()
+            
         return converted
         
     def convert_old_files(self):
@@ -195,12 +214,14 @@ class PhysTiff2Hdf5(object):
                 raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,1:,:,:],0,2**16-1))
             except MemoryError:#Too long recording
                 return None
+        #Up-down flip
+        raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
         print 'rawdata ok', time.time()-t0
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
         recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+fileop.file_extension(ftiff), ''))
         recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
-        recording_parameters['elphys_sync_sample_rate'] = 10000
+        recording_parameters['elphys_sync_sample_rate'] = 10000 if not FIX1KHZ else 1000
         if self.irlaser:
             experiment_name = 'irlaser'
             with open(fphys,'rt') as f:
@@ -224,8 +245,9 @@ class PhysTiff2Hdf5(object):
         recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if metadata.has_key('Stimulus file') and os.path.exists(metadata['Stimulus file']) else ''
         recording_parameters['experiment_source_file'] = metadata['Stimulus file'] if metadata.has_key('Stimulus file') else ''
         recording_parameters['absolute_stage_coordinates'] = absolute_stage_coordinates
-        if float(metadata['Sample Rate'])!=10000:
-            raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
+        if float(metadata['Sample Rate'])!=(10000 if not FIX1KHZ else 1000):
+            if 1:
+                raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
         if data.shape[0]!=3:
             raise RuntimeError('Sync signals might not be recorded. Make sure that recording ai4:5 channels are enabled, {0}'.format(data.shape))
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
@@ -277,11 +299,11 @@ class PhysTiff2Hdf5(object):
         if self.irlaser:
             return sig*5.0/sig.max()
         indexes = signal.trigger_indexes(sig)
-        if (10000.0/numpy.diff(indexes)[1::2]).mean()<55:
+        if ((10000.0 if not FIX1KHZ else 1000.0)/numpy.diff(indexes)[1::2]).mean()<55:
             return sig
         else:
             #assuming
-            delay_before_start=15 if sig.shape[0]/10000 > 30 else 10
+            delay_before_start=15 if sig.shape[0]/(10000.0 if not FIX1KHZ else 1000.0) > 30 else 10
             ontime=2
             frame_rate=60
             sig2=numpy.zeros_like(sig)
@@ -291,7 +313,11 @@ class PhysTiff2Hdf5(object):
                 sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
             except:
                 print 'sync signal recording was aborted'
-            pass
+            SR=(10000.0 if not FIX1KHZ else 1000.0)
+            if indexes.shape[0]/(sig.shape[0]/SR)>80:
+                sig2=numpy.zeros_like(sig)
+                sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
+            
             return sig2
         
     def yscanner_signal2trigger(self,waveform, fsample,nxlines):

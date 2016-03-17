@@ -505,4 +505,5 @@ class TestCA(unittest.TestCase):
     
 if __name__=='__main__':
     #unittest.main()
-    aggregate_cells('Q:\\20150909 for Dasha')
+    #aggregate_cells('Q:\\20150909 for Dasha')
+    aggregate_stage_coordinates('q:\\Rei\\20160212 Hepes\\')
