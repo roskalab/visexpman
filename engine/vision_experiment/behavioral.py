@@ -182,7 +182,7 @@ class CWidget(QtGui.QWidget):
         ar=float(parent.config.CAMERA_FRAME_WIDTH)/parent.config.CAMERA_FRAME_HEIGHT
         self.image.setFixedHeight(450/ar)#Setting image widget height while keeping the aspect ratio of camera resolution
         
-        self.plotw=gui.Plot(self)#Plot widget initialization
+        self.plotw=gui.Plot(self)
         self.plotw.setFixedHeight(250)
         self.plotw.plot.setLabels(left='speed [cm/s]', bottom='time [s]')#Adding labels to the plot
         #self.plotw.plot.addLegend(size=(120,60))

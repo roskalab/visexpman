@@ -18,12 +18,19 @@ class Advanced(QtGui.QWidget):
         QtGui.QWidget.__init__(self,parent)
         self.fix=QtGui.QPushButton('Fix rois, reexport files' ,parent=self)
         self.test=QtGui.QPushButton('Test' ,parent=self)
+        
+        self.p=gui.TabbedPlots(self,['a','b'])
+        self.p.setMinimumWidth(300)
+        self.p.setMinimumHeight(300)
+        
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.fix, 0, 0)
         self.layout.addWidget(self.test, 1, 0)
+        self.layout.addWidget(self.p, 2, 0)
         self.setLayout(self.layout)
         self.connect(self.fix, QtCore.SIGNAL('clicked()'), self.fix_clicked)
         self.connect(self.test, QtCore.SIGNAL('clicked()'), self.test_clicked)
+        
         
     def fix_clicked(self):
         folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.machine_config.EXPERIMENT_DATA_PATH))

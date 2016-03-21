@@ -433,6 +433,19 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         for i in range(len(boundaries)/2):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = c))
             self.plot.addItem(self.linear_regions[-1])
+            
+class TabbedPlots(QtGui.QWidget):
+    def __init__(self, parent,plotnames):
+        QtGui.QWidget.__init__(self, parent)
+        self.plotnames=plotnames
+        self.tab = QtGui.QTabWidget(self)
+        self.tab.setTabPosition(self.tab.South)
+        self.tab.setFixedWidth(400)
+        self.tab.setFixedHeight(400)
+        for pn in plotnames:
+            p=Plot(self)
+            setattr(self, pn, p)
+            self.tab.addTab(p, pn)
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):
