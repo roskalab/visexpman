@@ -1454,7 +1454,7 @@ class AdvancedStimulation(StimulationHelpers):
             if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
                 positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
         else:
-            positions_and_colors= [[a,shape_size,c,p] for c,p in positions_and_colors]
+            positions_and_colors= [[0,shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
@@ -1512,7 +1512,8 @@ class AdvancedStimulation(StimulationHelpers):
         
     def receptive_field_explore_durations_and_positions(self, **kwargs):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
-        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
+        offtime=kwargs['off_time'] if kwargs['off_time']>0 else 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+offtime)+off_time, positions
         
     def moving_shape_trajectory(self, size, speeds, directions,repetition,center=utils.rc((0,0)), 
                 pause=0.0,moving_range=None, shape_starts_from_edge=False):

@@ -1,5 +1,4 @@
-#TODO: Voltage and current LUT
-import os,numpy,multiprocessing,Queue,time,scipy,tifffile,scipy.io
+import os,numpy,threading,Queue,time,scipy,tifffile,scipy.io
 try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
@@ -40,16 +39,16 @@ class CWidget(QtGui.QWidget):
                 {'name': 'Recording Name', 'type': 'str', 'value': ''},
                 {'name': 'Sample Rate', 'type': 'float', 'value': 1000, 'suffix':' Hz'},
                 {'name': 'Switch Control Voltage', 'type': 'float', 'value': 5.0, 'suffix':' V'},
-                {'name': 'Pre Trigger Wait Time', 'type': 'float', 'value': 5.0, 'suffix':' s'},
-                {'name': 'Post Trigger Wait Time', 'type': 'float', 'value': 5.0, 'suffix':' s'},
+                {'name': 'Pre Trigger Wait Time', 'type': 'float', 'value': 2.0, 'suffix':' s'},
+                {'name': 'Post Trigger Wait Time', 'type': 'float', 'value': 0.0, 'suffix':' s'},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
-                    {'name': 'Voltage', 'type': 'float', 'value': 6.0, 'suffix':' V'},
+                    {'name': 'Voltage', 'type': 'float', 'value': 12.0, 'suffix':' V'},
                     {'name': 'On Time', 'type': 'float', 'value': 1.0, 'suffix':' s'},
-                    {'name': 'Period Time', 'type': 'float', 'value': 10.0, 'suffix':' s'},
+                    {'name': 'Period Time', 'type': 'float', 'value': 3.0, 'suffix':' s'},
                     {'name': 'Repeats', 'type': 'int', 'value': 2},
                     {'name': 'Current Limit', 'type': 'float', 'value': 1.5, 'suffix':' A'},
                     ]},
-                {'name': 'Voltage/Current Look Up Tables', 'type': 'group', 'expanded' : True, 'children': [
+                {'name': 'Voltage/Current Lookup Tables', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Voltage In', 'type': 'str', 'value': '0,0.92,1.55,2.81,5', },
                     {'name': 'Voltage Out', 'type': 'str', 'value': '0,5,10,20,32.2', },
                     {'name': 'Current In', 'type': 'str', 'value': '0,0.5,1,1.5,3', },
@@ -57,20 +56,38 @@ class CWidget(QtGui.QWidget):
                     ]},
                     ]
         return pc
+        
+class DigitalOut(threading.Thread):
+    def __init__(self, switch_times):
+        threading.Thread.__init__(self)
+        self.switch_times=switch_times
+        
+    def run(self):
+        daq_instrument.set_digital_line('Dev1/port0/line0',0)
+        state=True
+        for st in self.switch_times[:-1]:
+            time.sleep(st)
+            daq_instrument.set_digital_line('Dev1/port0/line0',int(state))
+            state=not state
+        time.sleep(self.switch_times[-1])
+        daq_instrument.set_digital_line('Dev1/port0/line0',0)
+        
 
 class MagnetStimulator(gui.SimpleAppWindow):
     def init_gui(self):
         icon_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'icons')
         self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop','exit'], icon_folder = icon_folder)
         self.toolbar.setToolTip('''
-        Coonections:
-            USB-6259:   AO0 - AI0 and connect to MOSFET driver
-                        AO1 - AI1 and Orange wire of the power supply (voltage control) | Also connect (blue) ground wires
-                        AO2 - AI2 and Green wire of the power supply (current control)  |
-                        AI3 - Arduino board D13 (ground wire too)
-                        
-        Use:
+        Connections:
+            AI0: arduino p13
+            AI1: p0.0
+            AO0: orange wire, voltage control
+            AO1: green wire, current limit control
+        Usage:
             1. Make sure that power supply mode is set to Remote Ctrl (switch is on the rear)
+            2. Adjust stimulus parameters
+            3. Press Start Experiment button
+            4. Start imaging, make sure that imaging starts within Pre trigger wait time
             
         ''')
         self.addToolBar(self.toolbar)
@@ -103,16 +120,13 @@ class MagnetStimulator(gui.SimpleAppWindow):
         post=numpy.zeros(self.setting_values['Post Trigger Wait Time']*self.setting_values['Sample Rate'])
         offsamples=self.setting_values['Sample Rate']*(self.setting_values['Period Time']-self.setting_values['On Time'])
         onsamples=self.setting_values['Sample Rate']*self.setting_values['On Time']
+        self.switch_times=[self.setting_values['Pre Trigger Wait Time']]
+        self.switch_times.extend([self.setting_values['On Time'],self.setting_values['Period Time']-self.setting_values['On Time']]*self.setting_values['Repeats'])
+        self.switch_times[-1]+=self.setting_values['Post Trigger Wait Time']
         self.switch=self.setting_values['Switch Control Voltage']*numpy.concatenate((pre,numpy.tile(numpy.concatenate((numpy.ones(onsamples),numpy.zeros(offsamples))), self.setting_values['Repeats']),post))
-        self.waveform=self.switch*self.setting_values['Voltage']/self.setting_values['Switch Control Voltage']
-        self.voltage=numpy.ones_like(self.waveform)*float(self.vlut(self.setting_values['Voltage']))
-        self.current=numpy.ones_like(self.waveform)*float(self.clut(self.setting_values['Current Limit']))
-        self.current[-1]=0
-        self.voltage[-1]=0
-        if self.waveform.shape[0]>0:
-            self.t=numpy.linspace(0,self.waveform.shape[0]/float(self.setting_values['Sample Rate']),self.waveform.shape[0])
-            numpy.random.seed(10)
-            self.cw.plotw.update_curves(4*[self.t],[self.waveform, self.voltage, self.current, self.switch], colors=[tuple(numpy.cast['uint8'](numpy.random.random(3)*255)) for i in range(4)])
+        if self.switch.shape[0]>0:
+            self.t=numpy.linspace(0,self.switch.shape[0]/float(self.setting_values['Sample Rate']),self.switch.shape[0])            
+            self.cw.plotw.update_curves([self.t],[self.switch], colors=[(0,0,0)])
             self.cw.plotw.plot.setXRange(min(self.t), max(self.t))
             self.cw.plotw.plot.setTitle('Stimulus Waveform ({0:.2f} s)'.format(self.t.max()))
         
@@ -124,27 +138,31 @@ class MagnetStimulator(gui.SimpleAppWindow):
         if self.running:
             self.log('Already running')
             return
-        #Pack waveform
-        self.log('Loading waveform')
-        self.ao_waveform=numpy.array([self.switch,self.voltage,self.current]).T
-        self.expected_duration=self.ao_waveform.shape[0]/self.setting_values['Sample Rate']
+        daq_instrument.set_voltage('Dev1/ao0',float(self.vlut(self.setting_values['Voltage'])))
+        daq_instrument.set_voltage('Dev1/ao1',float(self.clut(self.setting_values['Current Limit'])))
+        time.sleep(0.1)#Wait till power supply is set
+        self.expected_duration=sum(self.switch_times)
+        self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',self.setting_values['Sample Rate'], self.expected_duration+2,timeout=20)
+        self.do=DigitalOut(self.switch_times)
+        self.do.start()
         self.running=True
-        self.daq=daq_instrument.SimpleAIO('Dev2/ai0:3','Dev2/ao0:2',self.setting_values['Sample Rate'],self.ao_waveform)
         self.stim_ended_timer.start(int(1000.*self.expected_duration))
         self.log('Starting stimulation, expected duration is {0:.1f} s'.format(self.expected_duration))
         self.pb=gui.Progressbar(self.expected_duration, 'Stimulus', autoclose = True, timer=True)
         self.pb.show()
         
     def stim_finished(self):
+        self.sync_data=self.ai.finish()
+        del self.ai
         self.stim_ended_timer.stop()
-        self.sync_data=self.daq.finish()
+        daq_instrument.set_voltage('Dev1/ao0',0.0)
+        daq_instrument.set_voltage('Dev1/ao1',0.0)
+        self.do.join()
         self.running=False
         self.pb.close()
         self.log('Stimulation and recording finished')
-        del self.daq
         t=numpy.linspace(0,self.sync_data.shape[0]/self.setting_values['Sample Rate'],self.sync_data.shape[0])
-        numpy.random.seed(10)
-        self.cw.plotw.update_curves(self.sync_data.shape[1]*[t],[self.sync_data[:,i] for i in range(self.sync_data.shape[1])], colors=[tuple(numpy.cast['uint8'](numpy.random.random(3)*255)) for i in range(self.sync_data.shape[1])])
+        self.cw.plotw.update_curves(self.sync_data.shape[1]*[t],[self.sync_data[:,i] for i in range(self.sync_data.shape[1])], colors=[(0,255,0),(0,0,255)])
         self.save2file()
         
     def save2file(self):
