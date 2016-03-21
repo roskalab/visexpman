@@ -1,4 +1,4 @@
-import os,shutil,time,logging,datetime,filecmp,subprocess,Queue,threading,traceback
+import os,shutil,time,logging,datetime,filecmp,subprocess,Queue,threading,traceback,sys
 import unittest
 
 class Config(object):
@@ -15,7 +15,23 @@ class TestConfig(Config):
                 {'src':'/tmp/1', 'dst':['/tmp/a'],'extensions':['.txt'], 'move':True},
                 {'src':'/tmp/2', 'dst':['/tmp/b', '/tmp/c'],'extensions':['.mat', '.hdf5'],'move':False}
             ]
-        
+            
+def ReiSetup(Config):
+    def __init__(self):
+        self.LOGPATH='q:\\log\\backup_manager.txt'
+        self.COPY= [
+                {'src':'q:\\raw', 'dst':['/tmp/a'],'extensions':['.tif','.csv', '.txt','.mat'], 'move':True},
+                {'src':'q:\\processed', 'dst':['m:\\invitro\\processed'],'extensions':['.hdf5', '.mat'], 'move':True},
+            ]
+            
+def RCSetup(Config):
+    def __init__(self):
+        self.LOGPATH='/mnt/datafast/log/backup_manager.txt'
+        self.COPY= [
+                {'src':'/mnt/databig/backup', 'dst':['/mnt/tape/hillier/invivocortex/TwoPhoton/new', '/mnt/mdrive/invivo/rc/raw'],'extensions':['.mat','.hdf5'], 'move':True},
+                {'src':'/mnt/databig/processed', 'dst':['/mnt/mdrive/invivo/rc/processed'],'extensions':['.mat','.hdf5', '.png'], 'move':True},
+            ]
+
 
 def watchdog(maxtime,queue):
     logging.info('watchdog starts')
