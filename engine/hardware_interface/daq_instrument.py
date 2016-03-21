@@ -149,6 +149,42 @@ class SimpleAIO(object):
         self.analog_output.StopTask()
         self.analog_input.StopTask()
         return self.ai_data
+        
+class SimpleAnalogIn(object):
+    def __init__(self,ai_channel,sample_rate,duration, timeout=1):
+        self.n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+        nsamples=int(duration*sample_rate)
+        self.timeout=timeout
+        if os.name=='nt':
+            self.ai_data = numpy.zeros(nsamples*self.n_ai_channels, dtype=numpy.float64)
+            self.analog_input = PyDAQmx.Task()
+            self.analog_input.CreateAIVoltageChan(ai_channel,
+                                            'ai',
+                                            DAQmxConstants.DAQmx_Val_RSE,
+                                            -5, 
+                                            5, 
+                                            DAQmxConstants.DAQmx_Val_Volts,
+                                            None)
+            self.read = DAQmxTypes.int32()
+            self.analog_input.CfgSampClkTiming("OnboardClock",
+                                            sample_rate,
+                                            DAQmxConstants.DAQmx_Val_Rising,
+                                            DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                            nsamples)
+            self.analog_input.StartTask()
+            
+    def finish(self):
+        self.analog_input.ReadAnalogF64(int(self.ai_data.shape[0]/self.n_ai_channels),
+                                    self.timeout,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    self.ai_data,
+                                    self.ai_data.shape[0],
+                                    DAQmxTypes.byref(self.read),
+                                    None)
+        self.ai_data = self.ai_data[:self.read.value * self.n_ai_channels]
+        self.ai_data = self.ai_data.flatten('F').reshape((self.n_ai_channels, self.read.value)).transpose()
+        self.analog_input.StopTask()
+        return self.ai_data
     
 def analogi(ai_channel,sample_rate,duration, timeout=1):
     n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
