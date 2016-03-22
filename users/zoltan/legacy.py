@@ -15,7 +15,6 @@ from visexpman.engine.generic import fileop,utils,signal,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
-import time
 FIX1KHZ= False
 
 class PhysTiff2Hdf5(object):
@@ -255,21 +254,19 @@ class PhysTiff2Hdf5(object):
         stiminfo_available=False
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar']
+            supported_stims=['FlashedShapePar','MovingShapeParameters']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         if stiminfo_available:
-            if stimdata['experiment_config_name'][0]=='FlashedShapePar':
+            if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
+                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
+            elif stimdata['experiment_config_name'][0]=='FlashedShapePar':
                 block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
-                pulse_start=signal.trigger_indexes(data[1])[::2]
-                pulse_start[block_startend]
-                sig=numpy.zeros_like(data[1])
-                boundaries=pulse_start[block_startend]
-                for i in range(boundaries.shape[0]/2):
-                    sig[boundaries[2*i]:boundaries[2*i+1]]=5
-                sync_and_elphys[:,2]=sig
-            else:
-                pass
-                
+            pulse_start=signal.trigger_indexes(data[1])[::2]
+            sig=numpy.zeros_like(data[1])
+            boundaries=pulse_start[block_startend]
+            for i in range(boundaries.shape[0]/2):
+                sig[boundaries[2*i]:boundaries[2*i+1]]=5
+            sync_and_elphys[:,2]=sig
         else:
             sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
         sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
