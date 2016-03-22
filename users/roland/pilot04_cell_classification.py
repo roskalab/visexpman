@@ -28,7 +28,7 @@ class Pilot04BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
         self.VARS['FingerPrinting']['FF_PAUSE_COLOR'] = 0.5
         self.VARS['FingerPrinting']['DIRECTIONS'] = [0.0, 90.0]
-        self.VARS['FingerPrinting']['SPEEDS'] = [300.0, 1000.0] #[500, 1600]      
+        self.VARS['FingerPrinting']['SPEEDS'] = [300.0]    
         self.VARS['FingerPrinting']['DURATION'] = 15.0
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
         self.VARS['FingerPrinting']['REPEATS'] = 2
@@ -43,7 +43,7 @@ class Pilot04BatchConfig(experiment.ExperimentConfig):
         self.VARS['Chirp_Sweep']['FREQUENCY_RANGE'] = [1.0, 4.0]
         self.VARS['Chirp_Sweep']['STATIC_FREQUENCY'] = 2.0
         self.VARS['Chirp_Sweep']['REPEATS'] = 5
-        self.VARS['Chirp_Sweep']['COLOR'] = [0, 1, 1]        
+        self.VARS['Chirp_Sweep']['COLOR'] = [0, 1, 1]
         
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
@@ -51,6 +51,13 @@ class Pilot04BatchConfig(experiment.ExperimentConfig):
         self.VARS['WhiteNoise']['PIXEL_SIZE'] = [25.0] # um
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [[0.0, 0.0, 0.0],[0.0, 1.0, 1.0]]
+        
+        self.STIM_TYPE_CLASS['WhiteNoiseGB'] = 'WhiteNoiseStimulus'
+        self.VARS['WhiteNoiseGB'] = {}
+        self.VARS['WhiteNoiseGB']['DURATION_MINS'] = 30.0 # min
+        self.VARS['WhiteNoiseGB']['PIXEL_SIZE'] = [25.0] # um
+        self.VARS['WhiteNoiseGB']['N_WHITE_PIXELS'] = False
+        self.VARS['WhiteNoiseGB']['COLORS'] = [[0.0, 1.0, 0.0],[0.0, 0.0, 1.0]]
         
         self.STIM_TYPE_CLASS['Gratings'] = 'MovingGratingStimulus'
         self.VARS['Gratings'] = {}   
@@ -71,7 +78,7 @@ class Pilot04BatchConfig(experiment.ExperimentConfig):
         self.VARS['DashStimulus']['BARSIZE'] = [20, 50]
         self.VARS['DashStimulus']['GAPSIZE'] = [5, 30]
         self.VARS['DashStimulus']['MOVINGLINES'] = 3
-        self.VARS['DashStimulus']['DURATION'] = 10.0
+        self.VARS['DashStimulus']['DURATION'] = 0.5#10.0
         self.VARS['DashStimulus']['SPEEDS'] = [300]
         self.VARS['DashStimulus']['DIRECTIONS'] = range(0,360,45)
         self.VARS['DashStimulus']['BAR_COLOR'] = 0.5 
@@ -106,6 +113,13 @@ class Pilot04WhiteNoise(Pilot04BatchConfig):
     def _create_parameters(self):
         Pilot04BatchConfig._create_parameters(self)
         self.sub_stimulus = 'WhiteNoise'
+        Pilot04BatchConfig.extract_experiment_type(self, self)
+        self._create_parameters_from_locals(locals())
+        
+class Pilot04WhiteNoiseGB(Pilot04BatchConfig):
+    def _create_parameters(self):
+        Pilot04BatchConfig._create_parameters(self)
+        self.sub_stimulus = 'WhiteNoiseGB'
         Pilot04BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
 

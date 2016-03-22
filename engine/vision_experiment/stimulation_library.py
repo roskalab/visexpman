@@ -1594,7 +1594,7 @@ class AdvancedStimulation(StimulationHelpers):
                 
                 for w_i in range(-1, nRepW+1):
                     for l_i in range(-1, nRepL+1):
-                    
+                        
                         glPushMatrix()
             
                         glRotatef(direction, 0,0,1)
@@ -1602,7 +1602,7 @@ class AdvancedStimulation(StimulationHelpers):
                         if w_i%movingLines == lineRepeat:
                             glTranslate((dist+l_i*lDist_px)%((nRepL+1)*lDist_px)-screen_size[1],0,0)
                         else:
-                            glTranslate((l_i*lDist_px)%((nRepL+1)*lDist_px)-screen_size[1],0,0)
+                            glTranslate(( (float(l_i)+ float(w_i%movingLines)/float(movingLines) )*lDist_px)%((nRepL+1)*lDist_px)-screen_size[1],0,0)
                         
                         glTranslate(0,(w_i*wDist_px)%((nRepW+1)*wDist_px)-0.5*diagonal_px,0) #0.75*screen_size[0], 0)
                         #glTranslate(0,(w_i*wDist_px)-0.5*screen_size[0], 0)

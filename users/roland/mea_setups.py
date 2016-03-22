@@ -74,7 +74,7 @@ class MEAConfig(HiMEAConfig):
 class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):
         MEAConfig._set_user_parameters(self)
-        self.FULLSCREEN = not False
+        self.FULLSCREEN = False
         folder = '/home/rolandd/rolandd-fileshare/tmp'       
         self.ENABLE_MEA_START_COMMAND = not True # set True when stim software needs to start the recording
         
