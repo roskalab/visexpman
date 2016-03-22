@@ -28,10 +28,22 @@ def RCSetup(Config):
     def __init__(self):
         self.LOGPATH='/mnt/datafast/log/backup_manager.txt'
         self.COPY= [
-                {'src':'/mnt/databig/backup', 'dst':['/mnt/tape/hillier/invivocortex/TwoPhoton/new', '/mnt/mdrive/invivo/rc/raw'],'extensions':['.mat','.hdf5'], 'move':True},
-                {'src':'/mnt/databig/processed', 'dst':['/mnt/mdrive/invivo/rc/processed'],'extensions':['.mat','.hdf5', '.png'], 'move':True},
+                #Backup
+                #Move hdf5/mat files from databig to tape
+                {'src':'/mnt/databig/backup/daniel', 'dst':['/mnt/tape/hillier/invivocortex/TwoPhoton/new/daniel'],'extensions':['.mat','.hdf5'], 'move':True},
+                {'src':'/mnt/databig/backup/animals', 'dst':['/mnt/tape/hillier/invivocortex/TwoPhoton/new/animals'],'extensions':['.hdf5'], 'move':True},
+                #Processed
+                {'src':'/mnt/databig/processed/fiona', 'dst':['/mnt/mdrive/invivo/rc/processed/fiona'],'extensions':['.mat','.png'], 'move':True},
+                {'src':'/mnt/databig/processed/fiona', 'dst':['/mnt/mdrive/invivo/rc/processed/fiona'],'extensions':['.hdf5'], 'filter': 'mouse', 'move':True},
             ]
-
+        fullbackup_users=['zoltan', 'fiona','stuart','adrian']
+        for name in fullbackup_users:
+            #Move hdf5 and mat files to tape and m drive
+            self.COPY.append({'src':'/mnt/databig/backup/{0}'.format(name), 'dst':['/mnt/tape/hillier/invivocortex/TwoPhoton/new/{0}'.format(name), '/mnt/mdrive/invivo/rc/raw/{0}'.format(name)],'extensions':['.mat','.hdf5'], 'move':True})
+        fullprocessed_users=['zoltan', 'stuart','adrian']
+        for name in fullprocessed_users:
+            #Move hdf5 and mat files to m drive
+            self.COPY.append({'src':'/mnt/databig/processed/{0}'.format(name), 'dst':['/mnt/mdrive/invivo/rc/processed/{0}'.format(name)],'extensions':['.mat','.hdf5', '.png'], 'move':True})
 
 def watchdog(maxtime,queue):
     logging.info('watchdog starts')
@@ -120,6 +132,8 @@ class BackupManager(object):
     def copy(self,copy):
         files=self.list_all_files(copy['src'])
         files=[f for f in files if os.path.splitext(f)[1] in copy['extensions']]#Filter expected extensions
+        if copy.has_key('filter'):
+            files=[f for f in files if copy['filter'] in os.path.basename(f)]
         files.sort()
         for f in files:
             try:
