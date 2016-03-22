@@ -1585,8 +1585,9 @@ class AdvancedStimulation(StimulationHelpers):
                 dist += dx
                 t += 1
                 if self.abort:
+                    self._flip(frame_trigger = True)
                     break
-                if t > (duration*self.config.SCREEN_EXPECTED_FRAME_RATE):
+                if t > (duration*self.config.SCREEN_EXPECTED_FRAME_RATE):                
                     break
                 
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
