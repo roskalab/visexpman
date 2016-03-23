@@ -772,7 +772,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
      {'command_name': [parameters]}
     '''
 
-    def __init__(self, machine_config, log, socket_queues, unittest=False):
+    def __init__(self, machine_config, log, socket_queues, unittest=False,enable_network=True):
         self.socket_queues=socket_queues
         self.unittest=unittest
         self.log=log
@@ -784,7 +784,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.load_context()
         self.widget_status = {}
         self.last_network_check=time.time()
-        self.enable_check_network_status=True
+        self.enable_check_network_status=enable_network
+        self.enable_network=enable_network
         
     def load_context(self):
         self.guidata = GUIData()
@@ -877,7 +878,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.run_all_iterations()
                 if self.enable_check_network_status:
                     self.check_network_status()
-                self.check_network_messages()
+                if self.enable_network:
+                    self.check_network_messages()
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()
                     if msg == 'terminate':

@@ -354,15 +354,26 @@ def get_user_module_folder(config):
     '''
     return os.path.join(visexpman_package_path(), 'users', config.user)
 
-def get_context_filename(config,extension='hdf5'):
+def get_context_filename(config,extension=' npy'):
     '''
     Generate context filename from CONTEXT_PATH, username and application name
     '''
     if not hasattr(config, 'CONTEXT_PATH'):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
     import platform
-    filename = 'context_{0}_{1}_{2}.{3}'.format(config.user_interface_name, config.user, platform.uname()[1],extension)
+    uiname=config.user_interface_name if hasattr(config, 'user_interface_name') else config.PLATFORM
+    user = config.user if hasattr(config, 'user') else ''
+    filename = 'context_{0}_{1}_{2}.{3}'.format(uiname, user, platform.uname()[1],extension)
     return os.path.join(config.CONTEXT_PATH, filename)
+    
+def get_log_filename(config):
+    if not hasattr(config, 'LOG_PATH'):
+        raise RuntimeError('LOG_PATH is not defined in machine config')
+    import platform
+    uiname=config.user_interface_name if hasattr(config, 'user_interface_name') else config.PLATFORM
+    dt=utils.timestamp2ymdhms(time.time(), filename=True)
+    filename = 'log_{0}_{1}.txt'.format(uiname, dt)
+    return os.path.join(config.LOG_PATH, filename)
 
 def cleanup_files(config):
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]

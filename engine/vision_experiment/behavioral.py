@@ -1,5 +1,5 @@
 import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy
-import numpy,scipy.io
+import numpy,scipy.io,visexpman
 import serial
 from PIL import Image
 import cv2
@@ -7,11 +7,94 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
-from visexpman.engine.generic import gui,utils,videofile
+from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
+from visexpman.engine.vision_experiment import gui_engine
 #TODO: test stim channel info in mat file
 #TODO: check video frame rate 
 #TODO: trace labels
+
+class BehavioralEngine(threading.Thread):
+    def __init__(self,parent):
+        self.parent=parent
+        threading.Thread.__init__(self)
+        self.from_gui = Queue.Queue()
+        self.to_gui = Queue.Queue()
+        self.context_filename = fileop.get_context_filename(parent.machine_config,'npy')
+        self.load_context()
+        
+    def load_context(self):
+        if os.path.exists(self.context_filename):
+            context_stream = numpy.load(self.context_filename)
+            utils.array2object(context_stream)
+            
+    def save_context(self):
+        context_stream=utils.object2array([])
+        numpy.save(self.context_filename,context_stream)
+        
+    def ask4confirmation(self,message):
+        self.to_gui.put({'ask4confirmation':message})
+        while True:
+            if not self.from_gui.empty():
+                break
+            time.sleep(0.05)
+        result=self.from_gui.get()
+        self.log.info('Ask for confirmation: {0}, {1}'.format(message, result), 'engine')
+        return result
+        
+    def notify(self,title,message):
+        self.log.info('Notify: {0}, {1}'.format(title, message), 'engine')
+        self.to_gui.put({'notify':{'title': title, 'msg':message}})
+        
+    def run(self):
+        while True:
+            try:                
+                self.last_run = time.time()#helps determining whether the engine still runs
+                if not self.from_gui.empty():
+                    msg = self.from_gui.get()
+                    if msg == 'terminate':
+                        break
+                else:
+                    continue
+                #parse message
+                if msg.has_key('function'):#Functions are simply forwarded
+                    #Format: {'function: function name, 'args': [], 'kwargs': {}}
+#                    with introspect.Timer(str(msg)):
+                    logging.info(msg)
+                    getattr(self, msg['function'])(*msg['args'])
+            except:
+                import traceback
+                logging.error(traceback.format_exc())
+                self.save_context()
+            time.sleep(20e-3)
+        self.save_context()
+        
+class Behavioral(gui.SimpleAppWindow):
+    '''
+    command line parameters expected:
+    '''
+    def __init__(self):
+        #Figure out machine config
+        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
+        self.logfile=fileop.get_log_filename(self.machine_config)
+        self.engine=BehavioralEngine(self)
+        self.engine.start()
+        self.to_engine=self.engine.from_gui
+        self.from_engine=self.engine.to_gui
+        gui.SimpleAppWindow.__init__(self)
+        
+    def init_gui(self):
+        self.setWindowTitle('Behavioral Experiment Control')
+        
+    def closeEvent(self, e):
+        e.accept()
+        self.exit_action()
+        
+    def exit_action(self):
+        self.to_engine.put('terminate')
+        self.engine.join()
+        
+
 
 class Config(object):
     '''
@@ -231,7 +314,7 @@ class CWidget(QtGui.QWidget):
         self.l.addWidget(self.stop, 2, 3, 1, 1)
         self.setLayout(self.l)
 
-class Behavioral(gui.SimpleAppWindow):
+class Behavioral1(gui.SimpleAppWindow):
     '''
     Main application class and main thread of the behavioral control software.
     '''

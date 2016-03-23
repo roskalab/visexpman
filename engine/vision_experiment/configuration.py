@@ -451,13 +451,8 @@ class ElectroporationConfig(VisionExperimentConfig):
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 
-class BehavioralConfig(VisionExperimentConfig):
-    def _create_application_parameters(self):
-        VisionExperimentConfig._create_application_parameters(self)
+class BehavioralConfig(object):
         PLATFORM = 'behav'
-        EXPERIMENT_FILE_FORMAT = 'hdf5'
-        STIM_RECORDS_ANALOG_SIGNALS = False
-        self._create_parameters_from_locals(locals())
 
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
