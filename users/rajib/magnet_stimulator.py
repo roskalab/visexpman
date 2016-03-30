@@ -25,7 +25,7 @@ class CWidget(QtGui.QWidget):
         self.settings.setMinimumWidth(300)
         self.settings.setFixedHeight(450)
         self.select_folder = QtGui.QPushButton('Data Save Folder', parent=self)
-        self.selected_folder = QtGui.QLabel(fileop.select_folder_exists(['d:\\', '/tmp','c:\\temp']), self)#Displays the data folder
+        self.selected_folder = QtGui.QLabel(fileop.select_folder_exists(['d:\\Data', '/tmp','c:\\temp']), self)#Displays the data folder
         
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
         self.l.addWidget(self.plotw, 0, 0, 1, 5)
@@ -102,7 +102,15 @@ class MagnetStimulator(gui.SimpleAppWindow):
         self.data_folder=fileop.select_folder_exists(['d:\\', '/tmp', 'c:\\temp'])
         self.stim_ended_timer = QtCore.QTimer()
         self.stim_ended_timer.timeout.connect(self.stim_finished)
+        self.read_analog_in_timer=QtCore.QTimer()
+        self.read_analog_in_timer.timeout.connect(self.read_analog_in)
+        self.aibuffer_length=1
+        self.read_analog_in_timer.start(1000*self.aibuffer_length)
         self.running=False
+        
+    def read_analog_in(self):
+        if self.running:
+            self.ai.read()
         
     def select_folder(self):
         #Pop up a dialog asking the user for folder selection
@@ -142,7 +150,10 @@ class MagnetStimulator(gui.SimpleAppWindow):
         daq_instrument.set_voltage('Dev1/ao1',float(self.clut(self.setting_values['Current Limit'])))
         time.sleep(0.1)#Wait till power supply is set
         self.expected_duration=sum(self.switch_times)
-        self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',self.setting_values['Sample Rate'], self.expected_duration+2,timeout=20)
+        if 0:
+            self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',self.setting_values['Sample Rate'], self.expected_duration+2,timeout=20)
+        else:
+            self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',self.setting_values['Sample Rate'], self.aibuffer_length,timeout=self.aibuffer_length,finite=False)
         self.do=DigitalOut(self.switch_times)
         self.do.start()
         self.running=True
