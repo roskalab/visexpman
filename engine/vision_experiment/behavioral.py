@@ -1,4 +1,4 @@
-import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy
+import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
 import numpy,scipy.io,visexpman
 import serial
 from PIL import Image
@@ -6,30 +6,38 @@ import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-import pyqtgraph
+import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import gui_engine
-#TODO: test stim channel info in mat file
-#TODO: check video frame rate 
-#TODO: trace labels
+#NEXT: move add/remove weight to animal tab, valve on/off, airpuff, reward, stim, buttons,hardware handler, measurement core, video recorder
 
 class BehavioralEngine(threading.Thread):
-    def __init__(self,parent):
-        self.parent=parent
+    def __init__(self,machine_config):
+        self.machine_config=machine_config
         threading.Thread.__init__(self)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
-        self.context_filename = fileop.get_context_filename(parent.machine_config,'npy')
+        self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
+        self.context_variables=['datafolder','parameters','current_animal']
         self.load_context()
+        self.load_animal_file()
         
     def load_context(self):
         if os.path.exists(self.context_filename):
             context_stream = numpy.load(self.context_filename)
-            utils.array2object(context_stream)
+            context=utils.array2object(context_stream)
+            for k,v in context.items():
+                setattr(self,k,v)
+        if not hasattr(self,'datafolder'):
+            self.datafolder=self.machine_config.EXPERIMENT_DATA_PATH
             
     def save_context(self):
-        context_stream=utils.object2array([])
+        context={}
+        for vn in self.context_variables:
+            if hasattr(self,vn):
+                context[vn]=getattr(self,vn)
+        context_stream=utils.object2array(context)
         numpy.save(self.context_filename,context_stream)
         
     def ask4confirmation(self,message):
@@ -43,12 +51,71 @@ class BehavioralEngine(threading.Thread):
         return result
         
     def notify(self,title,message):
-        self.log.info('Notify: {0}, {1}'.format(title, message), 'engine')
+        logging.info('{0}, {1}'.format(title, message))
         self.to_gui.put({'notify':{'title': title, 'msg':message}})
         
+    def get_protocol_names(self):
+        return ['keep stop', 'keep running']
+        
+    def set_animal_id(self,current_animal):
+        self.current_animal=current_animal
+        self.load_animal_file()
+        
+    def add_animal(self,name):
+        foldername=os.path.join(self.datafolder,name)
+        if os.path.exists(foldername):
+            self.notify('Warning', '{0} folder already exists'.format(foldername))
+            return
+        os.mkdir(foldername)
+        logging.info('{0} animal created'.format(name))
+        self.set_animal_id(name)
+        self.to_gui.put({'statusbar':''})
+        
+    def add_animal_weight(self,date,weight):
+        self.load_animal_file(date=date,weight=weight)
+        
+    def remove_last_animal_weight(self):
+        self.load_animal_file(remove_last=True)
+        
+    def load_animal_file(self, date=None,weight=None,remove_last=False):
+        if not hasattr(self,'current_animal'):
+            return
+        self.current_animal_file=os.path.join(self.datafolder,self.current_animal,self.current_animal+'.hdf5')
+        if not os.path.exists(os.path.dirname(self.current_animal_file)):
+            return
+        h=hdf5io.Hdf5io(self.current_animal_file)
+        h.load('weight')
+        save=False
+        if not hasattr(h,'weight') or h.weight.shape[0]==0:
+            h.weight=numpy.empty((0,2))
+            save=True
+        if remove_last:
+            save=True
+            if h.weight.shape[0]>0:
+                h.weight=h.weight[:-1]
+                if h.weight.shape[0]==0:
+                    h.weight=numpy.empty((0,2))
+        if date !=None and weight!=None:
+            if h.weight.shape[0]>0 and date==h.weight[-1][0]:
+                logging.warning('This day is already added')
+            else:
+                h.weight=numpy.concatenate((h.weight,numpy.array([[date,weight]])))
+                save=True
+        if save:
+            h.save('weight')
+        self.weight=h.weight
+        h.close()
+        weight_history_txt='\r\n'.join(['{0}\t{1} g'.format(utils.timestamp2ymd(line[0]),line[1]) for line in self.weight][-20:])
+        weight_history_txt='\t{0}\r\n'.format(self.current_animal) + weight_history_txt
+        if self.weight.shape[0]==0:
+            weight_history_txt=self.current_animal
+            self.weight=numpy.zeros((1,2))
+        self.to_gui.put({'update_weight_history':[self.weight,weight_history_txt]})
+        
+    
     def run(self):
         while True:
-            try:                
+            try:
                 self.last_run = time.time()#helps determining whether the engine still runs
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()
@@ -59,14 +126,13 @@ class BehavioralEngine(threading.Thread):
                 #parse message
                 if msg.has_key('function'):#Functions are simply forwarded
                     #Format: {'function: function name, 'args': [], 'kwargs': {}}
-#                    with introspect.Timer(str(msg)):
                     logging.info(msg)
                     getattr(self, msg['function'])(*msg['args'])
             except:
                 import traceback
                 logging.error(traceback.format_exc())
                 self.save_context()
-            time.sleep(20e-3)
+            time.sleep(50e-3)
         self.save_context()
         
 class Behavioral(gui.SimpleAppWindow):
@@ -77,23 +143,203 @@ class Behavioral(gui.SimpleAppWindow):
         #Figure out machine config
         self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
         self.logfile=fileop.get_log_filename(self.machine_config)
-        self.engine=BehavioralEngine(self)
+        self.engine=BehavioralEngine(self.machine_config)
         self.engine.start()
         self.to_engine=self.engine.from_gui
         self.from_engine=self.engine.to_gui
+        self.maximized=True
         gui.SimpleAppWindow.__init__(self)
         
     def init_gui(self):
         self.setWindowTitle('Behavioral Experiment Control')
+        self.setWindowIcon(gui.get_icon('behav'))
+        self.debugw.setMinimumHeight(250)
+        self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
+        self.cw.setMinimumHeight(500)#Adjusting its geometry
+        self.setCentralWidget(self.cw)#Setting it as a central widget
+        self.params_config=[
+                            {'name': 'General', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Protocol', 'type': 'list', 'values': self.engine.get_protocol_names(),'value':''},
+                                {'name': 'Save Period', 'type': 'float', 'value': 200.0,'siPrefix': True, 'suffix': 's'},
+                                {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
+                                {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
+                                {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
+                            ]},
+                            {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
+                                {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
+                                ]},
+                    ]
+        if hasattr(self.engine, 'parameters'):
+            for k,v in self.engine.parameters.items():
+                for p in self.params_config:
+                    for pi in p['children']:
+                        if pi['name']==k:
+                            pi['value']=v
+                            break
+        
+        self.paramw = gui.ParameterTable(self, self.params_config)
+        self.paramw .setMinimumWidth(300)
+        self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
+        self.parameter_changed()
+        self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
+        
+        toolbar_buttons = ['start_experiment', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'exit']
+        self.toolbar = gui.ToolBar(self, toolbar_buttons)
+        self.addToolBar(self.toolbar)
+        self.statusbar=self.statusBar()
+        self.update_statusbar()
+        
+        self.cq_timer=QtCore.QTimer()
+        self.cq_timer.start(100)#ms
+        self.connect(self.cq_timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        
+    def parameter_changed(self):
+        self.engine.parameters=self.paramw.get_parameter_tree(return_dict=True)
+        
+    def check_queue(self):
+        while not self.from_engine.empty():
+            msg = self.from_engine.get()
+            if msg.has_key('notify'):
+                self.notify(msg['notify']['title'], msg['notify']['msg'])
+            elif msg.has_key('statusbar'):
+                self.update_statusbar()
+            elif msg.has_key('update_weight_history'):
+                self.cw.animalw.weights.setText(msg['update_weight_history'][1])
+                x=msg['update_weight_history'][0][:,0]
+                x/=86400
+                x-=x[-1]
+                self.cw.displayw.plots.animal_weight.update_curve(x,msg['update_weight_history'][0][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+        
+    def update_statusbar(self):
+        '''
+        General text display
+        '''
+        txt='Data folder: {0}, Current animal: {1}'. format(self.engine.datafolder,self.engine.current_animal if hasattr(self.engine, 'current_animal') else '')
+        self.statusbar.showMessage(txt)
         
     def closeEvent(self, e):
         e.accept()
         self.exit_action()
         
+    def start_experiment_action(self):
+        pass
+    
+    def stop_action(self):
+        pass
+        
+    def select_data_folder_action(self):
+        self.engine.datafolder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        self.cw.recordingsw.set_root(self.engine.datafolder)
+        self.update_statusbar()
+        
+    def add_animal_action(self):
+        text, ok = QtGui.QInputDialog.getText(self, 'Add Animal', 
+            'Enter animal name:')
+        if ok:
+            self.to_engine.put({'function': 'add_animal','args':[str(text)]})
+            
+    def add_animal_weight_action(self):
+        weight=self.cw.animalw.weight_input.value()
+        date=self.cw.animalw.date.date()
+        datets=time.mktime(time.struct_time((date.year(),date.month(),date.day(),0,0,0,0,0,-1)))
+        self.to_engine.put({'function': 'add_animal_weight','args':[datets,weight]})
+      
+    def remove_last_animal_weight_action(self):
+        if self.ask4confirmation('Do you want to remove last weight entry?'):
+            self.to_engine.put({'function': 'remove_last_animal_weight','args':[]})
+        
     def exit_action(self):
         self.to_engine.put('terminate')
         self.engine.join()
+        self.close()
         
+class CWidget(QtGui.QWidget):
+    '''
+    The central widget of the user interface which contains the image, the plot and the various controls for starting experiment or adjusting parameters
+    '''
+    def __init__(self,parent):
+        QtGui.QWidget.__init__(self,parent)
+        self.displayw=DisplayW(self)
+        self.main_tab = QtGui.QTabWidget(self)
+        self.main_tab.addTab(self.displayw, 'Display')
+        self.recordingsw=RecordingsW(self)
+        self.main_tab.addTab(self.recordingsw, 'Recordings')
+        self.animalw=AnimalW(self)
+        self.main_tab.addTab(self.animalw, 'Animal')
+        self.main_tab.setCurrentIndex(0)
+        self.main_tab.setTabPosition(self.main_tab.South)
+        self.main_tab.setMinimumHeight(500)
+        self.main_tab.setMinimumWidth(1100)
+        
+class RecordingsW(gui.FileTree):
+    def __init__(self,parent):
+        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['mat','hdf5', 'mp4'])
+        self.clicked.connect(self.file_selected)
+        
+    def file_selected(self,index):
+        self.selected_filename = gui.index2filename(index)
+        if os.path.isdir(self.selected_filename) and os.path.dirname(self.selected_filename)==self.parent.parent().engine.datafolder:
+            #Animal folder selected
+            self.parent.parent().engine.current_animal=os.path.basename(self.selected_filename)
+            logging.info('Animal selected: {0}'.format(self.parent.parent().engine.current_animal))
+            self.parent.parent().update_statusbar()
+            self.parent.parent().to_engine.put({'function':'load_animal_file','args':[]})
+        
+        
+class DisplayW(QtGui.QWidget):
+    '''
+    
+    '''
+    def __init__(self,parent):
+        QtGui.QWidget.__init__(self,parent)
+        self.imagenames=['main', 'eye']
+        self.images=gui.TabbedImages(self,self.imagenames)
+        self.images.tab.setFixedWidth(400)
+        self.images.tab.setFixedHeight(400)
+        self.plotnames=['speed', 'animal_weight', 'session']
+        self.plots=gui.TabbedPlots(self,self.plotnames)
+        self.plots.animal_weight.plot.setLabels(left='weight [g]',bottom='days')
+        self.plots.tab.setMinimumWidth(600)
+        self.plots.tab.setFixedHeight(400)
+
+        self.l = QtGui.QGridLayout()
+        self.l.addWidget(self.images, 0, 0, 1, 2)
+        self.l.addWidget(self.plots, 0, 2, 1, 3)
+        self.setLayout(self.l)
+        
+class AnimalW(QtGui.QWidget):
+    '''
+    
+    '''
+    def __init__(self,parent):
+        QtGui.QWidget.__init__(self,parent)
+        self.weights = QtGui.QLabel('', self)
+        date_format = QtCore.QString('yyyy-MM-dd')
+        self.date = QtGui.QDateTimeEdit(self)
+        self.date.setDisplayFormat(date_format)
+        now = time.localtime()
+        self.date.setDateTime(QtCore.QDateTime(QtCore.QDate(now.tm_year, now.tm_mon, now.tm_mday), QtCore.QTime(now.tm_hour, now.tm_min)))
+        self.date.setFixedWidth(150)
+        self.weight_input=pyqtgraph.SpinBox(value=0.0, suffix='g', siPrefix=True, dec=True, step=1.0, minStep=0.01)
+        self.weight_input.setFixedWidth(100)
+        self.weight_input_l = QtGui.QLabel('Animal weight', self)
+        self.weight_input_l.setFixedWidth(100)
+        self.l = QtGui.QGridLayout()
+        self.l.addWidget(self.weights, 0, 0, 4, 3)
+        self.l.addWidget(self.date, 1, 0, 1, 1)
+        self.l.addWidget(self.weight_input_l, 1, 1, 1, 1)
+        self.l.addWidget(self.weight_input, 1, 2, 1, 1)
+#        self.l.setColumnStretch(0,4)
+#        self.l.setColumnStretch(1,4)
+        self.l.setColumnStretch(3,20)
+        self.l.setRowStretch(0,1)
+        self.l.setRowStretch(1,1)
+        self.setLayout(self.l)
+        
+        #date = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.date()
+            #tme = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.time()
+            #timestamp = time.mktime(time.struct_time((date.year(),date.month(),date.day(),tme.hour(),tme.minute(),0,0,0,-1)))
 
 
 class Config(object):
@@ -254,7 +500,7 @@ HELP='''Start experiment: Ctrl+a
 Stop experiment: Ctrl+s
 Select next protocol: Space'''
 
-class CWidget(QtGui.QWidget):
+class CWidget1(QtGui.QWidget):
     '''
     The central widget of the user interface which contains the image, the plot and the various controls for starting experiment or adjusting parameters
     '''
@@ -808,5 +1054,35 @@ class BehavioralSetup(Config):
         self.PROTOCOL_KEEP_RUNNING_REWARD['run time']=15.0
 
 
+class TestBehavEngine(unittest.TestCase):
+    def setUp(self):
+        self.animal_name='ta001'
+        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = 'BehavioralSetup', required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
+        context_filename = fileop.get_context_filename(self.machine_config,'npy')
+        if os.path.exists(context_filename):
+            os.remove(context_filename)
+        self.engine=BehavioralEngine(self.machine_config)
+        af=os.path.join(self.engine.datafolder,self.animal_name)
+        if os.path.exists(af):
+            shutil.rmtree(af)
+        
+        
+        
+    def test_01_add_remove_weight(self):
+        self.engine.add_animal(self.animal_name)
+        for i in range(10):
+            self.engine.add_animal_weight(time.time(),i)
+        for i in range(11):
+            self.engine.remove_last_animal_weight()
+        for i in range(5):
+            self.engine.add_animal_weight(time.time(),i)
+        self.assertEqual(5,self.engine.weight.shape[0])
+        
+    
+
+
 if __name__ == '__main__':
-    gui = Behavioral()
+    if len(sys.argv)>1:
+        gui = Behavioral()
+    else:
+        unittest.main()
