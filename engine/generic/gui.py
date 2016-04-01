@@ -142,7 +142,7 @@ class SimpleAppWindow(Qt.QMainWindow):
             self.logfile = os.path.join(tempfile.gettempdir(), 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
         self.logtext=''
         self.debugw = Debug(self)
         self.logw=self.debugw.log
@@ -212,7 +212,10 @@ class SimpleAppWindow(Qt.QMainWindow):
             foldername=foldername.replace('/','\\')
         return foldername
         
-    def notify_user(self, title, message):
+    def notify_user(self, title, message):#OBSOLETE
+        self.notify(self, title, message)
+        
+    def notify(self, title, message):
         QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
 
 class Progressbar(QtGui.QWidget):
@@ -337,8 +340,7 @@ class ParameterTable(ParameterTree):
             return res
         else:
             return values, paths, refs
-            
-    
+
 class AddNote(QtGui.QWidget):
     def __init__(self, parent,text):
         QtGui.QWidget.__init__(self, parent)
@@ -361,8 +363,7 @@ class AddNote(QtGui.QWidget):
     def save_note(self):
         self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
         self.close()
-        
-    
+            
 class TextOut(QtGui.QTextEdit):
     def __init__(self, parent):
         QtGui.QTextEdit.__init__(self, parent)
@@ -376,11 +377,11 @@ class TextOut(QtGui.QTextEdit):
         self.moveCursor(QtGui.QTextCursor.End)
         
 class Plot(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent):
+    def __init__(self,parent,**kwargs):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.setBackground((255,255,255))
         self.setAntialiasing(True)
-        self.plot=self.addPlot()
+        self.plot=self.addPlot(**kwargs)
         self.plot.enableAutoRange()
         self.plot.showGrid(True,True,1.0)
         
@@ -434,18 +435,36 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = c))
             self.plot.addItem(self.linear_regions[-1])
             
+class TimeAxisItem(pyqtgraph.AxisItem):
+    def __init__(self, *args, **kwargs):
+        pyqtgraph.AxisItem.__init__(self,*args, **kwargs)
+
+    def tickStrings(self, values, scale, spacing):
+        # PySide's QTime() initialiser fails miserably and dismisses args/kwargs
+        return [QtCore.QTime().addMSecs(value).toString('mm:ss') for value in values]
+            
 class TabbedPlots(QtGui.QWidget):
-    def __init__(self, parent,plotnames):
+    def __init__(self, parent,names,plot_kwargs={}):
         QtGui.QWidget.__init__(self, parent)
-        self.plotnames=plotnames
+        self.names=names
         self.tab = QtGui.QTabWidget(self)
         self.tab.setTabPosition(self.tab.South)
-        self.tab.setFixedWidth(400)
-        self.tab.setFixedHeight(400)
-        for pn in plotnames:
-            p=Plot(self)
+        for pn in names:
+            p=Plot(self, **plot_kwargs.get(pn,{}))
             setattr(self, pn, p)
             self.tab.addTab(p, pn)
+            
+class TabbedImages(QtGui.QWidget):
+    def __init__(self, parent,names):
+        QtGui.QWidget.__init__(self, parent)
+        self.names=names
+        self.tab = QtGui.QTabWidget(self)
+        self.tab.setTabPosition(self.tab.South)
+        for pn in names:
+            p=Image(self)
+            setattr(self, pn, p)
+            self.tab.addTab(p, pn)
+
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):
