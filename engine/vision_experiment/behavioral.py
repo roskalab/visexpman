@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import gui_engine
-#NEXT: move add/remove weight to animal tab, valve on/off, airpuff, reward, stim, buttons,hardware handler, measurement core, video recorder
+#NEXT: valve on/off, airpuff, reward, stim, buttons,hardware handler, measurement core, video recorder
 
 class BehavioralEngine(threading.Thread):
     def __init__(self,machine_config):
@@ -96,7 +96,7 @@ class BehavioralEngine(threading.Thread):
                 if h.weight.shape[0]==0:
                     h.weight=numpy.empty((0,2))
         if date !=None and weight!=None:
-            if h.weight.shape[0]>0 and date==h.weight[-1][0]:
+            if h.weight.shape[0]>0 and date in h.weight[:,0]:
                 logging.warning('This day is already added')
             else:
                 h.weight=numpy.concatenate((h.weight,numpy.array([[date,weight]])))
@@ -105,12 +105,9 @@ class BehavioralEngine(threading.Thread):
             h.save('weight')
         self.weight=h.weight
         h.close()
-        weight_history_txt='\r\n'.join(['{0}\t{1} g'.format(utils.timestamp2ymd(line[0]),line[1]) for line in self.weight][-20:])
-        weight_history_txt='\t{0}\r\n'.format(self.current_animal) + weight_history_txt
         if self.weight.shape[0]==0:
-            weight_history_txt=self.current_animal
             self.weight=numpy.zeros((1,2))
-        self.to_gui.put({'update_weight_history':[self.weight,weight_history_txt]})
+        self.to_gui.put({'update_weight_history':self.weight.copy()})
         
     
     def run(self):
@@ -205,18 +202,23 @@ class Behavioral(gui.SimpleAppWindow):
             elif msg.has_key('statusbar'):
                 self.update_statusbar()
             elif msg.has_key('update_weight_history'):
-                self.cw.animalw.weights.setText(msg['update_weight_history'][1])
-                x=msg['update_weight_history'][0][:,0]
+                x=msg['update_weight_history'][:,0]
                 x/=86400
                 x-=x[-1]
-                self.cw.displayw.plots.animal_weight.update_curve(x,msg['update_weight_history'][0][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+                utils.timestamp2ymd(self.engine.weight[-1,0])
+                self.cw.displayw.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+                self.cw.displayw.plots.animal_weight.plot.setLabels(bottom='days, 0 = {0}'.format(utils.timestamp2ymd(self.engine.weight[-1,0])))
+                self.cw.main_tab.setCurrentIndex(0)
+                self.cw.displayw.plots.tab.setCurrentIndex(1)
         
     def update_statusbar(self):
         '''
         General text display
         '''
-        txt='Data folder: {0}, Current animal: {1}'. format(self.engine.datafolder,self.engine.current_animal if hasattr(self.engine, 'current_animal') else '')
+        ca=self.engine.current_animal if hasattr(self.engine, 'current_animal') else ''
+        txt='Data folder: {0}, Current animal: {1}'. format(self.engine.datafolder,ca)
         self.statusbar.showMessage(txt)
+        self.setWindowTitle('Behavioral Experiment Control\t{0}'.format(ca))
         
     def closeEvent(self, e):
         e.accept()
@@ -240,10 +242,8 @@ class Behavioral(gui.SimpleAppWindow):
             self.to_engine.put({'function': 'add_animal','args':[str(text)]})
             
     def add_animal_weight_action(self):
-        weight=self.cw.animalw.weight_input.value()
-        date=self.cw.animalw.date.date()
-        datets=time.mktime(time.struct_time((date.year(),date.month(),date.day(),0,0,0,0,0,-1)))
-        self.to_engine.put({'function': 'add_animal_weight','args':[datets,weight]})
+        self.aw=AddAnimalWeightDialog(self.to_engine)
+        self.aw.show()
       
     def remove_last_animal_weight_action(self):
         if self.ask4confirmation('Do you want to remove last weight entry?'):
@@ -265,8 +265,6 @@ class CWidget(QtGui.QWidget):
         self.main_tab.addTab(self.displayw, 'Display')
         self.recordingsw=RecordingsW(self)
         self.main_tab.addTab(self.recordingsw, 'Recordings')
-        self.animalw=AnimalW(self)
-        self.main_tab.addTab(self.animalw, 'Animal')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self.main_tab.setMinimumHeight(500)
@@ -299,7 +297,7 @@ class DisplayW(QtGui.QWidget):
         self.images.tab.setFixedHeight(400)
         self.plotnames=['speed', 'animal_weight', 'session']
         self.plots=gui.TabbedPlots(self,self.plotnames)
-        self.plots.animal_weight.plot.setLabels(left='weight [g]',bottom='days')
+        self.plots.animal_weight.plot.setLabels(left='weight [g]')
         self.plots.tab.setMinimumWidth(600)
         self.plots.tab.setFixedHeight(400)
 
@@ -308,28 +306,35 @@ class DisplayW(QtGui.QWidget):
         self.l.addWidget(self.plots, 0, 2, 1, 3)
         self.setLayout(self.l)
         
-class AnimalW(QtGui.QWidget):
+class AddAnimalWeightDialog(QtGui.QWidget):
     '''
-    
+    Dialog window for date and animal weight
     '''
-    def __init__(self,parent):
-        QtGui.QWidget.__init__(self,parent)
-        self.weights = QtGui.QLabel('', self)
+    def __init__(self,q):
+        self.q=q
+        QtGui.QWidget.__init__(self)
+        self.move(200,200)
         date_format = QtCore.QString('yyyy-MM-dd')
         self.date = QtGui.QDateTimeEdit(self)
         self.date.setDisplayFormat(date_format)
         now = time.localtime()
         self.date.setDateTime(QtCore.QDateTime(QtCore.QDate(now.tm_year, now.tm_mon, now.tm_mday), QtCore.QTime(now.tm_hour, now.tm_min)))
         self.date.setFixedWidth(150)
-        self.weight_input=pyqtgraph.SpinBox(value=0.0, suffix='g', siPrefix=True, dec=True, step=1.0, minStep=0.01)
+        self.weight_input=QtGui.QLineEdit(self)
         self.weight_input.setFixedWidth(100)
-        self.weight_input_l = QtGui.QLabel('Animal weight', self)
-        self.weight_input_l.setFixedWidth(100)
+        self.weight_input_l = QtGui.QLabel('Animal weight [g]', self)
+        self.weight_input_l.setFixedWidth(120)
+        self.ok=QtGui.QPushButton('OK' ,parent=self)
+        self.connect(self.ok, QtCore.SIGNAL('clicked()'), self.ok_clicked)
+        self.cancel=QtGui.QPushButton('Cancel' ,parent=self)
+        self.connect(self.cancel, QtCore.SIGNAL('clicked()'), self.cancel_clicked)
+        
         self.l = QtGui.QGridLayout()
-        self.l.addWidget(self.weights, 0, 0, 4, 3)
-        self.l.addWidget(self.date, 1, 0, 1, 1)
-        self.l.addWidget(self.weight_input_l, 1, 1, 1, 1)
-        self.l.addWidget(self.weight_input, 1, 2, 1, 1)
+        self.l.addWidget(self.date, 0, 0, 1, 1)
+        self.l.addWidget(self.weight_input_l, 0, 1, 1, 1)
+        self.l.addWidget(self.weight_input, 0, 2, 1, 1)
+        self.l.addWidget(self.ok, 1, 0, 1, 1)
+        self.l.addWidget(self.cancel, 1, 1, 1, 1)
 #        self.l.setColumnStretch(0,4)
 #        self.l.setColumnStretch(1,4)
         self.l.setColumnStretch(3,20)
@@ -337,10 +342,15 @@ class AnimalW(QtGui.QWidget):
         self.l.setRowStretch(1,1)
         self.setLayout(self.l)
         
-        #date = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.date()
-            #tme = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.time()
-            #timestamp = time.mktime(time.struct_time((date.year(),date.month(),date.day(),tme.hour(),tme.minute(),0,0,0,-1)))
-
+    def ok_clicked(self):
+        weight=float(str(self.weight_input.text()))
+        date=self.date.date()
+        datets=time.mktime(time.struct_time((date.year(),date.month(),date.day(),0,0,0,0,0,-1)))
+        self.q.put({'function': 'add_animal_weight','args':[datets,weight]})
+        self.close()
+        
+    def cancel_clicked(self):
+        self.close()
 
 class Config(object):
     '''
