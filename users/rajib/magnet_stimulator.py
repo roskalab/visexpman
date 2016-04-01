@@ -181,10 +181,12 @@ class MagnetStimulator(gui.SimpleAppWindow):
         latest_folder=dirs[numpy.array([os.path.getctime(d) for d in dirs ]).argmax()]
         tifffiles=[f for f in fileop.listdir_fullpath(latest_folder) if 'tif' in os.path.basename(f)]
         tifffiles.sort()
+        self.log('Found {0} frames in {1}'.format(len(tifffiles),latest_folder))
         mat={}
         mat['rawdata']=numpy.array([tifffile.imread(f) for f in tifffiles])
         mat['sync']=self.sync_data
         mat['parameters']=dict([(k.replace(' ','_'), v) for k,v in self.setting_values.items()])
+        mat['image_folder']=latest_folder
         outfn=os.path.join(self.data_folder, 'data_{0}_{1}.mat'.format(self.setting_values['Recording Name'],int(time.time())))
         scipy.io.savemat(outfn, mat, oned_as='column',do_compression=True)
         self.log('Data saved to {0}'.format(outfn))
