@@ -12,6 +12,7 @@ from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import gui_engine
 #NEXT: valve on/off, airpuff, reward, stim, buttons,hardware handler, measurement core, video recorder
 
+
 class BehavioralEngine(threading.Thread):
     def __init__(self,machine_config):
         self.machine_config=machine_config
@@ -21,7 +22,7 @@ class BehavioralEngine(threading.Thread):
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         self.context_variables=['datafolder','parameters','current_animal']
         self.load_context()
-        self.load_animal_file()
+        self.load_animal_file(switch2plot=True)
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -59,7 +60,7 @@ class BehavioralEngine(threading.Thread):
         
     def set_animal_id(self,current_animal):
         self.current_animal=current_animal
-        self.load_animal_file()
+        self.load_animal_file(switch2plot=True)
         
     def add_animal(self,name):
         foldername=os.path.join(self.datafolder,name)
@@ -72,12 +73,12 @@ class BehavioralEngine(threading.Thread):
         self.to_gui.put({'statusbar':''})
         
     def add_animal_weight(self,date,weight):
-        self.load_animal_file(date=date,weight=weight)
+        self.load_animal_file(date=date,weight=weight, switch2plot=True)
         
     def remove_last_animal_weight(self):
-        self.load_animal_file(remove_last=True)
+        self.load_animal_file(remove_last=True, switch2plot=True)
         
-    def load_animal_file(self, date=None,weight=None,remove_last=False):
+    def load_animal_file(self, date=None,weight=None,remove_last=False, switch2plot=False):
         if not hasattr(self,'current_animal'):
             return
         self.current_animal_file=os.path.join(self.datafolder,self.current_animal,self.current_animal+'.hdf5')
@@ -102,12 +103,16 @@ class BehavioralEngine(threading.Thread):
                 h.weight=numpy.concatenate((h.weight,numpy.array([[date,weight]])))
                 save=True
         if save:
+            h.weight=h.weight[h.weight.argsort(axis=0)[:,0]]#Sort by timestamp
             h.save('weight')
         self.weight=h.weight
         h.close()
         if self.weight.shape[0]==0:
             self.weight=numpy.zeros((1,2))
         self.to_gui.put({'update_weight_history':self.weight.copy()})
+        if switch2plot:
+            self.to_gui.put({'switch2_animal_weight_plot':[]})
+            
         
     
     def run(self):
@@ -207,9 +212,11 @@ class Behavioral(gui.SimpleAppWindow):
                 x-=x[-1]
                 utils.timestamp2ymd(self.engine.weight[-1,0])
                 self.cw.displayw.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
-                self.cw.displayw.plots.animal_weight.plot.setLabels(bottom='days, 0 = {0}'.format(utils.timestamp2ymd(self.engine.weight[-1,0])))
+                self.cw.displayw.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
+            elif msg.has_key('switch2_animal_weight_plot'):
                 self.cw.main_tab.setCurrentIndex(0)
                 self.cw.displayw.plots.tab.setCurrentIndex(1)
+                
         
     def update_statusbar(self):
         '''
