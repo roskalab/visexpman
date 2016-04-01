@@ -1775,7 +1775,7 @@ class AdvancedStimulation(StimulationHelpers):
 
         color0 = numpy.tile(color_0, (textures.shape[1], textures.shape[2]) ).reshape(textures.shape[1], textures.shape[2], 3)
         color1 = numpy.tile(color_1, (textures.shape[1], textures.shape[2]) ).reshape(textures.shape[1], textures.shape[2], 3)
-        color1 = color1 - color0        
+        color1 = color1 - color0
         
         while True:
             if self.abort or idx >= textures_size[0]:
@@ -1798,6 +1798,94 @@ class AdvancedStimulation(StimulationHelpers):
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
         # END OF white_noise()   
+        
+    def colored_noise(self, textures_red, textures_green, textures_blue, save_frame_info = True):
+        '''
+            This stimulus flashes textures one after the other at the given 
+            frame rate.
+            Required:
+            - textures_red:  N x L x W object of grayscale values (N: time dimension)
+            - textures_green:  N x L x W object of grayscale values (N: time dimension)
+            - textures_blue:  N x L x W object of grayscale values (N: time dimension)            
+            Optional:
+            - save_frame_info: default to True
+        '''
+        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        assert textures_red.shape == textures_green.shape
+        assert textures_red.shape == textures_blue.shape
+        textures_size = textures_red.shape
+                        
+        # Vertices that define the size of the texture (centered around (0,0) ), covers the whole screen:
+        vertices = numpy.array([[-1,-1],[-1, 1],[ 1, 1],[ 1,-1]])*screen_size*0.5 #*numpy.sqrt(2.0)
+        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        
+        texture_piece = textures_red[0][:][:]
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)        
+        
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        
+        texture_coordinates = numpy.array([ [1.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], ])
+        glTexCoordPointerf(texture_coordinates)
+       
+        
+        def show_(texture_piece):
+            glPushMatrix()
+            glRotatef(90, 0,0,1)            
+            
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_piece.shape[1], texture_piece.shape[0], 0, GL_RGB, GL_FLOAT, texture_piece)
+            
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            glPopMatrix()
+            
+        # Enter stimulus loop:
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        idx = 0
+
+        colorR = numpy.tile([1.0,0.0,0.0], (textures_size[1], textures_size[2]) ).reshape(textures_size[1], textures_size[2], 3)        
+        colorG = numpy.tile([0.0,1.0,0.0], (textures_size[1], textures_size[2]) ).reshape(textures_size[1], textures_size[2], 3)        
+        colorB = numpy.tile([0.0,0.0,1.0], (textures_size[1], textures_size[2]) ).reshape(textures_size[1], textures_size[2], 3)        
+        
+        #print colorR        
+        #print colorG
+        
+        while True:
+            if self.abort or idx >= textures_size[0]:
+                break
+            
+            texture_piece_r = textures_red[idx][:][:]
+            texture_piece_r = numpy.repeat(texture_piece_r, 3).reshape(textures_size[1], textures_size[2], 3)
+            texture_piece_g = textures_green[idx][:][:]
+            texture_piece_g = numpy.repeat(texture_piece_g, 3).reshape(textures_size[1], textures_size[2], 3)
+            texture_piece_b = textures_blue[idx][:][:]
+            texture_piece_b = numpy.repeat(texture_piece_b, 3).reshape(textures_size[1], textures_size[2], 3)
+            
+            #print texture_piece_g            
+           # print texture_piece_b
+            #print colorB
+            
+            show_(texture_piece_r*colorR + texture_piece_g*colorG + texture_piece_b*colorB)          
+            self._flip(frame_trigger = True)
+            idx += 1
+        
+        # Finish up
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        # END OF colored_noise()
         
     def chirp(self, stimulus_duration, contrast_range, frequency_range, color, save_frame_info = True):
         '''

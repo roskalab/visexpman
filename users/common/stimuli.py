@@ -582,6 +582,64 @@ class WhiteNoiseStimulus(experiment.Experiment):
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})  
     # End of WhiteNoiseStimulus
 
+class ColoredNoiseStimulus(experiment.Experiment):
+    '''
+        Required:
+            DURATION_MINS: in minutes (!)
+            PIXEL_SIZE
+            RED: default false
+            GREEN: default true
+            BLUE: default true
+        Optional:
+            FLICKERING_FREQUENCY
+    '''
+    def prepare(self):
+        
+        self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
+        if not self.experiment_config.N_WHITE_PIXELS:
+            self.n_white_pixels = None;
+        self.stimulus_duration = self.experiment_config.DURATION_MINS*60.0
+        
+        try:
+            self.flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY
+        except:
+            self.flickering_frequency = self.config.SCREEN_EXPECTED_FRAME_RATE
+        
+        #self.colors = self.experiment_config.COLORS
+        self.red = self.experiment_config.RED
+        self.green = self.experiment_config.GREEN
+        self.blue = self.experiment_config.BLUE
+        npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
+        
+        screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
+        pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
+        if pixel_size.shape[0] == 1:
+            pixel_size = [pixel_size[0], pixel_size[0]]
+        
+        npixels = numpy.round(screen_size/pixel_size)
+        n_channels = 1
+        color = numpy.zeros((npatterns, npixels[0], npixels[1], n_channels))
+        numpy.random.seed(0)
+        self.textures_red = numpy.round(numpy.random.random(color.shape[:-1]))
+        self.textures_green = numpy.round(numpy.random.random(color.shape[:-1]))
+        self.textures_blue = numpy.round(numpy.random.random(color.shape[:-1]))
+        
+        
+        if not self.red:
+            self.textures_red *= 0.0;
+        if not self.green:
+            self.textures_green *= 0.0;
+        if not self.blue:
+            self.textures_blue *= 0.0;
+                
+    def run(self):
+        self.stimulus_frame_info.append({'super_block':'ColoredNoiseStimulus', 'is_last':0, 'counter':self.frame_counter})
+        self.colored_noise(textures_red = self.textures_red, textures_green = self.textures_green, textures_blue = self.textures_blue)
+        self.show_fullscreen(color=0.5)
+        self.stimulus_frame_info.append({'super_block':'ColoredNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})  
+    # End of ColoredNoiseStimulus
+
+
 class Chirp(experiment.Experiment):
     '''
         Required:
