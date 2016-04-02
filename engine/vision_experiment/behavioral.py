@@ -36,7 +36,7 @@ class CameraHandler():
     def start_video_recording(self,videofilename):
         if self.save_video:
             numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
-        self.video_saver= cv2.VideoWriter(videofilename,cv2.cv.CV_FOURCC(*'XVID'), 16,#self.machine_config.CAMERA_FRAME_RATE, 
+        self.video_saver= cv2.VideoWriter(videofilename,cv2.cv.CV_FOURCC(*'XVID'), 12,#self.machine_config.CAMERA_FRAME_RATE, 
                                                     (self.machine_config.CAMERA_FRAME_WIDTH,self.machine_config.CAMERA_FRAME_HEIGHT))
         self.save_video=True
         self.frame_counter=0
@@ -53,7 +53,9 @@ class CameraHandler():
     def update_video_recorder(self):
         now=time.time()
         if now-self.last_runtime>=self.tperiod:
-            self.last_runtime=time.time()
+            now1=time.time()
+            self.fps=1.0/(now1-self.last_runtime)
+            self.last_runtime=now1
             frame = self.read_frame()
             self.to_gui.put({'update_main_image' :frame})
         
@@ -206,7 +208,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 import traceback
                 logging.error(traceback.format_exc())
                 self.save_context()
-            time.sleep(30e-3)
+            time.sleep(40e-3)
         self.close()
         
     def close(self):
