@@ -10,13 +10,78 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import gui_engine
-#NEXT: valve on/off, airpuff, reward, stim, buttons,hardware handler, measurement core, video recorder
+#NEXT: 
+#TODO: valves will be controlled by arduino to ensure valve open time is precise
 
+class CameraHandler():
+    '''
+    Reads image from camera, transmits via queue and saves frames to file
+    '''
+    def __init__(self,machine_config):
+        self.machine_config=machine_config
+        self.save_video=False
+        self.camera=None
+        self.tperiod=int(1.0/self.machine_config.CAMERA_FRAME_RATE)
+        self.frame_counter=0
+        self.last_runtime=time.time()
+        if self.machine_config.ENABLE_CAMERA:
+            try:
+                self.camera = cv2.VideoCapture(0)#Initialize video capturing
+                self.camera.set(3, self.machine_config.CAMERA_FRAME_WIDTH)#Set camera resolution
+                self.camera.set(4, self.machine_config.CAMERA_FRAME_HEIGHT)
+                logging.info('Camera initialized')
+            except:
+                logging.warning('no camera present')
+            
+    def start_video_recording(self,videofilename):
+        if self.save_video:
+            numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
+        self.video_saver= cv2.VideoWriter(videofilename,cv2.cv.CV_FOURCC(*'XVID'), 16,#self.machine_config.CAMERA_FRAME_RATE, 
+                                                    (self.machine_config.CAMERA_FRAME_WIDTH,self.machine_config.CAMERA_FRAME_HEIGHT))
+        self.save_video=True
+        self.frame_counter=0
+        self.frame_times=[]
+        self.videofilename=videofilename
+        logging.info('Recording video to {0} started'.format(videofilename))
+        
+    def stop_video_recording(self):
+        numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
+        self.save_video=False
+        del self.video_saver
+        logging.info('Recording video ended')
+                
+    def update_video_recorder(self):
+        now=time.time()
+        if now-self.last_runtime>=self.tperiod:
+            self.last_runtime=time.time()
+            frame = self.read_frame()
+            self.to_gui.put({'update_main_image' :frame})
+        
+    def close_video_recorder(self):
+        if hasattr(self.camera,'release'):
+            self.camera.release()#Stop camera operation
+                
+    def read_frame(self):
+        if self.camera is None:
+            return
+        ret, frame = self.camera.read()#Reading the raw frame from the camera
+        if frame is None or not ret:
+            return
+        if self.save_video:
+                self.video_saver.write(frame)
+                self.frame_times.append(time.time())
+        frame_color_corrected=numpy.zeros_like(frame)#For some reason we need to rearrange the color channels
+        frame_color_corrected[:,:,0]=frame[:,:,2]
+        frame_color_corrected[:,:,1]=frame[:,:,1]
+        frame_color_corrected[:,:,2]=frame[:,:,0]
+        self.frame_counter+=1
+        return frame_color_corrected
 
-class BehavioralEngine(threading.Thread):
+class BehavioralEngine(threading.Thread,CameraHandler):
     def __init__(self,machine_config):
         self.machine_config=machine_config
         threading.Thread.__init__(self)
+        CameraHandler.__init__(self,machine_config)
         self.from_gui = Queue.Queue()
         self.to_gui = Queue.Queue()
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
@@ -103,7 +168,8 @@ class BehavioralEngine(threading.Thread):
                 h.weight=numpy.concatenate((h.weight,numpy.array([[date,weight]])))
                 save=True
         if save:
-            h.weight=h.weight[h.weight.argsort(axis=0)[:,0]]#Sort by timestamp
+            if h.weight.shape[0]>1:
+                h.weight=h.weight[h.weight.argsort(axis=0)[:,0]]#Sort by timestamp
             h.save('weight')
         self.weight=h.weight
         h.close()
@@ -113,9 +179,17 @@ class BehavioralEngine(threading.Thread):
         if switch2plot:
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
+    def reward(self):
+        pass
         
+    def air_puff(self):
+        pass
+        
+    def set_valve(self,channel,state):
+        pass
     
     def run(self):
+        logging.info('Engine started')
         while True:
             try:
                 self.last_run = time.time()#helps determining whether the engine still runs
@@ -123,19 +197,22 @@ class BehavioralEngine(threading.Thread):
                     msg = self.from_gui.get()
                     if msg == 'terminate':
                         break
-                else:
-                    continue
-                #parse message
-                if msg.has_key('function'):#Functions are simply forwarded
-                    #Format: {'function: function name, 'args': [], 'kwargs': {}}
-                    logging.info(msg)
-                    getattr(self, msg['function'])(*msg['args'])
+                    if msg.has_key('function'):#Functions are simply forwarded
+                        #Format: {'function: function name, 'args': [], 'kwargs': {}}
+                        logging.info(msg)
+                        getattr(self, msg['function'])(*msg['args'])
+                self.update_video_recorder()
             except:
                 import traceback
                 logging.error(traceback.format_exc())
                 self.save_context()
-            time.sleep(50e-3)
+            time.sleep(30e-3)
+        self.close()
+        
+    def close(self):
+        self.close_video_recorder()
         self.save_context()
+        logging.info('Engine terminated')
         
 class Behavioral(gui.SimpleAppWindow):
     '''
@@ -145,6 +222,9 @@ class Behavioral(gui.SimpleAppWindow):
         #Figure out machine config
         self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
         self.logfile=fileop.get_log_filename(self.machine_config)
+        logging.basicConfig(filename= self.logfile,
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.INFO)
         self.engine=BehavioralEngine(self.machine_config)
         self.engine.start()
         self.to_engine=self.engine.from_gui
@@ -193,14 +273,14 @@ class Behavioral(gui.SimpleAppWindow):
         self.update_statusbar()
         
         self.cq_timer=QtCore.QTimer()
-        self.cq_timer.start(100)#ms
+        self.cq_timer.start(50)#ms
         self.connect(self.cq_timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         
     def parameter_changed(self):
         self.engine.parameters=self.paramw.get_parameter_tree(return_dict=True)
         
     def check_queue(self):
-        while not self.from_engine.empty():
+        if not self.from_engine.empty():
             msg = self.from_engine.get()
             if msg.has_key('notify'):
                 self.notify(msg['notify']['title'], msg['notify']['msg'])
@@ -216,7 +296,8 @@ class Behavioral(gui.SimpleAppWindow):
             elif msg.has_key('switch2_animal_weight_plot'):
                 self.cw.main_tab.setCurrentIndex(0)
                 self.cw.displayw.plots.tab.setCurrentIndex(1)
-                
+            elif msg.has_key('update_main_image'):
+                self.cw.displayw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
         
     def update_statusbar(self):
         '''
@@ -272,6 +353,8 @@ class CWidget(QtGui.QWidget):
         self.main_tab.addTab(self.displayw, 'Display')
         self.recordingsw=RecordingsW(self)
         self.main_tab.addTab(self.recordingsw, 'Recordings')
+        self.lowleveldebugw=LowLevelDebugW(self)
+        self.main_tab.addTab(self.lowleveldebugw, 'Low Level Debug')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self.main_tab.setMinimumHeight(500)
@@ -302,6 +385,10 @@ class DisplayW(QtGui.QWidget):
         self.images=gui.TabbedImages(self,self.imagenames)
         self.images.tab.setFixedWidth(400)
         self.images.tab.setFixedHeight(400)
+        ar=float(parent.parent().machine_config.CAMERA_FRAME_WIDTH)/parent.parent().machine_config.CAMERA_FRAME_HEIGHT
+        self.images.main.setFixedWidth(370)
+        self.images.main.setFixedHeight(370/ar)
+        
         self.plotnames=['speed', 'animal_weight', 'session']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
@@ -312,6 +399,46 @@ class DisplayW(QtGui.QWidget):
         self.l.addWidget(self.images, 0, 0, 1, 2)
         self.l.addWidget(self.plots, 0, 2, 1, 3)
         self.setLayout(self.l)
+        
+class LowLevelDebugW(QtGui.QWidget):
+    '''
+    
+    '''
+    def __init__(self,parent):
+        QtGui.QWidget.__init__(self,parent)
+        self.parent=parent
+        valve_names=['water', 'air']
+        self.valves={}
+        for vn in valve_names:
+            self.valves[vn]=gui.LabeledCheckBox(self,'Open {0} Valve'.format(vn.capitalize()))
+            self.valves[vn].setToolTip('When checked, the valve is open')
+        self.connect(self.valves['water'].input, QtCore.SIGNAL('stateChanged(int)'),  self.water_valve_clicked)
+        self.connect(self.valves['air'].input, QtCore.SIGNAL('stateChanged(int)'),  self.air_valve_clicked)
+            
+        self.air_puff=QtGui.QPushButton('Air Puff', parent=self)
+        self.connect(self.air_puff, QtCore.SIGNAL('clicked()'), self.air_puff_clicked)
+        self.reward=QtGui.QPushButton('Reward', parent=self)
+        self.connect(self.reward, QtCore.SIGNAL('clicked()'), self.reward_clicked)
+        self.l = QtGui.QGridLayout()
+        [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
+        self.l.addWidget(self.reward, 1, 0, 1, 1)
+        self.l.addWidget(self.air_puff, 1, 1, 1, 1)
+        self.setLayout(self.l)
+        self.l.setColumnStretch(2,20)
+        self.l.setRowStretch(2,20)
+        
+    def air_puff_clicked(self):
+        self.parent.parent().to_engine.put({'function':'air_puff','args':[]})
+        
+    def reward_clicked(self):
+        self.parent.parent().to_engine.put({'function':'reward','args':[]})
+        
+    def air_valve_clicked(self,state):
+        self.parent.parent().to_engine.put({'function':'set_valve','args':['air', state==2]})
+        
+    def water_valve_clicked(self,state):
+        self.parent.parent().to_engine.put({'function':'set_valve','args':['water', state==2]})
+
         
 class AddAnimalWeightDialog(QtGui.QWidget):
     '''
@@ -342,8 +469,6 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.l.addWidget(self.weight_input, 0, 2, 1, 1)
         self.l.addWidget(self.ok, 1, 0, 1, 1)
         self.l.addWidget(self.cancel, 1, 1, 1, 1)
-#        self.l.setColumnStretch(0,4)
-#        self.l.setColumnStretch(1,4)
         self.l.setColumnStretch(3,20)
         self.l.setRowStretch(0,1)
         self.l.setRowStretch(1,1)
@@ -358,6 +483,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         
     def cancel_clicked(self):
         self.close()
+        
 
 class Config(object):
     '''
@@ -401,18 +527,21 @@ class FrameSaver(multiprocessing.Process):
     def __init__(self,queue):
         multiprocessing.Process.__init__(self)
         self.queue=queue
+        self.exit=False
         
     def run(self):
+        logging.info('Frame saver started')
         while True:
-            if not self.queue.empty():
+            while not self.queue.empty():
                 msg=self.queue.get()
                 if msg=='terminate':#If message contains this string, stop the process
-                    break
+                    self.exit=True
                 else:
                     frame,filename=msg#A message shall contain the frame and the filename where the frame is to be saved
                     Image.fromarray(frame).save(filename)#Saving the image
-            else:
-                time.sleep(1e-3)#Ensuring that this process does not consume all the time of the processor where it is running
+            if self.exit: break
+            time.sleep(1e-3)#Ensuring that this process does not consume all the time of the processor where it is running
+        logging.info('Frame saver finished')
                 
 class FileSaver(multiprocessing.Process):
     '''
@@ -1072,20 +1201,25 @@ class BehavioralSetup(Config):
 
 
 class TestBehavEngine(unittest.TestCase):
+    
     def setUp(self):
-        self.animal_name='ta001'
         self.machine_config = utils.fetch_classes('visexpman.users.common', classname = 'BehavioralSetup', required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
-        context_filename = fileop.get_context_filename(self.machine_config,'npy')
-        if os.path.exists(context_filename):
-            os.remove(context_filename)
+        if not hasattr(self, 'log_initialized'):
+            self.logfile=fileop.generate_filename('/tmp/behav_engine_test.txt')
+            logging.basicConfig(filename= self.logfile,
+                        format='%(asctime)s %(levelname)s\t%(message)s',
+                        level=logging.INFO)
+            self.log_initialized=True
+        self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
+        if os.path.exists(self.context_filename):
+            os.remove(self.context_filename)
+        
+    def test_01_add_remove_weight(self):
+        self.animal_name='ta001'
         self.engine=BehavioralEngine(self.machine_config)
         af=os.path.join(self.engine.datafolder,self.animal_name)
         if os.path.exists(af):
             shutil.rmtree(af)
-        
-        
-        
-    def test_01_add_remove_weight(self):
         self.engine.add_animal(self.animal_name)
         for i in range(10):
             self.engine.add_animal_weight(time.time(),i)
@@ -1094,9 +1228,35 @@ class TestBehavEngine(unittest.TestCase):
         for i in range(5):
             self.engine.add_animal_weight(time.time(),i)
         self.assertEqual(5,self.engine.weight.shape[0])
+        self.engine.close()
         
-    
-
+    def test_02_video_recorder(self):
+        frame_folder=fileop.generate_foldername('/tmp/frames')
+        capture_duration=3
+        videofilename1='/tmp/{0}.avi'.format(int(time.time()))
+        self.engine=BehavioralEngine(self.machine_config)
+        t0=time.time()
+        while True:
+            self.engine.update_video_recorder()
+            if time.time()-t0>capture_duration:
+                break
+        self.engine.start_video_recording(videofilename1)
+        t0=time.time()
+        while True:
+            self.engine.update_video_recorder()
+            if time.time()-t0>capture_duration:
+                break
+        videofilename2='/tmp/{0}.avi'.format(int(time.time()))
+        self.engine.start_video_recording(videofilename2)
+        self.assertEqual(os.path.exists(videofilename1), True)
+        t0=time.time()
+        while True:
+            self.engine.update_video_recorder()
+            if time.time()-t0>capture_duration:
+                break
+        self.engine.stop_video_recording()
+        self.engine.close()
+        self.assertEqual(os.path.exists(videofilename2), True)
 
 if __name__ == '__main__':
     if len(sys.argv)>1:
