@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import gui_engine
-#NEXT: detect and display mark stop events
+#NEXT: display and test stop/run events. reward and air puff events should be displayed with stop/run events
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 #TODO: plotting events: use fixed coloring not dynamically allocated
 
@@ -141,6 +141,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.reward_values=numpy.empty((0,2))
         self.airpuff_values=numpy.empty((0,2))
         self.stimulus_values=numpy.empty((0,2))
+        self.events=[]
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -289,6 +290,49 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         x=x[indexes]
         y=values[indexes,1]
         return x,y
+        
+    def run_stop_event_detector(self):
+        '''
+        Stop event: animal motion is below threshold for a certain amount of time. (Also a run event should happen right before that)
+        Run event: animal was running for a certain amount of time
+        Event time is when the condition is met
+        
+        At stim stop protocol there should be some tolerance between the run and stop event times
+        Event structure:
+        name:
+        acknowledged:
+        time:
+        previous event: name, time
+        '''
+        #consider speed values since the last event        
+        t=self.speed_values[:,0]
+        spd=self.speed_values[:,1]
+        if len(self.events)>0:
+            indexes=numpy.nonzero(numpy.where(t>self.events[-1]['t'],1,0))[0]
+            t=t[indexes]
+            spd=spd[indexes]
+        if t.shape[0]==0:
+            return
+        ismoving=numpy.where(spd>self.parameters['Move Threshold'],True,False)
+        stop_indexes=numpy.nonzero(numpy.where(t>t.max()-self.parameters['Stop Time'],1,0))[0]
+        if hasattr(self, 'run_time'):
+            running_indexes=numpy.nonzero(numpy.where(t>t.max()-self.run_time,1,0))[0]
+        else:
+            running_indexes=numpy.empty(0)
+        last_event_time=self.events[-1]['t'] if len(self.events)>0 else 0#checking time elapsed since last event ensures that one event is counted once
+        if not ismoving[stop_indexes].any() and t[-1] - last_event_time> self.parameters['Stop Time']:
+            event={}
+            event['type']='stop'
+            event['ack']=False
+            event['t']=t[-1]
+            self.events.append(event)
+        elif running_indexes.shape[0]>0 and ismoving[running_indexes].sum()>ismoving[running_indexes].sum()*1e-2*self.parameters['Run Threshold']\
+            and t[-1] - last_event_time> self.run_time:
+            event={}
+            event['type']='run'
+            event['ack']=False
+            event['t']=t[-1]
+            self.events.append(event)
     
     def run(self):
         logging.info('Engine started')
@@ -305,6 +349,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
                 self.update_plot()
+                self.run_stop_event_detector()
+                
             except:
                 import traceback
                 logging.error(traceback.format_exc())
