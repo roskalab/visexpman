@@ -1,5 +1,5 @@
 import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman
+import numpy,scipy.io,visexpman, copy
 import serial
 from PIL import Image
 import cv2
@@ -10,8 +10,51 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import gui_engine
-#NEXT: 
+#NEXT: detect and display mark stop events
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
+#TODO: plotting events: use fixed coloring not dynamically allocated
+
+class TreadmillSpeedReader(multiprocessing.Process):
+    '''
+    
+    '''
+    def __init__(self,queue, machine_config, emulate_speed=False):
+        multiprocessing.Process.__init__(self)
+        self.queue=queue
+        self.speed_q=multiprocessing.Queue()
+        self.machine_config=machine_config
+        self.emulate_speed=emulate_speed
+        
+    def emulated_speed(self,t):
+        if t<10:
+            spd=5.0
+        elif t>=10 and t<30:
+            spd=20.0+t*1e-1
+        else:
+            spd=10
+        spd+=numpy.random.random()
+        return spd
+        
+    def run(self):
+        self.last_run=time.time()
+        self.start_time=time.time()
+        logging.info('Speed reader started')
+        while True:
+            now=time.time()
+            if now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
+                self.last_run=copy.deepcopy(now)
+                if self.emulate_speed:
+                    spd=self.emulated_speed(now-self.start_time)
+                else:
+                    pass
+                self.speed_q.put([now,spd])
+            
+            if not self.queue.empty():
+                msg=self.queue.get()
+                if msg=='terminate':
+                    break
+            time.sleep(0.01)
+        logging.info('Speed reader finished')
 
 class CameraHandler():
     '''
@@ -90,6 +133,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.context_variables=['datafolder','parameters','current_animal']
         self.load_context()
         self.load_animal_file(switch2plot=True)
+        self.speed_reader_q=multiprocessing.Queue()
+        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=True)
+        self.speed_reader.start()
+        #Data
+        self.speed_values=numpy.empty((0,2))
+        self.reward_values=numpy.empty((0,2))
+        self.airpuff_values=numpy.empty((0,2))
+        self.stimulus_values=numpy.empty((0,2))
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -182,13 +233,62 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def reward(self):
-        pass
+        now=time.time()
+        self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now-1e-3, 0], [now, 1],[now+self.parameters['Water Open Time'], 1], [now+self.parameters['Water Open Time']+1e-3, 0]])))
         
-    def air_puff(self):
-        pass
+    def airpuff(self):
+        now=time.time()
+        self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now-1e-3, 0],[now, 1],[now+self.parameters['Air Puff Duration'], 1],[now+self.parameters['Air Puff Duration']+1e-3, 0]])))
         
     def set_valve(self,channel,state):
         pass
+        
+    def stimulate(self):
+        now=time.time()
+        self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+self.parameters['Stimulus Pulse Duration'], 1],[now+self.parameters['Stimulus Pulse Duration']+1e-3, 0]])))
+        
+        
+    def update_plot(self):
+        new_value=[]
+        if not self.speed_reader.speed_q.empty() and self.speed_reader.speed_q.qsize()>2:
+            while not self.speed_reader.speed_q.empty():
+                new_value.append(self.speed_reader.speed_q.get())
+        if len(new_value)>0:
+            self.speed_values=numpy.concatenate((self.speed_values,numpy.array(new_value)))
+            xs,ys=self.values2trace(self.speed_values)
+            t0=xs[0]
+            x=[xs]
+            y=[ys]
+            title=['speed']
+            if self.reward_values.shape[0]>0:
+                xr,yr=self.values2trace(self.reward_values)
+                t0=min(t0, xr[0])
+                x.append(xr)
+                y.append(yr*ys.max())
+                title.append('reward')
+            if self.airpuff_values.shape[0]>0:
+                xa,ya=self.values2trace(self.airpuff_values)
+                t0=min(t0, xa[0])
+                x.append(xa)
+                y.append(ya*ys.max())
+                title.append('airpuff')
+            if self.stimulus_values.shape[0]>0:
+                xst,yst=self.values2trace(self.stimulus_values)
+                t0=min(t0, xst[0])
+                x.append(xst)
+                y.append(yst*ys.max())
+                title.append('stimulus')
+            t0=numpy.concatenate(x).min()
+            for xi in x:
+                xi-=t0
+            self.to_gui.put({'update_speed_plot':{'x':x, 'y':y, 'title': ','.join(title)}})
+            
+    def values2trace(self, values):
+        x=values[:,0].copy()
+        indexes=numpy.nonzero(numpy.where(x>x[-1]-self.parameters['Save Period'],1,0))[0]
+        x=x[indexes]
+        y=values[indexes,1]
+        return x,y
     
     def run(self):
         logging.info('Engine started')
@@ -204,6 +304,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                         logging.info(msg)
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
+                self.update_plot()
             except:
                 import traceback
                 logging.error(traceback.format_exc())
@@ -213,6 +314,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def close(self):
         self.close_video_recorder()
+        self.speed_reader_q.put('terminate')
+        self.speed_reader.join()
         self.save_context()
         logging.info('Engine terminated')
         
@@ -246,7 +349,11 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Protocol', 'type': 'list', 'values': self.engine.get_protocol_names(),'value':''},
                                 {'name': 'Save Period', 'type': 'float', 'value': 200.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
+                                {'name': 'Stop Time', 'type': 'float', 'value': 0.5, 'suffix': 's'},
+                                {'name': 'Move Threshold', 'type': 'float', 'value': 1,'suffix': 'm/s'},
+                                {'name': 'Run Threshold', 'type': 'float', 'value': 50.0, 'suffix': '%'},
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
+                                {'name': 'Stimulus Pulse Duration', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                             ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
@@ -275,7 +382,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.update_statusbar()
         
         self.cq_timer=QtCore.QTimer()
-        self.cq_timer.start(50)#ms
+        self.cq_timer.start(20)#ms
         self.connect(self.cq_timer, QtCore.SIGNAL('timeout()'), self.check_queue)
         
     def parameter_changed(self):
@@ -300,6 +407,9 @@ class Behavioral(gui.SimpleAppWindow):
                 self.cw.displayw.plots.tab.setCurrentIndex(1)
             elif msg.has_key('update_main_image'):
                 self.cw.displayw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
+            elif msg.has_key('update_speed_plot'):
+                colors=[(0,0,0), (255,0,0), (0,255,0), (0,0,255)]
+                self.cw.displayw.plots.speed.update_curves(msg['update_speed_plot']['x'], msg['update_speed_plot']['y'], colors=colors[:len(msg['update_speed_plot']['y'])])
         
     def update_statusbar(self):
         '''
@@ -394,6 +504,7 @@ class DisplayW(QtGui.QWidget):
         self.plotnames=['speed', 'animal_weight', 'session']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
+        self.plots.speed.plot.setLabels(left='speed [m/s]', bottom='times [s]')
         self.plots.tab.setMinimumWidth(600)
         self.plots.tab.setFixedHeight(400)
 
@@ -416,30 +527,37 @@ class LowLevelDebugW(QtGui.QWidget):
             self.valves[vn].setToolTip('When checked, the valve is open')
         self.connect(self.valves['water'].input, QtCore.SIGNAL('stateChanged(int)'),  self.water_valve_clicked)
         self.connect(self.valves['air'].input, QtCore.SIGNAL('stateChanged(int)'),  self.air_valve_clicked)
-            
-        self.air_puff=QtGui.QPushButton('Air Puff', parent=self)
-        self.connect(self.air_puff, QtCore.SIGNAL('clicked()'), self.air_puff_clicked)
+        self.airpuff=QtGui.QPushButton('Air Puff', parent=self)
+        self.connect(self.airpuff, QtCore.SIGNAL('clicked()'), self.airpuff_clicked)
         self.reward=QtGui.QPushButton('Reward', parent=self)
         self.connect(self.reward, QtCore.SIGNAL('clicked()'), self.reward_clicked)
+        self.stimulate=QtGui.QPushButton('Stimulate', parent=self)
+        self.connect(self.stimulate, QtCore.SIGNAL('clicked()'), self.stimulate_clicked)
         self.l = QtGui.QGridLayout()
         [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
         self.l.addWidget(self.reward, 1, 0, 1, 1)
-        self.l.addWidget(self.air_puff, 1, 1, 1, 1)
+        self.l.addWidget(self.airpuff, 1, 1, 1, 1)
+        self.l.addWidget(self.stimulate, 2, 0, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(2,20)
-        self.l.setRowStretch(2,20)
+        self.l.setRowStretch(3,20)
         
-    def air_puff_clicked(self):
-        self.parent.parent().to_engine.put({'function':'air_puff','args':[]})
+    def airpuff_clicked(self):
+        self.parent.parent().to_engine.put({'function':'airpuff','args':[]})
         
     def reward_clicked(self):
         self.parent.parent().to_engine.put({'function':'reward','args':[]})
-        
+    
+    def stimulate_clicked(self):
+        self.parent.parent().to_engine.put({'function':'stimulate','args':[]})
+    
     def air_valve_clicked(self,state):
         self.parent.parent().to_engine.put({'function':'set_valve','args':['air', state==2]})
         
     def water_valve_clicked(self,state):
         self.parent.parent().to_engine.put({'function':'set_valve','args':['water', state==2]})
+        
+    
 
         
 class AddAnimalWeightDialog(QtGui.QWidget):
@@ -1259,6 +1377,20 @@ class TestBehavEngine(unittest.TestCase):
         self.engine.stop_video_recording()
         self.engine.close()
         self.assertEqual(os.path.exists(videofilename2), True)
+        
+    def test_03_speed_emulator(self):
+        q=multiprocessing.Queue()
+        rectime=3
+        tsr=TreadmillSpeedReader(q,self.machine_config,emulate_speed=True)
+        tsr.start()
+        time.sleep(rectime)
+        q.put('terminate')
+        tsr.join()
+        samples=[]
+        while not tsr.speed_q.empty():
+            samples.append(tsr.speed_q.get())
+        self.assertEqual(numpy.array(samples).shape[0], rectime/self.machine_config.TREADMILL_SPEED_UPDATE_RATE-1)
+        
 
 if __name__ == '__main__':
     if len(sys.argv)>1:
