@@ -9,8 +9,8 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
-from visexpman.engine.vision_experiment import gui_engine
-#NEXT: 
+from visexpman.engine.vision_experiment import experiment_data, configuration
+#NEXT: protocol handling, upon save update statistics from files, event summary for current day when clicked on folder
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 
 class TreadmillSpeedReader(multiprocessing.Process):
@@ -79,7 +79,7 @@ class CameraHandler():
                 logging.warning('no camera present')
             
     def start_video_recording(self,videofilename):
-        if self.save_video:
+        if self.save_video and 0:
             numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
         self.video_saver= cv2.VideoWriter(videofilename,cv2.cv.CV_FOURCC(*'XVID'), 12,#self.machine_config.CAMERA_FRAME_RATE, 
                                                     (self.machine_config.CAMERA_FRAME_WIDTH,self.machine_config.CAMERA_FRAME_HEIGHT))
@@ -90,7 +90,8 @@ class CameraHandler():
         logging.info('Recording video to {0} started'.format(videofilename))
         
     def stop_video_recording(self):
-        numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
+        if 0:
+            numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
         self.save_video=False
         del self.video_saver
         logging.info('Recording video ended')
@@ -138,7 +139,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q=multiprocessing.Queue()
         self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=True)
         self.speed_reader.start()
-        #Data
+        self.recording=False
+        self.reset_data()
+        self.enable_speed_update=True
+        self.varnames=['speed_values','reward_values','airpuff_values','stimulus_values','events','frame_times']
+        
+    def reset_data(self):
         self.speed_values=numpy.empty((0,2))
         self.reward_values=numpy.empty((0,2))
         self.airpuff_values=numpy.empty((0,2))
@@ -169,7 +175,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 break
             time.sleep(0.05)
         result=self.from_gui.get()
-        self.log.info('Ask for confirmation: {0}, {1}'.format(message, result), 'engine')
+        logging.info('Ask for confirmation: {0}, {1}'.format(message, result))
         return result
         
     def notify(self,title,message):
@@ -202,7 +208,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def load_animal_file(self, date=None,weight=None,remove_last=False, switch2plot=False):
         if not hasattr(self,'current_animal'):
             return
-        self.current_animal_file=os.path.join(self.datafolder,self.current_animal,self.current_animal+'.hdf5')
+        self.current_animal_file=os.path.join(self.datafolder,self.current_animal,'animal_'+self.current_animal+'.hdf5')
         if not os.path.exists(os.path.dirname(self.current_animal_file)):
             return
         h=hdf5io.Hdf5io(self.current_animal_file)
@@ -249,57 +255,64 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def stimulate(self):
         now=time.time()
         self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+self.parameters['Stimulus Pulse Duration'], 1],[now+self.parameters['Stimulus Pulse Duration']+1e-3, 0]])))
+
+    def set_speed_update(self, state):
+        self.enable_speed_update=state
         
-        
-    def update_plot(self):
+    def update_speed_values(self):
         new_value=[]
         if not self.speed_reader.speed_q.empty() and self.speed_reader.speed_q.qsize()>2:
             while not self.speed_reader.speed_q.empty():
                 new_value.append(self.speed_reader.speed_q.get())
         if len(new_value)>0:
             self.speed_values=numpy.concatenate((self.speed_values,numpy.array(new_value)))
-            xs,ys=self.values2trace(self.speed_values)
-            t0=xs[0]
-            x=[xs]
-            y=[ys]
-            trace_names=['speed']
-            now=xs[-1]
-            if self.reward_values.shape[0]>0:
-                xr,yr=self.values2trace(self.reward_values, now)
-                if xr.shape[0]>0:
-                    t0=min(t0, xr[0])
-                    x.append(xr)
-                    y.append(yr*ys.max())
-                    trace_names.append('reward')
-            if self.airpuff_values.shape[0]>0:
-                xa,ya=self.values2trace(self.airpuff_values, now)
-                if xa.shape[0]>0:
-                    t0=min(t0, xa[0])
-                    x.append(xa)
-                    y.append(ya*ys.max())
-                    trace_names.append('airpuff')
-            if self.stimulus_values.shape[0]>0:
-                xst,yst=self.values2trace(self.stimulus_values, now)
-                if xst.shape[0]>0:
-                    t0=min(t0, xst[0])
-                    x.append(xst)
-                    y.append(yst*ys.max())
-                    trace_names.append('stimulus')
-            for event_type in ['run', 'stop']:
-                xe=numpy.array([event['t'] for event in self.events if event['type']==event_type])
+            return True
+        else: return False
+
+    def update_plot(self):
+        if not self.speed_values.shape[0]>0:
+            return
+        xs,ys=self.values2trace(self.speed_values)
+        t0=xs[0]
+        x=[xs]
+        y=[ys]
+        trace_names=['speed']
+        now=xs[-1]
+        if self.reward_values.shape[0]>0:
+            xr,yr=self.values2trace(self.reward_values, now)
+            if xr.shape[0]>0:
+                t0=min(t0, xr[0])
+                x.append(xr)
+                y.append(yr*ys.max())
+                trace_names.append('reward')
+        if self.airpuff_values.shape[0]>0:
+            xa,ya=self.values2trace(self.airpuff_values, now)
+            if xa.shape[0]>0:
+                t0=min(t0, xa[0])
+                x.append(xa)
+                y.append(ya*ys.max())
+                trace_names.append('airpuff')
+        if self.stimulus_values.shape[0]>0:
+            xst,yst=self.values2trace(self.stimulus_values, now)
+            if xst.shape[0]>0:
+                t0=min(t0, xst[0])
+                x.append(xst)
+                y.append(yst*ys.max())
+                trace_names.append('stimulus')
+        for event_type in ['run', 'stop']:
+            xe=numpy.array([event['t'] for event in self.events if event['type']==event_type])
+            if xe.shape[0]>0:
+                ye=numpy.ones_like(xe)*ys.max()*0.5
+                xe,ye=self.values2trace(numpy.array([xe,ye]).T, now)
                 if xe.shape[0]>0:
-                    ye=numpy.ones_like(xe)*ys.max()*0.5
-                    xe,ye=self.values2trace(numpy.array([xe,ye]).T, now)
-                    if xe.shape[0]>0:
-                        x.append(xe)
-                        y.append(ye)
-                        trace_names.append(event_type)
-                        t0=min(t0,x[-1][0])
-                
-            t0=numpy.concatenate(x).min()
-            for xi in x:
-                xi-=t0
-            self.to_gui.put({'update_event_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
+                    x.append(xe)
+                    y.append(ye)
+                    trace_names.append(event_type)
+                    t0=min(t0,x[-1][0])
+        t0=numpy.concatenate(x).min()
+        for xi in x:
+            xi-=t0
+        self.to_gui.put({'update_event_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
             
     def values2trace(self, values, now=None):
         x=values[:,0].copy()
@@ -351,7 +364,74 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             event['ack']=False
             event['t']=t[-1]
             self.events.append(event)
-    
+            
+    def start_recording(self):
+        if self.recording:
+            return
+        self.reset_data()
+        rootfolder=os.path.join(self.datafolder, self.current_animal)
+        animal_file=os.path.join(rootfolder, 'animal_' + self.current_animal+'.hdf5')
+        if not os.path.exists(rootfolder):
+            self.notify('Warning', 'Animal folder does not exists')
+            return
+        if not os.path.exists(animal_file):
+            self.notify('Warning', 'Animal file does not exists')
+            return
+        today=utils.timestamp2ymd(time.time(),'')
+        last_entry_timestamp=utils.timestamp2ymd(self.weight[-1,0],'')
+        if last_entry_timestamp<today and not self.ask4confirmation('No animal weight was added today. Do you want to continue?'):
+            return
+        self.recording_folder=os.path.join(rootfolder, today)
+        if not os.path.exists(self.recording_folder):
+            os.mkdir(self.recording_folder)
+        self.current_protocol = self.parameters['Protocol']#TODO: select protocol
+        self.id=int(time.time())
+        self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
+        videofilename=self.filename+'.avi'
+        self.filename+='.hdf5'
+        #Generate filenames/folders
+        self.recording=True
+        self.to_gui.put({'set_recording_state': 'recording'})
+        self.to_gui.put({'switch2_event_plot': ''})
+        self.start_video_recording(videofilename)
+        
+    def periodic_save(self):
+        now=time.time()
+        #if self.parameters['Enable Peridic Save'] and now-self.speed_values:
+            
+        #self.start_video_recording(videofilename)
+        
+    def stop_recording(self):
+        if not self.recording:
+            return
+        self.stop_video_recording()
+        logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[0,0]))
+        self.save2file()
+        self.recording=False
+        self.to_gui.put({'set_recording_state': 'idle'})
+        
+    def save2file(self):
+        self.datafile=hdf5io.Hdf5io(self.filename)
+        self.datafile.machine_config=dict([(vn,getattr(self.machine_config, vn)) for vn in dir(self.machine_config) if vn.isupper()] )
+        for vn in self.varnames:
+            setattr(self.datafile, vn, getattr(self, vn))
+        #TODO: save quantification
+        nodes=['machine_config']
+        nodes.extend(self.varnames)
+        self.datafile.save(nodes)
+        self.datafile.close()
+        logging.info('{0} saved to {1}'.format(','.join(nodes), self.filename))
+        
+    def open_file(self, filename):
+        self.filename=filename
+        self.datafile=hdf5io.Hdf5io(self.filename)
+        for vn in self.varnames:
+            self.datafile.load(vn)
+            setattr(self, vn, getattr(self.datafile, vn))
+        self.datafile.close()
+        self.enable_speed_update=False
+        self.to_gui.put({'set_live_state': 0})
+        
     def run(self):
         logging.info('Engine started')
         while True:
@@ -366,9 +446,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                         logging.info(msg)
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
+                if self.enable_speed_update:
+                    self.run_stop_event_detector()
+                    self.update_speed_values()
                 self.update_plot()
-                self.run_stop_event_detector()
-                
+                self.periodic_save()
             except:
                 import traceback
                 logging.error(traceback.format_exc())
@@ -439,7 +521,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
         
-        toolbar_buttons = ['start_experiment', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'exit']
+        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -487,6 +569,17 @@ class Behavioral(gui.SimpleAppWindow):
                     elif tn=='stop':
                         plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
                 self.cw.displayw.plots.events.update_curves(msg['update_event_plot']['x'], msg['update_event_plot']['y'], plotparams=plotparams)
+            elif msg.has_key('ask4confirmation'):
+                reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                self.to_engine.put(reply == QtGui.QMessageBox.Yes)
+            elif msg.has_key('set_recording_state'):
+                self.cw.set_state(msg['set_recording_state'])
+            elif msg.has_key('switch2_event_plot'):
+                self.cw.main_tab.setCurrentIndex(0)
+                self.cw.displayw.plots.tab.setCurrentIndex(0)
+            elif msg.has_key('set_live_state'):
+                self.cw.live_speed.input.setCheckState(msg['set_live_state'])
+                
         
     def update_statusbar(self):
         '''
@@ -501,11 +594,11 @@ class Behavioral(gui.SimpleAppWindow):
         e.accept()
         self.exit_action()
         
-    def start_experiment_action(self):
-        pass
+    def record_action(self):
+        self.to_engine.put({'function': 'start_recording','args':[]})
     
     def stop_action(self):
-        pass
+        self.to_engine.put({'function': 'stop_recording','args':[]})
         
     def select_data_folder_action(self):
         self.engine.datafolder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
@@ -541,17 +634,42 @@ class CWidget(QtGui.QWidget):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.displayw, 'Display')
         self.recordingsw=RecordingsW(self)
-        self.main_tab.addTab(self.recordingsw, 'Recordings')
+        self.main_tab.addTab(self.recordingsw, 'Files')
         self.lowleveldebugw=LowLevelDebugW(self)
-        self.main_tab.addTab(self.lowleveldebugw, 'Low Level Debug')
+        self.main_tab.addTab(self.lowleveldebugw, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self.main_tab.setMinimumHeight(500)
         self.main_tab.setMinimumWidth(1100)
+        self.live_speed=gui.LabeledCheckBox(self,'Live Speed')
+        self.live_speed.input.setCheckState(2)
+        self.connect(self.live_speed.input, QtCore.SIGNAL('stateChanged(int)'),  self.live_event_udpate_clicked)
+        self.state=QtGui.QPushButton('Idle', parent=self)
+        self.state.setMinimumWidth(100)
+        self.set_state('idle')
+        self.l = QtGui.QGridLayout()
+        self.l.addWidget(self.main_tab, 0, 0, 2, 4)
+        self.l.addWidget(self.state, 2, 0, 1, 1)
+        self.l.addWidget(self.live_speed, 2, 1, 1, 1)
+        self.setLayout(self.l)
+        self.l.setColumnStretch(3,20)
+        self.l.setRowStretch(3,20)
+        
+    def set_state(self,state):
+        self.state.setText(state)
+        if state=='recording':
+            self.state.setStyleSheet('QPushButton {background-color: red; color: black;}')
+        elif state=='idle':
+            self.state.setStyleSheet('QPushButton {background-color: gray; color: black;}')
+        
+        
+    def live_event_udpate_clicked(self,state):
+        self.parent().to_engine.put({'function':'set_speed_update','args':[state==2]})
         
 class RecordingsW(gui.FileTree):
     def __init__(self,parent):
-        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['mat','hdf5', 'mp4'])
+        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['mat','hdf5', 'avi'])
+        self.doubleClicked.connect(self.open_file)
         self.clicked.connect(self.file_selected)
         
     def file_selected(self,index):
@@ -562,6 +680,12 @@ class RecordingsW(gui.FileTree):
             logging.info('Animal selected: {0}'.format(self.parent.parent().engine.current_animal))
             self.parent.parent().update_statusbar()
             self.parent.parent().to_engine.put({'function':'load_animal_file','args':[]})
+            
+    def open_file(self,index):
+        self.double_clicked_filename = gui.index2filename(index)
+        if os.path.splitext(self.double_clicked_filename)[1]=='.hdf5' and os.path.basename(self.double_clicked_filename)[:4]=='data':
+            self.parent.parent().to_engine.put({'function':'open_file','args':[self.double_clicked_filename]})
+            
         
         
 class DisplayW(QtGui.QWidget):
@@ -1419,11 +1543,11 @@ class TestBehavEngine(unittest.TestCase):
             shutil.rmtree(af)
         self.engine.add_animal(self.animal_name)
         for i in range(10):
-            self.engine.add_animal_weight(time.time(),i)
+            self.engine.add_animal_weight(time.time()+i*86400,i)
         for i in range(11):
             self.engine.remove_last_animal_weight()
         for i in range(5):
-            self.engine.add_animal_weight(time.time(),i)
+            self.engine.add_animal_weight(time.time()+i*86400,i)
         self.assertEqual(5,self.engine.weight.shape[0])
         self.engine.close()
         
