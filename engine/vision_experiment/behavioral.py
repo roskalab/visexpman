@@ -10,9 +10,8 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import gui_engine
-#NEXT: display and test stop/run events. reward and air puff events should be displayed with stop/run events
+#NEXT: 
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
-#TODO: plotting events: use fixed coloring not dynamically allocated
 
 class TreadmillSpeedReader(multiprocessing.Process):
     '''
@@ -30,9 +29,12 @@ class TreadmillSpeedReader(multiprocessing.Process):
             spd=5.0
         elif t>=10 and t<30:
             spd=20.0+t*1e-1
+        elif t>=30:
+            spd=2
         else:
             spd=10
-        spd+=numpy.random.random()
+        spd = 10*int(int(t/3)%2==0)
+        spd+=numpy.random.random()-0.5
         return spd
         
     def run(self):
@@ -235,11 +237,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             
     def reward(self):
         now=time.time()
-        self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now-1e-3, 0], [now, 1],[now+self.parameters['Water Open Time'], 1], [now+self.parameters['Water Open Time']+1e-3, 0]])))
+        self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
         
     def airpuff(self):
         now=time.time()
-        self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now-1e-3, 0],[now, 1],[now+self.parameters['Air Puff Duration'], 1],[now+self.parameters['Air Puff Duration']+1e-3, 0]])))
+        self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
         
     def set_valve(self,channel,state):
         pass
@@ -260,33 +262,49 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             t0=xs[0]
             x=[xs]
             y=[ys]
-            title=['speed']
+            trace_names=['speed']
+            now=xs[-1]
             if self.reward_values.shape[0]>0:
-                xr,yr=self.values2trace(self.reward_values)
-                t0=min(t0, xr[0])
-                x.append(xr)
-                y.append(yr*ys.max())
-                title.append('reward')
+                xr,yr=self.values2trace(self.reward_values, now)
+                if xr.shape[0]>0:
+                    t0=min(t0, xr[0])
+                    x.append(xr)
+                    y.append(yr*ys.max())
+                    trace_names.append('reward')
             if self.airpuff_values.shape[0]>0:
-                xa,ya=self.values2trace(self.airpuff_values)
-                t0=min(t0, xa[0])
-                x.append(xa)
-                y.append(ya*ys.max())
-                title.append('airpuff')
+                xa,ya=self.values2trace(self.airpuff_values, now)
+                if xa.shape[0]>0:
+                    t0=min(t0, xa[0])
+                    x.append(xa)
+                    y.append(ya*ys.max())
+                    trace_names.append('airpuff')
             if self.stimulus_values.shape[0]>0:
-                xst,yst=self.values2trace(self.stimulus_values)
-                t0=min(t0, xst[0])
-                x.append(xst)
-                y.append(yst*ys.max())
-                title.append('stimulus')
+                xst,yst=self.values2trace(self.stimulus_values, now)
+                if xst.shape[0]>0:
+                    t0=min(t0, xst[0])
+                    x.append(xst)
+                    y.append(yst*ys.max())
+                    trace_names.append('stimulus')
+            for event_type in ['run', 'stop']:
+                xe=numpy.array([event['t'] for event in self.events if event['type']==event_type])
+                if xe.shape[0]>0:
+                    ye=numpy.ones_like(xe)*ys.max()*0.5
+                    xe,ye=self.values2trace(numpy.array([xe,ye]).T, now)
+                    if xe.shape[0]>0:
+                        x.append(xe)
+                        y.append(ye)
+                        trace_names.append(event_type)
+                        t0=min(t0,x[-1][0])
+                
             t0=numpy.concatenate(x).min()
             for xi in x:
                 xi-=t0
-            self.to_gui.put({'update_speed_plot':{'x':x, 'y':y, 'title': ','.join(title)}})
+            self.to_gui.put({'update_event_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
             
-    def values2trace(self, values):
+    def values2trace(self, values, now=None):
         x=values[:,0].copy()
-        indexes=numpy.nonzero(numpy.where(x>x[-1]-self.parameters['Save Period'],1,0))[0]
+        xl= x[-1] if now==None else now
+        indexes=numpy.nonzero(numpy.where(x>xl-self.parameters['Save Period'],1,0))[0]
         x=x[indexes]
         y=values[indexes,1]
         return x,y
@@ -453,9 +471,22 @@ class Behavioral(gui.SimpleAppWindow):
                 self.cw.displayw.plots.tab.setCurrentIndex(1)
             elif msg.has_key('update_main_image'):
                 self.cw.displayw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
-            elif msg.has_key('update_speed_plot'):
-                colors=[(0,0,0), (255,0,0), (0,255,0), (0,0,255)]
-                self.cw.displayw.plots.speed.update_curves(msg['update_speed_plot']['x'], msg['update_speed_plot']['y'], colors=colors[:len(msg['update_speed_plot']['y'])])
+            elif msg.has_key('update_event_plot'):
+                plotparams=[]
+                for tn in msg['update_event_plot']['trace_names']:
+                    if tn =='speed':
+                        plotparams.append({'name': tn, 'pen':(0,0,0)})
+                    elif tn=='reward':
+                        plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':15, 'symbolBrush': (0,255,0,150)})
+                    elif tn=='airpuff':
+                        plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':15, 'symbolBrush': (255,0,0,150)})
+                    elif tn=='stimulus':
+                        plotparams.append({'name': tn, 'pen':(0,0,255)})
+                    elif tn=='run':
+                        plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (128,128,128,150)})
+                    elif tn=='stop':
+                        plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
+                self.cw.displayw.plots.events.update_curves(msg['update_event_plot']['x'], msg['update_event_plot']['y'], plotparams=plotparams)
         
     def update_statusbar(self):
         '''
@@ -547,10 +578,10 @@ class DisplayW(QtGui.QWidget):
         self.images.main.setFixedWidth(370)
         self.images.main.setFixedHeight(370/ar)
         
-        self.plotnames=['speed', 'animal_weight', 'session']
+        self.plotnames=['events', 'animal_weight', 'session']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
-        self.plots.speed.plot.setLabels(left='speed [m/s]', bottom='times [s]')
+        self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
         self.plots.tab.setMinimumWidth(600)
         self.plots.tab.setFixedHeight(400)
 

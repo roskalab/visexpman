@@ -393,18 +393,26 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             return
         self.plot.setYRange(min(y), max(y))
         
-    def update_curves(self, x, y, plot_average=False, colors = []):
+    def update_curves(self, x, y, plot_average=False, colors = [], plotparams=[]):
         self._clear_curves()
         ncurves = len(x)
         self.curves = []
         minimums = []
         maximums = []
+        if len(plotparams)>0 and any([True for pp in plotparams if 'name' in pp.keys()]):
+            if self.plot.legend != None:
+                self.plot.legend.scene().removeItem(self.plot.legend)
+            self.plot.addLegend()
+            self.plot.legend.setScale(0.7)
         for i in range(ncurves):
-            if colors == []:
-                pen = (0,0,0)
+            if len(plotparams)>0:
+                self.curves.append(self.plot.plot(**plotparams[i]))
             else:
-                pen=colors[i]
-            self.curves.append(self.plot.plot(pen=pen))
+                if colors == [] and plotpar:
+                    pen = (0,0,0)
+                else:
+                    pen=colors[i]
+                self.curves.append(self.plot.plot(pen=pen))
             self.curves[-1].setData(x[i], y[i])
             minimums.append(y[i].min())
             maximums.append(y[i].max())
