@@ -1,5 +1,5 @@
 import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman, copy
+import numpy,scipy.io,visexpman, copy, traceback
 import serial
 from PIL import Image
 import cv2
@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: protocol handling, upon save update statistics from files, event summary for current day when clicked on folder
+#NEXT: test if long running recording slows down the software, protocol handling, upon save update statistics from files, event summary for current day when clicked on folder
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 
 class TreadmillSpeedReader(multiprocessing.Process):
@@ -33,7 +33,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
             spd=2
         else:
             spd=10
-        spd = 10*int(int(t/3)%2==0)
+        spd = 10*int(int(t/13)%2==0)
         spd+=numpy.random.random()-0.5
         return spd
         
@@ -139,7 +139,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q=multiprocessing.Queue()
         self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=True)
         self.speed_reader.start()
-        self.recording=False
+        self.session_ongoing=False
         self.reset_data()
         self.enable_speed_update=True
         self.varnames=['speed_values','reward_values','airpuff_values','stimulus_values','events','frame_times']
@@ -173,7 +173,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         while True:
             if not self.from_gui.empty():
                 break
-            time.sleep(0.05)
+            time.sleep(0.15)
         result=self.from_gui.get()
         logging.info('Ask for confirmation: {0}, {1}'.format(message, result))
         return result
@@ -258,6 +258,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
 
     def set_speed_update(self, state):
         self.enable_speed_update=state
+        if state and hasattr(self, 'datafile_opened') and time.time()-self.datafile_opened<30:
+            self.reset_data()
         
     def update_speed_values(self):
         new_value=[]
@@ -365,8 +367,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             event['t']=t[-1]
             self.events.append(event)
             
-    def start_recording(self):
-        if self.recording:
+    def start_session(self):
+        if self.session_ongoing:
             return
         self.reset_data()
         rootfolder=os.path.join(self.datafolder, self.current_animal)
@@ -385,45 +387,67 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         self.current_protocol = self.parameters['Protocol']#TODO: select protocol
+        self.session_ongoing=True
+        self.start_recording()
+        self.to_gui.put({'set_recording_state': 'recording'})
+        self.to_gui.put({'switch2_event_plot': ''})
+        logging.info('Session started')
+        
+    def start_recording(self):
+        self.recording_started_state={}
+        for vn in self.varnames:
+            if not hasattr(self, vn):
+                self.recording_started_state[vn]=0
+            else:
+                var=getattr(self, vn)
+                if isinstance(var,list):
+                    self.recording_started_state[vn]=len(var)
+                elif hasattr(var,'shape'):
+                    self.recording_started_state[vn]=var.shape[0]
         self.id=int(time.time())
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
         self.filename+='.hdf5'
-        #Generate filenames/folders
-        self.recording=True
-        self.to_gui.put({'set_recording_state': 'recording'})
-        self.to_gui.put({'switch2_event_plot': ''})
+        self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.start_video_recording(videofilename)
         
-    def periodic_save(self):
-        now=time.time()
-        #if self.parameters['Enable Peridic Save'] and now-self.speed_values:
-            
-        #self.start_video_recording(videofilename)
-        
-    def stop_recording(self):
-        if not self.recording:
-            return
+    def finish_recording(self):
         self.stop_video_recording()
-        logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[0,0]))
+        logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
         self.save2file()
-        self.recording=False
+        
+    def periodic_save(self):
+        if self.parameters['Enable Periodic Save'] and self.session_ongoing and self.speed_values.shape[0]>self.recording_started_state['speed_values'] and self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]>self.parameters['Save Period']:
+            self.finish_recording()
+            self.start_recording()
+        
+    def stop_session(self):
+        if not self.session_ongoing:
+            return
+        self.finish_recording()
+        self.session_ongoing=False
         self.to_gui.put({'set_recording_state': 'idle'})
+        logging.info('Session ended')
         
     def save2file(self):
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.datafile.machine_config=dict([(vn,getattr(self.machine_config, vn)) for vn in dir(self.machine_config) if vn.isupper()] )
         for vn in self.varnames:
-            setattr(self.datafile, vn, getattr(self, vn))
+            values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
+            setattr(self.datafile, vn, values)
         #TODO: save quantification
         nodes=['machine_config']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
-        logging.info('{0} saved to {1}'.format(','.join(nodes), self.filename))
+        logging.info('Data saved to {0}'.format(self.filename))
         
     def open_file(self, filename):
+        if self.session_ongoing:
+            self.notify('Warning', 'Stop recording before opening a file')
+            return
         self.filename=filename
+        self.datafile_opened=time.time()
         self.datafile=hdf5io.Hdf5io(self.filename)
         for vn in self.varnames:
             self.datafile.load(vn)
@@ -431,6 +455,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.close()
         self.enable_speed_update=False
         self.to_gui.put({'set_live_state': 0})
+        self.to_gui.put({'set_events_title': os.path.basename(filename)})
         
     def run(self):
         logging.info('Engine started')
@@ -452,13 +477,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 self.update_plot()
                 self.periodic_save()
             except:
-                import traceback
                 logging.error(traceback.format_exc())
                 self.save_context()
             time.sleep(40e-3)
         self.close()
         
     def close(self):
+        if self.session_ongoing:
+            self.stop_session()
         self.close_video_recorder()
         self.speed_reader_q.put('terminate')
         self.speed_reader.join()
@@ -536,49 +562,58 @@ class Behavioral(gui.SimpleAppWindow):
         
     def check_queue(self):
         if not self.from_engine.empty():
-            msg = self.from_engine.get()
-            if msg.has_key('notify'):
-                self.notify(msg['notify']['title'], msg['notify']['msg'])
-            elif msg.has_key('statusbar'):
-                self.update_statusbar()
-            elif msg.has_key('update_weight_history'):
-                x=msg['update_weight_history'][:,0]
-                x/=86400
-                x-=x[-1]
-                utils.timestamp2ymd(self.engine.weight[-1,0])
-                self.cw.displayw.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
-                self.cw.displayw.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
-            elif msg.has_key('switch2_animal_weight_plot'):
-                self.cw.main_tab.setCurrentIndex(0)
-                self.cw.displayw.plots.tab.setCurrentIndex(1)
-            elif msg.has_key('update_main_image'):
+            if self.from_engine.qsize()>5:
+                while not self.from_engine.empty():
+                    self.process_msg(self.from_engine.get(), skip_main_image_display=True)
+            else:
+                self.process_msg(self.from_engine.get())
+            
+    def process_msg(self,msg,skip_main_image_display=False):
+        if msg.has_key('notify'):
+            self.notify(msg['notify']['title'], msg['notify']['msg'])
+        elif msg.has_key('statusbar'):
+            self.update_statusbar()
+        elif msg.has_key('update_weight_history'):
+            x=msg['update_weight_history'][:,0]
+            x/=86400
+            x-=x[-1]
+            utils.timestamp2ymd(self.engine.weight[-1,0])
+            self.cw.displayw.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+            self.cw.displayw.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
+        elif msg.has_key('switch2_animal_weight_plot'):
+            self.cw.main_tab.setCurrentIndex(0)
+            self.cw.displayw.plots.tab.setCurrentIndex(1)
+        elif msg.has_key('update_main_image'):
+            if not skip_main_image_display:
                 self.cw.displayw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
-            elif msg.has_key('update_event_plot'):
-                plotparams=[]
-                for tn in msg['update_event_plot']['trace_names']:
-                    if tn =='speed':
-                        plotparams.append({'name': tn, 'pen':(0,0,0)})
-                    elif tn=='reward':
-                        plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':15, 'symbolBrush': (0,255,0,150)})
-                    elif tn=='airpuff':
-                        plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':15, 'symbolBrush': (255,0,0,150)})
-                    elif tn=='stimulus':
-                        plotparams.append({'name': tn, 'pen':(0,0,255)})
-                    elif tn=='run':
-                        plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (128,128,128,150)})
-                    elif tn=='stop':
-                        plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
-                self.cw.displayw.plots.events.update_curves(msg['update_event_plot']['x'], msg['update_event_plot']['y'], plotparams=plotparams)
-            elif msg.has_key('ask4confirmation'):
-                reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-                self.to_engine.put(reply == QtGui.QMessageBox.Yes)
-            elif msg.has_key('set_recording_state'):
-                self.cw.set_state(msg['set_recording_state'])
-            elif msg.has_key('switch2_event_plot'):
-                self.cw.main_tab.setCurrentIndex(0)
-                self.cw.displayw.plots.tab.setCurrentIndex(0)
-            elif msg.has_key('set_live_state'):
-                self.cw.live_speed.input.setCheckState(msg['set_live_state'])
+        elif msg.has_key('update_event_plot'):
+            plotparams=[]
+            for tn in msg['update_event_plot']['trace_names']:
+                if tn =='speed':
+                    plotparams.append({'name': tn, 'pen':(0,0,0)})
+                elif tn=='reward':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':15, 'symbolBrush': (0,255,0,150)})
+                elif tn=='airpuff':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':15, 'symbolBrush': (255,0,0,150)})
+                elif tn=='stimulus':
+                    plotparams.append({'name': tn, 'pen':(0,0,255)})
+                elif tn=='run':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (128,128,128,150)})
+                elif tn=='stop':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
+            self.cw.displayw.plots.events.update_curves(msg['update_event_plot']['x'], msg['update_event_plot']['y'], plotparams=plotparams)
+        elif msg.has_key('ask4confirmation'):
+            reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+            self.to_engine.put(reply == QtGui.QMessageBox.Yes)
+        elif msg.has_key('set_recording_state'):
+            self.cw.set_state(msg['set_recording_state'])
+        elif msg.has_key('switch2_event_plot'):
+            self.cw.main_tab.setCurrentIndex(0)
+            self.cw.displayw.plots.tab.setCurrentIndex(0)
+        elif msg.has_key('set_live_state'):
+            self.cw.live_speed.input.setCheckState(msg['set_live_state'])
+        elif msg.has_key('set_events_title'):
+            self.cw.displayw.plots.events.plot.setTitle(msg['set_events_title'])
                 
         
     def update_statusbar(self):
@@ -595,10 +630,10 @@ class Behavioral(gui.SimpleAppWindow):
         self.exit_action()
         
     def record_action(self):
-        self.to_engine.put({'function': 'start_recording','args':[]})
+        self.to_engine.put({'function': 'start_session','args':[]})
     
     def stop_action(self):
-        self.to_engine.put({'function': 'stop_recording','args':[]})
+        self.to_engine.put({'function': 'stop_session','args':[]})
         
     def select_data_folder_action(self):
         self.engine.datafolder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
@@ -639,7 +674,7 @@ class CWidget(QtGui.QWidget):
         self.main_tab.addTab(self.lowleveldebugw, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
-        self.main_tab.setMinimumHeight(500)
+        self.main_tab.setMinimumHeight(450)
         self.main_tab.setMinimumWidth(1100)
         self.live_speed=gui.LabeledCheckBox(self,'Live Speed')
         self.live_speed.input.setCheckState(2)
