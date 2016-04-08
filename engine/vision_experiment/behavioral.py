@@ -7,11 +7,54 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph,hdf5io,unittest
-from visexpman.engine.generic import gui,utils,videofile,fileop
+from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: test if long running recording slows down the software, protocol handling, upon save update statistics from files, event summary for current day when clicked on folder
+#NEXT: store force run in a separate variable, save events and protocol params, test if long running recording slows down the software, protocol handling, upon save update statistics from files, event summary for current day when clicked on folder
+#TODO: better protocol parameter handling, save protocol params to datafile
+#TODO: indicate fan start events on plot
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
+
+class Protocol(object):
+    def __init__(self,engine):
+        self.engine=engine
+        
+    def update(self):
+        '''
+        In subclass this method calculates if reward/punishment has to be given
+        '''
+        
+        
+def get_protocol_names():
+    objects=[getattr(sys.modules[__name__], c) for c in dir(sys.modules[__name__])]
+    pns=[o.__name__ for o in objects if 'Protocol' in introspect.class_ancestors(o)]
+    return pns
+        
+class KeepRunningReward(Protocol):
+    RUN_TIME=5.0
+    NO_MOTION_TIME=6.5
+    RUN_FORCE_TIME = 30.0
+    def update(self):
+        if not hasattr(self.engine, 'run_time'):
+            self.engine.run_time=self.RUN_TIME
+        now=time.time()
+        if len(self.engine.events)>0:
+            indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type']=='run']
+            if len(indexes)>0:
+                self.engine.reward()
+                for i in indexes:
+                    self.engine.events[i]['ack']=True
+            else:
+                last_run_event=max([e['t'] for e in self.engine.events if e['type']=='run'])
+                if now-last_run_event>self.NO_MOTION_TIME:
+                    self.engine.force_run(self.RUN_FORCE_TIME)
+                
+        
+class StopReward(Protocol):
+    pass
+
+class StimStopReward(Protocol):
+    pass
 
 class TreadmillSpeedReader(multiprocessing.Process):
     '''
@@ -58,7 +101,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
             time.sleep(0.01)
         logging.info('Speed reader finished')
 
-class CameraHandler():
+class CameraHandler(object):
     '''
     Reads image from camera, transmits via queue and saves frames to file
     '''
@@ -182,9 +225,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('{0}, {1}'.format(title, message))
         self.to_gui.put({'notify':{'title': title, 'msg':message}})
         
-    def get_protocol_names(self):
-        return ['keep stop', 'keep running']
-        
     def set_animal_id(self,current_animal):
         self.current_animal=current_animal
         self.load_animal_file(switch2plot=True)
@@ -240,6 +280,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.to_gui.put({'update_weight_history':self.weight.copy()})
         if switch2plot:
             self.to_gui.put({'switch2_animal_weight_plot':[]})
+            
+    def force_run(self,duration):
+        now=time.time()
+        if not hasattr(self, 'force_run_last') or now-self.force_run_last>duration:
+            logging.info('Force run for {0} s'.format(duration))
+            self.force_run_last=now
+            event={}
+            event['type']='force_run'
+            event['ack']=False
+            event['t']=now
+            event['duration']=duration
+            self.events.append(event)
             
     def reward(self):
         now=time.time()
@@ -301,7 +353,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 x.append(xst)
                 y.append(yst*ys.max())
                 trace_names.append('stimulus')
-        for event_type in ['run', 'stop']:
+        for event_type in ['run', 'stop', 'force_run']:
             xe=numpy.array([event['t'] for event in self.events if event['type']==event_type])
             if xe.shape[0]>0:
                 ye=numpy.ones_like(xe)*ys.max()*0.5
@@ -386,12 +438,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.recording_folder=os.path.join(rootfolder, today)
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
-        self.current_protocol = self.parameters['Protocol']#TODO: select protocol
+        self.current_protocol = self.parameters['Protocol']
+        #TODO give warning if suggested protocol is different
+        self.protocol=getattr(sys.modules[__name__], self.current_protocol)(self)
         self.session_ongoing=True
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
         logging.info('Session started')
+        
+    def run_protocol(self):
+        if self.session_ongoing:
+            self.protocol.update()
         
     def start_recording(self):
         self.recording_started_state={}
@@ -476,6 +534,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     self.update_speed_values()
                 self.update_plot()
                 self.periodic_save()
+                self.run_protocol()
             except:
                 logging.error(traceback.format_exc())
                 self.save_context()
@@ -518,7 +577,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.setCentralWidget(self.cw)#Setting it as a central widget
         self.params_config=[
                             {'name': 'General', 'type': 'group', 'expanded' : True, 'children': [
-                                {'name': 'Protocol', 'type': 'list', 'values': self.engine.get_protocol_names(),'value':''},
+                                {'name': 'Protocol', 'type': 'list', 'values': get_protocol_names(),'value':''},
                                 {'name': 'Save Period', 'type': 'float', 'value': 200.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
                                 {'name': 'Stop Time', 'type': 'float', 'value': 0.5, 'suffix': 's'},
@@ -601,6 +660,8 @@ class Behavioral(gui.SimpleAppWindow):
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (128,128,128,150)})
                 elif tn=='stop':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
+                elif tn=='force_run':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':10, 'symbolBrush': (128,0,0,150)})
             self.cw.displayw.plots.events.update_curves(msg['update_event_plot']['x'], msg['update_event_plot']['y'], plotparams=plotparams)
         elif msg.has_key('ask4confirmation'):
             reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
@@ -681,6 +742,7 @@ class CWidget(QtGui.QWidget):
         self.connect(self.live_speed.input, QtCore.SIGNAL('stateChanged(int)'),  self.live_event_udpate_clicked)
         self.state=QtGui.QPushButton('Idle', parent=self)
         self.state.setMinimumWidth(100)
+        self.state.setEnabled(False)
         self.set_state('idle')
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.main_tab, 0, 0, 2, 4)

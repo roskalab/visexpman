@@ -102,6 +102,8 @@ def is_test_running():
 
 def class_ancestors(obj):
     ancestors = []
+    if not hasattr(obj, '__bases__'):
+        return ancestors
     ancestor = [obj]
     while True:
         ancestor = map(getattr, list(ancestor), len(ancestor)*['__bases__'])
