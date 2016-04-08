@@ -10,10 +10,9 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: store force run in a separate variable, save events and protocol params, test if long running recording slows down the software, protocol handling, upon save update statistics from files, event summary for current day when clicked on folder
-#TODO: better protocol parameter handling, save protocol params to datafile
-#TODO: indicate fan start events on plot
+#NEXT: simple keep running, fix forced keep running logic, keep running stat, display stat, two other protocols, upon save update statistics from files, event summary for current day when clicked on folder
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
+#TODO: display docstring of protocol update and stat
 
 class Protocol(object):
     def __init__(self,engine):
@@ -24,30 +23,64 @@ class Protocol(object):
         In subclass this method calculates if reward/punishment has to be given
         '''
         
+    def stat(self):
+        '''
+        In a subclass this method calculates the actual success rate
+        '''
+    
+        
         
 def get_protocol_names():
     objects=[getattr(sys.modules[__name__], c) for c in dir(sys.modules[__name__])]
     pns=[o.__name__ for o in objects if 'Protocol' in introspect.class_ancestors(o)]
     return pns
-        
+    
 class KeepRunningReward(Protocol):
+    pass
+        
+class ForcedKeepRunningReward(Protocol):
     RUN_TIME=5.0
     NO_MOTION_TIME=6.5
-    RUN_FORCE_TIME = 30.0
+    RUN_FORCE_TIME = 3.0
+    NO_REWARD_TIME_AFTER_FORCED_RUN=1.0
     def update(self):
+        '''
+        Animal gets a reward if it was running for RUN_TIME.
+        If the animal is not moving for NO_MOTION_TIME it will be forced to move for RUN_FORCE_TIME seconds.
+        No reward is given for NO_REWARD_TIME_AFTER_FORCED_RUN seconds after the forced run
+        '''
+        Continue here!!! FIX and TEST
         if not hasattr(self.engine, 'run_time'):
             self.engine.run_time=self.RUN_TIME
+        if not hasattr(self, 'nrewards'):
+            self.nrewards=0
+        if not hasattr(self, 'nforcedruns'):
+            self.nforcedruns=0
         now=time.time()
         if len(self.engine.events)>0:
             indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type']=='run']
             if len(indexes)>0:
-                self.engine.reward()
+                #Consider last forced run:
+                if not hasattr(self, 'last_forcerun') or self.last_forcerun+self.RUN_FORCE_TIME+self.NO_REWARD_TIME_AFTER_FORCED_RUN<now:
+                    self.engine.reward()
+                    self.nrewards+=1
                 for i in indexes:
                     self.engine.events[i]['ack']=True
             else:
-                last_run_event=max([e['t'] for e in self.engine.events if e['type']=='run'])
-                if now-last_run_event>self.NO_MOTION_TIME:
-                    self.engine.force_run(self.RUN_FORCE_TIME)
+                run_events=[e['t'] for e in self.engine.events if e['type']=='run']
+                if len(run_events)>0:
+                    last_run_event=max(run_events)
+                    if now-last_run_event>self.NO_MOTION_TIME:
+                        if not hasattr(self, 'last_forcerun') or (now-self.last_forcerun>self.RUN_FORCE_TIME):
+                            self.engine.forcerun(self.RUN_FORCE_TIME)
+                            self.nforcedruns+=1
+                            self.last_forcerun=now
+                            
+    def stat(self):
+        '''
+        Number of rewards in session, number of forced runs
+        '''
+        return {'rewards':self.nrewards, 'forcedruns': self.nforcedruns}
                 
         
 class StopReward(Protocol):
@@ -192,6 +225,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.reward_values=numpy.empty((0,2))
         self.airpuff_values=numpy.empty((0,2))
         self.stimulus_values=numpy.empty((0,2))
+        self.forcerun_values=numpy.empty((0,2))
         self.events=[]
         
     def load_context(self):
@@ -281,17 +315,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if switch2plot:
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
-    def force_run(self,duration):
+    def forcerun(self,duration):
         now=time.time()
-        if not hasattr(self, 'force_run_last') or now-self.force_run_last>duration:
-            logging.info('Force run for {0} s'.format(duration))
-            self.force_run_last=now
-            event={}
-            event['type']='force_run'
-            event['ack']=False
-            event['t']=now
-            event['duration']=duration
-            self.events.append(event)
+        logging.info('Force run for {0} s'.format(duration))
+        self.forcerun_values=numpy.concatenate((self.forcerun_values,numpy.array([[now, 1]])))
             
     def reward(self):
         now=time.time()
@@ -327,46 +354,58 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not self.speed_values.shape[0]>0:
             return
         xs,ys=self.values2trace(self.speed_values)
+        now=xs[-1]
         t0=xs[0]
         x=[xs]
         y=[ys]
         trace_names=['speed']
-        now=xs[-1]
-        if self.reward_values.shape[0]>0:
+        if sum([self.parameters[k] for k in ['Reward Trace', 'Airpuff Trace', 'Stimulus Trace', 'Run Events Trace', 'Stop Events Trace', 'Force Run Trace']])>3:
+            return
+        if self.reward_values.shape[0]>0 and self.parameters['Reward Trace']:
             xr,yr=self.values2trace(self.reward_values, now)
             if xr.shape[0]>0:
                 t0=min(t0, xr[0])
                 x.append(xr)
                 y.append(yr*ys.max())
                 trace_names.append('reward')
-        if self.airpuff_values.shape[0]>0:
+        if self.airpuff_values.shape[0]>0 and self.parameters['Airpuff Trace']:
             xa,ya=self.values2trace(self.airpuff_values, now)
             if xa.shape[0]>0:
                 t0=min(t0, xa[0])
                 x.append(xa)
                 y.append(ya*ys.max())
                 trace_names.append('airpuff')
-        if self.stimulus_values.shape[0]>0:
+        if self.stimulus_values.shape[0]>0 and self.parameters['Stimulus Trace']:
             xst,yst=self.values2trace(self.stimulus_values, now)
             if xst.shape[0]>0:
                 t0=min(t0, xst[0])
                 x.append(xst)
                 y.append(yst*ys.max())
                 trace_names.append('stimulus')
-        for event_type in ['run', 'stop', 'force_run']:
-            xe=numpy.array([event['t'] for event in self.events if event['type']==event_type])
-            if xe.shape[0]>0:
-                ye=numpy.ones_like(xe)*ys.max()*0.5
-                xe,ye=self.values2trace(numpy.array([xe,ye]).T, now)
+        if self.forcerun_values.shape[0]>0 and self.parameters['Force Run Trace']:
+            xf,yf=self.values2trace(self.forcerun_values, now)
+            if xf.shape[0]>0:
+                t0=min(t0, xf[0])
+                x.append(xf)
+                y.append(yf*ys.max())
+                trace_names.append('forcerun')
+        for event_type in ['run', 'stop']:
+            if self.parameters['{0} Events Trace'.format(event_type.capitalize())]:
+                xe=numpy.array([event['t'] for event in self.events if event['type']==event_type])
                 if xe.shape[0]>0:
-                    x.append(xe)
-                    y.append(ye)
-                    trace_names.append(event_type)
-                    t0=min(t0,x[-1][0])
+                    ye=numpy.ones_like(xe)*ys.max()*0.5
+                    xe,ye=self.values2trace(numpy.array([xe,ye]).T, now)
+                    if xe.shape[0]>0:
+                        x.append(xe)
+                        y.append(ye)
+                        trace_names.append(event_type)
+                        t0=min(t0,x[-1][0])
+        
         t0=numpy.concatenate(x).min()
         for xi in x:
             xi-=t0
-        self.to_gui.put({'update_event_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
+        self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
+        
             
     def values2trace(self, values, now=None):
         x=values[:,0].copy()
@@ -489,12 +528,15 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def save2file(self):
         self.datafile=hdf5io.Hdf5io(self.filename)
-        self.datafile.machine_config=dict([(vn,getattr(self.machine_config, vn)) for vn in dir(self.machine_config) if vn.isupper()] )
+        for nn in ['machine_config', 'protocol']:
+            var=getattr(self, nn)
+            setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         for vn in self.varnames:
             values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
             setattr(self.datafile, vn, values)
         #TODO: save quantification
-        nodes=['machine_config']
+        self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
+        nodes=['machine_config', 'protocol', 'protocol_name']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -587,6 +629,15 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Stimulus Pulse Duration', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                             ]},
+                            {'name': 'Show', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Run Events Trace', 'type': 'bool', 'value': True},
+                                {'name': 'Stop Events Trace', 'type': 'bool', 'value': True},
+                                {'name': 'Reward Trace', 'type': 'bool', 'value': False},
+                                {'name': 'Airpuff Trace', 'type': 'bool', 'value': False},
+                                {'name': 'Stimulus Trace', 'type': 'bool', 'value': False},
+                                {'name': 'Force Run Trace', 'type': 'bool', 'value': False},
+                                
+                                ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
@@ -601,7 +652,7 @@ class Behavioral(gui.SimpleAppWindow):
                             break
         
         self.paramw = gui.ParameterTable(self, self.params_config)
-        self.paramw .setMinimumWidth(300)
+        self.paramw .setMinimumWidth(350)
         self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
@@ -645,24 +696,24 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('update_main_image'):
             if not skip_main_image_display:
                 self.cw.displayw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
-        elif msg.has_key('update_event_plot'):
+        elif msg.has_key('update_events_plot'):
             plotparams=[]
-            for tn in msg['update_event_plot']['trace_names']:
+            for tn in msg['update_events_plot']['trace_names']:
                 if tn =='speed':
                     plotparams.append({'name': tn, 'pen':(0,0,0)})
-                elif tn=='reward':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':15, 'symbolBrush': (0,255,0,150)})
+                if tn=='reward':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (0,255,0,150)})
                 elif tn=='airpuff':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':15, 'symbolBrush': (255,0,0,150)})
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (255,0,0,150)})
                 elif tn=='stimulus':
                     plotparams.append({'name': tn, 'pen':(0,0,255)})
                 elif tn=='run':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (128,128,128,150)})
                 elif tn=='stop':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
-                elif tn=='force_run':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':10, 'symbolBrush': (128,0,0,150)})
-            self.cw.displayw.plots.events.update_curves(msg['update_event_plot']['x'], msg['update_event_plot']['y'], plotparams=plotparams)
+                elif tn=='forcerun':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (128,0,0,150)})
+            self.cw.displayw.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
         elif msg.has_key('ask4confirmation'):
             reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             self.to_engine.put(reply == QtGui.QMessageBox.Yes)
@@ -831,14 +882,20 @@ class LowLevelDebugW(QtGui.QWidget):
         self.connect(self.reward, QtCore.SIGNAL('clicked()'), self.reward_clicked)
         self.stimulate=QtGui.QPushButton('Stimulate', parent=self)
         self.connect(self.stimulate, QtCore.SIGNAL('clicked()'), self.stimulate_clicked)
+        self.forcerun=QtGui.QPushButton('Force Run', parent=self)
+        self.connect(self.forcerun, QtCore.SIGNAL('clicked()'), self.forcerun_clicked)
         self.l = QtGui.QGridLayout()
         [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
         self.l.addWidget(self.reward, 1, 0, 1, 1)
         self.l.addWidget(self.airpuff, 1, 1, 1, 1)
         self.l.addWidget(self.stimulate, 2, 0, 1, 1)
+        self.l.addWidget(self.forcerun, 2, 1, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(2,20)
         self.l.setRowStretch(3,20)
+        
+    def forcerun_clicked(self):
+        self.parent.parent().to_engine.put({'function':'forcerun','args':[1]})
         
     def airpuff_clicked(self):
         self.parent.parent().to_engine.put({'function':'airpuff','args':[]})

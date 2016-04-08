@@ -408,7 +408,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             if len(plotparams)>0:
                 self.curves.append(self.plot.plot(**plotparams[i]))
             else:
-                if colors == [] and plotpar:
+                if colors == []:
                     pen = (0,0,0)
                 else:
                     pen=colors[i]
