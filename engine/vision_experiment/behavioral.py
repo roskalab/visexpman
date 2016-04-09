@@ -10,9 +10,12 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT:  reimplement forced keep running , upon save update statistics from files, event summary for current day when clicked on folder,two other protocols,
+#NEXT:  event summary for current day when clicked on folder,two other protocols,
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 #TODO: display docstring of protocol update and stat
+
+def object_parameters2dict(obj):
+    return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
 
 class Protocol(object):
     def __init__(self,engine):
@@ -65,49 +68,38 @@ class KeepRunningReward(Protocol):
             success_rate = 1.0 if success_rate>=1 else success_rate
             return {'rewards':self.nrewards, 'Success Rate': success_rate}
         
-class ForcedKeepRunningReward(Protocol):
+class ForcedKeepRunningReward(KeepRunningReward):
+    '''
+    Animal gets a reward if it was running for RUN_TIME.
+    If the animal is not moving for STOP_TIME it will be forced to move for RUN_FORCE_TIME seconds.
+    '''
     RUN_TIME=5.0
-    NO_MOTION_TIME=6.5
+    STOP_TIME=6.5
     RUN_FORCE_TIME = 3.0
-    NO_REWARD_TIME_AFTER_FORCED_RUN=1.0
+    
+    def reset(self):
+        self.engine.run_time=self.RUN_TIME
+        self.engine.stop_time=self.STOP_TIME
+        self.nrewards=0
+        self.nforcedruns=0
+        
     def update(self):
-        '''
-        Animal gets a reward if it was running for RUN_TIME.
-        If the animal is not moving for NO_MOTION_TIME it will be forced to move for RUN_FORCE_TIME seconds.
-        No reward is given for NO_REWARD_TIME_AFTER_FORCED_RUN seconds after the forced run
-        '''
-        #Continue here!!! FIX and TEST
-        if not hasattr(self.engine, 'run_time'):
-            self.engine.run_time=self.RUN_TIME
-        if not hasattr(self, 'nrewards'):
-            self.nrewards=0
-        if not hasattr(self, 'nforcedruns'):
-            self.nforcedruns=0
-        now=time.time()
-        if len(self.engine.events)>0:
-            indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type']=='run']
-            if len(indexes)>0:
-                #Consider last forced run:
-                if not hasattr(self, 'last_forcerun') or self.last_forcerun+self.RUN_FORCE_TIME+self.NO_REWARD_TIME_AFTER_FORCED_RUN<now:
-                    self.engine.reward()
-                    self.nrewards+=1
-                for i in indexes:
-                    self.engine.events[i]['ack']=True
-            else:
-                run_events=[e['t'] for e in self.engine.events if e['type']=='run']
-                if len(run_events)>0:
-                    last_run_event=max(run_events)
-                    if now-last_run_event>self.NO_MOTION_TIME:
-                        if not hasattr(self, 'last_forcerun') or (now-self.last_forcerun>self.RUN_FORCE_TIME):
-                            self.engine.forcerun(self.RUN_FORCE_TIME)
-                            self.nforcedruns+=1
-                            self.last_forcerun=now
-                            
+        KeepRunningReward.update(self)
+        indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type']=='stop']
+        for i in indexes:
+            self.engine.events[i]['ack']=True
+        if len(indexes)>0:
+            self.engine.forcerun(self.RUN_FORCE_TIME)
+            self.nforcedruns+=1
+
     def stat(self):
         '''
         Number of rewards in session, number of forced runs
         '''
-        return {'rewards':self.nrewards, 'forcedruns': self.nforcedruns}
+        stats=KeepRunningReward.stat(self)
+        if stats==None:return
+        stats['forcedruns']=self.nforcedruns
+        return stats
                 
         
 class StopReward(Protocol):
@@ -243,7 +235,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.session_ongoing=False
         self.reset_data()
         self.enable_speed_update=True
-        self.varnames=['speed_values','reward_values','airpuff_values','stimulus_values','events','frame_times']
+        self.varnames=['speed_values','reward_values','airpuff_values','stimulus_values','forcerun_values', 'events','frame_times']
         
     def reset_data(self):
         self.speed_values=numpy.empty((0,2))
@@ -252,6 +244,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.stimulus_values=numpy.empty((0,2))
         self.forcerun_values=numpy.empty((0,2))
         self.events=[]
+        logging.info('Data traces cleared')
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -368,7 +361,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
 
     def set_speed_update(self, state):
         self.enable_speed_update=state
-        if state and hasattr(self, 'datafile_opened') and time.time()-self.datafile_opened<30:
+        #Reset data buffer if no recording is ongoing and file was opened
+        if state and not self.session_ongoing:#and hasattr(self, 'datafile_opened') and time.time()-self.datafile_opened<30:
             self.reset_data()
         
     def update_speed_values(self):
@@ -436,8 +430,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         for xi in x:
             xi-=t0
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
-        
-            
+
     def values2trace(self, values, now=None):
         x=values[:,0].copy()
         xl= x[-1] if now==None else now
@@ -469,19 +462,22 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if t.shape[0]==0:
             return
         ismoving=numpy.where(spd>self.parameters['Move Threshold'],True,False)
-        stop_indexes=numpy.nonzero(numpy.where(t>t.max()-self.parameters['Stop Time'],1,0))[0]
+        if hasattr(self, 'stop_time'):
+            stop_indexes=numpy.nonzero(numpy.where(t>t.max()-self.stop_time,1,0))[0]
+        else:
+            stop_indexes=numpy.empty(0)            
         if hasattr(self, 'run_time'):
             running_indexes=numpy.nonzero(numpy.where(t>t.max()-self.run_time,1,0))[0]
         else:
             running_indexes=numpy.empty(0)
         last_event_time=self.events[-1]['t'] if len(self.events)>0 else 0#checking time elapsed since last event ensures that one event is counted once
-        if not ismoving[stop_indexes].any() and t[-1] - last_event_time> self.parameters['Stop Time']:
+        if stop_indexes.shape[0]>0 and not ismoving[stop_indexes].any() and t[-1] - last_event_time> self.stop_time:
             event={}
             event['type']='stop'
             event['ack']=False
             event['t']=t[-1]
             self.events.append(event)
-        elif running_indexes.shape[0]>0 and ismoving[running_indexes].sum()>ismoving[running_indexes].sum()*1e-2*self.parameters['Run Threshold']\
+        elif running_indexes.shape[0]>0 and ismoving[running_indexes].sum()>ismoving[running_indexes].shape[0]*1e-2*self.parameters['Run Threshold']\
             and t[-1] - last_event_time> self.run_time:
             event={}
             event['type']='run'
@@ -511,22 +507,23 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.current_protocol = self.parameters['Protocol']
         #TODO give warning if suggested protocol is different
         self.protocol=getattr(sys.modules[__name__], self.current_protocol)(self)
-        self.to_gui.put({'update_protocol_description':self.protocol.__doc__})
+        self.to_gui.put({'update_protocol_description':self.protocol.__doc__+'\r\n'+str(object_parameters2dict(self.protocol))})
         self.session_ongoing=True
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
         logging.info('Session started using {0} protocol'.format(self.current_protocol))
+        self.enable_speed_update=True
         
     def run_protocol(self):
         if self.session_ongoing:
             self.protocol.update()
             if int(time.time()*10)%10==0:
                 stat=self.protocol.stat()
-                stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
-                self.to_gui.put({'statusbar':stat})
-            
-        
+                if hasattr(stat,'has_key'):
+                    stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
+                    self.to_gui.put({'statusbar':stat})
+
     def start_recording(self):
         self.recording_started_state={}
         for vn in self.varnames:
@@ -568,7 +565,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.stat=self.protocol.stat()
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
-            setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
+            setattr(self.datafile, nn, object_parameters2dict(var))
+            #setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         for vn in self.varnames:
             values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
             setattr(self.datafile, vn, values)
@@ -590,10 +588,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         for vn in self.varnames:
             self.datafile.load(vn)
             setattr(self, vn, getattr(self.datafile, vn))
+        stat=self.datafile.findvar('stat')
         self.datafile.close()
         self.enable_speed_update=False
         self.to_gui.put({'set_live_state': 0})
         self.to_gui.put({'set_events_title': os.path.basename(filename)})
+        if hasattr(stat,'has_key'):
+            stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
+            self.to_gui.put({'statusbar':stat})
         
     def run(self):
         logging.info('Engine started')
@@ -658,9 +660,8 @@ class Behavioral(gui.SimpleAppWindow):
         self.params_config=[
                             {'name': 'General', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': get_protocol_names(),'value':''},
-                                {'name': 'Save Period', 'type': 'float', 'value': 200.0,'siPrefix': True, 'suffix': 's'},
+                                {'name': 'Save Period', 'type': 'float', 'value': 100.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
-                                {'name': 'Stop Time', 'type': 'float', 'value': 0.5, 'suffix': 's'},
                                 {'name': 'Move Threshold', 'type': 'float', 'value': 1,'suffix': 'm/s'},
                                 {'name': 'Run Threshold', 'type': 'float', 'value': 50.0, 'suffix': '%'},
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
@@ -890,7 +891,7 @@ class DisplayW(QtGui.QWidget):
         self.images.main.setFixedWidth(370)
         self.images.main.setFixedHeight(370/ar)
         
-        self.plotnames=['events', 'animal_weight', 'sessions']
+        self.plotnames=['events', 'animal_weight', 'success_rate_today', 'success_rate']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
         self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
