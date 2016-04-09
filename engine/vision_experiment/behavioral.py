@@ -10,13 +10,14 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: simple keep running, fix forced keep running logic, keep running stat, display stat, two other protocols, upon save update statistics from files, event summary for current day when clicked on folder
+#NEXT:  reimplement forced keep running , upon save update statistics from files, event summary for current day when clicked on folder,two other protocols,
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 #TODO: display docstring of protocol update and stat
 
 class Protocol(object):
     def __init__(self,engine):
         self.engine=engine
+        self.reset()
         
     def update(self):
         '''
@@ -27,7 +28,10 @@ class Protocol(object):
         '''
         In a subclass this method calculates the actual success rate
         '''
-    
+    def reset(self):
+        '''
+        Resets state variables
+        '''
         
         
 def get_protocol_names():
@@ -36,7 +40,30 @@ def get_protocol_names():
     return pns
     
 class KeepRunningReward(Protocol):
-    pass
+    '''A reward is given if the animal was running for RUN_TIME '''
+    RUN_TIME=5.0
+    def reset(self):
+        self.engine.run_time=self.RUN_TIME
+        self.nrewards=0
+    
+    def update(self):
+        indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type']=='run']
+        self.last_update=time.time()
+        if len(indexes)>0:
+            for i in indexes:
+                self.engine.events[i]['ack']=True
+            self.engine.reward()
+            self.nrewards+=1
+        
+    def stat(self):
+        '''
+        Success rate is the ratio of time while the animal was running
+        '''
+        if self.engine.speed_values.shape[0]>0:
+            elapsed_time=self.last_update-self.engine.speed_values[0,0]
+            success_rate=self.nrewards*self.RUN_TIME/elapsed_time
+            success_rate = 1.0 if success_rate>=1 else success_rate
+            return {'rewards':self.nrewards, 'Success Rate': success_rate}
         
 class ForcedKeepRunningReward(Protocol):
     RUN_TIME=5.0
@@ -49,7 +76,7 @@ class ForcedKeepRunningReward(Protocol):
         If the animal is not moving for NO_MOTION_TIME it will be forced to move for RUN_FORCE_TIME seconds.
         No reward is given for NO_REWARD_TIME_AFTER_FORCED_RUN seconds after the forced run
         '''
-        Continue here!!! FIX and TEST
+        #Continue here!!! FIX and TEST
         if not hasattr(self.engine, 'run_time'):
             self.engine.run_time=self.RUN_TIME
         if not hasattr(self, 'nrewards'):
@@ -166,8 +193,6 @@ class CameraHandler(object):
         logging.info('Recording video to {0} started'.format(videofilename))
         
     def stop_video_recording(self):
-        if 0:
-            numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
         self.save_video=False
         del self.video_saver
         logging.info('Recording video ended')
@@ -264,6 +289,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.load_animal_file(switch2plot=True)
         
     def add_animal(self,name):
+        if self.session_ongoing:
+            return
         foldername=os.path.join(self.datafolder,name)
         if os.path.exists(foldername):
             self.notify('Warning', '{0} folder already exists'.format(foldername))
@@ -274,9 +301,13 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.to_gui.put({'statusbar':''})
         
     def add_animal_weight(self,date,weight):
+        if self.session_ongoing:
+            return
         self.load_animal_file(date=date,weight=weight, switch2plot=True)
         
     def remove_last_animal_weight(self):
+        if self.session_ongoing:
+            return
         self.load_animal_file(remove_last=True, switch2plot=True)
         
     def load_animal_file(self, date=None,weight=None,remove_last=False, switch2plot=False):
@@ -480,15 +511,21 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.current_protocol = self.parameters['Protocol']
         #TODO give warning if suggested protocol is different
         self.protocol=getattr(sys.modules[__name__], self.current_protocol)(self)
+        self.to_gui.put({'update_protocol_description':self.protocol.__doc__})
         self.session_ongoing=True
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
-        logging.info('Session started')
+        logging.info('Session started using {0} protocol'.format(self.current_protocol))
         
     def run_protocol(self):
         if self.session_ongoing:
             self.protocol.update()
+            if int(time.time()*10)%10==0:
+                stat=self.protocol.stat()
+                stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
+                self.to_gui.put({'statusbar':stat})
+            
         
     def start_recording(self):
         self.recording_started_state={}
@@ -528,6 +565,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def save2file(self):
         self.datafile=hdf5io.Hdf5io(self.filename)
+        self.datafile.stat=self.protocol.stat()
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
@@ -536,7 +574,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             setattr(self.datafile, vn, values)
         #TODO: save quantification
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
-        nodes=['machine_config', 'protocol', 'protocol_name']
+        nodes=['machine_config', 'protocol', 'protocol_name', 'stat']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -682,7 +720,7 @@ class Behavioral(gui.SimpleAppWindow):
         if msg.has_key('notify'):
             self.notify(msg['notify']['title'], msg['notify']['msg'])
         elif msg.has_key('statusbar'):
-            self.update_statusbar()
+            self.update_statusbar(msg=msg['statusbar'])
         elif msg.has_key('update_weight_history'):
             x=msg['update_weight_history'][:,0]
             x/=86400
@@ -726,14 +764,16 @@ class Behavioral(gui.SimpleAppWindow):
             self.cw.live_speed.input.setCheckState(msg['set_live_state'])
         elif msg.has_key('set_events_title'):
             self.cw.displayw.plots.events.plot.setTitle(msg['set_events_title'])
+        elif msg.has_key('update_protocol_description'):
+            self.cw.state.setToolTip(msg['update_protocol_description'])
                 
         
-    def update_statusbar(self):
+    def update_statusbar(self,msg=''):
         '''
         General text display
         '''
         ca=self.engine.current_animal if hasattr(self.engine, 'current_animal') else ''
-        txt='Data folder: {0}, Current animal: {1}'. format(self.engine.datafolder,ca)
+        txt='Data folder: {0}, Current animal: {1} {2}'. format(self.engine.datafolder,ca,msg)
         self.statusbar.showMessage(txt)
         self.setWindowTitle('Behavioral Experiment Control\t{0}'.format(ca))
         
@@ -850,7 +890,7 @@ class DisplayW(QtGui.QWidget):
         self.images.main.setFixedWidth(370)
         self.images.main.setFixedHeight(370/ar)
         
-        self.plotnames=['events', 'animal_weight', 'session']
+        self.plotnames=['events', 'animal_weight', 'sessions']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
         self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
