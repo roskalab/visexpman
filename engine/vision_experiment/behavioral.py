@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT:  event summary for current day when clicked on folder,two other protocols,
+#NEXT:  use linear region to mark different protocols, success rate over days and protocols,two other protocols,
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 #TODO: display docstring of protocol update and stat
 
@@ -502,6 +502,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if last_entry_timestamp<today and not self.ask4confirmation('No animal weight was added today. Do you want to continue?'):
             return
         self.recording_folder=os.path.join(rootfolder, today)
+        self.show_day_success_rate(self.recording_folder)
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         self.current_protocol = self.parameters['Protocol']
@@ -577,6 +578,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.save(nodes)
         self.datafile.close()
         logging.info('Data saved to {0}'.format(self.filename))
+        self.show_day_success_rate(self.recording_folder)
         
     def open_file(self, filename):
         if self.session_ongoing:
@@ -596,6 +598,52 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if hasattr(stat,'has_key'):
             stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
             self.to_gui.put({'statusbar':stat})
+            
+    def show_per_day_success_rate(self):
+        pass
+            
+    def show_day_success_rate(self,folder):
+        '''
+        
+        
+        '''
+        
+        self.summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
+        #Sort
+        ts=[item['t'] for item in self.summary]
+        ts.sort()
+        sorted=[]
+        for ti in ts:
+            sorted.append([item for item in self.summary if item.has_key('t') and ti==item['t']][0])
+        self.summary=sorted
+        xi=[]
+        yi=[]
+        for si in self.summary:
+            xi.append(si['t'])
+            yi.append(si['Success Rate'])
+        xi-=xi[0]
+        x=[numpy.array(xi)]
+        y=[numpy.array(yi)]
+        trace_names=['success_rate']
+        self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
+        self.to_gui.put({'set_success_rate_title': os.path.basename(folder)})
+            
+    def read_file_summary(self,filename):
+        '''
+        Read time of recording, duration, protocol, success rate and other stat parameters
+        '''
+        h=hdf5io.Hdf5io(filename)
+        for vn in ['protocol_name', 'speed_values', 'stat']:
+            h.load(vn)
+            if not hasattr(h, vn):
+                h.close()
+                return {}
+        duration=h.speed_values[-1,0]-h.speed_values[0,0]
+        t=h.speed_values[0,0]
+        data_item ={'t':t, 'duration':duration, 'protocol': h.protocol_name}
+        data_item.update(h.stat)
+        h.close()
+        return data_item
         
     def run(self):
         logging.info('Engine started')
@@ -740,7 +788,7 @@ class Behavioral(gui.SimpleAppWindow):
             for tn in msg['update_events_plot']['trace_names']:
                 if tn =='speed':
                     plotparams.append({'name': tn, 'pen':(0,0,0)})
-                if tn=='reward':
+                elif tn=='reward':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (0,255,0,150)})
                 elif tn=='airpuff':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (255,0,0,150)})
@@ -767,7 +815,14 @@ class Behavioral(gui.SimpleAppWindow):
             self.cw.displayw.plots.events.plot.setTitle(msg['set_events_title'])
         elif msg.has_key('update_protocol_description'):
             self.cw.state.setToolTip(msg['update_protocol_description'])
-                
+        elif msg.has_key('update_success_rate_plot'):
+            plotparams=[]
+            for tn in msg['update_success_rate_plot']['trace_names']:
+                if tn =='success_rate':
+                    plotparams.append({'name': tn, 'pen':(0,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
+            self.cw.displayw.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
+        elif msg.has_key('set_success_rate_title'):
+            self.cw.displayw.plots.success_rate.plot.setTitle(msg['set_success_rate_title'])
         
     def update_statusbar(self,msg=''):
         '''
@@ -790,7 +845,7 @@ class Behavioral(gui.SimpleAppWindow):
         
     def select_data_folder_action(self):
         self.engine.datafolder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
-        self.cw.recordingsw.set_root(self.engine.datafolder)
+        self.cw.filebrowserw.set_root(self.engine.datafolder)
         self.update_statusbar()
         
     def add_animal_action(self):
@@ -821,8 +876,8 @@ class CWidget(QtGui.QWidget):
         self.displayw=DisplayW(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.displayw, 'Display')
-        self.recordingsw=RecordingsW(self)
-        self.main_tab.addTab(self.recordingsw, 'Files')
+        self.filebrowserw=FileBrowserW(self)
+        self.main_tab.addTab(self.filebrowserw, 'Files')
         self.lowleveldebugw=LowLevelDebugW(self)
         self.main_tab.addTab(self.lowleveldebugw, 'Advanced')
         self.main_tab.setCurrentIndex(0)
@@ -855,7 +910,7 @@ class CWidget(QtGui.QWidget):
     def live_event_udpate_clicked(self,state):
         self.parent().to_engine.put({'function':'set_speed_update','args':[state==2]})
         
-class RecordingsW(gui.FileTree):
+class FileBrowserW(gui.FileTree):
     def __init__(self,parent):
         gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['mat','hdf5', 'avi'])
         self.doubleClicked.connect(self.open_file)
@@ -869,6 +924,8 @@ class RecordingsW(gui.FileTree):
             logging.info('Animal selected: {0}'.format(self.parent.parent().engine.current_animal))
             self.parent.parent().update_statusbar()
             self.parent.parent().to_engine.put({'function':'load_animal_file','args':[]})
+        elif os.path.isdir(self.selected_filename) and os.path.dirname(self.selected_filename)==os.path.join(self.parent.parent().engine.datafolder, self.parent.parent().engine.current_animal):
+            self.parent.parent().to_engine.put({'function':'show_day_success_rate','args':[self.selected_filename]})
             
     def open_file(self,index):
         self.double_clicked_filename = gui.index2filename(index)
@@ -890,11 +947,13 @@ class DisplayW(QtGui.QWidget):
         ar=float(parent.parent().machine_config.CAMERA_FRAME_WIDTH)/parent.parent().machine_config.CAMERA_FRAME_HEIGHT
         self.images.main.setFixedWidth(370)
         self.images.main.setFixedHeight(370/ar)
-        
-        self.plotnames=['events', 'animal_weight', 'success_rate_today', 'success_rate']
+        self.plotnames=['events', 'animal_weight', 'success_rate']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
         self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
+        self.plots.success_rate.setToolTip('''Displays success rate of days or a specific day depending on what is selected in Files tab.
+        A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
+        ''')
         self.plots.tab.setMinimumWidth(600)
         self.plots.tab.setFixedHeight(400)
 

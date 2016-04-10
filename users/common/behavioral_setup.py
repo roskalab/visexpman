@@ -9,6 +9,6 @@ class BehavioralSetup(BehavioralConfig):
         CAMERA_FRAME_RATE=7
         CAMERA_FRAME_WIDTH=640/2
         CAMERA_FRAME_HEIGHT=480/2
-        TREADMILL_SPEED_UPDATE_RATE=50e-3
+        TREADMILL_SPEED_UPDATE_RATE=100e-3
         
         
