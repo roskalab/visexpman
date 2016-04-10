@@ -47,6 +47,7 @@ class Jobhandler(object):
         import getpass
         self.printl('Current user is {0}'.format(getpass.getuser()))
         logging.info(sys.argv)
+        logging.info(utils.module_versions(utils.imported_modules()[0])[0])
         self._check_freespace()
         self.issued_jobs=[]
                     
@@ -87,7 +88,7 @@ class Jobhandler(object):
                 self.printl(traceback.format_exc(),'error')
                 #pdb.set_trace()
             if utils.enter_hit(): break
-            time.sleep(0.1)
+            time.sleep(0.2)
             if int(time.time())%20==0:
                 logging.debug('alive')
                 time.sleep(1)
@@ -214,16 +215,19 @@ class Jobhandler(object):
             error_msg= 'mat file corrupt'
         elif not os.access(filename,os.R_OK|os.W_OK):
             error_msg= 'file acces error'
+        elif os.path.exists(filename.replace('.hdf5', '_1.mat')):
+            error_msg= 'Unknown MES format'
         else:
             error_msg=''
             file_info = os.stat(filename)
+            logging.info(str(file_info))
             mes_extractor = importers.MESExtractor(filename, config = self.analysis_config)
             data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
             mes_extractor.hdfhandler.close()
-            fileop.set_file_dates(filename, file_info)
+            #fileop.set_file_dates(filename, file_info)
+            time.sleep(0.1)
+            logging.info(os.stat(filename))
             self.printl('MESextractor done')
-        if error_msg!='':
-            raise RuntimeError(filename+' '+error_msg)
         dbfilelock.acquire()
         try:
             db=DatafileDatabase(self.current_animal)
@@ -231,6 +235,7 @@ class Jobhandler(object):
                 db.update(filename=os.path.basename(filename), is_mesextractor=True, mesextractor_time=time.time())
             else:
                 db.update(filename=os.path.basename(filename), error_message=error_msg, is_error=True)
+                raise RuntimeError(filename+' '+error_msg)
         except:
             self.printl(traceback.format_exc(),'error')
         finally:
@@ -242,6 +247,7 @@ class Jobhandler(object):
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
             file_info = os.stat(filename)
+            logging.info(str(file_info))
             h = hdf5io.iopen(filename,self.analysis_config)
             if h is not None:
                 for c in create:
@@ -251,7 +257,9 @@ class Jobhandler(object):
                     self.printl('export_'+e)
                     getattr(h,'export_'+e)()
                 h.close()
-                fileop.set_file_dates(filename, file_info)
+                #fileop.set_file_dates(filename, file_info)
+                time.sleep(0.1)
+                logging.info(os.stat(filename))
                 pngfolder=os.path.join(os.path.dirname(filename),'output', os.path.basename(filename))
                 if os.path.exists(pngfolder):#Make png folder accessible for everybody
                     res=subprocess.call('chmod 777 {0} -R'.format(pngfolder),shell=True)

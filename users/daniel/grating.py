@@ -149,8 +149,8 @@ class MovingGratingFiona(MovingGratingNoMarchingConfig):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
         self.MARCH_TIME=4.0#
-        self.GRATING_STAND_TIME = 4.0
-        #self.GREY_INSTEAD_OF_MARCHING
+        self.GRATING_STAND_TIME = 0
+        self.GREY_INSTEAD_OF_MARCHING=True
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
@@ -464,7 +464,7 @@ class MovingGrating(experiment.Experiment):
                 else:
                     static_grating_duration = self.experiment_config.MARCH_TIME
                 if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING') and self.experiment_config.GREY_INSTEAD_OF_MARCHING:
-                        self.show_fullscreen(color = 0.5, duration = static_grating_duration)
+                        self.show_fullscreen(color = 0, duration = static_grating_duration)
                 else:
                     for phase in self.marching_phases:
                         self.show_grating(duration = static_grating_duration, 

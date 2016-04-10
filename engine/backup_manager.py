@@ -175,7 +175,7 @@ def run():
     #time.sleep(150)
     logging.info('Check network drives')
     if not is_mounted():
-        msg='Tape or m mdrive not mounted: m: {0}, tape: {1}'.format(os.path.ismount('/mnt/tape'), os.path.ismount('/mnt/mdrive'))
+        msg='Tape or m mdrive not mounted: tape: {0}, m: {1}'.format(os.path.ismount('/mnt/tape'), os.path.ismount('/mnt/mdrive'))
         logging.error(msg)
         sendmail('zoltan.raics@fmi.ch', 'backup manager mount error', msg)
         return
