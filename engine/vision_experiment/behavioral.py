@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: file browser and plots should visible at the same time,two other protocols,
+#NEXT: stop reward, Stim stop reward, keep running forced: after 30 sec no motion: air puff->clarify it with forcing motion, perhaps both?
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 #TODO: display docstring of protocol update and stat
 
@@ -103,10 +103,65 @@ class ForcedKeepRunningReward(KeepRunningReward):
                 
         
 class StopReward(Protocol):
-    pass
+    '''After running for RUN_TIME, the animal igets reward if stops for STOP_TIME
+    '''
+    RUN_TME=10.0
+    STOP_TIME=0.5
+    def reset(self):
+        self.engine.run_time=self.RUN_TIME
+        self.engine.stop_time=self.STOP_TIME
+        self.nrewards=0
+        self.nrun=0
+        
+    def update(self):
+        pass
+        
+    def stat(self):
+        '''
+        Success rate is the number of reward per the overall number of run events
+        '''
+        if self.nrun==0:
+            success_rate=0
+        else:
+            success_rate=self.nrewards/self.nrun
+        return {'rewards':self.nrewards, 'runs': self.nruns, 'Success Rate': success_rate}
+        
+
 
 class StimStopReward(Protocol):
-    pass
+    '''
+    If a run event occurs, turn on stimulus. Wait for stop event which should occur within DELAY_AFTER_RUN.
+    If stop event does not happen, turn off stimulus and generate next randomized run time and wait for next run time
+    If stop event takes place turn off stimulus, give reward and generate next randomized run time
+    
+    Randomized runtime :
+    RUN_TME+a random number between 0 and RANDOM_TIME_RANGE in RANDOM_TIME_STEPs
+    '''
+
+    DELAY_AFTER_RUN=5.0
+    RUN_TME=5.0
+    STOP_TIME=0.5
+    RANDOM_TIME_RANGE=10.0
+    RANDOM_TIME_STEP=0.5
+    def reset(self):
+        self.engine.run_time=self.RUN_TIME
+        self.engine.stop_time=self.STOP_TIME
+        self.nrewards=0
+        self.nstimulus=0
+        
+    def update(self):
+        pass
+        
+    def stat(self):
+        '''
+        Success rate is nreward/nstimulus. nstimulus is the number when animal stopped and stimulus is presented. 
+        nreward is the number when after stimulus the animal is stopped.
+        '''
+        if self.nstimulus==0:
+            success_rate=0
+        else:
+            success_rate=self.nrewards/self.nstimulus
+        return {'rewards':self.nrewards, 'stimulus': self.nstimulus, 'Success Rate': success_rate}
 
 class TreadmillSpeedReader(multiprocessing.Process):
     '''
@@ -664,7 +719,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         xp=[]
         xp=numpy.array([self.summary[i]['t'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']])
         protocol_order=[self.summary[i]['protocol'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']]
-        protocol_order.insert(0,self.summary[0]['protocol'])
+        if len(self.summary)>0:
+            protocol_order.insert(0,self.summary[0]['protocol'])
         if len(xi)>0:
             if xp.shape[0]>0:
                 if xp.shape[0]%2==1:
@@ -745,15 +801,16 @@ class Behavioral(gui.SimpleAppWindow):
         self.engine.start()
         self.to_engine=self.engine.from_gui
         self.from_engine=self.engine.to_gui
-        self.maximized=True
+        self.maximized=False
         gui.SimpleAppWindow.__init__(self)
         
     def init_gui(self):
         self.setWindowTitle('Behavioral Experiment Control')
         self.setWindowIcon(gui.get_icon('behav'))
-        self.debugw.setMinimumHeight(250)
+        self.setGeometry(4,21,1366,768)
+        self.debugw.setMinimumHeight(300)
+        self.debugw.setMaximumWidth(650)
         self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
-        self.cw.setMinimumHeight(500)#Adjusting its geometry
         self.setCentralWidget(self.cw)#Setting it as a central widget
         self.params_config=[
                             {'name': 'General', 'type': 'group', 'expanded' : True, 'children': [
@@ -766,14 +823,13 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Stimulus Pulse Duration', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                             ]},
-                            {'name': 'Show', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Show...', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Run Events Trace', 'type': 'bool', 'value': True},
                                 {'name': 'Stop Events Trace', 'type': 'bool', 'value': True},
                                 {'name': 'Reward Trace', 'type': 'bool', 'value': False},
                                 {'name': 'Airpuff Trace', 'type': 'bool', 'value': False},
                                 {'name': 'Stimulus Trace', 'type': 'bool', 'value': False},
                                 {'name': 'Force Run Trace', 'type': 'bool', 'value': False},
-                                
                                 ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
@@ -789,10 +845,23 @@ class Behavioral(gui.SimpleAppWindow):
                             break
         
         self.paramw = gui.ParameterTable(self, self.params_config)
-        self.paramw .setMinimumWidth(350)
+        self.paramw .setFixedWidth(400)
         self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
+        
+        self.plotnames=['events', 'animal_weight', 'success_rate']
+        self.plots=gui.TabbedPlots(self,self.plotnames)
+        self.plots.animal_weight.plot.setLabels(left='weight [g]')
+        self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
+        self.plots.success_rate.setToolTip('''Displays success rate of days or a specific day depending on what is selected in Files tab.
+        A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
+        ''')
+        self.plots.tab.setMinimumWidth(700)
+        self.plots.tab.setFixedHeight(300)
+        for pn in self.plotnames:
+            getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
+        self.add_dockwidget(self.plots, 'Plots', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
         
         toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
@@ -825,14 +894,14 @@ class Behavioral(gui.SimpleAppWindow):
             x/=86400
             x-=x[-1]
             utils.timestamp2ymd(self.engine.weight[-1,0])
-            self.cw.displayw.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
-            self.cw.displayw.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
+            self.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+            self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
         elif msg.has_key('switch2_animal_weight_plot'):
             self.cw.main_tab.setCurrentIndex(0)
-            self.cw.displayw.plots.tab.setCurrentIndex(1)
+            self.plots.tab.setCurrentIndex(1)
         elif msg.has_key('update_main_image'):
             if not skip_main_image_display:
-                self.cw.displayw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
+                self.cw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
         elif msg.has_key('update_events_plot'):
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
@@ -850,7 +919,7 @@ class Behavioral(gui.SimpleAppWindow):
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
                 elif tn=='forcerun':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (128,0,0,150)})
-            self.cw.displayw.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
+            self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
         elif msg.has_key('ask4confirmation'):
             reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             self.to_engine.put(reply == QtGui.QMessageBox.Yes)
@@ -858,11 +927,11 @@ class Behavioral(gui.SimpleAppWindow):
             self.cw.set_state(msg['set_recording_state'])
         elif msg.has_key('switch2_event_plot'):
             self.cw.main_tab.setCurrentIndex(0)
-            self.cw.displayw.plots.tab.setCurrentIndex(0)
+            self.plots.tab.setCurrentIndex(0)
         elif msg.has_key('set_live_state'):
             self.cw.live_speed.input.setCheckState(msg['set_live_state'])
         elif msg.has_key('set_events_title'):
-            self.cw.displayw.plots.events.plot.setTitle(msg['set_events_title'])
+            self.plots.events.plot.setTitle(msg['set_events_title'])
         elif msg.has_key('update_protocol_description'):
             self.cw.state.setToolTip(msg['update_protocol_description'])
         elif msg.has_key('update_success_rate_plot'):
@@ -870,11 +939,13 @@ class Behavioral(gui.SimpleAppWindow):
             for tn in msg['update_success_rate_plot']['trace_names']:
                 if tn =='success_rate':
                     plotparams.append({'name': tn, 'pen':(0,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
-            self.cw.displayw.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
+            self.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
             if msg['update_success_rate_plot'].has_key('vertical_lines') and msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
-                self.cw.displayw.plots.success_rate.add_linear_region(msg['update_success_rate_plot']['vertical_lines'],color=(0,0,0,20))
+                self.plots.success_rate.add_linear_region(msg['update_success_rate_plot']['vertical_lines'],color=(0,0,0,20))
+            else:
+                self.plots.success_rate.add_linear_region([])
         elif msg.has_key('set_success_rate_title'):
-            self.cw.displayw.plots.success_rate.plot.setTitle(msg['set_success_rate_title'])
+            self.plots.success_rate.plot.setTitle(msg['set_success_rate_title'])
         
     def update_statusbar(self,msg=''):
         '''
@@ -925,17 +996,21 @@ class CWidget(QtGui.QWidget):
     '''
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
-        self.displayw=DisplayW(self)
-        self.main_tab = QtGui.QTabWidget(self)
-        self.main_tab.addTab(self.displayw, 'Display')
+        self.setFixedHeight(400)
+        self.imagenames=['main', 'eye']
+        self.images=gui.TabbedImages(self,self.imagenames)
+        ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
+        self.images.main.setFixedWidth(320*ar)
+        self.images.main.setFixedHeight(320)
+        self.main_tab = self.images.tab
         self.filebrowserw=FileBrowserW(self)
         self.main_tab.addTab(self.filebrowserw, 'Files')
         self.lowleveldebugw=LowLevelDebugW(self)
         self.main_tab.addTab(self.lowleveldebugw, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
-        self.main_tab.setMinimumHeight(450)
-        self.main_tab.setMinimumWidth(1100)
+        self.main_tab.setMinimumHeight(330)
+        self.main_tab.setMinimumWidth(700)
         self.live_speed=gui.LabeledCheckBox(self,'Live Speed')
         self.live_speed.input.setCheckState(2)
         self.connect(self.live_speed.input, QtCore.SIGNAL('stateChanged(int)'),  self.live_event_udpate_clicked)
@@ -985,36 +1060,6 @@ class FileBrowserW(gui.FileTree):
         if os.path.splitext(self.double_clicked_filename)[1]=='.hdf5' and os.path.basename(self.double_clicked_filename)[:4]=='data':
             self.parent.parent().to_engine.put({'function':'open_file','args':[self.double_clicked_filename]})
             
-        
-        
-class DisplayW(QtGui.QWidget):
-    '''
-    
-    '''
-    def __init__(self,parent):
-        QtGui.QWidget.__init__(self,parent)
-        self.imagenames=['main', 'eye']
-        self.images=gui.TabbedImages(self,self.imagenames)
-        self.images.tab.setFixedWidth(400)
-        self.images.tab.setFixedHeight(400)
-        ar=float(parent.parent().machine_config.CAMERA_FRAME_WIDTH)/parent.parent().machine_config.CAMERA_FRAME_HEIGHT
-        self.images.main.setFixedWidth(370)
-        self.images.main.setFixedHeight(370/ar)
-        self.plotnames=['events', 'animal_weight', 'success_rate']
-        self.plots=gui.TabbedPlots(self,self.plotnames)
-        self.plots.animal_weight.plot.setLabels(left='weight [g]')
-        self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
-        self.plots.success_rate.setToolTip('''Displays success rate of days or a specific day depending on what is selected in Files tab.
-        A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
-        ''')
-        self.plots.tab.setMinimumWidth(600)
-        self.plots.tab.setFixedHeight(400)
-
-        self.l = QtGui.QGridLayout()
-        self.l.addWidget(self.images, 0, 0, 1, 2)
-        self.l.addWidget(self.plots, 0, 2, 1, 3)
-        self.setLayout(self.l)
-        
 class LowLevelDebugW(QtGui.QWidget):
     '''
     
@@ -1423,7 +1468,7 @@ class Behavioral1(gui.SimpleAppWindow):
         frame_color_corrected[:,:,2]=frame[:,:,0]
         
         if hasattr(frame_color_corrected, 'shape'):
-            self.cw.image.set_image(numpy.rot90(frame_color_corrected,3),alpha=1.0)#Setting the image with correct colors on the user interface. A 90 degree rotation is necessary
+            self.image.set_image(numpy.rot90(frame_color_corrected,3),alpha=1.0)#Setting the image with correct colors on the user interface. A 90 degree rotation is necessary
             if self.running:#If the experiment is running...
                 self.frame_times.append(time.time())#... the time of image acquisition is saved
                 #self.frames.append(frame_color_corrected)#Saving the frame to the memory (might not be necessary)
@@ -1592,7 +1637,7 @@ class Behavioral1(gui.SimpleAppWindow):
     
     def stim_stop_reward(self):
         '''
-        Stim top protocol handler
+        Stim stop protocol handler
         '''
         #Run the protocol handler is checkdata has at least self.actual_runtime duration
         if self.checkdata[0,-1]-self.checkdata[0,0]>self.actual_runtime:
