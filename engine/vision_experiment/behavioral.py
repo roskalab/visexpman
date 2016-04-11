@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: success rate over days and protocols,two other protocols,
+#NEXT: file browser and plots should visible at the same time,two other protocols,
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 #TODO: display docstring of protocol update and stat
 
@@ -601,8 +601,42 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
             self.to_gui.put({'statusbar':stat})
             
-    def show_per_day_success_rate(self):
-        pass
+    def show_animal_success_rate(self):
+        current_animal_folder=os.path.join(self.datafolder, self.current_animal)
+        x=[]
+        y=[]
+        day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
+        day_folders.sort()
+        top_protocols=[]
+        for day_folder in day_folders:
+            success_rate,top_protocol=self.day_summary(day_folder)
+            top_protocols.append(top_protocol)
+            y.append(success_rate)
+            x.append(utils.datestring2timestamp(os.path.basename(day_folder),format="%Y%m%d"))
+        x=numpy.array(x)
+        x-=x.max()
+        x/=86400
+        self.animal_success_rate=numpy.array([x,y])
+        y=numpy.array(y)
+        self.to_gui.put({'update_success_rate_plot':{'x':[x], 'y':[y], 'trace_names': ['success_rate']}})
+        self.to_gui.put({'set_success_rate_title': self.current_animal})
+        logging.info('\r\n'.join(['{0}\t{1}'.format(x[i], top_protocols[i]) for i in range(len(top_protocols))]))
+        
+        
+    def day_summary(self, folder):
+        summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
+        try:
+            all_recording_time = sum([s['duration'] for s in summary])
+            weighted_success_rates=[s['duration']/all_recording_time*s['Success Rate'] for s in summary]
+            success_rate=sum(weighted_success_rates)
+            #Most frequent protocol:
+            protocols=[s['protocol'] for s in summary]
+            protocol_names=list(set(protocols))
+            top_protocol = protocol_names[numpy.array([len([p for p in protocols if pn in p]) for pn in protocol_names]).argmax()]
+        except:
+            success_rate=0
+            top_protocol=''
+        return success_rate,top_protocol
             
     def show_day_success_rate(self,folder):
         '''
@@ -837,7 +871,7 @@ class Behavioral(gui.SimpleAppWindow):
                 if tn =='success_rate':
                     plotparams.append({'name': tn, 'pen':(0,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
             self.cw.displayw.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
-            if msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
+            if msg['update_success_rate_plot'].has_key('vertical_lines') and msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
                 self.cw.displayw.plots.success_rate.add_linear_region(msg['update_success_rate_plot']['vertical_lines'],color=(0,0,0,20))
         elif msg.has_key('set_success_rate_title'):
             self.cw.displayw.plots.success_rate.plot.setTitle(msg['set_success_rate_title'])
@@ -942,6 +976,7 @@ class FileBrowserW(gui.FileTree):
             logging.info('Animal selected: {0}'.format(self.parent.parent().engine.current_animal))
             self.parent.parent().update_statusbar()
             self.parent.parent().to_engine.put({'function':'load_animal_file','args':[]})
+            self.parent.parent().to_engine.put({'function':'show_animal_success_rate','args':[]})
         elif os.path.isdir(self.selected_filename) and os.path.dirname(self.selected_filename)==os.path.join(self.parent.parent().engine.datafolder, self.parent.parent().engine.current_animal):
             self.parent.parent().to_engine.put({'function':'show_day_success_rate','args':[self.selected_filename]})
             
