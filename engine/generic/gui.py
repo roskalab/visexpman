@@ -431,16 +431,15 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             map(self.plot.removeItem, self.curves)
             del self.curves
         
-    def add_linear_region(self, boundaries):
+    def add_linear_region(self, boundaries, color=(40,40,40,100)):
         if len(boundaries)%2==1:
             raise RuntimeError('Invalid boundaries: {0}'.format(boundaries))
         if hasattr(self,'linear_regions'):
             for linear_region in self.linear_regions:
                 self.plot.removeItem(linear_region)
-        c=(40,40,40,100)
         self.linear_regions=[]
         for i in range(len(boundaries)/2):
-            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = c))
+            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
             
 class TimeAxisItem(pyqtgraph.AxisItem):

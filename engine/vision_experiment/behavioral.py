@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT:  use linear region to mark different protocols, success rate over days and protocols,two other protocols,
+#NEXT: success rate over days and protocols,two other protocols,
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 #TODO: display docstring of protocol update and stat
 
@@ -471,6 +471,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         else:
             running_indexes=numpy.empty(0)
         last_event_time=self.events[-1]['t'] if len(self.events)>0 else 0#checking time elapsed since last event ensures that one event is counted once
+        if last_event_time<t[0]:#When new session is started, earlier events are ignored as last event time
+            last_event_time=t[0]
         if stop_indexes.shape[0]>0 and not ismoving[stop_indexes].any() and t[-1] - last_event_time> self.stop_time:
             event={}
             event['type']='stop'
@@ -502,9 +504,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if last_entry_timestamp<today and not self.ask4confirmation('No animal weight was added today. Do you want to continue?'):
             return
         self.recording_folder=os.path.join(rootfolder, today)
-        self.show_day_success_rate(self.recording_folder)
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
+        self.show_day_success_rate(self.recording_folder)
         self.current_protocol = self.parameters['Protocol']
         #TODO give warning if suggested protocol is different
         self.protocol=getattr(sys.modules[__name__], self.current_protocol)(self)
@@ -578,7 +580,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.save(nodes)
         self.datafile.close()
         logging.info('Data saved to {0}'.format(self.filename))
-        self.show_day_success_rate(self.recording_folder)
+        self.show_day_success_rate(self.filename)
         
     def open_file(self, filename):
         if self.session_ongoing:
@@ -607,8 +609,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
         
         '''
-        
-        self.summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
+        if os.path.isdir(folder):
+            self.summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
+        elif hasattr(self, 'summary'):
+            self.summary.append(self.read_file_summary(folder))
+        else:
+            return
         #Sort
         ts=[item['t'] for item in self.summary]
         ts.sort()
@@ -621,12 +627,22 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         for si in self.summary:
             xi.append(si['t'])
             yi.append(si['Success Rate'])
-        xi-=xi[0]
-        x=[numpy.array(xi)]
-        y=[numpy.array(yi)]
-        trace_names=['success_rate']
-        self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
-        self.to_gui.put({'set_success_rate_title': os.path.basename(folder)})
+        xp=[]
+        xp=numpy.array([self.summary[i]['t'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']])
+        protocol_order=[self.summary[i]['protocol'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']]
+        protocol_order.insert(0,self.summary[0]['protocol'])
+        if len(xi)>0:
+            if xp.shape[0]>0:
+                if xp.shape[0]%2==1:
+                    xp=numpy.append(xp, xi[-1])
+                xp-=xi[0]
+            xi-=xi[0]
+            x=[numpy.array(xi)]
+            y=[numpy.array(yi)]
+            trace_names=['success_rate']
+            self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names, 'vertical_lines': xp}})
+            self.to_gui.put({'set_success_rate_title': os.path.basename(folder)})
+            logging.info('Protocol order: {0}'.format(', '.join(protocol_order)))
             
     def read_file_summary(self,filename):
         '''
@@ -821,6 +837,8 @@ class Behavioral(gui.SimpleAppWindow):
                 if tn =='success_rate':
                     plotparams.append({'name': tn, 'pen':(0,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
             self.cw.displayw.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
+            if msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
+                self.cw.displayw.plots.success_rate.add_linear_region(msg['update_success_rate_plot']['vertical_lines'],color=(0,0,0,20))
         elif msg.has_key('set_success_rate_title'):
             self.cw.displayw.plots.success_rate.plot.setTitle(msg['set_success_rate_title'])
         
