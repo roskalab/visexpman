@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: Stim stop reward
+#TODO: protocol success rate summary
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 
 def object_parameters2dict(obj):
@@ -159,13 +159,39 @@ class StimStopReward(Protocol):
         self.engine.stop_time=self.STOP_TIME
         self.nrewards=0
         self.nstimulus=0
+        self.noreward=0
+        self.run_complete=False
         
     def generate_runtime(self):
         nsteps=round(self.RANDOM_TIME_RANGE/self.RANDOM_TIME_STEP)
-        return self.RUN_TIME+round((random.random()*nsteps))*self.RANDOM_TIME_STEP
+        new_runtime=self.RUN_TIME+round((random.random()*nsteps))*self.RANDOM_TIME_STEP
+        logging.info('New runtime generated: {0} s'.format(new_runtime))
+        return new_runtime
         
     def update(self):
-        pass
+        now=time.time()
+        run_indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type'] =='run']
+        if len(run_indexes)>0:
+            self.run_complete=True
+            self.run_complete_time=self.engine.events[run_indexes[0]]['t']
+            self.engine.events[run_indexes[0]]['ack']=True
+            self.engine.stimulate()
+            self.nstimulus+=1
+        elif self.run_complete:
+            if now-self.run_complete_time>self.DELAY_AFTER_RUN:
+                self.run_complete=False
+                self.engine.run_time=self.generate_runtime()
+                logging.info('No reward')
+                self.noreward+=1
+            else:
+                stop_indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type'] =='stop' and self.engine.events[i]['t']>self.run_complete_time]
+                if len(stop_indexes)>0:
+                    for i in stop_indexes:
+                        self.engine.events[i]['ack']=True
+                    self.engine.reward()
+                    self.nrewards+=1
+                    self.run_complete=False
+                    self.engine.run_time=self.generate_runtime()
         
     def stat(self):
         '''
@@ -176,7 +202,7 @@ class StimStopReward(Protocol):
             success_rate=0
         else:
             success_rate=self.nrewards/float(self.nstimulus)
-        return {'rewards':self.nrewards, 'stimulus': self.nstimulus, 'Success Rate': success_rate}
+        return {'rewards':self.nrewards, 'stimulus': self.nstimulus, 'No reward': self.noreward, 'Success Rate': success_rate}
 
 class TreadmillSpeedReader(multiprocessing.Process):
     '''
@@ -646,7 +672,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         for vn in self.varnames:
             values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
             setattr(self.datafile, vn, values)
-        #TODO: save quantification
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         nodes=['machine_config', 'protocol', 'protocol_name', 'stat']
         nodes.extend(self.varnames)
