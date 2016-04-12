@@ -10,9 +10,8 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: stop reward, Stim stop reward, keep running forced: after 30 sec no motion: air puff->clarify it with forcing motion, perhaps both?
+#NEXT: Stim stop reward
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
-#TODO: display docstring of protocol update and stat
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -89,6 +88,7 @@ class ForcedKeepRunningReward(KeepRunningReward):
         for i in indexes:
             self.engine.events[i]['ack']=True
         if len(indexes)>0:
+            self.engine.airpuff()
             self.engine.forcerun(self.RUN_FORCE_TIME)
             self.nforcedruns+=1
 
@@ -103,27 +103,38 @@ class ForcedKeepRunningReward(KeepRunningReward):
                 
         
 class StopReward(Protocol):
-    '''After running for RUN_TIME, the animal igets reward if stops for STOP_TIME
+    '''After running for RUN_TIME, the animal gets reward if stops for STOP_TIME
     '''
-    RUN_TME=10.0
+    RUN_TIME=10.0
     STOP_TIME=0.5
+    
     def reset(self):
         self.engine.run_time=self.RUN_TIME
         self.engine.stop_time=self.STOP_TIME
         self.nrewards=0
-        self.nrun=0
+        self.nruns=0
+        self.run_complete=False
         
     def update(self):
-        pass
+        indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type'] in ['run', 'stop']]
+        if len(indexes)>0:
+            if self.engine.events[indexes[0]]['type']=='run':
+                self.run_complete=True
+                self.nruns+=1
+            elif self.run_complete and self.engine.events[indexes[0]]['type']=='stop':
+                self.run_complete=False
+                self.engine.reward()
+                self.nrewards+=1
+            self.engine.events[indexes[0]]['ack']=True
         
     def stat(self):
         '''
         Success rate is the number of reward per the overall number of run events
         '''
-        if self.nrun==0:
+        if self.nruns==0:
             success_rate=0
         else:
-            success_rate=self.nrewards/self.nrun
+            success_rate=self.nrewards/float(self.nruns)
         return {'rewards':self.nrewards, 'runs': self.nruns, 'Success Rate': success_rate}
         
 
@@ -139,15 +150,19 @@ class StimStopReward(Protocol):
     '''
 
     DELAY_AFTER_RUN=5.0
-    RUN_TME=5.0
+    RUN_TIME=5.0
     STOP_TIME=0.5
     RANDOM_TIME_RANGE=10.0
     RANDOM_TIME_STEP=0.5
     def reset(self):
-        self.engine.run_time=self.RUN_TIME
+        self.engine.run_time=self.generate_runtime()
         self.engine.stop_time=self.STOP_TIME
         self.nrewards=0
         self.nstimulus=0
+        
+    def generate_runtime(self):
+        nsteps=round(self.RANDOM_TIME_RANGE/self.RANDOM_TIME_STEP)
+        return self.RUN_TIME+round((random.random()*nsteps))*self.RANDOM_TIME_STEP
         
     def update(self):
         pass
@@ -160,7 +175,7 @@ class StimStopReward(Protocol):
         if self.nstimulus==0:
             success_rate=0
         else:
-            success_rate=self.nrewards/self.nstimulus
+            success_rate=self.nrewards/float(self.nstimulus)
         return {'rewards':self.nrewards, 'stimulus': self.nstimulus, 'Success Rate': success_rate}
 
 class TreadmillSpeedReader(multiprocessing.Process):
@@ -183,7 +198,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
             spd=2
         else:
             spd=10
-        spd = 10*int(int(t/13)%2==0)
+        spd = 10*int(int(t/21)%2==0)
         spd+=numpy.random.random()-0.5
         return spd
         
@@ -395,15 +410,17 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def forcerun(self,duration):
-        now=time.time()
         logging.info('Force run for {0} s'.format(duration))
+        now=time.time()
         self.forcerun_values=numpy.concatenate((self.forcerun_values,numpy.array([[now, 1]])))
             
     def reward(self):
+        logging.info('Reward')
         now=time.time()
         self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
         
     def airpuff(self):
+        logging.info('Airpuff')
         now=time.time()
         self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
         
@@ -411,6 +428,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         pass
         
     def stimulate(self):
+        logging.info('Stimulus')
         now=time.time()
         self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+self.parameters['Stimulus Pulse Duration'], 1],[now+self.parameters['Stimulus Pulse Duration']+1e-3, 0]])))
 
@@ -565,7 +583,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.current_protocol = self.parameters['Protocol']
         #TODO give warning if suggested protocol is different
         self.protocol=getattr(sys.modules[__name__], self.current_protocol)(self)
-        self.to_gui.put({'update_protocol_description':self.protocol.__doc__+'\r\n'+str(object_parameters2dict(self.protocol))})
+        self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+str(object_parameters2dict(self.protocol))})
         self.session_ongoing=True
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
@@ -673,7 +691,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         x/=86400
         self.animal_success_rate=numpy.array([x,y])
         y=numpy.array(y)
-        self.to_gui.put({'update_success_rate_plot':{'x':[x], 'y':[y], 'trace_names': ['success_rate']}})
+        self.to_gui.put({'update_success_rate_plot':{'x':[x], 'y':[y*100], 'trace_names': ['success_rate']}})
         self.to_gui.put({'set_success_rate_title': self.current_animal})
         logging.info('\r\n'.join(['{0}\t{1}'.format(x[i], top_protocols[i]) for i in range(len(top_protocols))]))
         
@@ -705,7 +723,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         else:
             return
         #Sort
-        ts=[item['t'] for item in self.summary]
+        ts=[item['t'] for item in self.summary if item.has_key('t')]
         ts.sort()
         sorted=[]
         for ti in ts:
@@ -728,7 +746,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 xp-=xi[0]
             xi-=xi[0]
             x=[numpy.array(xi)]
-            y=[numpy.array(yi)]
+            y=[numpy.array(yi)*100]
             trace_names=['success_rate']
             self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names, 'vertical_lines': xp}})
             self.to_gui.put({'set_success_rate_title': os.path.basename(folder)})
@@ -857,6 +875,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.plots.success_rate.setToolTip('''Displays success rate of days or a specific day depending on what is selected in Files tab.
         A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
         ''')
+        self.plots.success_rate.plot.setLabels(left='%')
         self.plots.tab.setMinimumWidth(700)
         self.plots.tab.setFixedHeight(300)
         for pn in self.plotnames:
@@ -926,7 +945,6 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('set_recording_state'):
             self.cw.set_state(msg['set_recording_state'])
         elif msg.has_key('switch2_event_plot'):
-            self.cw.main_tab.setCurrentIndex(0)
             self.plots.tab.setCurrentIndex(0)
         elif msg.has_key('set_live_state'):
             self.cw.live_speed.input.setCheckState(msg['set_live_state'])
