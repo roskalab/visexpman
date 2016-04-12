@@ -1274,6 +1274,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
 class AnimalStatisticsPlots(QtGui.QTabWidget):
     def __init__(self, parent, data, animal_name):
         QtGui.QTabWidget.__init__(self)
+        self.setWindowIcon(gui.get_icon('behav'))
         self.machine_config=parent.machine_config
         self.setGeometry(4,21,parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
         self.setWindowTitle('Summary of '+animal_name)
@@ -1302,8 +1303,11 @@ class PlotPage(QtGui.QWidget):
                 ref.plot.setTitle(d)
                 t=data[d][pn][0]
                 t=numpy.array(map(utils.timestamp2secondsofday,t.tolist()))/3600.0
+                minutes=(t-numpy.floor(t))*0.6
+                t-=t-numpy.floor(t)
+                t+=minutes
                 ref.update_curve(t,data[d][pn][1]*100,plotparams={'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
-                ref.plot.setLabels(left='success rate [%]', bottom='time [hour]')
+                ref.plot.setLabels(left='success rate [%]', bottom='time [hour.minute]')
             self.tp[-1].tab.setFixedWidth(parent.machine_config.SCREEN_SIZE[0]/3-50)
             self.tp[-1].tab.setFixedHeight(parent.machine_config.SCREEN_SIZE[1]/2-50)
             self.l.addWidget(self.tp[-1], ct/3, ct%3, 1, 1)
