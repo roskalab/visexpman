@@ -590,6 +590,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         time:
         previous event: name, time
         '''
+        if not hasattr(self, 'parameters'): return
         #consider speed values since the last event        
         t=self.speed_values[:,0]
         spd=self.speed_values[:,1]
@@ -737,6 +738,32 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if hasattr(stat,'has_key'):
             stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
             self.to_gui.put({'statusbar':stat})
+            
+    def show_animal_statistics(self):
+        if self.session_ongoing: return
+        logging.info('Generating plots, please wait')
+        current_animal_folder=os.path.join(self.datafolder, self.current_animal)
+        day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
+        day_folders.sort()
+        self.animal_stat={}
+        for d in day_folders:
+            dayd=[self.read_file_summary(f) for f in fileop.listdir_fullpath(d) if os.path.splitext(f)[1]=='.hdf5']
+            protocols=list(set([di['protocol'] for di in dayd if di.has_key('protocol')]))
+            day_item={}
+            for protocol in protocols:
+                day_item[protocol]=numpy.array([[di['t'], di['Success Rate']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']==protocol]).T
+            self.animal_stat[os.path.basename(d)]=day_item
+        #group days
+        max_plots_per_page=6
+        npages=int(numpy.ceil(len(self.animal_stat.keys())/float(max_plots_per_page)))
+        days=self.animal_stat.keys()
+        days.sort()
+        pages=[days[pi*max_plots_per_page:(pi+1)*max_plots_per_page] for pi in range(npages)]
+        self.animal_stat_per_page=[]
+        for page in pages:
+            self.animal_stat_per_page.append(dict([(d, self.animal_stat[d]) for d in page]))
+        self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal]})
+        
             
     def show_animal_success_rate(self):
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
@@ -889,7 +916,7 @@ class Behavioral(gui.SimpleAppWindow):
     def init_gui(self):
         self.setWindowTitle('Behavioral Experiment Control')
         self.setWindowIcon(gui.get_icon('behav'))
-        self.setGeometry(4,21,1366,768)
+        self.setGeometry(4,21,self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
         self.debugw.setMinimumHeight(300)
         self.debugw.setMaximumWidth(650)
         self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
@@ -925,7 +952,6 @@ class Behavioral(gui.SimpleAppWindow):
                         if pi['name']==k:
                             pi['value']=v
                             break
-        
         self.paramw = gui.ParameterTable(self, self.params_config)
         self.paramw .setFixedWidth(400)
         self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
@@ -946,7 +972,7 @@ class Behavioral(gui.SimpleAppWindow):
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
         self.add_dockwidget(self.plots, 'Plots', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
         
-        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'exit']
+        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'show_animal_statistics', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -1028,6 +1054,10 @@ class Behavioral(gui.SimpleAppWindow):
                 self.plots.success_rate.add_linear_region([])
         elif msg.has_key('set_success_rate_title'):
             self.plots.success_rate.plot.setTitle(msg['set_success_rate_title'])
+        elif msg.has_key('show_animal_statistics'):
+            if hasattr(self, 'asp'):
+                del self.asp
+            self.asp = AnimalStatisticsPlots(self, *msg['show_animal_statistics'])
         
     def update_statusbar(self,msg=''):
         '''
@@ -1066,8 +1096,13 @@ class Behavioral(gui.SimpleAppWindow):
     def remove_last_animal_weight_action(self):
         if self.ask4confirmation('Do you want to remove last weight entry?'):
             self.to_engine.put({'function': 'remove_last_animal_weight','args':[]})
+            
+    def show_animal_statistics_action(self):
+        self.to_engine.put({'function': 'show_animal_statistics','args':[]})
         
     def exit_action(self):
+        if hasattr(self,'asp'):
+            self.asp.close()
         self.to_engine.put('terminate')
         self.engine.join()
         self.close()
@@ -1192,9 +1227,6 @@ class LowLevelDebugW(QtGui.QWidget):
     def water_valve_clicked(self,state):
         self.parent.parent().to_engine.put({'function':'set_valve','args':['water', state==2]})
         
-    
-
-        
 class AddAnimalWeightDialog(QtGui.QWidget):
     '''
     Dialog window for date and animal weight
@@ -1238,6 +1270,46 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         
     def cancel_clicked(self):
         self.close()
+        
+class AnimalStatisticsPlots(QtGui.QTabWidget):
+    def __init__(self, parent, data, animal_name):
+        QtGui.QTabWidget.__init__(self)
+        self.machine_config=parent.machine_config
+        self.setGeometry(4,21,parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
+        self.setWindowTitle('Summary of '+animal_name)
+        self.setTabPosition(self.North)
+        self.pages=[]
+        for i in range(len(data)):
+            self.pages.append(PlotPage(data[i],self))
+            self.addTab(self.pages[-1],str(i))
+        self.show()
+        
+class PlotPage(QtGui.QWidget):
+    '''
+    Dialog window for date and animal weight
+    '''
+    def __init__(self,data,parent):
+        QtGui.QWidget.__init__(self)
+        self.tp=[]
+        self.l = QtGui.QGridLayout()
+        days=data.keys()
+        days.sort()
+        ct=0
+        for d in days:
+            self.tp.append(gui.TabbedPlots(self, data[d].keys()))
+            for pn in data[d].keys():
+                ref=getattr(self.tp[-1],pn)
+                ref.plot.setTitle(d)
+                t=data[d][pn][0]
+                t=numpy.array(map(utils.timestamp2secondsofday,t.tolist()))/3600.0
+                ref.update_curve(t,data[d][pn][1]*100,plotparams={'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
+                ref.plot.setLabels(left='success rate [%]', bottom='time [hour]')
+            self.tp[-1].tab.setFixedWidth(parent.machine_config.SCREEN_SIZE[0]/3-50)
+            self.tp[-1].tab.setFixedHeight(parent.machine_config.SCREEN_SIZE[1]/2-50)
+            self.l.addWidget(self.tp[-1], ct/3, ct%3, 1, 1)
+            ct+=1
+        self.setLayout(self.l)
+        
 
 class TestBehavEngine(unittest.TestCase):
     
@@ -1309,6 +1381,15 @@ class TestBehavEngine(unittest.TestCase):
         while not tsr.speed_q.empty():
             samples.append(tsr.speed_q.get())
         self.assertEqual(numpy.array(samples).shape[0], rectime/self.machine_config.TREADMILL_SPEED_UPDATE_RATE-1)
+        
+    def test_04_animal_summary(self):
+        self.engine=BehavioralEngine(self.machine_config)
+        self.engine.session_ongoing=False
+        self.engine.current_animal='eger1'
+        self.engine.datafolder='/tmp/animal'
+        self.engine.show_animal_statistics()
+        self.engine.animal_stat_per_page
+        self.engine.close()
         
 
 if __name__ == '__main__':

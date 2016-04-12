@@ -10,5 +10,6 @@ class BehavioralSetup(BehavioralConfig):
         CAMERA_FRAME_WIDTH=640/2
         CAMERA_FRAME_HEIGHT=480/2
         TREADMILL_SPEED_UPDATE_RATE=100e-3
+        SCREEN_SIZE=[1366,768]
         
         

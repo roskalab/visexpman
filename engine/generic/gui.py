@@ -447,8 +447,7 @@ class TimeAxisItem(pyqtgraph.AxisItem):
         pyqtgraph.AxisItem.__init__(self,*args, **kwargs)
 
     def tickStrings(self, values, scale, spacing):
-        # PySide's QTime() initialiser fails miserably and dismisses args/kwargs
-        return [QtCore.QTime().addMSecs(value).toString('mm:ss') for value in values]
+        return [QtCore.QTime().addMSecs(value).toString('hh:mm') for value in values]
             
 class TabbedPlots(QtGui.QWidget):
     def __init__(self, parent,names,plot_kwargs={}):
