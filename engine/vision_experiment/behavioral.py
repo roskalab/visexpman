@@ -383,7 +383,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def load_context(self):
         if os.path.exists(self.context_filename):
-            context_stream = numpy.load(self.context_filename)
+            try:
+                context_stream = numpy.load(self.context_filename)
+            except:
+                raise IOError('{0} context file may be corrupt. Delete it and start software again'.format(self.context_filename))
             context=utils.array2object(context_stream)
             for k,v in context.items():
                 setattr(self,k,v)
@@ -590,7 +593,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         time:
         previous event: name, time
         '''
-        if not hasattr(self, 'parameters'): return
         #consider speed values since the last event        
         t=self.speed_values[:,0]
         spd=self.speed_values[:,1]
@@ -778,13 +780,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             y.append(success_rate)
             x.append(utils.datestring2timestamp(os.path.basename(day_folder),format="%Y%m%d"))
         x=numpy.array(x)
+        if x.shape[0]==0: return
         x-=x.max()
         x/=86400
         self.animal_success_rate=numpy.array([x,y])
         y=numpy.array(y)
         self.to_gui.put({'update_success_rate_plot':{'x':[x], 'y':[y*100], 'trace_names': ['success_rate']}})
         self.to_gui.put({'set_success_rate_title': self.current_animal})
-        logging.info('\r\n'.join(['{0}\t{1}'.format(x[i], top_protocols[i]) for i in range(len(top_protocols))]))
+        logging.info('Top protocols per day\r\nDay\tTop protocol\r\n' + '\r\n'.join(['{0}\t{1}'.format(x[i], top_protocols[i]) for i in range(len(top_protocols))]))
         
         
     def day_summary(self, folder):
@@ -874,12 +877,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                         logging.info(msg)
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
-                if self.enable_speed_update:
-                    self.run_stop_event_detector()
-                    self.update_speed_values()
-                self.update_plot()
-                self.periodic_save()
-                self.run_protocol()
+                if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
+                    #logging.info('alive')
+                    if self.enable_speed_update:
+                        self.run_stop_event_detector()
+                        self.update_speed_values()
+                    self.update_plot()
+                    self.periodic_save()
+                    self.run_protocol()
             except:
                 logging.error(traceback.format_exc())
                 self.save_context()
@@ -916,8 +921,9 @@ class Behavioral(gui.SimpleAppWindow):
     def init_gui(self):
         self.setWindowTitle('Behavioral Experiment Control')
         self.setWindowIcon(gui.get_icon('behav'))
-        self.setGeometry(4,21,self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
-        self.debugw.setMinimumHeight(300)
+        gui.set_win_icon()
+        self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
+        self.debugw.setFixedHeight(self.machine_config.BOTTOM_WIDGET_HEIGHT)
         self.debugw.setMaximumWidth(650)
         self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
         self.setCentralWidget(self.cw)#Setting it as a central widget
@@ -967,7 +973,7 @@ class Behavioral(gui.SimpleAppWindow):
         ''')
         self.plots.success_rate.plot.setLabels(left='%')
         self.plots.tab.setMinimumWidth(700)
-        self.plots.tab.setFixedHeight(300)
+        self.plots.tab.setFixedHeight(self.machine_config.BOTTOM_WIDGET_HEIGHT)
         for pn in self.plotnames:
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
         self.add_dockwidget(self.plots, 'Plots', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
@@ -1006,7 +1012,6 @@ class Behavioral(gui.SimpleAppWindow):
             self.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
             self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
         elif msg.has_key('switch2_animal_weight_plot'):
-            self.cw.main_tab.setCurrentIndex(0)
             self.plots.tab.setCurrentIndex(1)
         elif msg.has_key('update_main_image'):
             if not skip_main_image_display:
@@ -1066,7 +1071,7 @@ class Behavioral(gui.SimpleAppWindow):
         ca=self.engine.current_animal if hasattr(self.engine, 'current_animal') else ''
         txt='Data folder: {0}, Current animal: {1} {2}'. format(self.engine.datafolder,ca,msg)
         self.statusbar.showMessage(txt)
-        self.setWindowTitle('Behavioral Experiment Control\t{0}'.format(ca))
+        self.setWindowTitle('Behavioral\t {0}'.format(ca))
         
     def closeEvent(self, e):
         e.accept()
@@ -1113,12 +1118,12 @@ class CWidget(QtGui.QWidget):
     '''
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
-        self.setFixedHeight(400)
+        self.setFixedHeight(340)
         self.imagenames=['main', 'eye']
         self.images=gui.TabbedImages(self,self.imagenames)
         ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
-        self.images.main.setFixedWidth(320*ar)
-        self.images.main.setFixedHeight(320)
+        self.images.main.setFixedWidth(280*ar)
+        self.images.main.setFixedHeight(280)
         self.main_tab = self.images.tab
         self.filebrowserw=FileBrowserW(self)
         self.main_tab.addTab(self.filebrowserw, 'Files')
@@ -1126,7 +1131,7 @@ class CWidget(QtGui.QWidget):
         self.main_tab.addTab(self.lowleveldebugw, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
-        self.main_tab.setMinimumHeight(330)
+        self.main_tab.setMinimumHeight(290)
         self.main_tab.setMinimumWidth(700)
         self.live_speed=gui.LabeledCheckBox(self,'Live Speed')
         self.live_speed.input.setCheckState(2)
@@ -1162,14 +1167,15 @@ class FileBrowserW(gui.FileTree):
         
     def file_selected(self,index):
         self.selected_filename = gui.index2filename(index)
-        if os.path.isdir(self.selected_filename) and os.path.dirname(self.selected_filename)==self.parent.parent().engine.datafolder:
+        datafolder=self.parent.parent().engine.datafolder
+        if os.path.isdir(self.selected_filename) and os.path.dirname(self.selected_filename).lower()==datafolder.lower():
             #Animal folder selected
             self.parent.parent().engine.current_animal=os.path.basename(self.selected_filename)
             logging.info('Animal selected: {0}'.format(self.parent.parent().engine.current_animal))
             self.parent.parent().update_statusbar()
             self.parent.parent().to_engine.put({'function':'load_animal_file','args':[]})
             self.parent.parent().to_engine.put({'function':'show_animal_success_rate','args':[]})
-        elif os.path.isdir(self.selected_filename) and os.path.dirname(self.selected_filename)==os.path.join(self.parent.parent().engine.datafolder, self.parent.parent().engine.current_animal):
+        elif os.path.isdir(self.selected_filename) and hasattr(self.parent.parent().engine, 'current_animal') and os.path.dirname(self.selected_filename)==os.path.join(self.parent.parent().engine.datafolder, self.parent.parent().engine.current_animal):
             self.parent.parent().to_engine.put({'function':'show_day_success_rate','args':[self.selected_filename]})
             
     def open_file(self,index):
@@ -1275,8 +1281,9 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
     def __init__(self, parent, data, animal_name):
         QtGui.QTabWidget.__init__(self)
         self.setWindowIcon(gui.get_icon('behav'))
+        gui.set_win_icon()
         self.machine_config=parent.machine_config
-        self.setGeometry(4,21,parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
+        self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
         self.setWindowTitle('Summary of '+animal_name)
         self.setTabPosition(self.North)
         self.pages=[]
