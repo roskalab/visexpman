@@ -13,5 +13,6 @@ class BehavioralSetup(BehavioralConfig):
         SCREEN_SIZE=[1366,700]
         SCREEN_OFFSET=[4,19]
         BOTTOM_WIDGET_HEIGHT=290
+        MINIMUM_FREE_SPACE=20#GByte
         
         

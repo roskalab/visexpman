@@ -392,6 +392,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 setattr(self,k,v)
         if not hasattr(self,'datafolder'):
             self.datafolder=self.machine_config.EXPERIMENT_DATA_PATH
+        free_space=round(fileop.free_space(self.datafolder)/1e9,1)
+        if free_space<self.machine_config.MINIMUM_FREE_SPACE:
+            self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
             
     def save_context(self):
         context={}
@@ -1085,6 +1088,9 @@ class Behavioral(gui.SimpleAppWindow):
         
     def select_data_folder_action(self):
         self.engine.datafolder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        free_space=round(fileop.free_space(self.engine.datafolder)/1e9,1)
+        if free_space<self.machine_config.MINIMUM_FREE_SPACE:
+            self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         self.cw.filebrowserw.set_root(self.engine.datafolder)
         self.update_statusbar()
         
