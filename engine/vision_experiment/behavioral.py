@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#TODO: protocol success rate summary
+#TODO: success_rate plot: x axis: hh.mm scale, round it to 2 digits (also at full summary)
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 
 def object_parameters2dict(obj):
@@ -114,7 +114,6 @@ class ForcedKeepRunningReward(KeepRunningReward):
     RUN_TIME=5.0
     STOP_TIME=6.5
     RUN_FORCE_TIME = 3.0
-    
     def reset(self):
         self.engine.run_time=self.RUN_TIME
         self.engine.stop_time=self.STOP_TIME
@@ -139,7 +138,25 @@ class ForcedKeepRunningReward(KeepRunningReward):
         if stats==None:return
         stats['forcedruns']=self.nforcedruns
         return stats
+        
+class ForcedKeepRunningRewardLevel1(ForcedKeepRunningReward):
+    __doc__=ForcedKeepRunningReward.__doc__
+    RUN_TIME=3.0
+    STOP_TIME=6.5
+    RUN_FORCE_TIME = 3.0
+    
+class ForcedKeepRunningRewardLevel2(ForcedKeepRunningReward):
+    __doc__=ForcedKeepRunningReward.__doc__
+    RUN_TIME=6.0
+    STOP_TIME=6.5
+    RUN_FORCE_TIME = 6.0
                 
+class ForcedKeepRunningRewardLevel3(ForcedKeepRunningReward):
+    __doc__=ForcedKeepRunningReward.__doc__
+    RUN_TIME=10.0
+    STOP_TIME=6.5
+    RUN_FORCE_TIME = 5.0
+
         
 class StopReward(Protocol):
     '''After running for RUN_TIME, the animal gets reward if stops for STOP_TIME
@@ -634,6 +651,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def start_session(self):
         if self.session_ongoing:
             return
+        if not hasattr(self, 'current_animal'):
+            self.notify('Warning', 'Create or select animal')
+            return
         self.reset_data()
         rootfolder=os.path.join(self.datafolder, self.current_animal)
         animal_file=os.path.join(rootfolder, 'animal_' + self.current_animal+'.hdf5')
@@ -936,7 +956,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Save Period', 'type': 'float', 'value': 100.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
                                 {'name': 'Move Threshold', 'type': 'float', 'value': 1,'suffix': 'm/s'},
-                                {'name': 'Run Threshold', 'type': 'float', 'value': 50.0, 'suffix': '%'},
+                                {'name': 'Run Threshold', 'type': 'float', 'value': 70.0, 'suffix': '%'},
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 {'name': 'Stimulus Pulse Duration', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
@@ -1181,7 +1201,7 @@ class FileBrowserW(gui.FileTree):
             self.parent.parent().update_statusbar()
             self.parent.parent().to_engine.put({'function':'load_animal_file','args':[]})
             self.parent.parent().to_engine.put({'function':'show_animal_success_rate','args':[]})
-        elif os.path.isdir(self.selected_filename) and hasattr(self.parent.parent().engine, 'current_animal') and os.path.dirname(self.selected_filename)==os.path.join(self.parent.parent().engine.datafolder, self.parent.parent().engine.current_animal):
+        elif os.path.isdir(self.selected_filename) and hasattr(self.parent.parent().engine, 'current_animal') and os.path.dirname(self.selected_filename).lower()==os.path.join(self.parent.parent().engine.datafolder, self.parent.parent().engine.current_animal).lower():
             self.parent.parent().to_engine.put({'function':'show_day_success_rate','args':[self.selected_filename]})
             
     def open_file(self,index):
