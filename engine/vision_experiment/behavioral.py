@@ -10,7 +10,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#TODO: success_rate plot: x axis: hh.mm scale, round it to 2 digits (also at full summary)
+#NEXT: find best N flash-> plot in summary
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 
 def object_parameters2dict(obj):
@@ -192,8 +192,6 @@ class StopReward(Protocol):
         else:
             success_rate=self.nrewards/float(self.nruns)
         return {'rewards':self.nrewards, 'runs': self.nruns, 'Success Rate': success_rate}
-        
-
 
 class StimStopReward(Protocol):
     '''
@@ -792,45 +790,40 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             
     def show_animal_success_rate(self):
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        x=[]
-        y=[]
         day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
         day_folders.sort()
-        top_protocols=[]
+        self.success_rate_summary={}
+        days=[os.path.basename(day_folder) for day_folder in day_folders]
+        days.sort()
         for day_folder in day_folders:
-            success_rate,top_protocol=self.day_summary(day_folder)
-            top_protocols.append(top_protocol)
-            y.append(success_rate)
-            x.append(utils.datestring2timestamp(os.path.basename(day_folder),format="%Y%m%d"))
-        x=numpy.array(x)
-        if x.shape[0]==0: return
-        x-=x.max()
-        x/=86400
-        self.animal_success_rate=numpy.array([x,y])
-        y=numpy.array(y)
-        self.to_gui.put({'update_success_rate_plot':{'x':[x], 'y':[y*100], 'trace_names': ['success_rate']}})
+            summaryd = [self.read_file_summary(f) for f in [os.path.join(day_folder,fn) for fn in os.listdir(day_folder) if os.path.splitext(fn)[1]=='.hdf5']]
+            protocol_names=list(set([s['protocol'] for s in summaryd if s.has_key('protocol')]))
+            for pn in protocol_names:
+                if not self.success_rate_summary.has_key(pn):
+                    self.success_rate_summary[pn]=[]
+                self.success_rate_summary[pn].extend([[days.index(os.path.basename(day_folder)), si['Success Rate']] for si in summaryd if si.has_key('protocol') and si['protocol']==pn])
+        x=[]
+        y=[]
+        for p in self.success_rate_summary.keys():
+            d=numpy.array(self.success_rate_summary[p]).T
+            x.append(d[0])
+            y.append(d[1]*100)
+        self.x=x
+        self.y=y
+        self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': self.success_rate_summary.keys(), 'scatter':True}})
         self.to_gui.put({'set_success_rate_title': self.current_animal})
-        logging.info('Top protocols per day\r\nDay\tTop protocol\r\n' + '\r\n'.join(['{0}\t{1}'.format(x[i], top_protocols[i]) for i in range(len(top_protocols))]))
-        
         
     def day_summary(self, folder):
         summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
-        try:
-            all_recording_time = sum([s['duration'] for s in summary])
-            weighted_success_rates=[s['duration']/all_recording_time*s['Success Rate'] for s in summary]
-            success_rate=sum(weighted_success_rates)
-            #Most frequent protocol:
-            protocols=[s['protocol'] for s in summary]
-            protocol_names=list(set(protocols))
-            top_protocol = protocol_names[numpy.array([len([p for p in protocols if pn in p]) for pn in protocol_names]).argmax()]
-        except:
-            success_rate=0
-            top_protocol=''
-        return success_rate,top_protocol
+        protocols=[s['protocol'] for s in summary if s.has_key('protocol')]
+        protocol_names=list(set(protocols))
+        success_rates = {}
+        for pn in protocol_names:
+            success_rates[pn]=[si['Success Rate'] for si in summary if si.has_key('protocol') and si['protocol']==pn]
+        return success_rates
             
     def show_day_success_rate(self,folder):
         '''
-        
         
         '''
         if os.path.isdir(folder):
@@ -860,9 +853,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if xp.shape[0]>0:
                 if xp.shape[0]%2==1:
                     xp=numpy.append(xp, xi[-1])
-                xp-=xi[0]
-            xi-=xi[0]
-            x=[numpy.array(xi)]
+                #xp-=xi[0]
+            #xi-=xi[0]
+            xp=timestamp2hhmmfp(xp)
+            x=[timestamp2hhmmfp(numpy.array(xi))]
             y=[numpy.array(yi)*100]
             trace_names=['success_rate']
             self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names, 'vertical_lines': xp}})
@@ -1072,9 +1066,17 @@ class Behavioral(gui.SimpleAppWindow):
             self.cw.state.setToolTip(msg['update_protocol_description'])
         elif msg.has_key('update_success_rate_plot'):
             plotparams=[]
-            for tn in msg['update_success_rate_plot']['trace_names']:
-                if tn =='success_rate':
-                    plotparams.append({'name': tn, 'pen':(0,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
+            if msg['update_success_rate_plot'].has_key('scatter') and msg['update_success_rate_plot']['scatter']:
+                alpha=100
+                colors=[(0,0,0,alpha), (255,0,0,alpha), (0,255,0,alpha),(0,0,255,alpha), (255,255,0,alpha), (0,255,255,alpha), (255,255,0,alpha),(128,255,255,alpha)]
+                color_i=0
+                for tn in msg['update_success_rate_plot']['trace_names']:
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':7, 'symbolBrush': colors[color_i]})
+                    color_i+=1
+            else:
+                for tn in msg['update_success_rate_plot']['trace_names']:
+                    if tn =='success_rate':
+                        plotparams.append({'name': tn, 'pen':(0,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
             self.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
             if msg['update_success_rate_plot'].has_key('vertical_lines') and msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
                 self.plots.success_rate.add_linear_region(msg['update_success_rate_plot']['vertical_lines'],color=(0,0,0,20))
@@ -1335,10 +1337,7 @@ class PlotPage(QtGui.QWidget):
                 ref=getattr(self.tp[-1],pn)
                 ref.plot.setTitle(d)
                 t=data[d][pn][0]
-                t=numpy.array(map(utils.timestamp2secondsofday,t.tolist()))/3600.0
-                minutes=(t-numpy.floor(t))*0.6
-                t-=t-numpy.floor(t)
-                t+=minutes
+                t=timestamp2hhmmfp(t)
                 ref.update_curve(t,data[d][pn][1]*100,plotparams={'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
                 ref.plot.setLabels(left='success rate [%]', bottom='time [hour.minute]')
             self.tp[-1].tab.setFixedWidth(parent.machine_config.SCREEN_SIZE[0]/3-50)
@@ -1346,6 +1345,16 @@ class PlotPage(QtGui.QWidget):
             self.l.addWidget(self.tp[-1], ct/3, ct%3, 1, 1)
             ct+=1
         self.setLayout(self.l)
+        
+def timestamp2hhmmfp(t):
+    '''
+    Converts timestamp to hour.minute format where . is a decimal point
+    '''
+    t=numpy.array(map(utils.timestamp2secondsofday,t.tolist()))/3600.0
+    minutes=(t-numpy.floor(t))*0.6
+    t-=t-numpy.floor(t)
+    t+=minutes
+    return t
         
 
 class TestBehavEngine(unittest.TestCase):
@@ -1422,10 +1431,12 @@ class TestBehavEngine(unittest.TestCase):
     def test_04_animal_summary(self):
         self.engine=BehavioralEngine(self.machine_config)
         self.engine.session_ongoing=False
-        self.engine.current_animal='eger1'
+        self.engine.current_animal='test1'
         self.engine.datafolder='/tmp/animal'
         self.engine.show_animal_statistics()
         self.engine.animal_stat_per_page
+        self.engine.show_animal_success_rate()
+        self.engine.show_day_success_rate('/tmp/animal/test1/20160415')
         self.engine.close()
         
 
