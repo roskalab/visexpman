@@ -10,8 +10,12 @@ from visexpman.engine.generic import fileop, utils,introspect,geometry,signal
 image_scale = 0.3225#Scale Factor for X
 
 def file2cells(filename, maxcellradius=65, sigma=0.2):
-    
-    image=tifffile.imread(filename)
+    if os.path.isdir(filename):
+        tfs=fileop.listdir_fullpath(filename)
+        tfs.sort()
+        image=numpy.array([tifffile.imread(fi) for fi in tfs if 'tif' in os.path.splitext(fi)[1]])
+    else:
+        image=tifffile.imread(filename)
     meanimage = image.mean(axis=0)
     try:
         from skimage.filters import threshold_otsu
@@ -160,8 +164,10 @@ def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', cente
             stimulated_cell_fn = fn
             stimulated_cell_curve_integral = roi_curves_integral[i]
             stimulated_cell_index=i
+            
     import shutil
     shutil.copy(stimulated_cell_fn,os.path.dirname(f))
+    
     import scipy.io
     data={}
     data['roi_curves']=roi_curves
@@ -212,6 +218,8 @@ def plot_aggregated_curves(curves, legendtxt, filename,baseline_duration,ylab,pl
     
 def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=1, ppenable=False):
     files=[f for f in fileop.listdir_fullpath(folder) if 'tif' in f[-3:]]
+    if len(files)==0:#series of tifffiles in folder
+        files=[f for f in fileop.listdir_fullpath(folder) if os.path.isdir(f)]
     cc=[]#center cell curve
     cc_int=[]#central cell integral curve
     nrc=[]#not responding cell curves
@@ -234,12 +242,15 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
         for f in files:
             print 'processing', f
             with introspect.Timer():
-                stimulated_cell_curves,nonresponding_roi_curves,stimulated_cell_curves_integral,nonresponding_roi_curves_integral=\
-                                process_file(f,baseline_duration=baseline_duration,export_fileformat=export_fileformat,center_tolerance = center_tolerance, dfpf_threshold=dfpf_threshold, maxcellradius=maxcellradius, sigma=sigma,frame_rate=frame_rate)
-                cc.append(stimulated_cell_curves)
-                cc_int.append(stimulated_cell_curves_integral)
-                nrc.extend(nonresponding_roi_curves)
-                nrc_int.extend(nonresponding_roi_curves_integral)
+                try:
+                    stimulated_cell_curves,nonresponding_roi_curves,stimulated_cell_curves_integral,nonresponding_roi_curves_integral=\
+                                    process_file(f,baseline_duration=baseline_duration,export_fileformat=export_fileformat,center_tolerance = center_tolerance, dfpf_threshold=dfpf_threshold, maxcellradius=maxcellradius, sigma=sigma,frame_rate=frame_rate)
+                    cc.append(stimulated_cell_curves)
+                    cc_int.append(stimulated_cell_curves_integral)
+                    nrc.extend(nonresponding_roi_curves)
+                    nrc_int.extend(nonresponding_roi_curves_integral)
+                except:
+                    pass
     cc_mean,cc_std=plot_aggregated_curves(cc, legendtxt, os.path.join(folder, 'stimulated_cell.'+export_fileformat),baseline_duration,'df/f',frame_rate=frame_rate)
     cc_int_mean,cc_int_std=plot_aggregated_curves(cc_int, legendtxt, os.path.join(folder, 'stimulated_cell_integrated.'+export_fileformat),baseline_duration, 'integral activity',frame_rate=frame_rate)
     nrc_mean,nrc_std=plot_aggregated_curves(nrc, legendtxt, os.path.join(folder, 'not_responding_cells.'+export_fileformat),baseline_duration,'df/f',plot_mean_only=True,frame_rate=frame_rate)
@@ -257,9 +268,10 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
 #    folder='/home/rz/codes/data/rajib/'
-    folder='/tmp/rajib'
+    folder='/tmp/tiffs'
     baseline_duration=5
     export_fileformat = 'png'
     frame_rate=1/0.64#s
-    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65, sigma=0.2, frame_rate=frame_rate,ppenable=True)    
+    frame_rate=1#s
+    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65/2, sigma=0.2, frame_rate=frame_rate,ppenable=not True)    
     
