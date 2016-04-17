@@ -769,13 +769,21 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
         day_folders.sort()
         self.animal_stat={}
+        self.best_success_rate={}
+        days=[os.path.basename(df) for df in day_folders]
+        days.sort()
+        dayts=numpy.array([utils.datestring2timestamp(d,'%Y%m%d') for d in days])
+        dayts-=dayts[0]
+        dayts/=86400
+        days=dict(zip(days,dayts.tolist()))
         for d in day_folders:
             dayd=[self.read_file_summary(f) for f in fileop.listdir_fullpath(d) if os.path.splitext(f)[1]=='.hdf5']
             protocols=list(set([di['protocol'] for di in dayd if di.has_key('protocol')]))
             day_item={}
             for protocol in protocols:
-                day_item[protocol]=numpy.array([[di['t'], di['Success Rate']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']==protocol]).T
+                day_item[protocol]=numpy.array([[di['t'], di['Success Rate']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']==protocol]).T                
             self.animal_stat[os.path.basename(d)]=day_item
+            self.best_success_rate[days[os.path.basename(d)]]=numpy.array([[di['t'], di['Success Rate'], di['stimulus'], di['duration']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']=='StimStopReward'])
         #group days
         max_plots_per_page=6
         npages=int(numpy.ceil(len(self.animal_stat.keys())/float(max_plots_per_page)))
@@ -785,7 +793,37 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.animal_stat_per_page=[]
         for page in pages:
             self.animal_stat_per_page.append(dict([(d, self.animal_stat[d]) for d in page]))
-        self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal]})
+        #Create stat where best n days are selected
+        n=self.parameters['Best Success Rate Over Number Of Stimulus']
+        self.best_success_rate_selected={'x':[],'y':[]}
+        for d,di in self.best_success_rate.items():
+            if di.shape[0]>0:
+                sorted=di[di.argsort(axis=0)[:,0]]
+                for index in range(sorted.shape[0]):
+                    nstim=0
+                    indexes=[]
+                    max_success_rate=0
+                    max_success_rate_indexes=numpy.array([])
+                    for i in range(index,sorted.shape[0]):
+                        nstim+=sorted[i,2]
+                        indexes.append(i)
+                        if nstim>=n:
+                            #calculate weighted success rate
+                            selected=sorted[indexes]
+                            sr=(selected[:,1]*selected[:,3]/selected[:,3].sum()).sum()
+                            if sr>max_success_rate:
+                                max_success_rate=sr
+                                max_success_rate_indexes=numpy.array(indexes)
+                            break
+                if max_success_rate_indexes.shape[0]>0:
+                    y=sorted[max_success_rate_indexes,1]
+                    x=numpy.ones_like(y)*d
+                    self.best_success_rate_selected['x'].extend(x)
+                    self.best_success_rate_selected['y'].extend(y)
+        self.best_success_rate_selected['x']=numpy.array(self.best_success_rate_selected['x'])
+        self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])
+        self.best_success_rate_selected['n']=n
+        self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal, self.best_success_rate_selected]})
         
             
     def show_animal_success_rate(self):
@@ -954,6 +992,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 {'name': 'Stimulus Pulse Duration', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
+                                {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 20},
                             ]},
                             {'name': 'Show...', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Run Events Trace', 'type': 'bool', 'value': True},
@@ -1024,7 +1063,7 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('update_weight_history'):
             x=msg['update_weight_history'][:,0]
             x/=86400
-            x-=x[-1]
+            x-=x[0]
             utils.timestamp2ymd(self.engine.weight[-1,0])
             self.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
             self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
@@ -1306,7 +1345,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.close()
         
 class AnimalStatisticsPlots(QtGui.QTabWidget):
-    def __init__(self, parent, data, animal_name):
+    def __init__(self, parent, data, animal_name, best):
         QtGui.QTabWidget.__init__(self)
         self.setWindowIcon(gui.get_icon('behav'))
         gui.set_win_icon()
@@ -1318,6 +1357,12 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         for i in range(len(data)):
             self.pages.append(PlotPage(data[i],self))
             self.addTab(self.pages[-1],str(i))
+        self.best=gui.Plot(self)
+        pp=[{'pen':None, 'symbol':'o', 'symbolSize':12, 'symbolBrush': (128,255,0,128)}]
+        self.best.update_curves([best['x']],[best['y']], plotparams=pp)
+        self.best.plot.setLabels(left='success rate [%]', bottom='time [days]')
+        self.best.plot.setTitle('StimStopReward')
+        self.addTab(self.best,'Best success rate over {0} stimulus'.format(best['n']))
         self.show()
         
 class PlotPage(QtGui.QWidget):
@@ -1431,12 +1476,12 @@ class TestBehavEngine(unittest.TestCase):
     def test_04_animal_summary(self):
         self.engine=BehavioralEngine(self.machine_config)
         self.engine.session_ongoing=False
-        self.engine.current_animal='test1'
+        self.engine.current_animal='eger1'
         self.engine.datafolder='/tmp/animal'
+        self.engine.parameters={'Best Success Rate Over Number Of Stimulus':2}
         self.engine.show_animal_statistics()
-        self.engine.animal_stat_per_page
         self.engine.show_animal_success_rate()
-        self.engine.show_day_success_rate('/tmp/animal/test1/20160415')
+        self.engine.show_day_success_rate('/tmp/animal/eger1/20160412')
         self.engine.close()
         
 
