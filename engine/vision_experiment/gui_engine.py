@@ -361,6 +361,7 @@ class Analysis(object):
         rectangle = numpy.array(rectangle)/self.image_scale
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
+        self.printc('Roi {0}, {1}'.format(rectangle, self.raw_data.shape))
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
         area=cone_data.roi_redetect(rectangle, self.meanimage, subimage_size=3)
         self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area})
@@ -611,6 +612,24 @@ class Analysis(object):
             if self.abort:break
         self.printc('DONE')
         self.notify('Info', 'ROI fixing is ready')
+        
+    def check_files(self,folder):
+        self.printc('Checking '+folder)
+        files=fileop.listdir_fullpath(folder)
+        files.sort()
+        self.abort=False
+        self.broken_files=[]
+        for f in files:
+            if 'hdf5' not in f: continue
+            try:
+                self.open_datafile(f)
+            except:
+                self.broken_files.append(f)
+            if self.abort:break
+        self.printc('Broken files:')
+        [self.printc('{0}'.format(bf)) for bf in self.broken_files]
+        self.printc('DONE')
+        self.notify('Info', 'Checking files is ready')
         
     def check_stim_timing(self,folder):
         files=fileop.listdir_fullpath(folder)

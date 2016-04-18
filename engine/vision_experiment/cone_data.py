@@ -51,7 +51,10 @@ def calculate_trace_parameters(trace, tsync, timg,baseline_length):
     baseline_start = signal.time2index(timg, tsync[0]-baseline_length)
     baseline_end = signal.time2index(timg, tsync[0])
     baseline=numpy.array(trace[baseline_start:baseline_end])
-    end_of_drop = trace[:response_start].argmin()
+    if trace[:response_start].shape[0]==0:
+        end_of_drop = 0
+    else:
+        end_of_drop = trace[:response_start].argmin()
     #initial drop quantification
     #Find minimum between start and stimulus start and take the trace from the beginning till this point
     initial_drop_trace=trace[:end_of_drop]

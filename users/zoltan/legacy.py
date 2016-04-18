@@ -1,4 +1,4 @@
-import sys
+import sys,scipy.io
 import copy_reg
 import types
 import multiprocessing
@@ -15,8 +15,7 @@ from visexpman.engine.generic import fileop,utils,signal,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
-import time
-FIX1KHZ=not False
+FIX1KHZ= False
 
 class PhysTiff2Hdf5(object):
     '''
@@ -44,10 +43,12 @@ class PhysTiff2Hdf5(object):
         else:
             self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
         
-        excluded_extensions=['txt','mat','hdf5','tif' if not self.use_tiff else 'csv']
+        excluded_extensions=['txt','hdf5','tif' if not self.use_tiff else 'csv']
         self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and fileop.file_extension(f) not in excluded_extensions]
         #self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600]#Considering files not older than 2 weeks
-        
+        #Exclude unclosed files
+        now=time.time()
+        self.allfiles = [f for f in self.allfiles if now-os.path.getctime(f)>10 and now-os.path.getmtime(f)>10]
         
         if self.irlaser:
             physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='csv' and 'rect' not in f and 'timestamps' not in f]
@@ -71,8 +72,10 @@ class PhysTiff2Hdf5(object):
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
                 found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(fileop.file_extension(pf),''))[:-1] in tf]
+                foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f]
+                
             if 1:
-                if len(found)>0 and [pf,found[0]] not in self.processed_pairs:
+                if len(found)>0 and len(foundmat)>0 and [pf,found[0]] not in self.processed_pairs:
                     if os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3:
 #                        id = str(experiment_data.get_id(os.path.getmtime(pf)))
 #                        if id not in ids:# len([f for f in self.outfiles if id in f])==0
@@ -251,7 +254,29 @@ class PhysTiff2Hdf5(object):
         if data.shape[0]!=3:
             raise RuntimeError('Sync signals might not be recorded. Make sure that recording ai4:5 channels are enabled, {0}'.format(data.shape))
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
-        sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
+        matfile=[f for f in os.listdir(os.path.dirname(fphys)) if os.path.basename(fphys) in f and f[-4:]=='.mat']
+        stiminfo_available=False
+        if len(matfile)>0:
+            stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec']
+            stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
+        else:
+            print 'no stim metadata found'
+            return
+        if stiminfo_available:
+            if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
+                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
+                block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
+            elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
+                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
+            pulse_start=signal.trigger_indexes(data[1])[::2]
+            sig=numpy.zeros_like(data[1])
+            boundaries=pulse_start[block_startend]
+            for i in range(boundaries.shape[0]/2):
+                sig[boundaries[2*i]:boundaries[2*i+1]]=5
+            sync_and_elphys[:,2]=sig
+        else:
+            sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
         sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
         if sig is None:
             return
@@ -280,9 +305,8 @@ class PhysTiff2Hdf5(object):
         h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
         fileop.set_file_dates(filename, id)
-        self.backup_files(fphys,ftiff,filename)
+        if 0: self.backup_files(fphys,ftiff,filename)
         return filename
-        #TODO: use pool for parallel processing
         
     def parse_stimulus_name(self,metadata):
         if not metadata.has_key('Stimulus file'):
@@ -315,6 +339,7 @@ class PhysTiff2Hdf5(object):
                 print 'sync signal recording was aborted'
             SR=(10000.0 if not FIX1KHZ else 1000.0)
             if indexes.shape[0]/(sig.shape[0]/SR)>66:
+                print 'sync signal not detected, assuming timing'
                 sig2=numpy.zeros_like(sig)
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
             
@@ -394,6 +419,10 @@ class TestConverter(unittest.TestCase):
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
+        if fileop.free_space(sys.argv[1])/1e9<30e9:
+            raise RuntimeError('{0} is running out of free space'.format(sys.argv[1]))
+        elif fileop.free_space(sys.argv[1])/1e9<100e9:
+            print 'Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9))
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False
         print 'Close window to exit program'

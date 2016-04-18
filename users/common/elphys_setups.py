@@ -19,13 +19,14 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.root_folder = 'q:\\'
         LOG_PATH = 'q:\\log'
         EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = 'q:\\Rei'
+        EXPERIMENT_DATA_PATH = 'q:\\'
 #        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'datastorage')
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
         DELETED_FILES_PATH = 'd:\\deleted_files'
         os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        FREE_SPACE_ERROR_THRESHOLD = 50e9
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True
