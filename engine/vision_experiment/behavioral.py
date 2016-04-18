@@ -1,6 +1,5 @@
 import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman, copy, traceback
-import serial
+import numpy,scipy.io,visexpman, copy, traceback,serial,re
 from PIL import Image
 import cv2
 import PyQt4.Qt as Qt
@@ -285,22 +284,33 @@ class TreadmillSpeedReader(multiprocessing.Process):
     def run(self):
         self.last_run=time.time()
         self.start_time=time.time()
+        self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_SPEED_UPDATE_RATE)
         logging.info('Speed reader started')
         while True:
-            now=time.time()
-            if now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
-                self.last_run=copy.deepcopy(now)
-                if self.emulate_speed:
+            try:
+                now=time.time()
+                if self.emulate_speed and now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
+                    self.last_run=copy.deepcopy(now)
                     spd=self.emulated_speed(now-self.start_time)
                 else:
-                    pass
-                self.speed_q.put([now,spd])
-            
-            if not self.queue.empty():
-                msg=self.queue.get()
-                if msg=='terminate':
-                    break
-            time.sleep(0.01)
+                    dtstr=self.s.readlines(1)
+                    if len(dtstr)==1:
+                        dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
+                        #logging.info(dtstr[0])
+                        ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
+                        spd=ds/dt
+                    else:
+                        spd=0.0
+                    self.speed_q.put([now,spd])
+                    self.prev_spd=spd
+                if not self.queue.empty():
+                    msg=self.queue.get()
+                    if msg=='terminate':
+                        break
+                time.sleep(0.01)
+            except:
+                logging.error(traceback.format_exc())
+        self.s.close()
         logging.info('Speed reader finished')
 
 class CameraHandler(object):
@@ -380,7 +390,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.load_context()
         self.load_animal_file(switch2plot=True)
         self.speed_reader_q=multiprocessing.Queue()
-        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=True)
+        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=False)
         self.speed_reader.start()
         self.session_ongoing=False
         self.reset_data()
@@ -1475,7 +1485,20 @@ class TestBehavEngine(unittest.TestCase):
             samples.append(tsr.speed_q.get())
         self.assertEqual(numpy.array(samples).shape[0], rectime/self.machine_config.TREADMILL_SPEED_UPDATE_RATE-1)
         
-    def test_04_animal_summary(self):
+    def test_04_speed_read(self):
+        q=multiprocessing.Queue()
+        rectime=3
+        tsr=TreadmillSpeedReader(q,self.machine_config)
+        tsr.start()
+        time.sleep(rectime)
+        q.put('terminate')
+        tsr.join()
+        samples=[]
+        while not tsr.speed_q.empty():
+            samples.append(tsr.speed_q.get())
+        pass
+        
+    def test_05_animal_summary(self):
         self.engine=BehavioralEngine(self.machine_config)
         self.engine.session_ongoing=False
         self.engine.current_animal='test1'
