@@ -799,11 +799,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         for d,di in self.best_success_rate.items():
             if di.shape[0]>0:
                 sorted=di[di.argsort(axis=0)[:,0]]
+                max_success_rate=0
+                max_success_rate_indexes=numpy.array([])
                 for index in range(sorted.shape[0]):
                     nstim=0
                     indexes=[]
-                    max_success_rate=0
-                    max_success_rate_indexes=numpy.array([])
                     for i in range(index,sorted.shape[0]):
                         nstim+=sorted[i,2]
                         indexes.append(i)
@@ -814,6 +814,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                             if sr>max_success_rate:
                                 max_success_rate=sr
                                 max_success_rate_indexes=numpy.array(indexes)
+                                logging.info((indexes,max_success_rate))
                             break
                 if max_success_rate_indexes.shape[0]>0:
                     y=sorted[max_success_rate_indexes,1]
@@ -1357,12 +1358,13 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         for i in range(len(data)):
             self.pages.append(PlotPage(data[i],self))
             self.addTab(self.pages[-1],str(i))
-        self.best=gui.Plot(self)
-        pp=[{'pen':None, 'symbol':'o', 'symbolSize':12, 'symbolBrush': (128,255,0,128)}]
-        self.best.update_curves([best['x']],[best['y']], plotparams=pp)
-        self.best.plot.setLabels(left='success rate [%]', bottom='time [days]')
-        self.best.plot.setTitle('StimStopReward')
-        self.addTab(self.best,'Best success rate over {0} stimulus'.format(best['n']))
+        if best['x'].shape[0]>0:
+            self.best=gui.Plot(self)
+            pp=[{'pen':None, 'symbol':'o', 'symbolSize':12, 'symbolBrush': (128,255,0,128)}]
+            self.best.update_curves([best['x']],[best['y']], plotparams=pp)
+            self.best.plot.setLabels(left='success rate [%]', bottom='time [days]')
+            self.best.plot.setTitle('StimStopReward')
+            self.addTab(self.best,'Best success rate over {0} stimulus'.format(best['n']))
         self.show()
         
 class PlotPage(QtGui.QWidget):
@@ -1476,12 +1478,12 @@ class TestBehavEngine(unittest.TestCase):
     def test_04_animal_summary(self):
         self.engine=BehavioralEngine(self.machine_config)
         self.engine.session_ongoing=False
-        self.engine.current_animal='eger1'
+        self.engine.current_animal='test1'
         self.engine.datafolder='/tmp/animal'
         self.engine.parameters={'Best Success Rate Over Number Of Stimulus':2}
         self.engine.show_animal_statistics()
         self.engine.show_animal_success_rate()
-        self.engine.show_day_success_rate('/tmp/animal/eger1/20160412')
+        #self.engine.show_day_success_rate('/tmp/animal/eger1/20160412')
         self.engine.close()
         
 
