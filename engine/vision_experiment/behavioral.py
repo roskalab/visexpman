@@ -10,7 +10,6 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#NEXT: find best N flash-> plot in summary
 #TODO: valves will be controlled by arduino to ensure valve open time is precise
 
 def object_parameters2dict(obj):

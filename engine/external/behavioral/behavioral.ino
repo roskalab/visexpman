@@ -62,7 +62,7 @@ void loop() {
        case 0:
          PORTB&=~(1<<channel);
          break;
-       case 0x3FF:
+       case 0x3F:
          PORTB|=(1<<channel);
          break;
        default:
@@ -71,12 +71,12 @@ void loop() {
          PORTB&=~(1<<channel);   
      }
     }
-  PORTD&=~(1<<7);  
+  /*PORTD&=~(1<<7);  
   PORTD|=(1<<7);
   PORTD&=~(1<<6);    
   delay(1000);
   PORTD&=~(1<<7);
   PORTD|=(1<<6);
-  delay(1000);  
+  delay(1000);  */
   
 }
