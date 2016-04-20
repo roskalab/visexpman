@@ -307,6 +307,19 @@ class TreadmillSpeedReader(multiprocessing.Process):
                     msg=self.queue.get()
                     if msg=='terminate':
                         break
+                    elif msg.has_key('pulse'):
+                        byte_command=0
+                        channel, command=msg['pulse']
+                        channel&=3
+                        byte_command = channel<<6
+                        if command=='off':
+                            byte_command|=0
+                        elif command=='on':
+                            byte_command|=63
+                        else:
+                            byte_command|=int(round(command/5e-3))&63
+                        logging.info(bin(byte_command))
+                        self.s.write(chr(byte_command))
                 time.sleep(0.01)
             except:
                 logging.error(traceback.format_exc())
@@ -511,17 +524,22 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.forcerun_values=numpy.concatenate((self.forcerun_values,numpy.array([[now, 1]])))
             
     def reward(self):
+        self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Reward')
         now=time.time()
         self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
         
     def airpuff(self):
+        self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Airpuff')
         now=time.time()
         self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
         
     def set_valve(self,channel,state):
-        pass
+        if channel=='air':
+            self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,'on' if state else 'off']})
+        elif channel=='water':
+            self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
         
     def stimulate(self):
         logging.info('Stimulus')
