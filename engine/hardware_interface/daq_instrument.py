@@ -380,6 +380,10 @@ def set_waveform(channels,waveform,sample_rate = 100000):
     '''
     Waveform: first dimension channels, second: samples
     '''
+    analog_output, wf_duration = set_voltage_start(channels,waveform,sample_rate = 100000)
+    set_voltage_finish(analog_output, wf_duration)
+    
+def set_waveform_start(channels,waveform,sample_rate = 100000):
     sample_per_channel = waveform.shape[1]
     wf_duration = float(sample_per_channel)/sample_rate
     analog_output = PyDAQmx.Task()
@@ -403,7 +407,10 @@ def set_waveform(channels,waveform,sample_rate = 100000):
                                 None,
                                 None)
     analog_output.StartTask()
-    analog_output.WaitUntilTaskDone(wf_duration+1.0)
+    return analog_output, wf_duration
+    
+def set_waveform_finish(analog_output, timeout):
+    analog_output.WaitUntilTaskDone(timeout+1.0)
     analog_output.StopTask()                            
     analog_output.ClearTask()
     

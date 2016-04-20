@@ -16,9 +16,12 @@ class BehavioralSetup(BehavioralConfig):
         AIRPUFF_VALVE_DO_CHANNEL=1
         SCREEN_SIZE=[1366,700]
         SCREEN_OFFSET=[4,19]
-        BOTTOM_WIDGET_HEIGHT=290
+        BOTTOM_WIDGET_HEIGHT=260
         MINIMUM_FREE_SPACE=20#GByte
         ARDUINO_SERIAL_PORT='/dev/ttyACM0'
+        LASER_AO_CHANNEL='/Dev1/ao0'
         
-        
+class OfficeTestComputer(BehavioralSetup):
+    LASER_AO_CHANNEL='/Dev2/ao0'
+    ENABLE_CAMERA=False
         

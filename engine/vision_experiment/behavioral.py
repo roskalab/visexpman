@@ -9,7 +9,9 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
-#TODO: valves will be controlled by arduino to ensure valve open time is precise
+DEBUG=True
+#NEXT: implement stimulus, fan control
+#TODO: question: stimulate until animal stops or timeout?
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -295,7 +297,6 @@ class TreadmillSpeedReader(multiprocessing.Process):
                     dtstr=self.s.readlines(1)
                     if len(dtstr)==1:
                         dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
-                        #logging.info(dtstr[0])
                         ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
                         spd=ds/dt
                     else:
@@ -317,7 +318,8 @@ class TreadmillSpeedReader(multiprocessing.Process):
                             byte_command|=63
                         else:
                             byte_command|=int(round(command/5e-3))&63
-                        logging.info(bin(byte_command))
+                        if DEBUG:
+                            logging.debug(bin(byte_command))
                         self.s.write(chr(byte_command))
                 time.sleep(0.01)
             except:
@@ -363,7 +365,7 @@ class CameraHandler(object):
                 
     def update_video_recorder(self):
         now=time.time()
-        if now-self.last_runtime>=self.tperiod:
+        if now-self.last_runtime>=self.tperiod and self.machine_config.ENABLE_CAMERA:
             now1=time.time()
             self.fps=1.0/(now1-self.last_runtime)
             self.last_runtime=now1
@@ -543,7 +545,17 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def stimulate(self):
         logging.info('Stimulus')
         now=time.time()
-        self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+self.parameters['Stimulus Pulse Duration'], 1],[now+self.parameters['Stimulus Pulse Duration']+1e-3, 0]])))
+        fsample=1000
+        self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
+        self.stimulus_waveform[0]=0
+        self.stimulus_waveform[-1]=0
+        self.stimulus_waveform*=self.parameters['Laser Intensity']
+        stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
+        self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
+        self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+stimulus_duration, 1],[now+stimulus_duration+1e-3, 0]])))
+        if os.name=='nt':
+            self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform(self.machine_config.LASER_AO_CHANNEL,
+                                                        self.stimulus_waveform,fsample)
 
     def set_speed_update(self, state):
         self.enable_speed_update=state
@@ -841,7 +853,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                             if sr>max_success_rate:
                                 max_success_rate=sr
                                 max_success_rate_indexes=numpy.array(indexes)
-                                logging.info((indexes,max_success_rate))
                             break
                 if max_success_rate_indexes.shape[0]>0:
                     y=sorted[max_success_rate_indexes,1]
@@ -957,11 +968,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                         break
                     if msg.has_key('function'):#Functions are simply forwarded
                         #Format: {'function: function name, 'args': [], 'kwargs': {}}
-                        logging.info(msg)
+                        if DEBUG:
+                            logging.debug(msg)
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
                 if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
-                    #logging.info('alive')
                     if self.enable_speed_update:
                         self.run_stop_event_detector()
                         self.update_speed_values()
@@ -1017,9 +1028,6 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
                                 {'name': 'Move Threshold', 'type': 'float', 'value': 1,'suffix': 'm/s'},
                                 {'name': 'Run Threshold', 'type': 'float', 'value': 70.0, 'suffix': '%'},
-                                {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
-                                {'name': 'Stimulus Pulse Duration', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 20},
                             ]},
                             {'name': 'Show...', 'type': 'group', 'expanded' : True, 'children': [
@@ -1029,6 +1037,13 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Airpuff Trace', 'type': 'bool', 'value': False},
                                 {'name': 'Stimulus Trace', 'type': 'bool', 'value': False},
                                 {'name': 'Force Run Trace', 'type': 'bool', 'value': False},
+                                ]},
+                            {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
+                                #{'name': 'N Pulses', 'type': 'int', 'value': 1 },
+                                {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
+                                {'name': 'Pulse Duration', 'type': 'float', 'value': 0.1,'siPrefix': True, 'suffix': 's'},
+                                #{'name': 'Pause Between Pulses', 'type': 'float', 'value': 0.2,'siPrefix': True, 'suffix': 's'},
+                                {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
@@ -1043,7 +1058,7 @@ class Behavioral(gui.SimpleAppWindow):
                             pi['value']=v
                             break
         self.paramw = gui.ParameterTable(self, self.params_config)
-        self.paramw .setFixedWidth(400)
+        self.paramw .setFixedWidth(480)
         self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
@@ -1084,6 +1099,7 @@ class Behavioral(gui.SimpleAppWindow):
                 self.process_msg(self.from_engine.get())
             
     def process_msg(self,msg,skip_main_image_display=False):
+        self.msg=msg
         if msg.has_key('notify'):
             self.notify(msg['notify']['title'], msg['notify']['msg'])
         elif msg.has_key('statusbar'):

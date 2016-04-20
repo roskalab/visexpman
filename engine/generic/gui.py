@@ -421,7 +421,8 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             self.curves[-1].setPen((200,0,0), width=3)
             x_,y_ = signal.average_of_traces(x,y)
             self.curves[-1].setData(x_, y_)
-        self.plot.setYRange(min(minimums), max(maximums))
+        if min(minimums)<max(maximums):
+            self.plot.setYRange(min(minimums), max(maximums))
         
     def _clear_curves(self):
         if hasattr(self, 'curve'):
