@@ -16,6 +16,8 @@ from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
 FIX1KHZ= False
+NOMATFILE=not True
+NWEEKS=2
 
 class PhysTiff2Hdf5(object):
     '''
@@ -33,7 +35,7 @@ class PhysTiff2Hdf5(object):
         
     def detect_and_convert(self):
         now=time.time()
-        recent_folders=[f for f in fileop.listdir_fullpath(self.folder) if os.path.isdir(f) and now-os.path.getctime(f)<3600*168*2]
+        recent_folders=[f for f in fileop.listdir_fullpath(self.folder) if os.path.isdir(f) and now-os.path.getctime(f)<3600*168*NWEEKS]
         self.allfiles=[]
         for folder in recent_folders:
             self.allfiles.extend(fileop.find_files_and_folders(folder)[1])
@@ -72,7 +74,7 @@ class PhysTiff2Hdf5(object):
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
                 found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(fileop.file_extension(pf),''))[:-1] in tf]
-                foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f]
+                foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f or NOMATFILE]
                 
             if 1:
                 if len(found)>0 and len(foundmat)>0 and [pf,found[0]] not in self.processed_pairs:
@@ -262,7 +264,8 @@ class PhysTiff2Hdf5(object):
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
             print 'no stim metadata found'
-            return
+            if not NOMATFILE:
+                return
         if stiminfo_available:
             if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
                 block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
@@ -419,9 +422,9 @@ class TestConverter(unittest.TestCase):
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
-        if fileop.free_space(sys.argv[1])/1e9<30e9:
+        if fileop.free_space(sys.argv[1])<30e9:
             raise RuntimeError('{0} is running out of free space'.format(sys.argv[1]))
-        elif fileop.free_space(sys.argv[1])/1e9<100e9:
+        elif fileop.free_space(sys.argv[1])<100e9:
             print 'Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9))
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False
