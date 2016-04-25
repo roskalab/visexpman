@@ -1,5 +1,5 @@
 import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman, copy, traceback,serial,re
+import numpy,scipy.io,visexpman, copy, traceback,serial,re,subprocess,platform
 from PIL import Image
 import cv2
 import PyQt4.Qt as Qt
@@ -8,256 +8,21 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
-from visexpman.engine.vision_experiment import experiment_data, configuration
+from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
 DEBUG=True
-#NEXT: non blocking fan control, recalculate success rate for each file, save runtimes
+#NEXT: non blocking fan control, save runtimes
 
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
 
-class Protocol(object):
-    def __init__(self,engine):
-        self.engine=engine
-        self.reset()
-        
-    def update(self):
-        '''
-        In subclass this method calculates if reward/punishment has to be given
-        '''
-        
-    def stat(self):
-        '''
-        In a subclass this method calculates the actual success rate
-        '''
-    def reset(self):
-        '''
-        Resets state variables
-        '''
-        
-        
 def get_protocol_names():
-    objects=[getattr(sys.modules[__name__], c) for c in dir(sys.modules[__name__])]
-    pns=[o.__name__ for o in objects if 'Protocol' in introspect.class_ancestors(o)]
+    pns = [m[1].__name__ for m in utils.fetch_classes('visexpman.users.common', required_ancestors = experiment.Protocol,direct = False)]
+    if 0:
+        objects=[getattr(sys.modules[__name__], c) for c in dir(sys.modules[__name__])]
+        pns=[o.__name__ for o in objects if 'Protocol' in introspect.class_ancestors(o)]
     return pns
     
-class KeepStopReward(Protocol):
-    '''
-        self.PROTOCOL_KEEP_STOP_REWARD['reward period']=20#sec
-        self.PROTOCOL_KEEP_STOP_REWARD['punishment time']=30#sec
-        self.PROTOCOL_KEEP_STOP_REWARD['reward period increment']=0#sec
-        self.PROTOCOL_KEEP_STOP_REWARD['max reward perdion']=3600.0#sec
-        
-                if not hasattr(self, 'keep_stop_time'):
-            self.reward_period=self.config.PROTOCOL_KEEP_STOP_REWARD['reward period']
-        speed=numpy.where(abs(self.checkdata[2])>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
-        if speed.sum()>0:
-            if self.punishment:
-                self.punishment_start_time=time.time()
-                self.checkdata=numpy.copy(self.empty)    
-            else:
-                self.log('Start of water deprivation');
-                self.punishment = True
-                self.punishment_counter+=1
-                self.punishment_start_time=time.time()
-                self.checkdata=numpy.copy(self.empty)  
-        else:
-            if self.punishment:
-                if time.time()-self.punishment_start_time>self.config.PROTOCOL_KEEP_STOP_REWARD['punishment time']:
-                    self.punishment = False
-                    self.log('End of water deprivation')
-            else:
-                if self.checkdata[0,-1]-self.checkdata[0,0]>self.reward_period:
-                    speed=numpy.where(self.checkdata[2]>self.config.MOVE_THRESHOLD,1,0)#speed mask 1s: above threshold
-                    t=self.checkdata[0]-self.checkdata[0,0]#Time is shifted to 0
-                    #Calculate index for last stoptime duration
-                    index=numpy.where(t>t.max()-self.reward_period)[0].min()
-                    stop_speed=speed[index:]#...and the stop part
-                    stop=stop_speed.sum()==0#All elements of the stop part shall be below threshold
-                    if stop:
-                        self.reward()#... give reward and...
-                        self.checkdata=numpy.copy(self.empty)#Reset checkdata
-
-    '''
-    
-class KeepRunningReward(Protocol):
-    '''A reward is given if the animal was running for RUN_TIME '''
-    RUN_TIME=5.0
-    def reset(self):
-        self.engine.run_time=self.RUN_TIME
-        self.nrewards=0
-    
-    def update(self):
-        indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type']=='run']
-        self.last_update=time.time()
-        if len(indexes)>0:
-            for i in indexes:
-                self.engine.events[i]['ack']=True
-            self.engine.reward()
-            self.nrewards+=1
-        
-    def stat(self):
-        '''
-        Success rate is the ratio of time while the animal was running
-        '''
-        if self.engine.speed_values.shape[0]>0:
-            elapsed_time=self.last_update-self.engine.speed_values[0,0]
-            success_rate=self.nrewards*self.RUN_TIME/elapsed_time
-            success_rate = 1.0 if success_rate>=1 else success_rate
-            return {'rewards':self.nrewards, 'Success Rate': success_rate}
-        
-class ForcedKeepRunningReward(KeepRunningReward):
-    '''
-    Animal gets a reward if it was running for RUN_TIME.
-    If the animal is not moving for STOP_TIME it will be forced to move for RUN_FORCE_TIME seconds.
-    '''
-    RUN_TIME=5.0
-    STOP_TIME=6.5
-    RUN_FORCE_TIME = 3.0
-    def reset(self):
-        self.engine.run_time=self.RUN_TIME
-        self.engine.stop_time=self.STOP_TIME
-        self.nrewards=0
-        self.nforcedruns=0
-        
-    def update(self):
-        KeepRunningReward.update(self)
-        indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type']=='stop']
-        for i in indexes:
-            self.engine.events[i]['ack']=True
-        if len(indexes)>0:
-            self.engine.airpuff()
-            self.engine.forcerun(self.RUN_FORCE_TIME)
-            self.nforcedruns+=1
-
-    def stat(self):
-        '''
-        Number of rewards in session, number of forced runs
-        '''
-        stats=KeepRunningReward.stat(self)
-        if stats==None:return
-        stats['forcedruns']=self.nforcedruns
-        return stats
-        
-class ForcedKeepRunningRewardLevel1(ForcedKeepRunningReward):
-    __doc__=ForcedKeepRunningReward.__doc__
-    RUN_TIME=3.0
-    STOP_TIME=6.5
-    RUN_FORCE_TIME = 3.0
-    
-class ForcedKeepRunningRewardLevel2(ForcedKeepRunningReward):
-    __doc__=ForcedKeepRunningReward.__doc__
-    RUN_TIME=6.0
-    STOP_TIME=6.5
-    RUN_FORCE_TIME = 6.0
-                
-class ForcedKeepRunningRewardLevel3(ForcedKeepRunningReward):
-    __doc__=ForcedKeepRunningReward.__doc__
-    RUN_TIME=10.0
-    STOP_TIME=6.5
-    RUN_FORCE_TIME = 5.0
-
-        
-class StopReward(Protocol):
-    '''After running for RUN_TIME, the animal gets reward if stops for STOP_TIME
-    '''
-    RUN_TIME=10.0
-    STOP_TIME=0.5
-    
-    def reset(self):
-        self.engine.run_time=self.RUN_TIME
-        self.engine.stop_time=self.STOP_TIME
-        self.nrewards=0
-        self.nruns=0
-        self.run_complete=False
-        
-    def update(self):
-        indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type'] in ['run', 'stop']]
-        if len(indexes)>0:
-            if self.engine.events[indexes[0]]['type']=='run':
-                self.run_complete=True
-                self.nruns+=1
-            elif self.run_complete and self.engine.events[indexes[0]]['type']=='stop':
-                self.run_complete=False
-                self.engine.reward()
-                self.nrewards+=1
-            self.engine.events[indexes[0]]['ack']=True
-        
-    def stat(self):
-        '''
-        Success rate is the number of reward per the overall number of run events
-        '''
-        if self.nruns==0:
-            success_rate=0
-        else:
-            success_rate=self.nrewards/float(self.nruns)
-        return {'rewards':self.nrewards, 'runs': self.nruns, 'Success Rate': success_rate}
-
-class StimStopReward(Protocol):
-    '''
-    If a run event occurs, turn on stimulus. Wait for stop event which should occur within DELAY_AFTER_RUN.
-    If stop event does not happen, turn off stimulus and generate next randomized run time and wait for next run time
-    If stop event takes place turn off stimulus, give reward and generate next randomized run time
-    
-    Randomized runtime :
-    RUN_TME+a random number between 0 and RANDOM_TIME_RANGE in RANDOM_TIME_STEPs
-    '''
-
-    DELAY_AFTER_RUN=5.0
-    RUN_TIME=5.0
-    STOP_TIME=0.5
-    RANDOM_TIME_RANGE=10.0
-    RANDOM_TIME_STEP=0.5
-    def reset(self):
-        self.engine.run_time=self.generate_runtime()
-        self.engine.stop_time=self.STOP_TIME
-        self.nrewards=0
-        self.nstimulus=0
-        self.noreward=0
-        self.run_complete=False
-        
-    def generate_runtime(self):
-        nsteps=round(self.RANDOM_TIME_RANGE/self.RANDOM_TIME_STEP)
-        new_runtime=self.RUN_TIME+round((random.random()*nsteps))*self.RANDOM_TIME_STEP
-        logging.info('New runtime generated: {0} s'.format(new_runtime))
-        return new_runtime
-        
-    def update(self):
-        now=time.time()
-        run_indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type'] =='run']
-        if len(run_indexes)>0:
-            self.run_complete=True
-            self.run_complete_time=self.engine.events[run_indexes[0]]['t']
-            self.engine.events[run_indexes[0]]['ack']=True
-            self.engine.stimulate()
-            self.nstimulus+=1
-        elif self.run_complete:
-            if now-self.run_complete_time>self.DELAY_AFTER_RUN:
-                self.run_complete=False
-                self.engine.run_time=self.generate_runtime()
-                logging.info('No reward')
-                self.noreward+=1
-            else:
-                stop_indexes=[i for i in range(len(self.engine.events)) if not self.engine.events[i]['ack'] and self.engine.events[i]['type'] =='stop' and self.engine.events[i]['t']>self.run_complete_time]
-                if len(stop_indexes)>0:
-                    for i in stop_indexes:
-                        self.engine.events[i]['ack']=True
-                    self.engine.reward()
-                    self.nrewards+=1
-                    self.run_complete=False
-                    self.engine.run_time=self.generate_runtime()
-        
-    def stat(self):
-        '''
-        Success rate is nreward/nstimulus. nstimulus is the number when animal stopped and stimulus is presented. 
-        nreward is the number when after stimulus the animal is stopped.
-        '''
-        if self.nstimulus==0:
-            success_rate=0
-        else:
-            success_rate=self.nrewards/float(self.nstimulus)
-        return {'rewards':self.nrewards, 'stimulus': self.nstimulus, 'No reward': self.noreward, 'Success Rate': success_rate}
-
 class TreadmillSpeedReader(multiprocessing.Process):
     '''
     
@@ -417,6 +182,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.airpuff_values=numpy.empty((0,2))
         self.stimulus_values=numpy.empty((0,2))
         self.forcerun_values=numpy.empty((0,2))
+        self.run_times=[]
         self.events=[]
         logging.info('Data traces cleared')
         
@@ -518,6 +284,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.to_gui.put({'update_weight_history':self.weight.copy()})
         if switch2plot:
             self.to_gui.put({'switch2_animal_weight_plot':[]})
+            
+    def edit_protocol(self):
+        from visexpman.engine.vision_experiment import behavioral
+        fn=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.Protocol,direct = False)[0][0].__file__
+        if fn[-3:]=='pyc':
+            fn=fn[:-1]
+        lines=fileop.read_text_file(fn).split('\n')
+        line=[i for i in range(len(lines)) if 'class '+self.parameters['Protocol'] in lines[i]][0]+1
+        logging.info('Opening {0} at line {1}'.format(fn,line))
+        process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def forcerun(self,duration):
         self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on']})
@@ -716,7 +492,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.show_day_success_rate(self.recording_folder)
         self.current_protocol = self.parameters['Protocol']
         #TODO give warning if suggested protocol is different
-        self.protocol=getattr(sys.modules[__name__], self.current_protocol)(self)
+        modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.Protocol,direct = False)[0][0].__name__
+        __import__(modulename)
+        reload(sys.modules[modulename])
+        self.protocol= getattr(sys.modules[modulename], self.current_protocol)(self)
         self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+str(object_parameters2dict(self.protocol))})
         self.session_ongoing=True
         self.start_recording()
@@ -773,6 +552,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def save2file(self):
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.datafile.stat=self.protocol.stat()
+        self.protocol.reset()
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
             setattr(self.datafile, nn, object_parameters2dict(var))
@@ -781,7 +561,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
             setattr(self.datafile, vn, values)
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
-        nodes=['machine_config', 'protocol', 'protocol_name', 'stat']
+        self.datafile.run_times=self.run_times
+        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -1083,7 +864,7 @@ class Behavioral(gui.SimpleAppWindow):
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
         self.add_dockwidget(self.plots, 'Plots', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
         
-        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'show_animal_statistics', 'exit']
+        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'edit_protocol', 'show_animal_statistics', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -1221,6 +1002,9 @@ class Behavioral(gui.SimpleAppWindow):
             
     def show_animal_statistics_action(self):
         self.to_engine.put({'function': 'show_animal_statistics','args':[]})
+        
+    def edit_protocol_action(self):
+        self.to_engine.put({'function': 'edit_protocol','args':[]})
         
     def exit_action(self):
         if hasattr(self,'asp'):
