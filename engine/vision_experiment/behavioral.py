@@ -10,8 +10,8 @@ from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument, digital_io
 from visexpman.engine.vision_experiment import experiment_data, configuration
 DEBUG=True
-#NEXT: implement stimulus, fan control
-#TODO: question: stimulate until animal stops or timeout?
+#NEXT: non blocking fan control, recalculate success rate for each file, save runtimes
+
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -298,7 +298,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
                     if len(dtstr)==1:
                         dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
                         ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
-                        spd=ds/dt
+                        spd=ds/dt*self.machine_config.POSITIVE_DIRECTION
                     else:
                         spd=0.0
                     self.speed_q.put([now,spd])
@@ -520,9 +520,15 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def forcerun(self,duration):
+        self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on']})
         logging.info('Force run for {0} s'.format(duration))
         now=time.time()
         self.forcerun_values=numpy.concatenate((self.forcerun_values,numpy.array([[now, 1]])))
+        time.sleep(duration)
+        self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'off']})
+        
+    def set_fan(self,state):
+        self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on' if state else 'off']})
             
     def reward(self):
         self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
@@ -1306,8 +1312,10 @@ class LowLevelDebugW(QtGui.QWidget):
         for vn in valve_names:
             self.valves[vn]=gui.LabeledCheckBox(self,'Open {0} Valve'.format(vn.capitalize()))
             self.valves[vn].setToolTip('When checked, the valve is open')
+        self.fan=gui.LabeledCheckBox(self,'Fan on/off')
         self.connect(self.valves['water'].input, QtCore.SIGNAL('stateChanged(int)'),  self.water_valve_clicked)
         self.connect(self.valves['air'].input, QtCore.SIGNAL('stateChanged(int)'),  self.air_valve_clicked)
+        self.connect(self.fan.input, QtCore.SIGNAL('stateChanged(int)'),  self.fan_clicked)
         self.airpuff=QtGui.QPushButton('Air Puff', parent=self)
         self.connect(self.airpuff, QtCore.SIGNAL('clicked()'), self.airpuff_clicked)
         self.reward=QtGui.QPushButton('Reward', parent=self)
@@ -1318,6 +1326,7 @@ class LowLevelDebugW(QtGui.QWidget):
         self.connect(self.forcerun, QtCore.SIGNAL('clicked()'), self.forcerun_clicked)
         self.l = QtGui.QGridLayout()
         [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
+        self.l.addWidget(self.fan, 0, i+1, 1, 1)
         self.l.addWidget(self.reward, 1, 0, 1, 1)
         self.l.addWidget(self.airpuff, 1, 1, 1, 1)
         self.l.addWidget(self.stimulate, 2, 0, 1, 1)
@@ -1328,7 +1337,7 @@ class LowLevelDebugW(QtGui.QWidget):
         
     def forcerun_clicked(self):
         self.parent.parent().to_engine.put({'function':'forcerun','args':[1]})
-        
+    
     def airpuff_clicked(self):
         self.parent.parent().to_engine.put({'function':'airpuff','args':[]})
         
@@ -1343,6 +1352,9 @@ class LowLevelDebugW(QtGui.QWidget):
         
     def water_valve_clicked(self,state):
         self.parent.parent().to_engine.put({'function':'set_valve','args':['water', state==2]})
+        
+    def fan_clicked(self,state):
+        self.parent.parent().to_engine.put({'function':'set_fan','args':[state==2]})
         
 class AddAnimalWeightDialog(QtGui.QWidget):
     '''
