@@ -665,7 +665,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             for pn in protocol_names:
                 if not self.success_rate_summary.has_key(pn):
                     self.success_rate_summary[pn]=[]
-                self.success_rate_summary[pn].extend([[days.index(os.path.basename(day_folder)), si['Success Rate']] for si in summaryd if si.has_key('protocol') and si['protocol']==pn])
+                daynum=int((utils.datestring2timestamp(os.path.basename(day_folder),'%Y%m%d')-utils.datestring2timestamp(days[0],'%Y%m%d'))/86400)
+                self.success_rate_summary[pn].extend([[daynum, si['Success Rate']] for si in summaryd if si.has_key('protocol') and si['protocol']==pn])
         x=[]
         y=[]
         for p in self.success_rate_summary.keys():
@@ -895,7 +896,6 @@ class Behavioral(gui.SimpleAppWindow):
             x=msg['update_weight_history'][:,0]
             x/=86400
             x-=x[0]
-            utils.timestamp2ymd(self.engine.weight[-1,0])
             self.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
             self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
         elif msg.has_key('switch2_animal_weight_plot'):
@@ -1225,7 +1225,7 @@ class PlotPage(QtGui.QWidget):
                 t=data[d][pn][0]
                 t=timestamp2hhmmfp(t)
                 ref.update_curve(t,data[d][pn][1]*100,plotparams={'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
-                ref.plot.setLabels(left='success rate [%]', bottom='time [hour.minute]')
+                ref.plot.setLabels(left='success rate [%]', bottom='time [hour]')
             self.tp[-1].tab.setFixedWidth(parent.machine_config.SCREEN_SIZE[0]/3-50)
             self.tp[-1].tab.setFixedHeight(parent.machine_config.SCREEN_SIZE[1]/2-50)
             self.l.addWidget(self.tp[-1], ct/3, ct%3, 1, 1)
@@ -1237,9 +1237,9 @@ def timestamp2hhmmfp(t):
     Converts timestamp to hour.minute format where . is a decimal point
     '''
     t=numpy.array(map(utils.timestamp2secondsofday,t.tolist()))/3600.0
-    minutes=(t-numpy.floor(t))*0.6
-    t-=t-numpy.floor(t)
-    t+=minutes
+    #minutes=(t-numpy.floor(t))*0.6
+    #t-=t-numpy.floor(t)
+    #t+=minutes
     return t
         
 
