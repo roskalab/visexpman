@@ -21,8 +21,8 @@ class BehavioralSetup(BehavioralConfig):
         SCREEN_OFFSET=[4,19]
         BOTTOM_WIDGET_HEIGHT=260
         MINIMUM_FREE_SPACE=20#GByte
-        ARDUINO_SERIAL_PORT='/dev/ttyACM0'
-        LASER_AO_CHANNEL='/Dev1/ao0'
+        ARDUINO_SERIAL_PORT='COM5'#'/dev/ttyACM0'
+        LASER_AO_CHANNEL='Dev1/ao1'
         POSITIVE_DIRECTION=-1
         
 class OfficeTestComputer(BehavioralSetup):

@@ -7,10 +7,10 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
-from visexpman.engine.hardware_interface import daq_instrument, digital_io
+from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
 DEBUG=True
-#NEXT: non blocking fan control, save runtimes
+#NEXT: print be carfule with dfan label,non blocking fan control, non blocking stimulus, reconsider level 3 protocol (no run condition)
 
 
 def object_parameters2dict(obj):
@@ -336,8 +336,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
         self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+stimulus_duration, 1],[now+stimulus_duration+1e-3, 0]])))
         if os.name=='nt':
-            self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform(self.machine_config.LASER_AO_CHANNEL,
-                                                        self.stimulus_waveform,fsample)
+            self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform_start(self.machine_config.LASER_AO_CHANNEL,self.stimulus_waveform,fsample)
+            daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
 
     def set_speed_update(self, state):
         self.enable_speed_update=state
@@ -827,11 +827,8 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Force Run Trace', 'type': 'bool', 'value': False},
                                 ]},
                             {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
-                                #{'name': 'N Pulses', 'type': 'int', 'value': 1 },
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 {'name': 'Pulse Duration', 'type': 'float', 'value': 0.1,'siPrefix': True, 'suffix': 's'},
-                                #{'name': 'Pause Between Pulses', 'type': 'float', 'value': 0.2,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Led Stim Voltage', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},

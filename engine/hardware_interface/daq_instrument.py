@@ -380,8 +380,8 @@ def set_waveform(channels,waveform,sample_rate = 100000):
     '''
     Waveform: first dimension channels, second: samples
     '''
-    analog_output, wf_duration = set_voltage_start(channels,waveform,sample_rate = 100000)
-    set_voltage_finish(analog_output, wf_duration)
+    analog_output, wf_duration = set_waveform_start(channels,waveform,sample_rate = sample_rate)
+    set_waveform_finish(analog_output, wf_duration)
     
 def set_waveform_start(channels,waveform,sample_rate = 100000):
     sample_per_channel = waveform.shape[1]
