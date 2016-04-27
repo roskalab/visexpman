@@ -10,8 +10,8 @@ from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
 DEBUG=True
-#NEXT: print be carfule with dfan label,non blocking fan control, non blocking stimulus, reconsider level 3 protocol (no run condition)
-
+NREWARD_VOLUME=100
+#NEXT: non blocking fan control, non blocking stimulus
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -310,13 +310,21 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Reward')
         now=time.time()
-        self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
+        if self.reward_values.shape[0]!=0:
+            self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
+        
+    def rewardx100(self):
+        for i in range(NREWARD_VOLUME):
+            self.reward()
+            time.sleep(0.2)
+        logging.info('Done')
         
     def airpuff(self):
         self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Airpuff')
         now=time.time()
-        self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
+        if self.airpuff_values.shape[0]!=0:
+            self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
         
     def set_valve(self,channel,state):
         if channel=='air':
@@ -650,23 +658,28 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])
         self.best_success_rate_selected['n']=n
         self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal, self.best_success_rate_selected]})
-        
-            
+    
     def show_animal_success_rate(self):
+        '''
+        Aggregates success rate and reward volumes
+        '''
+        logging.info('Generating success rate and reward volume plots, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
         day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
         day_folders.sort()
         self.success_rate_summary={}
         days=[os.path.basename(day_folder) for day_folder in day_folders]
         days.sort()
+        self.reward_volume=[]
         for day_folder in day_folders:
             summaryd = [self.read_file_summary(f) for f in [os.path.join(day_folder,fn) for fn in os.listdir(day_folder) if os.path.splitext(fn)[1]=='.hdf5']]
             protocol_names=list(set([s['protocol'] for s in summaryd if s.has_key('protocol')]))
+            daynum=int((utils.datestring2timestamp(os.path.basename(day_folder),'%Y%m%d')-utils.datestring2timestamp(days[0],'%Y%m%d'))/86400)
             for pn in protocol_names:
                 if not self.success_rate_summary.has_key(pn):
                     self.success_rate_summary[pn]=[]
-                daynum=int((utils.datestring2timestamp(os.path.basename(day_folder),'%Y%m%d')-utils.datestring2timestamp(days[0],'%Y%m%d'))/86400)
                 self.success_rate_summary[pn].extend([[daynum, si['Success Rate']] for si in summaryd if si.has_key('protocol') and si['protocol']==pn])
+            self.reward_volume.append([daynum, sum([si['rewards'] for si in summaryd if si.has_key('rewards')])])
         x=[]
         y=[]
         for p in self.success_rate_summary.keys():
@@ -677,6 +690,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.y=y
         self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': self.success_rate_summary.keys(), 'scatter':True}})
         self.to_gui.put({'set_success_rate_title': self.current_animal})
+        if len(self.reward_volume)>0:
+            self.reward_volume=numpy.array(self.reward_volume)
+            x=self.reward_volume[:,0]
+            y=self.parameters['100 Reward Volume']*self.reward_volume[:,1]/NREWARD_VOLUME
+            self.to_gui.put({'update_reward_volume_plot':{'x':x, 'y':y}})
         
     def day_summary(self, folder):
         summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
@@ -809,9 +827,11 @@ class Behavioral(gui.SimpleAppWindow):
         self.debugw.setMaximumWidth(650)
         self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
         self.setCentralWidget(self.cw)#Setting it as a central widget
+        protocol_names=get_protocol_names()
+        protocol_names_sorted=[pn for pn in self.machine_config.PROTOCOL_ORDER if pn in protocol_names]
         self.params_config=[
                             {'name': 'General', 'type': 'group', 'expanded' : True, 'children': [
-                                {'name': 'Protocol', 'type': 'list', 'values': get_protocol_names(),'value':''},
+                                {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
                                 {'name': 'Save Period', 'type': 'float', 'value': 100.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
                                 {'name': 'Move Threshold', 'type': 'float', 'value': 1,'suffix': 'm/s'},
@@ -833,6 +853,7 @@ class Behavioral(gui.SimpleAppWindow):
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
+                                {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):
@@ -848,9 +869,10 @@ class Behavioral(gui.SimpleAppWindow):
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
         
-        self.plotnames=['events', 'animal_weight', 'success_rate']
+        self.plotnames=['events', 'success_rate', 'animal_weight',  'reward_volume']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
+        self.plots.reward_volume.plot.setLabels(left='volume [l]')
         self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
         self.plots.success_rate.setToolTip('''Displays success rate of days or a specific day depending on what is selected in Files tab.
         A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
@@ -955,6 +977,8 @@ class Behavioral(gui.SimpleAppWindow):
             if hasattr(self, 'asp'):
                 del self.asp
             self.asp = AnimalStatisticsPlots(self, *msg['show_animal_statistics'])
+        elif msg.has_key('update_reward_volume_plot'):
+            self.plots.reward_volume.update_curve(msg['update_reward_volume_plot']['x'], msg['update_reward_volume_plot']['y'])
         
     def update_statusbar(self,msg=''):
         '''
@@ -1105,6 +1129,8 @@ class LowLevelDebugW(QtGui.QWidget):
         self.connect(self.stimulate, QtCore.SIGNAL('clicked()'), self.stimulate_clicked)
         self.forcerun=QtGui.QPushButton('Force Run', parent=self)
         self.connect(self.forcerun, QtCore.SIGNAL('clicked()'), self.forcerun_clicked)
+        self.rewardx100=QtGui.QPushButton('100 x Reward', parent=self)
+        self.connect(self.rewardx100, QtCore.SIGNAL('clicked()'), self.rewardx100_clicked)
         self.l = QtGui.QGridLayout()
         [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
         self.l.addWidget(self.fan, 0, i+1, 1, 1)
@@ -1112,6 +1138,7 @@ class LowLevelDebugW(QtGui.QWidget):
         self.l.addWidget(self.airpuff, 1, 1, 1, 1)
         self.l.addWidget(self.stimulate, 2, 0, 1, 1)
         self.l.addWidget(self.forcerun, 2, 1, 1, 1)
+        self.l.addWidget(self.rewardx100, 3, 0, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(2,20)
         self.l.setRowStretch(3,20)
@@ -1124,6 +1151,10 @@ class LowLevelDebugW(QtGui.QWidget):
         
     def reward_clicked(self):
         self.parent.parent().to_engine.put({'function':'reward','args':[]})
+        
+    def rewardx100_clicked(self):
+        self.parent.parent().to_engine.put({'function':'rewardx100','args':[]})
+            
     
     def stimulate_clicked(self):
         self.parent.parent().to_engine.put({'function':'stimulate','args':[]})

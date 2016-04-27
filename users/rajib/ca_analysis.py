@@ -16,6 +16,8 @@ def file2cells(filename, maxcellradius=65, sigma=0.2):
         image=numpy.array([tifffile.imread(fi) for fi in tfs if 'tif' in os.path.splitext(fi)[1]])
     else:
         image=tifffile.imread(filename)
+    if len(image.shape)==4:
+        image=image.mean(axis=1)
     meanimage = image.mean(axis=0)
     try:
         from skimage.filters import threshold_otsu
@@ -250,7 +252,9 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
                     nrc.extend(nonresponding_roi_curves)
                     nrc_int.extend(nonresponding_roi_curves_integral)
                 except:
-                    pass
+                    print 'skipping', f
+                    import traceback
+                    print traceback.format_exc()
     cc_mean,cc_std=plot_aggregated_curves(cc, legendtxt, os.path.join(folder, 'stimulated_cell.'+export_fileformat),baseline_duration,'df/f',frame_rate=frame_rate)
     cc_int_mean,cc_int_std=plot_aggregated_curves(cc_int, legendtxt, os.path.join(folder, 'stimulated_cell_integrated.'+export_fileformat),baseline_duration, 'integral activity',frame_rate=frame_rate)
     nrc_mean,nrc_std=plot_aggregated_curves(nrc, legendtxt, os.path.join(folder, 'not_responding_cells.'+export_fileformat),baseline_duration,'df/f',plot_mean_only=True,frame_rate=frame_rate)
@@ -268,10 +272,10 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
 #    folder='/home/rz/codes/data/rajib/'
-    folder='/tmp/tiffs'
+    folder='/tmp/2016-04-21-N2a_Piezo1_GCaMP_hCav12-for_evaluation'
     baseline_duration=5
     export_fileformat = 'png'
     frame_rate=1/0.64#s
     frame_rate=1#s
-    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 100, dfpf_threshold=0.2, maxcellradius=65/2, sigma=0.2, frame_rate=frame_rate,ppenable=not True)    
+    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 200, dfpf_threshold=0.0, maxcellradius=65/2, sigma=0.2, frame_rate=frame_rate,ppenable= True)
     

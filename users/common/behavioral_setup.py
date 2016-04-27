@@ -24,6 +24,7 @@ class BehavioralSetup(BehavioralConfig):
         ARDUINO_SERIAL_PORT='COM5'#'/dev/ttyACM0'
         LASER_AO_CHANNEL='Dev1/ao1'
         POSITIVE_DIRECTION=-1
+        PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StimStopReward']
         
 class OfficeTestComputer(BehavioralSetup):
     LASER_AO_CHANNEL='/Dev2/ao0'
@@ -190,8 +191,8 @@ class StimStopReward(Protocol):
     Randomized runtime:
     RUN_TIME+a random number between 0 and RANDOM_TIME_RANGE in RANDOM_TIME_STEPs
     '''
-    DELAY_AFTER_RUN=5.0
-    RUN_TIME=5.0
+    DELAY_AFTER_RUN=2.0
+    RUN_TIME=10.0
     STOP_TIME=0.5
     RANDOM_TIME_RANGE=10.0
     RANDOM_TIME_STEP=0.5

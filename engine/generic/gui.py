@@ -395,6 +395,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         
     def update_curves(self, x, y, plot_average=False, colors = [], plotparams=[]):
         self._clear_curves()
+        if len(x)==0: return
         ncurves = len(x)
         self.curves = []
         minimums = []
