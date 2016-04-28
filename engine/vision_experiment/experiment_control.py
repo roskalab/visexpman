@@ -576,6 +576,8 @@ class ExperimentControl(object):
             local_folder = 'd:\\tmp'
             if not os.path.exists(local_folder):
                 local_folder = tempfile.mkdtemp()
+            if file.free_space('d:')<1e9:
+                raise RuntimeError('D drive is close to full. Free up space')
             local_fragment_file_name = os.path.join(local_folder, os.path.split(fragment_filename)[-1])
             self.filenames['local_fragments'].append(local_fragment_file_name)
             self.filenames['fragments'].append(fragment_filename )
@@ -755,7 +757,7 @@ class ExperimentControl(object):
         #Measure red channel
         self.printl('Recording red and green channel')
         if self.config.BLACK_SCREEN_DURING_PRE_SCAN:
-            self.show_fullscreen(color=0.0, duration=0.0)
+            self.show_fullscreen(color=0.0, duration=0.0,count=False)
         if hasattr(self, 'scan_region'):
             self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,

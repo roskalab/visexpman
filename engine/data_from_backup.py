@@ -7,11 +7,11 @@ import unittest,os
 class TestRestore(unittest.TestCase):
     def test_01(self):
         import shutil
-        wf='/mnt/databig/debug/4'
+        wf='/mnt/databig/debug/1'
         #if os.path.exists(wf):
             #shutil.rmtree('/mnt/databig/debug/6')
         #shutil.copytree('/mnt/mdrive/invivo/rc/default_user/20160121/151', wf)
-        jobhandler.offline(wf,'/mnt/databig/debug/4')
+        jobhandler.offline(wf,'/mnt/databig/debug/1')
 
 
 if __name__=='__main__':

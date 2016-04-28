@@ -1083,32 +1083,29 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
-            
-    def white_noise(self, duration, pixel_size,save_frame_info=True):
+    def white_noise(self, duration, square_size,save_frame_info=True):
         '''
         Generates white noise stimulus using numpy.random.random
         
         duration: duration of white noise stimulus in seconds
-        pixel_size: size of squares. Number of squares is calculated from screen size but fractional squares are not displayed.
+        square_size: size of squares. Number of squares is calculated from screen size but fractional squares are not displayed.
         The array of squares is centered
         '''
         if save_frame_info:
-            self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) + ')')
+#             self.log.info('white_noise(' + str(duration)+ ', ' + str(square_size) + ')', source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe())
-        pixel_size_pixel = pixel_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
+        square_size_pixel = square_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
-        ncheckers = utils.rc_multiply_with_constant(self.machine_config.SCREEN_SIZE_UM, 1.0/pixel_size)
+        ncheckers = utils.rc_multiply_with_constant(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
         numpy.random.seed(0)
-        checker_colors = numpy.where(numpy.random.random((nframes,ncheckers['row'],ncheckers['col']))<0.5, False,True)
-        row_coords = numpy.arange(ncheckers['row'])-0.5*(ncheckers['row'] - 1)
-        col_coords = numpy.arange(ncheckers['col'])-0.5*(ncheckers['col'] -1)
-        rc, cc = numpy.meshgrid(row_coords, col_coords)
-        positions=numpy.rollaxis(numpy.array([rc,cc]),0,3)*pixel_size
-        params = {'colors': checker_colors, 'ncheckers':ncheckers, 'positions': positions}
-        if save_frame_info and 0:
+        checker_colors = numpy.zeros((0,ncheckers['row'],ncheckers['col']), dtype=numpy.bool)
+        for i in range(int(nframes/self.machine_config.SCREEN_EXPECTED_FRAME_RATE/60)):
+            checker_colors = numpy.concatenate((checker_colors, numpy.where(numpy.random.random((60*self.machine_config.SCREEN_EXPECTED_FRAME_RATE,ncheckers['row'],ncheckers['col']))<0.5, False,True)))
+        params = {'ncheckers':ncheckers}
+        if save_frame_info:
             self._append_to_stimulus_frame_info(params)
-        size = utils.rc_multiply_with_constant(ncheckers, pixel_size_pixel)
+        size = utils.rc_multiply_with_constant(ncheckers, square_size_pixel)
         self._init_texture(size)
         for frame_i in range(nframes):
             texture = checker_colors[frame_i]
@@ -1117,15 +1114,46 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-            self.draw()
-            self._flip(frame_trigger = True)
+            #self.draw()
+            self._flip(trigger = True)
             if self.abort:
                 break
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            #self._append_to_stimulus_frame_info(params)
+            self._append_to_stimulus_frame_info(params)
+            numpy.save(self.filenames['fragments'][0].replace('.mat','.npy'), checker_colors)
+        print checker_colors.sum()
+        
+    def _init_texture(self,size):
+        from visexpman.engine.generic import geometry
+        vertices = geometry.rectangle_vertices(size, orientation = 0)
+        vertices[:,0]+=0.5*self.machine_config.SCREEN_RESOLUTION['col']
+        vertices[:,1]+=0.5*self.machine_config.SCREEN_RESOLUTION['row']
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        
+    def _deinit_texture(self):
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
             
+    def _append_to_stimulus_frame_info(self,values):
+        self.stimulus_frame_info[-1]['parameters'].update(values)
+    
 
 class StimulationSequences(Stimulations):
 

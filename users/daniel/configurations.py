@@ -672,7 +672,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         else:
-            raise
+            pass
+            #raise
         self._create_parameters_from_locals(locals())
       
         

@@ -50,6 +50,7 @@ class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):
 class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [1.0]
         self.NROWS = 10
         self.NCOLUMNS = 18
         self.SIZE_DIMENSION='angle'
@@ -62,15 +63,29 @@ class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldExploreNew):
 class ReceptiveFieldExploreNewAngleExtraFine(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 20
+        self.NCOLUMNS = 36
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.4
+        self.OFF_TIME = 0.4
+     
+class ReceptiveFieldExploreNewAngleSuperFine(ReceptiveFieldExploreNew):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [1.0]
         self.NROWS = 30
         self.NCOLUMNS = 54
         self.SIZE_DIMENSION='angle'
         self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
         self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
 #        self.SHAPE_SIZE = 10
-        self.ON_TIME = 0.1
-        self.OFF_TIME = 0.1
-     
+        self.ON_TIME = 0.39
+        self.OFF_TIME = 0.39 
+         
 class ReceptiveFieldExploreNewAngleCoarse(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
@@ -80,8 +95,8 @@ class ReceptiveFieldExploreNewAngleCoarse(ReceptiveFieldExploreNew):
         self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
         self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
 #        self.SHAPE_SIZE = 10
-        self.ON_TIME = 1.2
-        self.OFF_TIME = 0.4     
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8     
 
 class ReceptiveFieldExplore(experiment.Experiment):
     '''

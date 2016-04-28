@@ -1,4 +1,5 @@
 import os,shutil,time,logging,datetime,filecmp,subprocess,threading,Queue
+import traceback
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton/new'
 mdrive='/mnt/mdrive/invivo/rc/raw'
@@ -83,6 +84,7 @@ def is_file_closed(f):
     
 def copy_file(f):
     try:
+        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.18_ReceptiveFieldExploreNewAngleFine_1460651588_0.hdf5': return
         copy2m= os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(f))))!='daniel'#Daniel's fiels are not copied to m drive only to tape
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
@@ -100,14 +102,30 @@ def copy_file(f):
         if not is_file_closed(f):
             return
         if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape) or 'animal' in os.path.dirname(f):
-            shutil.copy2(f,target_path_tape)
+            try:
+                shutil.copy2(f,target_path_tape)
+            except:
+                time.sleep(10)
+                success = False
+                nretry=20
+                for i in range(nretry):
+                    try:
+                        shutil.copy2(f,target_path_tape)
+                        success = True
+                    except:
+                        if i ==nretry-1:
+                            msg=f+'' + str(i)+'\r\n'+traceback.format_exc()
+                            raise RuntimeError(msg)
+                        else:
+                            time.sleep(10)
+                    if success:
+                        break
             logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(target_path_tape)))
         if copy2m and (not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m)):#Mouse file may be updated with scan regions
             shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
     except:
-        import traceback
-        msg=traceback.format_exc()
+        msg=f+'\r\n'+traceback.format_exc()
         logging.error(msg)
         sendmail('zoltan.raics@fmi.ch', 'backup manager raw cortical file copy error', msg)
         
