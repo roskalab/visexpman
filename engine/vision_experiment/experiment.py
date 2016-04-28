@@ -191,6 +191,25 @@ class Stimulus(stimulation_library.AdvancedStimulation):
                 d[vn]=getattr(self,vn)
         return d
 
+class Protocol(object):
+    def __init__(self,engine):
+        self.engine=engine
+        self.reset()
+        
+    def update(self):
+        '''
+        In subclass this method calculates if reward/punishment has to be given
+        '''
+        
+    def stat(self):
+        '''
+        In a subclass this method calculates the actual success rate
+        '''
+    def reset(self):
+        '''
+        Resets state variables
+        '''
+
 ######################### Restore experiment config from measurement data #########################
 
 #OBSOLETE

@@ -818,6 +818,10 @@ def timestamp2ymd(timestamp,separator='-'):
 def datestring2timestamp(ds,format="%d/%m/%Y"):
     return time.mktime(datetime.datetime.strptime(ds, format).timetuple())
     
+def timestamp2secondsofday(timestamp):
+    time_struct = time.localtime(timestamp)
+    return time_struct.tm_hour*3600+time_struct.tm_min*60+time_struct.tm_sec
+    
 class Timeout(object):
     def __init__(self, timeout, sleep_period = 0.01):
         self.start_time = time.time()

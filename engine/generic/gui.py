@@ -395,6 +395,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         
     def update_curves(self, x, y, plot_average=False, colors = [], plotparams=[]):
         self._clear_curves()
+        if len(x)==0: return
         ncurves = len(x)
         self.curves = []
         minimums = []
@@ -408,7 +409,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             if len(plotparams)>0:
                 self.curves.append(self.plot.plot(**plotparams[i]))
             else:
-                if colors == [] and plotpar:
+                if colors == []:
                     pen = (0,0,0)
                 else:
                     pen=colors[i]
@@ -421,7 +422,8 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             self.curves[-1].setPen((200,0,0), width=3)
             x_,y_ = signal.average_of_traces(x,y)
             self.curves[-1].setData(x_, y_)
-        self.plot.setYRange(min(minimums), max(maximums))
+        if min(minimums)<max(maximums):
+            self.plot.setYRange(min(minimums), max(maximums))
         
     def _clear_curves(self):
         if hasattr(self, 'curve'):
@@ -431,16 +433,15 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             map(self.plot.removeItem, self.curves)
             del self.curves
         
-    def add_linear_region(self, boundaries):
+    def add_linear_region(self, boundaries, color=(40,40,40,100)):
         if len(boundaries)%2==1:
             raise RuntimeError('Invalid boundaries: {0}'.format(boundaries))
         if hasattr(self,'linear_regions'):
             for linear_region in self.linear_regions:
                 self.plot.removeItem(linear_region)
-        c=(40,40,40,100)
         self.linear_regions=[]
         for i in range(len(boundaries)/2):
-            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = c))
+            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
             
 class TimeAxisItem(pyqtgraph.AxisItem):
@@ -448,8 +449,7 @@ class TimeAxisItem(pyqtgraph.AxisItem):
         pyqtgraph.AxisItem.__init__(self,*args, **kwargs)
 
     def tickStrings(self, values, scale, spacing):
-        # PySide's QTime() initialiser fails miserably and dismisses args/kwargs
-        return [QtCore.QTime().addMSecs(value).toString('mm:ss') for value in values]
+        return [QtCore.QTime().addMSecs(value).toString('hh:mm') for value in values]
             
 class TabbedPlots(QtGui.QWidget):
     def __init__(self, parent,names,plot_kwargs={}):
