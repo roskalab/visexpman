@@ -4,9 +4,12 @@ from visexpman.engine.vision_experiment.experiment import Protocol
 from visexpman.engine.generic import fileop
 
 class BehavioralSetup(BehavioralConfig):
-        LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', 'c:\\Data'])
-        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'c:\\Data'])
-        CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'c:\\Data'])
+        LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', ])
+        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'c:\\Users\\rz\\tmp'])
+        CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'c:\\Users\\rz\\tmp'])
+        LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
+        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
+        CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
         ENABLE_CAMERA=True
         CAMERA_FRAME_RATE=7
         CAMERA_FRAME_WIDTH=640/2
