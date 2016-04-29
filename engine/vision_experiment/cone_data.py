@@ -22,8 +22,10 @@ try:
 except ImportError:
     from skimage import filter as filters
 
-from pylab import plot,show,figure,title,imshow,subplot,clf,savefig
-
+try:
+    from pylab import plot,show,figure,title,imshow,subplot,clf,savefig
+except:
+    pass
 import warnings
 
 def exp(t,tconst, a,b):
@@ -136,7 +138,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
         c[res[1][i]['row'],res[1][i]['col']]=p
         roi_radius = 0.5*res[0][i]
         roi_center = res[1][i]
-        mask = geometry.circle_mask(roi_center, roi_radius, im.shape)
+        mask = geometry.circle_mask(roi_center, roi_radius, im.shape).astype(im1.dtype)
         maskcum+=mask
         masked = im1*mask
         th=filters.threshold_otsu(masked)
@@ -364,8 +366,8 @@ def roi_redetect(rectangle, meanimage, subimage_size=3):
     except IndexError:
         raise RuntimeError('CHECK THIS ERROR: binary.shape {0}, labeled.shape {1}, subimage.shape: {2}'.format(binary.shape,labeled.shape,subimage.shape))
     area=numpy.copy(area)
-    area[0]+=rectangle[0]-rectangle[2]*0.5*subimage_size
-    area[1]+=rectangle[1]-rectangle[3]*0.5*subimage_size
+    area[0]+=(rectangle[0]-rectangle[2]*0.5*subimage_size).astype(area.dtype)
+    area[1]+=(rectangle[1]-rectangle[3]*0.5*subimage_size).astype(area.dtype)
     return numpy.array(area).T
     
 class TestCA(unittest.TestCase):

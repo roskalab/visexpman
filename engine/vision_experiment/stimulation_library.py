@@ -9,9 +9,12 @@ import inspect
 import re
 import multiprocessing
 
-from OpenGL.GL import *
-from OpenGL.GLU import *
-from OpenGL.GLUT import *
+try:
+    from OpenGL.GL import *
+    from OpenGL.GLU import *
+    from OpenGL.GLUT import *
+except ImportError:
+    GLUT_BITMAP_TIMES_ROMAN_24=10
 
 import command_handler
 import experiment_control

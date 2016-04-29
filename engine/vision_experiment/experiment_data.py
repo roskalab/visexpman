@@ -14,9 +14,10 @@ import tempfile
 import time
 import StringIO
 from PIL import Image,ImageDraw
-
-from pylab import show,plot,imshow,figure,title,subplot
-
+try:
+    from pylab import show,plot,imshow,figure,title,subplot
+except:
+    pass
 from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
 from visexpman.engine import generic
 try:

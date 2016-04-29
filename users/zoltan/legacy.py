@@ -16,7 +16,7 @@ from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
 FIX1KHZ= False
-NOMATFILE=not True
+NOMATFILE= not True
 NWEEKS=2
 
 class PhysTiff2Hdf5(object):
@@ -74,7 +74,7 @@ class PhysTiff2Hdf5(object):
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
                 found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(fileop.file_extension(pf),''))[:-1] in tf]
-                foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f or NOMATFILE]
+                foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f or NOMATFILE or self.irlaser]
                 
             if 1:
                 if len(found)>0 and len(foundmat)>0 and [pf,found[0]] not in self.processed_pairs:
@@ -234,7 +234,10 @@ class PhysTiff2Hdf5(object):
             data=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
             metadata={}
             metadata['Sample Rate']=10000
-            metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,fphys.replace('.csv','').split('_')[3:])
+            try:
+                metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,os.path.basename(fphys).replace('.csv','').split('_')[-3:])
+            except:
+                pass
             data[1]=data[2]
             data[2]=data[4]
             data=data[:3]
@@ -260,11 +263,11 @@ class PhysTiff2Hdf5(object):
         stiminfo_available=False
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec']
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
             print 'no stim metadata found'
-            if not NOMATFILE:
+            if not NOMATFILE and not self.irlaser:
                 return
         if stiminfo_available:
             if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
@@ -272,6 +275,8 @@ class PhysTiff2Hdf5(object):
                 block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
             elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
                 block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
+            elif stimdata['experiment_config_name'][0]=='Fullfield10min':
+                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
             pulse_start=signal.trigger_indexes(data[1])[::2]
             sig=numpy.zeros_like(data[1])
             boundaries=pulse_start[block_startend]

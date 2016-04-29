@@ -1,4 +1,7 @@
-import pygame
+try:
+    import pygame
+except ImportError:
+    pass
 import copy
 import socket
 import time
@@ -9,8 +12,11 @@ import scipy.ndimage.filters
 from visexpman.engine.generic import utils,colors,graphics,fileop,signal
 from PIL import Image
 
-from OpenGL.GL import *#TODO: perhaps this is not necessary
-from OpenGL.GLUT import *
+try:
+    from OpenGL.GL import *#TODO: perhaps this is not necessary
+    from OpenGL.GLUT import *
+except ImportError:
+    pass
 
 def experiment_choices(experiment_list):
     '''

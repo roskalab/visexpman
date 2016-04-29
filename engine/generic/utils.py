@@ -42,7 +42,7 @@ def is_network_available():
             return True
         except:
             return False
-    elif platform.system() == 'Linux':
+    elif platform.system() == 'Linux' or platform.system()=='Darwin':
         try:
             response=urllib2.urlopen('http://gnu.org',timeout=1)
             return True
