@@ -273,6 +273,7 @@ if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
 #    folder='/home/rz/codes/data/rajib/'
     folder='/tmp/2016-04-21-N2a_Piezo1_GCaMP_hCav12-for_evaluation'
+    folder='/tmp/2016-04-27-GCaMP_test_N2a'
     baseline_duration=5
     export_fileformat = 'png'
     frame_rate=1/0.64#s

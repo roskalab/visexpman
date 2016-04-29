@@ -11,7 +11,6 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
 DEBUG=True
 NREWARD_VOLUME=100
-#NEXT: non blocking fan control, non blocking stimulus
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -333,7 +332,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
         
     def stimulate(self):
-        logging.info('Stimulus')
+        logging.info('Stimulate on {0} with {1} for {2} s'.format(self.parameters['Stimulus Channel'], self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
         now=time.time()
         fsample=1000
         self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
@@ -344,8 +343,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
         self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+stimulus_duration, 1],[now+stimulus_duration+1e-3, 0]])))
         if os.name=='nt':
-            self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform_start(self.machine_config.LASER_AO_CHANNEL,self.stimulus_waveform,fsample)
-            daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
+            if hasattr(self, 'stimulus_daq_handle'):
+                daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
+            aoch=getattr(self.machine_config, self.parameters['Stimulus Channel'].upper()+'_AO_CHANNEL')
+            self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform_start(aoch,self.stimulus_waveform,fsample)
+            
 
     def set_speed_update(self, state):
         self.enable_speed_update=state
@@ -792,6 +794,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.close()
         
     def close(self):
+        if hasattr(self, 'stimulus_daq_handle'):
+            daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
         if self.session_ongoing:
             self.stop_session()
         self.close_video_recorder()
@@ -849,6 +853,7 @@ class Behavioral(gui.SimpleAppWindow):
                             {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 {'name': 'Pulse Duration', 'type': 'float', 'value': 0.1,'siPrefix': True, 'suffix': 's'},
+                                {'name': 'Stimulus Channel', 'type': 'list', 'values': ['led','laser']},
                                 ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},

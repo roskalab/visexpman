@@ -22,7 +22,8 @@ class BehavioralSetup(BehavioralConfig):
         BOTTOM_WIDGET_HEIGHT=260
         MINIMUM_FREE_SPACE=20#GByte
         ARDUINO_SERIAL_PORT='COM5'#'/dev/ttyACM0'
-        LASER_AO_CHANNEL='Dev1/ao1'
+        LASER_AO_CHANNEL='Dev1/ao0'
+        LED_AO_CHANNEL='Dev1/ao1'
         POSITIVE_DIRECTION=-1
         PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StimStopReward']
         
