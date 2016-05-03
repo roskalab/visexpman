@@ -59,7 +59,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['Gratings']['GREY_INSTEAD_OF_MARCHING'] = False
         self.VARS['Gratings']['NUMBER_OF_MARCHING_PHASES'] = 1.0
         self.VARS['Gratings']['GRATING_STAND_TIME'] = 1.0
-        self.VARS['Gratings']['ORIENTATIONS'] = range(0,360, 22.5)
+        self.VARS['Gratings']['ORIENTATIONS'] = range(0,360, 45)
         self.VARS['Gratings']['WHITE_BAR_WIDTHS'] = [100]
         self.VARS['Gratings']['VELOCITIES'] = [300]
         self.VARS['Gratings']['DUTY_CYCLES'] = [1]
@@ -72,7 +72,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['DashStimulus']['MOVINGLINES'] = 3
         self.VARS['DashStimulus']['DURATION'] = 10.0
         self.VARS['DashStimulus']['SPEEDS'] = [300]
-        self.VARS['DashStimulus']['DIRECTIONS'] = range(0,360,22.5)
+        self.VARS['DashStimulus']['DIRECTIONS'] = range(0,360, 45)
         self.VARS['DashStimulus']['BAR_COLOR'] = 0.5
         self.VARS['DashStimulus']['REPETITIONS'] = 3 # ==> 25 min
        
