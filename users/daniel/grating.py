@@ -93,6 +93,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.DUTY_CYCLES = [2.5] #white and blck bar ratio -> number of bars 
         self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 5.0 #very beginning and end witing time
+        self.COLOR_CONTRAST = 1.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
@@ -103,6 +104,54 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         experiment.ExperimentConfig._create_parameters_from_locals(self, locals)
 
 
+class MovingGratingNoMHor300umsConfig(MovingGratingConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = [0, 180]
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [300.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 3.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+#        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+        
+class MovingGratingNoMarchHor3or5or800umsConfig(MovingGratingNoMHor300umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMHor300umsConfig._create_parameters(self)
+        self.VELOCITIES = [300., 500., 800.0]
+        
+
+class MovingGratingNoMarchHor35812umsConfig(MovingGratingNoMHor300umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMHor300umsConfig._create_parameters(self)
+        self.VELOCITIES = [300., 500., 800.0, 1200.]
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.COLOR_CONTRAST = 1.0
+
+class MovingGratingNoMarch05Hor35812umsConfig(MovingGratingNoMHor300umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMHor300umsConfig._create_parameters(self)
+        self.VELOCITIES = [300., 500., 800.0, 1200.]
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.COLOR_CONTRAST = 0.5
+
+        
+                
+class MovingGratingNoMHor500umsConfig(MovingGratingNoMHor300umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMHor300umsConfig._create_parameters(self)
+        self.VELOCITIES = [500.0]
+        
+        
 class MovingGratingNoMarchingConfig(MovingGratingConfig):
     def _create_parameters(self):
         #Timing
@@ -118,11 +167,71 @@ class MovingGratingNoMarchingConfig(MovingGratingConfig):
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0
+        self.COLOR_CONTRAST = 1.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
 #        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
         
+class MovingGratingNoMarching5xConfig(MovingGratingConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 3.5
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 5
+        self.PAUSE_BEFORE_AFTER = 3.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+#        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+        
+        
+class MovingGrating50pConfig(MovingGratingConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 5
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [800.0]#1800
+        self.DUTY_CYCLES = [1.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+#        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+
+
+class MovingGratingFiona(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME=4.0#
+        self.GRATING_STAND_TIME = 0
+        self.GREY_INSTEAD_OF_MARCHING=True
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.pre_runnable = 'BlackPre'
+        self.BLACK_SCREEN_DURATION=2.0
+
 class MovingGratingAdrian(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
@@ -223,7 +332,7 @@ if 1:
             self.MARCH_TIME = 0.5
             self.GRATING_STAND_TIME = 0.5
             #Grating parameters        
-            self.ORIENTATIONS = [0,45,90,135,180,225,270,315]
+            self.ORIENTATIONS = [0,45,90,135,180,225,270,315][::2]
             self.WHITE_BAR_WIDTHS = [300.0]#300
             self.PAUSE_BEFORE_AFTER = 0.0
             self.REPEATS = 1
@@ -373,6 +482,7 @@ class MovingGrating(experiment.Experiment):
                         stimulus_unit['duty_cycle'] = duty_cycle
                         stimulus_unit['orientation'] = orientation
                         stimulus_unit['starting_phase']=self.experiment_config.STARTING_PHASES[o1]
+                        stimulus_unit['color_contrast']=self.experiment_config.COLOR_CONTRAST
                         period_length = (duty_cycle + 1) * white_bar_width
                         required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
                         stimulus_unit['move_time'] = float(required_movement) / velocity
@@ -390,6 +500,8 @@ class MovingGrating(experiment.Experiment):
         self.fragment_durations = self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER 
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.fragment_durations += self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()
+        if hasattr(self.experiment_config,  'BLACK_SCREEN_DURATION'):
+            self.fragment_durations += self.experiment_config.BLACK_SCREEN_DURATION
         self.fragment_durations = [self.fragment_durations]
         self.number_of_fragments = len(self.fragment_durations)
         #Group stimulus units into fragments
@@ -404,10 +516,13 @@ class MovingGrating(experiment.Experiment):
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus(self.experiment_config.TIMING, flash_color = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
+        if hasattr(self.experiment_config,  'BLACK_SCREEN_DURATION'):
+            self.show_fullscreen(color = 0.0, duration = self.experiment_config.BLACK_SCREEN_DURATION)
         if hasattr(self.experiment_config, 'PROFILE'):
             profile = self.experiment_config.PROFILE
         else:
             profile = 'sqr'
+        color_contrast = self.experiment_config.COLOR_CONTRAST if hasattr(self.experiment_config,'COLOR_CONTRAST') else 1.0
         #moving grating
         frame_counter = 0
         segment_counter = 0
@@ -422,7 +537,7 @@ class MovingGrating(experiment.Experiment):
                 else:
                     static_grating_duration = self.experiment_config.MARCH_TIME
                 if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING') and self.experiment_config.GREY_INSTEAD_OF_MARCHING:
-                        self.show_fullscreen(color = 0.5, duration = static_grating_duration)
+                        self.show_fullscreen(color = 0, duration = static_grating_duration)
                 else:
                     for phase in self.marching_phases:
                         self.show_grating(duration = static_grating_duration, 
@@ -430,7 +545,8 @@ class MovingGrating(experiment.Experiment):
                                     orientation = orientation, 
                                     velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                                     duty_cycle = stimulus_unit['duty_cycle'],
-                                    starting_phase = phase+stimulus_unit['starting_phase'])
+                                    starting_phase = phase+stimulus_unit['starting_phase'],
+                                    color_contrast = stimulus_unit['color_contrast'])
                 #Show moving grating
                 self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
@@ -438,6 +554,7 @@ class MovingGrating(experiment.Experiment):
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
+                            color_contrast = stimulus_unit['color_contrast']
                             )
                 #Show static grating
                 if self.experiment_config.GRATING_STAND_TIME>0:
@@ -445,7 +562,8 @@ class MovingGrating(experiment.Experiment):
                             profile = profile, 
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
-                            duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],)
+                            duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],
+                            color_contrast = stimulus_unit['color_contrast'])
                 #Save segment info to help synchronizing stimulus with measurement data
                 segment_info = {}
                 segment_info['fragment_id'] = fragment_id
@@ -482,8 +600,9 @@ class MovingGratingPre(experiment.PreExperiment):
             profile = self.experiment_config.PROFILE
         else:
             profile = 'sqr'
+        color_contrast = self.experiment_config.COLOR_CONTRAST if hasattr(self.experiment_config,'COLOR_CONTRAST') else 1.0
         self.show_grating(duration = 0, profile = profile,
-                            orientation = self.experiment_config.ORIENTATIONS[0], 
+                            orientation = self.experiment_config.ORIENTATIONS[0], color_contrast = color_contrast, 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True, starting_phase = self.experiment_config.STARTING_PHASES[0])
                           
