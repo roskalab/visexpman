@@ -13,7 +13,8 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         
         self.VARS = OrderedDict()
         self.STIM_TYPE_CLASS = {}
-    
+        
+        #
         self.STIM_TYPE_CLASS['FullFieldFlashes'] = 'FullFieldFlashesStimulus'
         self.VARS['FullFieldFlashes'] = {}   
         self.VARS['FullFieldFlashes']['BACKGROUND'] = 0.5
@@ -22,6 +23,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['FullFieldFlashes']['OFF_TIME'] = 2.0
         self.VARS['FullFieldFlashes']['REPETITIONS'] = 10
         
+        #
         self.STIM_TYPE_CLASS['FingerPrinting'] = 'FingerPrintingStimulus'
         self.VARS['FingerPrinting'] = {}
         self.VARS['FingerPrinting']['FF_PAUSE_DURATION'] = 1.0
@@ -32,6 +34,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
         self.VARS['FingerPrinting']['REPEATS'] = 5
         
+        #
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
         self.VARS['WhiteNoise'] = {}
         self.VARS['WhiteNoise']['DURATION_MINS'] = 30.0 # min
@@ -39,6 +42,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['WhiteNoise']['N_WHITE_PIXELS'] = False
         self.VARS['WhiteNoise']['COLORS'] = [[0.0, 0.0, 0.0],[0.0, 1.0, 1.0]]
         
+        #
         self.STIM_TYPE_CLASS['Chirp_Sweep'] = 'ChirpSweep'
         self.VARS['Chirp_Sweep'] = {}
         self.VARS['Chirp_Sweep']['DURATION_BREAKS'] = 1.5
@@ -51,6 +55,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['Chirp_Sweep']['REPEATS'] = 5
         self.VARS['Chirp_Sweep']['COLOR'] = [0, 1, 1]
         
+        #
         self.STIM_TYPE_CLASS['Gratings'] = 'MovingGratingStimulus'
         self.VARS['Gratings'] = {}   
         self.VARS['Gratings']['REPEATS'] = 3
@@ -65,6 +70,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['Gratings']['DUTY_CYCLES'] = [1]
         self.VARS['Gratings']['PAUSE_BEFORE_AFTER'] = 1.0
         
+        #
         self.STIM_TYPE_CLASS['DashStimulus'] = 'DashStimulus'
         self.VARS['DashStimulus'] = {}
         self.VARS['DashStimulus']['BARSIZE'] = [20, 50]
@@ -75,7 +81,21 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['DashStimulus']['DIRECTIONS'] = range(0,360, 45)
         self.VARS['DashStimulus']['BAR_COLOR'] = 0.5
         self.VARS['DashStimulus']['REPETITIONS'] = 3 # ==> 25 min
-       
+        
+        # 
+        self.STIM_TYPE_CLASS['MarchingSquares'] = 'ReceptiveFieldExplore'
+        self.VARS['MarchingSquares'] = {}
+        self.VARS['MarchingSquares']['COLORS'] = [1.0]
+        self.VARS['MarchingSquares']['SHAPE'] = 'rect'
+        self.VARS['MarchingSquares']['BACKGROUND_COLOR'] = 0.0
+        self.VARS['MarchingSquares']['SHAPE_SIZE'] = 100.0 # um
+        self.VARS['MarchingSquares']['ON_TIME'] = 1.0
+        self.VARS['MarchingSquares']['OFF_TIME'] = 1.0
+        self.VARS['MarchingSquares']['PAUSE_BEFORE_AFTER'] = 2.0
+        self.VARS['MarchingSquares']['REPEATS'] = 2
+        self.VARS['MarchingSquares']['REPEAT_SEQUENCE'] = 2
+        self.VARS['MarchingSquares']['ENABLE_RANDOM_ORDER'] = False
+        
         self.runnable = 'BatchStimulus'
         self._create_parameters_from_locals(locals())
 
@@ -119,5 +139,12 @@ class Mea2016Gratings(Mea2016BatchConfig):
     def _create_parameters(self):
         Mea2016BatchConfig._create_parameters(self)
         self.sub_stimulus = 'Gratings'
+        Mea2016BatchConfig.extract_experiment_type(self, self)
+        self._create_parameters_from_locals(locals())
+
+class Mea2016MarchingSquares(Mea2016BatchConfig):
+    def _create_parameters(self):
+        Mea2016BatchConfig._create_parameters(self)   
+        self.sub_stimulus = 'MarchingSquares'
         Mea2016BatchConfig.extract_experiment_type(self, self)
         self._create_parameters_from_locals(locals())
