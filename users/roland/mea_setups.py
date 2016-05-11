@@ -75,10 +75,9 @@ class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):
         MEAConfig._set_user_parameters(self)
         self.FULLSCREEN = False
-        folder = '/home/rolandd/rolandd-fileshare/tmp'       
+        folder = '/home/rolandd/tmp'#rolandd-fileshare/tmp'       
         self.ENABLE_MEA_START_COMMAND = not True # set True when stim software needs to start the recording
-        
-        
+                
         if not os.path.isdir(folder):
             os.makedirs(folder)
         self.root_folder = folder
@@ -89,7 +88,8 @@ class MEAConfigDebug(MEAConfig):
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = self.root_folder
-        
+        self._create_parameters_from_locals(locals())
+
 
 class MEAConfigLightChar(MEAConfig):
     def _set_user_parameters(self):
