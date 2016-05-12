@@ -35,17 +35,37 @@ class ReceptiveFieldExploreNewInverted(ReceptiveFieldExploreNew):
         self.COLORS = [0.0]
         self.BACKGROUND_COLOR = 1.0
 
-class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):
+class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):#This is the original one!!!!!!!!!!!!
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
         self.NROWS = 6
         self.NCOLUMNS = 9
         self.SIZE_DIMENSION='angle'
-        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees
-        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees
+        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees Overall size of display in angles
+        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees Center
 #        self.SHAPE_SIZE = 10
        # self.OFF_TIME = 0
         #self.ON_TIME = 2.0
+        
+       
+class ReceptiveFieldExploreNewAngleAdrian(ReceptiveFieldExploreNew):#This is the original one!!!!!!!!!!!!
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.NROWS = 6
+        self.NCOLUMNS = 9
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees Overall size of display in angles
+        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees Center
+#        self.SHAPE_SIZE = 10
+        self.OFF_TIME = 2.0
+        self.ON_TIME = 1.0
+        
+class ReceptiveFieldExploreNewAngleAdrianInverted(ReceptiveFieldExploreNewAngleAdrian):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [0.0]
+        self.BACKGROUND_COLOR = 1.0
+
 
 class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldExploreNew):
     def _create_parameters(self):

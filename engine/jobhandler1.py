@@ -74,7 +74,7 @@ class Jobhandler(object):
         if free_space_on_datafast < 50:
             raise RuntimeError('Critically low free space on datafast: {0} GB'.format(free_space_on_datafast))
             sys.exit(0)
-        self.printl('Free space on datafast {2} GB, on databig {0} GB, on m drive: {3} GB and tape {1} GB'.format(free_space_on_databig, free_space_on_tape, free_space_on_datafast,free_space_on_m))
+        self.printl('Free space on datafast (v:\\, limit is 50 GB) {2} GB, on databig (u:\\) {0} GB, on m drive: {3} GB and tape {1} GB'.format(free_space_on_databig, free_space_on_tape, free_space_on_datafast,free_space_on_m))
 
     def run(self):
         while True:
@@ -621,6 +621,33 @@ def folder2stimcontext(folder):
         h.jobs.append(data)
     h.save('jobs')
     h.close()
+    
+def hdf52mat(filename, analysis_config):
+    h=hdf5io.Hdf5io(filename,config=analysis_config)
+    ignore_nodes=['hashes']
+    rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    mat_data={}
+    for rn in rootnodes:
+        if os.path.basename(filename).split('_')[-2] in rn:
+            rnt='idnode'
+        else:
+            rnt=rn
+        mat_data[rnt]=h.findvar(rn)
+    if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+        del mat_data['soma_rois_manual_info']
+    h.close()
+    matfile=filename.replace('.hdf5', '_mat.mat')
+    scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+    
+def hdf52mat_folder(folder):
+    aconfigname = 'Config'
+    user ='daniel'
+    analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+    for f in fileop.find_files_and_folders(folder)[1]:
+        if f[-4:]=='hdf5':
+            print f
+            hdf52mat(f,analysis_config)
+
         
 if __name__=='__main__':
     if len(sys.argv)==1:
