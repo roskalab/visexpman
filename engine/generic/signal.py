@@ -104,8 +104,10 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
     spatial_frequencies = numpy.arange(1.0/spatial_range, 1.0/minimal_spatial_period+1.0/spatial_range, 1.0/spatial_range)
     amplitudes = 1.0/spatial_frequencies
     phases = generate_random_angles(spatial_frequencies.shape[0])
-    intensity_profile = numpy.zeros(int(spatial_range/spatial_resolution))
-    s = numpy.arange(0, spatial_range, spatial_resolution)
+    #Since the number fo samples have to be integer, the spatial resolution is slightly modified
+    modified_spatial_resolution = float(spatial_range/spatial_resolution)/int(spatial_range/spatial_resolution)*spatial_resolution
+    s = numpy.arange(0, spatial_range, modified_spatial_resolution)
+    intensity_profile = numpy.zeros_like(s)
     for harmonic in range(spatial_frequencies.shape[0]):
         intensity_profile += amplitudes[harmonic]*numpy.sin(2*numpy.pi*s*spatial_frequencies[harmonic] + phases[harmonic])
         if abs(intensity_profile[0]-intensity_profile[-1])/intensity_profile.max()>1e-3:
@@ -173,6 +175,37 @@ def sinus_linear_range_slow(error):
     #Between 0 and returned phase linearity error  is below specified
     return sol[0]*2
     
+def sweep_sin(amplitudes, frqs, nperiods, sample_rate):
+    waveform = numpy.array([])
+    boundaries = numpy.array([])
+    af = []
+    for amplitude in amplitudes:
+        for f in frqs:
+            sig = wf_sin(amplitude, f, float(nperiods)/f, sample_rate)
+            waveform = numpy.concatenate((waveform,sig))
+            boundary = numpy.zeros_like(sig)
+            boundary[0] = 1
+            boundary[-1] = -1
+            boundaries = numpy.concatenate((boundaries,boundary))
+            af.append([amplitude, f])
+    return waveform,boundaries,af
+    
+def find_bead_center_and_width(curve):
+    h=numpy.histogram(curve)
+    threshold = (h[1][h[0].argmax()] + h[1][h[0].argmax()+1])*0.5
+    edges = numpy.nonzero(numpy.diff(numpy.where(curve>threshold,1,0)))[0]
+    return edges.mean(), edges.max()-edges.min(),threshold#center,bead size
+    
+def signal2binary(waveform):
+    '''
+    Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)
+    '''
+    return numpy.where(waveform > numpy.histogram(waveform, bins = 10)[1][-2],  True,  False)
+
+    
+def trigger_indexes(trigger):
+    return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>0.5*(trigger.max()-trigger.min()), 1, 0))[0]+1
+
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
         #generate test data

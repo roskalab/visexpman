@@ -1,5 +1,5 @@
 import shutil
-import time
+import time,datetime
 import numpy
 import re
 import Queue
@@ -15,6 +15,9 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
+import pyqtgraph
+import pyqtgraph.console
+
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
@@ -28,10 +31,22 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
+USERS=['','adrian','daniel','fiona','kamill','stuart','zoltan']
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
+
+ENABLE_SCAN_REGION_SERIALIZATION= False
+
+
+
+
+class PythonConsole(pyqtgraph.console.ConsoleWidget):
+    def __init__(self, parent, selfw = None):
+        if selfw == None:
+            selfw = parent.parent
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils,  'numpy': numpy}, text = 'self: main gui widget, numpy, utils, fileop, signal')
 
 class Poller(QtCore.QThread):
     '''
@@ -57,18 +72,18 @@ class Poller(QtCore.QThread):
 
     def run(self):
         self.init_run()
-        last_time = time.time()
-        startup_time = last_time
+        self.last_time = time.time()
+        startup_time = self.last_time
         while not self.abort:
             now = time.time()
-            elapsed_time = now - last_time
+            elapsed_time = now - self.last_time
             if elapsed_time > self.config.GUI_REFRESH_PERIOD:
-                last_time = now
+                self.last_time = now
                 self.periodic()
             self.run_in_all_iterations()
             self.handle_commands()
             self.handle_events()
-            time.sleep(1e-2)
+            time.sleep(1e-1)
         self.close()
         self.printc('poller stopped')
 
@@ -246,7 +261,8 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
-        default_date = QtCore.QDate(2012, 1, 1)
+        import datetime
+        default_date = QtCore.QDate(datetime.datetime.now().year, 1, 1)
         date_format = QtCore.QString('dd-MM-yyyy')
         ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])                
         self.mouse_birth_date_label = QtGui.QLabel('Mouse birth date',  self)        
@@ -286,6 +302,10 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.comments.setToolTip('Add comment')
         self.imaging_channel_label = QtGui.QLabel('Record red and green channels?',  self)
         self.imaging_channel_checkbox = QtGui.QCheckBox(self)
+        self.user_label = QtGui.QLabel('User',  self)
+        self.user = QtGui.QComboBox(self)
+        self.user.setEditable(True)
+        self.user.addItems(QtCore.QStringList(USERS))
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
         self.anesthesia_history_groupbox = AnesthesiaHistoryGroupbox(self)
         
@@ -312,8 +332,10 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.imaging_channel_label, 6, 0, 1, 2)
         self.layout.addWidget(self.imaging_channel_checkbox, 6, 2, 1, 1)
         self.layout.addWidget(self.comments, 7, 0, 1, 3)
-        self.layout.addWidget(self.new_mouse_file_button, 8, 0, 1, 2)
-        self.layout.addWidget(self.anesthesia_history_groupbox, 9, 0, 2, 4)
+        self.layout.addWidget(self.user_label, 8, 0, 1, 1)
+        self.layout.addWidget(self.user, 8, 1, 1, 1)
+        self.layout.addWidget(self.new_mouse_file_button, 9, 0, 1, 2)
+        self.layout.addWidget(self.anesthesia_history_groupbox, 10, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -412,8 +434,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
         self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 3)
         self.layout.addWidget(self.animal_parameters_label, 1, 0, 1, 4)
-        self.layout.addWidget(self.use_saved_scan_settings_label, 2, 1, 1, 1)
-        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 2, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_label, 3, 4, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 4, 4, 1, 1)
         self.layout.addWidget(self.get_xy_scan_button, 3, 3, 1, 1)
         self.layout.addWidget(self.xz_scan_button, 3, 2, 1, 1)
         self.layout.addWidget(self.add_button, 3, 0, 1, 1)
@@ -551,6 +573,8 @@ class MainWidget(QtGui.QWidget):
     def create_widgets(self):
         #MES related
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
+        self.resendjobs_button = QtGui.QPushButton('Resend Jobs', self)
+        self.updatejobs_button = QtGui.QPushButton('Update Jobs', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -564,6 +588,8 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 6, 2)
         
         self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
+        self.layout.addWidget(self.resendjobs_button, 9, 1, 1, 1)
+        self.layout.addWidget(self.updatejobs_button, 9, 2, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -649,6 +675,9 @@ class CommonWidget(QtGui.QWidget):
         self.set_objective_button = QtGui.QPushButton('Set objective', self)
         self.enable_reset_objective_origin_after_moving_label = QtGui.QLabel('Set objective to 0\n after moving it', self)
         self.enable_set_objective_origin_after_moving_checkbox = QtGui.QCheckBox(self)
+        self.enable_intrinsic_label = QtGui.QLabel('Enable intrinsic', self)
+        self.enable_intrinsic_checkbox = QtGui.QCheckBox(self)
+        
         self.current_position_label = QtGui.QLabel('', self)
         
         self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y),\nbottom right (x,y) [um]', self)
@@ -673,6 +702,10 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_objective_button, 2, 6, 1, 1)
         self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 2, 7, 1, 1)
         self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 2, 8, 1, 1)
+        
+        self.layout.addWidget(self.enable_intrinsic_label, 2, 9, 1, 1)
+        self.layout.addWidget(self.enable_intrinsic_checkbox, 2, 10, 1, 1)
+        
         self.layout.addWidget(self.current_position_label, 0, 8, 1, 2)
         self.layout.addWidget(self.tilt_brain_surface_button, 1, 5, 1, 1)
         self.layout.addWidget(self.enable_tilting_label, 1, 0, 1, 1)
@@ -736,6 +769,40 @@ class MainPoller(Poller):
         self.init_variables()
         self.load_context()
         self.initialize_mouse_file()
+        #Timer for updating process status
+        self.process_status_timer = QtCore.QTimer()
+        self.process_status_timer.timeout.connect(self.update_process_status)
+        self.process_status_timer.start(10000)
+        
+    def update_process_status(self):
+        try:
+            if not hasattr(self, 'mouse_file'):
+                return
+            animalid= os.path.basename(self.mouse_file).split('_')[1]
+            region=str(self.parent.get_current_region_name())
+            user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
+            path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
+            if os.path.exists(path):
+                sig=sum([i for i in os.stat(path)])
+                if not hasattr(self, 'lastmtime') or self.lastmtime!=sig or (hasattr(self, 'last_update') and time.time()-self.last_update>120):
+                    txt=file.read_text_file(path)
+                    self.lastmtime=sig
+                    self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
+                    self.last_update=time.time()
+            else:
+                self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('')
+        except:
+            self.printc(traceback.format_exc())
+            
+            
+    def processstatus2gui(self):
+        animalid= os.path.basename(self.mouse_file).split('_')[1]
+        region=self.parent.get_current_region_name()
+        user=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
+        print 'v:\\animals', user, '{0}_{1}.txt'.format(animalid,region)
+        path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
+        if os.path.exists(path):
+            self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
         
     def connect_signals(self):
         Poller.connect_signals(self)
@@ -744,6 +811,7 @@ class MainPoller(Poller):
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
         self.parent.connect(self, QtCore.SIGNAL('update_widgets_when_mouse_file_changed'),  self.parent.update_widgets_when_mouse_file_changed)
         self.parent.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
+        self.parent.connect(self, QtCore.SIGNAL('notify'),  self.parent.notify)
         self.parent.connect(self, QtCore.SIGNAL('select_cell_changed'),  self.parent.select_cell_changed)
     
     def init_run(self):
@@ -778,7 +846,6 @@ class MainPoller(Poller):
     def reset_jobhandler(self):
         self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
         
-        
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
         
@@ -796,9 +863,8 @@ class MainPoller(Poller):
             h.last_mouse_file_name = os.path.split(self.mouse_file)[1]
             h.save(['last_region_name', 'last_mouse_file_name'], overwrite = True)
             h.close()
-#            mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
-#            if os.path.exists(mouse_file_copy):
-#                os.remove(mouse_file_copy)
+            self.printc('Copy mouse file for jobhandler')
+            
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -807,29 +873,34 @@ class MainPoller(Poller):
         #Delete MES tmp files
         try:
             for f in os.listdir(tempfile.gettempdir()):
+               #print f, tempfile.gettempdir()
                 fullpath = os.path.join(tempfile.gettempdir(), f)
-                print fullpath
-                if 'mat' in fullpath:
+                if '.mat' == fullpath[-4:] or '.hdf5' == fullpath[-5:]:
                     try:
                         os.remove(fullpath)
                         print (fullpath, 'removed')
                         self.printc((fullpath, 'removed'))
                     except:
                         print traceback.format_exc()
+                        import pdb
+                        pdb.set_trace()
         except:
             print traceback.format_exc()
+            
         
         time.sleep(3.0)
 
     def periodic(self):
-        are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
+        #are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
+        are_new_file=False
         if are_new_file:
             self.emit(QtCore.SIGNAL('mouse_file_list_changed'))
-        self.init_jobhandler()
+        #self.init_jobhandler()
         now = time.time()
         if now - self.prev_date_updated > ANESTHESIA_HISTORY_UPDATE_PERIOD:
             self.parent.update_anesthesia_history_date_widget()
             self.prev_date_updated = now
+            #print time.time()
 
     def handle_commands(self):
         '''
@@ -869,56 +940,28 @@ class MainPoller(Poller):
                             self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                             os.remove(self.z_stack_path)
                         elif command == 'measurement_ready':
-                            self.add_measurement_id(parameter)
-                        elif command == 'fragment_check_ready':
-                            #ID is saved, flag will be updated in mouse later when the measurement file is closed
-                            self.fragment_check_ready_id = parameter
-                        elif command == 'mesextractor_ready':
-                            flags = [command]
-                            if hasattr(self, 'fragment_check_ready_id') and self.fragment_check_ready_id is not None and parameter == self.fragment_check_ready_id:
-                                #Assuming that by this time the measurement file is closed
-                                flags.append('fragment_check_ready')
-                                self.fragment_check_ready_id = None
-                            else:#Not handled situation: consecutive fragment_check_ready and mesextractor_ready flags are associated to different ids
-                                pass
-                            self.set_process_status_flag(parameter, flags)
-                        elif command == 'find_cells_ready':
-                            if self.config.ADD_CELLS_TO_MOUSE_FILE:
-                                self.add_cells_to_database(parameter)
-                            else:
-                                region_name, measurement_file_path, info = self.read_scan_regions(parameter)
-                                id = parameter
-                                self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
-                                soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois',filelocking=False)
-                                if soma_rois is None or len(soma_rois) == 0:
-                                    number_of_new_cells = 0
-                                else:
-                                    number_of_new_cells = len(soma_rois)
-                                    if number_of_new_cells > 200:
-                                        number_of_new_cells = 50
-                                self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
-                                self.save2mouse_file(['scan_regions'])
-                                self.parent.update_jobhandler_process_status()
-                        elif command == 'mouse_file_copy':
-                            if parameter == '':
-                                tag = 'jobhandler'
-                            else:
-                                tag = parameter
-                            if self.mouse_file2jobhandler(tag = tag):
-                                self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
+                            if 0:
+                                self.add_measurement_id(parameter)
+                        elif command == 'notify':
+                            self.printc(parameter)
+                            self.notify(parameter)
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
+                            if 'error' in message.lower() and k.upper()=='STIM':
+                                self.notify(message)
         except:
             self.printc(traceback.format_exc())
                 
     def mouse_file_changed(self):
-        self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly
         self.wait_mouse_file_save()
-        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        self.load_mouse_file()
-        self.backup_mousefile()
-        self.reset_jobhandler()
-        self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
+        newmousefn=[fn for fn in list_mouse_files(self.config) if os.path.basename(fn)== str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText())][0]
+        if newmousefn!=self.mouse_file:
+            self.printc('Mouse file has changed to {0}'.format(newmousefn))
+            self.mouse_file = newmousefn
+            self.load_mouse_file()
+    #        self.backup_mousefile()
+            self.reset_jobhandler()
+            self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
         
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
@@ -928,18 +971,20 @@ class MainPoller(Poller):
         self.files_to_delete = []
         self.jobhandler_reset_issued = False
         self.prev_date_updated = 0.0
+        self.issued_ids = []
         
     def initialize_mouse_file(self):
         '''
         Finds out which mouse file to load and loadds data from it
         '''
-        are_new_files, self.mouse_files = update_mouse_files_list(self.config)
+        are_new_files, self.mouse_files, mouse_files_full = update_mouse_files_list(self.config)
         if len(self.mouse_files)>0:
             if self.last_mouse_file_name in self.mouse_files:
                 mouse_file = self.last_mouse_file_name
             else:
                 mouse_file = self.mouse_files[0]
-            self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, mouse_file)
+#            self.mouse_file = [fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== mouse_file][0]
+            self.mouse_file = [fn for fn in mouse_files_full if os.path.basename(fn)== mouse_file][0]
             self.load_mouse_file()
             
     def load_mouse_file(self):
@@ -961,22 +1006,32 @@ class MainPoller(Poller):
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
             self.animal_parameters = getattr(h, varname)
+            self.printc('Loading scan regions')
             scan_regions = h.findvar('scan_regions')
             if scan_regions is None:
                 self.scan_regions = {}
             else:
-                self.scan_regions = copy.deepcopy(scan_regions)
-            self.printc('Loading cells')
-            cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
-            if cells is not None:
-                if hasattr(cells, 'dtype'):
-                    self.cells = utils.array2object(cells)
+                if ENABLE_SCAN_REGION_SERIALIZATION:
+                    if isinstance(scan_regions, dict) and isinstance(scan_regions.values()[0], dict):
+                        self.scan_regions = copy.deepcopy(scan_regions)
+                    elif hasattr(scan_regions.values()[0], 'dtype'):
+                        self.scan_regions={}
+                        for srn in scan_regions.keys():
+                            self.scan_regions[srn] = utils.array2object(copy.deepcopy(scan_regions[srn]))
                 else:
-                    self.cells = cells
-            self.printc('Loading mean images')
-            images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
-            if images is not None:
-                self.images = images
+                    self.scan_regions = copy.deepcopy(scan_regions)
+            if 0:
+                self.printc('Loading cells')
+                cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
+                if cells is not None:
+                    if hasattr(cells, 'dtype'):
+                        self.cells = utils.array2object(cells)
+                    else:
+                        self.cells = cells
+                self.printc('Loading mean images')
+                images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
+                if images is not None:
+                    self.images = images
             anesthesia_history = copy.deepcopy(h.findvar('anesthesia_history'))#Takes long to load images
             if anesthesia_history is not None:
                 self.anesthesia_history = copy.deepcopy(anesthesia_history)
@@ -1002,19 +1057,43 @@ class MainPoller(Poller):
         
     def save_context(self):
         try:
-            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE,filelocking=False)
-            context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
-            context_hdf5.stage_position = copy.deepcopy(self.stage_position)
-            context_hdf5.save('stage_origin',overwrite = True)
-            context_hdf5.save('stage_position', overwrite = True)
-            if hasattr(self,  'xy_scan'):
-                context_hdf5.xy_scan = copy.deepcopy(self.xy_scan)
-                context_hdf5.save('xy_scan', overwrite = True)
-            if hasattr(self, 'xz_scan'):
-                context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
-                context_hdf5.save('xz_scan', overwrite = True)
-            context_hdf5.close()
+            if 0:
+                context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE,filelocking=False)
+                context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
+                context_hdf5.stage_position = copy.deepcopy(self.stage_position)
+                context_hdf5.save('stage_origin',overwrite = True)
+                context_hdf5.save('stage_position', overwrite = True)
+                if hasattr(self,  'xy_scan'):
+                    context_hdf5.xy_scan = copy.deepcopy(self.xy_scan)
+                    context_hdf5.save('xy_scan', overwrite = True)
+                if hasattr(self, 'xz_scan'):
+                    context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
+                    context_hdf5.save('xz_scan', overwrite = True)
+                context_hdf5.close()
+            else:#NOT TESTED
+                import tempfile
+                tmp_context_file=os.path.join(tempfile.gettempdir(),  'context.hdf5')
+                if os.path.exists(tmp_context_file):
+                    os.remove(tmp_context_file)
+                context_hdf5 = hdf5io.Hdf5io(tmp_context_file,filelocking=False)
+                context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
+                context_hdf5.stage_position = copy.deepcopy(self.stage_position)
+                context_hdf5.save('stage_origin',overwrite = True)
+                context_hdf5.save('stage_position', overwrite = True)
+                if hasattr(self,  'xy_scan'):
+                    context_hdf5.xy_scan = copy.deepcopy(self.xy_scan)
+                    context_hdf5.save('xy_scan', overwrite = True)
+                if hasattr(self, 'xz_scan'):
+                    context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
+                    context_hdf5.save('xz_scan', overwrite = True)
+#                context_hdf5.last_region_name = self.parent.get_current_region_name()
+#                context_hdf5.last_mouse_file_name = os.path.split(self.mouse_file)[1]
+                context_hdf5.close()
+                import shutil
+                os.remove(self.config.CONTEXT_FILE)
+                shutil.move(tmp_context_file, self.config.CONTEXT_FILE)#Context file is always saved to new file
         except:
+            self.printc(traceback.format_exc())
             self.printc('Context file NOT updated')
         
     ############## Measurement file handling ########################
@@ -1092,6 +1171,8 @@ class MainPoller(Poller):
 
     def set_process_status_flag(self, id, flag_names):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
+        if region_name is None:
+            return
         id_not_found = False
         for flag_name in flag_names:
             if self.scan_regions[region_name]['process_status'].has_key(id):
@@ -1107,6 +1188,8 @@ class MainPoller(Poller):
     
     def add_measurement_id(self, id):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
+        if region_name is None:
+            return
         if not self.scan_regions[region_name].has_key('process_status'):
             self.scan_regions[region_name]['process_status'] = {}
         if self.scan_regions[region_name]['process_status'].has_key(id):
@@ -1132,14 +1215,18 @@ class MainPoller(Poller):
         measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
-            return 5*[None]
+            return 3*[None]
         measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path,filelocking=False)
         fromfile = measurement_hdfhandler.findvar(['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
         if not call_parameters.has_key('scan_mode'):
             self.printc('Scan mode does not exists')
             measurement_hdfhandler.close()
-            return 5*[None]
+            return 3*[None]
+        if call_parameters['intrinsic']:
+            self.printc('Intrinsic recording session, not adding to automated analysis')
+            measurement_hdfhandler.close()
+            return 3*[None]
         laser_intensity = measurement_hdfhandler.findvar('laser_intensity', path = 'root.'+ '_'.join(cg.get_mes_name_timestamp(measurement_hdfhandler)))
         measurement_hdfhandler.close()
         info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':call_parameters['scan_mode'], 'laser_intensity': laser_intensity}
@@ -1147,10 +1234,16 @@ class MainPoller(Poller):
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
-            return 5*[None]
+            return 3*[None]
+        if self.mouse_file != mouse_file:
+            self.printc('Mouse file was changed from {0} to {1}'.format(mouse_file, self.mouse_file))
+            return 3*[None]
+#        if not self.scan_regions.has_key(call_parameters['region_name']):
+#            self.printc('{0} region does not exits, probably mouse file was changed recently'.format(call_parameters['region_name']))
+#            return 3*[None]
         if self.scan_regions[call_parameters['region_name']].has_key(id):
             self.printc('ID already exists: {0}'.format(id))
-            return 5*[None]
+            return 3*[None]
         return call_parameters['region_name'], measurement_file_path, info
  
     def rebuild_cell_database(self):
@@ -1298,6 +1391,7 @@ class MainPoller(Poller):
 
     def set_stage_origin(self):
         result = False
+        self.printc('Stage origin: {0}'.format(self.stage_origin))
         if not self.mes_interface.overwrite_relative_position(0, self.config.MES_TIMEOUT):
             self.printc('Setting objective to 0 did not succeed')
             return result
@@ -1317,6 +1411,7 @@ class MainPoller(Poller):
                     result = True
         self.origin_set = True
         self.parent.update_position_display()
+        self.printc('Stage origin: {0}'.format(self.stage_origin))
         return result
         
     def tilt_brain_surface(self):
@@ -1373,7 +1468,7 @@ class MainPoller(Poller):
         self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
         self.printc('movement {0}, {1}'.format(movement[0], movement[1]))
         if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
-            self.printc('Stage does not respond')
+            self.printc('Stage does not respond, 1')
             return False
         while not self.queues['stim']['in'].empty():
             response = self.queues['stim']['in'].get()
@@ -1383,13 +1478,17 @@ class MainPoller(Poller):
                 self.parent.update_position_display()
                 self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
                 return True
-        self.printc('Stage does not respond')
+        self.printc('Stage does not respond, 2')
         return False
 
     def stop_stage(self):
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCstopEOP')
         self.printc('Stage stopped')
+        
+    def resendjobs(self):
+        self.queues['stim']['out'].put('SOCresendjobsEOCEOP')
+        self.printc('Stim is requested to resend jobs to Jobhandler')
 
 ################### MES #######################
     def set_objective(self):
@@ -1569,7 +1668,14 @@ class MainPoller(Poller):
 
         id_text = str(self.parent.animal_parameters_widget.id.currentText())
         if id_text == '':
-            self.printc('Providing ID is mandatory')
+            self.notify('Please provide animal name')
+            return
+        if not id_text.isalnum():
+            self.notify('Animal name can contain only alphanumeric characters')
+            return
+        user=str(self.parent.animal_parameters_widget.user.currentText())
+        if user=='':
+            self.notify('Select user!')
             return
         self.animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
@@ -1583,25 +1689,32 @@ class MainPoller(Poller):
             'red_labeling' : str(self.parent.animal_parameters_widget.red_labeling.currentText()),
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
             'add_date' : utils.datetime_string().replace('_', ' '),
-            'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2)
+            'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2),
+            'user':user,
         }        
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
-        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
+        #self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH,self.generate_animal_filename('mouse', self.animal_parameters))
+        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(user),self.generate_animal_filename('mouse', self.animal_parameters))
+        if not os.path.exists(os.path.dirname(self.mouse_file)):
+            os.makedirs(os.path.dirname(self.mouse_file))
         
         if os.path.exists(self.mouse_file):
             self.printc('Animal parameter file already exists')
         else:
+            self.scan_regions = {}
             variable_name = 'animal_parameters_{0}'.format(int(time.time()))
             hdf5io.save_item(self.mouse_file, variable_name, self.animal_parameters,filelocking=False)
             self.local_mouse_file = os.path.join(tempfile.gettempdir(), os.path.split(self.mouse_file)[1])
+            if os.path.exists(self.local_mouse_file):#Remove existing temp mouse file
+                os.remove(self.local_mouse_file)
             hdf5io.save_item(self.local_mouse_file, variable_name, self.animal_parameters,filelocking=False)
-            are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
+            are_new_file, self.mouse_files, full = update_mouse_files_list(self.config, self.mouse_files)
             time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
             self.parent.update_mouse_files_combobox(set_to_value = os.path.split(self.mouse_file)[-1])
-            self.parent.update_cell_group_combobox()
+            #self.parent.update_cell_group_combobox()
             #Clear image displays showing regions
             self.emit(QtCore.SIGNAL('clear_image_display'), 1)
             self.emit(QtCore.SIGNAL('clear_image_display'), 3)
@@ -1611,8 +1724,8 @@ class MainPoller(Poller):
             self.anesthesia_history = []
             self.save2mouse_file('anesthesia_history')
             self.parent.update_anesthesia_history()
-            self.printc('Animal parameter file saved')
-            
+            self.parent.update_combo_box_list(self.parent.main_widget.scan_region_groupbox.scan_regions_combobox, [])
+            self.printc('{0} animal parameter file saved'.format(id_text))
             
     def add_to_anesthesia_history(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
@@ -1673,29 +1786,35 @@ class MainPoller(Poller):
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
-        result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        if not result:
-            self.printc('MES does not respond')
-            return
-        result, laser_intensity = self.mes_interface.read_laser_intensity()
-        if not result:
-            self.printc('MES does not respond')
-            return
-        if not self.read_stage(display_coords = False):
+        if 0:
+            result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
+            if not result:
+                self.printc('MES does not respond')
+                return
+        if 0:
+            result, laser_intensity = self.mes_interface.read_laser_intensity()
+            if not result:
+                self.printc('MES does not respond')
+                return
+        else:
+                laser_intensity=0
+        if not self.read_stage(display_coords = False):#Objective position also read
             self.printc('Stage cannot be accessed')
             return
         if self.scan_regions == None:
             self.scan_regions = {}
         region_name = self.parent.get_current_region_name()
+        self.printc('1. Laser intensity read')
         if region_name == '':
             region_name = 'r'
         if self.scan_regions.has_key(region_name):
             #Ask for confirmation to overwrite if region name already exists
-            self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
-            while self.gui_thread_queue.empty() :
-                time.sleep(0.1) 
-            if not self.gui_thread_queue.get():
-                self.printc('Region not saved')
+            #if not self.ask4confirmation('Overwriting scan region'):
+#            self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
+#            while self.gui_thread_queue.empty() :
+#                time.sleep(0.1) 
+#            if not self.gui_thread_queue.get():
+                self.printc('Region already exists, not saved')
                 return
         else:
             relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
@@ -1706,6 +1825,7 @@ class MainPoller(Poller):
             if self.scan_regions.has_key(region_name) and not self.ask4confirmation('Overwriting scan region'):
                 self.printc('Region not saved')
                 return
+            self.printc('2. region name generated')
         if not('master' in region_name or '0_0' in region_name or self.has_master_position(self.scan_regions)):
             self.printc('Master position has to be defined')
             return
@@ -1716,6 +1836,7 @@ class MainPoller(Poller):
            else:
                 relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
                 region_name = 'master_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
+        self.printc('3. region name finalized')
         scan_region = {}
         scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
@@ -1728,11 +1849,14 @@ class MainPoller(Poller):
         scan_region['xy']['scale'] = self.xy_scan['scale']
         scan_region['xy']['origin'] = self.xy_scan['origin']
         scan_region['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
+        self.printc('4. scan region dictionary loaded with data')
         #Save xy line scan parameters
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
+        self.printc('5. line scan parameters are read')
         if result and os.path.exists(line_scan_path):
             scan_region['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
             os.remove(line_scan_path)
+        self.printc('6. reading vertical scan parameters')
         #Vertical section
         if hasattr(self, 'xz_scan'):
             if self.xz_scan !=  None:
@@ -1763,6 +1887,7 @@ class MainPoller(Poller):
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
             self.save2mouse_file('scan_regions')
+            self.backup_mousefile()
             self.update_scan_regions()#This is probably redundant
             self.printc('XY scan updated')
         
@@ -1774,6 +1899,7 @@ class MainPoller(Poller):
             self.scan_regions[region_name]['xz'] = self.xz_scan
             self.scan_regions[region_name]['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'])
             self.save2mouse_file('scan_regions')
+            self.backup_mousefile()
             self.update_scan_regions()#This is probably redundant
             self.printc('XZ scan updated')
         
@@ -1787,11 +1913,12 @@ class MainPoller(Poller):
             if result and os.path.exists(line_scan_path):
                 self.scan_regions[region_name]['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
                 self.save2mouse_file('scan_regions')
+                self.backup_mousefile()
                 os.remove(line_scan_path)
                 self.update_scan_regions()#This is probably redundant
                 self.printc('XYT scan updated')
             else:
-                self.printl('XYT scan parameters cannot be read')
+                self.printc('XYT scan parameters from {0} cannot be read, {1}'.format(line_scan_path,result))
 
     def remove_scan_region(self):
         selected_region = self.parent.get_current_region_name()
@@ -2012,6 +2139,7 @@ class MainPoller(Poller):
             p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
             if os.path.exists(p):
                 os.remove(p)
+                self.printc('{0} cancelled'.format(id))
 
     def graceful_stop_experiment(self):
 #        command = 'SOCgraceful_stop_experimentEOCguiEOP'
@@ -2021,20 +2149,35 @@ class MainPoller(Poller):
             p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
             if os.path.exists(p):
                 os.remove(p)
+                self.printc('{0} cancelled'.format(id))
 
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
-        region_name = self.parent.get_current_region_name()
-        if len(region_name)>0:
-            self.experiment_parameters['region_name'] = region_name
+        self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
+        self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
+        if not self.experiment_parameters['intrinsic']:
+            self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
+            region_name = self.parent.get_current_region_name()
+            if len(region_name)>0:
+                self.experiment_parameters['region_name'] = region_name
+            region_add_timestamp=time.mktime(datetime.datetime.strptime(self.scan_regions[self.experiment_parameters['region_name']]['add_date'], "%Y-%m-%d %H-%M-%S").timetuple())    
+            dt=(time.time()-region_add_timestamp)/3600
+            if dt>self.config.SCAN_REGION_TIMEOUT:
+                if not self.ask4confirmation('Scan region was created {0:.0f} hours ago. Are you sure you want to record from this scan region?'.format(dt)):
+                    return
+                else:
+                    if self.ask4confirmation('Overwrite current scan region\'s add date?\r\nIf yes, datafiles will be copied to today\'s folder, no: datafiles are copied to the folder corresponds to scan region creation date '):
+                        self.scan_regions[self.experiment_parameters['region_name']]['add_date']= utils.datetime_string().replace('_', ' ')
         objective_range_string = str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
             objective_positions = map(float, objective_range_string.split(','))
             if len(objective_positions) != 3:
                 self.printc('Objective range is not in correct format')
                 return
+            elif objective_positions[0]>0 or objective_positions[1]>0:
+                if not self.ask4confirmation('Objective positions should be negative, do you want to continue with these values? {0}'.format(objective_positions[:2])):
+                    return
             if objective_positions[0] > objective_positions[1]:
                 reverse = True
                 tmp = objective_positions[0]
@@ -2064,24 +2207,25 @@ class MainPoller(Poller):
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
         self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo')
-        #Start experiment batch
         self.generate_experiment_start_command()
+        if self.experiment_parameters.has_key('objective_positions') and self.ask4confirmation('Issue command for all depths?'):
+            while True:
+                if self.next_experiment()==None:
+                    break
 
     def generate_experiment_start_command(self):
+        #TODO:  INTRINSIC: do not expect mouse file and scan regions, chck checkbox which enables intrinsic
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
         self.experiment_parameters['id'] = str(int(time.time()))
-        if not hasattr(self, 'issued_ids'):
-            self.issued_ids = []
-        else:
-            self.issued_ids.append(self.experiment_parameters['id'])
+        self.issued_ids.append(self.experiment_parameters['id'])
         if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('objective_positions'):
             self.experiment_parameters['objective_position'] = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']]
             objective_position = self.experiment_parameters['objective_position']
             self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo {0} um'.format(objective_position))
             #Update redo and next buttons
-            time.sleep(0.2)
+            time.sleep(0.1)
             if self.experiment_parameters['current_objective_position_index']+1 < self.experiment_parameters['objective_positions'].shape[0]:
                 objective_position = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']+1]
                 self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next {0} um'.format(objective_position))
@@ -2095,6 +2239,7 @@ class MainPoller(Poller):
         if os.path.exists(parameter_file):
             time.sleep(1.1)
             self.experiment_parameters['id'] = str(int(time.time()))
+            self.issued_ids[-1]=self.experiment_parameters['id']
             parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
             if os.path.exists(parameter_file):
                 self.printc('Experiment ID already exists')
@@ -2105,13 +2250,16 @@ class MainPoller(Poller):
             del h.parameters['laser_intensities']
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
-        h.scan_regions = copy.deepcopy(self.scan_regions)
-        h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
-        if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
-            del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
-        h.animal_parameters = copy.deepcopy(self.animal_parameters)
-        h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
-        fields_to_save = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        if not self.experiment_parameters['intrinsic']:
+            h.scan_regions = copy.deepcopy(self.scan_regions)
+            h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
+            if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
+                del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
+            h.animal_parameters = copy.deepcopy(self.animal_parameters)
+            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+        fields_to_save = ['parameters']
+        if not self.experiment_parameters['intrinsic']:
+            fields_to_save.extend(['scan_regions', 'animal_parameters', 'anesthesia_history'])
         if self.experiment_parameters['scan_mode'] == 'xz':
             h.xz_config = copy.deepcopy(self.xz_config)
             h.rois = copy.deepcopy(self.rois)
@@ -2119,8 +2267,10 @@ class MainPoller(Poller):
             fields_to_save += ['xz_config', 'rois', 'roi_locations']
         h.save(fields_to_save)
         h.close()
-        self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
+        file.wait4file_ready(parameter_file)
+        self.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
+        time.sleep(0.5)
         self.queues['stim']['out'].put(command)
         
     def previous_experiment(self):
@@ -2137,6 +2287,7 @@ class MainPoller(Poller):
             self.experiment_parameters['current_objective_position_index'] += 1
             if self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
                 self.generate_experiment_start_command()
+                return True
        
     ############ 3d scan test ###############
     def show_rc_scan_results(self):
@@ -2419,6 +2570,10 @@ class MainPoller(Poller):
             time.sleep(0.1) 
         return self.gui_thread_queue.get()
         
+        
+    def notify(self, msg):
+        self.emit(QtCore.SIGNAL('notify'), str(msg))
+        
     def save2mouse_file(self, fields, wait_save = False):
 #        #Wait till mouse file handler finishes with copying data fields
 #        while self.parent.mouse_file_handler.lock:
@@ -2451,6 +2606,11 @@ class MainPoller(Poller):
                 field_name, field_value = self.queues['mouse_file_handler'].get()
                 if field_name == 'animal_parameters':
                     field_name += str(int(time.time()))
+                if field_name == 'scan_regions' and ENABLE_SCAN_REGION_SERIALIZATION:
+                    new_fv={}
+                    for srn in field_value.keys():
+                        new_fv[srn]=utils.object2array(field_value[srn])
+                    field_value = new_fv
                 setattr(h, field_name, field_value)
                 if not field_name in field_names_to_save:
                     field_names_to_save.append(field_name)
@@ -2465,18 +2625,53 @@ class MainPoller(Poller):
     def backup_mousefile(self):
         if hasattr(self, 'animal_parameters') and hasattr(self, 'mouse_file'):
             self.printc('Backing up mouse file')
-            dir = os.path.join(self.config.DATABIG_PATH,  utils.date_string().replace('-',''), self.animal_parameters['id'])
-            if not os.path.exists(dir):
-                os.makedirs(dir)
-            databig_path = os.path.join(dir, os.path.split(self.mouse_file)[1])
-            if os.path.exists(databig_path):
-                os.remove(databig_path)
             try:
-                shutil.copy(self.mouse_file, databig_path)
+                h = hdf5io.Hdf5io(self.mouse_file,filelocking=False)
+                h.close()
             except:
-                self.printc(traceback.format_exc())
-                self.printc('Problem with copying mousefile to databig.')
-
+                self.printc('Backing up mouse file was not successful')
+                return
+            if 0:
+                self.printc('1')
+                dir = os.path.join(self.config.DATABIG_PATH,  utils.date_string().replace('-',''), self.animal_parameters['id'])
+                #Mouse file is backed up if 1) backup path exists or 2) animal parameters were created max 8 hours ago
+    #            import datetime#TODO: mouse file is backed up at mouse file change (at startup, not backed up when databig folder created only if region save happens
+    #            animal_parameter_save_timestamp =  time.mktime(datetime.datetime.strptime(self.animal_parameters['add_date'], "%Y-%m-%d %H-%M-%S").timetuple())
+                if not os.path.exists(dir):# and time.time() - animal_parameter_save_timestamp<8*3600:
+                    os.makedirs(dir)
+    #            if not os.path.exists(dir):
+    #                self.printc('Backing up mouse file aborted')
+    #                return
+                self.printc('2')
+                databig_path = os.path.join(dir, os.path.split(self.mouse_file)[1])
+                if os.path.exists(databig_path):
+                    os.remove(databig_path)
+                try:
+                    shutil.copy(self.mouse_file, databig_path)
+                    self.printc('3')
+                except:
+                    self.printc(traceback.format_exc())
+                    self.printc('Problem with copying mousefile to databig.')
+                    self.printc('4')
+                self.printc('5')
+            if 1:#New backup
+                try:
+                    #files=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== self.mouse_file]
+                    files=[fn for fn in list_mouse_files(self.config) if os.path.basename(fn)== os.path.basename(self.mouse_file)]
+                    rn=[rn for rn in self.scan_regions.keys() if self.parent.get_current_region_name() in rn]
+                    if len(rn)==1:
+                        d=self.scan_regions[rn[0]]['add_date']
+                    else:
+                        d=self.animal_parameters['add_date']
+                    id=str(d.split(' ')[0].replace('-',''))
+                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']),todatabig=True)
+                except:
+                    self.printc(traceback.format_exc())
+                    msg='ERROR: Automatic backup failed, please make sure that files are copied to u:\\backup'
+                    self.printc(msg)
+                    self.notify(msg)
+                    raise 
+                
     def cells2pickled_ready(self, cells):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io
@@ -2538,17 +2733,142 @@ class MouseFileHandler(Poller):
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
         return cells
 
+class Image(pyqtgraph.GraphicsLayoutWidget):
+    def __init__(self,parent):
+        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setBackground((255,255,255))
+        self.roi_default_diameter = 20
+#        self.view = self.addViewBox()
+        self.plot=self.addPlot()
+        self.img = pyqtgraph.ImageItem(border='w')
+        self.plot.addItem(self.img)
+        self.plot.showGrid(True,True,1.0)
+#        self.plot.setZValue(5)
+#        self.view.setAspectLocked(True)
+#        self.view.setRange(QtCore.QRectF(0, 0, 100, 100))
+        self.scene().sigMouseClicked.connect(self.mouse_clicked)
+        self.rois = []
+#        self.plot.autoRange()
+        
+    def set_image(self, image):
+        im=0.8*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
+        im[:,:,:3]=image
+        self.img.setImage(im)
+
+    def mouse_clicked(self,e):
+        p=self.img.mapFromScene(e.scenePos())
+        if e.double():
+            if int(e.buttons()) == 1:
+                self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
+            elif int(e.buttons()) == 2:
+                self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
+            self.update_roi_info()
+#            print self.roi_info
+        
+    def add_roi(self,x,y):
+        roi = pyqtgraph.CircleROI([x-0.5*self.roi_default_diameter , y-0.5*self.roi_default_diameter ], [self.roi_default_diameter , self.roi_default_diameter ])
+        roi.setPen((255,0,0,255), width=2)
+        self.rois.append(roi)
+        self.plot.addItem(self.rois[-1])
+        
+    def remove_roi(self,x,y):
+        distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
+        removable_roi = self.rois[numpy.array(distances).argmin()]
+        self.plot.removeItem(removable_roi)
+        self.rois.remove(removable_roi)
+        
+    def update_roi_info(self):
+        self.roi_info = [[i, self.rois[i].x(), self.rois[i].y()] for i in range(len(self.rois))]
+        
+class Plots(pyqtgraph.GraphicsLayoutWidget):
+    '''
+    Number of plots can be updated in runtime
+    '''
+    def __init__(self,parent):
+        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setBackground((255,255,255))
+        self.setAntialiasing(True)
+        self.plots = []
+        return
+#        self.set_plot_num(3,4)
+#        traces = []
+#        for i in range(3):
+#            traces1 = []
+#            for j in range(4):
+#                traces1.append({'x':numpy.arange(100), 'y': numpy.sin(numpy.arange(100)/(j+1+i)), 'title': (i,j)})
+#            traces.append(traces1)
+#        self.addplots(traces)
+        
+    def addplots(self,traces):
+        self.plots = []
+        self.clear()
+        for r in range(self.nrows):
+            for c in range(self.ncols):
+                self.addplot(traces[r][c])
+                    
+            self.nextRow()
+        
+    def set_plot_num(self,nrows,ncols):
+        self.nrows=nrows
+        self.ncols=ncols
+        
+    def addplot(self,traces):
+        self.plots.append(self.addPlot(title='{0}, {1:.2f}'.format(traces['title'],traces['response_size'])))#, colspan=10, rowspan=10))
+        color_index=0
+        for trace in traces['trace']:
+            if trace.has_key('color'):
+                c=trace['color']
+            else:
+                c = tuple(numpy.cast['int'](numpy.array(colors.get_color(0))*255))
+            self.plots[-1].plot(trace['x'], trace['y'], pen=c)
+            color_index+=1
+        self.plots[-1].showGrid(True,True,1.0)
+        c=(255-255*traces['response_size_scaled'],255-255*traces['response_size_scaled'],255-255*traces['response_size_scaled'],128)
+        
+        self.offtime=self.parent().offtime
+        self.ontime=self.parent().ontime
+        linear_region = pyqtgraph.LinearRegionItem([self.offtime*0.5, self.offtime*0.5+self.ontime], movable=False, brush = c)
+        self.plots[-1].addItem(linear_region)
+        self.plots[-1].setMaximumHeight(90)
+        
+def list_mouse_files(config):
+    mfiles=[]
+    for dirname in os.listdir(config.EXPERIMENT_DATA_PATH):
+        if dirname=='output':
+            continue
+        dirname=os.path.join(config.EXPERIMENT_DATA_PATH, dirname)
+        if os.path.isdir(dirname):
+            mfiles.extend([os.path.join(dirname, fn) for fn in os.listdir(dirname) if fn[-5:]=='.hdf5' and 'mouse' in fn])
+        elif dirname[-5:]=='.hdf5' and 'mouse' in dirname:
+            mfiles.append(dirname)
+    return mfiles
+
+        
+
 def update_mouse_files_list(config, current_mouse_files = []):
-    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
-    new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
+    
+#    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
+   # new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
+    #print len(os.listdir(config.EXPERIMENT_DATA_PATH))
+    #fns=os.listdir(config.EXPERIMENT_DATA_PATH)
+#    if len(fns)>1000:
+#        print  'WARNING: too many files in {0}, please remove the old ones.'.format(config.EXPERIMENT_DATA_PATH)
+    #new_mouse_files=[os.path.basename(fn) for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if 'mouse' in fn and '.hdf5'==fn[-5:]]
+    new_mouse_files_full=list_mouse_files(config)
+    new_mouse_files=[os.path.basename(fn) for fn in new_mouse_files_full]
+    #new_mouse_files=[fn for fn in file.find_files_and_folders(config.EXPERIMENT_DATA_PATH)[1] if 'mouse' in fn and '.hdf5'==fn[-5:]]
+    #print 0.05
+    new_mouse_files=[fn for fn in new_mouse_files if '_jobhandler' not in fn and '_stim' not in fn]
+    #print 0.1
     new_mouse_files.sort()
     current_mouse_files1= current_mouse_files
     current_mouse_files1.sort()
+    #print 0.2
     if current_mouse_files1 != new_mouse_files:
         are_new_files = True
     else:
         are_new_files = False
-    return are_new_files, new_mouse_files
+    return are_new_files, new_mouse_files, new_mouse_files_full
 
 if __name__ == '__main__':
     pass

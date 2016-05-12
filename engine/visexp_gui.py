@@ -48,6 +48,8 @@ class VisionExperimentGui(QtGui.QWidget):
     '''
     def __init__(self, user, config_class):
         #Fetching classes takes long time
+        if file.free_space('c:\\')/1e9<20:
+            raise RuntimeError('Not enough free space on c:\\. Please delete unnecessary files because datafile may be lost!')
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
         self.config.user = user
         self.console_text = ''
@@ -75,7 +77,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
-        
+
     def create_gui(self):
         self.main_widget = gui.MainWidget(self, self.config)
         self.animal_parameters_widget = gui.AnimalParametersWidget(self, self.config)
@@ -89,6 +91,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.main_tab.addTab(self.roi_widget, 'ROI')
         self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
         self.main_tab.addTab(self.helpers_widget, 'Helpers')
+        self.debug=gui.PythonConsole(self,self)
+        self.main_tab.addTab(self.debug, 'Debug')
         self.main_tab.setCurrentIndex(0)
         #Image tab
         self.image_tab = QtGui.QTabWidget(self)
@@ -100,6 +104,10 @@ class VisionExperimentGui(QtGui.QWidget):
         for experiment_config in experiment_config_list:
             experiment_config_names.append(experiment_config[1].__name__)
         experiment_config_names.sort()
+        if 0:
+            for en in experiment_config_names:
+                if '_' in en:
+                    raise RuntimeError('_ is not allowed in experiment config name: {0}'.format(en))
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         try:
             self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
@@ -203,6 +211,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.common_widget.register_button, 'register')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
+        self.connect_and_map_signal(self.main_widget.resendjobs_button, 'resendjobs')
+        self.connect_and_map_signal(self.main_widget.updatejobs_button, 'processstatus2gui')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
@@ -237,14 +247,21 @@ class VisionExperimentGui(QtGui.QWidget):
             self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
         image_widget = self.images_widget.image_display[0]
-        if currentIndex == 0:
-            self.update_scan_regions()
-            self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
-        elif currentIndex == 1:
-            self.update_meanimage()
-            self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
-            self.update_cell_info()
-            self.update_cell_group_combobox()
+        try:
+            if currentIndex == 0:
+                self.update_scan_regions()
+                if hasattr(image_widget,'raw_image'):
+                    self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+            elif currentIndex == 1:
+                self.update_meanimage()
+                if hasattr(image_widget,'raw_image'):
+                    self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+                self.update_cell_info()
+                self.update_cell_group_combobox()
+        except:
+            import traceback
+            print traceback.format_exc()
+            print image_widget
             
     def gridline_checkbox_changed(self):
         self.update_gridlined_images()
@@ -335,10 +352,10 @@ class VisionExperimentGui(QtGui.QWidget):
                 channel = 'both'
             else:
                 channel = 'green'
-            self.animal_parameters_str = '{6}, {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {7}'\
+            self.animal_parameters_str = '{7} {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {6}'\
             .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
-                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'], animal_parameters['id'],
-                    channel)
+                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],
+                    channel, animal_parameters['user'])
             self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             
     def update_region_names_combobox(self, selected_region = None):
@@ -372,8 +389,8 @@ class VisionExperimentGui(QtGui.QWidget):
             self.xz_line = line
             self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
             #update overwiew
-            image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
             if self.config.SHOW_OVERVIEW:
+                image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             #Update region info
             if scan_regions[selected_region].has_key('add_date'):
@@ -443,7 +460,8 @@ class VisionExperimentGui(QtGui.QWidget):
                 status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
         else:
             status_text = ''
-        self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
+        if 0:
+            self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
 
     def update_cell_list(self):
         region_name = self.get_current_region_name()
@@ -574,15 +592,16 @@ class VisionExperimentGui(QtGui.QWidget):
             self.roi_widget.roi_plot.clear()
 
     def show_image(self, image, channel, scale, line = [], origin = utils.rc((0, 0))):
-        image_in = {}
-        image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 10)
+        imcopy = copy.deepcopy(image)
+        image_in = {}        
+        image_in['image'] = generic_visexpA.normalize(imcopy, outtype=numpy.uint8, std_range = 10)
         image_in['scale'] = scale
         image_in['origin'] = origin
         if channel == 'overview':
             image_with_sidebar = generate_gui_image(image_in, self.config.OVERVIEW_IMAGE_SIZE, self.config, lines  = line)
             self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.OVERVIEW_IMAGE_SIZE))
             self.overview_widget.image_display.image = image_with_sidebar
-            self.overview_widget.image_display.raw_image = image
+            self.overview_widget.image_display.raw_image = imcopy
             self.overview_widget.image_display.scale = scale
         else:
             box = self.get_subimage_box()
@@ -602,7 +621,7 @@ class VisionExperimentGui(QtGui.QWidget):
                                                     gridlines = gridlines)
             self.images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
             self.images_widget.image_display[channel].image = image_with_sidebar
-            self.images_widget.image_display[channel].raw_image = image
+            self.images_widget.image_display[channel].raw_image = imcopy
             self.images_widget.image_display[channel].scale = scale
             self.images_widget.image_display[channel].origin = origin
             self.images_widget.image_display[channel].line = line
@@ -677,6 +696,9 @@ class VisionExperimentGui(QtGui.QWidget):
             self.poller.gui_thread_queue.put(False)
         else:
             self.poller.gui_thread_queue.put(True)
+            
+    def notify(self, msg):
+        QtGui.QMessageBox.question(self, '', msg, QtGui.QMessageBox.Ok)
 
     def execute_python(self):
         try:
@@ -795,10 +817,14 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
     number_of_divisions = 7
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
     division_col = int(numpy.round(float(image_size['row']) / number_of_divisions, -1))
+    if division_col==0:
+        division_col=1
     number_of_divisions_modified = int(float(image_size['row']) / division_col)
     col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions_modified * division_col, number_of_divisions_modified+1)
     col_labels = 10*numpy.floor(0.1 * col_labels)
     division_row = int(numpy.round(float(image_size['col']) / number_of_divisions, -1))
+    if division_row==0:
+        division_row=1
     number_of_divisions_modified = int(float(image_size['col']) / division_row)
     row_labels = numpy.linspace(origin['row'], origin['row'] + number_of_divisions_modified * division_row, number_of_divisions_modified+1)
     row_labels = 10*numpy.floor(0.1 * row_labels)

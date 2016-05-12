@@ -524,6 +524,18 @@ class MesInterface(object):
         if not result:
             return False, {}
         return True, line_scan_path
+        
+    def _send_get_line_scan_cmd(self,line_scan_path_on_mes,timeout):
+        if self.connection.connected_to_remote_client():
+            self.queues['mes']['out'].put('SOCacquire_line_scan_templateEOC{0}EOP' .format(line_scan_path_on_mes))
+            result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_line_scan_templateEOCsaveOKEOP', timeout = timeout, 
+                                                         from_gui_queue = self.from_gui_queue)
+            if not result:
+                self._log_info('acquiring line scan template was not successful')
+        else:
+            self._log_info('mes not connected')
+            result = False
+        return result
 
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         time.sleep(1.0)
@@ -537,16 +549,20 @@ class MesInterface(object):
             line_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
         utils.empty_queue(self.queues['mes']['in'])
         #Acquire line scan if MES is connected
-        if self.connection.connected_to_remote_client():
-            self.queues['mes']['out'].put('SOCacquire_line_scan_templateEOC{0}EOP' .format(line_scan_path_on_mes))
-            result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_line_scan_templateEOCsaveOKEOP', timeout = timeout, 
-                                                         from_gui_queue = self.from_gui_queue)
-            if not result:
-                self._log_info('acquiring line scan template was not successful')
-        else:
-            self._log_info('mes not connected')
-            result = False
-        time.sleep(1.5)#This delay is nccessary to ensure that the parameter file is completely written to the disk
+        result = self._send_get_line_scan_cmd(line_scan_path_on_mes,timeout)
+        file.wait4file_ready(line_scan_path)
+        try:
+            scipy.io.loadmat(line_scan_path)
+        except:
+            result = self._send_get_line_scan_cmd(line_scan_path_on_mes,timeout)
+            file.wait4file_ready(line_scan_path)
+            try:
+                scipy.io.loadmat(line_scan_path)
+            except:
+                msg='line scan parameter file {0} is corrupt'.format(line_scan_path)
+                print msg
+                self._log_info(msg)
+                result=False
         return result, line_scan_path, line_scan_path_on_mes
         
     def start_line_scan(self, timeout = -1, parameter_file = '', scan_time = None, scan_mode = 'xy', channels = None, autozigzag = None):
@@ -564,7 +580,7 @@ class MesInterface(object):
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = line_scan_path, timeout = timeout)
         elif os.path.exists(parameter_file):
             line_scan_path = parameter_file
-            line_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+            line_scan_path_on_mes = parameter_file#file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result = True
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
@@ -615,7 +631,7 @@ class MesInterface(object):
             self._log_info('No MES response')
         return result
 
-    def _log_info(self, message, enable_print=False):
+    def _log_info(self, message, enable_print=True):
         if self.log != None:
             self.log.info(message)
         if enable_print:

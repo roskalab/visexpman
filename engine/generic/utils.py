@@ -1,4 +1,4 @@
-import sys
+import sys,platform
 import math
 import random
 import numpy
@@ -174,7 +174,7 @@ def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  en
 def coordinate_system(type, SCREEN_RESOLUTION=None):
     '''looks up proper settings for commonly used coordinate system conventions'''
     if type=='ulcorner':
-        if SCREEN_RESOLUTION == None: raise ValueError('Screen resolution is needed for converting to upper-left corner origo coordinate system.')
+        if SCREEN_RESOLUTION is None: raise ValueError('Screen resolution is needed for converting to upper-left corner origo coordinate system.')
         ORIGO = cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
         HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
         VERTICAL_AXIS_POSITIVE_DIRECTION = 'down'
@@ -238,7 +238,10 @@ def nd(rcarray, squeeze=False, dim_order=None,tuples=0):
     if squeeze or rcarray.ndim==0:
         res=numpy.squeeze(res)
     if tuples: #gives back list of tuples on which set operations can be performed
-        res = [tuple(item) for item in res]
+        if rcarray.ndim==0:
+            res = tuple(res)
+        else:
+            res = [tuple(item) for item in res]
     return res
 
 def rcd(raw):
@@ -272,8 +275,8 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     dtype={'names':dim_names,'formats':[raw.dtype]*len(dim_names)}
     if raw.ndim > len(dim_names):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
-    if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
-        raw=raw.T
+    if raw.ndim==2 and raw.shape[0]!=len(dim_names): # required format (2,x)
+        raise RuntimeError('Input array provided to rc should be {0}, got {1}').format(raw.T.shape, raw.shape)
     raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
     return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
@@ -799,7 +802,7 @@ def truncate_timestamps(list_of_timestamps,  at_position):
     with least significant data truncated. E.g. to get timestamps that contain only
    year_month_date but no hour, second, millisecond: set at_position=3
    '''
-    timetuples = numpy.array([time.localtime(ts) for ts in list_of_timestamps])
+    timetuples = numpy.array([time.localtime(float(ts)) for ts in list_of_timestamps])
     truncated_timestamps= [time.mktime(tt[:at_position].tolist()+[0]*(9-at_position)) for tt in timetuples] #timestamps made from timetuples where only year month day differs, rest is 0
     return truncated_timestamps
 
@@ -818,7 +821,12 @@ def timestamp2ymdhms(timestamp):
 def timestamp2ymdhm(timestamp):
     time_struct = time.localtime(timestamp)
     return '{0}-{1}-{2}+{3:2}:{4:2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min).replace(' ','0').replace('+',' ')
-    
+
+def timestamp2ymd(timestamp,separator='-'):
+    time_struct = time.localtime(timestamp)
+    return '{0:0=4}{3}{1:0=2}{3}{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday,separator).replace('+',' ')
+
+
 class Timeout(object):
     def __init__(self, timeout, sleep_period = 0.01):
         self.start_time = time.time()
@@ -1105,6 +1113,20 @@ def safe_has_key(var, key):
             result = True
     return result
 
+def sendmail(to, subject, txt):
+    import subprocess,file
+    message = """\
+    Subject: %s
+
+    %s
+    """ % (subject, txt)
+    fn='/tmp/email.txt'
+    file.write_text_file(fn,message)
+    # Send the mail
+    cmd='sendmail {0} < {1}'.format(to,fn)
+    res=subprocess.call(cmd,shell=True)
+    os.remove(fn)
+    return res==0
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
@@ -1193,6 +1215,8 @@ class TestUtils(unittest.TestCase):
         rc_value = rc(data)
         self.assertEqual((rc_value['row'], rc_value['col']), data)
          
+    def test_19_sendmail(self):
+            self.assertTrue(sendmail('zoltan.raics@fmi.ch','test','c'))
             
     def test_numpy_circles(self):
         pars = [ [[10, 25], (rc((1, 1)), rc((25, 25))), (64, 64), 255],  #
@@ -1201,6 +1225,38 @@ class TestUtils(unittest.TestCase):
         for p in pars:
             img = numpy_circles(p[0], p[1], p[2], p[3])
             pass
+def shuffle_positions_avoid_adjacent(positions,shape_distance):
+    remaining=copy.deepcopy(positions)
+    success=True
+    shuffled=[]
+    cti=0
+    while True:
+        cti+=1
+        selected_i = random.choice(range(len(remaining)))
+        if len(shuffled)>0:
+            ct=0
+            while True:
+                ct+=1
+                coords=rc(numpy.array([nd(shuffled[-1][1]),nd(remaining[selected_i][1])]))
+                if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
+                    if len(remaining)>1:
+                        selected_i = random.choice(range(len(remaining)))
+                    else:
+                        success=False
+                        break
+                else:
+                    break
+                if ct>len(positions)*2:
+                    success=False
+                    break
+        if cti>len(positions)*2:
+            success=False
+            break
+        shuffled.append(remaining[selected_i])
+        del remaining[selected_i]
+        if len(remaining)==0:
+            break
+    return shuffled,success
             
 if __name__ == "__main__":
     #commented out by Daniel:
@@ -1277,6 +1333,7 @@ if __name__ == "__main__":
     mytest.addTest(TestUtils('test_13_rcd_pack'))
     mytest.addTest(TestUtils('test_14_rcd_pack'))
     mytest.addTest(TestUtils('test_15_rcd_pack'))
+    mytest.addTest(TestUtils('test_19_sendmail'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)

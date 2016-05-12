@@ -14,6 +14,7 @@ import traceback
 import gc
 import shutil
 import copy
+import zmq
 
 import experiment
 import experiment_data
@@ -54,7 +55,8 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
-
+                    
+        
     def run_experiment(self, context):
         '''
         Runs a series or a single experiment depending on the call parameters
@@ -85,6 +87,8 @@ class ExperimentControl(object):
         '''
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
+        if context.has_key('pusher'):
+            self.pusher=context['pusher']
         message_to_screen = ''
         if not self.connections['mes'].connected_to_remote_client(timeout = 3.0) and self.config.PLATFORM == 'mes':
             message_to_screen = self.printl('No connection with MES, {0}'.format(self.connections['mes'].endpoint_name))
@@ -130,16 +134,100 @@ class ExperimentControl(object):
         self.application_log.flush()
         return message_to_screen
         
+    def wait4jobhandler_resp(self,socket):
+        t0=time.time()
+#        time.sleep(5)
+#        try:
+#            resp=socket.recv()
+#        except zmq.ZMQError:
+#            resp='timeout'
+        while True:
+            try:
+                resp=socket.recv(flags=zmq.NOBLOCK)
+                break
+            except zmq.ZMQError:
+                if time.time()-t0>7:
+                    resp='timeout'
+                    break
+            time.sleep(0.5)
+        return resp
+                        
+    def notify_jobhandler(self):
+        try:
+            data={'id':self.id, 
+                    'stimulus': self.experiment_config_name, 
+                    'region': str(self.parameters['region_name']), 
+                    'user':str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),
+                    'animal_id': str(self.animal_parameters['id']),
+                    'region_add_date':str(self.scan_region['add_date']),
+                    'recording_started': self.recording_start_time,
+                    'is_measurement_ready': True,
+                    'measurement_ready_time': time.time(),
+                    'laser': self.laser_intensity,
+                    'depth':self.objective_position,
+                    'filename': os.path.basename(self.filenames['fragments'][0])}
+            self.savejob2stimcontext(data)
+#            self.printl('Sending to jobhandler')
+#            self.pusher.send(pickle.dumps(data,2),flags=zmq.NOBLOCK)
+#            resp=self.wait4jobhandler_resp(self.pusher)
+##            print resp
+##            pusher.close()
+#            if resp != self.id:
+#                self.printl('No response from jobhandler. Make sure that jobhandler is running')
+#                self.savejob2stimcontext(data)
+##                pusher.close()
+#                return
+#            self.printl('File sent for analysis')
+        except:
+#            pusher.close()
+            self.printl(traceback.format_exc())
+#            self.printl('Sending datafile to jobhandler failed, check error mesage on console')
+#            self.savejob2stimcontext(data)
+            
+    def savejob2stimcontext(self,job):
+        fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
+        h=hdf5io.Hdf5io(fn,filelocking=False)
+        h.load('jobs')
+        if not hasattr(h,'jobs'):
+            h.jobs=[]
+        
+        h.jobs.append(job)
+        #h.jobs=utils.object2array(h.jobs)
+        h.save('jobs')
+        h.close()
+        self.printl('Job is saved to local context')
+                
+    def _backup_raw_files(self):
+        if self.abort: return
+        if 1:
+            try:
+                files=[]
+                for fragment_id in range(self.number_of_fragments):
+                    files.extend([self.filenames['mes_fragments'][fragment_id],self.filenames['fragments'][fragment_id]])
+                id=str(self.scan_region['add_date']).split(' ')[0].replace('-','')
+                experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
+            except:
+                self.printl(traceback.format_exc())
+                self.printl('SOCnotifyEOCERROR: Automatic backup failed, please make sure that files are copied to u:\\backupEOP')
+                #import pdb
+                #pdb.set_trace()
+                #raise 
+        else:
+          pass
+        
     def _load_experiment_parameters(self):
         if not self.parameters.has_key('id'):
             self.printl('Measurement ID is NOT provided')
             return False
         self.parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['id']+'.hdf5')
         if not os.path.exists(self.parameter_file):
-            self.printl('Parameter file does NOT exists')
+            self.printl('Parameter file does NOT exist ({0})'.format(self.parameter_file))
+            return False
+        if os.path.getsize(self.parameter_file)<200e3:
+            self.printl('Parameter file may be corrupt (file size: {0})'.format(os.path.getsize(self.parameter_file)))
             return False
         h = hdf5io.Hdf5io(self.parameter_file,filelocking=False)
-        fields_to_load = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        fields_to_load = ['parameters']
         for field in fields_to_load:
             value = h.findvar(field)
             if value is None:
@@ -148,15 +236,21 @@ class ExperimentControl(object):
             if field == 'parameters':
                 self.parameters = dict(self.parameters.items() + value.items())
                 self.scan_mode = self.parameters['scan_mode']
+                self.intrinsic = self.parameters['intrinsic']
                 self.id = self.parameters['id']
                 if self.scan_mode == 'xz':
                     fields_to_load += ['xz_config', 'rois', 'roi_locations']
+                if not self.intrinsic:
+                    fields_to_load += ['scan_regions', 'animal_parameters', 'anesthesia_history']
             elif field == 'scan_regions':
                 self.scan_region = value[self.parameters['region_name']]
             else:
                 setattr(self, field,  value)
         h.close()
-        os.remove(self.parameter_file)
+        try:
+            os.remove(self.parameter_file)
+        except:
+            self.printl(traceback.format_exc())
         return True
 
     def _prepare_experiment(self, context):
@@ -234,47 +328,82 @@ class ExperimentControl(object):
         self.stimulus_frame_info_pointer = 0
         self.frame_counter = 0
         self.stimulus_frame_info = []
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'mes' and not self.intrinsic:
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
+        self.experiment_start_timestamp=time.time()
         self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
         if self.analog_input.start_daq_activity():
             self.printl('Analog signal recording started')
         if self.config.PLATFORM == 'mes':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
+            if self.mes_record_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
+                raise RuntimeError('Stimulus too long')
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
-            if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and self.animal_parameters.has_key('both_channels'):
-                if self.animal_parameters['both_channels']:
+            if not self.intrinsic:
+                if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and self.animal_parameters.has_key('both_channels'):
+                    if self.animal_parameters['both_channels']:
+                        channels = 'both'
+                    else:
+                        channels = None
+                elif self.config.IMAGING_CHANNELS == 'both':
                     channels = 'both'
-                else:
+                else :
                     channels = None
-            elif self.config.IMAGING_CHANNELS == 'both':
-                channels = 'both'
-            else :
-                channels = None
             utils.empty_queue(self.queues['mes']['in'])
-            #start two photon recording
-            if self.scan_mode == 'xyz':
-                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
-                                                                                      parameter_file = self.filenames['mes_fragments'][fragment_id], 
-                                                                                      scan_time = self.mes_record_time, 
-                                                                                      channels = channels)
+            #TODO:  INTRINSIC: wait for trigger: self.parallel_port.getInSelected() or getInPaperOut
+            if self.intrinsic:
+                self.printl('Intrinsic imaging: waiting for trigger from MES')
+                scan_start_success=False
+                while True:
+                    if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
+                        self.abort=True
+                        break
+                    elif daq_instrument.read_digital_line('Dev1/port0/line0')[0] == 1:
+                        scan_start_success=True
+                        break
+#                    return True#tmp
+                return scan_start_success
             else:
-                if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
-                    #Before starting scan, set xz lines
-                    if self.roi_locations is None:
-                        self.printl('No ROIs found')
-                        return False
-                elif self.scan_mode == 'xy':
-                    if hasattr(self, 'scan_region'):
-                        self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
-                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
-            if scan_start_success:
-                time.sleep(1.0)
-            else:
-                self.printl('Scan start ERROR, check netwok connection to MES, restart experiment or rename scan region')
+                #start two photon recording
+                if self.scan_mode == 'xyz':
+                    scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
+                                                                                          parameter_file = self.filenames['mes_fragments'][fragment_id], 
+                                                                                          scan_time = self.mes_record_time, 
+                                                                                          channels = channels)
+                else:
+                    if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
+                        #Before starting scan, set xz lines
+                        if self.roi_locations is None:
+                            self.printl('No ROIs found')
+                            return False
+                    elif self.scan_mode == 'xy':
+                        if hasattr(self, 'scan_region'):
+                            self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                            file.wait4file_ready(self.filenames['mes_fragments'][fragment_id])
+                            try:
+                                scipy.io.loadmat(self.filenames['mes_fragments'][fragment_id])
+                            except:
+                                self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                                file.wait4file_ready(self.filenames['mes_fragments'][fragment_id])
+                                try:
+                                    scipy.io.loadmat(self.filenames['mes_fragments'][fragment_id])
+                                except:
+                                    self.printl('MES scan config file error: it may be corrupt')
+                                    return False
+#                            if os.path.getsize(self.filenames['mes_fragments'][fragment_id])<30e3:
+#                                scan_start_success=False
+#                                self.printl('MES scan config file error: it may be corrupt')
+#                                return scan_start_success
+                            self.printl('scan config file OK')
+                    scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
+                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
+                if scan_start_success:
+                    self.recording_start_time=time.time()
+                    time.sleep(1.0)
+                else:
+                    self.printl('Scan start ERROR, check netwok connection to MES, restart experiment or rename scan region')
             return scan_start_success
         elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high
@@ -299,15 +428,19 @@ class ExperimentControl(object):
             self.mes_timeout = 0.5 * self.fragment_durations[fragment_id]            
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
-            if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
-                if self.scan_mode == 'xyz':
-                    data_acquisition_stop_success =  self.mes_interface.wait_for_rc_scan_complete(self.mes_timeout)
-                else:
-                    data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
-                if not data_acquisition_stop_success:
-                    self.printl('Line scan complete ERROR')
+            #TODO:  INTRINSIC: do not wait for anything
+            if self.intrinsic:
+                data_acquisition_stop_success = True
             else:
-                data_acquisition_stop_success =  False
+                if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+                    if self.scan_mode == 'xyz':
+                        data_acquisition_stop_success =  self.mes_interface.wait_for_rc_scan_complete(self.mes_timeout)
+                    else:
+                        data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
+                    if not data_acquisition_stop_success:
+                        self.printl('Line scan complete ERROR {0}'.format(self.mes_timeout))
+                else:
+                    data_acquisition_stop_success =  False
         elif self.config.PLATFORM == 'standalone':
             data_acquisition_stop_success =  True
         #Stop acquiring analog signals
@@ -322,14 +455,17 @@ class ExperimentControl(object):
             if self.config.PLATFORM == 'mes':
                 if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                     self.printl('Wait for data save complete')
-                    if self.scan_mode == 'xyz':
-                        scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
+                    if not self.intrinsic:
+                        if self.scan_mode == 'xyz':
+                            scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
+                        else:
+                            scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
+                        if scan_data_save_success:
+                            self.printl('MES data save complete')
+                        else:
+                            self.printl('MES data save did not succeed')
                     else:
-                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
-                    if scan_data_save_success:
-                        self.printl('MES data save complete')
-                    else:
-                        self.printl('MES data save did not succeed')
+                        scan_data_save_success = True
                 else:
                     aborted = True
                     scan_data_save_success = False
@@ -351,6 +487,8 @@ class ExperimentControl(object):
                         time.sleep(0.1)
                         self.queues['gui']['out'].put('queue_put_problem_dummy_message')
                     time.sleep(0.1)
+                    self._backup_raw_files()#Backup comes first then notifying jobhandler. This ensures that even if notification fails backup takes place
+                    self.notify_jobhandler()
                     self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.id))#Notify gui about the new file
                     for i in range(5):
                         time.sleep(0.1)
@@ -417,12 +555,15 @@ class ExperimentControl(object):
         self.filenames['local_fragments'] = []#fragment files are first saved to a local, temporary file
         self.filenames['mes_fragments'] = []
         self.fragment_names = []
+        userfolder=os.path.join(self.config.EXPERIMENT_DATA_PATH, self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
+        if not os.path.exists(userfolder):
+            os.makedirs(userfolder)
         for fragment_id in range(self.number_of_fragments):
             if self.config.EXPERIMENT_FILE_FORMAT == 'mat':
                 fragment_name = 'fragment_{0}' .format(self.name_tag)
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
                 fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.id, fragment_id)
-            fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
+            fragment_filename = os.path.join(userfolder, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'mes':
                 if hasattr(self, 'objective_position'):
                     if self.parameters.has_key('region_name'):
@@ -437,6 +578,8 @@ class ExperimentControl(object):
             local_folder = 'd:\\tmp'
             if not os.path.exists(local_folder):
                 local_folder = tempfile.mkdtemp()
+            if file.free_space('d:')<1e9:
+                raise RuntimeError('D drive is close to full. Free up space')
             local_fragment_file_name = os.path.join(local_folder, os.path.split(fragment_filename)[-1])
             self.filenames['local_fragments'].append(local_fragment_file_name)
             self.filenames['fragments'].append(fragment_filename )
@@ -508,6 +651,7 @@ class ExperimentControl(object):
                                     'software_environment' : software_environment, 
                                     'machine_config': experiment_data.pickle_config(self.config), 
                                     'experiment_config': experiment_data.pickle_config(self.experiment_config), 
+                                    'experiment_start_timestamp':self.experiment_start_timestamp
                                     }
         if self.user_data != {}:
             data_to_file['user_data'] = self.user_data
@@ -615,7 +759,7 @@ class ExperimentControl(object):
         #Measure red channel
         self.printl('Recording red and green channel')
         if self.config.BLACK_SCREEN_DURING_PRE_SCAN:
-            self.show_fullscreen(color=0.0, duration=0.0)
+            self.show_fullscreen(color=0.0, duration=0.0,count=False)
         if hasattr(self, 'scan_region'):
             self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,

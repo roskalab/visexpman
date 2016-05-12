@@ -114,6 +114,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
         GREEN_LABELING = ['']
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
+        SCAN_REGION_TIMEOUT=[12.0, [1.0, 168.0]]
         #realignment parameters
         MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
         ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
@@ -277,7 +278,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
         self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
-        
+        print self.SCREEN_SIZE_UM_p.v
         ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)

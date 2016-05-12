@@ -18,6 +18,20 @@ if os.name == 'nt':
     except:
         pass
         
+def read_digital_line(channel):
+    di = PyDAQmx.Task()
+    di.CreateDIChan(channel,'di', DAQmxConstants.DAQmx_Val_ChanPerLine)
+    di.StartTask()
+    read = DAQmxTypes.int32()
+    nsample = 1
+    data=numpy.zeros(nsample,dtype=numpy.uint32)
+    di.ReadDigitalU32(nsample,10.0,
+                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                data,nsample,
+                DAQmxTypes.byref(read),None)
+    
+    di.ClearTask()
+    return data
         
 class DigitalIO(instrument.Instrument):
     def init_instrument(self):

@@ -14,6 +14,31 @@ except ImportError:
     pass
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
+def wait4file_ready(f,timeout=60):
+    if os.path.exists(f):
+        filesize_prev=os.path.getsize(f)
+    else:
+        filesize_prev=0
+    t0=time.time()
+    while True:
+        if os.path.exists(f):
+            filesize=os.path.getsize(f)
+        else:
+            time.sleep(0.5)
+            continue
+        if filesize==filesize_prev:
+            break
+        else:
+            filesize_prev=filesize
+            time.sleep(0.2)
+        if time.time()-t0>timeout:
+            raise RuntimeError('Wait for {} file timeout'.format(f))
+
+def select_folder_exists(folders):
+    for folder in folders:
+        if os.path.exists(folder) and os.path.isdir(folder):
+            return folder
+
 def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     if thread:
         base = threading.Thread
@@ -39,7 +64,12 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
             self.parentpid = os.getpid() #init is executed in the parent process
             self.timeout=0.5 #sec
             
+            
         def run(self):
+            import logging
+            logging.basicConfig(filename= '/mnt/datafast/log/background_copier.txt',
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.DEBUG)
             fn = generate_filename('/tmp/log.txt')
             self.logfile=open(fn,'w+')
             try:
@@ -55,7 +85,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                     if not self.isthread:
                         p = psutil.Process(os.getpid())
                         #self.message_out_queue.put('Bg pid:{0}, parentpid:{1}, current parentpid{2}'.format(p.pid,self.parentpid,p.parent.pid))
-                        if p.parent.pid!=self.parentpid:
+                        if p.parent().pid!=self.parentpid:
                             if debug:
                                 self.logfile.write( 'Parent died?')
                             self.close()
@@ -97,6 +127,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                                     current_exception='source file does not exist {0}'.format(item)
                                 elif not os.path.exists(target) or (os.path.exists(target) and os.stat(source).st_size!=os.stat(target).st_size):
                                     shutil.copy(source, target)
+                                    logging.info('{0} -> {1}'.format(source, target))
                                     if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
                                         if self.debug:
                                             current_exception='File '+source+' copied OK'
@@ -118,7 +149,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
         def close(self):
             try:
                 self.manager.shutdown()
-                children = psutil.Process(os.getpid()).get_children(recursive=True)
+                children = psutil.Process(os.getpid()).children(recursive=True)
                 self.logfile.write('no of children:{0}'.format(len(children)))
                 for c1 in children:
                     c1.kill()
@@ -140,7 +171,7 @@ def free_space(path):
     if platform.system() == 'Windows':
         import ctypes
         free_bytes = ctypes.c_ulonglong(0)
-        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(folder), None, None, ctypes.pointer(free_bytes))
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(path), None, None, ctypes.pointer(free_bytes))
         return free_bytes.value
     else:
         s=os.statvfs(path)
@@ -328,7 +359,7 @@ def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter =
     return filtered_files
 
 def find_file_from_timestamp(dir, timestamp):
-    from visexpman.engine.generic.string import dirListing
+    #from visexpman.engine.generic.string import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
     files = dirListing(dir, ['.hdf5'], dir)
     matching = [f for f in files if str(int(timestamp)) in f]
@@ -343,6 +374,11 @@ def read_text_file(path):
     txt =  f.read(os.path.getsize(path))
     f.close()
     return txt
+    
+def write_text_file(filename, content):
+    f = open(filename,  'wt')
+    f.write(content)
+    f.close()
 
 def listdir_fullpath(folder):
     files = os.listdir(folder)

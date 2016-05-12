@@ -8,9 +8,9 @@ import shutil
 import random
 
 if 0:
-    class CurtainConfig(experiment.ExperimentConfig):
+    class CurtainConfigNoGrating(experiment.ExperimentConfig):
         def _create_parameters(self):
-            self.SPEED = 250.0
+            self.SPEED = 300.0
             self.DIRECTIONS = range(0,360,45)
             self.REPEATS = 3
             self.runnable = 'CurtainExperiment'
@@ -26,28 +26,51 @@ if 0:
             for rep in range(self.experiment_config.REPEATS):
                 for d in self.experiment_config.DIRECTIONS:
                     self.moving_curtain(self.experiment_config.SPEED, color = 1.0, direction=d, background_color = 0.0, pause = 0.0)
+            self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = 0)
 
-
-class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
+            
+class ReceptiveFieldExploreAutosizeConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
+        self.AUTOSIZE_SHAPE = True
         self.SHAPE = 'rect'
         self.COLORS = [1.0]
-        self.BACKGROUND_COLOR = 0
-        self.SHAPE_SIZE = 400.0
-        self.MESH_XY = utils.rc((4,6))
+        self.BACKGROUND_COLOR = 0.0
+        self.SHAPE_SIZE = 300.0
+        self.MESH_XY = utils.rc((4,4))
         self.ON_TIME = 0.5*2
-        self.OFF_TIME = 0.5*2
+        self.OFF_TIME = 0.5*6
         self.PAUSE_BEFORE_AFTER = 2.0
         self.REPEATS = 3
         self.ENABLE_ZOOM = False 
         self.SELECTED_POSITION = 1
         self.ZOOM_MESH_XY = utils.rc((3,3))
         self.ENABLE_RANDOM_ORDER = True
-        self.runnable='ReceptiveFieldExplore'
+        if self.AUTOSIZE_SHAPE:
+            self.SHAPE_SIZE = utils.rc((self.machine_config.SCREEN_SIZE_UM['row']/self.MESH_XY['row'],self.machine_config.SCREEN_SIZE_UM['col']/self.MESH_XY['col']))
+        self.runnable='ReceptiveFieldExplore1'
+        self.pre_runnable='BlackPre'
+        self._create_parameters_from_locals(locals())
+
+class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SHAPE = 'rect'
+        self.COLORS = [1.0, 0.0]
+        self.BACKGROUND_COLOR = 0.25
+        self.SHAPE_SIZE = 300.0
+        self.MESH_XY = utils.rc((8,8))
+        self.ON_TIME = 0.5*2
+        self.OFF_TIME = 0.5*4
+        self.PAUSE_BEFORE_AFTER = 2.0
+        self.REPEATS = 1#Only 1 repetition works. Otherwise datafile is not always saved by MES
+        self.ENABLE_ZOOM = False 
+        self.SELECTED_POSITION = 1
+        self.ZOOM_MESH_XY = utils.rc((3,3))
+        self.ENABLE_RANDOM_ORDER = True
+        self.runnable='ReceptiveFieldExplore1'
         self.pre_runnable='BlackPre'
         self._create_parameters_from_locals(locals())
         
-class ReceptiveFieldExplore(experiment.Experiment):
+class ReceptiveFieldExplore1(experiment.Experiment):
     def calculate_positions(self, display_range, center, repeats, mesh_xy, colors=None):
         positions = []
         step = {}
@@ -93,7 +116,9 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     pos = position_color[0])
                                     
             self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.OFF_TIME)
-        self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME)
+        duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME
+        if duration> 0:
+            self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = duration)
              
 
             

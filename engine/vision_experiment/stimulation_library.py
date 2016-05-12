@@ -15,7 +15,7 @@ from OpenGL.GLUT import *
 import command_handler
 import experiment_control
 from visexpman.engine.generic import graphics #Not used
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils,signal, geometry
 from visexpman.engine.generic import colors
 from visexpman.engine.vision_experiment import screen
 
@@ -49,11 +49,14 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
         #Command buffer for keyboard commands during experiment
         self.command_buffer = ''
+        self.precalculate_duration_mode=False
         
     def _flip(self,  trigger = False,  saveFrame = False, count = True):
         """
-        Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
-        """        
+        """
+        if self.precalculate_duration_mode:
+            self.frame_counter += 1
+            return
         current_texture_state = glGetBooleanv(GL_TEXTURE_2D)
         if current_texture_state:
             glDisable(GL_TEXTURE_2D)
@@ -123,6 +126,24 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+            
+    def block_start(self, block_name = ''):
+        if hasattr(self, 'digital_output') and hasattr(self.digital_output,'set_data_bit'):
+            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
+        self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+            self.send({'plot': [time.time(), 1]})
+        if hasattr(self.log, 'info'):
+            self.log.info('{0} block started' .format(block_name))
+                
+    def block_end(self, block_name = ''):
+        if hasattr(self, 'digital_output') and hasattr(self.digital_output,'set_data_bit'):
+            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+        self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+            self.send({'plot': [time.time(), 0]})
+        if hasattr(self.log, 'info'):
+            self.log.info('{0} block ended' .format(block_name))
         
     def _show_text(self):
         '''
@@ -178,11 +199,11 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, frame_trigger = True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        if count:
+        if count and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe())
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
@@ -194,7 +215,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
-                self._flip(trigger = True, count = count)
+                self._flip(trigger = frame_trigger, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
@@ -205,7 +226,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip(trigger = True, count = count)
+                    self._flip(trigger = frame_trigger, count = count)
                 i += 1
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
@@ -217,16 +238,15 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip(trigger = True)
+                    self._flip(trigger = frame_trigger)
                 if self.abort:
                     break
-                    
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        if count:
+        if count and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True):
         '''
         Two use cases are handled here:
             - showing individual image files
@@ -253,17 +273,38 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 start_position = (10,10)
                 show_image('directory_path',  0.0,  start_position,  formula)             
         '''
-        self.screen.render_imagefile(path, position = position)
-        if duration == 0.0:
-            if flip:
-                self._flip(trigger = True)        
+        #Generate log messages
+        flips_per_frame = duration/(1.0/self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if flips_per_frame != numpy.round(flips_per_frame):
+            raise RuntimeError('This duration is not possible, it should be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE')                
+        self.log_on_flip_message_initial = 'show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(size)  + ', ' + ')'
+        self.log_on_flip_message_continous = 'show_shape'
+        self._save_stimulus_frame_info(inspect.currentframe())
+        print self.frame_counter
+        if os.path.isdir(path):
+            for fn in os.listdir(path):
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
+            self.screen.clear_screen()
+            self._flip(trigger = False)
         else:
-            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
-                if flip:
-                    self._flip(trigger = True)
-                if self.abort:
-                    break
+            self._show_image(path,duration,position,flip)
+        print self.frame_counter
+        self._save_stimulus_frame_info(inspect.currentframe())
         
+    def _show_image(self,path,duration,position,stretch,flip):
+        if duration == 0.0:
+            nframes=1
+        else:
+            nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
+        for i in range(nframes):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.screen.render_imagefile(path, position = utils.rc_add(position,
+                        utils.rc_multiply_with_constant(self.machine_config.SCREEN_CENTER, self.config.SCREEN_UM_TO_PIXEL_SCALE)),stretch=stretch)
+            if flip:
+                self._flip(trigger = True)
+            if self.abort:
+                break
+    
 #        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
 #        if os.path.isdir(path) == True:
 #            #when content of directory is to be shown
@@ -361,7 +402,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True, L_shape_config = None, X_shape_angle = None, ncorners = None,  inner_radius=None, save_sfi = True,angle=None):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -369,7 +410,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #Generate log messages
         self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
         self.log_on_flip_message_continous = 'show_shape'
-        self._save_stimulus_frame_info(inspect.currentframe())
+        if save_sfi:
+            self._save_stimulus_frame_info(inspect.currentframe())
         #Calculate number of frames
         n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         if n_frames == 0:
@@ -390,6 +432,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             vertices = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
         elif shape == 'rect' or shape == 'rectangle' or shape == 'r' or shape == '||':
             vertices = utils.rectangle_vertices(size_pixel, orientation = orientation)
+            vertices[:, 1]*=1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
             shape_type = 'rectangle'
         elif shape == 'annuli' or shape == 'annulus' or shape == 'a':
             vertices_outer_ring = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
@@ -398,6 +441,78 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             vertices[:vertices_outer_ring.shape[0]] = vertices_outer_ring
             vertices[vertices_outer_ring.shape[0]:] = vertices_inner_ring
             shape_type = 'annulus'
+        elif shape == 'triangle':
+            vertices = geometry.triangle_vertices(size_pixel['row'], orientation)
+            shape_type = shape
+        elif shape == 'star':
+            vertices_ = geometry.star_vertices(size_pixel['row'],ncorners,orientation,inner_radius)
+            #make triangles of shape
+            vertices = numpy.zeros((ncorners*3,2))
+#            import pdb
+#            pdb.set_trace()
+            vertices[1::3] = vertices_[0::2]
+            vertices[0::3] = numpy.roll(vertices_[1::2],1,axis=0)
+            vertices[2::3] = vertices_[1::2]
+            vertices = numpy.concatenate((vertices, vertices_[1::2]))
+            shape_type = shape
+        elif shape == 'X':
+            shape_type = shape
+            vertices = numpy.concatenate([geometry.rectangle_vertices(size_pixel, orientation = orientation),
+                    geometry.rectangle_vertices(size_pixel, orientation = orientation+X_shape_angle)])
+            vertices[:, 1]*=1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
+        elif shape == 'L':
+            shape_type = shape
+            #create skeleton
+            if L_shape_config['shorter_position'] == 'middle':
+                p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), numpy.array([0,0]))
+                v = numpy.array([[-0.5*L_shape_config['longer_side'], 0], [0,0], [0.5*L_shape_config['longer_side'],0],p])
+            elif L_shape_config['shorter_position'] == 'start':
+                start_point = numpy.array([-0.5*L_shape_config['longer_side'],0])
+                p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), start_point)
+                v=numpy.array([[0.5*L_shape_config['longer_side'],0], start_point, p])
+            elif L_shape_config['shorter_position'] == 'end':
+                start_point = numpy.array([0.5*L_shape_config['longer_side'],0])
+                p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), start_point)
+                v=numpy.array([[-0.5*L_shape_config['longer_side'],0], start_point, p])
+            if L_shape_config['shorter_position'] == 'middle':
+                wrist_distance = 0.5* L_shape_config['width']/numpy.sin(numpy.radians(45))
+                base_shape = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[0]), 
+                                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[0]),
+                                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[2]),
+                                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[2])])
+                angle = numpy.radians(L_shape_config['angle'])
+                endpoints = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']+90), v[3]),
+                                                        geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']-90), v[3]),
+                                                        ])
+                wrist = numpy.array([
+                                            geometry.point_coordinates(L_shape_config['shorter_side'], angle-numpy.pi, endpoints[1]),
+                                            geometry.point_coordinates(L_shape_config['shorter_side'], angle-numpy.pi, endpoints[0])
+                                            ])
+                vertices = numpy.concatenate((base_shape, wrist, endpoints))
+            elif L_shape_config['shorter_position'] == 'start':
+                wrist_distance = 0.5* L_shape_config['width']/numpy.sin(numpy.radians(L_shape_config['angle']*0.5))
+                endvertices1 = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[0]), 
+                                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[0])])
+                endvertices2 = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']-90), v[2]), 
+                                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']+90), v[2])])
+                angle = numpy.radians((L_shape_config['angle']*0.5))
+                wrist = numpy.array([geometry.point_coordinates(wrist_distance, angle - numpy.pi, v[1]),
+                                                    geometry.point_coordinates(wrist_distance, angle, v[1])])
+                vertices = numpy.concatenate((endvertices1, wrist, wrist, endvertices2))
+            elif L_shape_config['shorter_position'] == 'end':
+                wrist_distance = 0.5* L_shape_config['width']/numpy.sin(numpy.radians((180-L_shape_config['angle'])*0.5))
+                endvertices1 = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[0]), 
+                                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[0])])
+                endvertices2 = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']-90), v[2]), 
+                                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']+90), v[2])])
+                angle = numpy.radians(((180-L_shape_config['angle'])*0.5)+L_shape_config['angle'])
+                wrist = numpy.array([geometry.point_coordinates(wrist_distance, angle- numpy.pi, v[1]),
+                                                    geometry.point_coordinates(wrist_distance, angle, v[1])])
+                vertices = numpy.concatenate((endvertices1, wrist, wrist[::-1], endvertices2))
+            vertices = geometry.rotate_point(vertices.T,orientation,numpy.array([0,0])).T
+            vertices[:, 1]*=1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
+            #Convert to pixels
+            vertices *= self.config.SCREEN_UM_TO_PIXEL_SCALE
         n_vertices = vertices.shape[0]
         if len(pos_pixel.shape) == 0:
             number_of_positions = 1
@@ -430,9 +545,23 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
                 if number_of_positions == 1:
-                    glDrawArrays(GL_POLYGON,  0, n_vertices)
+                    if shape_type == 'star':#opengl cannot draw concave shapes
+                        for i in range(ncorners):
+                            glDrawArrays(GL_POLYGON,  i*3, 3)
+                        glDrawArrays(GL_POLYGON,  ncorners*3, ncorners)
+                    elif shape_type == 'L' or shape_type == 'X':
+                        glDrawArrays(GL_POLYGON,  0, n_vertices/2)
+                        glDrawArrays(GL_POLYGON,  n_vertices/2, n_vertices/2)
+                    else:
+                        glDrawArrays(GL_POLYGON,  0, n_vertices)
                 else:
-                    glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
+                    if shape_type == 'star':
+                        raise NotImplementedError('moving star is not implemented')
+                    elif shape_type == 'L' or shape_type == 'X':
+                        glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices/2)
+                        glDrawArrays(GL_POLYGON,  int((frame_i+0.5) * n_vertices), n_vertices/2)
+                    else:
+                        glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
             else:
                 n = int(n_vertices/2)                
                 glColor3fv(colors.convert_color(converted_background_color, self.config))
@@ -458,7 +587,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #Restore original background color
         if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        if save_sfi:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
 #                    
 #    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
@@ -625,7 +755,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #                
 #        self._show_stimulus(duration,  self.ring,  flip)
                     
-    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False):
+    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  background_color = None,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -748,6 +878,14 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
         ######### Calculate texture phase shift per frame value ######
         pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
+        
+        if background_color != None:
+            background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+            converted_background_color = colors.convert_color(background_color, self.config)
+            glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        else:
+            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
+        
         #== Generate texture  
         texture = stimulus_profile
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -795,6 +933,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
+        if background_color != None:
+            glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                     
     def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
@@ -868,8 +1008,265 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,save_frame_info =True, is_block = False):
+        if spatial_resolution is None:
+            spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
+        if minimal_spatial_period is None:
+            minimal_spatial_period = 10 * spatial_resolution
+        self.log_on_flip_message_initial = 'show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')'
+        self.log_on_flip_message_continous = 'show_natural_bars'
+        self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        if 0:#For testing only
+            self.intensity_profile = numpy.linspace(0,1,self.intensity_profile.shape[0])
+            self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
+            self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
+        self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
+        if save_frame_info and not self.precalculate_duration_mode:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
+        if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
+            self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
+        intensity_profile_length = self.intensity_profile.shape[0]
+        if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
+            self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
+        alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
+        bg=colors.convert_color(self.config.BACKGROUND_COLOR if background is None else background, self.config)
+        fly_in_out = bg[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
+        intensity_profile_length += (fly_in+fly_out)*fly_in_out.shape[0]
+        if fly_in:
+            alltexture=numpy.concatenate((fly_in_out,alltexture))
+        if fly_out:
+            alltexture=numpy.concatenate((alltexture,fly_in_out))
+        texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
+        diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
+        diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']#Because of different orienations, the stimulus size corresponds to the screen width
+        alpha =numpy.pi/4
+        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
+        angles = angles + direction*numpy.pi/180.0
+        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        vertices = vertices.transpose()
+        if self.config.COORDINATE_SYSTEM == 'ulcorner':
+            vertices += self.config.SCREEN_UM_TO_PIXEL_SCALE*numpy.array([self.machine_config.SCREEN_CENTER['col'], self.machine_config.SCREEN_CENTER['col']])
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+#        t0=time.time()
+        texture_pointer = 0
+        frame_counter = 0
+        while True:
+            start_index = int(texture_pointer)
+            end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
+            if end_index > alltexture.shape[0]:
+                end_index -= alltexture.shape[0]
+            if start_index > alltexture.shape[0]:
+                start_index -= alltexture.shape[0]
+            if start_index < end_index:
+                texture = alltexture[start_index:end_index]
+            else:
+                if circular:
+                    texture = numpy.zeros_like(texture)
+                    texture[:-end_index] = alltexture[start_index:]
+                    texture[-end_index:] = alltexture[:end_index]
+                    if start_index >= intensity_profile_length-1:
+                        break
+                else:
+                    break
+            texture_pointer += ds
+            frame_counter += 1
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip(trigger = True)    
+            if self.abort:
+                break
+#        dt=(time.time()-t0)
+#        print self.frame_counter/dt,dt,self.frame_counter,texture_pointer
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        if save_frame_info and not self.precalculate_duration_mode:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
+            
+    def white_noise(self, duration, square_size,save_frame_info=True):
+        '''
+        Generates white noise stimulus using numpy.random.random
         
+        duration: duration of white noise stimulus in seconds
+        square_size: size of squares. Number of squares is calculated from screen size but fractional squares are not displayed.
+        The array of squares is centered
+        '''
+        if save_frame_info:
+#             self.log.info('white_noise(' + str(duration)+ ', ' + str(square_size) + ')', source = 'stim')
+            self._save_stimulus_frame_info(inspect.currentframe())
+        square_size_pixel = square_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
+        nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
+        ncheckers = utils.rc_multiply_with_constant(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
+        ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
+        numpy.random.seed(0)
+        checker_colors = numpy.zeros((0,ncheckers['row'],ncheckers['col']), dtype=numpy.bool)
+        for i in range(int(nframes/self.machine_config.SCREEN_EXPECTED_FRAME_RATE/60)):
+            checker_colors = numpy.concatenate((checker_colors, numpy.where(numpy.random.random((60*self.machine_config.SCREEN_EXPECTED_FRAME_RATE,ncheckers['row'],ncheckers['col']))<0.5, False,True)))
+        params = {'ncheckers':ncheckers}
+        if save_frame_info:
+            self._append_to_stimulus_frame_info(params)
+        size = utils.rc_multiply_with_constant(ncheckers, square_size_pixel)
+        self._init_texture(size)
+        for frame_i in range(nframes):
+            texture = checker_colors[frame_i]
+            texture = numpy.rollaxis(numpy.array(3*[numpy.cast['float'](texture)]), 0,3)
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            #self.draw()
+            self._flip(trigger = True)
+            if self.abort:
+                break
+        self._deinit_texture()
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            self._append_to_stimulus_frame_info(params)
+            numpy.save(self.filenames['fragments'][0].replace('.mat','.npy'), checker_colors)
+        print checker_colors.sum()
+        
+    def _init_texture(self,size):
+        from visexpman.engine.generic import geometry
+        vertices = geometry.rectangle_vertices(size, orientation = 0)
+        vertices[:,0]+=0.5*self.machine_config.SCREEN_RESOLUTION['col']
+        vertices[:,1]+=0.5*self.machine_config.SCREEN_RESOLUTION['row']
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        
+    def _deinit_texture(self):
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+            
+    def _append_to_stimulus_frame_info(self,values):
+        self.stimulus_frame_info[-1]['parameters'].update(values)
+    
+
 class StimulationSequences(Stimulations):
+
+    def moving_comb(self, speed, orientation, bar_width, tooth_size, tooth_type, contrast, background,pos):
+        '''
+        tooth_type: square, sawtooth
+        '''
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        bar_width_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*bar_width
+        tooth_size_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*tooth_size
+        pos_pix = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
+        combv,nshapes=self._draw_comb(orientation, bar_width_pix, tooth_size_pix, tooth_type)
+        combv = geometry.rotate_point(utils.cr((combv[:,0],combv[:,1])),orientation,utils.cr((0,0)))
+        combv = numpy.array([combv['col'], -combv['row']]).T
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(bar_width, [speed], [orientation],1,0,shape_starts_from_edge=True)
+        glEnableClientState(GL_VERTEX_ARRAY)
+        nvertice = (combv.shape[0]-4)/(nshapes-1)
+        for frame_i in range(trajectories[0].shape[0]):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv(colors.convert_color(contrast, self.config))
+            v=combv + numpy.array([trajectories[0][frame_i]['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE+pos_pix['col'],trajectories[0][frame_i]['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE+pos_pix['row']])
+            glVertexPointerf(v)
+            for shi in range(nshapes):
+                if shi == 0:
+                    glDrawArrays(GL_POLYGON,  0, 4)
+                else:
+                    glDrawArrays(GL_POLYGON,  4+(shi-1)*nvertice, nvertice)
+            self._flip(trigger = True)
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+    
+    def _draw_comb(self, orientation, bar_width, tooth_size, tooth_type):
+        bar_height = numpy.sqrt(self.machine_config.SCREEN_RESOLUTION['row']**2+self.machine_config.SCREEN_RESOLUTION['col']**2)
+        vertices = geometry.rectangle_vertices(utils.cr((bar_width,bar_height)))
+        if tooth_type == 'sawtooth':
+            tooth_v = geometry.triangle_vertices(tooth_size)
+            offset = numpy.array([0,0])
+            tooth_spacing = tooth_size
+            ntooth = int(bar_height/tooth_size)
+        elif tooth_type == 'square':
+            tooth_v = geometry.rectangle_vertices(utils.rc((tooth_size,tooth_size)))
+            offset = numpy.array([0.5*tooth_size,0])
+            tooth_spacing = 2*tooth_size
+            ntooth = int(bar_height/tooth_size/2)
+        for toothi in range(ntooth):
+            rel_position = numpy.array([0.5*(bar_width-0*tooth_size), (toothi+0.5)*tooth_spacing-0.5*bar_height])
+            vertices = numpy.concatenate((vertices, tooth_v+offset+rel_position))
+        nshapes = ntooth + 1
+        return vertices,nshapes
+        
+    def moving_cross(self, speeds, sizes, position, movement_directions):
+        self._save_stimulus_frame_info(inspect.currentframe())
+        bar_height = 3*numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['row']**2+self.machine_config.SCREEN_SIZE_UM['col']**2)
+        ds = numpy.array(speeds)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        movement = float(max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']))+max(sizes)
+        trajectories = []
+        for i in range(len(movement_directions)):
+            startp = geometry.point_coordinates(0.5*movement, numpy.radians(movement_directions[i]-180), self.config.SCREEN_CENTER)
+            if i>0:
+                startp = utils.rc_add(startp, position)
+            endp = geometry.point_coordinates(0.5*movement, numpy.radians(movement_directions[i]), self.config.SCREEN_CENTER)
+            if ds[i] == 0:
+                startp = position
+                trajectories.append(numpy.repeat(startp,trajectories[0].shape[0]))
+            else:
+                trajectories.append(numpy.tile(utils.calculate_trajectory(startp, endp, ds[i]),int(numpy.ceil(ds[i]/ds[0]))))
+            if i>0:
+                if trajectories[0].shape[0]<trajectories[i].shape[0]:
+                    trajectories[i] = trajectories[i][:trajectories[0].shape[0]]
+        nframes = trajectories[0].shape[0]
+        trajectories = numpy.array([numpy.array([t['col'], t['row']]) for t in trajectories])
+        trajectories = numpy.concatenate([trajectories[:,:,i] for i in range(trajectories.shape[2])])
+        base_vertices = numpy.concatenate([geometry.rectangle_vertices(utils.rc((bar_height, sizes[i])), movement_directions[i]) for i in range(len(sizes))]).T
+        vertices = numpy.tile(base_vertices,trajectories.shape[0]/2).T
+        vertices += numpy.repeat(trajectories,4,axis=0)
+        vertices *= self.config.SCREEN_UM_TO_PIXEL_SCALE
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        for frame_i in range(nframes):
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv(colors.convert_color(1.0, self.config))
+            glDrawArrays(GL_POLYGON, frame_i*8, 4)
+            glDrawArrays(GL_POLYGON, frame_i*8+4, 4)
+            self._flip(trigger = True)
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
     def flash_stimulus(self, timing, flash_color = 1.0, background_color = 0.0, repeats = 1):
         '''
         timing: a series of durations have to be provided in seconds to define a flashing pattern. The first item is always displayed with background color
@@ -883,9 +1280,184 @@ class StimulationSequences(Stimulations):
                     self.show_fullscreen(color = background_color, duration = duration)
                 state = not state
             
+    def angle2screen_pos(self,angle,axis=None):
+        distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.tan(numpy.radians(angle))
+        if axis!=None:
+            distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
+        self.machine_config.SCREEN_PIXEL_WIDTH#mm
+        return (distance_from_center/self.machine_config.SCREEN_PIXEL_WIDTH)/self.machine_config.SCREEN_UM_TO_PIXEL_SCALE#um coordinate
+        
+    def angle2size(self,size_deg, pos_deg):
+        minangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'-')
+        maxangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'+')
+        size_row=self.angle2screen_pos(maxangle['row'],'row')-self.angle2screen_pos(minangle['row'],'row')
+        size_col=self.angle2screen_pos(maxangle['col'],'col')-self.angle2screen_pos(minangle['col'],'col')
+        return utils.rc((size_row,size_col))
+
+    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
+        '''        
+        Aka Marching Squares
+    
+        Input parameters/use cases
+        1) nrows, ncolumns -> if None, automatically calculate for the whole screen surface
+        2) shape size -> if none, nrows and ncolumns and screen size will be used for determining the shape size
+        3) optional: display area
+        4) Random order
+        5) Colors
+        6) On time, off time
+        7) flash repeat
+        8) Sequence repeat
+        9) Background color
+    
+        '''
+        shape_size, nrows, ncolumns, display_size, shape_colors, background_color = \
+                self._parse_receptive_field_parameters(shape_size, nrows, ncolumns, display_size, shape_colors, background_color)
+        duration, positions = self.receptive_field_explore_durations_and_positions(shape_size=shape_size, 
+                                                                            nrows = nrows,
+                                                                            ncolumns = ncolumns,
+                                                                            shape_colors = shape_colors,
+                                                                            flash_repeat = flash_repeat,
+                                                                            sequence_repeat = sequence_repeat,
+                                                                            on_time = on_time,
+                                                                            off_time = off_time)
+        import random,itertools
+        positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
+        import pdb
+#        pdb.set_trace()
+        if random_order:
+            ct=0
+            while True:
+                positions_and_colors,success = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+                if success:
+                    break
+                else:
+                    ct+=1
+                if ct>=10:
+                    raise RuntimeError('Could not generate non adjacent random order of squares')
+                    
+            #random.shuffle(positions_and_colors)
+        if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
+            positions_and_colors_angle=positions_and_colors
+            #Consider positions in degree units and convert them to real screen positions
+            #correct for screen center
+            screen_center_um=self.machine_config.SCREEN_CENTER
+            positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
+            #Correct for display center
+            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
+            positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
+            #Convert angles to positions
+            positions_and_colors = [[p,self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
+            pos=numpy.array([p for a,d,c,p in positions_and_colors])
+            offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
+            #offset=utils.rc_add(offset,screen_center_um,'+')
+            positions_and_colors = [[a,d,c,utils.rc_add(p,offset,'-')] for a,d,c, p in positions_and_colors]
+            #Convert to ulcorner
+            if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
+                positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
+        else:
+            positions_and_colors= [[0,shape_size,c,p] for c,p in positions_and_colors]
+        self.nrows=nrows
+        self.ncolumns=ncolumns
+        self.shape_size=shape_size
+        self.show_fullscreen(color = background_color, duration = off_time)
+        for r1 in range(sequence_repeat):
+            for angle,shape_size_i, color,p in positions_and_colors:
+                    print angle
+                    #print shape_size_i['row']
+            #for p in positions:
+             #   for color in shape_colors:
+                    for r2 in range(flash_repeat):
+                        if self.abort:
+                            break
+                        if hasattr(self, 'block_start'):
+                            self.block_start(block_name = 'position')
+                        self.show_fullscreen(color = background_color, duration = off_time*0.5)
+                        self.show_shape(shape = 'rect',
+                                    size = shape_size_i,
+                                    color = color,
+                                    background_color = background_color,
+                                    duration = on_time,
+                                    pos = p,
+                                    angle=angle)
+                        self.show_fullscreen(color = background_color, duration = off_time*0.5)
+                        if hasattr(self, 'block_end'):
+                            self.block_end(block_name = 'position')
+        
+    def _parse_receptive_field_parameters(self, shape_size, nrows, ncolumns, display_size, shape_colors, background_color):
+        if background_color is None:
+            background_color = self.experiment_config.BACKGROUND_COLOR
+        if not isinstance(shape_colors, list):
+            shape_colors = [shape_colors]
+        if display_size is None:
+            display_size = self.machine_config.SCREEN_SIZE_UM
+        if shape_size is None:
+            shape_size = utils.rc((display_size['row']/float(nrows), display_size['col']/float(ncolumns)))
+        elif not hasattr(shape_size, 'dtype'):
+            shape_size = utils.rc((shape_size, shape_size))
+        if nrows is None and ncolumns is None:
+            nrows = int(numpy.floor(display_size['row']/float(shape_size['row'])))
+            ncolumns = int(numpy.floor(display_size['col']/float(shape_size['row'])))
+        return shape_size, nrows, ncolumns, display_size, shape_colors, background_color
+        
+    def _receptive_field_explore_positions(self,shape_size, nrows, ncolumns):
+        if shape_size.shape == (1, ):
+            shape_size = shape_size[0]
+        y_dir = 1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
+        first_position = utils.rc_add(self.machine_config.SCREEN_CENTER, utils.rc((shape_size['row']*(0.5*nrows-0.5)*y_dir, shape_size['col']*(0.5*ncolumns-0.5))), '-')
+        positions = []
+        for r in range(nrows):
+            for c in range(ncolumns):
+                p=utils.rc_add(first_position, utils.rc((y_dir*r*shape_size['row'], c*shape_size['col'])))
+                positions.append(p)
+        return positions
+        
+    def receptive_field_explore_durations_and_positions(self, **kwargs):
+        positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
+        offtime=kwargs['off_time'] if kwargs['off_time']>0 else 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+offtime)+offtime, positions
         
     def moving_grating_stimulus(self):
         pass
+
+    def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False):
+        '''
+        Calculates moving shape trajectory and total duration of stimulus
+        '''
+        if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+            self.vaf = 1
+        else:
+            self.vaf = -1
+        if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+            self.haf = 1
+        else:
+            self.has = -1
+        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
+            speeds = [speeds]
+        if hasattr(size, 'dtype'):
+            shape_size = max(size['row'], size['col'])
+        else:
+            shape_size = size
+        if shape_starts_from_edge:
+            self.movement = max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) + shape_size
+        else:
+            self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        trajectory_directions = []
+        trajectories = []
+        nframes = 0
+        for spd in speeds:
+            for direction in directions:
+                for rep in range(repetition):
+                    end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                    start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                    if spd == 0:
+                        raise RuntimeError('Zero speed is not supported')
+                    spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                    trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
+                    nframes += trajectories[-1].shape[0]
+                    trajectory_directions.append(direction)
+        duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
+        return trajectories, trajectory_directions, duration
+        
         
     def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0, noshow=False):
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':

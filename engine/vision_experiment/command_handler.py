@@ -6,6 +6,7 @@ import numpy
 import traceback
 import re
 import cPickle as pickle
+import zmq
 
 import PyQt4.QtCore as QtCore
 
@@ -45,9 +46,101 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 self.log.info('Context file cannot be opened')
             if self.stage_origin == None:
                 self.stage_origin = numpy.zeros(3)
+        self.initzmq()
+        self.last_send_time=time.time()
+        self.job_resend_period=40#second
+                
+    def initzmq(self):
+        context=zmq.Context()
+        self.pusher = context.socket(zmq.PAIR)
+        port=self.config.JOBHANDLER_PUSHER_PORT
+        ip=self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['GUI_ANALYSIS']['ANALYSIS']['LOCAL_IP']
+        lip=self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['GUI_STIM']['STIM']['LOCAL_IP']
+        #self.pusher.bind('tcp://{0}:{1}'.format(lip,port))
+        self.pusher.connect('tcp://{0}:{1}'.format(ip,port))
         
 ###### Commands ######    
+
+    def printl(self,message):
+        print message
+        self.queues['gui']['out'].put(message)
+        self.log.info(message)
+        
+    def is_jobhandler_connected(self):
+        while True:
+            try:
+                resp= self.pusher.recv(flags=zmq.NOBLOCK)
+                time.sleep(0.1)
+            except zmq.ZMQError:
+                break
+        try:
+            self.pusher.send('ping',flags=zmq.NOBLOCK)
+        except zmq.ZMQError:
+            return False
+        t0=time.time()
+        res=False
+        while True:
+            try:
+                res=self.pusher.recv(flags=zmq.NOBLOCK)=='pong'
+                break
+            except zmq.ZMQError:
+                if time.time()-t0>2:
+                    break
+            time.sleep(0.1)
+        return res
+        
+    def wait4jobhandler_resp(self,socket):
+        t0=time.time()
+        while True:
+            try:
+                resp=socket.recv(flags=zmq.NOBLOCK)
+                break
+            except zmq.ZMQError:
+                if time.time()-t0>2:
+                    resp='timeout'
+                    break
+            time.sleep(0.5)
+        return resp
+        
+    def resendjobs(self):
+#        if time.time()-self.last_send_time<self.job_resend_period:
+#            self.last_send_time=time.time()
+#            return 'not'
+        print 'send'
+        fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
+        h=hdf5io.Hdf5io(fn,filelocking=False)
+        h.load('jobs')
+        if not hasattr(h,'jobs'):
+            h.close()
+        else:
+            sent=[]
+            if len(h.jobs)>0:
+                if not self.is_jobhandler_connected():
+                    self.printl('Jobhandler not connected')
+                    h.close()
+                    self.log.info('exit resend function')
+                    return 'not sent'
+                self.printl('Sending jobs')
+                for i in range(len(h.jobs)):
+                    self.pusher.send(pickle.dumps(h.jobs[i],2),flags=zmq.NOBLOCK)
+                    resp=self.wait4jobhandler_resp(self.pusher)
+                    self.last_send_time=time.time()
+                    if resp==h.jobs[i]['id']:
+                        sent.append(h.jobs[i]['id'])
+                        self.printl(h.jobs[i]['id'])
+                    else:
+                        self.printl('Sending failed, {0}'.format(resp))
+                        break#Do not continue if does not work
+                h.jobs=[j for j in h.jobs if j['id'] not in sent]
+                if len(sent)>0:
+                    self.printl('Done')
+                    h.save('jobs')
+            h.close()
+        self.log.info('exit resend function')
+        return 'sent'
+
     def quit(self):
+        self.pusher.close()
         if hasattr(self, 'loop_state'):
             self.loop_state = 'end loop'
         return 'quit'
@@ -103,12 +196,14 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                         self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
                 if 'origin' in par:
                     self.stage_origin = position
+                    self.log.info('DEBUG: Stage origin is {0}' .format(self.stage_origin))
                 if 'set' in par:
                     new_position = numpy.array([float(new_x), float(new_y), float(new_z)])
                     reached = stage.move(new_position)
                     position = stage.position
                     self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
                 stage.release_instrument()
+                self.log.info('DEBUG: Stage position abs {0} (2)' .format(position))
             return str(par) + ' ' + str(position) + '\n' + str(time.time() - st) + ' ' + str(stage.command_counter )
         except:
             return str(traceback.format_exc())
@@ -165,7 +260,10 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
         context = {}
         context['stage_origin'] = self.stage_origin
+        context['pusher'] = self.pusher
         result = self.experiment_config.runnable.run_experiment(context)
+        self.resendjobs()
+        self.log.info('after resend')
         return result
 
 class CommandSender(QtCore.QThread):

@@ -233,19 +233,23 @@ class Screen(object):
         right = 0.5 * self.config.SCREEN_RESOLUTION['col']
         bottom = 0.5 * self.config.SCREEN_RESOLUTION['row']
         top = -0.5 * self.config.SCREEN_RESOLUTION['row']
-        
+        if hasattr(self.config, 'SCREEN_UPSIDE_DOWN') and self.config.SCREEN_UPSIDE_DOWN:
+            f=-1
+        else:
+            f=1
+            
         if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
-            left = left * -1.0 + self.config.ORIGO['col']
-            right = right * -1.0 + self.config.ORIGO['col']
+            left = f*left * -1.0 + self.config.ORIGO['col']
+            right = f*right * -1.0 + self.config.ORIGO['col']
         elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
-            left = left - self.config.ORIGO['col']
-            right = right - self.config.ORIGO['col']
+            left = f*left - self.config.ORIGO['col']
+            right = f*right - self.config.ORIGO['col']
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
-            top = top * -1.0 - self.config.ORIGO['row']
-            bottom = bottom * -1.0 - self.config.ORIGO['row']
+            top = f*top * -1.0 - self.config.ORIGO['row']
+            bottom = f*bottom * -1.0 - self.config.ORIGO['row']
         elif self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
-            top = top + self.config.ORIGO['row']
-            bottom = bottom + self.config.ORIGO['row']
+            top = f*top + self.config.ORIGO['row']
+            bottom = f*bottom + self.config.ORIGO['row']
         
         z_range = max(self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col'])
         glOrtho(left, right, bottom, top,  -z_range, z_range)
@@ -311,12 +315,14 @@ class Screen(object):
         #Restore original color
         glColor4fv(current_color)
         
-    def render_imagefile(self, path, position = utils.rc((0, 0))):
+    def render_imagefile(self, path, position = utils.rc((0, 0)), stretch=1.0):
         '''
         Renders an image file on screen with its original size.
         '''
         #TODO: image resizing
         im = Image.open(path)
+        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
+            im = im.transpose(Image.FLIP_TOP_BOTTOM)
         im = im.convert('RGBX')
         self.image_size = im.size
         ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)        
@@ -338,10 +344,10 @@ class Screen(object):
                              [0.0, 1.0],
                              ])
         vertices = numpy.array([
-                                [position['col'] + 0.5 * self.image_size[0], position['row'] + 0.5 * self.image_size[1]], 
-                                [position['col'] + 0.5 * self.image_size[0], position['row'] - 0.5 * self.image_size[1]], 
-                                [position['col'] - 0.5 * self.image_size[0], position['row'] - 0.5 * self.image_size[1]], 
-                                [position['col'] - 0.5 * self.image_size[0], position['row'] + 0.5 * self.image_size[1]],                                 
+                                [position['col'] + 0.5 * self.image_size[0]*stretch, position['row'] + 0.5 * self.image_size[1]*stretch], 
+                                [position['col'] + 0.5 * self.image_size[0]*stretch, position['row'] - 0.5 * self.image_size[1]*stretch], 
+                                [position['col'] - 0.5 * self.image_size[0]*stretch, position['row'] - 0.5 * self.image_size[1]*stretch], 
+                                [position['col'] - 0.5 * self.image_size[0]*stretch, position['row'] + 0.5 * self.image_size[1]*stretch],                                 
                                 ])
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         glTexCoordPointerf(texture_coordinates)
