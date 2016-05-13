@@ -34,7 +34,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.config=machine_config#TODO: eliminate self.config
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
-        if self.kwargs.has_key('screen') and self.kwargs['screen'] !=None:
+        if hasattr(self, 'kwargs') and self.kwargs.has_key('screen') and self.kwargs['screen'] !=None:
             self.screen=self.kwargs['screen']
         else:
             self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
