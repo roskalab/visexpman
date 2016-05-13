@@ -26,7 +26,7 @@ from visexpman.engine.generic.introspect import list_type
 try:
     import zmq
 except:
-    pass
+    raise
 import simplejson
 import multiprocessing
 from multiprocessing import Process, Manager,  Event
