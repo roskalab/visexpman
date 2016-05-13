@@ -1,6 +1,6 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
-import scipy.io,multiprocessing,stat,subprocess
+import scipy.io,multiprocessing,stat,subprocess,io
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 try:
@@ -9,7 +9,7 @@ except ImportError:
     from visexpman.engine.generic import fileop
 import visexpman.engine.vision_experiment.configuration
 import visexpA.engine.configuration
-from visexpA.engine.datahandlers import importers,hdf5io
+from visexpA.engine.datahandlers import importers,hdf5io,matlabfile
 from visexpman.engine import backup_manager
 
 dbfilelock=threading.Lock()
@@ -417,7 +417,6 @@ def backup_animal_file(filename,config):
     except:
         logging.error(traceback.format_exc())
     logging.info('Copied  {0} to {1}'.format(filename,dst_folder))
-        
     
 def database_status(filename):
     dbfilelock.acquire()
@@ -648,6 +647,16 @@ def hdf52mat_folder(folder):
             print f
             hdf52mat(f,analysis_config)
 
+def extract_prepost_scan(h):
+    import visexpA.engine.component_guesser as cg
+    idnode=h.findvar(cg.get_node_id(h))
+    nodes2save=[]
+    if idnode.has_key('prepost_scan_image'):
+        for k,v in idnode['prepost_scan_image']:
+            setattr(h, k+'_scan', matlabfile.read_line_scan(io.BytesIO(v), read_red_channel = True))
+            nodes2save.append(k+'_scan')
+            loggig.info(nodes2save[-1]+' extracted')
+        h.save(nodes2save)
         
 if __name__=='__main__':
     if len(sys.argv)==1:

@@ -119,7 +119,6 @@ class Poller(QtCore.QThread):
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
         
-        
 class FlowmeterControl(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Flowmeter control', parent)
@@ -579,6 +578,13 @@ class MainWidget(QtGui.QWidget):
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
         self.measurement_datafile_status_groupbox = MeasurementDatafileStatusGroupbox(self)
+        #TODO: ADI put checkboxes here
+        #self.override_imaging_channels_label = QtGui.QLabel('Override Imaging Channels', self)
+        #self.override_imaging_channels_checkbox = QtGui.QCheckBox(self)
+        #self.record_red_channel_label = QtGui.QLabel('Record Red Channel, self)
+        #self.record_red_channel_checkbox = QtGui.QCheckBox(self)
+        #self.enable_prepost_scan_label = QtGui.QLabel('Enable Pre/Post scan, self)
+        #self.enable_prepost_scan_checkbox = QtGui.QCheckBox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -2257,6 +2263,7 @@ class MainPoller(Poller):
                 del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
             h.animal_parameters = copy.deepcopy(self.animal_parameters)
             h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+        #TODO: ADI override h.animal_parameters['both_channels'], self.animal_parameters['red_labeling'] == 'no') !!!!! Save original settings to somewhere
         fields_to_save = ['parameters']
         if not self.experiment_parameters['intrinsic']:
             fields_to_save.extend(['scan_regions', 'animal_parameters', 'anesthesia_history'])
