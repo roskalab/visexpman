@@ -97,6 +97,7 @@ class Jobhandler(object):
         if THREAD:
             self.jrq.put('terminate')
             self.jr.join()
+            print 'thread terminated'
         self.connections['gui'].wait()
         print 'done'
         
@@ -223,6 +224,7 @@ class Jobhandler(object):
             logging.info(str(file_info))
             mes_extractor = importers.MESExtractor(filename, config = self.analysis_config)
             data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
+            extract_prepost_scan(mes_extractor.hdfhandler)
             mes_extractor.hdfhandler.close()
             #fileop.set_file_dates(filename, file_info)
             time.sleep(0.1)
@@ -652,10 +654,10 @@ def extract_prepost_scan(h):
     idnode=h.findvar(cg.get_node_id(h))
     nodes2save=[]
     if idnode.has_key('prepost_scan_image'):
-        for k,v in idnode['prepost_scan_image']:
+        for k,v in idnode['prepost_scan_image'].items():
             setattr(h, k+'_scan', matlabfile.read_line_scan(io.BytesIO(v), read_red_channel = True))
             nodes2save.append(k+'_scan')
-            loggig.info(nodes2save[-1]+' extracted')
+            logging.info(nodes2save[-1]+' extracted')
         h.save(nodes2save)
         
 if __name__=='__main__':
