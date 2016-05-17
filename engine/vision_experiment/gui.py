@@ -119,7 +119,6 @@ class Poller(QtCore.QThread):
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
         
-        
 class FlowmeterControl(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Flowmeter control', parent)
@@ -579,6 +578,12 @@ class MainWidget(QtGui.QWidget):
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
         self.measurement_datafile_status_groupbox = MeasurementDatafileStatusGroupbox(self)
+        self.override_imaging_channels_label = QtGui.QLabel('Override Imaging Channels', self)
+        self.override_imaging_channels_checkbox = QtGui.QCheckBox(self)
+        self.record_red_channel_label = QtGui.QLabel('Record Red Channel', self)
+        self.record_red_channel_checkbox = QtGui.QCheckBox(self)
+        self.enable_prepost_scan_label = QtGui.QLabel('Enable Pre/Post scan', self)
+        self.enable_prepost_scan_checkbox = QtGui.QCheckBox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -591,8 +596,15 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.resendjobs_button, 9, 1, 1, 1)
         self.layout.addWidget(self.updatejobs_button, 9, 2, 1, 1)
         
-        self.layout.setRowStretch(10, 10)
-        self.layout.setColumnStretch(10, 10)
+        self.layout.addWidget(self.override_imaging_channels_label, 10, 0, 1, 1)
+        self.layout.addWidget(self.override_imaging_channels_checkbox, 10, 1, 1, 1)
+        self.layout.addWidget(self.record_red_channel_label, 10, 2, 1, 1)
+        self.layout.addWidget(self.record_red_channel_checkbox, 10, 3, 1, 1)
+        self.layout.addWidget(self.enable_prepost_scan_label, 10, 4, 1, 1)
+        self.layout.addWidget(self.enable_prepost_scan_checkbox, 10, 5, 1, 1)
+        
+        self.layout.setRowStretch(11, 10)
+        self.layout.setColumnStretch(11, 10)
         self.setLayout(self.layout)
 
 ################### Debug/helper widgets #######################
@@ -750,7 +762,7 @@ class StandardIOWidget(QtGui.QWidget):
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)
         
-parameter_extract = re.compile('EOC(.+)EOP')
+parameter_extract = re.compile('EOC(.+)EOP', re.DOTALL)
 command_extract = re.compile('SOC(.+)EOC')
 
 ################### Poller #######################
@@ -914,11 +926,13 @@ class MainPoller(Poller):
                         messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
                     else:
                         messages = [messages]
+                    self.messages =messages 
                     for message in messages:
                         command = command_extract.findall(message)
                         if len(command) > 0:
                             command = command[0]
                         parameter = parameter_extract.findall(message)
+                        self.p=parameter
                         if len(parameter) > 0:
                             parameter = parameter[0]
                         if command == 'connection':
@@ -939,9 +953,6 @@ class MainPoller(Poller):
                             hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack,filelocking=False)
                             self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                             os.remove(self.z_stack_path)
-                        elif command == 'measurement_ready':
-                            if 0:
-                                self.add_measurement_id(parameter)
                         elif command == 'notify':
                             self.printc(parameter)
                             self.notify(parameter)
@@ -2257,6 +2268,10 @@ class MainPoller(Poller):
                 del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
             h.animal_parameters = copy.deepcopy(self.animal_parameters)
             h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+        if self.parent.main_widget.override_imaging_channels_checkbox.checkState()==2:
+            h.animal_parameters['overridden']={'both_channels': h.animal_parameters['both_channels'], 'red_labeling': self.animal_parameters['red_labeling']}
+            h.animal_parameters['both_channels']=self.parent.main_widget.record_red_channel_checkbox.checkState()==2
+            h.animal_parameters['red_labeling']='yes' if self.parent.main_widget.enable_prepost_scan_checkbox.checkState()==2 else 'no'
         fields_to_save = ['parameters']
         if not self.experiment_parameters['intrinsic']:
             fields_to_save.extend(['scan_regions', 'animal_parameters', 'anesthesia_history'])

@@ -474,7 +474,7 @@ class ExperimentControl(object):
                 pass
             if not aborted: #TMP and result:
                 if self.config.PLATFORM == 'mes':
-                    if self.mes_record_time > 30.0 and self.scan_mode != 'xy':
+                    if self.mes_record_time > 30.0:# and self.scan_mode != 'xy':
                         time.sleep(1.0)#Ensure that scanner starts???
                         try:
                             if not self._pre_post_experiment_scan(is_pre=False):
