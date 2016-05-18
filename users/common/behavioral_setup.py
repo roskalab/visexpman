@@ -1,12 +1,9 @@
-import random,logging,time
+import random,logging,time,os
 from visexpman.engine.vision_experiment.configuration import BehavioralConfig
 from visexpman.engine.vision_experiment.experiment import Protocol
 from visexpman.engine.generic import fileop
 
 class BehavioralSetup(BehavioralConfig):
-        LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', ])
-        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'c:\\Users\\rz\\tmp'])
-        CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'c:\\Users\\rz\\tmp'])
         LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
         EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
         CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
@@ -24,7 +21,7 @@ class BehavioralSetup(BehavioralConfig):
         SCREEN_OFFSET=[4,19]
         BOTTOM_WIDGET_HEIGHT=260
         MINIMUM_FREE_SPACE=20#GByte
-        ARDUINO_SERIAL_PORT='COM5'#'/dev/ttyACM0'
+        ARDUINO_SERIAL_PORT='COM5' if os.name=='nt' else '/dev/ttyACM0'
         LASER_AO_CHANNEL='Dev1/ao0'
         LED_AO_CHANNEL='Dev1/ao1'
         POSITIVE_DIRECTION=-1
@@ -119,8 +116,8 @@ class ForcedKeepRunningReward(KeepRunningReward):
         for i in indexes:
             self.engine.events[i]['ack']=True
         if len(indexes)>0:
-            self.engine.airpuff()
-            self.engine.forcerun(self.RUN_FORCE_TIME)
+            #self.engine.airpuff()
+            #self.engine.forcerun(self.RUN_FORCE_TIME)
             self.nforcedruns+=1
 
     def stat(self):

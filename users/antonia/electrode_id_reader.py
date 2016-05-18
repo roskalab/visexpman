@@ -259,15 +259,17 @@ def read_receptive_field_centers():
     from scipy.io import loadmat
     config = utils.fetch_classes('visexpman.users.antonia', classname = 'MEASetup', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
     path = file.read_text_file(os.path.join(os.path.join(os.path.split(visexpman.__file__)[0], 'users', 'antonia'), 'selected_receptive_field_list.txt'))
-    pixel_coordinates = loadmat(path)['RFcenters']
-    #Convert centered origin coordinate system
-    pixel_coordinates_centered = pixel_coordinates - numpy.array([config.SCREEN_RESOLUTION['col']*0.5, config.SCREEN_RESOLUTION['row']*0.5])
-    pixel_coordinates_centered[:,1] *=-1
-    um_coordinates = pixel_coordinates_centered/config.SCREEN_UM_TO_PIXEL_SCALE
-    return um_coordinates
+    um_coordinates = loadmat(path)['RFcenters']
+    contrasts = um_coordinates[:,2]
+    um_coordinates = um_coordinates[:,:2]
+#    #Convert centered origin coordinate system
+#    um_coordinates_centered = um_coordinates - numpy.array([config.SCREEN_RESOLUTION['col']*0.5, config.SCREEN_RESOLUTION['row']*0.5])
+#    um_coordinates_centered[:,1] *=-1
+    return um_coordinates,contrasts
     
 if __name__ == "__main__":  
-    nrk2elek() 
+#    nrk2elek() 
+    read_receptive_field_centers()
 
 #     ##== Here you can run your test code
 
