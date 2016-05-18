@@ -5,14 +5,15 @@ import numpy,itertools,time,inspect,random
 
 class SpotScreeningParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.SIZES = [200,2000]
+        self.SIZES = [200]
         self.AREA=utils.rc((500,500))
         self.COLORS=[0.0,1.0]
         self.BACKGROUND=0.5
         self.SPACING=50
         self.REPEATS=5
         self.ON_TIME=0.5
-        self.OFF_TIME=0.5
+        self.OFF_TIME=1.0
+        self.FULLFIELD_RATIO=0.1#Number of fullfields presented is 10% of the spots presented
         self.runnable = 'SpotScreeningExp'        
         self._create_parameters_from_locals(locals())
         
@@ -28,11 +29,17 @@ class SpotScreeningExp(experiment.Experiment):
         self.show_fullscreen(color=self.experiment_config.BACKGROUND,duration=0)
         positions = self.generate_positions()
         spot_params=[[p,s,c] for p,s,c in itertools.product(positions, self.experiment_config.SIZES, self.experiment_config.COLORS)]*self.experiment_config.REPEATS
+        nfullfield=int(len(spot_params)*self.experiment_config.FULLFIELD_RATIO)/len(self.experiment_config.COLORS)
+        for c in self.experiment_config.COLORS:
+            spot_params.extend([[[0,0],-1,c]]*nfullfield)
         random.seed(0)
         random.shuffle(spot_params)
         for pos, size, color in spot_params:
-            self.show_shape(shape='spot', size=size,color=color,background_color=self.experiment_config.BACKGROUND, pos=utils.rc(pos),duration=self.experiment_config.ON_TIME)
-            self.show_fullscreen(color=self.experiment_config.BACKGROUND,duration=self.experiment_config.ON_TIME)
+            if size==-1:
+                self.show_fullscreen(color=color,duration=self.experiment_config.ON_TIME*self.machine_config.TIME_CORRECTION)
+            else:
+                self.show_shape(shape='spot', size=size,color=color,background_color=self.experiment_config.BACKGROUND, pos=utils.rc(pos),duration=self.experiment_config.ON_TIME*self.machine_config.TIME_CORRECTION)
+            self.show_fullscreen(color=self.experiment_config.BACKGROUND,duration=self.experiment_config.OFF_TIME*self.machine_config.TIME_CORRECTION)
             if self.abort:
                 break
 
