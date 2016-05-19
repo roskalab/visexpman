@@ -172,7 +172,7 @@ class Jobhandler(object):
                     nextfunction='mesextractor'
                 elif row['is_mesextractor'] and not row['is_analyzed'] and not row['is_converted']:
                     nextfunction='analyze'
-                    next_params.append(row['stimulus'])
+                    next_params.extend([row['stimulus'],row['user']])
                 elif row['is_mesextractor'] and row['is_analyzed'] and not row['is_converted']:
                     nextfunction='convert_and_copy'
                     next_params.extend([row['user'],row['region_add_date'],row['animal_id']])
@@ -244,12 +244,13 @@ class Jobhandler(object):
             db.close()
             dbfilelock.release()
 
-    def analyze(self,filename,stimulus):
+    def analyze(self,filename,stimulus,user):
         if len([sn for sn in self.config.ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.lower()])>0:
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
             file_info = os.stat(filename)
             logging.info(str(file_info))
+            self.analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
             h = hdf5io.iopen(filename,self.analysis_config)
             if h is not None:
                 for c in create:
