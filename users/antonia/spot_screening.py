@@ -9,7 +9,7 @@ class SpotScreeningParameters(experiment.ExperimentConfig):
         self.AREA=utils.rc((500,500))
         self.COLORS=[0.0,1.0]
         self.BACKGROUND=0.5
-        self.SPACING=50
+        self.SPACING= 50
         self.REPEATS=5
         self.ON_TIME=0.5
         self.OFF_TIME=1.0
@@ -36,7 +36,8 @@ class SpotScreeningExp(experiment.Experiment):
         random.shuffle(spot_params)
         for pos, size, color in spot_params:
             if size==-1:
-                self.show_fullscreen(color=color,duration=self.experiment_config.ON_TIME*self.machine_config.TIME_CORRECTION)
+                self.show_shape(shape='spot', size=2500,color=color,background_color=self.experiment_config.BACKGROUND,duration=self.experiment_config.ON_TIME*self.machine_config.TIME_CORRECTION)
+                #self.show_fullscreen(color=color,duration=self.experiment_config.ON_TIME*self.machine_config.TIME_CORRECTION)
             else:
                 self.show_shape(shape='spot', size=size,color=color,background_color=self.experiment_config.BACKGROUND, pos=utils.rc(pos),duration=self.experiment_config.ON_TIME*self.machine_config.TIME_CORRECTION)
             self.show_fullscreen(color=self.experiment_config.BACKGROUND,duration=self.experiment_config.OFF_TIME*self.machine_config.TIME_CORRECTION)
