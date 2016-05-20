@@ -338,6 +338,8 @@ class ExperimentControl(object):
             self.printl('Analog signal recording started')
         if self.config.PLATFORM == 'mes':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
+            if self.mes_record_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
+                raise RuntimeError('Stimulus too long')
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             if not self.intrinsic:
                 if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and self.animal_parameters.has_key('both_channels'):
@@ -390,10 +392,10 @@ class ExperimentControl(object):
                                 except:
                                     self.printl('MES scan config file error: it may be corrupt')
                                     return False
-                            if os.path.getsize(self.filenames['mes_fragments'][fragment_id])<300e3:
-                                scan_start_success=False
-                                self.printl('MES scan config file error: it may be corrupt')
-                                return scan_start_success
+#                            if os.path.getsize(self.filenames['mes_fragments'][fragment_id])<30e3:
+#                                scan_start_success=False
+#                                self.printl('MES scan config file error: it may be corrupt')
+#                                return scan_start_success
                             self.printl('scan config file OK')
                     scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                         parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
@@ -472,7 +474,7 @@ class ExperimentControl(object):
                 pass
             if not aborted: #TMP and result:
                 if self.config.PLATFORM == 'mes':
-                    if self.mes_record_time > 30.0 and self.scan_mode != 'xy':
+                    if self.mes_record_time > 30.0:# and self.scan_mode != 'xy':
                         time.sleep(1.0)#Ensure that scanner starts???
                         try:
                             if not self._pre_post_experiment_scan(is_pre=False):
@@ -576,6 +578,8 @@ class ExperimentControl(object):
             local_folder = 'd:\\tmp'
             if not os.path.exists(local_folder):
                 local_folder = tempfile.mkdtemp()
+            if file.free_space('d:')<1e9:
+                raise RuntimeError('D drive is close to full. Free up space')
             local_fragment_file_name = os.path.join(local_folder, os.path.split(fragment_filename)[-1])
             self.filenames['local_fragments'].append(local_fragment_file_name)
             self.filenames['fragments'].append(fragment_filename )
@@ -755,7 +759,7 @@ class ExperimentControl(object):
         #Measure red channel
         self.printl('Recording red and green channel')
         if self.config.BLACK_SCREEN_DURING_PRE_SCAN:
-            self.show_fullscreen(color=0.0, duration=0.0)
+            self.show_fullscreen(color=0.0, duration=0.0,count=False)
         if hasattr(self, 'scan_region'):
             self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,

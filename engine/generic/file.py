@@ -14,15 +14,25 @@ except ImportError:
     pass
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
-def wait4file_ready(f):
-    filesize_prev=os.path.getsize(f)
+def wait4file_ready(f,timeout=60):
+    if os.path.exists(f):
+        filesize_prev=os.path.getsize(f)
+    else:
+        filesize_prev=0
+    t0=time.time()
     while True:
-        filesize=os.path.getsize(f)
+        if os.path.exists(f):
+            filesize=os.path.getsize(f)
+        else:
+            time.sleep(0.5)
+            continue
         if filesize==filesize_prev:
             break
         else:
             filesize_prev=filesize
             time.sleep(0.2)
+        if time.time()-t0>timeout:
+            raise RuntimeError('Wait for {} file timeout'.format(f))
 
 def select_folder_exists(folders):
     for folder in folders:

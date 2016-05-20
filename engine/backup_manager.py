@@ -1,4 +1,5 @@
-import os,shutil,time,logging,datetime,filecmp
+import os,shutil,time,logging,datetime,filecmp,subprocess,threading,Queue
+import traceback
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton/new'
 mdrive='/mnt/mdrive/invivo/rc/raw'
@@ -9,6 +10,24 @@ last_file_access_timout=300
 
 transient_processed_files='/mnt/databig/processed'
 mdrive_processed='/mnt/mdrive/invivo/rc/processed'
+
+
+tape_file='/mnt/tape/hillier'
+mdrive_file='/mnt/mdrive/invivo'
+ISMOUNT_ENABLED=True
+
+def watchdog(maxtime,queue):
+    logging.info('Watchdog started')
+#    maxtime,queue=args
+    t0=time.time()
+    while True:
+        if time.time()-t0>maxtime:
+            logging.error('Self terminating')
+            logging.error('done')
+            subprocess.call('kill -KILL {0}'.format(os.getpid()),shell=True)
+        if not queue.empty():
+            break
+        time.sleep(30)
 
 def is_id_on_drive(id, drive):
     return len([f for f in list_all_files(drive) if str(id) in os.path.basename(f) and os.path.getsize(f)>0])==2
@@ -27,7 +46,6 @@ def check_backup(id):
     return status
 
 def sendmail(to, subject, txt):
-    import subprocess
     message = 'Subject:{0}\n\n{1}\n'.format(subject, txt)
     logging.info('Sending mail')
     fn='/tmp/email.txt'
@@ -42,14 +60,17 @@ def sendmail(to, subject, txt):
     return res==0
 
 def is_mounted():
-    if not os.path.ismount('/mnt/tape'):
-        import subprocess#Mount tape if not mounted
-        try:
-            subprocess.call(u'mount /mnt/tape',shell=True)
-            subprocess.call(u'fusermount -u /mnt/tape',shell=True)
-        except:
-            pass
-    return os.path.ismount('/mnt/tape') and os.path.ismount('/mnt/mdrive')
+    if ISMOUNT_ENABLED:
+        if not os.path.ismount('/mnt/tape'):
+            try:
+                subprocess.call(u'mount /mnt/tape',shell=True)
+                subprocess.call(u'fusermount -u /mnt/tape',shell=True)
+            except:
+                pass
+        return os.path.ismount('/mnt/tape') and os.path.ismount('/mnt/mdrive')
+    else:
+        return os.path.exists(tape_file) and os.path.exists(mdrive_file)
+            
     
 def list_all_files(path):
     all_files = []
@@ -63,6 +84,7 @@ def is_file_closed(f):
     
 def copy_file(f):
     try:
+        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.18_ReceptiveFieldExploreNewAngleFine_1460651588_0.hdf5': return
         copy2m= os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(f))))!='daniel'#Daniel's fiels are not copied to m drive only to tape
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
@@ -80,14 +102,30 @@ def copy_file(f):
         if not is_file_closed(f):
             return
         if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape) or 'animal' in os.path.dirname(f):
-            shutil.copy2(f,target_path_tape)
+            try:
+                shutil.copy2(f,target_path_tape)
+            except:
+                time.sleep(10)
+                success = False
+                nretry=20
+                for i in range(nretry):
+                    try:
+                        shutil.copy2(f,target_path_tape)
+                        success = True
+                    except:
+                        if i ==nretry-1:
+                            msg=f+'' + str(i)+'\r\n'+traceback.format_exc()
+                            raise RuntimeError(msg)
+                        else:
+                            time.sleep(10)
+                    if success:
+                        break
             logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(target_path_tape)))
         if copy2m and (not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m)):#Mouse file may be updated with scan regions
             shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
     except:
-        import traceback
-        msg=traceback.format_exc()
+        msg=f+'\r\n'+traceback.format_exc()
         logging.error(msg)
         sendmail('zoltan.raics@fmi.ch', 'backup manager raw cortical file copy error', msg)
         
@@ -130,6 +168,7 @@ def rei_backup():
                 logging.info('Copied {0}'.format(f))
     except:
         import traceback
+        msg=traceback.format_exc()
         logging.error(msg)
         sendmail('zoltan.raics@fmi.ch', 'backup manager retinal file copy error', msg)
     
@@ -139,19 +178,27 @@ def run():
         txt=f.read()
     lines=txt.split('\n')[:-1]
     done_lines = [lines.index(l) for l in lines if 'done' in l]
-    started_lines = [lines.index(l) for l in lines if 'listing' in l]
-    if done_lines[-1]<started_lines[-1] and 0:
+    started_lines = [lines.index(l) for l in lines if 'Check network drives' in l]
+    if done_lines[-1]<started_lines[-1]:
         ds=[l.split('\t')[0] for l in lines][started_lines[-1]].split(',')[0]
         format="%Y-%m-%d %H:%M:%S"
         if time.time()-time.mktime(datetime.datetime.strptime(ds, format).timetuple())<2*60*60:#If last start happend 3 hours before, assume that there was an error and backup can be started again
             return
-        
     logging.basicConfig(filename= logfile_path,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
+    q=Queue.Queue()
+    wd=threading.Thread(target=watchdog,args=(2*60,q))
+    wd.start()
+    #time.sleep(150)
+    logging.info('Check network drives')
     if not is_mounted():
-        logging.error('Tape or m mdirve not mounted')
+        msg='Tape or m mdrive not mounted: tape: {0}, m: {1}'.format(os.path.ismount('/mnt/tape'), os.path.ismount('/mnt/mdrive'))
+        logging.error(msg)
+        sendmail('zoltan.raics@fmi.ch', 'backup manager mount error', msg)
         return
+    q.put('terminate')
+    wd.join()
     logging.info('listing rawdata files')
     files = list_all_files(transient_backup_path)
     files.sort()

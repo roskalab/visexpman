@@ -1,5 +1,6 @@
+#TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
-import scipy.io,multiprocessing,stat,subprocess
+import scipy.io,multiprocessing,stat,subprocess,io
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 try:
@@ -8,7 +9,7 @@ except ImportError:
     from visexpman.engine.generic import fileop
 import visexpman.engine.vision_experiment.configuration
 import visexpA.engine.configuration
-from visexpA.engine.datahandlers import importers,hdf5io
+from visexpA.engine.datahandlers import importers,hdf5io,matlabfile
 from visexpman.engine import backup_manager
 
 dbfilelock=threading.Lock()
@@ -46,6 +47,7 @@ class Jobhandler(object):
         import getpass
         self.printl('Current user is {0}'.format(getpass.getuser()))
         logging.info(sys.argv)
+        logging.info(utils.module_versions(utils.imported_modules()[0])[0])
         self._check_freespace()
         self.issued_jobs=[]
                     
@@ -72,7 +74,7 @@ class Jobhandler(object):
         if free_space_on_datafast < 50:
             raise RuntimeError('Critically low free space on datafast: {0} GB'.format(free_space_on_datafast))
             sys.exit(0)
-        self.printl('Free space on datafast {2} GB, on databig {0} GB, on m drive: {3} GB and tape {1} GB'.format(free_space_on_databig, free_space_on_tape, free_space_on_datafast,free_space_on_m))
+        self.printl('Free space on datafast (v:\\, limit is 50 GB) {2} GB, on databig (u:\\) {0} GB, on m drive: {3} GB and tape {1} GB'.format(free_space_on_databig, free_space_on_tape, free_space_on_datafast,free_space_on_m))
 
     def run(self):
         while True:
@@ -86,7 +88,7 @@ class Jobhandler(object):
                 self.printl(traceback.format_exc(),'error')
                 #pdb.set_trace()
             if utils.enter_hit(): break
-            time.sleep(0.01)
+            time.sleep(0.2)
             if int(time.time())%20==0:
                 logging.debug('alive')
                 time.sleep(1)
@@ -95,6 +97,7 @@ class Jobhandler(object):
         if THREAD:
             self.jrq.put('terminate')
             self.jr.join()
+            print 'thread terminated'
         self.connections['gui'].wait()
         print 'done'
         
@@ -118,6 +121,7 @@ class Jobhandler(object):
             #No active files found
             return
         current_animal=[k for k, v in active_animals.items() if v ==max(active_animals.values())][0]
+        logging.debug('Active animals: {0}'.format(active_animals))
         return current_animal
                 
     def nextjob(self):
@@ -157,13 +161,18 @@ class Jobhandler(object):
 #                    weight+=2
                     
                 priority=10**(numpy.ceil(numpy.log10(row['recording_started']))+1)*weight+row['recording_started']+offset
-                filename=[f for f in allfiles if os.path.basename(f)==row['filename']][0]
+                filename=[f for f in allfiles if os.path.basename(f)==row['filename']]
+                if filename==[]:
+                    self.printl('{0} does not exists'.format(row['filename']))
+                    continue
+                else:
+                    filename=filename[0]
                 next_params=[filename]
                 if not row['is_mesextractor'] and not row['is_analyzed'] and not row['is_converted']:
                     nextfunction='mesextractor'
                 elif row['is_mesextractor'] and not row['is_analyzed'] and not row['is_converted']:
                     nextfunction='analyze'
-                    next_params.append(row['stimulus'])
+                    next_params.extend([row['stimulus'],row['user']])
                 elif row['is_mesextractor'] and row['is_analyzed'] and not row['is_converted']:
                     nextfunction='convert_and_copy'
                     next_params.extend([row['user'],row['region_add_date'],row['animal_id']])
@@ -190,8 +199,10 @@ class Jobhandler(object):
         if job_selected:
             return  nextfunction, nextpars
         else:
-            self.printl('Job cannot be selected. Try restarting jobhandler')
-            pdb.set_trace()
+            logging.error('Job cannot be selected. Latest datafile may have some errors. Current animal is {0}.'.format(self.current_animal))
+            if 0:
+                self.printl('Job cannot be selected. Latest datafile may have some errors. Current animal is {0}. Is that correct?'.format(self.current_animal))
+                pdb.set_trace()
             return None,None
         
     def mesextractor(self,filename):
@@ -203,16 +214,22 @@ class Jobhandler(object):
            error_msg='hdf5 file corrupt'
         elif os.path.getsize(filename.replace('.hdf5','.mat'))<5e6:
             error_msg= 'mat file corrupt'
+        elif not os.access(filename,os.R_OK|os.W_OK):
+            error_msg= 'file acces error'
+        elif os.path.exists(filename.replace('.hdf5', '_1.mat')):
+            error_msg= 'Unknown MES format'
         else:
             error_msg=''
             file_info = os.stat(filename)
+            logging.info(str(file_info))
             mes_extractor = importers.MESExtractor(filename, config = self.analysis_config)
             data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
+            extract_prepost_scan(mes_extractor.hdfhandler)
             mes_extractor.hdfhandler.close()
-            fileop.set_file_dates(filename, file_info)
+            #fileop.set_file_dates(filename, file_info)
+            time.sleep(0.1)
+            logging.info(os.stat(filename))
             self.printl('MESextractor done')
-        if error_msg!='':
-            raise RuntimeError(error_msg)
         dbfilelock.acquire()
         try:
             db=DatafileDatabase(self.current_animal)
@@ -220,17 +237,20 @@ class Jobhandler(object):
                 db.update(filename=os.path.basename(filename), is_mesextractor=True, mesextractor_time=time.time())
             else:
                 db.update(filename=os.path.basename(filename), error_message=error_msg, is_error=True)
+                raise RuntimeError(filename+' '+error_msg)
         except:
             self.printl(traceback.format_exc(),'error')
         finally:
             db.close()
             dbfilelock.release()
 
-    def analyze(self,filename,stimulus):
+    def analyze(self,filename,stimulus,user):
         if len([sn for sn in self.config.ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.lower()])>0:
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
             file_info = os.stat(filename)
+            logging.info(str(file_info))
+            self.analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
             h = hdf5io.iopen(filename,self.analysis_config)
             if h is not None:
                 for c in create:
@@ -240,7 +260,9 @@ class Jobhandler(object):
                     self.printl('export_'+e)
                     getattr(h,'export_'+e)()
                 h.close()
-                fileop.set_file_dates(filename, file_info)
+                #fileop.set_file_dates(filename, file_info)
+                time.sleep(0.1)
+                logging.info(os.stat(filename))
                 pngfolder=os.path.join(os.path.dirname(filename),'output', os.path.basename(filename))
                 if os.path.exists(pngfolder):#Make png folder accessible for everybody
                     res=subprocess.call('chmod 777 {0} -R'.format(pngfolder),shell=True)
@@ -398,7 +420,6 @@ def backup_animal_file(filename,config):
     except:
         logging.error(traceback.format_exc())
     logging.info('Copied  {0} to {1}'.format(filename,dst_folder))
-        
     
 def database_status(filename):
     dbfilelock.acquire()
@@ -602,6 +623,43 @@ def folder2stimcontext(folder):
         h.jobs.append(data)
     h.save('jobs')
     h.close()
+    
+def hdf52mat(filename, analysis_config):
+    h=hdf5io.Hdf5io(filename,config=analysis_config)
+    ignore_nodes=['hashes']
+    rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    mat_data={}
+    for rn in rootnodes:
+        if os.path.basename(filename).split('_')[-2] in rn:
+            rnt='idnode'
+        else:
+            rnt=rn
+        mat_data[rnt]=h.findvar(rn)
+    if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+        del mat_data['soma_rois_manual_info']
+    h.close()
+    matfile=filename.replace('.hdf5', '_mat.mat')
+    scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+    
+def hdf52mat_folder(folder):
+    aconfigname = 'Config'
+    user ='daniel'
+    analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+    for f in fileop.find_files_and_folders(folder)[1]:
+        if f[-4:]=='hdf5':
+            print f
+            hdf52mat(f,analysis_config)
+
+def extract_prepost_scan(h):
+    import visexpA.engine.component_guesser as cg
+    idnode=h.findvar(cg.get_node_id(h))
+    nodes2save=[]
+    if idnode.has_key('prepost_scan_image'):
+        for k,v in idnode['prepost_scan_image'].items():
+            setattr(h, k+'_scan', matlabfile.read_line_scan(io.BytesIO(v), read_red_channel = True))
+            nodes2save.append(k+'_scan')
+            logging.info(nodes2save[-1]+' extracted')
+        h.save(nodes2save)
         
 if __name__=='__main__':
     if len(sys.argv)==1:

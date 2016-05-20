@@ -203,6 +203,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                     position = stage.position
                     self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
                 stage.release_instrument()
+                self.log.info('DEBUG: Stage position abs {0} (2)' .format(position))
             return str(par) + ' ' + str(position) + '\n' + str(time.time() - st) + ' ' + str(stage.command_counter )
         except:
             return str(traceback.format_exc())

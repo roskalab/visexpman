@@ -246,7 +246,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if count and not self.precalculate_duration_mode:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True):
         '''
         Two use cases are handled here:
             - showing individual image files
@@ -273,17 +273,38 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 start_position = (10,10)
                 show_image('directory_path',  0.0,  start_position,  formula)             
         '''
-        self.screen.render_imagefile(path, position = position)
-        if duration == 0.0:
-            if flip:
-                self._flip(trigger = True)        
+        #Generate log messages
+        flips_per_frame = duration/(1.0/self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if flips_per_frame != numpy.round(flips_per_frame):
+            raise RuntimeError('This duration is not possible, it should be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE')                
+        self.log_on_flip_message_initial = 'show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(size)  + ', ' + ')'
+        self.log_on_flip_message_continous = 'show_shape'
+        self._save_stimulus_frame_info(inspect.currentframe())
+        print self.frame_counter
+        if os.path.isdir(path):
+            for fn in os.listdir(path):
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
+            self.screen.clear_screen()
+            self._flip(trigger = False)
         else:
-            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
-                if flip:
-                    self._flip(trigger = True)
-                if self.abort:
-                    break
+            self._show_image(path,duration,position,flip)
+        print self.frame_counter
+        self._save_stimulus_frame_info(inspect.currentframe())
         
+    def _show_image(self,path,duration,position,stretch,flip):
+        if duration == 0.0:
+            nframes=1
+        else:
+            nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
+        for i in range(nframes):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.screen.render_imagefile(path, position = utils.rc_add(position,
+                        utils.rc_multiply_with_constant(self.machine_config.SCREEN_CENTER, self.config.SCREEN_UM_TO_PIXEL_SCALE)),stretch=stretch)
+            if flip:
+                self._flip(trigger = True)
+            if self.abort:
+                break
+    
 #        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
 #        if os.path.isdir(path) == True:
 #            #when content of directory is to be shown
@@ -1083,32 +1104,29 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
-            
-    def white_noise(self, duration, pixel_size,save_frame_info=True):
+    def white_noise(self, duration, square_size,save_frame_info=True):
         '''
         Generates white noise stimulus using numpy.random.random
         
         duration: duration of white noise stimulus in seconds
-        pixel_size: size of squares. Number of squares is calculated from screen size but fractional squares are not displayed.
+        square_size: size of squares. Number of squares is calculated from screen size but fractional squares are not displayed.
         The array of squares is centered
         '''
         if save_frame_info:
-            self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) + ')')
+#             self.log.info('white_noise(' + str(duration)+ ', ' + str(square_size) + ')', source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe())
-        pixel_size_pixel = pixel_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
+        square_size_pixel = square_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
-        ncheckers = utils.rc_multiply_with_constant(self.machine_config.SCREEN_SIZE_UM, 1.0/pixel_size)
+        ncheckers = utils.rc_multiply_with_constant(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
         numpy.random.seed(0)
-        checker_colors = numpy.where(numpy.random.random((nframes,ncheckers['row'],ncheckers['col']))<0.5, False,True)
-        row_coords = numpy.arange(ncheckers['row'])-0.5*(ncheckers['row'] - 1)
-        col_coords = numpy.arange(ncheckers['col'])-0.5*(ncheckers['col'] -1)
-        rc, cc = numpy.meshgrid(row_coords, col_coords)
-        positions=numpy.rollaxis(numpy.array([rc,cc]),0,3)*pixel_size
-        params = {'colors': checker_colors, 'ncheckers':ncheckers, 'positions': positions}
-        if save_frame_info and 0:
+        checker_colors = numpy.zeros((0,ncheckers['row'],ncheckers['col']), dtype=numpy.bool)
+        for i in range(int(nframes/self.machine_config.SCREEN_EXPECTED_FRAME_RATE/60)):
+            checker_colors = numpy.concatenate((checker_colors, numpy.where(numpy.random.random((60*self.machine_config.SCREEN_EXPECTED_FRAME_RATE,ncheckers['row'],ncheckers['col']))<0.5, False,True)))
+        params = {'ncheckers':ncheckers}
+        if save_frame_info:
             self._append_to_stimulus_frame_info(params)
-        size = utils.rc_multiply_with_constant(ncheckers, pixel_size_pixel)
+        size = utils.rc_multiply_with_constant(ncheckers, square_size_pixel)
         self._init_texture(size)
         for frame_i in range(nframes):
             texture = checker_colors[frame_i]
@@ -1117,15 +1135,46 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-            self.draw()
-            self._flip(frame_trigger = True)
+            #self.draw()
+            self._flip(trigger = True)
             if self.abort:
                 break
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            #self._append_to_stimulus_frame_info(params)
+            self._append_to_stimulus_frame_info(params)
+            numpy.save(self.filenames['fragments'][0].replace('.mat','.npy'), checker_colors)
+        print checker_colors.sum()
+        
+    def _init_texture(self,size):
+        from visexpman.engine.generic import geometry
+        vertices = geometry.rectangle_vertices(size, orientation = 0)
+        vertices[:,0]+=0.5*self.machine_config.SCREEN_RESOLUTION['col']
+        vertices[:,1]+=0.5*self.machine_config.SCREEN_RESOLUTION['row']
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        
+    def _deinit_texture(self):
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
             
+    def _append_to_stimulus_frame_info(self,values):
+        self.stimulus_frame_info[-1]['parameters'].update(values)
+    
 
 class StimulationSequences(Stimulations):
 
@@ -1271,7 +1320,6 @@ class StimulationSequences(Stimulations):
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
                                                                             off_time = off_time)
-        self.display_size=display_size
         import random,itertools
         positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
         import pdb
@@ -1365,7 +1413,8 @@ class StimulationSequences(Stimulations):
         
     def receptive_field_explore_durations_and_positions(self, **kwargs):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
-        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
+        offtime=kwargs['off_time'] if kwargs['off_time']>0 else 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+offtime)+offtime, positions
         
     def moving_grating_stimulus(self):
         pass

@@ -556,7 +556,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
 
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
-        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
+        MAXIMUM_RECORDING_DURATION = [1100, [0, 10000]] #100
         PLATFORM = 'mes'
 #        PLATFORM = 'standalone'
         #=== Network ===
@@ -665,13 +665,15 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         BLACK_SCREEN_DURING_PRE_SCAN = True
         TEXT_COLOR = [0.3,0.0,0.0]
         SYNC_SIGNAL_MIN_AMPLITUDE = 1.3
+        
         #gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         else:
-            raise
+            pass
+            #raise
         self._create_parameters_from_locals(locals())
       
         

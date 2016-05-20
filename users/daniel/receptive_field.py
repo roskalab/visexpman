@@ -20,8 +20,8 @@ class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
 #        self.NCOLUMNS = 13
         self.NROWS = 8  #303.42857142857144, 298.625
         self.NCOLUMNS = 14
-        self.ON_TIME = 0.5
-        self.OFF_TIME = 2.0
+        self.ON_TIME = 0.5*2
+        self.OFF_TIME = 2.0*0
         self.REPEATS = 1
         self.REPEAT_SEQUENCE = 1
         self.ENABLE_RANDOM_ORDER =  not False
@@ -35,16 +35,88 @@ class ReceptiveFieldExploreNewInverted(ReceptiveFieldExploreNew):
         self.COLORS = [0.0]
         self.BACKGROUND_COLOR = 1.0
 
-class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):
+class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):#This is the original one!!!!!!!!!!!!
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
-        self.DISPLAY_SIZE = utils.rc((57.0,90.0))
         self.NROWS = 6
         self.NCOLUMNS = 9
-        self.DISPLAY_CENTER = utils.rc((41.5,45.0))
         self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees Overall size of display in angles
+        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees Center
+#        self.SHAPE_SIZE = 10
        # self.OFF_TIME = 0
         #self.ON_TIME = 2.0
+        
+       
+class ReceptiveFieldExploreNewAngleAdrian(ReceptiveFieldExploreNew):#This is the original one!!!!!!!!!!!!
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.NROWS = 6
+        self.NCOLUMNS = 9
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees Overall size of display in angles
+        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees Center
+#        self.SHAPE_SIZE = 10
+        self.OFF_TIME = 2.0
+        self.ON_TIME = 1.0
+        
+class ReceptiveFieldExploreNewAngleAdrianInverted(ReceptiveFieldExploreNewAngleAdrian):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [0.0]
+        self.BACKGROUND_COLOR = 1.0
+
+
+class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldExploreNew):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 10
+        self.NCOLUMNS = 18
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8
+
+class ReceptiveFieldExploreNewAngleExtraFine(ReceptiveFieldExploreNew):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 20
+        self.NCOLUMNS = 36
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.4
+        self.OFF_TIME = 0.4
+     
+class ReceptiveFieldExploreNewAngleSuperFine(ReceptiveFieldExploreNew):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 30
+        self.NCOLUMNS = 54
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.39
+        self.OFF_TIME = 0.39 
+         
+class ReceptiveFieldExploreNewAngleCoarse(ReceptiveFieldExploreNew):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.NROWS = 5
+        self.NCOLUMNS = 9
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8     
 
 class ReceptiveFieldExplore(experiment.Experiment):
     '''
