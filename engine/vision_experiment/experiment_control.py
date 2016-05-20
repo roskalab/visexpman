@@ -27,7 +27,6 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import stage_control
 
 import visexpA.engine.datahandlers.hdf5io as hdf5io
-import visexpA.engine.datahandlers.importers as importers
 
 class ExperimentControl(object):
     '''
@@ -772,7 +771,7 @@ class ExperimentControl(object):
                 self.printl('Recording red and green channel was NOT successful')
                 if os.path.exists(initial_mes_line_scan_settings_filename):
                     os.remove(initial_mes_line_scan_settings_filename)
-                if os.path.exists(red_channel_data_filename):
+                if isinstance(red_channel_data_filename,str) and os.path.exists(red_channel_data_filename):
                     os.remove(red_channel_data_filename)
                 return False
             except TypeError:
