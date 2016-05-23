@@ -295,7 +295,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def forcerun(self,duration):
-        if not self.parameters['Fun Enable']: return
+        if not self.parameters['Enable Fun']: return
         self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on']})
         logging.info('Force run for {0} s'.format(duration))
         now=time.time()
@@ -320,7 +320,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Done')
         
     def airpuff(self):
-        if not self.parameters['Air Puff Enable']: return
+        if not self.parameters['Enable Air Puff']: return
         self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Airpuff')
         now=time.time()
@@ -861,8 +861,8 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
-                                {'name': 'Enable Air Puff', 'type': 'bool', 'value': True},
-                                {'name': 'Enable Fan', 'type': 'bool', 'value': True},
+                                {'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
+                                {'name': 'Enable Fan', 'type': 'bool', 'value': False},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):
