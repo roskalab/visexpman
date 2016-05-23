@@ -116,8 +116,8 @@ class ForcedKeepRunningReward(KeepRunningReward):
         for i in indexes:
             self.engine.events[i]['ack']=True
         if len(indexes)>0:
-            #self.engine.airpuff()
-            #self.engine.forcerun(self.RUN_FORCE_TIME)
+            self.engine.airpuff()
+            self.engine.forcerun(self.RUN_FORCE_TIME)
             self.nforcedruns+=1
 
     def stat(self):
