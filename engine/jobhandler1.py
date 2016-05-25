@@ -13,9 +13,10 @@ from visexpA.engine.datahandlers import importers,hdf5io,matlabfile
 from visexpman.engine import backup_manager
 
 dbfilelock=threading.Lock()
+DAYS_SINCE_NO_RECORDING=30
 THREAD=True
 GUI_CONN=not False
-#TODO: P2:backup animal files, check backup status, check files (mouse file too) on u:\data,
+#TODO: check backup status, check files (mouse file too) on u:\data,
 
 def chmod(f):
     try:
@@ -108,7 +109,7 @@ class Jobhandler(object):
         afiles= fileop.find_files_and_folders(self.config.ANIMAL_FOLDER)[1]
         now=time.time()
         #Exclude files which have not been modified in the last 30 days
-        recent_files=[a for a in afiles if now-os.stat(a).st_mtime<30*86400 and a[-5:]=='.hdf5']
+        recent_files=[a for a in afiles if now-os.stat(a).st_mtime<DAYS_SINCE_NO_RECORDING*86400 and a[-5:]=='.hdf5']
         if len(recent_files)==0:
             return
         #Read status info from files
@@ -140,6 +141,7 @@ class Jobhandler(object):
         else:
             self.current_animal=ca
         logging.debug('Current animal: {0}'.format(self.current_animal))
+        failed_files=[]#Aggregate problematic files to this list and later write it to database file
         dbfilelock.acquire()
         try:
             h=tables.open_file(self.current_animal, mode = "r")
@@ -164,6 +166,7 @@ class Jobhandler(object):
                 filename=[f for f in allfiles if os.path.basename(f)==row['filename']]
                 if filename==[]:
                     self.printl('{0} does not exists'.format(row['filename']))
+                    failed_files.append([row['filename'], 'fiel does not exists'])
                     continue
                 else:
                     filename=filename[0]
@@ -182,6 +185,7 @@ class Jobhandler(object):
         finally:
             h.close()
             dbfilelock.release() 
+        self.save_failed_file_status(failed_files)
         if jobs=={}:
             return None,None
         job_order=jobs.keys()
@@ -204,6 +208,22 @@ class Jobhandler(object):
                 self.printl('Job cannot be selected. Latest datafile may have some errors. Current animal is {0}. Is that correct?'.format(self.current_animal))
                 pdb.set_trace()
             return None,None
+            
+    def save_failed_file_status(self, failed_files):
+        '''
+        During animal database parsing some files may turn to be failed/problematic and collected to a list.
+        The error flags are set according to this list
+        '''
+        dbfilelock.acquire()
+        try:
+            db=DatafileDatabase(self.current_animal)
+            for filename,error_msg in failed_files:
+                db.update(filename=os.path.basename(filename), error_message=error_msg, is_error=True)
+        except:
+            self.printl(traceback.format_exc(),'error')
+        finally:
+            db.close()
+            dbfilelock.release()
         
     def mesextractor(self,filename):
         if not os.path.exists(filename):

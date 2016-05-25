@@ -1123,7 +1123,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         checker_colors = numpy.zeros((0,ncheckers['row'],ncheckers['col']), dtype=numpy.bool)
         for i in range(int(nframes/self.machine_config.SCREEN_EXPECTED_FRAME_RATE/60)):
             checker_colors = numpy.concatenate((checker_colors, numpy.where(numpy.random.random((60*self.machine_config.SCREEN_EXPECTED_FRAME_RATE,ncheckers['row'],ncheckers['col']))<0.5, False,True)))
-        params = {'ncheckers':ncheckers}
+        params = {'ncheckers':ncheckers, 'checker_colors':checker_colors}
         if save_frame_info:
             self._append_to_stimulus_frame_info(params)
         size = utils.rc_multiply_with_constant(ncheckers, square_size_pixel)
@@ -1143,8 +1143,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self._append_to_stimulus_frame_info(params)
-            numpy.save(self.filenames['fragments'][0].replace('.mat','.npy'), checker_colors)
-        print checker_colors.sum()
         
     def _init_texture(self,size):
         from visexpman.engine.generic import geometry

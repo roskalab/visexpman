@@ -106,7 +106,7 @@ class VisionExperimentGui(QtGui.QWidget):
         experiment_config_names.sort()
         if 0:
             for en in experiment_config_names:
-                if '_' in en:
+                if '_' in en and 'MovingGratingNoMarchHor3_5_800ums' not in en:
                     raise RuntimeError('_ is not allowed in experiment config name: {0}'.format(en))
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         try:

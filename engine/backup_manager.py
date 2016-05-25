@@ -7,7 +7,7 @@ logfile_path='/mnt/datafast/log/backup_manager.txt'
 rei_data='/mnt/databig/debug/cacone'
 rei_data_tape=os.path.join(tape_path,'retina')
 last_file_access_timout=300
-
+DELETE_FOLDER_TIMEOUT=86400*3#After 3 days
 transient_processed_files='/mnt/databig/processed'
 mdrive_processed='/mnt/mdrive/invivo/rc/processed'
 
@@ -84,7 +84,7 @@ def is_file_closed(f):
     
 def copy_file(f):
     try:
-        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.18_ReceptiveFieldExploreNewAngleFine_1460651588_0.hdf5': return
+#        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.18_ReceptiveFieldExploreNewAngleFine_1460651588_0.hdf5': return
         copy2m= os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(f))))!='daniel'#Daniel's fiels are not copied to m drive only to tape
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
@@ -101,7 +101,8 @@ def copy_file(f):
                 os.makedirs(os.path.dirname(p))
         if not is_file_closed(f):
             return
-        if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape) or 'animal' in os.path.dirname(f):
+        if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape) or 'animal' in os.path.dirname(f)\
+                or (os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape)):#Overwrite if exists but content is not the same
             try:
                 shutil.copy2(f,target_path_tape)
             except:
@@ -141,7 +142,8 @@ def copy_processed_file(f):
             os.makedirs(os.path.dirname(target_path_m))
         if not is_file_closed(f):
             return
-        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m):
+        if not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m) \
+                        or (os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m)):#Overwrite if exists but content is not the same
             shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
     except:
@@ -171,6 +173,20 @@ def rei_backup():
         msg=traceback.format_exc()
         logging.error(msg)
         sendmail('zoltan.raics@fmi.ch', 'backup manager retinal file copy error', msg)
+        
+def delete_empty_folder(root):
+    all_dirs = []
+    for root, dirs, files in os.walk(root):            
+        all_dirs.extend([root + os.sep + dir for dir in dirs])
+    now=time.time()
+    for d in all_dirs:
+        if now-os.stat(d).st_mtime>DELETE_FOLDER_TIMEOUT:
+            try:
+                os.rmdir(d)
+                logging.info('{0} folder is deleted')
+            except OSError:
+                pass
+    
     
 def run():
     #Check if previous call of backup manager is complete
@@ -212,8 +228,9 @@ def run():
     files.sort()
     for f in files:
         copy_processed_file(f)
-        
-    rei_backup()
+    for f in [transient_backup_path,transient_processed_files]:
+        delete_empy_folder(f)
+    #rei_backup()
     logging.info('done')
 
 if __name__ == "__main__":
