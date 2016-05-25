@@ -591,16 +591,6 @@ class RlvivoBackup(object):
         else:
             self.target_dir='/'.join([root,self.user,self.id,str(self.animalid)])
         i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
-        i,o,e2=self.ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
-        msg=e2.readline()
-        if len(msg)>0:
-            print e2.readline()
-            i,o,e3=self.ssh.exec_command('ls -la {0}'.format(os.path.dirname(self.target_dir)))
-            while True:
-                l=o.readline()
-                print l
-                if l=='':
-                    break
         self.check_ssh_error(e1)
         
     def copy(self):

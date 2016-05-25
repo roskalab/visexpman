@@ -263,10 +263,6 @@ class Jobhandler(object):
                 #fileop.set_file_dates(filename, file_info)
                 time.sleep(0.1)
                 logging.info(os.stat(filename))
-                pngfolder=os.path.join(os.path.dirname(filename),'output', os.path.basename(filename))
-                if os.path.exists(pngfolder):#Make png folder accessible for everybody
-                    res=subprocess.call('chmod 777 {0} -R'.format(pngfolder),shell=True)
-                    logging.info(res)
                 self.printl('Analysis done')
         else:
             self.printl('Online analysis is not available')
