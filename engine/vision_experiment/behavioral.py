@@ -59,7 +59,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
                     spd=self.emulated_speed(now-self.start_time)
                 else:
                     dtstr=self.s.readlines(1)
-                    if len(dtstr)==1:
+                    if len(dtstr)==1 and len(dtstr[0])>0:
                         dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
                         ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
                         spd=ds/dt*self.machine_config.POSITIVE_DIRECTION
@@ -295,6 +295,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def forcerun(self,duration):
+        if not self.parameters['Enable Fun']: return
         self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on']})
         logging.info('Force run for {0} s'.format(duration))
         now=time.time()
@@ -319,6 +320,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Done')
         
     def airpuff(self):
+        if not self.parameters['Enable Air Puff']: return
         self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Airpuff')
         now=time.time()
@@ -859,6 +861,8 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
+                                {'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
+                                {'name': 'Enable Fan', 'type': 'bool', 'value': False},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):
