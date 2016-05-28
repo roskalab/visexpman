@@ -6,8 +6,10 @@ try:
     from OpenGL.GLU import *
     from OpenGL.GLUT import *
     import pygame
+    default_text=GLUT_BITMAP_TIMES_ROMAN_24
 except ImportError:
     print 'opengl or pygame not intalled'
+    default_text=None
 
 from PIL import Image
 from visexpman.engine.generic import utils
@@ -314,7 +316,7 @@ class Screen(object):
     def initialization(self):
         pass
         
-    def render_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
+    def render_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = default_text):
         '''
         Renders text on screen using times new roman characters. Spacing is a constant 12 pixels, so shorter characters like 'l' is diplayed with a little gap
         '''

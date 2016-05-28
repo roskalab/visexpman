@@ -49,7 +49,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
     def run(self):
         self.last_run=time.time()
         self.start_time=time.time()
-        self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_SPEED_UPDATE_RATE)
+        self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
         logging.info('Speed reader started')
         while True:
             try:
@@ -295,7 +295,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def forcerun(self,duration):
-        if not self.parameters['Enable Fun']: return
+        if not self.parameters['Enable Fan']: return
         self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on']})
         logging.info('Force run for {0} s'.format(duration))
         now=time.time()
@@ -310,8 +310,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Reward')
         now=time.time()
-        if self.reward_values.shape[0]!=0:
-            self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
+        self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
         
     def rewardx100(self):
         for i in range(NREWARD_VOLUME):
@@ -324,8 +323,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Airpuff')
         now=time.time()
-        if self.airpuff_values.shape[0]!=0:
-            self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
+        self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
         
     def set_valve(self,channel,state):
         if channel=='air':
@@ -840,7 +838,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
                                 {'name': 'Save Period', 'type': 'float', 'value': 100.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
-                                {'name': 'Move Threshold', 'type': 'float', 'value': 1,'suffix': 'm/s'},
+                                {'name': 'Move Threshold', 'type': 'float', 'value': 0.1,'suffix': 'm/s'},
                                 {'name': 'Run Threshold', 'type': 'float', 'value': 70.0, 'suffix': '%'},
                                 {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 20},
                             ]},

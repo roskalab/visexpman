@@ -1,4 +1,3 @@
-import pygame
 import copy,os
 import socket
 import time

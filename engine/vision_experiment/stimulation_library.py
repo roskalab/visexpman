@@ -11,7 +11,9 @@ import multiprocessing
 try:
     from OpenGL.GL import *
     from OpenGL.GLUT import *
+    default_text=GLUT_BITMAP_TIMES_ROMAN_24
 except ImportError:
+    default_text=None
     print 'opengl not installed'
 
 import experiment_control
@@ -186,7 +188,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         color_to_set = colors.convert_color(color, self.config)
         glClearColor(color_to_set[0], color_to_set[1], color_to_set[2], 0.0)
         
-    def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
+    def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = default_text):
         '''
         Adds text to text list
         '''
