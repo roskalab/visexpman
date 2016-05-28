@@ -187,7 +187,7 @@ def select_path_exists(paths, dirs = True):
         if os.path.exists(path) and ((os.path.isdir(path) and dirs) or (not os.path.isdir(path) and not dirs)):
             return path
             
-TEST_valid_file = select_path_exists(['/mnt/rzws/codes/visexpman/__init__.py', '/etc/fstab', 'c:\\temp\\dummy.txt', 'r:\\codes\\visexpman\\__init__.py', 'v:\\code\\visexpman\\__init__.py', 'c:\\Users\\rz\\codes\\__init__.py'],dirs=False)
+TEST_valid_file = select_path_exists(['/mnt/rzws/codes/visexpman/__init__.py', '/etc/fstab', 'c:\\temp\\dummy.txt', 'r:\\codes\\visexpman\\__init__.py', 'x:\\src\\visexpman\\__init__.py', 'v:\\code\\visexpman\\__init__.py', 'c:\\Users\\rz\\codes\\__init__.py'],dirs=False)
 if TEST_valid_file is None:
     raise IOError('TEST_valid_file parameter incorrect')
 TEST_invalid_file = '/home'

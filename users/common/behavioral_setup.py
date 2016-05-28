@@ -4,14 +4,15 @@ from visexpman.engine.vision_experiment.experiment import Protocol
 from visexpman.engine.generic import fileop
 
 class BehavioralSetup(BehavioralConfig):
-        LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
-        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
-        CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'c:\\Data','c:\\Users\\rz\\tmp'])
+        LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
+        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
+        CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         ENABLE_CAMERA=True
         CAMERA_FRAME_RATE=7
         CAMERA_FRAME_WIDTH=640/2
         CAMERA_FRAME_HEIGHT=480/2
         TREADMILL_SPEED_UPDATE_RATE=100e-3
+        TREADMILL_READ_TIMEOUT=100e-3
         TREADMILL_DIAMETER=150#mm
         TREADMILL_PULSE_PER_REV=18
         WATER_VALVE_DO_CHANNEL=0
@@ -27,6 +28,9 @@ class BehavioralSetup(BehavioralConfig):
         POSITIVE_DIRECTION=-1
         PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StimStopReward']
         
+class BehavioralSetup2(BehavioralSetup):
+    ARDUINO_SERIAL_PORT='COM3'
+
 class OfficeTestComputer(BehavioralSetup):
     LASER_AO_CHANNEL='/Dev2/ao0'
     ENABLE_CAMERA=False
