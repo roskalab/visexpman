@@ -209,7 +209,7 @@ def opencv_camera_runner(filename, duration, config):
         
 class ImagingSourceCamera(VideoCamera):
     def _init_camera(self):
-        dllpath = r'c:\tis\bin\win32\tisgrabber.dll'
+        dllpath = 'c:\\TIS Grabber DLL\\bin\\x64\\tisgrabber_x64.dll'
         wd = os.getcwd()
         os.chdir(os.path.dirname(dllpath))
         self.dllref = ctypes.windll.LoadLibrary(dllpath)
@@ -235,7 +235,7 @@ class ImagingSourceCamera(VideoCamera):
         if hasattr(self.config, 'CAMERA_FRAME_RATE'):
             self.frame_rate = self.config.CAMERA_FRAME_RATE
         else:
-            self.frame_rate = 30.0
+            self.frame_rate = 24.0
         if self.dllref.IC_SetFrameRate(self.grabber_handle,  ctypes.c_float(self.frame_rate)) != 1:
             raise RuntimeError('Setting frame rate did not succeed')
         self.snap_timeout = self.dllref.IC_GetFrameRate(self.grabber_handle)
@@ -246,9 +246,9 @@ class ImagingSourceCamera(VideoCamera):
         self.frames = []
 #        self.video = numpy.zeros((1, self.h, self.w), numpy.uint8)
         
-    def start(self):
+    def start(self, show=False):
         if not self.isrunning:
-            if self.dllref.IC_StartLive(self.grabber_handle, 1) == 1:
+            if self.dllref.IC_StartLive(self.grabber_handle, int(show)) == 1:
                 self.isrunning = True
         else:
             raise RuntimeError('Camera is alredy recording')
@@ -304,7 +304,7 @@ class TestISConfig(configuration.Config):
 #        self.CAMERA_FRAME_RATE = 30.0
 #        VIDEO_FORMAT = 'RGB24 (744x480)'
         self.CAMERA_FRAME_RATE = 160.0
-        VIDEO_FORMAT = 'RGB24 (320x240)'
+        #VIDEO_FORMAT = 'RGB24 (320x240)'
         self._create_parameters_from_locals(locals())
         
 class TestCVCameraConfig(configuration.Config):
@@ -316,22 +316,26 @@ class TestCVCameraConfig(configuration.Config):
 
                 
 class TestCamera(unittest.TestCase):
-    @unittest.skip('')
+    #@unittest.skip('')
     def test_01_record_some_frames(self):
-        cam = ImagingSourceCamera(TestISConfig())
+        cam = ImagingSourceCamera(None)#TestISConfig())
+        
         cam.start()
+        
         with Timer(''):
             while cam.frame_counter <= 30: 
                 cam.save()
         with Timer(''):
             cam.stop()
         cam.close()
+        print len(cam.frames)
+        print cam.frames[0].shape
         
     @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
         simple_camera()
         
-#    @unittest.skip('')    
+    @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
         threaded_camera()
         
@@ -366,7 +370,7 @@ def threaded_camera():
         
         
 if __name__ == '__main__':
-    simple_camera()
-    print('simple done')
+    #simple_camera()
+    #print('simple done')
     #threaded_camera()
-    #unittest.main()
+    unittest.main()

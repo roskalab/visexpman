@@ -95,7 +95,14 @@ class KeepRunningReward(Protocol):
         Success rate is the ratio of time while the animal was running
         '''
         if self.engine.speed_values.shape[0]>0:
-            elapsed_time=self.last_update-self.engine.speed_values[0,0]
+            if not hasattr(self.engine, 'recording_started_state'):
+                index=0
+            else:
+                index=self.engine.recording_started_state['speed_values']
+                if 0:
+                    logging.info((index,self.engine.speed_values.shape))
+            tlast=self.last_update if hasattr(self, 'last_update') else self.engine.speed_values[-1,0]
+            elapsed_time=tlast-self.engine.speed_values[index,0]
             success_rate=self.nrewards*self.RUN_TIME/elapsed_time
             success_rate = 1.0 if success_rate>=1 else success_rate
             return {'rewards':self.nrewards, 'Success Rate': success_rate}
