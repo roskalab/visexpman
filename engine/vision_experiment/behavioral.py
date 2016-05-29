@@ -9,7 +9,7 @@ import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
-DEBUG=True
+DEBUG=False
 NREWARD_VOLUME=100
 
 def object_parameters2dict(obj):
@@ -54,14 +54,15 @@ class TreadmillSpeedReader(multiprocessing.Process):
         while True:
             try:
                 now=time.time()
-                if self.emulate_speed and now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
-                    self.last_run=copy.deepcopy(now)
-                    spd=self.emulated_speed(now-self.start_time)
+                if self.emulate_speed:
+                   if now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
+                        self.last_run=copy.deepcopy(now)
+                        spd=self.emulated_speed(now-self.start_time)
+                        self.speed_q.put([now,spd])
                 else:
                     dtstr=self.s.readlines(1)
                     if len(dtstr)==1 and len(dtstr[0])>0:
                         dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
-                        #print dt*1e3
                         ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
                         spd=ds/dt*self.machine_config.POSITIVE_DIRECTION
                     else:
@@ -311,7 +312,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Reward')
         now=time.time()
-        #if self.reward_values.shape[0]!=0:
         self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
         
     def rewardx100(self):
@@ -325,8 +325,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Airpuff')
         now=time.time()
-        #if self.airpuff_values.shape[0]!=0:
-        #if self.airpuff_values.shape[0]!=0:
         self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
         
     def set_valve(self,channel,state):
@@ -504,7 +502,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         self.show_day_success_rate(self.recording_folder)
-        self.current_protocol = self.parameters['Protocol']
+        self.current_protocol = str(self.parameters['Protocol'])
         #TODO give warning if suggested protocol is different
         modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.Protocol,direct = False)[0][0].__name__
         __import__(modulename)
@@ -566,6 +564,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def save2file(self):
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.datafile.stat=self.protocol.stat()
+        if 0:
+            logging.info(self.datafile.stat)
+            logging.info(self.protocol.last_update-self.speed_values[0,0])
+            logging.info(self.protocol.last_update-self.speed_values[self.recording_started_state['speed_values'],0])
         self.protocol.reset()
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
@@ -576,7 +578,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             setattr(self.datafile, vn, values)
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.run_times=self.run_times
-        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times']
+        self.datafile.parameters=copy.deepcopy(self.parameters)
+        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times', 'parameters']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -601,6 +604,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if hasattr(stat,'has_key'):
             stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
             self.to_gui.put({'statusbar':stat})
+        logging.info('Opened {0}'.format(filename))
             
     def show_animal_statistics(self):
         if self.session_ongoing: return
@@ -807,6 +811,36 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader.join()
         self.save_context()
         logging.info('Engine terminated')
+        
+    def recalculate_stat(self,folder):
+        '''
+        self.engine.recalculate_stat('c:\\Data\\nelidash\\rd1 only\\')
+        '''
+        for fn in fileop.find_files_and_folders(folder)[1]:
+            if fn[-4:] == 'hdf5' and 'ForcedKeepRunningRewardLevel' in fn:
+                try:
+                    self.open_file(fn)
+                    self.datafile=hdf5io.Hdf5io(self.filename)
+                    self.datafile.load('reward_values')
+                    self.datafile.load('protocol_name')
+                    self.datafile.load('stat')
+                    logging.info('old: ' +str(self.datafile.stat))
+                    pn=str(self.datafile.protocol_name)
+                    modulename=utils.fetch_classes('visexpman.users.common', classname=pn,required_ancestors = experiment.Protocol,direct = False)[0][0].__name__
+                    __import__(modulename)
+                    reload(sys.modules[modulename])
+                    protocol= getattr(sys.modules[modulename], pn)(self)
+                    protocol.nrewards=self.datafile.reward_values.shape[0]
+                    if hasattr(self, 'recording_started_state'):
+                        del self.recording_started_state
+                    self.datafile.stat=protocol.stat()
+                    logging.info('new: '+str(self.datafile.stat))
+                    self.datafile.save('stat')
+                    self.datafile.close()
+                except:
+                    logging.error(traceback.format_exc())
+        logging.info('Done')
+        
         
 class Behavioral(gui.SimpleAppWindow):
     '''
@@ -1343,7 +1377,7 @@ class TestBehavEngine(unittest.TestCase):
     def test_03_speed_emulator(self):
         q=multiprocessing.Queue()
         rectime=3
-        tsr=TreadmillSpeedReader(q,self.machine_config,emulate_speed=True)
+        tsr=TreadmillSpeedReader(q,self.machine_config,emulate_speed=False)
         tsr.start()
         time.sleep(rectime)
         q.put('terminate')
