@@ -107,8 +107,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             caller_name =inspect.getframeinfo(caller_function_info)[2]
             frame_info = {}
             frame_info['counter'] = self.frame_counter
-            if is_last:
-                frame_info['counter']  -= 1
+            #Removed: when 1 frame time stimulus is presented, the last and first enrties will have the same counter value and from this the duration cannot be consistently calculated
+            #if is_last: #ensures that there are not stimulus_frame_info entries with the same counter value
+            #    frame_info['counter']  -= 1
             frame_info['elapsed_time'] = self.elapsed_time
             frame_info['stimulus_type'] = caller_name
             frame_info['is_last'] = is_last
