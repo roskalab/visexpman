@@ -21,15 +21,19 @@ class BehavioralSetup(BehavioralConfig):
         SCREEN_SIZE=[1366,700]
         SCREEN_OFFSET=[4,19]
         BOTTOM_WIDGET_HEIGHT=260
+        PLOT_WIDGET_WIDTH=700
         MINIMUM_FREE_SPACE=20#GByte
         ARDUINO_SERIAL_PORT='COM5' if os.name=='nt' else '/dev/ttyACM0'
         LASER_AO_CHANNEL='Dev1/ao0'
         LED_AO_CHANNEL='Dev1/ao1'
         POSITIVE_DIRECTION=-1
-        PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StimStopReward']
+        PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StopRewardLevel2', 'StimStopReward']
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM3'
+    PLOT_WIDGET_WIDTH=600
+    WATER_VALVE_DO_CHANNEL=1
+    AIRPUFF_VALVE_DO_CHANNEL=0
 
 class OfficeTestComputer(BehavioralSetup):
     LASER_AO_CHANNEL='/Dev2/ao0'
@@ -99,8 +103,7 @@ class KeepRunningReward(Protocol):
                 index=0
             else:
                 index=self.engine.recording_started_state['speed_values']
-                if 0:
-                    logging.info((index,self.engine.speed_values.shape))
+                index = index-1 if index>0 else index
             tlast=self.last_update if hasattr(self, 'last_update') else self.engine.speed_values[-1,0]
             elapsed_time=tlast-self.engine.speed_values[index,0]
             success_rate=self.nrewards*self.RUN_TIME/elapsed_time
@@ -193,6 +196,10 @@ class StopReward(Protocol):
         else:
             success_rate=self.nrewards/float(self.nruns)
         return {'rewards':self.nrewards, 'runs': self.nruns, 'Success Rate': success_rate}
+        
+class StopRewardLevel2(StopReward):
+    __doc__=StopReward.__doc__
+    STOP_TIME=1.0
 
 class StimStopReward(Protocol):
     '''

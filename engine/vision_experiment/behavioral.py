@@ -923,7 +923,7 @@ class Behavioral(gui.SimpleAppWindow):
         A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
         ''')
         self.plots.success_rate.plot.setLabels(left='%')
-        self.plots.tab.setMinimumWidth(700)
+        self.plots.tab.setMinimumWidth(self.machine_config.PLOT_WIDGET_WIDTH)
         self.plots.tab.setFixedHeight(self.machine_config.BOTTOM_WIDGET_HEIGHT)
         for pn in self.plotnames:
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
