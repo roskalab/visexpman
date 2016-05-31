@@ -1,6 +1,5 @@
 import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman, copy, traceback,serial,re,subprocess,platform
-from PIL import Image
+import numpy,scipy.io,visexpman, traceback,serial,re,subprocess,platform
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -8,7 +7,7 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
+from visexpman.engine.vision_experiment import experiment
 DEBUG=True
 NREWARD_VOLUME=100
 
@@ -333,13 +332,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         elif channel=='water':
             self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
         
-    def stimulate(self):
+    def stimulate(self,waveform=None):
         logging.info('Stimulate on {0} with {1} for {2} s'.format(self.parameters['Stimulus Channel'], self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
         now=time.time()
-        fsample=1000
-        self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
-        self.stimulus_waveform[0]=0
-        self.stimulus_waveform[-1]=0
+        fsample=self.machine_config.STIM_SAMPLE_RATE
+        if waveform == None:
+            self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
+            self.stimulus_waveform[0]=0
+            self.stimulus_waveform[-1]=0
+        else:
+            self.stimulus_waveform=waveform
         self.stimulus_waveform*=self.parameters['Laser Intensity']
         stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
         self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))

@@ -1,4 +1,4 @@
-import random,logging,time,os
+import random,logging,time,os,numpy
 from visexpman.engine.vision_experiment.configuration import BehavioralConfig
 from visexpman.engine.vision_experiment.experiment import Protocol
 from visexpman.engine.generic import fileop
@@ -25,6 +25,7 @@ class BehavioralSetup(BehavioralConfig):
         ARDUINO_SERIAL_PORT='COM5' if os.name=='nt' else '/dev/ttyACM0'
         LASER_AO_CHANNEL='Dev1/ao0'
         LED_AO_CHANNEL='Dev1/ao1'
+        STIM_SAMPLE_RATE=1000
         POSITIVE_DIRECTION=-1
         PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StimStopReward']
         
@@ -34,6 +35,53 @@ class BehavioralSetup2(BehavioralSetup):
 class OfficeTestComputer(BehavioralSetup):
     LASER_AO_CHANNEL='/Dev2/ao0'
     ENABLE_CAMERA=False
+    
+class FearResponse(Protocol):
+    '''
+    Superclass for training for and measuring fear response
+    
+    Trigger timing is defined relative to the start of the save period
+    
+    file = "samples/sample.wav"
+
+        winsound.PlaySound(
+            file,
+            winsound.SND_FILENAME|winsound.SND_NOWAIT,
+    )
+    
+    '''
+    ENABLE_AIRPUFF=True
+    ENABLE_AUDITORY_STIMULUS=True
+    ENABLE_VISUAL_STIMULUS=True
+    STIMULUS_REPETITIONS=20
+    STIMULUS_DURATION=1.0
+    PAUSE_BETWEEN_STIMULUS_REPETITIONS=1.0
+    FIRST_TRIGGER_TIME=10.0
+    NTRIGGERS=1
+    PAUSE_BETWEEN_TRIGGERS=10.0
+    def reset(self):
+        self.trigger_times=numpy.arange(self.NTRIGGERS)*self.PAUSE_BETWEEN_TRIGGERS+self.FIRST_TRIGGER_TIME
+        self.trigger_index=0
+        
+    def update(self):
+        elapsed_time=time.time()-self.engine.recording_started_state['speed_values']
+        if elapsed_time>=self.trigger_times[self.trigger_index]:
+            self.trigger_index+=1
+            if self.ENABLE_AIRPUFF:
+                self.engine.airpuff()
+            if self.ENABLE_AUDITORY_STIMULUS:
+                self.engine.auditory_stimulus(self.STIMULUS_REPETITIONS)
+            if self.ENABLE_VISUAL_STIMULUS:
+                fsample=self.engine.machine_config.STIM_SAMPLE_RATE
+                waveform=numpy.tile(numpy.concatenate(
+                        (numpy.zeros(0.5*self.PAUSE_BETWEEN_STIMULUS_REPETITIONS*fsample), 
+                        numpy.ones(self.STIMULUS_DURATION*fsample), 
+                        numpy.zeros(0.5*self.PAUSE_BETWEEN_STIMULUS_REPETITIONS*fsample)
+                        )),self.STIMULUS_REPETITIONS)
+                self.engine.stimulate(waveform)
+        
+    def stat(self):
+        return {}
     
 class KeepStopReward(Protocol):
     '''
