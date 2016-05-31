@@ -1,5 +1,6 @@
 import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman, traceback,serial,re,subprocess,platform
+import numpy,scipy.io,visexpman, copy, traceback,serial,re,subprocess,platform
+from PIL import Image
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -7,7 +8,7 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph,hdf5io,unittest
 from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
 DEBUG=True
 NREWARD_VOLUME=100
 
@@ -921,7 +922,7 @@ class Behavioral(gui.SimpleAppWindow):
         A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
         ''')
         self.plots.success_rate.plot.setLabels(left='%')
-        self.plots.tab.setMinimumWidth(700)
+        self.plots.tab.setMinimumWidth(self.machine_config.PLOT_WIDGET_WIDTH)
         self.plots.tab.setFixedHeight(self.machine_config.BOTTOM_WIDGET_HEIGHT)
         for pn in self.plotnames:
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
