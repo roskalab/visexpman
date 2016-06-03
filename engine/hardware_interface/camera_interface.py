@@ -1,4 +1,4 @@
-import copy
+import copy,visexpman
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
@@ -209,7 +209,7 @@ def opencv_camera_runner(filename, duration, config):
         
 class ImagingSourceCamera(VideoCamera):
     def _init_camera(self):
-        dllpath = 'c:\\TIS Grabber DLL\\bin\\x64\\tisgrabber_x64.dll'
+        dllpath = os.path.join(os.path.dirname(visexpman.__file__),'engine', 'external','IC', 'tisgrabber_x64.dll')
         wd = os.getcwd()
         os.chdir(os.path.dirname(dllpath))
         self.dllref = ctypes.windll.LoadLibrary(dllpath)
@@ -235,7 +235,7 @@ class ImagingSourceCamera(VideoCamera):
         if hasattr(self.config, 'CAMERA_FRAME_RATE'):
             self.frame_rate = self.config.CAMERA_FRAME_RATE
         else:
-            self.frame_rate = 24.0
+            self.frame_rate = 30.0
         if self.dllref.IC_SetFrameRate(self.grabber_handle,  ctypes.c_float(self.frame_rate)) != 1:
             raise RuntimeError('Setting frame rate did not succeed')
         self.snap_timeout = self.dllref.IC_GetFrameRate(self.grabber_handle)
@@ -260,6 +260,7 @@ class ImagingSourceCamera(VideoCamera):
             buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(p.contents), self.frame_size)
             frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
             self.frames.append(frame)
+#            print len(self.frames)
 #            self.framep.append(p)
 
             if False or (False and self.frame_rate <= 7.5):
@@ -274,7 +275,7 @@ class ImagingSourceCamera(VideoCamera):
         if self.isrunning:
             self.isrunning = False
             self.dllref.IC_StopLive(self.grabber_handle)
-            self.video = numpy.array(self.frames)            
+            self.video = numpy.array(self.frames)
 #            if len(self.frames)>200:
 #                self.video = numpy.array(self.frames)
 #            else:
@@ -298,6 +299,25 @@ class ImagingSourceCamera(VideoCamera):
     def close(self):
         self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
         self.dllref.IC_CloseLibrary()
+        
+class ImagingSourceCameraSaver(ImagingSourceCamera):
+    def __init__(self,filename):
+        ImagingSourceCamera.__init__(self,None)
+        self.filename=filename
+        self.datafile=tables.open_file(filename, 'w')
+        self.datafile.create_earray(self.datafile.root, 'ic_frames', tables.UInt8Atom((480, 744)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='blosc', shuffle = 1))
+        self.datafile.create_earray(self.datafile.root, 'ic_timestamps', tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
+        
+    def save(self):
+        ImagingSourceCamera.save(self)
+        if  len(self.frames)>0:
+            self.datafile.root.ic_timestamps.append(numpy.array([[time.time()]]))
+            self.datafile.root.ic_frames.append(numpy.expand_dims(self.frames[-1],0))
+            
+    def stop(self):
+        ImagingSourceCamera.stop(self)
+        self.datafile.close()
+        
 
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):
@@ -318,26 +338,24 @@ class TestCVCameraConfig(configuration.Config):
 class TestCamera(unittest.TestCase):
     #@unittest.skip('')
     def test_01_record_some_frames(self):
-        cam = ImagingSourceCamera(None)#TestISConfig())
-        
+        cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())))
         cam.start()
-        
+        time.sleep(0.2)
+        tacq=2.0
+        t0=time.time()
         with Timer(''):
-            while cam.frame_counter <= 30: 
+            while cam.frame_counter < 24*tacq: 
                 cam.save()
-        with Timer(''):
-            cam.stop()
+                
+        cam.stop()
         cam.close()
-        print len(cam.frames)
+        
+        print len(cam.frames)/(time.time()-t0)
         print cam.frames[0].shape
         
     @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
         simple_camera()
-        
-    @unittest.skip('')    
-    def test_02_record_some_frames_firewire_cam(self):
-        threaded_camera()
         
 def simple_camera():
     import os

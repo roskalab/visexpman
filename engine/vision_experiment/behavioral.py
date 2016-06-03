@@ -1,14 +1,13 @@
-import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman, copy, traceback,serial,re,subprocess,platform
-from PIL import Image
+import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging
+import numpy,visexpman, traceback,serial,re,subprocess,platform
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-import pyqtgraph,hdf5io,unittest
-from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
+import hdf5io,unittest
+from visexpman.engine.generic import gui,utils,fileop,introspect
+from visexpman.engine.hardware_interface import daq_instrument,camera_interface
+from visexpman.engine.vision_experiment import experiment,experiment_data
 DEBUG=True
 NREWARD_VOLUME=100
 
@@ -287,7 +286,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def edit_protocol(self):
-        from visexpman.engine.vision_experiment import behavioral
         fn=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.Protocol,direct = False)[0][0].__file__
         if fn[-3:]=='pyc':
             fn=fn[:-1]
@@ -506,12 +504,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             os.mkdir(self.recording_folder)
         self.show_day_success_rate(self.recording_folder)
         self.current_protocol = str(self.parameters['Protocol'])
-        #TODO give warning if suggested protocol is different
         modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.Protocol,direct = False)[0][0].__name__
         __import__(modulename)
         reload(sys.modules[modulename])
         self.protocol= getattr(sys.modules[modulename], self.current_protocol)(self)
-        self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+str(object_parameters2dict(self.protocol))})
+        param_str=str(object_parameters2dict(self.protocol)).replace(',',',\r\n')
+        self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+param_str})
         self.session_ongoing=True
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
@@ -544,11 +542,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         videofilename=self.filename+'.avi'
         self.filename+='.hdf5'
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
+        if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
+            self.iscamera=camera_interface.ImagingSourceCameraSaver(self.filename)
         self.start_video_recording(videofilename)
+        if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
+            self.iscamera.start()
         
     def finish_recording(self):
         self.stop_video_recording()
         logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
+        if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
+            self.iscamera.stop()
+            self.iscamera.close()
         self.save2file()
         
     def periodic_save(self):
@@ -578,7 +583,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.run_times=self.run_times
         self.datafile.parameters=copy.deepcopy(self.parameters)
-        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times', 'parameters']
+        self.datafile.software=experiment_data.pack_software_environment() 
+        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times', 'parameters', 'software']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -787,6 +793,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                             logging.debug(msg)
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
+                if hasattr(self, 'iscamera') and self.iscamera.isrunning:
+                    self.iscamera.save()
+                    if len(self.iscamera.frames)>0:
+                        self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1]})
                 if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
                     if self.enable_speed_update:
                         self.run_stop_event_detector()
@@ -966,6 +976,8 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('update_main_image'):
             if not skip_main_image_display:
                 self.cw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
+        elif msg.has_key('update_closeup_image'):
+                self.cw.images.closeup.set_image(numpy.rot90(msg['update_closeup_image'],3),alpha=1.0)
         elif msg.has_key('update_events_plot'):
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
@@ -1085,7 +1097,7 @@ class CWidget(QtGui.QWidget):
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
         self.setFixedHeight(340)
-        self.imagenames=['main', 'eye']
+        self.imagenames=['main', 'closeup']
         self.images=gui.TabbedImages(self,self.imagenames)
         ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
         self.images.main.setFixedWidth(280*ar)
