@@ -236,8 +236,7 @@ class ImagingSourceCamera(VideoCamera):
             self.frame_rate = self.config.CAMERA_FRAME_RATE
         else:
             self.frame_rate = 30.0
-        if self.dllref.IC_SetFrameRate(self.grabber_handle,  ctypes.c_float(self.frame_rate)) != 1:
-            raise RuntimeError('Setting frame rate did not succeed')
+        self.set_framerate()
         self.snap_timeout = self.dllref.IC_GetFrameRate(self.grabber_handle)
 #        print self.dllref.IC_SetCameraProperty(self.grabber_handle, 4, ctypes.c_long(self.snap_timeout))#Exposure time
         self.isrunning = False
@@ -245,6 +244,10 @@ class ImagingSourceCamera(VideoCamera):
         self.framep = []
         self.frames = []
 #        self.video = numpy.zeros((1, self.h, self.w), numpy.uint8)
+
+    def set_framerate(self):
+        if self.dllref.IC_SetFrameRate(self.grabber_handle,  ctypes.c_float(self.frame_rate)) != 1:
+            raise RuntimeError('Setting frame rate did not succeed')
         
     def start(self, show=False):
         if not self.isrunning:
@@ -303,6 +306,8 @@ class ImagingSourceCamera(VideoCamera):
 class ImagingSourceCameraSaver(ImagingSourceCamera):
     def __init__(self,filename):
         ImagingSourceCamera.__init__(self,None)
+        self.frame_rate=15.0
+        self.set_framerate()
         self.filename=filename
         self.datafile=tables.open_file(filename, 'w')
         self.datafile.create_earray(self.datafile.root, 'ic_frames', tables.UInt8Atom((480, 744)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='blosc', shuffle = 1))

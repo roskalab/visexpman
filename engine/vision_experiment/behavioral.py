@@ -795,8 +795,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 self.update_video_recorder()
                 if hasattr(self, 'iscamera') and self.iscamera.isrunning:
                     self.iscamera.save()
-                    if len(self.iscamera.frames)>0:
-                        self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1]})
+                    if len(self.iscamera.frames)>0 and len(self.iscamera.frames)%4==0:
+                        self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
                 if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
                     if self.enable_speed_update:
                         self.run_stop_event_detector()
@@ -977,7 +977,7 @@ class Behavioral(gui.SimpleAppWindow):
             if not skip_main_image_display:
                 self.cw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
         elif msg.has_key('update_closeup_image'):
-                self.cw.images.closeup.set_image(numpy.rot90(msg['update_closeup_image'],3),alpha=1.0)
+            self.cw.images.closeup.set_image(numpy.rot90(numpy.dstack(tuple(3*[msg['update_closeup_image']])),3),alpha=1.0)
         elif msg.has_key('update_events_plot'):
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
