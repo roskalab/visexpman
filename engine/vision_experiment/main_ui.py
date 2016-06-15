@@ -512,6 +512,8 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.remove_all_rois()
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
+                self.image.setFixedHeight(self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0]))
+                self.adjust_contrast()
             elif msg.has_key('image_title'):
                 self.image.plot.setTitle(msg['image_title'])
             elif msg.has_key('show_suggested_rois'):

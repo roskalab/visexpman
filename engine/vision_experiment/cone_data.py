@@ -216,7 +216,7 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
     for fn, rois in aggregated_rois.items():
-        if len(rois)>3 and rois is not None:#Skip if link exists but rois do not. Also when number of rois is 3 or less
+        if len(rois)>2 and rois is not None:#Skip if link exists but rois do not. Also when number of rois is 2 or less
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
     if not aggregated_rectangles.has_key(filename):
@@ -357,6 +357,8 @@ def quantify_cells(cells):
     
 def roi_redetect(rectangle, meanimage, subimage_size=3):
     subimage=meanimage[rectangle[0]-rectangle[2]*0.5*subimage_size:rectangle[0]+rectangle[2]*0.5*subimage_size,rectangle[1]-rectangle[3]*0.5*subimage_size:rectangle[1]+rectangle[3]*0.5*subimage_size]
+#    if subimage.shape[1]==0:
+#        return False
     binary=numpy.where(subimage>filters.threshold_otsu(subimage),1,0)
     import scipy.ndimage.measurements
     labeled, nsegments = scipy.ndimage.measurements.label(binary)
@@ -364,7 +366,7 @@ def roi_redetect(rectangle, meanimage, subimage_size=3):
     try:
         area=numpy.where(labeled==labeled[binary.shape[0]/2,binary.shape[1]/2])
     except IndexError:
-        raise RuntimeError('CHECK THIS ERROR: binary.shape {0}, labeled.shape {1}, subimage.shape: {2}'.format(binary.shape,labeled.shape,subimage.shape))
+        raise RuntimeError('CHECK THIS ERROR: rectangle {0}, binary.shape {1}, labeled.shape {2}, subimage.shape: {3}'.format(rectangle, binary.shape,labeled.shape,subimage.shape))
     area=numpy.copy(area)
     area[0]+=(rectangle[0]-rectangle[2]*0.5*subimage_size).astype(area.dtype)
     area[1]+=(rectangle[1]-rectangle[3]*0.5*subimage_size).astype(area.dtype)

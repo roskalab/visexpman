@@ -157,6 +157,7 @@ class Analysis(object):
             self.display_roi_curve()
             self._roi_area2image()
         self.datafile.close()
+        #self.to_gui.put({'adjust_contrast' :True})
         
     def _init_meanimge_w_rois(self):
         self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
@@ -183,7 +184,8 @@ class Analysis(object):
         if sigma*self.image_scale<0.2 or max_-min_>3:
             if not self.ask4confirmation('Automatic cell detection will take long with these parameters, do you want to continue?'):
                 return
-        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
+        img2process=numpy.copy(self.meanimage)
+        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(img2process, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self._filter_rois()
         #Calculate roi bounding box
         self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_rois]

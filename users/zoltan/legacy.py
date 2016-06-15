@@ -18,6 +18,7 @@ import tempfile
 FIX1KHZ= False
 NOMATFILE= not True
 NWEEKS=2
+NOT_50X50UM= not True
 
 class PhysTiff2Hdf5(object):
     '''
@@ -209,7 +210,10 @@ class PhysTiff2Hdf5(object):
                 boundaries = boundaries[numpy.where(boundaries<data_.shape[0])[0]]
                 nframes=boundaries.shape[0]/2
                 boundaries = boundaries[:2*(boundaries.shape[0]/2)]
-                rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
+                if NOT_50X50UM:
+                    rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizey*res-1), int(sizex*res)))
+                else:
+                    rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
                 #Memory error here
 #                rd=(rawdata-rawdata.min())
 #                rd/=(rd.max()-rd.min())
@@ -346,7 +350,7 @@ class PhysTiff2Hdf5(object):
             except:
                 print 'sync signal recording was aborted'
             SR=(10000.0 if not FIX1KHZ else 1000.0)
-            if indexes.shape[0]/(sig.shape[0]/SR)>66:
+            if indexes.shape[0]/(2*sig.shape[0]/SR)>66:
                 print 'sync signal not detected, assuming timing'
                 sig2=numpy.zeros_like(sig)
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
@@ -379,6 +383,8 @@ class PhysTiff2Hdf5(object):
         period_time=numpy.median(widths[0::2])+numpy.median(widths[1::2])
         frame_rate=fsample/period_time        
         frame_rate=10.0
+        if NOT_50X50UM:
+            frame_rate=20.0
         if (frame_rate<5 or frame_rate>20) and not self.allow_high_framerate:
             pdb.set_trace()
             raise RuntimeError(frame_rate)
