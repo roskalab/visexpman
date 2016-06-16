@@ -8,6 +8,7 @@ class BehavioralSetup(BehavioralConfig):
         EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         ENABLE_CAMERA=True
+        CAMERA_ID=0
         CAMERA_FRAME_RATE=7
         CAMERA_FRAME_WIDTH=640/2
         CAMERA_FRAME_HEIGHT=480/2
@@ -31,9 +32,22 @@ class BehavioralSetup(BehavioralConfig):
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM3'
+    SCREEN_OFFSET=[4,25]
+    SCREEN_SIZE=[1280,950]
     PLOT_WIDGET_WIDTH=600
+    BOTTOM_WIDGET_HEIGHT=400
     WATER_VALVE_DO_CHANNEL=1
     AIRPUFF_VALVE_DO_CHANNEL=0
+
+class BehavioralSetup3(BehavioralSetup):
+    SCREEN_OFFSET=[4,37]
+    SCREEN_SIZE=[1920,950]
+    PLOT_WIDGET_WIDTH=1200
+    BOTTOM_WIDGET_HEIGHT=400
+    CAMERA_ID=1
+    ARDUINO_SERIAL_PORT='COM3'
+    WATER_VALVE_DO_CHANNEL=2
+
 
 class OfficeTestComputer(BehavioralSetup):
     LASER_AO_CHANNEL='/Dev2/ao0'
@@ -212,7 +226,7 @@ class StimStopReward(Protocol):
     '''
     DELAY_AFTER_RUN=2.0
     RUN_TIME=10.0
-    STOP_TIME=0.5
+    STOP_TIME=1.0
     RANDOM_TIME_RANGE=10.0
     RANDOM_TIME_STEP=0.5
     def reset(self):
