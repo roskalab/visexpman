@@ -392,6 +392,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
         self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
+        self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
         self.roi_adjust = RoiShift(self)
 #        self.trace_parameters = QtGui.QLabel('', self)
 #        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
@@ -404,6 +405,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
         self.layout.addWidget(self.aggregate,2,3,1,1)
         self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
+        self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
         self.setLayout(self.layout)
         self.setFixedHeight(140)
         self.setFixedWidth(550)
@@ -519,6 +521,7 @@ class MainUI(gui.VisexpmanMainWindow):
             elif msg.has_key('show_suggested_rois'):
                 self.image_w_rois = msg['show_suggested_rois']
                 self.image.set_image(self.image_w_rois)
+                self.adjust_contrast()
             elif msg.has_key('display_roi_rectangles'):
                 self.image.remove_all_rois()
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
@@ -693,7 +696,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self.printc('Stimulus files and classes are refreshed.')
         
     def find_cells_action(self):
-        self.to_engine.put({'function': 'find_cells', 'args':[]})
+        if self.analysis_helper.find_cells_scaled.input.checkState()==2:
+            pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
+        else:
+            pixel_range=None
+        self.to_engine.put({'function': 'find_cells', 'args':[pixel_range]})
         
     def previous_roi_action(self):
         self.to_engine.put({'function': 'previous_roi', 'args':[]})
@@ -717,7 +724,11 @@ class MainUI(gui.VisexpmanMainWindow):
             return
         roi=movable_rois[0] 
         rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]
-        self.to_engine.put({'function': 'add_manual_roi', 'args':[rectangle]})
+        if self.analysis_helper.find_cells_scaled.input.checkState()==2:
+            pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
+        else:
+            pixel_range=None
+        self.to_engine.put({'function': 'add_manual_roi', 'args':[rectangle,pixel_range]})
         
     def save_rois_action(self):
         '''Also exports to mat file'''
@@ -739,6 +750,7 @@ class MainUI(gui.VisexpmanMainWindow):
             im = numpy.copy(self.image_w_rois)
             im[:,:,2] *= state==2
             self.image.set_image(im)
+            self.adjust_contrast()
             
     def show_repeptitions_changed(self,state):
         self.to_engine.put({'data': state==2, 'path': 'analysis_helper/show_repetitions/input', 'name': 'show_repetitions'})

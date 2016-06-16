@@ -168,7 +168,7 @@ class Analysis(object):
         self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
         self.background_threshold=background_threshold
         
-    def find_cells(self):
+    def find_cells(self, pixel_range=None):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
             self.notify('Warning', 'Open datafile first')
             return
@@ -185,6 +185,12 @@ class Analysis(object):
             if not self.ask4confirmation('Automatic cell detection will take long with these parameters, do you want to continue?'):
                 return
         img2process=numpy.copy(self.meanimage)
+        if pixel_range != None:
+            image_range = self.meanimage.max()-self.meanimage.min()
+            low = float(pixel_range[0])/100*image_range
+            high = float(pixel_range[1])/100*image_range
+            img2process=numpy.where(img2process<low,low,img2process)
+            img2process=numpy.where(img2process>high,high,img2process)
         self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(img2process, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self._filter_rois()
         #Calculate roi bounding box
@@ -359,13 +365,20 @@ class Analysis(object):
             os.remove(outfile)
             self.printc('{0} removed'.format(outfile))
         
-    def add_manual_roi(self, rectangle):
+    def add_manual_roi(self, rectangle,pixel_range=None):
         rectangle = numpy.array(rectangle)/self.image_scale
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         self.printc('Roi {0}, {1}'.format(rectangle, self.raw_data.shape))
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
-        area=cone_data.roi_redetect(rectangle, self.meanimage, subimage_size=3)
+        img2process=numpy.copy(self.meanimage)
+        if pixel_range != None:
+            image_range = self.meanimage.max()-self.meanimage.min()
+            low = float(pixel_range[0])/100*image_range
+            high = float(pixel_range[1])/100*image_range
+            img2process=numpy.where(img2process<low,low,img2process)
+            img2process=numpy.where(img2process>high,high,img2process)
+        area=cone_data.roi_redetect(rectangle, img2process, subimage_size=3)
         self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
