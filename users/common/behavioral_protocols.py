@@ -221,7 +221,7 @@ class StimStopReward(Protocol):
     '''
     DELAY_AFTER_RUN=2.0
     RUN_TIME=10.0
-    STOP_TIME=0.5
+    STOP_TIME=1.0
     RANDOM_TIME_RANGE=10.0
     RANDOM_TIME_STEP=0.5
     def reset(self):

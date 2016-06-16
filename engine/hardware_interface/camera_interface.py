@@ -263,7 +263,6 @@ class ImagingSourceCamera(VideoCamera):
             buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(p.contents), self.frame_size)
             frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
             self.frames.append(frame)
-#            print len(self.frames)
 #            self.framep.append(p)
 
             if False or (False and self.frame_rate <= 7.5):

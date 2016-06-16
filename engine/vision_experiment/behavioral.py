@@ -63,6 +63,8 @@ class TreadmillSpeedReader(multiprocessing.Process):
                     if len(dtstr)==1 and len(dtstr[0])>0:
                         dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
                         ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
+                        if dt==0:
+                            dt=1e-10#Avoid zero division
                         spd=ds/dt*self.machine_config.POSITIVE_DIRECTION
                     else:
                         spd=0.0
@@ -105,7 +107,7 @@ class CameraHandler(object):
         self.last_runtime=time.time()
         if self.machine_config.ENABLE_CAMERA:
             try:
-                self.camera = cv2.VideoCapture(0)#Initialize video capturing
+                self.camera = cv2.VideoCapture(self.machine_config.CAMERA_ID)#Initialize video capturing
                 self.camera.set(3, self.machine_config.CAMERA_FRAME_WIDTH)#Set camera resolution
                 self.camera.set(4, self.machine_config.CAMERA_FRAME_HEIGHT)
                 logging.info('Camera initialized')
@@ -918,7 +920,7 @@ class Behavioral(gui.SimpleAppWindow):
                             pi['value']=v
                             break
         self.paramw = gui.ParameterTable(self, self.params_config)
-        self.paramw .setFixedWidth(480)
+        self.paramw.setFixedWidth(480)
         self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
@@ -1096,7 +1098,7 @@ class CWidget(QtGui.QWidget):
     '''
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
-        self.setFixedHeight(340)
+        self.setFixedHeight(390)
         self.imagenames=['main', 'closeup']
         self.images=gui.TabbedImages(self,self.imagenames)
         ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
