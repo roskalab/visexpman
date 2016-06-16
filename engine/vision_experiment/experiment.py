@@ -192,6 +192,7 @@ class Stimulus(stimulation_library.AdvancedStimulation):
         return d
 
 class Protocol(object):
+    ENABLE_IMAGING_SOURCE_CAMERA=False
     def __init__(self,engine):
         self.engine=engine
         self.reset()
@@ -205,6 +206,8 @@ class Protocol(object):
         '''
         In a subclass this method calculates the actual success rate
         '''
+        return {'Success Rate': 0.0}
+        
     def reset(self):
         '''
         Resets state variables

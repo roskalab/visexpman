@@ -1,14 +1,13 @@
-import os,sys,time,threading,Queue,tempfile,random,shutil,multiprocessing,copy,logging
-import numpy,scipy.io,visexpman, copy, traceback,serial,re,subprocess,platform
-from PIL import Image
+import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging
+import numpy,visexpman, traceback,serial,re,subprocess,platform
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-import pyqtgraph,hdf5io,unittest
-from visexpman.engine.generic import gui,utils,videofile,fileop,introspect
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.vision_experiment import experiment_data, configuration,experiment
+import hdf5io,unittest
+from visexpman.engine.generic import gui,utils,fileop,introspect
+from visexpman.engine.hardware_interface import daq_instrument,camera_interface
+from visexpman.engine.vision_experiment import experiment,experiment_data
 DEBUG=False
 NREWARD_VOLUME=100
 
@@ -170,6 +169,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         self.context_variables=['datafolder','parameters','current_animal']
         self.load_context()
+        free_space=round(fileop.free_space(self.datafolder)/1e9,1)
+        if free_space<self.machine_config.MINIMUM_FREE_SPACE:
+            self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         self.load_animal_file(switch2plot=True)
         self.speed_reader_q=multiprocessing.Queue()
         self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=False)
@@ -200,9 +202,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 setattr(self,k,v)
         if not hasattr(self,'datafolder'):
             self.datafolder=self.machine_config.EXPERIMENT_DATA_PATH
-        free_space=round(fileop.free_space(self.datafolder)/1e9,1)
-        if free_space<self.machine_config.MINIMUM_FREE_SPACE:
-            self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
             
     def save_context(self):
         context={}
@@ -289,7 +288,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def edit_protocol(self):
-        from visexpman.engine.vision_experiment import behavioral
         fn=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.Protocol,direct = False)[0][0].__file__
         if fn[-3:]=='pyc':
             fn=fn[:-1]
@@ -335,13 +333,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         elif channel=='water':
             self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
         
-    def stimulate(self):
+    def stimulate(self,waveform=None):
         logging.info('Stimulate on {0} with {1} for {2} s'.format(self.parameters['Stimulus Channel'], self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
         now=time.time()
-        fsample=1000
-        self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
-        self.stimulus_waveform[0]=0
-        self.stimulus_waveform[-1]=0
+        fsample=self.machine_config.STIM_SAMPLE_RATE
+        if waveform == None:
+            self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
+            self.stimulus_waveform[0]=0
+            self.stimulus_waveform[-1]=0
+        else:
+            self.stimulus_waveform=waveform
         self.stimulus_waveform*=self.parameters['Laser Intensity']
         stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
         self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
@@ -505,12 +506,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             os.mkdir(self.recording_folder)
         self.show_day_success_rate(self.recording_folder)
         self.current_protocol = str(self.parameters['Protocol'])
-        #TODO give warning if suggested protocol is different
         modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.Protocol,direct = False)[0][0].__name__
         __import__(modulename)
         reload(sys.modules[modulename])
         self.protocol= getattr(sys.modules[modulename], self.current_protocol)(self)
-        self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+str(object_parameters2dict(self.protocol))})
+        param_str=str(object_parameters2dict(self.protocol)).replace(',',',\r\n')
+        self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+param_str})
         self.session_ongoing=True
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
@@ -543,11 +544,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         videofilename=self.filename+'.avi'
         self.filename+='.hdf5'
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
+        if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
+            self.iscamera=camera_interface.ImagingSourceCameraSaver(self.filename)
         self.start_video_recording(videofilename)
+        if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
+            self.iscamera.start()
         
     def finish_recording(self):
         self.stop_video_recording()
         logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
+        if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
+            self.iscamera.stop()
+            self.iscamera.close()
         self.save2file()
         
     def periodic_save(self):
@@ -566,10 +574,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def save2file(self):
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.datafile.stat=self.protocol.stat()
-        if 0:
-            logging.info(self.datafile.stat)
-            logging.info(self.protocol.last_update-self.speed_values[0,0])
-            logging.info(self.protocol.last_update-self.speed_values[self.recording_started_state['speed_values'],0])
         self.protocol.reset()
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
@@ -581,7 +585,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.run_times=self.run_times
         self.datafile.parameters=copy.deepcopy(self.parameters)
-        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times', 'parameters']
+        self.datafile.software=experiment_data.pack_software_environment() 
+        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times', 'parameters', 'software']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -667,7 +672,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     self.best_success_rate_selected['x'].extend(x)
                     self.best_success_rate_selected['y'].extend(y)
         self.best_success_rate_selected['x']=numpy.array(self.best_success_rate_selected['x'])
-        self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])
+        self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])*100.0
         self.best_success_rate_selected['n']=n
         self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal, self.best_success_rate_selected]})
     
@@ -790,6 +795,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                             logging.debug(msg)
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
+                if hasattr(self, 'iscamera') and self.iscamera.isrunning:
+                    self.iscamera.save()
+                    if len(self.iscamera.frames)>0 and len(self.iscamera.frames)%4==0:
+                        self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
                 if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
                     if self.enable_speed_update:
                         self.run_stop_event_detector()
@@ -969,6 +978,8 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('update_main_image'):
             if not skip_main_image_display:
                 self.cw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
+        elif msg.has_key('update_closeup_image'):
+            self.cw.images.closeup.set_image(numpy.rot90(numpy.dstack(tuple(3*[msg['update_closeup_image']])),3),alpha=1.0)
         elif msg.has_key('update_events_plot'):
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
@@ -1087,8 +1098,8 @@ class CWidget(QtGui.QWidget):
     '''
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
-        self.setFixedHeight(340+50)
-        self.imagenames=['main', 'eye']
+        self.setFixedHeight(390)
+        self.imagenames=['main', 'closeup']
         self.images=gui.TabbedImages(self,self.imagenames)
         ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
         self.images.main.setFixedWidth(280*ar)
