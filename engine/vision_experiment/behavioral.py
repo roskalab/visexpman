@@ -245,6 +245,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if self.session_ongoing:
             return
         self.load_animal_file(date=date,weight=weight, switch2plot=True)
+        logging.info('Animal weight added')
         
     def remove_last_animal_weight(self):
         if self.session_ongoing:
@@ -1104,6 +1105,8 @@ class CWidget(QtGui.QWidget):
         ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
         self.images.main.setFixedWidth(280*ar)
         self.images.main.setFixedHeight(280)
+        self.images.closeup.setFixedWidth(280*ar)
+        self.images.closeup.setFixedHeight(280)
         self.main_tab = self.images.tab
         self.filebrowserw=FileBrowserW(self)
         self.main_tab.addTab(self.filebrowserw, 'Files')
