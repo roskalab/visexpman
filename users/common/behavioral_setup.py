@@ -1,6 +1,5 @@
-import random,logging,time,os
+import os
 from visexpman.engine.vision_experiment.configuration import BehavioralConfig
-from visexpman.engine.vision_experiment.experiment import Protocol
 from visexpman.engine.generic import fileop
 
 class BehavioralSetup(BehavioralConfig):

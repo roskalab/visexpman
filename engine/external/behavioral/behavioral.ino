@@ -6,6 +6,7 @@ byte pin;
 long delta_time;
 //TODO: test ISR runtime, Do not send message if more than 50% cpu time is used
 ISR(PCINT0_vect ) {
+  cli();
   PORTD|=(1<<5);
   pin=(PINB&(1<<4))>>4;
   if (pin==0)
@@ -26,7 +27,7 @@ ISR(PCINT0_vect ) {
 //    Serial.print(PINB&(1<<4));
     Serial.print((PINB&(1<<4))|(PINB&(1<<3)));*/
     Serial.print("ms\r\n");  
-
+    sei();
     
   }
  PORTD&=~(1<<5);

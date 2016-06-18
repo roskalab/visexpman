@@ -46,9 +46,18 @@ class TreadmillSpeedReader(multiprocessing.Process):
         return spd
         
     def run(self):
+        logging.basicConfig(filename= fileop.get_log_filename(self.machine_config).replace('.txt', '_speed_reader.txt'),
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.INFO)
         self.last_run=time.time()
         self.start_time=time.time()
-        self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
+        try:
+            self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
+        except:
+            msg=traceback.format_exc()
+            print msg
+            logging.error(msg)
+            return
         logging.info('Speed reader started')
         while True:
             try:
@@ -245,7 +254,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if self.session_ongoing:
             return
         self.load_animal_file(date=date,weight=weight, switch2plot=True)
-        logging.info('Animal weight added')
+        logging.info('Animal weight added ({0}g/{1})'.format(weight,date))
         
     def remove_last_animal_weight(self):
         if self.session_ongoing:
@@ -584,10 +593,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
             setattr(self.datafile, vn, values)
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
+        self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
         self.datafile.run_times=self.run_times
         self.datafile.parameters=copy.deepcopy(self.parameters)
         self.datafile.software=experiment_data.pack_software_environment() 
-        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times', 'parameters', 'software']
+        self.datafile.animal=self.current_animal
+        nodes=['animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'stat', 'run_times', 'parameters', 'software']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -676,6 +687,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])*100.0
         self.best_success_rate_selected['n']=n
         self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal, self.best_success_rate_selected]})
+        logging.info('Done')
     
     def show_animal_success_rate(self):
         '''
@@ -713,6 +725,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             x=self.reward_volume[:,0]
             y=self.parameters['100 Reward Volume']*self.reward_volume[:,1]/NREWARD_VOLUME
             self.to_gui.put({'update_reward_volume_plot':{'x':x, 'y':y}})
+        logging.info('Done')
         
     def day_summary(self, folder):
         summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
@@ -888,9 +901,9 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
                                 {'name': 'Save Period', 'type': 'float', 'value': 100.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
-                                {'name': 'Move Threshold', 'type': 'float', 'value': 0.1,'suffix': 'm/s'},
-                                {'name': 'Run Threshold', 'type': 'float', 'value': 70.0, 'suffix': '%'},
-                                {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 20},
+                                {'name': 'Move Threshold', 'type': 'float', 'value': 0.05,'suffix': 'm/s'},
+                                {'name': 'Run Threshold', 'type': 'float', 'value': 50.0, 'suffix': '%'},
+                                {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 30},
                             ]},
                             {'name': 'Show...', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Run Events Trace', 'type': 'bool', 'value': True},
@@ -973,7 +986,9 @@ class Behavioral(gui.SimpleAppWindow):
             x/=86400
             x-=x[0]
             self.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
-            self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
+            self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, {3} = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0]), int(numpy.round(x[-1]))))
+            self.plots.animal_weight.plot.setYRange(min(msg['update_weight_history'][:,1]), max(msg['update_weight_history'][:,1]))
+            self.plots.animal_weight.plot.setXRange(min(x), max(x))
         elif msg.has_key('switch2_animal_weight_plot'):
             self.plots.tab.setCurrentIndex(1)
         elif msg.has_key('update_main_image'):
@@ -1059,7 +1074,9 @@ class Behavioral(gui.SimpleAppWindow):
         self.to_engine.put({'function': 'stop_session','args':[]})
         
     def select_data_folder_action(self):
-        self.engine.datafolder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        folder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        if folder=='':return
+        self.engine.datafolder=folder
         free_space=round(fileop.free_space(self.engine.datafolder)/1e9,1)
         if free_space<self.machine_config.MINIMUM_FREE_SPACE:
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
