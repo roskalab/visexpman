@@ -136,7 +136,8 @@ class CameraHandler(object):
         
     def stop_video_recording(self):
         self.save_video=False
-        del self.video_saver
+        if hasattr(self, 'video_saver'):
+            del self.video_saver
         logging.info('Recording video ended')
                 
     def update_video_recorder(self):
@@ -562,6 +563,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def finish_recording(self):
         self.stop_video_recording()
+        time.sleep(2*self.machine_config.TREADMILL_READ_TIMEOUT)#Make sure that no index error occurs
         logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera.stop()
@@ -626,7 +628,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Opened {0}'.format(filename))
             
     def show_animal_statistics(self):
-        if self.session_ongoing: return
+        if self.session_ongoing: 
+            self.notify('Warning', 'Stat cannot be shown during recording')
+            return
         logging.info('Generating plots, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
         day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
@@ -1447,6 +1451,10 @@ class TestBehavEngine(unittest.TestCase):
 
 if __name__ == '__main__':
     if len(sys.argv)>1:
+        introspect.kill_other_python_processes()
+        #Check number of python processes
+        if len(introspect.get_python_processes())>1:
+            raise RuntimeError('Kill all python prcesses from task manager')
         gui = Behavioral()
     else:
         unittest.main()

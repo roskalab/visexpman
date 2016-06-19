@@ -51,6 +51,9 @@ def kill_python_processes(dont_kill_pids):
             p = psutil.Process(pid)
             p.kill()
     return killed
+    
+def kill_other_python_processes():
+    kill_python_processes([os.getpid()])
 
 def dumpall(fn):
     '''

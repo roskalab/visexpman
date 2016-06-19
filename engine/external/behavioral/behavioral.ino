@@ -19,17 +19,19 @@ ISR(PCINT0_vect ) {
       delta_time*=-1;
     }
     prev=now;
-    Serial.print("deltaT");
-   Serial.print(delta_time);
+    if (delta_time>20)
+    {
+      Serial.print("deltaT");
+      Serial.print(delta_time);
 /*     Serial.print(" dir= ");
        Serial.print(dir);
      Serial.print("pins= ");
 //    Serial.print(PINB&(1<<4));
     Serial.print((PINB&(1<<4))|(PINB&(1<<3)));*/
-    Serial.print("ms\r\n");  
-    sei();
-    
+      Serial.print("ms\r\n");
+    }    
   }
+ sei();
  PORTD&=~(1<<5);
 }
 
@@ -44,10 +46,12 @@ void setup() {
    prev=millis();
    //For testing:
    DDRD|=(1<<7)|(1<<6)|(1<<5);
-   
+   randomSeed(0);
 }
 
 byte channel, pulse_width;
+int emspd,noise=0;
+
 void loop() {
   b = Serial.read();
   /*
@@ -72,12 +76,14 @@ void loop() {
          PORTB&=~(1<<channel);   
      }
     }
-  /*PORTD&=~(1<<7);  
-  PORTD|=(1<<7);
-  PORTD&=~(1<<6);    
-  delay(1000);
-  PORTD&=~(1<<7);
-  PORTD|=(1<<6);
-  delay(1000);  */
-  
+  if (0)
+  {
+    noise=random(-10,10);
+    emspd=-30+noise;
+    Serial.print("deltaT");
+    Serial.print(emspd);
+    Serial.print("ms\r\n");
+    delay(30);
+  }
+ 
 }
