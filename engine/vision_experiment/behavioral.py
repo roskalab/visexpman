@@ -8,8 +8,10 @@ import hdf5io,unittest
 from visexpman.engine.generic import gui,utils,fileop,introspect
 from visexpman.engine.hardware_interface import daq_instrument,camera_interface
 from visexpman.engine.vision_experiment import experiment,experiment_data
-DEBUG=True
+DEBUG=False
 NREWARD_VOLUME=100
+SPEED_BUFFER_SIZE=20000
+EMULATE_SPEED=False
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -41,18 +43,30 @@ class TreadmillSpeedReader(multiprocessing.Process):
             spd=2
         else:
             spd=10
-        spd = 10*int(int(t/21)%2==0)
-        spd+=numpy.random.random()-0.5
+        spd = 0.04*int(int(t/21)%2==0)
+        spd+=0.01*(numpy.random.random()-0.5)
         return spd
         
     def run(self):
+        logging.basicConfig(filename= fileop.get_log_filename(self.machine_config).replace('.txt', '_speed_reader.txt'),
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.INFO)
         self.last_run=time.time()
         self.start_time=time.time()
-        self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
+        try:
+            self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
+        except:
+            msg=traceback.format_exc()
+            print msg
+            logging.error(msg)
+            return
         logging.info('Speed reader started')
+        self.msg_counter=0
         while True:
             try:
                 now=time.time()
+                if int(now*10)%600==0:
+                    logging.info(self.msg_counter)
                 if self.emulate_speed:
                    if now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
                         self.last_run=copy.deepcopy(now)
@@ -61,6 +75,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
                 else:
                     dtstr=self.s.readlines(1)
                     if len(dtstr)==1 and len(dtstr[0])>0:
+                        self.msg_counter+=1
                         dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
                         ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
                         if dt==0:
@@ -127,7 +142,8 @@ class CameraHandler(object):
         
     def stop_video_recording(self):
         self.save_video=False
-        del self.video_saver
+        if hasattr(self, 'video_saver'):
+            del self.video_saver
         logging.info('Recording video ended')
                 
     def update_video_recorder(self):
@@ -169,9 +185,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         self.context_variables=['datafolder','parameters','current_animal']
         self.load_context()
+        free_space=round(fileop.free_space(self.datafolder)/1e9,1)
+        if free_space<self.machine_config.MINIMUM_FREE_SPACE:
+            self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         self.load_animal_file(switch2plot=True)
         self.speed_reader_q=multiprocessing.Queue()
-        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=False)
+        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=EMULATE_SPEED)
         self.speed_reader.start()
         self.session_ongoing=False
         self.reset_data()
@@ -199,9 +218,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 setattr(self,k,v)
         if not hasattr(self,'datafolder'):
             self.datafolder=self.machine_config.EXPERIMENT_DATA_PATH
-        free_space=round(fileop.free_space(self.datafolder)/1e9,1)
-        if free_space<self.machine_config.MINIMUM_FREE_SPACE:
-            self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
             
     def save_context(self):
         context={}
@@ -245,6 +261,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if self.session_ongoing:
             return
         self.load_animal_file(date=date,weight=weight, switch2plot=True)
+        logging.info('Animal weight added ({0}g/{1})'.format(weight,date))
         
     def remove_last_animal_weight(self):
         if self.session_ongoing:
@@ -539,6 +556,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     self.recording_started_state[vn]=len(var)
                 elif hasattr(var,'shape'):
                     self.recording_started_state[vn]=var.shape[0]
+        if self.speed_values.shape[0]>SPEED_BUFFER_SIZE:
+            self.speed_values=self.speed_values[SPEED_BUFFER_SIZE:]
+            self.recording_started_state['speed_values']-=SPEED_BUFFER_SIZE
+            logging.info('Speed buffer is full, new size is {0}'.format(self.speed_values.shape))
         self.id=int(time.time())
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
@@ -549,9 +570,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_video_recording(videofilename)
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera.start()
-        
+
     def finish_recording(self):
         self.stop_video_recording()
+        time.sleep(2*self.machine_config.TREADMILL_READ_TIMEOUT)#Make sure that no index error occurs
         logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera.stop()
@@ -583,10 +605,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
             setattr(self.datafile, vn, values)
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
+        self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
         self.datafile.run_times=self.run_times
         self.datafile.parameters=copy.deepcopy(self.parameters)
         self.datafile.software=experiment_data.pack_software_environment() 
-        nodes=['machine_config', 'protocol', 'protocol_name', 'stat', 'run_times', 'parameters', 'software']
+        self.datafile.animal=self.current_animal
+        nodes=['animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'stat', 'run_times', 'parameters', 'software']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
@@ -614,7 +638,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Opened {0}'.format(filename))
             
     def show_animal_statistics(self):
-        if self.session_ongoing: return
+        if self.session_ongoing: 
+            self.notify('Warning', 'Stat cannot be shown during recording')
+            return
         logging.info('Generating plots, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
         day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
@@ -672,9 +698,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     self.best_success_rate_selected['x'].extend(x)
                     self.best_success_rate_selected['y'].extend(y)
         self.best_success_rate_selected['x']=numpy.array(self.best_success_rate_selected['x'])
-        self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])
+        self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])*100.0
         self.best_success_rate_selected['n']=n
         self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal, self.best_success_rate_selected]})
+        logging.info('Done')
     
     def show_animal_success_rate(self):
         '''
@@ -712,6 +739,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             x=self.reward_volume[:,0]
             y=self.parameters['100 Reward Volume']*self.reward_volume[:,1]/NREWARD_VOLUME
             self.to_gui.put({'update_reward_volume_plot':{'x':x, 'y':y}})
+        logging.info('Done')
         
     def day_summary(self, folder):
         summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
@@ -887,9 +915,9 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
                                 {'name': 'Save Period', 'type': 'float', 'value': 100.0,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
-                                {'name': 'Move Threshold', 'type': 'float', 'value': 0.1,'suffix': 'm/s'},
-                                {'name': 'Run Threshold', 'type': 'float', 'value': 70.0, 'suffix': '%'},
-                                {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 20},
+                                {'name': 'Move Threshold', 'type': 'float', 'value': 0.05,'suffix': 'm/s'},
+                                {'name': 'Run Threshold', 'type': 'float', 'value': 50.0, 'suffix': '%'},
+                                {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 30},
                             ]},
                             {'name': 'Show...', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Run Events Trace', 'type': 'bool', 'value': True},
@@ -920,7 +948,7 @@ class Behavioral(gui.SimpleAppWindow):
                             pi['value']=v
                             break
         self.paramw = gui.ParameterTable(self, self.params_config)
-        self.paramw.setFixedWidth(480)
+        self.paramw.setFixedWidth(550)
         self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
@@ -972,7 +1000,9 @@ class Behavioral(gui.SimpleAppWindow):
             x/=86400
             x-=x[0]
             self.plots.animal_weight.update_curve(x,msg['update_weight_history'][:,1],plotparams={'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
-            self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, 0 = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0])))
+            self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, {3} = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0]), int(numpy.round(x[-1]))))
+            self.plots.animal_weight.plot.setYRange(min(msg['update_weight_history'][:,1]), max(msg['update_weight_history'][:,1]))
+            self.plots.animal_weight.plot.setXRange(min(x), max(x))
         elif msg.has_key('switch2_animal_weight_plot'):
             self.plots.tab.setCurrentIndex(1)
         elif msg.has_key('update_main_image'):
@@ -1058,7 +1088,9 @@ class Behavioral(gui.SimpleAppWindow):
         self.to_engine.put({'function': 'stop_session','args':[]})
         
     def select_data_folder_action(self):
-        self.engine.datafolder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        folder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        if folder=='':return
+        self.engine.datafolder=folder
         free_space=round(fileop.free_space(self.engine.datafolder)/1e9,1)
         if free_space<self.machine_config.MINIMUM_FREE_SPACE:
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
@@ -1104,6 +1136,8 @@ class CWidget(QtGui.QWidget):
         ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
         self.images.main.setFixedWidth(280*ar)
         self.images.main.setFixedHeight(280)
+        self.images.closeup.setFixedWidth(280*ar)
+        self.images.closeup.setFixedHeight(280)
         self.main_tab = self.images.tab
         self.filebrowserw=FileBrowserW(self)
         self.main_tab.addTab(self.filebrowserw, 'Files')
@@ -1242,6 +1276,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.date.setFixedWidth(150)
         self.weight_input=QtGui.QLineEdit(self)
         self.weight_input.setFixedWidth(100)
+        self.weight_input.setFocus()
         self.weight_input_l = QtGui.QLabel('Animal weight [g]', self)
         self.weight_input_l.setFixedWidth(120)
         self.ok=QtGui.QPushButton('OK' ,parent=self)
@@ -1427,6 +1462,10 @@ class TestBehavEngine(unittest.TestCase):
 
 if __name__ == '__main__':
     if len(sys.argv)>1:
+        introspect.kill_other_python_processes()
+        #Check number of python processes
+        if len(introspect.get_python_processes())>1:
+            raise RuntimeError('Kill all python prcesses from task manager')
         gui = Behavioral()
     else:
         unittest.main()

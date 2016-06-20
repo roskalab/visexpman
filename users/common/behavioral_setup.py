@@ -1,6 +1,5 @@
-import random,logging,time,os
+import os
 from visexpman.engine.vision_experiment.configuration import BehavioralConfig
-from visexpman.engine.vision_experiment.experiment import Protocol
 from visexpman.engine.generic import fileop
 
 class BehavioralSetup(BehavioralConfig):
@@ -29,7 +28,8 @@ class BehavioralSetup(BehavioralConfig):
         LED_AO_CHANNEL='Dev1/ao1'
         STIM_SAMPLE_RATE=1000
         POSITIVE_DIRECTION=-1
-        PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StopRewardLevel2', 'StimStopReward', 'FearResponse']
+        PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StopRewardLevel2', 'StimStopReward',\
+            'FearResponse', 'FearAirpuffLaser', 'FearLaserOnly', 'FearAuditoryOnly']
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM3'
@@ -38,14 +38,13 @@ class BehavioralSetup2(BehavioralSetup):
     PLOT_WIDGET_WIDTH=600
     BOTTOM_WIDGET_HEIGHT=400
     WATER_VALVE_DO_CHANNEL=1
-    AIRPUFF_VALVE_DO_CHANNEL=0
+    AIRPUFF_VALVE_DO_CHANNEL=2
 
 class BehavioralSetup3(BehavioralSetup):
     SCREEN_OFFSET=[4,37]
     SCREEN_SIZE=[1920,950]
     PLOT_WIDGET_WIDTH=1200
     BOTTOM_WIDGET_HEIGHT=400
-    CAMERA_ID=1
     ARDUINO_SERIAL_PORT='COM3'
     WATER_VALVE_DO_CHANNEL=2
 

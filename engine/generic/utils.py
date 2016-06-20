@@ -639,7 +639,7 @@ def module_versions(modules):
                         else:
                             version = getattr(version, version_path[1])
                 except AttributeError:
-                    version = ''                
+                    version = 'unknown'
                 module_version += '%s %s\n'%(module, version.replace('\n', ' '))
                 module_version_dict[module] = version
             else:
