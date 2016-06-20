@@ -10,6 +10,8 @@ from visexpman.engine.hardware_interface import daq_instrument,camera_interface
 from visexpman.engine.vision_experiment import experiment,experiment_data
 DEBUG=False
 NREWARD_VOLUME=100
+SPEED_BUFFER_SIZE=20000
+EMULATE_SPEED=False
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -41,8 +43,8 @@ class TreadmillSpeedReader(multiprocessing.Process):
             spd=2
         else:
             spd=10
-        spd = 10*int(int(t/21)%2==0)
-        spd+=numpy.random.random()-0.5
+        spd = 0.04*int(int(t/21)%2==0)
+        spd+=0.01*(numpy.random.random()-0.5)
         return spd
         
     def run(self):
@@ -59,9 +61,12 @@ class TreadmillSpeedReader(multiprocessing.Process):
             logging.error(msg)
             return
         logging.info('Speed reader started')
+        self.msg_counter=0
         while True:
             try:
                 now=time.time()
+                if int(now*10)%600==0:
+                    logging.info(self.msg_counter)
                 if self.emulate_speed:
                    if now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
                         self.last_run=copy.deepcopy(now)
@@ -70,6 +75,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
                 else:
                     dtstr=self.s.readlines(1)
                     if len(dtstr)==1 and len(dtstr[0])>0:
+                        self.msg_counter+=1
                         dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
                         ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
                         if dt==0:
@@ -184,7 +190,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         self.load_animal_file(switch2plot=True)
         self.speed_reader_q=multiprocessing.Queue()
-        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=False)
+        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=EMULATE_SPEED)
         self.speed_reader.start()
         self.session_ongoing=False
         self.reset_data()
@@ -550,6 +556,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     self.recording_started_state[vn]=len(var)
                 elif hasattr(var,'shape'):
                     self.recording_started_state[vn]=var.shape[0]
+        logging.info((self.recording_started_state['speed_values'],self.speed_values.shape))
+        if self.speed_values.shape[0]>SPEED_BUFFER_SIZE:
+            self.speed_values=self.speed_values[SPEED_BUFFER_SIZE:]
+            self.recording_started_state['speed_values']-=SPEED_BUFFER_SIZE
+            logging.info('Speed buffer is full, new size is {0}'.format(self.speed_values.shape))
         self.id=int(time.time())
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
@@ -560,7 +571,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_video_recording(videofilename)
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera.start()
-        
+
     def finish_recording(self):
         self.stop_video_recording()
         time.sleep(2*self.machine_config.TREADMILL_READ_TIMEOUT)#Make sure that no index error occurs
@@ -938,7 +949,7 @@ class Behavioral(gui.SimpleAppWindow):
                             pi['value']=v
                             break
         self.paramw = gui.ParameterTable(self, self.params_config)
-        self.paramw.setFixedWidth(480)
+        self.paramw.setFixedWidth(550)
         self.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
@@ -1266,6 +1277,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.date.setFixedWidth(150)
         self.weight_input=QtGui.QLineEdit(self)
         self.weight_input.setFixedWidth(100)
+        self.weight_input.setFocus()
         self.weight_input_l = QtGui.QLabel('Animal weight [g]', self)
         self.weight_input_l.setFixedWidth(120)
         self.ok=QtGui.QPushButton('OK' ,parent=self)

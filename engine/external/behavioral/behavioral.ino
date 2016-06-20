@@ -89,7 +89,7 @@ void loop() {
     Serial.print("ms\r\n");
     delay(30);
   }
-  if (1){
+  if (0){
    t0=millis()/1000;
    if (t0%2==0)
    {

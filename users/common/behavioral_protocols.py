@@ -21,9 +21,9 @@ class FearResponse(Protocol):
     STIMULUS_REPETITIONS=20
     STIMULUS_DURATION=1.0
     PAUSE_BETWEEN_STIMULUS_REPETITIONS=1.0
-    FIRST_TRIGGER_TIME=3.0
-    NTRIGGERS=3
-    PAUSE_BETWEEN_TRIGGERS=10.0
+    FIRST_TRIGGER_TIME=10.0
+    NTRIGGERS=4
+    PAUSE_BETWEEN_TRIGGERS=20.0
     ENABLE_IMAGING_SOURCE_CAMERA=True
     def reset(self):
         self.trigger_times=numpy.arange(self.NTRIGGERS)*self.PAUSE_BETWEEN_TRIGGERS+self.FIRST_TRIGGER_TIME
@@ -47,6 +47,17 @@ class FearResponse(Protocol):
                             numpy.zeros(0.5*self.PAUSE_BETWEEN_STIMULUS_REPETITIONS*fsample)
                             )),self.STIMULUS_REPETITIONS)
                     self.engine.stimulate(waveform)
+                    
+class FearResponse1(FearResponse):
+    ENABLE_AIRPUFF=True
+    ENABLE_AUDITORY_STIMULUS=False
+    ENABLE_VISUAL_STIMULUS=False
+    STIMULUS_REPETITIONS=20
+    STIMULUS_DURATION=1.0
+    PAUSE_BETWEEN_STIMULUS_REPETITIONS=1.0
+    FIRST_TRIGGER_TIME=10.0
+    NTRIGGERS=4
+    PAUSE_BETWEEN_TRIGGERS=20.0
     
 class KeepStopReward(Protocol):
     '''
@@ -86,7 +97,7 @@ class KeepStopReward(Protocol):
                         self.checkdata=numpy.copy(self.empty)#Reset checkdata
 
     '''
-    
+
 class KeepRunningReward(Protocol):
     '''A reward is given if the animal was running for RUN_TIME '''
     RUN_TIME=5.0
