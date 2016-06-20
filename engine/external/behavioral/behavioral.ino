@@ -4,9 +4,11 @@ unsigned long prev,now;
 byte dir;
 byte pin;
 long delta_time;
+unsigned long t0,t1;
+byte led_state=0;
 //TODO: test ISR runtime, Do not send message if more than 50% cpu time is used
 ISR(PCINT0_vect ) {
-  cli();
+  //cli();
   PORTD|=(1<<5);
   pin=(PINB&(1<<4))>>4;
   if (pin==0)
@@ -19,7 +21,7 @@ ISR(PCINT0_vect ) {
       delta_time*=-1;
     }
     prev=now;
-    if (delta_time>20)
+    if (abs(delta_time)>10)
     {
       Serial.print("deltaT");
       Serial.print(delta_time);
@@ -31,7 +33,7 @@ ISR(PCINT0_vect ) {
       Serial.print("ms\r\n");
     }    
   }
- sei();
+ //sei();
  PORTD&=~(1<<5);
 }
 
@@ -42,17 +44,19 @@ void setup() {
   //Enable PCINT4
    PCMSK0|=1<<4;
    PCICR=1;
-   sei();
+  // sei();
    prev=millis();
    //For testing:
    DDRD|=(1<<7)|(1<<6)|(1<<5);
    randomSeed(0);
+   t1=millis();
+   pinMode(13, OUTPUT);
 }
 
 byte channel, pulse_width;
 int emspd,noise=0;
 
-void loop() {
+void loop() {  
   b = Serial.read();
   /*
   Command structure:
@@ -84,6 +88,19 @@ void loop() {
     Serial.print(emspd);
     Serial.print("ms\r\n");
     delay(30);
+  }
+  if (1){
+   t0=millis()/1000;
+   if (t0%2==0)
+   {
+    digitalWrite(13, HIGH);
+   }
+   else
+   {
+    digitalWrite(13, LOW);
+   }
+   
+   
   }
  
 }
