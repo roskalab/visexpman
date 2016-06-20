@@ -556,7 +556,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     self.recording_started_state[vn]=len(var)
                 elif hasattr(var,'shape'):
                     self.recording_started_state[vn]=var.shape[0]
-        logging.info((self.recording_started_state['speed_values'],self.speed_values.shape))
         if self.speed_values.shape[0]>SPEED_BUFFER_SIZE:
             self.speed_values=self.speed_values[SPEED_BUFFER_SIZE:]
             self.recording_started_state['speed_values']-=SPEED_BUFFER_SIZE

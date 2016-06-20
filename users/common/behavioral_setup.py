@@ -28,7 +28,8 @@ class BehavioralSetup(BehavioralConfig):
         LED_AO_CHANNEL='Dev1/ao1'
         STIM_SAMPLE_RATE=1000
         POSITIVE_DIRECTION=-1
-        PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StopRewardLevel2', 'StimStopReward', 'FearResponse']
+        PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StopRewardLevel2', 'StimStopReward',\
+            'FearResponse', 'FearAirpuffLaser', 'FearLaserOnly', 'FearAuditoryOnly']
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM3'
