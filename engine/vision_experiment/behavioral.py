@@ -13,7 +13,7 @@ NREWARD_VOLUME=100
 SPEED_BUFFER_SIZE=20000
 EVENT_BUFFER_SIZE=1000
 FRAME_TIME_BUFFER_SIZE=10000
-EMULATE_SPEED=not False
+EMULATE_SPEED= False
 
 #from memory_profiler import profile
 
@@ -201,6 +201,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.varnames=['speed_values','reward_values','airpuff_values','stimulus_values','forcerun_values', 'events','frame_times']
         logging.info('Pack source code')
         self.software_env = experiment_data.pack_software_environment()
+        self.start_time=time.time()
         
         
     def reset_data(self):
@@ -357,15 +358,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
         
     def stimulate(self,waveform=None):
-        logging.info('Stimulate on {0} with {1} for {2} s'.format(self.parameters['Stimulus Channel'], self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
         now=time.time()
         fsample=self.machine_config.STIM_SAMPLE_RATE
-        if waveform == None:
+        if waveform is None:
             self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
             self.stimulus_waveform[0]=0
             self.stimulus_waveform[-1]=0
+            logging.info('Stimulate on {0} with {1} for {2} s'.format(self.parameters['Stimulus Channel'], self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
         else:
             self.stimulus_waveform=waveform
+            logging.info('Stimulating for {0} s'.format(waveform.shape[0]/fsample))
         self.stimulus_waveform*=self.parameters['Laser Intensity']
         stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
         self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
@@ -512,6 +514,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.notify('Warning', 'Create or select animal')
             return
         self.reset_data()
+        self.filecounter=0
         rootfolder=os.path.join(self.datafolder, self.current_animal)
         animal_file=os.path.join(rootfolder, 'animal_' + self.current_animal+'.hdf5')
         if not os.path.exists(rootfolder):
@@ -547,11 +550,13 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def run_protocol(self):
         if self.session_ongoing:
             self.protocol.update()
-            if int(time.time()*10)%10==0:
+            now=time.time()
+            if int(now*10)%10==0:
                 stat=self.protocol.stat()
                 if hasattr(stat,'has_key'):
                     stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
-                    self.to_gui.put({'statusbar':stat})
+                    uptime='Uptime {0} min'.format(int((now-self.start_time)/60))
+                    self.to_gui.put({'statusbar':[stat,uptime,'Number of files: {0}'.format(self.filecounter)]})
                     
     def start_recording(self):
         #logging.info(introspect.python_memory_usage())
@@ -587,11 +592,15 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_video_recording(videofilename)
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera.start()
+        self.actual_recording_started=time.time()
     
     def finish_recording(self):
         self.stop_video_recording()
-        time.sleep(2*self.machine_config.TREADMILL_READ_TIMEOUT)#Make sure that no index error occurs
-        logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
+        time.sleep(3*self.machine_config.TREADMILL_READ_TIMEOUT)#Make sure that no index error occurs
+        try:
+            logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
+        except:
+            pass
         if hasattr(self, 'iscamera'):
             self.iscamera.stop()
             self.iscamera.close()
@@ -599,8 +608,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def periodic_save(self):
         if self.parameters['Enable Periodic Save'] and self.session_ongoing and self.speed_values.shape[0]>self.recording_started_state['speed_values'] and self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]>self.parameters['Save Period']:
-            self.finish_recording()
-            self.start_recording()
+            self.save_during_session()
+            
+    def save_during_session(self):
+        self.finish_recording()
+        self.start_recording()
         
     def stop_session(self):
         if not self.session_ongoing:
@@ -639,6 +651,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.close()
         del self.datafile
         logging.info('Data saved to {0}'.format(self.filename))
+        self.filecounter+=1
         self.show_day_success_rate(self.filename)
         
     def open_file(self, filename):

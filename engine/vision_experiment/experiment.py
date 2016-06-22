@@ -212,6 +212,11 @@ class Protocol(object):
         '''
         Resets state variables
         '''
+        
+    def on_each_file(self):
+        '''
+        Called when new new recording (not session) started
+        '''
 
 ######################### Restore experiment config from measurement data #########################
 
