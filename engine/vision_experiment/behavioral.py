@@ -11,7 +11,11 @@ from visexpman.engine.vision_experiment import experiment,experiment_data
 DEBUG=False
 NREWARD_VOLUME=100
 SPEED_BUFFER_SIZE=20000
-EMULATE_SPEED=False
+EVENT_BUFFER_SIZE=1000
+FRAME_TIME_BUFFER_SIZE=10000
+EMULATE_SPEED=not False
+
+#from memory_profiler import profile
 
 def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
@@ -43,7 +47,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
             spd=2
         else:
             spd=10
-        spd = 0.04*int(int(t/21)%2==0)
+        spd = 0.06*int(int(t/21)%2==0)
         spd+=0.01*(numpy.random.random()-0.5)
         return spd
         
@@ -65,7 +69,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
         while True:
             try:
                 now=time.time()
-                if int(now*10)%600==0:
+                if int(now*10)%100==0:
                     logging.info(self.msg_counter)
                 if self.emulate_speed:
                    if now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
@@ -103,6 +107,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
                         if DEBUG:
                             logging.debug(bin(byte_command))
                         self.s.write(chr(byte_command))
+                        logging.info(byte_command)
                 time.sleep(0.01)
             except:
                 logging.error(traceback.format_exc())
@@ -130,8 +135,6 @@ class CameraHandler(object):
                 logging.warning('no camera present')
             
     def start_video_recording(self,videofilename):
-        if self.save_video and 0:
-            numpy.save(self.videofilename.replace(os.path.splitext(self.videofilename)[1], '_frame_times.npy'),numpy.array(self.frame_times))
         self.video_saver= cv2.VideoWriter(videofilename,cv2.cv.CV_FOURCC(*'XVID'), 12,#self.machine_config.CAMERA_FRAME_RATE, 
                                                     (self.machine_config.CAMERA_FRAME_WIDTH,self.machine_config.CAMERA_FRAME_HEIGHT))
         self.save_video=True
@@ -196,6 +199,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.reset_data()
         self.enable_speed_update=True
         self.varnames=['speed_values','reward_values','airpuff_values','stimulus_values','forcerun_values', 'events','frame_times']
+        logging.info('Pack source code')
+        self.software_env = experiment_data.pack_software_environment()
+        
         
     def reset_data(self):
         self.speed_values=numpy.empty((0,2))
@@ -386,7 +392,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.speed_values=numpy.concatenate((self.speed_values,numpy.array(new_value)))
             return True
         else: return False
-
+    
     def update_plot(self):
         if not self.speed_values.shape[0]>0:
             return
@@ -522,10 +528,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         self.show_day_success_rate(self.recording_folder)
+        logging.info('Loading protocol')
         self.current_protocol = str(self.parameters['Protocol'])
         modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.Protocol,direct = False)[0][0].__name__
         __import__(modulename)
         reload(sys.modules[modulename])
+        self.software_env['protocol_source']=fileop.read_text_file(sys.modules[modulename].__file__.replace('.pyc','.py'))
         self.protocol= getattr(sys.modules[modulename], self.current_protocol)(self)
         param_str=str(object_parameters2dict(self.protocol)).replace(',',',\r\n')
         self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+param_str})
@@ -544,8 +552,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 if hasattr(stat,'has_key'):
                     stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
                     self.to_gui.put({'statusbar':stat})
-
+                    
     def start_recording(self):
+        #logging.info(introspect.python_memory_usage())
         self.recording_started_state={}
         for vn in self.varnames:
             if not hasattr(self, vn):
@@ -560,6 +569,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.speed_values=self.speed_values[SPEED_BUFFER_SIZE:]
             self.recording_started_state['speed_values']-=SPEED_BUFFER_SIZE
             logging.info('Speed buffer is full, new size is {0}'.format(self.speed_values.shape))
+        if len(self.events)>EVENT_BUFFER_SIZE:
+            self.events=self.events[EVENT_BUFFER_SIZE:]
+            self.recording_started_state['events']-=EVENT_BUFFER_SIZE
+            logging.info('Event buffer is full, new size is {0}'.format(len(self.events)))
+        if hasattr(self, 'frame_times') and  len(self.frame_times)>FRAME_TIME_BUFFER_SIZE:
+            self.frame_times=self.frame_times[FRAME_TIME_BUFFER_SIZE:]
+            self.recording_started_state['frame_times']-=FRAME_TIME_BUFFER_SIZE
+            logging.info('Event buffer is full, new size is {0}'.format(len(self.frame_times)))
         self.id=int(time.time())
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
@@ -570,12 +587,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_video_recording(videofilename)
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera.start()
-
+    
     def finish_recording(self):
         self.stop_video_recording()
         time.sleep(2*self.machine_config.TREADMILL_READ_TIMEOUT)#Make sure that no index error occurs
         logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
-        if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
+        if hasattr(self, 'iscamera'):
             self.iscamera.stop()
             self.iscamera.close()
         self.save2file()
@@ -592,28 +609,35 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.session_ongoing=False
         self.to_gui.put({'set_recording_state': 'idle'})
         logging.info('Session ended')
-        
+    
     def save2file(self):
+        #print introspect.python_memory_usage()
+        #logging.info(introspect.python_memory_usage())
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.datafile.stat=self.protocol.stat()
         self.protocol.reset()
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
             setattr(self.datafile, nn, object_parameters2dict(var))
-            #setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
+            setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         for vn in self.varnames:
             values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
             setattr(self.datafile, vn, values)
+#            if hasattr(getattr(self, vn), 'shape'):
+#                logging.info(vn+'\t'+str(getattr(self, vn).shape))
+#            else:
+#                logging.info(vn+'\t'+str(len(getattr(self, vn))))    
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
         self.datafile.run_times=self.run_times
         self.datafile.parameters=copy.deepcopy(self.parameters)
-        self.datafile.software=experiment_data.pack_software_environment() 
+        self.datafile.software=self.software_env
         self.datafile.animal=self.current_animal
         nodes=['animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'stat', 'run_times', 'parameters', 'software']
         nodes.extend(self.varnames)
         self.datafile.save(nodes)
         self.datafile.close()
+        del self.datafile
         logging.info('Data saved to {0}'.format(self.filename))
         self.show_day_success_rate(self.filename)
         
@@ -754,6 +778,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         '''
         
         '''
+        logging.info('Generating today\'s success rate plot')
         if os.path.isdir(folder):
             self.summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
         elif hasattr(self, 'summary'):
@@ -811,12 +836,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def run(self):
         logging.info('Engine started')
         while True:
+            if self.periodic():break
+        self.close()
+    
+    def periodic(self):
             try:
                 self.last_run = time.time()#helps determining whether the engine still runs
                 if not self.from_gui.empty():
                     msg = self.from_gui.get()
                     if msg == 'terminate':
-                        break
+                        return True#break
                     if msg.has_key('function'):#Functions are simply forwarded
                         #Format: {'function: function name, 'args': [], 'kwargs': {}}
                         if DEBUG:
@@ -838,7 +867,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 logging.error(traceback.format_exc())
                 self.save_context()
             time.sleep(40e-3)
-        self.close()
         
     def close(self):
         if hasattr(self, 'stimulus_daq_handle'):

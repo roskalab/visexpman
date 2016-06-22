@@ -347,6 +347,13 @@ def write_text_file(filename, content):
 #TODO: This shoudl go to experiment_data
 def visexpman_package_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
+    
+def visexpA_package_path():
+    try:
+        import visexpA
+        return os.path.split(sys.modules['visexpA'].__file__)[0]
+    except ImportError:
+        return None
 
 def get_user_module_folder(config):
     '''

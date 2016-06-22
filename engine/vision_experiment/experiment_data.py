@@ -359,13 +359,24 @@ def get_roi_curves(rawdata, cell_rois):
         return [numpy.cast['float'](rawdata[:, 0, cell_roi[0], cell_roi[1]]).mean(axis=1) for cell_roi in cell_rois]
 
 #################### Saving/loading data to hdf5 ####################
+
 def pack_software_environment(experiment_source_code = None):
         software_environment = {}
         module_names, visexpman_module_paths = utils.imported_modules()
         module_versions, software_environment['module_version'] = utils.module_versions(module_names)
-        stream = io.BytesIO()
-        stream = StringIO.StringIO()
-        zipfile_handler = zipfile.ZipFile(stream, 'a')
+        tostream=False
+        if not tostream:
+            tmpfn=tempfile.mktemp()+'.zip'
+            zipfile_handler = zipfile.ZipFile(tmpfn, 'a')
+        else:
+            stream=io.BytesIO()
+            stream=StringIO.StringIO()
+            zipfile_handler = zipfile.ZipFile(stream, 'a')
+        import visexpman
+        visexpman_module_paths=fileop.find_files_and_folders(fileop.visexpman_package_path(),extension='py')[1]
+        vap=fileop.visexpA_package_path()
+        if vap != None:
+            visexpman_module_paths.extend(fileop.find_files_and_folders(vap,extension='py')[1])
         for module_path in visexpman_module_paths:
             if 'visexpA' in module_path:
                 zip_path = '/visexpA' + module_path.split('visexpA')[-1]
@@ -373,10 +384,14 @@ def pack_software_environment(experiment_source_code = None):
                 zip_path = '/visexpman' + module_path.split('visexpman')[-1]
             if os.path.exists(module_path):
                 zipfile_handler.write(module_path, zip_path)
-        software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
+        if tostream:
+            software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
         if experiment_source_code is not None:
             software_environment['experiment_source_code'] = numpy.fromstring(experiment_source_code, dtype = numpy.uint8)
         zipfile_handler.close()
+        if not tostream:
+            software_environment['source_code'] = numpy.fromfile(tmpfn, dtype = numpy.uint8)
+            os.remove(tmpfn)
         return software_environment
         
 def pack_configs(self):
@@ -994,6 +1009,9 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     return block_times, stimulus_parameter_times,block_info, organized_blocks
 
 class TestExperimentData(unittest.TestCase):
+    
+    def test_00_pack_swe(self):
+        pack_software_environment()
     
     def test_00_rlvivobackup(self):
         from visexpman.engine.generic import introspect

@@ -10,6 +10,7 @@ byte led_state=0;
 ISR(PCINT0_vect ) {
   //cli();
   PORTD|=(1<<5);
+  digitalWrite(13, HIGH);
   pin=(PINB&(1<<4))>>4;
   if (pin==0)
   {
@@ -34,6 +35,7 @@ ISR(PCINT0_vect ) {
     }    
   }
  //sei();
+ digitalWrite(13, LOW);
  PORTD&=~(1<<5);
 }
 
