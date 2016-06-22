@@ -31,7 +31,7 @@ class Jobhandler(object):
         self.logfile = os.path.join(self.config.LOG_PATH, 'jobhandler_{0}.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
         self.jrq=Queue.Queue()
         self.jr=JobReceiver(self.config,self.jrq)
         if THREAD:
@@ -121,7 +121,7 @@ class Jobhandler(object):
             #No active files found
             return
         current_animal=[k for k, v in active_animals.items() if v ==max(active_animals.values())][0]
-        logging.debug('Active animals: {0}'.format(active_animals))
+        logging.info('Active animals: {0}'.format(active_animals))
         return current_animal
                 
     def nextjob(self):
@@ -139,14 +139,14 @@ class Jobhandler(object):
             return None,None
         else:
             self.current_animal=ca
-        logging.debug('Current animal: {0}'.format(self.current_animal))
+        logging.info('Current animal: {0}'.format(self.current_animal))
         dbfilelock.acquire()
+        jobs={}
         try:
             h=tables.open_file(self.current_animal, mode = "r")
             recent_scan_regions=dict([(row['recording_started'],row['region']) for row in h.root.datafiles.where('(~is_analyzed | ~is_mesextractor | ~is_converted) & is_measurement_ready')])
             current_scan_region=recent_scan_regions[max(recent_scan_regions.keys())]
             allfiles=fileop.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH)[1]
-            jobs={}
             for row in h.root.datafiles.where('(~is_converted | ~is_analyzed | ~is_mesextractor) & is_measurement_ready & ~is_error'):
                 if not row['is_mesextractor']:
                     weight=1
@@ -251,6 +251,7 @@ class Jobhandler(object):
             file_info = os.stat(filename)
             logging.info(str(file_info))
             self.analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
+            print(self.analysis_config.ROI['parallel'])
             h = hdf5io.iopen(filename,self.analysis_config)
             if h is not None:
                 for c in create:

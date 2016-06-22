@@ -85,6 +85,10 @@ def is_file_closed(f):
 def copy_file(f):
     try:
         if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.18_ReceptiveFieldExploreNewAngleFine_1460651588_0.hdf5': return
+        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.28_NaturalBars_1460652092_0.hdf5': return
+        if f=='/mnt/databig/backup/daniel/20160426/162/fragment_xy_N_-506_-342_-210.0_MovingGratingNoMarching_1461677391_0.hdf5': return
+        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.28_NaturalBars_1460652092_0.mat': return
+        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.18_ReceptiveFieldExploreNewAngleFine_1460651588_0.mat': return
         copy2m= os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(f))))!='daniel'#Daniel's fiels are not copied to m drive only to tape
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
