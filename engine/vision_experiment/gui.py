@@ -31,7 +31,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
-USERS=['','adrian','daniel','fiona','kamill','stuart','zoltan']
+USERS=['','arjun', 'adrian','daniel','fiona','kamill','stuart','zoltan']
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -1423,6 +1423,7 @@ class MainPoller(Poller):
         self.origin_set = True
         self.parent.update_position_display()
         self.printc('Stage origin: {0}'.format(self.stage_origin))
+        self.printc('Stage position: {0}'.format(self.stage_position))
         return result
         
     def tilt_brain_surface(self):
@@ -1809,7 +1810,7 @@ class MainPoller(Poller):
                 return
         else:
                 laser_intensity=0
-        if not self.read_stage(display_coords = False):#Objective position also read
+        if not self.read_stage(display_coords = True):#Objective position also read
             self.printc('Stage cannot be accessed')
             return
         if self.scan_regions == None:
