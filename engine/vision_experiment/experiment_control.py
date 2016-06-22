@@ -350,6 +350,7 @@ class ExperimentControl(object):
                     channels = 'both'
                 else :
                     channels = None
+            self.printl('Recording {0} channels'.format(channels))
             utils.empty_queue(self.queues['mes']['in'])
             #TODO:  INTRINSIC: wait for trigger: self.parallel_port.getInSelected() or getInPaperOut
             if self.intrinsic:
@@ -397,7 +398,8 @@ class ExperimentControl(object):
 #                                return scan_start_success
                             self.printl('scan config file OK')
                     scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
+                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels,
+                                autozigzag = False if self.animal_parameters['user']=='fiona' else True )
                 if scan_start_success:
                     self.recording_start_time=time.time()
                     time.sleep(1.0)
@@ -726,7 +728,9 @@ class ExperimentControl(object):
         module_versions, software_environment['module_version'] = utils.module_versions(module_names)
         stream = io.BytesIO()
         stream = StringIO.StringIO()
-        zipfile_handler = zipfile.ZipFile(stream, 'a')
+        tmpfn=tempfile.mktemp()+'.zip'
+        zipfile_handler = zipfile.ZipFile(tmpfn, 'a')
+        #zipfile_handler = zipfile.ZipFile(stream, 'a')
         for module_path in visexpman_module_paths:
             if 'visexpA' in module_path:
                 zip_path = '/visexpA' + module_path.split('visexpA')[-1]
@@ -734,8 +738,10 @@ class ExperimentControl(object):
                 zip_path = '/visexpman' + module_path.split('visexpman')[-1]
             if os.path.exists(module_path):
                 zipfile_handler.write(module_path, zip_path)
-        software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
+        #software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
         zipfile_handler.close()
+        software_environment['source_code'] = numpy.fromfile(tmpfn, dtype = numpy.uint8)
+        os.remove(tmpfn)
         return software_environment
 
     def _pre_post_experiment_scan(self, is_pre):
