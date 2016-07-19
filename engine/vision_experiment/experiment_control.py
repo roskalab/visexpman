@@ -766,7 +766,7 @@ class ExperimentControl(object):
                                                                            scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
         if self.config.BLACK_SCREEN_DURING_PRE_SCAN and hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
             self.experiment_config.pre_runnable.run()
-            self._flip()
+            self._flip(count=False)
         if not result:
             try:
                 self.printl('Recording red and green channel was NOT successful')

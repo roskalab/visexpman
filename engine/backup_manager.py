@@ -89,6 +89,10 @@ def copy_file(f):
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
         target_path_m=os.path.join(mdrive,path)
+        if os.path.exists(target_path_m) and not filecmp.cmp(f,target_path_m):
+            os.remove(target_path_m)
+        if os.path.exists(target_path_tape) and not filecmp.cmp(f,target_path_tape):
+            os.remove(target_path_tape)
         if os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape) and (not copy2m or (os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m))):#Already backed up
             os.remove(f)
             logging.info('Deleted {0}'.format(f))
@@ -102,7 +106,7 @@ def copy_file(f):
         if not is_file_closed(f):
             return
         if not os.path.exists(target_path_tape) or 'mouse' in os.path.basename(target_path_tape) or 'animal' in os.path.dirname(f)\
-                or (os.path.exists(target_path_tape) and filecmp.cmp(f,target_path_tape)):#Overwrite if exists but content is not the same
+                or (os.path.exists(target_path_tape) and not filecmp.cmp(f,target_path_tape)):#Overwrite if exists but content is not the same
             try:
                 shutil.copy2(f,target_path_tape)
             except:
@@ -122,7 +126,7 @@ def copy_file(f):
                     if success:
                         break
             logging.info('Copied to tape: {0}, {1}'.format(f, os.path.getsize(target_path_tape)))
-        if copy2m and (not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m)):#Mouse file may be updated with scan regions
+        if copy2m and (not os.path.exists(target_path_m) or 'mouse' in os.path.basename(target_path_m) or not filecmp.cmp(f,target_path_m)):#Mouse file may be updated with scan regions
             shutil.copyfile(f,target_path_m)
             logging.info('Copied to m: {0}, {1}'.format(f, os.path.getsize(target_path_m)))
     except:
@@ -134,6 +138,8 @@ def copy_processed_file(f):
     try:
         path=f.replace(transient_processed_files+'/','')
         target_path_m=os.path.join(mdrive_processed,path)
+        if os.path.exists(target_path_m) and not filecmp.cmp(f,target_path_m):
+            os.remove(target_path_m)
         if os.path.exists(target_path_m) and filecmp.cmp(f,target_path_m):#Already copied up
             os.remove(f)
             logging.info('Deleted {0}'.format(f))
@@ -176,30 +182,31 @@ def rei_backup():
         
 def delete_empty_folder(root):
     all_dirs = []
-    for root, dirs, files in os.walk(root):            
-        all_dirs.extend([root + os.sep + dir for dir in dirs])
+    for rt, dirs, files in os.walk(root):            
+        all_dirs.extend([rt + os.sep + dir for dir in dirs])
     now=time.time()
     for d in all_dirs:
         if now-os.stat(d).st_mtime>DELETE_FOLDER_TIMEOUT:
             try:
                 os.rmdir(d)
-                logging.info('{0} folder is deleted')
+                logging.info('{0} folder is deleted'.format(d))
             except OSError:
                 pass
     
     
 def run():
     #Check if previous call of backup manager is complete
-    with open(logfile_path) as f:
-        txt=f.read()
-    lines=txt.split('\n')[:-1]
-    done_lines = [lines.index(l) for l in lines if 'done' in l]
-    started_lines = [lines.index(l) for l in lines if 'Check network drives' in l]
-    if done_lines[-1]<started_lines[-1]:
-        ds=[l.split('\t')[0] for l in lines][started_lines[-1]].split(',')[0]
-        format="%Y-%m-%d %H:%M:%S"
-        if time.time()-time.mktime(datetime.datetime.strptime(ds, format).timetuple())<2*60*60:#If last start happend 3 hours before, assume that there was an error and backup can be started again
-            return
+    if os.path.exists(logfile_path):
+        with open(logfile_path) as f:
+            txt=f.read()
+        lines=txt.split('\n')[:-1]
+        done_lines = [lines.index(l) for l in lines if 'done' in l]
+        started_lines = [lines.index(l) for l in lines if 'Check network drives' in l]
+        if done_lines[-1]<started_lines[-1]:
+            ds=[l.split('\t')[0] for l in lines][started_lines[-1]].split(',')[0]
+            format="%Y-%m-%d %H:%M:%S"
+            if time.time()-time.mktime(datetime.datetime.strptime(ds, format).timetuple())<2*60*60:#If last start happend 3 hours before, assume that there was an error and backup can be started again
+                return
     logging.basicConfig(filename= logfile_path,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
@@ -229,7 +236,7 @@ def run():
     for f in files:
         copy_processed_file(f)
     for f in [transient_backup_path,transient_processed_files]:
-        delete_empy_folder(f)
+        delete_empty_folder(f)
     #rei_backup()
     logging.info('done')
 
