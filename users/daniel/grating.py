@@ -56,6 +56,7 @@ if 0:
             self.TUNING_ORIENTATION = 90.0
             self.MARCH_TIME = 1.0
             self.GREY_INSTEAD_OF_MARCHING=True
+            self.GREY_INSTEAD_OF_MARCHING_COLOR=0
             
             self.NUMBER_OF_MARCHING_PHASES = 0
             self.GRATING_STAND_TIME = 0
@@ -233,17 +234,43 @@ class MovingGrating50pConfig(MovingGratingConfig):
 class MovingGratingFiona(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
+        self.machine_config.TEXT_COLOR=[0.0,0.0,0.0]
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
         self.MARCH_TIME=4.0#
         self.GRATING_STAND_TIME = 0
         self.GREY_INSTEAD_OF_MARCHING=True
+        self.GREY_INSTEAD_OF_MARCHING_COLOR=0.15
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [1200.0]#1800
         #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0
+        self.CLEAR_SCREEN_AT_END=True
+        self.CLEAR_SCREEN_AT_END_COLOR=0
+        self.pre_runnable = 'BlackPre'
+        self.BLACK_SCREEN_DURATION=2.0
+        
+class MovingGratingFionaHC(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME=4.0#
+        self.GRATING_STAND_TIME = 0
+        self.GREY_INSTEAD_OF_MARCHING=True
+        self.GREY_INSTEAD_OF_MARCHING_COLOR=0
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.COLOR_CONTRAST = 1.0
+        self.VELOCITIES = [1200.0]#1800
+        #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.CLEAR_SCREEN_AT_END=True
+        self.CLEAR_SCREEN_AT_END_COLOR=0.15
         self.pre_runnable = 'BlackPre'
         self.BLACK_SCREEN_DURATION=2.0
 
@@ -481,8 +508,13 @@ class MovingGrating(experiment.Experiment):
                     static_grating_duration = self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.MARCH_TIME
                 else:
                     static_grating_duration = self.experiment_config.MARCH_TIME
+                    
+                if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING_COLOR'):
+                    marching_color = self.experiment_config.GREY_INSTEAD_OF_MARCHING_COLOR
+                else:
+                    marching_color = 0
                 if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING') and self.experiment_config.GREY_INSTEAD_OF_MARCHING:
-                        self.show_fullscreen(color = 0, duration = static_grating_duration)
+                        self.show_fullscreen(color = marching_color, duration = static_grating_duration)
                 else:
                     for phase in self.marching_phases:
                         self.show_grating(duration = static_grating_duration, 
@@ -538,7 +570,9 @@ class MovingGrating(experiment.Experiment):
                 self._frame_trigger_pulse()
             s.release_instrument()
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)
-                
+        if hasattr(self.experiment_config, 'CLEAR_SCREEN_AT_END') and self.experiment_config.CLEAR_SCREEN_AT_END:
+            self.show_fullscreen(color=self.experiment_config.CLEAR_SCREEN_AT_END_COLOR,duration=0)
+               
 class MovingGratingPre(experiment.PreExperiment):    
     def run(self):
         if hasattr(self.experiment_config, 'PROFILE'):

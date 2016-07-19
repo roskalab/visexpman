@@ -28,10 +28,10 @@ from visexpman.engine.generic import file
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
-#from visexpA.engine.datadisplay.plot import Qt4Plot
+from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
-USERS=['','adrian','daniel','fiona','kamill','stuart','zoltan']
+USERS=['','arjun', 'adrian','daniel','fiona','stuart','zoltan']
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -460,106 +460,106 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
         
-#class RoiWidget(QtGui.QWidget):
-#    def __init__(self, parent, config):
-#        QtGui.QWidget.__init__(self, parent)
-#        self.config = config
-#        self.create_widgets()
-#        self.create_layout()
-#        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
-#        
-#    def create_widgets(self):
-#        self.scan_region_name_label = QtGui.QLabel()
-#        self.roi_info_image_display = QtGui.QLabel()
-##        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
-##        self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
-#        self.roi_plot = Qt4Plot()
-#        self.roi_plot.setMinimumHeight(230)
-#        self.select_cell_label = QtGui.QLabel('Select cell',  self)
-#        self.select_cell_combobox = QtGui.QComboBox(self)
-#        self.select_cell_combobox.setEditable(False)
-#        self.next_button = QtGui.QPushButton('>>',  self)
-#        self.previous_button = QtGui.QPushButton('<<',  self)
-#        self.accept_cell_button = QtGui.QPushButton('Accept cell',  self)
-#        self.accept_cell_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-#        self.ignore_cell_button = QtGui.QPushButton('Ignore cell',  self)
-#        self.cell_filter_name_combobox = QtGui.QComboBox(self)
-#        self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
-#        self.cell_filter_combobox = QtGui.QComboBox(self)
-#        self.show_current_soma_roi_label = QtGui.QLabel('Show current soma roi',  self)
-#        self.show_current_soma_roi_checkbox = QtGui.QCheckBox(self)
-#        self.show_current_soma_roi_checkbox.setCheckState(2)
-#        self.show_selected_soma_rois_label = QtGui.QLabel('Show selected soma rois',  self)
-#        self.show_selected_soma_rois_checkbox = QtGui.QCheckBox(self)
-#        self.show_selected_roi_centers_label = QtGui.QLabel('Show selected roi centers',  self)
-#        self.show_selected_roi_centers_checkbox = QtGui.QCheckBox(self)
-#        self.show_selected_roi_centers_checkbox.setCheckState(2)
-#        self.xz_line_length_label = QtGui.QLabel('XZ line length',  self)
-#        self.xz_line_length_combobox = QtGui.QComboBox(self)
-#        self.xz_line_length_combobox.setEditable(True)
-#        self.xz_line_length_combobox.setEditText(str(self.config.XZ_SCAN_CONFIG['LINE_LENGTH']))
-#        self.cell_merge_distance_label =  QtGui.QLabel('Cell merge distance [um]',  self)
-#        self.cell_merge_distance_combobox = QtGui.QComboBox(self)
-#        self.cell_merge_distance_combobox.setEditable(True)
-#        self.cell_merge_distance_combobox.setEditText(str(self.config.CELL_MERGE_DISTANCE))
-#        self.cell_group_label =  QtGui.QLabel('Cell group name',  self)
-#        self.cell_group_combobox = QtGui.QComboBox(self)
-#        self.cell_group_combobox.setEditable(True)
-#        self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
-#        self.create_xz_lines_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-#        self.xy_scan_button = QtGui.QPushButton('XY scan',  self)
-#        self.xy_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-#        self.suggested_depth_label = QtGui.QLabel('',  self)
-#        self.roi_pattern_parameters_label = QtGui.QLabel('ROI pattern parameters: pattern size, distance from center [um]',  self)
-#        self.roi_pattern_parameters_lineedit = QtGui.QComboBox(self)
-#        self.roi_pattern_parameters_lineedit.setEditable(True)
-#        self.roi_pattern_parameters_lineedit.setEditText('{0},{1}'.format(self.config.ROI_PATTERN_SIZE, self.config.ROI_PATTERN_RADIUS))
-#        self.cell_info = QtGui.QLabel('',  self)
-#
-#    def create_layout(self):
-#        self.layout = QtGui.QGridLayout()
-#        image_height_in_rows = 3
-#        
-#        self.layout.addWidget(self.scan_region_name_label, 0, 0, 1, 5)
-##        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
-#        self.layout.addWidget(self.roi_plot, 1, 0, image_height_in_rows, 13)
-#        
-#        self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 2, 8)
-#        self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 2, 9)
-#        self.layout.addWidget(self.show_selected_soma_rois_label, image_height_in_rows + 3, 8)
-#        self.layout.addWidget(self.show_selected_soma_rois_checkbox, image_height_in_rows + 3, 9)
-#        self.layout.addWidget(self.show_selected_roi_centers_label, image_height_in_rows + 4, 8)
-#        self.layout.addWidget(self.show_selected_roi_centers_checkbox, image_height_in_rows + 4, 9)
-#        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 5, 8)
-#        
-#        self.layout.addWidget(self.select_cell_label, image_height_in_rows + 2, 0)
-#        self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 2, 1, 1, 3)        
-#
-#        self.layout.addWidget(self.previous_button, image_height_in_rows + 2, 4)
-#        self.layout.addWidget(self.accept_cell_button, image_height_in_rows + 2, 5)
-#        self.layout.addWidget(self.ignore_cell_button, image_height_in_rows + 2, 6)
-#        self.layout.addWidget(self.next_button, image_height_in_rows + 2, 7)
-#        
-#        self.layout.addWidget(self.cell_filter_name_combobox, image_height_in_rows + 3, 0, 1, 1)
-#        self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 3, 1, 1, 2)
-##        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 3, 4)
-##        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 3, 5)
-#        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6, 1, 2)
-#        
-#        self.layout.addWidget(self.cell_group_label, image_height_in_rows + 5, 0)
-#        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 5, 1, 1, 2)
-#        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 6, 0)
-#        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 6, 1)
-#        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 6, 2)
-#        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 6, 3)
-#        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 6, 4)
-#        self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 7, 0, 1, 4)
-#        self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows + 7, 4)
-#        self.layout.addWidget(self.cell_info, image_height_in_rows + 8, 0, 1, 5)
-#        
-#        self.layout.setRowStretch(15, 15)
-#        self.layout.setColumnStretch(15, 15)
-#        self.setLayout(self.layout)
+class RoiWidget(QtGui.QWidget):
+    def __init__(self, parent, config):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = config
+        self.create_widgets()
+        self.create_layout()
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+        
+    def create_widgets(self):
+        self.scan_region_name_label = QtGui.QLabel()
+        self.roi_info_image_display = QtGui.QLabel()
+#        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
+#        self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
+        self.roi_plot = Qt4Plot()
+        self.roi_plot.setMinimumHeight(230)
+        self.select_cell_label = QtGui.QLabel('Select cell',  self)
+        self.select_cell_combobox = QtGui.QComboBox(self)
+        self.select_cell_combobox.setEditable(False)
+        self.next_button = QtGui.QPushButton('>>',  self)
+        self.previous_button = QtGui.QPushButton('<<',  self)
+        self.accept_cell_button = QtGui.QPushButton('Accept cell',  self)
+        self.accept_cell_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+        self.ignore_cell_button = QtGui.QPushButton('Ignore cell',  self)
+        self.cell_filter_name_combobox = QtGui.QComboBox(self)
+        self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
+        self.cell_filter_combobox = QtGui.QComboBox(self)
+        self.show_current_soma_roi_label = QtGui.QLabel('Show current soma roi',  self)
+        self.show_current_soma_roi_checkbox = QtGui.QCheckBox(self)
+        self.show_current_soma_roi_checkbox.setCheckState(2)
+        self.show_selected_soma_rois_label = QtGui.QLabel('Show selected soma rois',  self)
+        self.show_selected_soma_rois_checkbox = QtGui.QCheckBox(self)
+        self.show_selected_roi_centers_label = QtGui.QLabel('Show selected roi centers',  self)
+        self.show_selected_roi_centers_checkbox = QtGui.QCheckBox(self)
+        self.show_selected_roi_centers_checkbox.setCheckState(2)
+        self.xz_line_length_label = QtGui.QLabel('XZ line length',  self)
+        self.xz_line_length_combobox = QtGui.QComboBox(self)
+        self.xz_line_length_combobox.setEditable(True)
+        self.xz_line_length_combobox.setEditText(str(self.config.XZ_SCAN_CONFIG['LINE_LENGTH']))
+        self.cell_merge_distance_label =  QtGui.QLabel('Cell merge distance [um]',  self)
+        self.cell_merge_distance_combobox = QtGui.QComboBox(self)
+        self.cell_merge_distance_combobox.setEditable(True)
+        self.cell_merge_distance_combobox.setEditText(str(self.config.CELL_MERGE_DISTANCE))
+        self.cell_group_label =  QtGui.QLabel('Cell group name',  self)
+        self.cell_group_combobox = QtGui.QComboBox(self)
+        self.cell_group_combobox.setEditable(True)
+        self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
+        self.create_xz_lines_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+        self.xy_scan_button = QtGui.QPushButton('XY scan',  self)
+        self.xy_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+        self.suggested_depth_label = QtGui.QLabel('',  self)
+        self.roi_pattern_parameters_label = QtGui.QLabel('ROI pattern parameters: pattern size, distance from center [um]',  self)
+        self.roi_pattern_parameters_lineedit = QtGui.QComboBox(self)
+        self.roi_pattern_parameters_lineedit.setEditable(True)
+        self.roi_pattern_parameters_lineedit.setEditText('{0},{1}'.format(self.config.ROI_PATTERN_SIZE, self.config.ROI_PATTERN_RADIUS))
+        self.cell_info = QtGui.QLabel('',  self)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        image_height_in_rows = 3
+        
+        self.layout.addWidget(self.scan_region_name_label, 0, 0, 1, 5)
+#        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
+        self.layout.addWidget(self.roi_plot, 1, 0, image_height_in_rows, 13)
+        
+        self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 2, 8)
+        self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 2, 9)
+        self.layout.addWidget(self.show_selected_soma_rois_label, image_height_in_rows + 3, 8)
+        self.layout.addWidget(self.show_selected_soma_rois_checkbox, image_height_in_rows + 3, 9)
+        self.layout.addWidget(self.show_selected_roi_centers_label, image_height_in_rows + 4, 8)
+        self.layout.addWidget(self.show_selected_roi_centers_checkbox, image_height_in_rows + 4, 9)
+        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 5, 8)
+        
+        self.layout.addWidget(self.select_cell_label, image_height_in_rows + 2, 0)
+        self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 2, 1, 1, 3)        
+
+        self.layout.addWidget(self.previous_button, image_height_in_rows + 2, 4)
+        self.layout.addWidget(self.accept_cell_button, image_height_in_rows + 2, 5)
+        self.layout.addWidget(self.ignore_cell_button, image_height_in_rows + 2, 6)
+        self.layout.addWidget(self.next_button, image_height_in_rows + 2, 7)
+        
+        self.layout.addWidget(self.cell_filter_name_combobox, image_height_in_rows + 3, 0, 1, 1)
+        self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 3, 1, 1, 2)
+#        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 3, 4)
+#        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 3, 5)
+        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6, 1, 2)
+        
+        self.layout.addWidget(self.cell_group_label, image_height_in_rows + 5, 0)
+        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 5, 1, 1, 2)
+        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 6, 0)
+        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 6, 1)
+        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 6, 2)
+        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 6, 3)
+        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 6, 4)
+        self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 7, 0, 1, 4)
+        self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows + 7, 4)
+        self.layout.addWidget(self.cell_info, image_height_in_rows + 8, 0, 1, 5)
+        
+        self.layout.setRowStretch(15, 15)
+        self.layout.setColumnStretch(15, 15)
+        self.setLayout(self.layout)
 
 class MainWidget(QtGui.QWidget):
     def __init__(self, parent, config):
@@ -958,7 +958,7 @@ class MainPoller(Poller):
                             self.notify(parameter)
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
-                            if 'error' in message.lower() and k.upper()=='STIM':
+                            if 'error' in message.lower():# and k.upper()=='STIM':
                                 self.notify(message)
         except:
             self.printc(traceback.format_exc())
@@ -1423,6 +1423,7 @@ class MainPoller(Poller):
         self.origin_set = True
         self.parent.update_position_display()
         self.printc('Stage origin: {0}'.format(self.stage_origin))
+        self.printc('Stage position: {0}'.format(self.stage_position))
         return result
         
     def tilt_brain_surface(self):
@@ -1809,7 +1810,7 @@ class MainPoller(Poller):
                 return
         else:
                 laser_intensity=0
-        if not self.read_stage(display_coords = False):#Objective position also read
+        if not self.read_stage(display_coords = True):#Objective position also read
             self.printc('Stage cannot be accessed')
             return
         if self.scan_regions == None:
@@ -2587,6 +2588,8 @@ class MainPoller(Poller):
         
         
     def notify(self, msg):
+        if msg==[]:
+            msg='See console for messages'
         self.emit(QtCore.SIGNAL('notify'), str(msg))
         
     def save2mouse_file(self, fields, wait_save = False):

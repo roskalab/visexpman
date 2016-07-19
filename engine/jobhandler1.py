@@ -166,7 +166,7 @@ class Jobhandler(object):
                 filename=[f for f in allfiles if os.path.basename(f)==row['filename']]
                 if filename==[]:
                     self.printl('{0} does not exists'.format(row['filename']))
-                    failed_files.append([row['filename'], 'fiel does not exists'])
+                    failed_files.append([row['filename'], 'file does not exists'])
                     continue
                 else:
                     filename=filename[0]
@@ -271,6 +271,7 @@ class Jobhandler(object):
             file_info = os.stat(filename)
             logging.info(str(file_info))
             self.analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
+            print(self.analysis_config.ROI['parallel'])
             h = hdf5io.iopen(filename,self.analysis_config)
             if h is not None:
                 for c in create:

@@ -285,6 +285,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if os.path.isdir(path):
             for fn in os.listdir(path):
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
+                if self.abort:
+                    break
             self.screen.clear_screen()
             self._flip(trigger = False)
         else:
