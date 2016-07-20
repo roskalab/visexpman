@@ -308,3 +308,8 @@ class StimStopReward(Protocol):
             success_rate=self.nrewards/float(self.nstimulus)
         return {'rewards':self.nrewards, 'stimulus': self.nstimulus, 'No reward': self.noreward, 'Success Rate': success_rate}
         
+
+class StimStopRewardShort(StimStopReward):
+    __doc__=StimStopReward.__doc__
+    RUN_TIME=4.0
+    RANDOM_TIME_RANGE=6.0

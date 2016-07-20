@@ -23,13 +23,13 @@ class BehavioralSetup(BehavioralConfig):
         BOTTOM_WIDGET_HEIGHT=260
         PLOT_WIDGET_WIDTH=700
         MINIMUM_FREE_SPACE=20#GByte
-        ARDUINO_SERIAL_PORT='COM6'# if os.name=='nt' else '/dev/ttyACM0'
+        ARDUINO_SERIAL_PORT='COM5'# if os.name=='nt' else '/dev/ttyACM0'
         LASER_AO_CHANNEL='Dev1/ao0'
         LED_AO_CHANNEL='Dev1/ao1'
         STIM_SAMPLE_RATE=1000
         POSITIVE_DIRECTION=-1
         PROTOCOL_ORDER=['ForcedKeepRunningRewardLevel1', 'ForcedKeepRunningRewardLevel2', 'ForcedKeepRunningRewardLevel3', 'StopReward', 'StopRewardLevel2', 'StimStopReward',\
-            'FearAirpuffLaser', 'FearLaserOnly', 'FearAuditoryOnly']
+            'StimStopRewardShort', 'FearAirpuffLaser', 'FearLaserOnly', 'FearAuditoryOnly']
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM4'
