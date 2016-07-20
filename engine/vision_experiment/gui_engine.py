@@ -15,7 +15,8 @@ try:
     import hdf5io
 except ImportError:
     pass
-from visexpman.engine.vision_experiment import experiment_data, cone_data,experiment
+from visexpman.engine.vision_experiment import experiment_data, experiment
+from visexpman.engine.analysis import cone_data
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
 from visexpman.engine.visexp_app import stimulation_tester

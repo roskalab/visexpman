@@ -2,7 +2,8 @@ import os
 from PIL import Image
 import numpy
 import tifffile
-from visexpman.engine.vision_experiment import cone_data,experiment_data
+from visexpman.engine.vision_experiment import experiment_data
+from visexpman.engine.analysis import cone_data
 import scipy.ndimage.interpolation
 import scipy.ndimage.filters
 from pylab import *

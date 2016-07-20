@@ -844,33 +844,33 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.close()
     
     def periodic(self):
-            try:
-                self.last_run = time.time()#helps determining whether the engine still runs
-                if not self.from_gui.empty():
-                    msg = self.from_gui.get()
-                    if msg == 'terminate':
-                        return True#break
-                    if msg.has_key('function'):#Functions are simply forwarded
-                        #Format: {'function: function name, 'args': [], 'kwargs': {}}
-                        if DEBUG:
-                            logging.debug(msg)
-                        getattr(self, msg['function'])(*msg['args'])
-                self.update_video_recorder()
-                if hasattr(self, 'iscamera') and self.iscamera.isrunning:
-                    self.iscamera.save()
-                    if len(self.iscamera.frames)>0 and len(self.iscamera.frames)%4==0:
-                        self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
-                if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
-                    if self.enable_speed_update:
-                        self.run_stop_event_detector()
-                        self.update_speed_values()
-                    self.update_plot()
-                    self.periodic_save()
-                    self.run_protocol()
-            except:
-                logging.error(traceback.format_exc())
-                self.save_context()
-            time.sleep(40e-3)
+        try:
+            self.last_run = time.time()#helps determining whether the engine still runs
+            if not self.from_gui.empty():
+                msg = self.from_gui.get()
+                if msg == 'terminate':
+                    return True#break
+                if msg.has_key('function'):#Functions are simply forwarded
+                    #Format: {'function: function name, 'args': [], 'kwargs': {}}
+                    if DEBUG:
+                        logging.debug(msg)
+                    getattr(self, msg['function'])(*msg['args'])
+            self.update_video_recorder()
+            if hasattr(self, 'iscamera') and self.iscamera.isrunning:
+                self.iscamera.save()
+                if len(self.iscamera.frames)>0 and len(self.iscamera.frames)%4==0:
+                    self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
+            if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
+                if self.enable_speed_update:
+                    self.run_stop_event_detector()
+                    self.update_speed_values()
+                self.update_plot()
+                self.periodic_save()
+                self.run_protocol()
+        except:
+            logging.error(traceback.format_exc())
+            self.save_context()
+        time.sleep(40e-3)
         self.close()
         
     def close(self):
