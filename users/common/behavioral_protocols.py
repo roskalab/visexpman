@@ -18,55 +18,57 @@ class FearResponse(Protocol):
     ENABLE_AIRPUFF=True
     ENABLE_AUDITORY_STIMULUS=False
     ENABLE_VISUAL_STIMULUS=False
-    STIMULUS_REPETITIONS=20
-    STIMULUS_DURATION=1.0
-    PAUSE_BETWEEN_STIMULUS_REPETITIONS=1.0
-    TRIGGER_TIME_MIN=15
-    TRIGGER_TIME_MAX=25
-    NTRIGGERS=5
+    STIMULUS_DURATION=10.0
+    STIMULUS_ONTIME=1.0
+    STIMULUS_OFFTIME=1.0
+    TRIGGER_TIME_MIN=60.0
+    TRIGGER_TIME_MAX=120.0
+    PRE_TRIGGER_TIME=10.0
     ENABLE_IMAGING_SOURCE_CAMERA=True
+    
+    def generate_post_triggertime(self):
+        self.post_trigger_time=numpy.round(numpy.random.random()*(self.TRIGGER_TIME_MAX-self.TRIGGER_TIME_MIN)+self.TRIGGER_TIME_MIN,0)-self.PRE_TRIGGER_TIME
+        logging.info('Expected, duration: {1}, post trigger time: {0}'.format(self.post_trigger_time, self.post_trigger_time+self.PRE_TRIGGER_TIME))
+        self.trigger_fired=False
+        self.airpuff_fired=False
+    
     def reset(self):
-        #self.trigger_times=numpy.arange(self.NTRIGGERS)*self.PAUSE_BETWEEN_TRIGGERS+self.FIRST_TRIGGER_TIME
-        self.trigger_times=numpy.round(numpy.random.random(self.NTRIGGERS)*(self.TRIGGER_TIME_MAX-self.TRIGGER_TIME_MIN)+self.TRIGGER_TIME_MIN,0).cumsum()
-        logging.info('Trigger times: {0}'.format(self.trigger_times))
-        self.trigger_index=0
+        self.generate_post_triggertime()
+        if self.engine.parameters['Enable Periodic Save']:
+            logging.warning('!!! Disable periodic save and restart recording !!!')
         
     def update(self):
-        index=self.engine.recording_started_state['speed_values']
-        if self.engine.speed_values.shape[0]>index:
-            elapsed_time=time.time()-self.engine.speed_values[index,0]
-            if self.trigger_times.shape[0]>self.trigger_index and elapsed_time>=self.trigger_times[self.trigger_index]:
-                self.trigger_index+=1
-                if self.ENABLE_AIRPUFF:
-                    self.engine.airpuff()
-                if self.ENABLE_AUDITORY_STIMULUS:
-                    self.engine.auditory_stimulus(self.STIMULUS_REPETITIONS)
-                if self.ENABLE_VISUAL_STIMULUS:
-                    fsample=self.engine.machine_config.STIM_SAMPLE_RATE
-                    waveform=numpy.tile(numpy.concatenate(
-                            (numpy.zeros(0.5*self.PAUSE_BETWEEN_STIMULUS_REPETITIONS*fsample), 
-                            numpy.ones(self.STIMULUS_DURATION*fsample), 
-                            numpy.zeros(0.5*self.PAUSE_BETWEEN_STIMULUS_REPETITIONS*fsample)
-                            )),self.STIMULUS_REPETITIONS)
-                    self.engine.stimulate(waveform)
-                    
+        elapsed_time=time.time()-self.engine.actual_recording_started
+        if elapsed_time>=self.PRE_TRIGGER_TIME and not self.trigger_fired:
+            self.trigger_fired=True
+            if self.ENABLE_AIRPUFF and not self.ENABLE_VISUAL_STIMULUS:
+                self.engine.airpuff()
+                self.airpuff_fired=True
+            if self.ENABLE_VISUAL_STIMULUS:
+                npulses=int(self.STIMULUS_DURATION/(self.STIMULUS_ONTIME+self.STIMULUS_OFFTIME))
+                fsample=self.engine.machine_config.STIM_SAMPLE_RATE
+                waveform=numpy.tile(numpy.concatenate(
+                        (numpy.ones(self.STIMULUS_ONTIME*fsample), 
+                        numpy.zeros(self.STIMULUS_OFFTIME*fsample))
+                        ),npulses)
+                self.engine.stimulate(waveform)
+        if self.ENABLE_AIRPUFF and self.trigger_fired and not self.airpuff_fired and elapsed_time>=self.PRE_TRIGGER_TIME+self.STIMULUS_DURATION:
+            self.engine.airpuff()
+            self.airpuff_fired=True
+        if elapsed_time>self.PRE_TRIGGER_TIME+self.post_trigger_time:
+            self.engine.save_during_session()
+            
 class FearAirpuffLaser(FearResponse):
     __doc__=FearResponse.__doc__
     ENABLE_AIRPUFF=True
     ENABLE_AUDITORY_STIMULUS=False
     ENABLE_VISUAL_STIMULUS=True
-    STIMULUS_REPETITIONS=20
-    STIMULUS_DURATION=1.0
-    PAUSE_BETWEEN_STIMULUS_REPETITIONS=1.0
     
 class FearLaserOnly(FearResponse):
     __doc__=FearResponse.__doc__
     ENABLE_AIRPUFF=False
     ENABLE_AUDITORY_STIMULUS=False
     ENABLE_VISUAL_STIMULUS=True
-    STIMULUS_REPETITIONS=20
-    STIMULUS_DURATION=1.0
-    PAUSE_BETWEEN_STIMULUS_REPETITIONS=1.0
     
 class FearAuditoryOnly(FearResponse):
     __doc__=FearResponse.__doc__
@@ -76,7 +78,7 @@ class FearAuditoryOnly(FearResponse):
     
     def reset(self):
         FearResponse.reset(self)
-        logging.warning('!!! Make sure that compressed air is closed !!!')
+        logging.warning('!!! Make sure that compressed air bottle is closed !!!')
 
     
 class KeepStopReward(Protocol):
@@ -306,3 +308,8 @@ class StimStopReward(Protocol):
             success_rate=self.nrewards/float(self.nstimulus)
         return {'rewards':self.nrewards, 'stimulus': self.nstimulus, 'No reward': self.noreward, 'Success Rate': success_rate}
         
+
+class StimStopRewardShort(StimStopReward):
+    __doc__=StimStopReward.__doc__
+    RUN_TIME=4.0
+    RANDOM_TIME_RANGE=6.0
