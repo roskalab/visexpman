@@ -1,6 +1,8 @@
 import hdf5io,unittest,numpy,os
 from visexpman.engine.generic import introspect
 from pylab import *
+from skimage.filter import threshold_otsu
+from scipy.ndimage.filters import gaussian_filter
 
 def extract_eyeball_area(filename,expected_eyeball_position=None, outfolder=None):
     h=hdf5io.Hdf5io(filename)
@@ -10,34 +12,33 @@ def extract_eyeball_area(filename,expected_eyeball_position=None, outfolder=None
     frames=h.ic_frames
     h.close()
     frame=numpy.cast['float'](frames[:5].mean(axis=0))
-    from skimage.filters import threshold_otsu
-    from scipy.ndimage.filters import gaussian_filter
-    filtered=gaussian_filter(frame,sigma=5)
-    lowest_percentage=0.1
-    threshold=(filtered.max()-filtered.min())*lowest_percentage+filtered.min()
-    lowest_percentage_thresholded=numpy.where(filtered>threshold,threshold,filtered)
-    thresholded=numpy.where(lowest_percentage_thresholded>threshold_otsu(lowest_percentage_thresholded),0,1)
-    import scipy.ndimage.measurements
-    labeled, n = scipy.ndimage.measurements.label(thresholded)
-    if expected_eyeball_position!=None:
-        max_area_color=labeled[expected_eyeball_position[0],expected_eyeball_position[1]]
-        if max_area_color==0:
-            raise RuntimeError('Bad eyeball position')
-    elif n==1:
-        max_area_color=1
-    else:
-        max_area=0
-        max_area_color=0
-        for i in range(1,n):
-            max_area = max(max_area,numpy.where(labeled==i)[0].shape[0])
-            if numpy.where(labeled==i)[0].shape[0]==max_area:
-                max_area_color=i
-    x,y=numpy.where(labeled==max_area_color)
-    roi_frame=20
-    roi=frames[:,x.min()-roi_frame:x.max()+roi_frame,y.min()-roi_frame:y.max()+roi_frame]
-    if min(roi.shape)==0:
-        roi_frame=0
+    if 0:
+        filtered=gaussian_filter(frame,sigma=5)
+        lowest_percentage=0.1
+        threshold=(filtered.max()-filtered.min())*lowest_percentage+filtered.min()
+        lowest_percentage_thresholded=numpy.where(filtered>threshold,threshold,filtered)
+        thresholded=numpy.where(lowest_percentage_thresholded>threshold_otsu(lowest_percentage_thresholded),0,1)
+        import scipy.ndimage.measurements
+        labeled, n = scipy.ndimage.measurements.label(thresholded)
+        if expected_eyeball_position!=None:
+            max_area_color=labeled[expected_eyeball_position[0],expected_eyeball_position[1]]
+            if max_area_color==0:
+                raise RuntimeError('Bad eyeball position')
+        elif n==1:
+            max_area_color=1
+        else:
+            max_area=0
+            max_area_color=0
+            for i in range(1,n):
+                max_area = max(max_area,numpy.where(labeled==i)[0].shape[0])
+                if numpy.where(labeled==i)[0].shape[0]==max_area:
+                    max_area_color=i
+        x,y=numpy.where(labeled==max_area_color)
+        roi_frame=20
         roi=frames[:,x.min()-roi_frame:x.max()+roi_frame,y.min()-roi_frame:y.max()+roi_frame]
+        if min(roi.shape)==0:
+            roi_frame=0
+            roi=frames[:,x.min()-roi_frame:x.max()+roi_frame,y.min()-roi_frame:y.max()+roi_frame]
 #    y=roi.mean(axis=1).mean(axis=1)
 #    x=h.ic_timestamps
     if outfolder!=None:
@@ -53,14 +54,20 @@ def extract_eyeball_area(filename,expected_eyeball_position=None, outfolder=None
             im[:,im1.shape[1]:,1]=frames[i]
             im[:,im1.shape[1]:,2]=fi
             Image.fromarray(im).save(os.path.join(outfolder, 'f{0}.png'.format(i)))
-    eyeball_area=numpy.where(roi<threshold,1,0).sum(axis=1).sum(axis=1)
+#    eyeball_area=numpy.where(roi<threshold,1,0).sum(axis=1).sum(axis=1)
     if h.airpuff_values.shape[0]==0:
         ap=[]
         apt=[]
     else:
         ap=h.airpuff_values[:,0]
         apt= h.airpuff_values[:,1]
-    return eyeball_area, h.ic_timestamps, ap,apt
+    std=frames.std(axis=0)
+    r=std.max()-std.min()
+    a=(numpy.where(std>r*0.75,1,0)*frames).mean(axis=1).mean(axis=1)
+    a=gaussian_filter(a,2)
+    return a, h.ic_timestamps, ap,apt
+    
+    
     
 def eyeball_area2blink(eyeballt,t,merge_event_threshold=0.5):
     diff=numpy.diff(eyeballt)
@@ -73,7 +80,24 @@ class TestBehavAnalysis(unittest.TestCase):
         
         def test_01_blink_detect(self):
             fn='/tmp/fear/data_FearResponse_1466414204.hdf5'
+            annotated = {
+                    'data_FearResponse_1466413859.hdf5': [582],
+                    'data_FearResponse_1466413981.hdf5': [233],
+                    'data_FearResponse_1466414084.hdf5': [59, 146, 299, 450, 590, 756, 895, 1049],
+                    'data_FearResponse_1466414204.hdf5': [41, 148, 271, 448, 743, 1056, 1272, 1303],
+                    'data_FearResponse_1466414305.hdf5': [130, 408, 436, 697, 738, 1028],
+                    'data_FearResponse_1466414405.hdf5': [6, 131, 338, 414, 430, 589, 681, 740, 781, 982, 1028, 1055, 1180, 1332, 1474],
+                    'data_FearResponse_1466414505.hdf5': [130, 253, 429, 727, 1027, 1147],
+                    'data_FearResponse_1466414606.hdf5': [123, 421, 727, 1018],
+                    'data_FearResponse_1466414706.hdf5': [138, 430, 731, 1040],
+                    'data_FearResponse_1466414806.hdf5': [134, 430, 730, 1034],
+                    'data_FearResponse_1466414907.hdf5': [129, 429, 727, 1034],
+                    'data_FearResponse_1466415007.hdf5': [120, 430, 720],
+                    'data_FearResponse_1466415107.hdf5': [175],
+                    }
+
             folder='/tmp/fear'
+            folder='/home/rz/temp/'
             out='/tmp/out/'
             fns=os.listdir(folder)
             fns.sort()
@@ -81,18 +105,26 @@ class TestBehavAnalysis(unittest.TestCase):
                 if fn[-4:]!='hdf5':
                     continue
                 print fn
-                of=os.path.join(out,fn)
+                of=None#os.path.join(out,fn)
                 with introspect.Timer():
                     eba, ebat, apt, ap=extract_eyeball_area(os.path.join(folder,fn),expected_eyeball_position = (360,360), outfolder=of)
+                if 0:
+                    clf()
+                    plot(eba)
+                    savefig(os.path.join(out, '{0}.png'.format(fn)))
                 clf()
-                plot(eba)
-                savefig(os.path.join(out, '{0}.png'.format(fn)))
-                clf()
-                plot(ebat,eba)
-                blink_times=eyeball_area2blink(eba,ebat)
-                plot(blink_times,numpy.ones_like(blink_times)*eba.max()/2,'o')
-                if apt!=[]:
-                    plot(apt,ap*eba.max(),'x')
+                cla()
+                #plot(ebat,eba)
+                #blink_times=eyeball_area2blink(eba,ebat)
+                #plot(blink_times,numpy.ones_like(blink_times)*eba.max()/2,'o')
+#                if apt!=[]:
+#                    plot(apt,ap*eba.max(),'x')
+                for index in annotated[fn]:
+                    tmin=ebat[index]-4
+                    tmax=ebat[index]+6
+                    indexes=numpy.where(numpy.logical_and(ebat>tmin, ebat<tmax))[0]
+                    t=ebat[indexes]-ebat[indexes[0]]
+                    plot(t,eba[indexes])
                 savefig(os.path.join(out, '_t{0}.png'.format(fn)))
             pass
             
