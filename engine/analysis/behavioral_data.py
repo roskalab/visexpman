@@ -4,86 +4,61 @@ from pylab import *
 from skimage.filter import threshold_otsu
 from scipy.ndimage.filters import gaussian_filter
 
-def extract_eyeball_area(filename,expected_eyeball_position=None, outfolder=None):
+def extract_eyeblink(filename, baseline_length=0.5,blink_duration=0.5,threshold=0.01, debug=False, annotation=None):
+    '''
+    Ceiling light is reflected on mice eyeball which results a significantly bright area. When eyes are
+    closed, this area turns to dark, this is used for detecting if eyeblink happened after an airpuff
+    '''
     h=hdf5io.Hdf5io(filename)
     h.load('ic_frames')
     h.load('ic_timestamps')
     h.load('airpuff_values')
     frames=h.ic_frames
     h.close()
-    frame=numpy.cast['float'](frames[:5].mean(axis=0))
-    if 0:
-        filtered=gaussian_filter(frame,sigma=5)
-        lowest_percentage=0.1
-        threshold=(filtered.max()-filtered.min())*lowest_percentage+filtered.min()
-        lowest_percentage_thresholded=numpy.where(filtered>threshold,threshold,filtered)
-        thresholded=numpy.where(lowest_percentage_thresholded>threshold_otsu(lowest_percentage_thresholded),0,1)
-        import scipy.ndimage.measurements
-        labeled, n = scipy.ndimage.measurements.label(thresholded)
-        if expected_eyeball_position!=None:
-            max_area_color=labeled[expected_eyeball_position[0],expected_eyeball_position[1]]
-            if max_area_color==0:
-                raise RuntimeError('Bad eyeball position')
-        elif n==1:
-            max_area_color=1
-        else:
-            max_area=0
-            max_area_color=0
-            for i in range(1,n):
-                max_area = max(max_area,numpy.where(labeled==i)[0].shape[0])
-                if numpy.where(labeled==i)[0].shape[0]==max_area:
-                    max_area_color=i
-        x,y=numpy.where(labeled==max_area_color)
-        roi_frame=20
-        roi=frames[:,x.min()-roi_frame:x.max()+roi_frame,y.min()-roi_frame:y.max()+roi_frame]
-        if min(roi.shape)==0:
-            roi_frame=0
-            roi=frames[:,x.min()-roi_frame:x.max()+roi_frame,y.min()-roi_frame:y.max()+roi_frame]
-#    y=roi.mean(axis=1).mean(axis=1)
-#    x=h.ic_timestamps
-    if outfolder!=None:
-        if not os.path.exists(outfolder):
-            os.makedirs(outfolder)
-        for i in range(frames.shape[0]):
-            from PIL import Image
-            im1=numpy.cast['uint8'](numpy.where(frames[i]<threshold,255,0))
-            im=numpy.zeros((im1.shape[0],2*im1.shape[1],3),dtype=numpy.uint8)
-            im[:,:im1.shape[1],1]=im1
-            fi=numpy.zeros_like(frames[i])
-            fi[x.min()-roi_frame:x.max()+roi_frame,y.min()-roi_frame:y.max()+roi_frame]=255
-            im[:,im1.shape[1]:,1]=frames[i]
-            im[:,im1.shape[1]:,2]=fi
-            Image.fromarray(im).save(os.path.join(outfolder, 'f{0}.png'.format(i)))
-#    eyeball_area=numpy.where(roi<threshold,1,0).sum(axis=1).sum(axis=1)
-    if h.airpuff_values.shape[0]==0:
-        ap=[]
-        apt=[]
-    else:
-        ap=h.airpuff_values[:,0]
-        apt= h.airpuff_values[:,1]
     std=frames.std(axis=0)
-    r=std.max()-std.min()
-    a=(numpy.where(std>r*0.75,1,0)*frames).mean(axis=1).mean(axis=1)
-    a=gaussian_filter(a,2)
-    return a, h.ic_timestamps, ap,apt
+    std_range=std.max()-std.min()
+    activity=(numpy.where(std>std_range*0.75,1,0)*frames).mean(axis=1).mean(axis=1)
+    activity=gaussian_filter(activity,2)
+    activity_t=h.ic_timestamps[:,0]
+    if h.airpuff_values.shape[0]==0:
+        return
+    airpuff_t=h.airpuff_values[:,0]
+    airpuff= h.airpuff_values[:,1]
+    is_blinked=[]
+    for rep in range(airpuff.shape[0]):
+        t0=airpuff_t[rep]
+        baseline=activity[numpy.where(numpy.logical_and(activity_t<t0,activity_t>t0-baseline_length))[0]].mean()
+        eye_closed=activity[numpy.where(numpy.logical_and(activity_t>t0,activity_t<t0+blink_duration))[0]].mean()
+        is_blinked.append(True if baseline-eye_closed>threshold else False)
+        if debug:
+            outfolder='/tmp/out'
+            tmin=t0-1
+            tmax=t0+5
+            indexes1=numpy.where(numpy.logical_and(activity_t>tmin, activity_t<tmax))[0]
+            indexes2=numpy.where(numpy.logical_and(airpuff_t>tmin, airpuff_t<tmax))[0]
+            clf()
+            cla()
+            plot(activity_t[indexes1]-t0, activity[indexes1])
+            plot(airpuff_t[indexes2]-t0, airpuff[indexes2]*0.05,'o')
+            if annotation!=None:
+                annot=annotation[os.path.basename(filename)]
+                indexes3=numpy.where(numpy.logical_and(activity_t[annot]>tmin, activity_t[annot]<tmax))[0]
+                if indexes3.shape[0]>0:
+                    indexes3=numpy.array(annot)[indexes3]
+                    plot(activity_t[indexes3]-t0, numpy.ones_like(activity_t[indexes3])*0.06, 'o')
+            ylim([0,0.1])
+            title(is_blinked[-1])
+            savefig(os.path.join(outfolder, '{0}_{1}.png'.format(os.path.basename(filename),rep)),dpi=200)
+    return airpuff_t, airpuff, is_blinked, activity_t, activity
     
-    
-    
-def eyeball_area2blink(eyeballt,t,merge_event_threshold=0.5):
-    diff=numpy.diff(eyeballt)
-    blinked=numpy.where(diff<-2500,1,0)
-    blink_times=(t[numpy.nonzero(blinked)[0]]).T[0]
-    numpy.where(numpy.diff(blink_times)<merge_event_threshold)
-    return numpy.delete(blink_times,numpy.where(numpy.diff(blink_times)<merge_event_threshold)[0])
 
 class TestBehavAnalysis(unittest.TestCase):
-        
         def test_01_blink_detect(self):
             fn='/tmp/fear/data_FearResponse_1466414204.hdf5'
             annotated = {
                     'data_FearResponse_1466413859.hdf5': [582],
                     'data_FearResponse_1466413981.hdf5': [233],
-                    'data_FearResponse_1466414084.hdf5': [59, 146, 299, 450, 590, 756, 895, 1049],
+                    'data_FearResponse_1466414084.hdf5': [59, 146, 299],#, 450, 590, 756, 895, 1049],
                     'data_FearResponse_1466414204.hdf5': [41, 148, 271, 448, 743, 1056, 1272, 1303],
                     'data_FearResponse_1466414305.hdf5': [130, 408, 436, 697, 738, 1028],
                     'data_FearResponse_1466414405.hdf5': [6, 131, 338, 414, 430, 589, 681, 740, 781, 982, 1028, 1055, 1180, 1332, 1474],
@@ -97,7 +72,7 @@ class TestBehavAnalysis(unittest.TestCase):
                     }
 
             folder='/tmp/fear'
-            folder='/home/rz/temp/'
+            #folder='/home/rz/temp/'
             out='/tmp/out/'
             fns=os.listdir(folder)
             fns.sort()
@@ -107,27 +82,7 @@ class TestBehavAnalysis(unittest.TestCase):
                 print fn
                 of=None#os.path.join(out,fn)
                 with introspect.Timer():
-                    eba, ebat, apt, ap=extract_eyeball_area(os.path.join(folder,fn),expected_eyeball_position = (360,360), outfolder=of)
-                if 0:
-                    clf()
-                    plot(eba)
-                    savefig(os.path.join(out, '{0}.png'.format(fn)))
-                clf()
-                cla()
-                #plot(ebat,eba)
-                #blink_times=eyeball_area2blink(eba,ebat)
-                #plot(blink_times,numpy.ones_like(blink_times)*eba.max()/2,'o')
-#                if apt!=[]:
-#                    plot(apt,ap*eba.max(),'x')
-                for index in annotated[fn]:
-                    tmin=ebat[index]-4
-                    tmax=ebat[index]+6
-                    indexes=numpy.where(numpy.logical_and(ebat>tmin, ebat<tmax))[0]
-                    t=ebat[indexes]-ebat[indexes[0]]
-                    plot(t,eba[indexes])
-                savefig(os.path.join(out, '_t{0}.png'.format(fn)))
-            pass
-            
+                    airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=True,annotation=annotated)
 
 if __name__ == "__main__":
     unittest.main()
