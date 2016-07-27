@@ -149,7 +149,10 @@ class Jobhandler(object):
             current_scan_region=recent_scan_regions[max(recent_scan_regions.keys())]
             allfiles=fileop.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH)[1]
             jobs={}
-            for row in h.root.datafiles.where('(~is_converted | ~is_analyzed | ~is_mesextractor) & is_measurement_ready & ~is_error'):
+            condition = '(~is_converted | ~is_analyzed | ~is_mesextractor) & is_measurement_ready'
+            if '--ignore_failed_files' in sys.argv:
+                condition += ' & ~is_error'
+            for row in h.root.datafiles.where(condition):
                 if not row['is_mesextractor']:
                     weight=1
                     offset=0

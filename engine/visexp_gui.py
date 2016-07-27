@@ -183,6 +183,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.roi_widget.show_current_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.show_selected_roi_centers_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.cell_group_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_group_changed)
+        self.connect_and_map_signal(self.animal_parameters_widget, 'update_mouse_files', 'currentIndexChanged')
         
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')

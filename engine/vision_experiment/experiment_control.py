@@ -55,7 +55,7 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
-                    
+        self.printc('Deleted {0} old temporary files'.format(file.delete_old_files('d:\\tmp', 100)))
         
     def run_experiment(self, context):
         '''

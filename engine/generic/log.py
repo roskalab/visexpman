@@ -50,6 +50,7 @@ class Log(object):
             key = 'entry_' + str(self.entry_count)
         if self.write_mode == 'automatic':
             self.log.info(message_to_log)
+            self.handler.flush()
             self.entry_count += 1
         elif self.write_mode == 'user control':
             self.log_messages.append(message_to_log)

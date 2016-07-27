@@ -38,6 +38,12 @@ def select_folder_exists(folders):
     for folder in folders:
         if os.path.exists(folder) and os.path.isdir(folder):
             return folder
+            
+def delete_old_files(folder,minimum_age=100):
+    files=find_files_and_folders(folder)[1]
+    now=time.time()
+    nfiles=len([os.remove(f) for f in files if now-os.path.getmtime(f)>86400*minimum_age])
+    return nfiles
 
 def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     if thread:
