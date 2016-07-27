@@ -183,7 +183,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.roi_widget.show_current_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.show_selected_roi_centers_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.cell_group_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_group_changed)
-        self.connect_and_map_signal(self.animal_parameters_widget, 'update_mouse_files', 'currentIndexChanged')
         
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
@@ -229,6 +228,10 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.redo_depth_button, 'redo_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.previous_depth_button, 'previous_experiment')
 #        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
+        
+        self.connect_and_map_signal(self.animal_parameters_widget.user, 'update_mouse_files', 'currentIndexChanged')
+        self.connect_and_map_signal(self.main_widget.purge_button, 'purge')
+        
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         

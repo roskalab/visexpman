@@ -574,6 +574,7 @@ class MainWidget(QtGui.QWidget):
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
         self.resendjobs_button = QtGui.QPushButton('Resend Jobs', self)
         self.updatejobs_button = QtGui.QPushButton('Update Jobs', self)
+        self.purge_button = QtGui.QPushButton('Purge User Folder', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -595,6 +596,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
         self.layout.addWidget(self.resendjobs_button, 9, 1, 1, 1)
         self.layout.addWidget(self.updatejobs_button, 9, 2, 1, 1)
+        self.layout.addWidget(self.purge_button, 9, 3, 1, 1)
         
         self.layout.addWidget(self.override_imaging_channels_label, 10, 0, 1, 1)
         self.layout.addWidget(self.override_imaging_channels_checkbox, 10, 1, 1, 1)
@@ -2712,6 +2714,24 @@ class MainPoller(Poller):
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
         return cells
         
+    def purge(self):
+        user=str(self.parent.animal_parameters_widget.user.currentText())
+        if user=='daniel':
+            self.printc('Purging is not supported for current user')
+            return
+        src=os.path.join(self.config.EXPERIMENT_DATA_PATH,user)
+        dst=os.path.join('m:\\invivo\\rc\\processed', user)
+        self.notify('''Please read this carefully!
+            All files from {0} will be compared with all files in {1} which takes some time.
+            All files not found in {1} will be copied to {1}\unsorted folder.
+            It may copy raw mes files or processed hdf5 files depending on the current user's policy.
+            Finally all files in {0} will be permanently deleted'''
+                    .format(src, dst))
+        if self.ask4confirmation('Can you confirm all the forementioned operations can be executed?'):
+            self.printc('Please wait')
+            purge_user_folder(src,dst,delete_src=True)
+            self.printc('Done')
+        
 class MouseFileHandler(Poller):
     '''
     Performs all write operations to the moouse file, ensuring that this time consuming procedure does not increase
@@ -2898,6 +2918,30 @@ def update_mouse_files_list(config, current_mouse_files = [],user=None):
     else:
         are_new_files = False
     return are_new_files, new_mouse_files, new_mouse_files_full
+    
+def purge_user_folder(src,dst,delete_src=False):
+    '''
+    All files in src are compared with the content of dst
+    It is checked is all files in src can be found in dst. The ones cannot be found are copied to dst/unsorted
+    '''
+    srcfiles=file.find_files_and_folders(src)[1]
+    dstfiles=file.find_files_and_folders(dst)[1]
+    uncopied_files=[]
+    import filecmp
+    for srcfile in srcfiles:
+        if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and filecmp.cmp(srcfile,dstfile)])==0:
+            uncopied_files.append(srcfile)
+    #copy unsorted files
+    unsorted_folder=os.path.join(dst,'unsorted')
+    os.mkdir(unsorted_folder)
+    [shutil.copy(f, unsorted_folder) for f in uncopied_files]
+    if delete_src:#Delete files from src folder
+        srcfiles=file.find_files_and_folders(src)[1]
+        dstfiles=file.find_files_and_folders(dst)[1]
+        for srcfile in srcfiles:
+            if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and filecmp.cmp(srcfile,dstfile)])==0:
+                raise RuntimeError('{0} was not copied'.format(srcfile))
+        [os.remove(f) for f in srcfiles]
 
 if __name__ == '__main__':
     pass
