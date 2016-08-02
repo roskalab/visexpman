@@ -53,20 +53,24 @@ class VisionExperimentGui(QtGui.QWidget):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
         self.config.user = user
         self.console_text = ''
-        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
+        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = False)
+        QtGui.QWidget.__init__(self)
+        self.user, ok = QtGui.QInputDialog.getItem(self, QtCore.QString('User'), QtCore.QString(''), QtCore.QStringList(gui.USERS))
+        self.user=str(self.user)
+        if not ok:
+            raise RuntimeError('Unknown user')
         self.poller = gui.MainPoller(self)
         self.queues = self.poller.queues
         if ENABLE_MOUSE_FILE_HANDLER:
             self.mouse_file_handler = gui.MouseFileHandler(self)
         self.gui_tester = GuiTest(self)
-        QtGui.QWidget.__init__(self)
-        self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
         icon_path = os.path.join(os.path.split(visexpman.__file__)[0],'data','images','grabowsky.png')
         if os.path.exists(icon_path):
             self.setWindowIcon(Qt.QIcon(icon_path))
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
         self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
+        self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(self.user,  config_class))
         self.create_layout()
         self.block_widgets(True)
         self.connect_signals()
@@ -229,7 +233,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.previous_depth_button, 'previous_experiment')
 #        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
         
-        self.connect_and_map_signal(self.animal_parameters_widget.user, 'update_mouse_files', 'currentIndexChanged')
         self.connect_and_map_signal(self.main_widget.purge_button, 'purge')
         
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.

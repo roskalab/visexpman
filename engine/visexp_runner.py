@@ -89,6 +89,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
     def run_loop(self):
         last_log_time = time.time()
         last_stage_read  =time.time()
+        self.log.info('Deleted {0} old temporary files'.format(file.delete_old_files('d:\\tmp', 100)))
         try:
             while self.loop_state == 'running':
                 self.clear_screen_to_background()

@@ -150,7 +150,7 @@ class Jobhandler(object):
             allfiles=fileop.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH)[1]
             jobs={}
             condition = '(~is_converted | ~is_analyzed | ~is_mesextractor) & is_measurement_ready'
-            if '--ignore_failed_files' in sys.argv:
+            if '--ignore_failed_files' not in sys.argv:
                 condition += ' & ~is_error'
             for row in h.root.datafiles.where(condition):
                 if not row['is_mesextractor']:
@@ -168,7 +168,7 @@ class Jobhandler(object):
                 priority=10**(numpy.ceil(numpy.log10(row['recording_started']))+1)*weight+row['recording_started']+offset
                 filename=[f for f in allfiles if os.path.basename(f)==row['filename']]
                 if filename==[]:
-                    self.printl('{0} does not exists'.format(row['filename']))
+                    logging.info('{0} does not exists'.format(row['filename']))
                     failed_files.append([row['filename'], 'file does not exists'])
                     continue
                 else:

@@ -301,10 +301,6 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.comments.setToolTip('Add comment')
         self.imaging_channel_label = QtGui.QLabel('Record red and green channels?',  self)
         self.imaging_channel_checkbox = QtGui.QCheckBox(self)
-        self.user_label = QtGui.QLabel('User',  self)
-        self.user = QtGui.QComboBox(self)
-        self.user.setEditable(True)
-        self.user.addItems(QtCore.QStringList(USERS))
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
         self.anesthesia_history_groupbox = AnesthesiaHistoryGroupbox(self)
         
@@ -331,8 +327,6 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.imaging_channel_label, 6, 0, 1, 2)
         self.layout.addWidget(self.imaging_channel_checkbox, 6, 2, 1, 1)
         self.layout.addWidget(self.comments, 7, 0, 1, 3)
-        self.layout.addWidget(self.user_label, 8, 0, 1, 1)
-        self.layout.addWidget(self.user, 8, 1, 1, 1)
         self.layout.addWidget(self.new_mouse_file_button, 9, 0, 1, 2)
         self.layout.addWidget(self.anesthesia_history_groupbox, 10, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
@@ -773,6 +767,7 @@ class MainPoller(Poller):
     def __init__(self, parent):
         self.gui_thread_queue = Queue.Queue()
         Poller.__init__(self, parent)
+        self.user=parent.user
         self.xz_scan_acquired = False
         self.stage_origin_set = False
         self.cell_status_changed_in_cache = False
@@ -968,7 +963,7 @@ class MainPoller(Poller):
     def mouse_file_changed(self):
         self.stage_origin_set = False
         self.wait_mouse_file_save()
-        user=str(self.parent.animal_parameters_widget.user.currentText())
+        user=self.user
         newmousefn=[fn for fn in list_mouse_files(self.config,user) if os.path.basename(fn)== str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText())][0]
         if newmousefn!=self.mouse_file:
             self.printc('Mouse file has changed to {0}'.format(newmousefn))
@@ -992,8 +987,7 @@ class MainPoller(Poller):
         '''
         Finds out which mouse file to load and loadds data from it
         '''
-        user = str(self.parent.animal_parameters_widget.user.currentText())
-        are_new_files, self.mouse_files, mouse_files_full = update_mouse_files_list(self.config,user=user)
+        are_new_files, self.mouse_files, mouse_files_full = update_mouse_files_list(self.config,user=self.user)
         if len(self.mouse_files)>0:
             if self.last_mouse_file_name in self.mouse_files:
                 mouse_file = self.last_mouse_file_name
@@ -1690,10 +1684,6 @@ class MainPoller(Poller):
         if not id_text.isalnum():
             self.notify('Animal name can contain only alphanumeric characters')
             return
-        user=str(self.parent.animal_parameters_widget.user.currentText())
-        if user=='':
-            self.notify('Select user!')
-            return
         self.animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
@@ -1707,13 +1697,13 @@ class MainPoller(Poller):
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
             'add_date' : utils.datetime_string().replace('_', ' '),
             'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2),
-            'user':user,
+            'user':self.user,
         }        
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
         #self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH,self.generate_animal_filename('mouse', self.animal_parameters))
-        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(user),self.generate_animal_filename('mouse', self.animal_parameters))
+        self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.user),self.generate_animal_filename('mouse', self.animal_parameters))
         if not os.path.exists(os.path.dirname(self.mouse_file)):
             os.makedirs(os.path.dirname(self.mouse_file))
         
@@ -1727,8 +1717,7 @@ class MainPoller(Poller):
             if os.path.exists(self.local_mouse_file):#Remove existing temp mouse file
                 os.remove(self.local_mouse_file)
             hdf5io.save_item(self.local_mouse_file, variable_name, self.animal_parameters,filelocking=False)
-            user = str(self.parent.animal_parameters_widget.user.currentText())
-            are_new_file, self.mouse_files, full = update_mouse_files_list(self.config, self.mouse_files,user=user)
+            are_new_file, self.mouse_files, full = update_mouse_files_list(self.config, self.mouse_files,user=self.user)
             time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
             self.parent.update_mouse_files_combobox(set_to_value = os.path.split(self.mouse_file)[-1])
@@ -1746,7 +1735,7 @@ class MainPoller(Poller):
             self.printc('{0} animal parameter file saved'.format(id_text))
             
     def update_mouse_files(self):
-        user = str(self.parent.animal_parameters_widget.user.currentText())
+        user = self.user
         are_new_file, self.mouse_files, full = update_mouse_files_list(self.config, self.mouse_files,user)
         self.parent.update_mouse_files_combobox(set_to_value = os.path.split(self.mouse_file)[-1])
             
@@ -2687,7 +2676,7 @@ class MainPoller(Poller):
             if 1:#New backup
                 try:
                     #files=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== self.mouse_file]
-                    user=str(self.parent.animal_parameters_widget.user.currentText())
+                    user=self.user
                     files=[fn for fn in list_mouse_files(self.config,user) if os.path.basename(fn)== os.path.basename(self.mouse_file)]
                     rn=[rn for rn in self.scan_regions.keys() if self.parent.get_current_region_name() in rn]
                     if len(rn)==1:
@@ -2715,19 +2704,22 @@ class MainPoller(Poller):
         return cells
         
     def purge(self):
-        user=str(self.parent.animal_parameters_widget.user.currentText())
+        user=self.user
         if user=='daniel':
             self.printc('Purging is not supported for current user')
             return
         src=os.path.join(self.config.EXPERIMENT_DATA_PATH,user)
         dst=os.path.join('m:\\invivo\\rc\\processed', user)
-        self.notify('''Please read this carefully!
+        if not os.path.exists(dst):
+            self.notify('{0} is not available. make sure that m drive is mounted'.format(dst))
+            return
+        txt=('''Please read this carefully!
             All files from {0} will be compared with all files in {1} which takes some time.
             All files not found in {1} will be copied to {1}\unsorted folder.
             It may copy raw mes files or processed hdf5 files depending on the current user's policy.
-            Finally all files in {0} will be permanently deleted'''
+            Finally all files in {0} will be permanently deleted. Are you sure'''
                     .format(src, dst))
-        if self.ask4confirmation('Can you confirm all the forementioned operations can be executed?'):
+        if self.ask4confirmation(txt):
             self.printc('Please wait')
             purge_user_folder(src,dst,delete_src=True)
             self.printc('Done')

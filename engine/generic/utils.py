@@ -458,7 +458,6 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     class_list=[]
     if not isinstance(required_ancestors, (list, tuple)): required_ancestors=[required_ancestors]
     if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
-    
     for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
         try:
             m= __import__(modname, fromlist='dummy')
