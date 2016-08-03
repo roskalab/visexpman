@@ -16,6 +16,10 @@ from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
 FIX1KHZ= False
+NOMATFILE= False
+NWEEKS=2
+NOT_50X50UM= True
+VERTICAL_FLIP=not True
 
 class PhysTiff2Hdf5(object):
     '''
@@ -33,7 +37,7 @@ class PhysTiff2Hdf5(object):
         
     def detect_and_convert(self):
         now=time.time()
-        recent_folders=[f for f in fileop.listdir_fullpath(self.folder) if os.path.isdir(f) and now-os.path.getctime(f)<3600*168*2]
+        recent_folders=[f for f in fileop.listdir_fullpath(self.folder) if os.path.isdir(f) and now-os.path.getctime(f)<3600*168*NWEEKS]
         self.allfiles=[]
         for folder in recent_folders:
             self.allfiles.extend(fileop.find_files_and_folders(folder)[1])
@@ -43,10 +47,12 @@ class PhysTiff2Hdf5(object):
         else:
             self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
         
-        excluded_extensions=['txt','mat','hdf5','tif' if not self.use_tiff else 'csv']
+        excluded_extensions=['txt','hdf5','tif' if not self.use_tiff else 'csv']
         self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and fileop.file_extension(f) not in excluded_extensions]
         #self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600]#Considering files not older than 2 weeks
-        
+        #Exclude unclosed files
+        now=time.time()
+        self.allfiles = [f for f in self.allfiles if now-os.path.getctime(f)>10 and now-os.path.getmtime(f)>10]
         
         if self.irlaser:
             physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='csv' and 'rect' not in f and 'timestamps' not in f]
@@ -70,8 +76,10 @@ class PhysTiff2Hdf5(object):
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
                 found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(fileop.file_extension(pf),''))[:-1] in tf]
+                foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f or NOMATFILE or self.irlaser]
+                
             if 1:
-                if len(found)>0 and [pf,found[0]] not in self.processed_pairs:
+                if len(found)>0 and len(foundmat)>0 and [pf,found[0]] not in self.processed_pairs:
                     if os.path.getsize(pf)>10e3 and os.path.getsize(found[0])>10e3:
 #                        id = str(experiment_data.get_id(os.path.getmtime(pf)))
 #                        if id not in ids:# len([f for f in self.outfiles if id in f])==0
@@ -203,14 +211,17 @@ class PhysTiff2Hdf5(object):
                 boundaries = boundaries[numpy.where(boundaries<data_.shape[0])[0]]
                 nframes=boundaries.shape[0]/2
                 boundaries = boundaries[:2*(boundaries.shape[0]/2)]
-                rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
+                if NOT_50X50UM:
+                    rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizey*res-1), int(sizex*res)))
+                else:
+                    rawdata = numpy.array(numpy.split(data, boundaries)[1:][::2]).reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
                 #Memory error here
 #                rd=(rawdata-rawdata.min())
 #                rd/=(rd.max()-rd.min())
 #                rd*=(2**16-1)
 #                raw_data = numpy.cast['uint16'](rd)
                # if rawdata.shape[0]>800:return None#TMP fix for memory error
-                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,1:,:,:],0,2**16-1))
+                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,::-1,:,:],0,2**16-1))
             except MemoryError:#Too long recording
                 return None
         #Up-down flip
@@ -228,7 +239,10 @@ class PhysTiff2Hdf5(object):
             data=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
             metadata={}
             metadata['Sample Rate']=10000
-            metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,fphys.replace('.csv','').split('_')[3:])
+            try:
+                metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,os.path.basename(fphys).replace('.csv','').split('_')[-3:])
+            except:
+                pass
             data[1]=data[2]
             data[2]=data[4]
             data=data[:3]
@@ -254,14 +268,20 @@ class PhysTiff2Hdf5(object):
         stiminfo_available=False
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec']
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
+        else:
+            print 'no stim metadata found'
+            if not NOMATFILE and not self.irlaser:
+                return
         if stiminfo_available:
             if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
                 block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
                 block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
             elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
                 block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
+            elif stimdata['experiment_config_name'][0]=='Fullfield10min':
+                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
             pulse_start=signal.trigger_indexes(data[1])[::2]
             sig=numpy.zeros_like(data[1])
             boundaries=pulse_start[block_startend]
@@ -288,6 +308,9 @@ class PhysTiff2Hdf5(object):
         print utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
+        if VERTICAL_FLIP:
+            for i in range(h.raw_data.shape[0]):
+                h.raw_data[i,0]=numpy.fliplr(h.raw_data[i,0])
         h.fphys = fphys
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
@@ -331,7 +354,7 @@ class PhysTiff2Hdf5(object):
             except:
                 print 'sync signal recording was aborted'
             SR=(10000.0 if not FIX1KHZ else 1000.0)
-            if indexes.shape[0]/(sig.shape[0]/SR)>66:
+            if indexes.shape[0]/(2*sig.shape[0]/SR)>66:
                 print 'sync signal not detected, assuming timing'
                 sig2=numpy.zeros_like(sig)
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
@@ -364,6 +387,8 @@ class PhysTiff2Hdf5(object):
         period_time=numpy.median(widths[0::2])+numpy.median(widths[1::2])
         frame_rate=fsample/period_time        
         frame_rate=10.0
+        if NOT_50X50UM:
+            frame_rate=20.0
         if (frame_rate<5 or frame_rate>20) and not self.allow_high_framerate:
             pdb.set_trace()
             raise RuntimeError(frame_rate)
@@ -412,6 +437,10 @@ class TestConverter(unittest.TestCase):
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
+        if fileop.free_space(sys.argv[1])<30e9:
+            raise RuntimeError('{0} is running out of free space'.format(sys.argv[1]))
+        elif fileop.free_space(sys.argv[1])<100e9:
+            print 'Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9))
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False
         print 'Close window to exit program'
