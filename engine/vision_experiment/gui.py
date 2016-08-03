@@ -2714,11 +2714,12 @@ class MainPoller(Poller):
             self.notify('{0} is not available. make sure that m drive is mounted'.format(dst))
             return
         txt=('''Please read this carefully!
-            All files from {0} will be compared with all files in {1} which takes some time.
-            All files not found in {1} will be copied to {1}\unsorted folder.
-            It may copy raw mes files or processed hdf5 files depending on the current user's policy.
-            Finally all files in {0} will be permanently deleted. Are you sure'''
+All files from {0} will be compared with all files in {1} which takes some time.
+All files not found in {1} will be copied to {1}\unsorted folder.
+It may copy raw mes files or processed hdf5 files depending on the current user's policy.
+Finally all files except mouse files in {0} will be permanently deleted. Are you sure?'''
                     .format(src, dst))
+        self.printc(txt)
         if self.ask4confirmation(txt):
             self.printc('Please wait')
             purge_user_folder(src,dst,delete_src=True)
@@ -2920,20 +2921,41 @@ def purge_user_folder(src,dst,delete_src=False):
     dstfiles=file.find_files_and_folders(dst)[1]
     uncopied_files=[]
     import filecmp
+    print 'comparing files'
+    ignore_files=[]
     for srcfile in srcfiles:
-        if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and filecmp.cmp(srcfile,dstfile)])==0:
-            uncopied_files.append(srcfile)
+#        if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and filecmp.cmp(srcfile,dstfile)])==0:
+        if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and os.path.getsize(srcfile)==os.path.getsize(dstfile)])==0:
+            #make sure that raw matfiles are converted to hdf5
+            uu=os.path.basename(srcfile)
+            already_converted=False
+            if uu[-3:]=='mat' and 'fragment' in uu and len([d for d in dstfiles if os.path.basename(d)==uu.replace('.mat', '.hdf5')])>0:
+                already_converted=True
+                ignore_files.append(srcfile)
+            if not already_converted:
+                uncopied_files.append(srcfile)
+    print 'found {0} uncopied files'.format(len(uncopied_files))
     #copy unsorted files
     unsorted_folder=os.path.join(dst,'unsorted')
-    os.mkdir(unsorted_folder)
+    if not os.path.exists(unsorted_folder):
+        os.mkdir(unsorted_folder)
     [shutil.copy(f, unsorted_folder) for f in uncopied_files]
+    print 'copied files'
     if delete_src:#Delete files from src folder
         srcfiles=file.find_files_and_folders(src)[1]
         dstfiles=file.find_files_and_folders(dst)[1]
+        not_copied=[]
         for srcfile in srcfiles:
-            if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and filecmp.cmp(srcfile,dstfile)])==0:
-                raise RuntimeError('{0} was not copied'.format(srcfile))
-        [os.remove(f) for f in srcfiles]
+            if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and  os.path.getsize(srcfile)==os.path.getsize(dstfile)])==0 and srcfile not in ignore_files:
+                not_copied.append(srcfile)
+        if len(not_copied)>0:
+            raise RuntimeError('{0} was not copied'.format(not_copied))
+        for f in srcfiles:
+            if not ('mouse' in os.path.basename(f) and os.path.basename(f)[-4:]=='hdf5'):
+                try:
+                    os.remove(f) 
+                except:
+                    print 'cannot delete {0}'.format(f)
 
 if __name__ == '__main__':
     pass
