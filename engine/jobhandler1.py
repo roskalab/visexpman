@@ -163,7 +163,7 @@ class Jobhandler(object):
                 priority=10**(numpy.ceil(numpy.log10(row['recording_started']))+1)*weight+row['recording_started']+offset
                 filename=[f for f in allfiles if os.path.basename(f)==row['filename']]
                 if filename==[]:
-                    self.printl('{0} does not exists'.format(row['filename']))
+                    logging.info('{0} does not exists'.format(row['filename']))
                     continue
                 else:
                     filename=filename[0]

@@ -144,3 +144,4 @@ class NaturalMovieExperiment(experiment.Experiment):
             #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
             self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH)
             #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        

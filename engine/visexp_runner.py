@@ -20,7 +20,9 @@ import visexpman
 try:
     import experiment
 except:
-    pass
+    import pdb, traceback
+    traceback.print_exc()
+    #pdb.set_trace()
 from visexpman.engine.vision_experiment import command_handler
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import file
@@ -47,6 +49,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.config.user = user
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
+            print self.config.user
             self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
         else:
             #In case of SafestartConfig, no experiment configs are loaded
@@ -626,7 +629,11 @@ if __name__ == "__main__":
         else:
             commands.append([40.0, 'SOCexecute_experimentEOCEOP'])
 #    commands.append([0.0, 'SOCquitEOCEOP'])
-    v = VisionExperimentRunner(*find_out_config())
+    try:
+        v = VisionExperimentRunner(*find_out_config())
+    except:
+        traceback.print_exc()
+        pdb.set_trace()
     cs = command_handler.CommandSender(v.config, v, commands)
     cs.start()
     v.run_loop()

@@ -8,7 +8,6 @@ import os
 import os.path
 import webbrowser
 import copy
-import traceback
 import tempfile
 
 import PyQt4.Qt as Qt
@@ -1891,11 +1890,12 @@ class MainPoller(Poller):
             return
         region_name = self.parent.get_current_region_name()
         if not self.xy_scan is None:
-            
+            self.printc('Before update: {0}'.format(self.scan_regions[region_name]['xy']['image'].sum()))
             if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
                 self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
             elif self.xy_scan.has_key('pmtURraw'):
                 self.scan_regions[region_name]['xy']['image'] = self.xy_scan['pmtURraw']
+            self.printc('After update: {0}'.format(self.scan_regions[region_name]['xy']['image'].sum()))
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
             self.save2mouse_file('scan_regions')
@@ -1945,7 +1945,7 @@ class MainPoller(Poller):
             self.update_scan_regions()
             self.printc('{0} region removed'.format(selected_region))
         else:
-            self.printc('Master region cannot be removed')
+            self.printc('Master region cannot be removed, current region: {0}'.format(selected_region))
 
     def move_to_region(self):
         '''
@@ -2679,11 +2679,11 @@ class MainPoller(Poller):
                         d=self.scan_regions[rn[0]]['add_date']
                     else:
                         d=self.animal_parameters['add_date']
-                    id=str(d.split(' ')[0].replace('-',''))
+                    id=str(str(d).split(' ')[0].replace('-',''))
                     experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']),todatabig=True)
                 except:
                     self.printc(traceback.format_exc())
-                    msg='ERROR: Automatic backup failed, please make sure that files are copied to u:\\backup'
+                    msg='ERROR: Automatic backup failed, please make sure that files are copied to u:\\backup or m:\\invivo\\rc'
                     self.printc(msg)
                     self.notify(msg)
                     raise 

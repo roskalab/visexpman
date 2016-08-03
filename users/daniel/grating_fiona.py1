@@ -95,6 +95,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 5.0 #very beginning and end witing time
         self.COLOR_CONTRAST = 1.0
+        self.COLOR_OFFSET = 0.5
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
@@ -252,6 +253,7 @@ class MovingGratingFiona(MovingGratingNoMarchingConfig):
         self.CLEAR_SCREEN_AT_END_COLOR=0
         self.pre_runnable = 'BlackPre'
         self.BLACK_SCREEN_DURATION=2.0
+        self.pre_runnable = 'GreyPre'
         
 class MovingGratingFionaHC(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
@@ -424,6 +426,10 @@ class MovingGratingSpeed1200ums(MovingGratingNoMarchingConfig):
 class BlackPre(experiment.PreExperiment):    
     def run(self):
         self.show_fullscreen(color = 0.0, duration = 0,flip=False)
+
+class GreyPre(experiment.PreExperiment):
+    def run(self):
+        self.show_fullscreen(color = 0.15, duration = 0,flip=False)
                 
 class MovingGrating(experiment.Experiment):
     def create_stimulus_units(self):
@@ -523,7 +529,8 @@ class MovingGrating(experiment.Experiment):
                                     velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                                     duty_cycle = stimulus_unit['duty_cycle'],
                                     starting_phase = phase+stimulus_unit['starting_phase'],
-                                    color_contrast = stimulus_unit['color_contrast'])
+                                    color_contrast = stimulus_unit['color_contrast'],
+                                    color_offset = self.experiment_config.COLOR_OFFSET)
                 #Show moving grating
                 self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
@@ -531,7 +538,8 @@ class MovingGrating(experiment.Experiment):
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
-                            color_contrast = stimulus_unit['color_contrast']
+                            color_contrast = stimulus_unit['color_contrast'],
+                            color_offset = self.experiment_config.COLOR_OFFSET
                             )
                 #Show static grating
                 if self.experiment_config.GRATING_STAND_TIME>0:
@@ -540,7 +548,8 @@ class MovingGrating(experiment.Experiment):
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],
-                            color_contrast = stimulus_unit['color_contrast'])
+                            color_contrast = stimulus_unit['color_contrast'],
+                            color_offset = self.experiment_config.COLOR_OFFSET)
                 #Save segment info to help synchronizing stimulus with measurement data
                 segment_info = {}
                 segment_info['fragment_id'] = fragment_id
