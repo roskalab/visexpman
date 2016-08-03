@@ -112,9 +112,21 @@ class VisionExperimentGui(QtGui.QWidget):
             for en in experiment_config_names:
                 if '_' in en and 'MovingGratingNoMarchHor3_5_800ums' not in en:
                     raise RuntimeError('_ is not allowed in experiment config name: {0}'.format(en))
+        users=[]
+        other_users=[]
+        others=[]
+        for en in experiment_config_names :
+            if self.user in en.lower():
+                users.append(en)
+            elif ([u for u in gui.USERS if u in en.lower()])>0:
+                other_users.append(en)
+            else:
+                others.append(en)
+        experiment_config_names=users+others+other_users
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         try:
-            self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
+            if self.user=='daniel':
+                self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
         except ValueError:
             pass
         
