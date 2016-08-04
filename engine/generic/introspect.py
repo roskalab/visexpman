@@ -51,6 +51,16 @@ def kill_python_processes(dont_kill_pids):
             p = psutil.Process(pid)
             p.kill()
     return killed
+    
+def kill_other_python_processes():
+    kill_python_processes([os.getpid()])
+    
+def python_memory_usage():
+    res=[]
+    for pid in get_python_processes():
+        p=psutil.Process(pid)
+        res.append([pid, p.memory_info()])
+    return res
 
 def dumpall(fn):
     '''
@@ -102,6 +112,8 @@ def is_test_running():
 
 def class_ancestors(obj):
     ancestors = []
+    if not hasattr(obj, '__bases__'):
+        return ancestors
     ancestor = [obj]
     while True:
         ancestor = map(getattr, list(ancestor), len(ancestor)*['__bases__'])

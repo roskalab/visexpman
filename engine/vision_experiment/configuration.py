@@ -7,6 +7,8 @@ ElphysRetinalCaImagingConfig:
 RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
         Platform name: rc_cortical or ao_cortical
+UltrasoundConfig:
+        TBD
 MCMEAConfig:
         inherits VisionExperimentConfig and expands it with Multichannel multi electrode array specific parameters that are not used on other platforms
         Platfrom name: mc_mea
@@ -35,8 +37,10 @@ except:
 
 import tempfile
 import unittest
-
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+except IOError:
+    pass
 
 class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -66,10 +70,10 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ############## Ranges ###############
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
-        PARALLEL_PORT_PIN_RANGE = [0, 7]
+        PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -81,14 +85,15 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.BASE_PORT = 10000
         CONNECTIONS = {
         'stim': {'port': self.BASE_PORT, 'ip': {'stim': '', 'main_ui': ''}},
-        'analysis': {'port': self.BASE_PORT+2, 'ip': {'analysis': '', 'main_ui': ''}},
         }
         NETWORK_COMMUNICATION_TIMEOUT = [10, [0,60]]
         STIMULATION_AND_IMAGING_START_TIMEOUT = [10, [0,60]]
         DATA_READY_TIMEOUT = [10, [0,60]]
         
         ############### Display/graphics parameters: ################
-        SCREEN_RESOLUTION = utils.rc([600, 800])        
+        SCREEN_MODE=['pygame',['pygame','psychopy','undefined']]
+        SCREEN_RESOLUTION = utils.rc([600, 800])
+        SCREEN_POSITION = utils.rc([0, 0])
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_RATE_TOLERANCE = [4.0,  [1e-2,  10.0]] #in Hz
@@ -141,6 +146,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         BLOCK_TRIGGER_PIN = [3,  PARALLEL_PORT_PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        ACQUISITION_TRIGGER_POLARITY = True
         ENABLE_SHUTTER = False
         
         ############# Graphical User Interface related ######################
@@ -292,11 +298,11 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
-        TWO_PHOTON_PINOUT = {}
-        TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0'
-        TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
-        TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
-        TWO_PHOTON_PINOUT['PROJECTOR_CONTROL'] = 'Dev1/ao2'
+        TWO_PHOTON = {}
+        TWO_PHOTON['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0'
+        TWO_PHOTON['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
+        TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
+        TWO_PHOTON['PROJECTOR_CONTROL'] = 'Dev1/ao2'
         TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
         
         ELPHYS_SYNC_RECORDING={}
@@ -408,12 +414,22 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         
         self._create_parameters_from_locals(locals())
         
+class UltrasoundConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'us_cortical'
+        COORDINATE_SYSTEM='center'
+        self.BASE_PORT = 10000
+        self.CONNECTIONS['behavioral']= {'port': self.BASE_PORT+1, 'ip': {'behavioral': '', 'main_ui': ''}}
+        self._create_parameters_from_locals(locals())
+        
 class MCMEAConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'mc_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
         STIM_RECORDS_ANALOG_SIGNALS = False
+        START_STOP_TRIGGER_WIDTH=[50e-3,[1e-3,1]]
         self._create_parameters_from_locals(locals())
 
 class HiMEAConfig(VisionExperimentConfig):
@@ -434,13 +450,8 @@ class ElectroporationConfig(VisionExperimentConfig):
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 
-class BehavioralConfig(VisionExperimentConfig):
-    def _create_application_parameters(self):
-        VisionExperimentConfig._create_application_parameters(self)
+class BehavioralConfig(object):
         PLATFORM = 'behav'
-        EXPERIMENT_FILE_FORMAT = 'hdf5'
-        STIM_RECORDS_ANALOG_SIGNALS = False
-        self._create_parameters_from_locals(locals())
 
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

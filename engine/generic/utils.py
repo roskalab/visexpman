@@ -5,6 +5,7 @@ import numpy
 import os.path
 import os
 import time
+import datetime
 import unittest
 import pkgutil
 import inspect
@@ -640,7 +641,7 @@ def module_versions(modules):
                         else:
                             version = getattr(version, version_path[1])
                 except AttributeError:
-                    version = ''                
+                    version = 'unknown'
                 module_version += '%s %s\n'%(module, version.replace('\n', ' '))
                 module_version_dict[module] = version
             else:
@@ -798,19 +799,31 @@ def timestamp2hm(timestamp):
     time_struct = time.localtime(timestamp)
     return ('{0:0=2}:{1:0=2}'.format(time_struct.tm_hour, time_struct.tm_min))
     
-def timestamp2ymdhms(timestamp):
+def timestamp2ymdhms(timestamp,filename=False):
     time_struct = time.localtime(timestamp)
-    return '{0:0=4}-{1:0=2}-{2:0=2}+{3:0=2}:{4:0=2}:{5:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec).replace('+',' ')
+    if filename:
+        dt='_'
+        t='-'
+    else:
+        dt=' '
+        t=':'
+    return '{0:0=4}-{1:0=2}-{2:0=2}{6}{3:0=2}{7}{4:0=2}{7}{5:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec,dt,t)
 
 def timestamp2ymdhm(timestamp):
     time_struct = time.localtime(timestamp)
     return '{0:0=4}-{1:0=2}-{2:0=2}+{3:0=2}:{4:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min).replace('+',' ')
 
-def timestamp2ymd(timestamp):
+def timestamp2ymd(timestamp,separator='-'):
     time_struct = time.localtime(timestamp)
-    return '{0:0=4}-{1:0=2}-{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday).replace('+',' ')
-
-
+    return '{0:0=4}{3}{1:0=2}{3}{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday,separator).replace('+',' ')
+    
+def datestring2timestamp(ds,format="%d/%m/%Y"):
+    return time.mktime(datetime.datetime.strptime(ds, format).timetuple())
+    
+def timestamp2secondsofday(timestamp):
+    time_struct = time.localtime(timestamp)
+    return time_struct.tm_hour*3600+time_struct.tm_min*60+time_struct.tm_sec
+    
 class Timeout(object):
     def __init__(self, timeout, sleep_period = 0.01):
         self.start_time = time.time()
@@ -1146,6 +1159,19 @@ def printl(self, message, loglevel='info', stdio = True):
 def list_swap(l, i1, i2):
     l[i1], l[i2] = l[i2], l[i1]
     return l
+    
+def sendmail(to, subject, txt):
+    import subprocess,fileop
+    message = 'Subject:{0}\n\n{1}\n'.format(subject, txt)
+    fn='/tmp/email.txt'
+    fileop.write_text_file(fn,message)
+    # Send the mail
+    cmd='/usr/sbin/sendmail {0} < {1}'.format(to,fn)
+    res=subprocess.call(cmd,shell=True)
+    os.remove(fn)
+    return res==0
+    
+        
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
@@ -1243,6 +1269,40 @@ class TestUtils(unittest.TestCase):
         for o in objects:
             res.append(array2object(object2array(o)))
         self.assertEqual(objects, res)
+        
+    def test_18_shuffle_positions(self):
+        from visexpman.users.test import unittest_aggregator
+        positions=array2object(numpy.load(os.path.join(unittest_aggregator.prepare_test_data('shuffle_positions'),'positions.npy')))
+        col=[1.0,0.0]
+        import itertools
+        pc=[[c,p] for p,c in itertools.product(positions,col)]
+        shuffle_positions_avoid_adjacent(pc,rc((150,150)))
+
+    def test_19_sendmail(self):
+        self.assertTrue(sendmail('zoltan.raics@fmi.ch','test','c'))
+        
+def shuffle_positions_avoid_adjacent(positions,shape_distance):
+    remaining=copy.deepcopy(positions)
+    success=True
+    shuffled=[]
+    while True:
+        selected_i = random.choice(range(len(remaining)))
+        if len(shuffled)>0:
+            while True:
+                coords=rc(numpy.array([nd(shuffled[-1][1]),nd(remaining[selected_i][1])]))
+                if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
+                    if len(remaining)>1:
+                        selected_i = random.choice(range(len(remaining)))
+                    else:
+                        success=False
+                        break
+                else:
+                    break
+        shuffled.append(remaining[selected_i])
+        del remaining[selected_i]
+        if len(remaining)==0:
+            break
+    return shuffled,success
             
 if __name__ == "__main__":
     module_names, visexpman_module_paths = imported_modules()

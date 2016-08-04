@@ -16,9 +16,10 @@ from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
 FIX1KHZ= False
-NOMATFILE= not True
+NOMATFILE= False
 NWEEKS=2
 NOT_50X50UM= not True
+VERTICAL_FLIP=True
 
 class PhysTiff2Hdf5(object):
     '''
@@ -224,7 +225,8 @@ class PhysTiff2Hdf5(object):
             except MemoryError:#Too long recording
                 return None
         #Up-down flip
-        raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+        if VERTICAL_FLIP:
+            raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
         print 'rawdata ok', time.time()-t0
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
@@ -307,6 +309,7 @@ class PhysTiff2Hdf5(object):
         print utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
+
         h.fphys = fphys
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters

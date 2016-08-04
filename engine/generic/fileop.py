@@ -22,7 +22,7 @@ timestamp_re = re.compile('.*(\d{10,10}).*')
 ################# File name related ####################
 
 def file_extension(filename):
-    return os.path.basename(filename).split('.')[-1]
+    return os.path.split(filename)[1].split('.')[-1]
     
 def is_first_tag(fn, tag):
     return tag == os.path.split(fn)[1][:len(tag)]
@@ -350,6 +350,13 @@ def write_text_file(filename, content):
 def visexpman_package_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
     
+def visexpA_package_path():
+    try:
+        import visexpA
+        return os.path.split(sys.modules['visexpA'].__file__)[0]
+    except ImportError:
+        return None
+
 def get_user_module_folder(config):
     '''
     Returns folder path where user's stimulation files or other source files reside
@@ -368,45 +375,72 @@ def get_user_experiment_data_folder(config):
         os.makedirs(user_experiment_data_folder)
     return user_experiment_data_folder
 
-def get_context_filename(config,extension='hdf5'):
+def get_context_filename(config,extension=' npy'):
     '''
     Generate context filename from CONTEXT_PATH, username and application name
     '''
     if not hasattr(config, 'CONTEXT_PATH'):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
     import platform
-    filename = 'context_{0}_{1}_{2}.{3}'.format(config.user_interface_name, config.user, platform.uname()[1],extension)
+    uiname=config.user_interface_name if hasattr(config, 'user_interface_name') else config.PLATFORM
+    user = config.user if hasattr(config, 'user') else ''
+    filename = 'context_{0}_{1}_{2}.{3}'.format(uiname, user, platform.uname()[1],extension)
     return os.path.join(config.CONTEXT_PATH, filename)
     
-def get_logfilename(config):
-    '''
-    filename format: log_<machine config name>_<username>_<user_interface_name>_yy-mm-dd-hhmm.txt
-    '''
-    expected_attributes = ['user', 'user_interface_name', 'LOG_PATH']
-    if not all([hasattr(config, expected_attribute) for expected_attribute in expected_attributes]):
-        from visexpman.engine import MachineConfigError
-        raise MachineConfigError('LOG_PATH, user and user_interface_name shall be an attribute in machine config')
-    while True:
-        filename =  os.path.join(config.LOG_PATH, 'log_{0}_{1}_{2}_{3}.txt'.format(config.__class__.__name__, config.user, config.user_interface_name, utils.datetime_string()))
-        if not os.path.exists(filename):
-            break
-        time.sleep(1.0)
-    return filename
-    
-def find_recording_filename(id, config_or_path):
-    if isinstance(config_or_path,str):
-        foldername = config_or_path
-    else:
-        foldername = get_user_experiment_data_folder(config_or_path)
-    res = [fn for fn in listdir_fullpath(foldername) if id in fn]
-    if len(res)==1:
-        return res[0]
+def get_log_filename(config):
+    if not hasattr(config, 'LOG_PATH'):
+        raise RuntimeError('LOG_PATH is not defined in machine config')
+    import platform
+    uiname=config.user_interface_name if hasattr(config, 'user_interface_name') else config.PLATFORM
+    dt=utils.timestamp2ymdhms(time.time(), filename=True)
+    filename = 'log_{0}_{1}.txt'.format(uiname, dt)
+    return os.path.join(config.LOG_PATH, filename)
 
 def cleanup_files(config):
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
     if os.path.exists(get_context_filename(config)):
         os.remove(get_context_filename(config))
 ################# Experiment file related ####################
+
+
+class DataAcquisitionFile(object):
+    '''
+    Opens an hdf5 file and data can be saved sequentally
+    '''
+    def __init__(self,nchannels,dataname, datarange,filename=None,compression_level=5):
+        self.nchannels=nchannels
+        self.datarange=datarange
+        self.scale=(2**16-1)/(datarange[1]-datarange[0])
+        self.offset=-datarange[0]
+        self.dataname=dataname
+        if filename is None:
+            self.filename=os.path.join(tempfile.gettempdir(), 'recorded.hdf5')
+            if os.path.exists(self.filename):
+                os.remove(self.filename)
+        else:
+            self.filename=filename
+        import hdf5io,tables
+        self.hdf5 = hdf5io.Hdf5io(self.filename,filelocking=False)
+        setattr(self.hdf5,dataname+'_scaling', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
+        self.hdf5.save(dataname+'_scaling')
+        datacompressor = tables.Filters(complevel=compression_level, complib='blosc', shuffle = 1)
+        datatype = tables.UInt16Atom(self.nchannels)
+        setattr(self,self.dataname, self.hdf5.h5f.create_earray(self.hdf5.h5f.root, dataname, datatype, (0,),filters=datacompressor))
+                    
+    def _scale(self,data):
+        clipped=numpy.where(data<self.datarange[0],self.datarange[0],data)
+        clipped=numpy.where(clipped>self.datarange[1],self.datarange[1],clipped)
+        return numpy.cast['uint16']((clipped+self.offset)*self.scale)
+            
+    def add(self,data):
+        if data.shape[1]!=self.nchannels:
+            raise RuntimeError('Invalid number of channels: {0}, expected: {1}'.format(data.shape[1],self.nchannels))
+        getattr(self, self.dataname).append(self._scale(data))
+#        getattr(self, self.dataname).append(data)
+            
+    def close(self):
+        self.hdf5.close()
+        
 
 def generate_animal_filename(animal_parameters):
     '''
@@ -451,7 +485,7 @@ def copy_reference_fragment_files(reference_folder, target_folder):
     
 def get_id_node_name_from_path(path):#Using similar function from component guesser may result segmentation error.
     return '_'.join(os.path.split(path)[1].split('.')[-2].split('_')[-3:])
-
+#OBSOLETE
 def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5', subfolders =  False):
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
         folder = config.EXPERIMENT_DATA_PATH
@@ -466,7 +500,7 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
-
+#OBSOLETE
 def find_file_from_timestamp(dir, timestamp):
     #from visexpman.engine.generic.fileop import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
@@ -478,14 +512,14 @@ def find_file_from_timestamp(dir, timestamp):
     if len(matching)==0: return None
     else: return matching[0]
 
-
+#OBSOLETE
 def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, remote_win_path = True):
     filename = os.path.split(local_file_path)[-1]
     remote_file_path = os.path.join(remote_machine_folder, filename)
     if remote_win_path:
         remote_file_path = remote_file_path.replace('/',  '\\')
     return remote_file_path
-    
+#OBSOLETE    
 def parse_fragment_filename(path):
     fields = {}
     filename = os.path.split(path)[1]
@@ -810,6 +844,23 @@ class TestFileops(unittest.TestCase):
         for k in ['imaging_channels', 'red_labeling', 'green_labeling', 'injection_target', 'comment', 'gender']:
             del ap[k]
         self.assertEqual(ap, ap_parsed)
+        
+    def test_04_dataacq_file(self):
+        daf=DataAcquisitionFile(5,'sync', [-10.0,20.0])
+        dd=numpy.empty((0,5))
+        for i in range(20):
+            s=2
+            d=numpy.array(5*range(s)).reshape(5,s).T+0.1*i-8
+            d[:,1]*=0.5
+            daf.add(d)
+            dd=numpy.append(dd,d,axis=0)
+        daf.close()
+        import hdf5io
+        h=hdf5io.Hdf5io(daf.filename, filelocking=False)
+        h.load('sync')
+        s=h.findvar('sync_scaling')
+        numpy.testing.assert_array_almost_equal(h.sync/s['scale']-s['offset'],dd,3)
+        h.close()
         
 if __name__=='__main__':
 #    import sys

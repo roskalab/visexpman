@@ -14,19 +14,86 @@ import tempfile
 import time
 import StringIO
 from PIL import Image,ImageDraw
-try:
-    from pylab import show,plot,imshow,figure,title,subplot
-except:
-    pass
+
+from pylab import show,plot,imshow,figure,title,subplot
+
 from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
 from visexpman.engine import generic
 try:
     import hdf5io
-    hdf5io_installed=True
+    hdf5io_available=True
 except ImportError:
-    hdf5io_installed=False
+    print 'hdf5io not installed'
+    hdf5io_available=False
+    
 
 import unittest
+
+#### Recording filename handling ####
+
+def get_recording_name(config, parameters, separator):
+    name = ''
+    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
+        if parameters.has_key(k) and parameters[k]!='':
+            name += str(parameters[k])+separator
+    return name[:-1]
+    
+def get_recording_filename(config, parameters, prefix):
+    if prefix != '':
+        prefix = prefix + '_'
+    return prefix + get_recording_name(config, parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
+
+def get_recording_path(parameters, config, prefix = ''):
+    return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters, prefix))
+    
+def get_user_experiment_data_folder(config):
+    '''
+    Returns path to folder where user's experiment data can be saved
+    '''
+    for parname in ['user', 'EXPERIMENT_DATA_PATH']:
+        if not hasattr(config, parname):
+            raise RuntimeError('{0} parameter is not available'.format(parname))
+    user_experiment_data_folder = os.path.join(config.EXPERIMENT_DATA_PATH, config.user)
+    if not os.path.exists(user_experiment_data_folder):
+        os.makedirs(user_experiment_data_folder)
+    return user_experiment_data_folder
+    
+def find_recording_filename(id, config_or_path):
+    if isinstance(config_or_path,str):
+        foldername = config_or_path
+    else:
+        foldername = get_user_experiment_data_folder(config_or_path)
+    res = [fn for fn in listdir_fullpath(foldername) if id in fn]
+    if len(res)==1:
+        return res[0]
+    
+def parse_recording_filename(filename):
+    items = {}
+    items['folder'] = os.path.split(filename)[0]
+    items['file'] = os.path.split(filename)[1]
+    items['extension'] = fileop.file_extension(filename)
+    fnp = items['file'].replace(items['extension'],'').split('_')
+    items['type'] = fnp[0]
+    #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
+    offset = 1 if len(fnp[-1]) != 12 else 0
+    items['id'] = fnp[-1-offset]
+    items['experiment_name'] = fnp[-2-offset]
+    items['tag'] = fnp[1]
+    return items
+        
+def is_recording_filename(filename):
+    try:
+        items = parse_recording_filename(filename)
+        idnum = int(items['id'])
+        return True
+    except:
+        return False
+    
+def find_recording_files(folder):
+    allhdf5files = find_files_and_folders(folder, extension = 'hdf5')[1]
+    return [f for f in allhdf5files if is_recording_filename(f)]
+    
+#### Check file ####
 
 def check(h, config):
     '''
@@ -82,103 +149,102 @@ def get_id(timestamp=None):
     if timestamp is None:
         timestamp = time.time()
     epoch = time.mktime((2014, 11, 01, 0,0,0,0,0,0))
-    return str(int(numpy.round(timestamp-epoch, 1)*10))
+    if 0:
+        return str(int(numpy.round(timestamp-epoch, 1)*10))
+    else:
+        return str(int(numpy.round(timestamp, 1)*10))
 
 ############### Preprocess measurement data ####################
-superclass= hdf5io.Hdf5io if hdf5io_installed else object
-class CaImagingData(superclass):
-    def __init__(self,filename,filelocking=False):
-        self.file_info = os.stat(filename)
-        hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
-        
-    def prepare4analysis(self):
-        self.tsync,self.timg = get_sync_events(self)
-        self.meanimage, self.image_scale = get_imagedata(self)
-        self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
-        #TEMPORARY SOLUTION
-        if self.raw_data.shape[0]<self.timg.shape[0]:
-            print 'warning', self.raw_data.shape[0],self.timg.shape[0]
-        self.timg=self.timg[:self.raw_data.shape[0]]
-        if self.raw_data.shape[0]<self.timg.shape[0]:
-            raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
-        return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
-        
-    def convert(self,format):
-        '''
-        Supported formats: mat, tiff
-        '''
-        if format == 'mat':
-            if not hasattr(self, 'timg'):
-                self.prepare4analysis()
-            items = [r._v_name for r in self.h5f.list_nodes('/')]
-            data={}
-            for item in items:
-                self.load(item)
-                data[item]=getattr(self,item)
-            data['timg']=self.timg
-            data['tsync']=self.tsync
-            #Make sure that rois field does not contain None:
-            if data.has_key('rois'):
-                for r in data['rois']:
-                    if r.has_key('area') and r['area'] is None:
-                        del r['area']
-            self.outfile = fileop.get_convert_filename(self.filename, 'mat')
-            #Write to mat file
-            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
-            fileop.set_file_dates(self.outfile, self.file_info)
-        elif format == 'png':
-            self._save_meanimage()
-        elif format == 'tif':
-            import tifffile
+if hdf5io_available:
+    class CaImagingData(hdf5io.Hdf5io):
+        def __init__(self,filename,filelocking=False):
+            self.file_info = os.stat(filename)
+            hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
+            
+        def prepare4analysis(self):
+            self.tsync,self.timg = get_sync_events(self)
+            self.meanimage, self.image_scale = get_imagedata(self)
+            self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
+            if self.raw_data.shape[0]<self.timg.shape[0]:
+                raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
+            return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
+            
+        def convert(self,format):
+            '''
+            Supported formats: mat, tiff
+            '''
+            if format == 'mat':
+                if not hasattr(self, 'timg'):
+                    self.prepare4analysis()
+                items = [r._v_name for r in self.h5f.list_nodes('/')]
+                data={}
+                for item in items:
+                    self.load(item)
+                    data[item]=getattr(self,item)
+                data['timg']=self.timg
+                data['tsync']=self.tsync
+                #Make sure that rois field does not contain None:
+                if data.has_key('rois'):
+                    for r in data['rois']:
+                        if r.has_key('area') and r['area'] is None:
+                            del r['area']
+                self.outfile = fileop.get_convert_filename(self.filename, 'mat')
+                #Write to mat file
+                scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
+                fileop.set_file_dates(self.outfile, self.file_info)
+            elif format == 'png':
+                self._save_meanimage()
+            elif format == 'tif':
+                import tifffile
+                if not hasattr(self, 'raw_data'):
+                    self.load('raw_data')
+                if not hasattr(self, 'image_scale'):
+                    self.meanimage, self.image_scale = get_imagedata(self)
+                #um/pixel to dpi
+                dpi = 1.0/self.image_scale*25.4e3
+                self.outfile = fileop.get_convert_filename(self.filename, 'tif')
+                tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+            elif format == 'mp4':
+                imgarray = self.rawdata2images()
+                framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
+                fileop.mkdir_notexists(framefolder, remove_if_exists=True)
+                ct=0
+                resize_factor = 400.0/min(imgarray.shape[1:3]) if min(imgarray.shape[1:3])<400 else 1.0
+                for frame in imgarray:
+                    fn=os.path.join(framefolder, 'f{0:0=5}.png'.format(ct))
+                    Image.fromarray(frame).resize((int(frame.shape[1]*resize_factor),int(frame.shape[0]*resize_factor))).save(fn)
+                    ct+=1
+                fps = int(numpy.ceil(1.0/numpy.diff(get_sync_events(self)[1]).mean()))
+                self.outfile = fileop.get_convert_filename(self.filename, 'mp4')
+                videofile.images2mpeg4(framefolder, self.outfile, fps)
+                shutil.rmtree(framefolder)
+            
+        def _save_meanimage(self):
+            '''
+            Meanimage is calculated from imaging data and saved to file
+            '''
+            if not hasattr(self, 'meanimage'):
+                self.meanimage, self.image_scale = get_imagedata(self)
+            colored_image = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1],3),dtype=numpy.uint8)
+            colored_image[:,:,1] = numpy.cast['uint8'](signal.scale(self.meanimage)*255)
+            Image.fromarray(colored_image).save(fileop.get_convert_filename(self.filename, 'png'))
+            
+        def rawdata2images(self, nbits = 8):
+            '''
+            One channel is supported, saved to green
+            '''
             if not hasattr(self, 'raw_data'):
                 self.load('raw_data')
-            if not hasattr(self, 'image_scale'):
-                self.meanimage, self.image_scale = get_imagedata(self)
-            #um/pixel to dpi
-            dpi = 1.0/self.image_scale*25.4e3
-            self.outfile = fileop.get_convert_filename(self.filename, 'tif')
-            tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
-        elif format == 'mp4':
-            imgarray = self.rawdata2images()
-            framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
-            fileop.mkdir_notexists(framefolder, remove_if_exists=True)
-            ct=0
-            resize_factor = 400.0/min(imgarray.shape[1:3]) if min(imgarray.shape[1:3])<400 else 1.0
-            for frame in imgarray:
-                fn=os.path.join(framefolder, 'f{0:0=5}.png'.format(ct))
-                Image.fromarray(frame).resize((int(frame.shape[1]*resize_factor),int(frame.shape[0]*resize_factor))).save(fn)
-                ct+=1
-            fps = int(numpy.ceil(1.0/numpy.diff(get_sync_events(self)[1]).mean()))
-            self.outfile = fileop.get_convert_filename(self.filename, 'mp4')
-            videofile.images2mpeg4(framefolder, self.outfile, fps)
-            shutil.rmtree(framefolder)
-        
-    def _save_meanimage(self):
-        '''
-        Meanimage is calculated from imaging data and saved to file
-        '''
-        if not hasattr(self, 'meanimage'):
-            self.meanimage, self.image_scale = get_imagedata(self)
-        colored_image = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1],3),dtype=numpy.uint8)
-        colored_image[:,:,1] = numpy.cast['uint8'](signal.scale(self.meanimage)*255)
-        Image.fromarray(colored_image).save(fileop.get_convert_filename(self.filename, 'png'))
-        
-    def rawdata2images(self, nbits = 8):
-        '''
-        One channel is supported, saved to green
-        '''
-        if not hasattr(self, 'raw_data'):
-            self.load('raw_data')
-        if self.raw_data.shape[1]!=1:
-            raise NotImplementedError('Only one channel is supported')
-        imagearray = numpy.zeros((self.raw_data.shape[0], self.raw_data.shape[2], self.raw_data.shape[3], 3),dtype = numpy.uint16 if nbits == 16 else numpy.uint8)
-        if nbits == 16:
-            imagearray[:,:,:,1] = self.raw_data[:,0,:,:]
-        elif nbits == 8:
-            imagearray[:,:,:,1] = numpy.cast['uint8'](numpy.cast['float'](self.raw_data[:,0,:,:])/256)
-        else:
-            raise NotImplementedError('')
-        return imagearray
+            if self.raw_data.shape[1]!=1:
+                raise NotImplementedError('Only one channel is supported')
+            imagearray = numpy.zeros((self.raw_data.shape[0], self.raw_data.shape[2], self.raw_data.shape[3], 3),dtype = numpy.uint16 if nbits == 16 else numpy.uint8)
+            if nbits == 16:
+                imagearray[:,:,:,1] = self.raw_data[:,0,:,:]
+            elif nbits == 8:
+                imagearray[:,:,:,1] = numpy.cast['uint8'](numpy.cast['float'](self.raw_data[:,0,:,:])/256)
+            else:
+                raise NotImplementedError('')
+            return imagearray
         
         
     
@@ -293,13 +359,24 @@ def get_roi_curves(rawdata, cell_rois):
         return [numpy.cast['float'](rawdata[:, 0, cell_roi[0], cell_roi[1]]).mean(axis=1) for cell_roi in cell_rois]
 
 #################### Saving/loading data to hdf5 ####################
+
 def pack_software_environment(experiment_source_code = None):
         software_environment = {}
         module_names, visexpman_module_paths = utils.imported_modules()
         module_versions, software_environment['module_version'] = utils.module_versions(module_names)
-        stream = io.BytesIO()
-        stream = StringIO.StringIO()
-        zipfile_handler = zipfile.ZipFile(stream, 'a')
+        tostream=False
+        if not tostream:
+            tmpfn=tempfile.mktemp()+'.zip'
+            zipfile_handler = zipfile.ZipFile(tmpfn, 'a')
+        else:
+            stream=io.BytesIO()
+            stream=StringIO.StringIO()
+            zipfile_handler = zipfile.ZipFile(stream, 'a')
+        import visexpman
+        visexpman_module_paths=fileop.find_files_and_folders(fileop.visexpman_package_path(),extension='py')[1]
+        vap=fileop.visexpA_package_path()
+        if vap != None:
+            visexpman_module_paths.extend(fileop.find_files_and_folders(vap,extension='py')[1])
         for module_path in visexpman_module_paths:
             if 'visexpA' in module_path:
                 zip_path = '/visexpA' + module_path.split('visexpA')[-1]
@@ -307,10 +384,14 @@ def pack_software_environment(experiment_source_code = None):
                 zip_path = '/visexpman' + module_path.split('visexpman')[-1]
             if os.path.exists(module_path):
                 zipfile_handler.write(module_path, zip_path)
-        software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
+        if tostream:
+            software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
         if experiment_source_code is not None:
             software_environment['experiment_source_code'] = numpy.fromstring(experiment_source_code, dtype = numpy.uint8)
         zipfile_handler.close()
+        if not tostream:
+            software_environment['source_code'] = numpy.fromfile(tmpfn, dtype = numpy.uint8)
+            os.remove(tmpfn)
         return software_environment
         
 def pack_configs(self):
@@ -325,6 +406,8 @@ def pack_configs(self):
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
+    if len([True for c in self.__class__.__bases__  if c.__name__=='Stimulus'])>0:
+        configs['experiment_config']=self.config2dict()
     return configs
     
 def read_machine_config(h):
@@ -926,6 +1009,20 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     return block_times, stimulus_parameter_times,block_info, organized_blocks
 
 class TestExperimentData(unittest.TestCase):
+    
+    def test_00_pack_swe(self):
+        pack_software_environment()
+    
+    def test_00_rlvivobackup(self):
+        from visexpman.engine.generic import introspect
+        user='default_user'
+        animalid='test'
+        id=int(time.time())
+        files=fileop.listdir_fullpath('v:\\debug\\log')
+        with introspect.Timer():
+            RlvivoBackup(files,user,id,animalid)
+        pass
+    
     @unittest.skip("")
     def test_01_read_merge_rois(self):
         path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
@@ -968,7 +1065,7 @@ class TestExperimentData(unittest.TestCase):
         conf = GUITestConfig()
         from pylab import plot,show,savefig,figure,clf
         for file in fileop.listdir_fullpath('r:\\production\\rei-setup\\zoltan'):
-            if fileop.parse_recording_filename(file)['type'] == 'data' and '22863' in file:
+            if parse_recording_filename(file)['type'] == 'data' and '22863' in file:
                 if len(check(file,conf))==0:
 #                    h=hdf5io.Hdf5io(file,filelocking=False)
                     ts, ti, a = get_activity_plotdata(file)
@@ -1078,6 +1175,15 @@ class TestExperimentData(unittest.TestCase):
         h.convert('mp4')
         h.close()
         
+    def test_12_gamma(self):
+        gammatext2hdf5('/tmp/g.txt')
+        
+    def test_13_y(self):
+        from visexpman.users.test import unittest_aggregator
+        f =  fileop.listdir_fullpath(unittest_aggregator.prepare_test_data('yscanner', '/tmp/wf'))[0]
+        import scipy.io
+        yscanner2sync(scipy.io.loadmat(f)['recorded'][:,3])
+        
 def find_rois(meanimage):
     from skimage import filter
     import scipy.ndimage.measurements
@@ -1145,6 +1251,69 @@ def anti_zigzag(im):
 
 def shift_between_arrays(a1, a2):
     return numpy.array([numpy.correlate(numpy.cast['float'](a1), numpy.roll(numpy.cast['float'](a2),shift)) for shift in range(-a1.shape[0], a1.shape[0])]).argmax()
+    
+def gammatext2hdf5(filename):
+    with open(filename,'rt') as f:
+        txt=f.read()
+    gc=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
+    hdf5io.save_item(os.path.join(os.path.dirname(filename),'gamma.hdf5'),'gamma_correction', gc, filelocking=False)
+    
+def yscanner2sync(waveform):
+    pass
+
+try:
+    import paramiko
+except ImportError:
+    pass
+    
+class RlvivoBackup(object):
+    def __init__(self, files,user,id,animalid):
+        '''
+        Assumes that:
+        1) /mnt/databig is mounted as u drive
+        2) files reside on v: drive
+        3) v:\\codes\\jobhandler\\pw.txt is accessible
+        '''
+        if os.name!='nt':
+            raise RuntimeError('Not supported OS')
+        pwfile='v:\\codes\\jobhandler\\pw.txt'
+        if not os.path.exists(pwfile):
+            raise RuntimeError('Password file does not exist')
+        self.files=files
+        self.user=user
+        self.id=id if isinstance(id, str) else utils.timestamp2ymd(float(self.id),'')
+        self.animalid=animalid
+        self.connect()
+        self.target_folder()
+        self.copy()
+        self.close()
+        
+        
+    def connect(self):
+        self.ssh = paramiko.SSHClient()
+        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.ssh.connect('rlvivo1.fmi.ch', username='mouse',password=fileop.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+        
+    def close(self):
+        self.ssh.close()
+        
+    def check_ssh_error(self,e):
+        emsg=e.readline()
+        if emsg!='':
+            raise RuntimeError(emsg)
+        
+    def target_folder(self):
+        self.target_dir='/'.join(['/mnt/databig/backup',self.user,self.id,str(self.animalid)])
+        i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
+        i,o,e2=self.ssh.exec_command('chmod 777 {0} -R'.format(self.target_dir))
+        for e in [e1,e2]:
+            self.check_ssh_error(e)
+        
+    def copy(self):
+        for f in self.files:
+            flinux='/'.join(f.replace('v:\\', '/mnt/datafast/').split('\\'))
+            i,o,e=self.ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
+            self.check_ssh_error(e)
 
 if __name__=='__main__':
     unittest.main()

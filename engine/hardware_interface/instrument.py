@@ -12,8 +12,12 @@ import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils, fileop, log
 import logging
 import visexpman
-from visexpman.users.test import unittest_aggregator
-
+try:
+    from visexpman.users.test import unittest_aggregator
+    test_mode=True
+except IOError:
+    test_mode=False
+    
 class InstrumentProcess(threading.Thread, log.LoggerHelper):
     '''
     Superclass of instrument control related operations that need to run in a separate process
@@ -349,59 +353,62 @@ class testLogClass():
         self.log.setLevel(logging.INFO)
         self.log.info('instrument test')
    
-class TestParallelPort(unittest.TestCase):
-    def setUp(self):
-        self.state = 'experiment running'
-        self.config = testConfig()
-        self.experiment_control = testLogClass(self.config)
-        
-    def tearDown(self):
-        self.experiment_control.handler.flush()
-        
-#== Parallel port ==
 
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_01_set_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, 1)
-        self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_02_set_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, True)
-        self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_03_set_invalid_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        self.assertRaises(RuntimeError,  p.set_data_bit,  -1, 1)
-        p.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_04_set_invalid_value_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        self.assertRaises(RuntimeError,  p.set_data_bit, 0, 1.0)
-        p.release_instrument()
+
+if test_mode:   
+    class TestParallelPort(unittest.TestCase):
+        def setUp(self):
+            self.state = 'experiment running'
+            self.config = testConfig()
+            self.experiment_control = testLogClass(self.config)
+            
+        def tearDown(self):
+            self.experiment_control.handler.flush()
+            
+    #== Parallel port ==
     
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_05_toggle_bit_on_parallel_port(self):        
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, True)
-        time.sleep(0.1)
-        p.set_data_bit(0, False)
-        self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_01_set_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, 1)
+            self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_02_set_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, True)
+            self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_03_set_invalid_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            self.assertRaises(RuntimeError,  p.set_data_bit,  -1, 1)
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_04_set_invalid_value_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            self.assertRaises(RuntimeError,  p.set_data_bit, 0, 1.0)
+            p.release_instrument()
         
-    @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
-    def test_06_parallel_port_call_when_disabled(self):        
-        self.config.ENABLE_PARALLEL_PORT = False
-        p = ParallelPort(self.config, self.experiment_control)
-        p.set_data_bit(0, True)        
-        self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()        
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_05_toggle_bit_on_parallel_port(self):        
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, True)
+            time.sleep(0.1)
+            p.set_data_bit(0, False)
+            self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_parallel_port,  'Parallel port tests disabled')
+        def test_06_parallel_port_call_when_disabled(self):        
+            self.config.ENABLE_PARALLEL_PORT = False
+            p = ParallelPort(self.config, self.experiment_control)
+            p.set_data_bit(0, True)        
+            self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
+            p.release_instrument()        
         
 class DummyInstrumentProcess(InstrumentProcess):
     def run(self):
@@ -438,6 +445,49 @@ class TestInstrument(unittest.TestCase):
         map(self.assertIn, keywords, len(keywords)*[fileop.read_text_file(fn)])
         self.assertFalse(ip.queues['data'].empty())
         self.assertTrue(ip.queues['response'].empty())
+        
+class ProScanIIIShutter(object):
+    def __init__(self, serial_port, baudrate=9600,timeout=1):
+        self.s=serial.Serial(serial_port,baudrate=baudrate)
+        self.s.setTimeout(timeout)
+        self.s.write('?\r')
+        txt=self.s.read(1000)
+        import pdb
+        #pdb.set_trace()
+        if len(txt)==0:
+            raise RuntimeError('Serial communication does not work to ProscanIII Shutter')
+        elif not ('PROSCAN' in txt and 'SHUTTERS' in txt):
+            raise RuntimeError('Invalid device')
+        
+        
+    def _toggle_shutter(self,state):
+        self.s.write('8,A,{0}\r'.format('0' if state else '1'))
+        if self.s.read(2)!='R\r':
+            raise RuntimeError('Shutter may not be accessible')
+            
+    def open_shutter(self):
+        self._toggle_shutter(True)
+        
+    def close_shutter(self):
+        self._toggle_shutter(False)
+        
+    def flash(self,duration):
+        self.open_shutter()
+        time.sleep(duration)
+        self.close_shutter()
+        
+    def close(self):
+        self.s.close()
+        
+class TestShutter(unittest.TestCase):
+    def test_01_shutteronoff(self):
+        s=ProScanIIIShutter('COM6')
+        s.open_shutter()
+        time.sleep(2)
+        s.close_shutter()
+        time.sleep(3)
+        s.flash(1)
+        s.close()
         
 if __name__ == "__main__":    
     unittest.main()

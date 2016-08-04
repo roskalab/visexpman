@@ -227,6 +227,38 @@ def average_of_traces(x,y):
     y_average = numpy.array([y[i][indexes[i]] for i in range(len(y))]).mean(axis=0)
     x_average = numpy.array([x[i][indexes[i]] for i in range(len(x))]).mean(axis=0)
     return x_average, y_average
+    
+def signal_shift(sig1,sig2):
+    c=numpy.correlate(sig1,sig2,'same')
+    return sig1.shape[0]/2-c.argmax()
+
+def downsample_2d_array(ar, fact):
+    from scipy import ndimage
+    assert isinstance(fact, int), type(fact)
+    sx, sy = ar.shape
+    X, Y = numpy.ogrid[0:sx, 0:sy]
+    regions = sy/fact * (X/fact) + Y/fact
+    res = ndimage.mean(ar, labels=regions, index=numpy.arange(regions.max() + 1))
+    res.shape = (sx/fact, sy/fact)
+    return res
+    
+def downsample_2d_array_1_arg(arg):
+    ar, fact=arg
+    return downsample_2d_array(ar, fact)
+    
+def downsample_2d_rgbarray(ar, fact,pool=None):
+    newshape=(numpy.array(ar.shape[:2])/fact).tolist()
+    newshape.append(3)
+    out=numpy.zeros(newshape,dtype=ar.dtype)
+    if pool is not None:
+        pars=[(ar[:,:,ci],fact) for ci in range(ar.shape[2])]
+        res=pool.map(downsample_2d_array_1_arg,pars)
+        for i in range(len(res)):
+            out[:,:,i]=res[i]
+    else:
+        for ci in range(ar.shape[2]):
+            out[:,:,ci]=downsample_2d_array(ar[:,:,ci],fact)
+    return out
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -378,6 +410,23 @@ class TestSignal(unittest.TestCase):
         x.append(rois[0]['matches']['/mnt/rzws/experiment_data/test/20150310/C1_3371241139/data_C1_unknownstim_1425992998_0.hdf5']['timg'])
         y.append(rois[0]['matches']['/mnt/rzws/experiment_data/test/20150310/C1_3371241139/data_C1_unknownstim_1425992998_0.hdf5']['normalized'])
         x_, y_ = average_of_traces(x,y)
+        
+    def test_15_signal_shift(self):
+        signal1=numpy.zeros(100)
+        signal1[10:20]=1
+        signal2=numpy.roll(signal1,10)
+        self.assertEqual(signal_shift(signal1,signal2),10)
+        
+    def test_16_downsample_2d_array(self):
+        a=numpy.random.random((100,100))
+        res=downsample_2d_array(a,10)
+        numpy.testing.assert_array_equal(numpy.array(a.shape), numpy.array(res.shape)*10)
+        a=numpy.random.random((100,100,3))
+        import multiprocessing
+        import introspect
+        pool=multiprocessing.Pool(introspect.get_available_process_cores())
+        res=downsample_2d_rgbarray(a,2,pool)
+        numpy.testing.assert_array_equal(numpy.array(a.shape[:2]), numpy.array(res.shape[:2])*2)
         
     
 

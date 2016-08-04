@@ -17,16 +17,17 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.root_folder = 'r:\\production\\rei-setup'
         self.root_folder = 'd:\\Data\\cone'
         self.root_folder = 'q:\\'
-        LOG_PATH = 'q:\\log'
+        LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = 'q:\\'
+        EXPERIMENT_DATA_PATH = self.root_folder
 #        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'datastorage')
         CONTEXT_PATH = self.root_folder
-        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
-        DELETED_FILES_PATH = 'd:\\deleted_files'
-        os.mkdir(CAPTURE_PATH)
+        if 0:
+            CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
+            os.mkdir(CAPTURE_PATH)
+        self.DELETED_FILES_PATH = 'd:\\deleted_files'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
-        FREE_SPACE_ERROR_THRESHOLD = 50e9
+        FREE_SPACE_ERROR_THRESHOLD = 30e9
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True
@@ -38,8 +39,6 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = imaging_computer_ip #bind to specific network card
         self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = imaging_computer_ip
-        self.CONNECTIONS['analysis']['ip']['analysis'] = None
-        self.CONNECTIONS['analysis']['ip']['main_ui'] = '172.27.26.49'
 
         self.BASE_PORT = 10000
         
@@ -108,7 +107,7 @@ class ReiAnalysisConfig(ElphysRetinalCaImagingConfig):
         DELETED_FILES_PATH = os.path.join(self.root_folder, 'deleted')#'d:\\deleted_files'
         os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
-        FREE_SPACE_ERROR_THRESHOLD = 50e9
+        FREE_SPACE_ERROR_THRESHOLD = 30e9
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True

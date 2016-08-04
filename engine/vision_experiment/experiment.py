@@ -4,17 +4,11 @@ import os
 import visexpman
 
 from visexpman.engine.generic.configuration import Config
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils,fileop,introspect
 from visexpman.engine import ExperimentConfigError
 import stimulation_library
 
 import inspect
-try:
-    import hdf5io
-except ImportError:
-    pass    
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 
@@ -29,7 +23,7 @@ class ExperimentConfig(Config):
     log
     '''
     def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None):
-        Config.__init__(self, ignore_range = True)
+        Config.__init__(self, machine_config=machine_config,ignore_range = True)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         if machine_config != None:
             self.create_runnable(machine_config, queues, experiment_module, parameters, log) # needs to be called so that runnable is instantiated and other checks are done
@@ -79,8 +73,9 @@ class Experiment(stimulation_library.AdvancedStimulation):
         self.experiment_config = experiment_config
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
-        stimulation_library.Stimulations.__init__(self, machine_config, queues, log)
-        #self.prepare()#TODO: eliminate this: This might not be necessary: 
+        self.name='{0}/{1}'.format(self.experiment_name,self.experiment_config_name)
+        stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
+        
 
     def prepare(self):
         '''
@@ -143,6 +138,81 @@ class PreExperiment(Experiment):
     #Alternatively while preexperiment runs, keyboard handler&command handler shall be called.
 
 
+class Stimulus(stimulation_library.AdvancedStimulation):
+    '''
+    Superclass for all user defined stimuli. Stimulus logic and parameters are also included in this class.
+    '''
+    def __init__(self, machine_config, queues = None, parameters = None, log=None, init_hardware=True,**kwargs):
+        self.kwargs=kwargs
+        if init_hardware:
+            stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
+        self.default_stimulus_configuration()
+        self.stimulus_configuration()
+        self.calculate_stimulus_duration()
+        self.name=self.__class__.__name__
+        
+    def default_stimulus_configuration(self):
+        '''
+        Shall be used by Stimulus superclasses
+        '''
+        
+    def stimulus_configuration(self):
+        '''
+        This method needs to be overdefined by subclasses. The experiment configuration parameters are defined here
+        '''
+        
+    def calculate_stimulus_duration(self):
+        '''
+        Method for calculating the stimulus duration from the stimulus configuration parameters.
+        
+        Compulsory for stimuli intentended for Ca imaging
+        '''
+        
+    def run(self):
+        '''
+        Placeholder for main stimulus logic
+        '''
+        
+    def prepare(self):
+        '''
+        Place for computation intensive code that should run before run() method is called
+        '''
+        
+        
+    def prestim(self):
+        '''
+        Stimulus pattern generation on idle screen
+        '''
+        
+    def config2dict(self):
+        d={}
+        for vn in dir(self):
+            if vn.isupper():
+                d[vn]=getattr(self,vn)
+        return d
+
+class Protocol(object):
+    ENABLE_IMAGING_SOURCE_CAMERA=False
+    def __init__(self,engine):
+        self.engine=engine
+        self.reset()
+        
+    def update(self):
+        '''
+        In subclass this method calculates if reward/punishment has to be given
+        '''
+        
+    def stat(self):
+        '''
+        In a subclass this method calculates the actual success rate
+        '''
+        return {'Success Rate': 0.0}
+        
+    def reset(self):
+        '''
+        Resets state variables
+        '''
+
 ######################### Restore experiment config from measurement data #########################
 
 #OBSOLETE
@@ -176,20 +246,36 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     
 def get_experiment_duration(experiment_config_class, config, source=None):
     if source is None:
-        experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
-        experiment_class_object = experiment_class(config).runnable
+        stimulus_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)
+        if len(stimulus_class)==1:
+            experiment_class_object=stimulus_class[0][1]
+        else:
+            experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+            experiment_class_object = experiment_class(config).runnable
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
         experiment_config_module = __import__('experiment_config_module')
-        experiment_config_class_object = getattr(experiment_config_module, experiment_config_class)(None)
-        if hasattr(experiment_config_module,experiment_config_class_object.runnable):
-            experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
+        ecclass=getattr(experiment_config_module, experiment_config_class)
+        if hasattr(ecclass, 'calculate_stimulus_duration'):
+            experiment_class_object=ecclass
         else:
-            experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
-            experiment_class_object = experiment_class(config, experiment_config_class_object)
-    experiment_class_object.prepare()
-    if hasattr(experiment_class_object, 'stimulus_duration'):
-        return experiment_class_object.stimulus_duration
+            experiment_config_class_object = ecclass(None)
+            if hasattr(experiment_config_module,experiment_config_class_object.runnable):
+                experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
+            else:
+                experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
+                experiment_class_object = experiment_class(config, experiment_config_class_object)
+    if hasattr(experiment_class_object,'calculate_stimulus_duration'):
+        ec=experiment_class_object(config)
+        ec.stimulus_configuration()
+        ec.calculate_stimulus_duration()
+    else:
+        ec=None
+        experiment_class_object.prepare()
+    if hasattr(experiment_class_object, 'duration'):
+        return experiment_class_object.duration
+    elif hasattr(ec, 'duration'):
+        return ec.duration
     else:
         from visexpman.engine import ExperimentConfigError
         raise ExperimentConfigError('Stimulus duration is unknown')
@@ -217,6 +303,8 @@ def parse_stimulation_file(filename):
                         if '=' in expconfig_line and (expconfig_line.split('=')[0].replace('self.','').isupper() or 'self.editable' in expconfig_line.split('=')[0])]
             except:
                 continue
+        elif 'Stimulus' in introspect.class_ancestors(c[1]):
+            experiment_config_classes[c[0]] = []
     return experiment_config_classes
 
 class testExperimentHelpers(unittest.TestCase):
@@ -225,15 +313,21 @@ class testExperimentHelpers(unittest.TestCase):
         self.assertEqual((
                           experiment_config_classes.has_key('GUITestExperimentConfig'), 
                           experiment_config_classes.has_key('DebugExperimentConfig'), 
+                          experiment_config_classes.has_key('TestStim'), 
                           ), 
-                          (True, True))
+                          (True, True, True))
+        parse_stimulation_file(os.path.join(fileop.visexpman_package_path(), 'users','volker','plot_mcd.py'))
     
     def test_02_read_experiment_duration(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         conf = GUITestConfig()
         conf.user='test'
-        duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)
+        duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)#Legacy experiment config
         self.assertEqual(duration, 15.0)
+        duration = get_experiment_duration('TestStim', conf, source=None)
+        self.assertEqual(duration, 0.2)
+        duration = get_experiment_duration('TestStim', conf, source=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(),'users','test','test_stimulus.py')))
+        self.assertEqual(duration, 0.2)
         
     def test_03_read_experiment_duration_from_source(self):
         from visexpman.users.test.test_configurations import GUITestConfig
@@ -244,6 +338,8 @@ class testExperimentHelpers(unittest.TestCase):
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=source)
         self.assertEqual(duration, 15.0)
         self.assertEqual(isinstance(get_experiment_duration('TestCommonExperimentConfig', conf, source=source), float), True)#Testing something from the common folder
+        conf.user='zoltan'
+        source = fileop.read_text_file(os.path.join(fileop.get_user_module_folder(conf), 'experiment_tests.py'))
         
     def test_04_not_existing_experiment_class(self):
         from visexpman.users.test.test_configurations import GUITestConfig
@@ -257,6 +353,14 @@ class testExperimentHelpers(unittest.TestCase):
         conf.user='test'
         self.assertRaises(ExperimentConfigError, get_experiment_duration,'Pointing2NonExpConfig', conf, None)
         
+    def test_06_stimulusclass(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestStim', ENABLE_FRAME_CAPTURE = False)
+        context = stimulation_tester('test', 'GUITestConfig', 'TestStim1', ENABLE_FRAME_CAPTURE = False)
+        src=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test','test_stimulus.py'))
+        context = stimulation_tester('test', 'GUITestConfig', 'TestStim1', ENABLE_FRAME_CAPTURE = False, stimulus_source_code = src)
+        
+    
     
 if __name__ == "__main__":
     unittest.main()

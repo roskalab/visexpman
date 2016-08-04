@@ -22,8 +22,11 @@ if 0:
 
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
-
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+    test_mode=True
+except:
+    test_mode=False
 parameter_extract = re.compile('EOC(.+)EOP')
 
 def generate_scan_points_mat(points, mat_file):
@@ -742,62 +745,62 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         mes_emulator.start()
         result = self.mes_interface.start_line_scan(scan_time = 1.0, parameter_file = self.parameter_path, timeout = 2.0)
         self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (False, True))
-
-class TestMesInterface(unittest.TestCase):
-
-    def tearDown(self):
-        self.user_to_client.put('SOCclose_connectionEOCstop_clientEOP')
-        if hasattr(self, 'server'):
-            self.server.shutdown_servers()
-        time.sleep(0.5)
-
-    def setUp(self):
-        self.config = MESTestConfig(mes_data_to_new_folder = not True, baseport = 10000)
-        self.user_to_client = Queue.Queue()
-        self.client_to_user = Queue.Queue()
-        queues = {}
-        queues['mes'] = {}
-        queues['mes']['out'] = self.user_to_client
-        queues['mes']['in'] = self.client_to_user
-        queues['gui'] = {}
-        queues['gui']['in'] = Queue.Queue()
-        queues['gui']['out'] = Queue.Queue()
-        self.user_client = network_interface.start_client(self.config, 'USER', 'USER_MES', self.client_to_user, self.user_to_client)
-        self.mes_interface = MesInterface(self.config, queues = queues, connections = {'mes' : self.user_client})
-        self.server = network_interface.CommandRelayServer(self.config)
-
-    @unittest.skipIf(not unittest_aggregator.TEST_mes,  'MES tests disabled')
-    def test_all_functions(self):
-        '''
-        1. line scan with mes settings
-        2. line scan with user scan time
-        '''
-
-        scan_time_reference1 = 4.0
-        scan_time_reference2 = 5.0
-        raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
-                2. Connect MES to gui\n\
-                3. Press ENTER')
-
-        line_scan_complete_success = False
-        line_scan_data_save_success = False
-        user_line_scan_file = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'user_line_scan.mat'))
-        line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = user_line_scan_file, scan_time = scan_time_reference1, timeout = 2 * scan_time_reference1)
-        if line_scan_start_success:
-            line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(2 * scan_time_reference1)
-            if line_scan_complete_success:
-                line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(scan_time_reference1)
-        self.assertEqual((line_scan_start_success, line_scan_complete_success, line_scan_data_save_success, get_line_scan_time(user_line_scan_file)) , (True, True, True, 1000 * scan_time_reference1))
-
-    def _check_line_scan_result(self, expected_scan_time, line_scan_start_success = None, line_scan_path = None, user_line_scan_file = None, line_scan_complete_success = None, 
-                                    line_scan_data_save_success = None):
-        result = False
-        if line_scan_start_success == None or line_scan_path == None or user_line_scan_file == None or line_scan_complete_success == None or line_scan_data_save_success == None:
+if test_mode:
+    class TestMesInterface(unittest.TestCase):
+    
+        def tearDown(self):
+            self.user_to_client.put('SOCclose_connectionEOCstop_clientEOP')
+            if hasattr(self, 'server'):
+                self.server.shutdown_servers()
+            time.sleep(0.5)
+    
+        def setUp(self):
+            self.config = MESTestConfig(mes_data_to_new_folder = not True, baseport = 10000)
+            self.user_to_client = Queue.Queue()
+            self.client_to_user = Queue.Queue()
+            queues = {}
+            queues['mes'] = {}
+            queues['mes']['out'] = self.user_to_client
+            queues['mes']['in'] = self.client_to_user
+            queues['gui'] = {}
+            queues['gui']['in'] = Queue.Queue()
+            queues['gui']['out'] = Queue.Queue()
+            self.user_client = network_interface.start_client(self.config, 'USER', 'USER_MES', self.client_to_user, self.user_to_client)
+            self.mes_interface = MesInterface(self.config, queues = queues, connections = {'mes' : self.user_client})
+            self.server = network_interface.CommandRelayServer(self.config)
+    
+        @unittest.skipIf(not unittest_aggregator.TEST_mes,  'MES tests disabled')
+        def test_all_functions(self):
+            '''
+            1. line scan with mes settings
+            2. line scan with user scan time
+            '''
+    
+            scan_time_reference1 = 4.0
+            scan_time_reference2 = 5.0
+            raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
+                    2. Connect MES to gui\n\
+                    3. Press ENTER')
+    
+            line_scan_complete_success = False
+            line_scan_data_save_success = False
+            user_line_scan_file = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'user_line_scan.mat'))
+            line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = user_line_scan_file, scan_time = scan_time_reference1, timeout = 2 * scan_time_reference1)
+            if line_scan_start_success:
+                line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(2 * scan_time_reference1)
+                if line_scan_complete_success:
+                    line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(scan_time_reference1)
+            self.assertEqual((line_scan_start_success, line_scan_complete_success, line_scan_data_save_success, get_line_scan_time(user_line_scan_file)) , (True, True, True, 1000 * scan_time_reference1))
+    
+        def _check_line_scan_result(self, expected_scan_time, line_scan_start_success = None, line_scan_path = None, user_line_scan_file = None, line_scan_complete_success = None, 
+                                        line_scan_data_save_success = None):
+            result = False
+            if line_scan_start_success == None or line_scan_path == None or user_line_scan_file == None or line_scan_complete_success == None or line_scan_data_save_success == None:
+                return result
+            elif line_scan_start_success and line_scan_complete_success and line_scan_data_save_success:
+                if 1000 * expected_scan_time == get_line_scan_time(user_line_scan_file) and 1000 * expected_scan_time == get_line_scan_time(line_scan_path):
+                    result = True
             return result
-        elif line_scan_start_success and line_scan_complete_success and line_scan_data_save_success:
-            if 1000 * expected_scan_time == get_line_scan_time(user_line_scan_file) and 1000 * expected_scan_time == get_line_scan_time(line_scan_path):
-                result = True
-        return result
 
 if __name__ == "__main__":
 #    unittest.main()

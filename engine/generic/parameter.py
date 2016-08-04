@@ -2,14 +2,17 @@ import os.path
 import numpy
 import unittest
 import os
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+except IOError:
+    pass
 
 class InvalidParameterValue(Exception):
     pass
     
 class OutOfRangeParameterValue(Exception):
     pass  
-
+    
 class Parameter(object):
     '''
     Parameter class determines the type of parameter automatically. Then performs range check or other checks when it is applicable.

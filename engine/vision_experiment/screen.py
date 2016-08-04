@@ -1,8 +1,4 @@
-try:
-    import pygame
-except ImportError:
-    pass
-import copy
+import copy,os
 import socket
 import time
 import numpy
@@ -12,11 +8,6 @@ import scipy.ndimage.filters
 from visexpman.engine.generic import utils,colors,graphics,fileop,signal
 from PIL import Image
 
-try:
-    from OpenGL.GL import *#TODO: perhaps this is not necessary
-    from OpenGL.GLUT import *
-except ImportError:
-    pass
 
 def experiment_choices(experiment_list):
     '''
@@ -120,6 +111,7 @@ class StimulationScreen(graphics.Screen):
         graphics.Screen.__init__(self, self.config, graphics_mode = 'external')
         self.clear_screen()
         #== Initialize displaying text ==
+        from OpenGL.GLUT import GLUT_BITMAP_8_BY_13
         self.text_style = GLUT_BITMAP_8_BY_13
         self.max_lines = int(self.config.SCREEN_RESOLUTION['row']/13.0)
         self.max_chars =  int(self.config.SCREEN_RESOLUTION['col']/(8+13.0))

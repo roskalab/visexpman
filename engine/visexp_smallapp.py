@@ -15,7 +15,7 @@ import PyQt4.QtCore as QtCore
 
 import visexpman
 import hdf5io
-from visexpman.engine.generic import utils,log,fileop,signal
+from visexpman.engine.generic import utils,log,fileop,signal,introspect
 from visexpman.engine.vision_experiment import configuration,gui
 from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
@@ -25,7 +25,7 @@ class SmallApp(QtGui.QWidget):
     '''
     Small  application gui
     '''
-    def __init__(self, user=None, config_class=None):
+    def __init__(self, user=None, config_class=None, enable_console=True):
         if hasattr(config_class, 'OS'):
             self.config=config_class
             config_class_name = config_class.__class__.__name__
@@ -56,7 +56,8 @@ class SmallApp(QtGui.QWidget):
         if hasattr(self.config, 'GUI_POSITION'):
             self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
-        self.add_console()
+        if enable_console:
+            self.add_console()
         self.create_layout()
         self.connect_signals()
         self.show()
@@ -103,8 +104,7 @@ class SmallApp(QtGui.QWidget):
                 self.log.info(text)
         except:
             print 'gui: logging error'
-            
-    
+
     def ask4confirmation(self, action2confirm):
         reply = QtGui.QMessageBox.question(self, 'Confirm following action', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.No:
@@ -113,7 +113,7 @@ class SmallApp(QtGui.QWidget):
             return True
             
     def ask4filename(self,title, directory, filter):
-        filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)
+        filename = str(QtGui.QFileDialog.getOpenFileName(self, title, directory, filter))
         return filename
         
     def notify_user(self, title, message):
@@ -448,6 +448,333 @@ class AfmCaImagingAnalyzer(SmallApp):
                                         )
                 subprocess.call(cmd,shell=True)
             self.printc('Processing finished')
+            
+from pyqtgraph.parametertree import Parameter, ParameterTree
+#TODO: NEXT: better low resolution image: reduce runtime, rotate image
+class TileScanCorrection(SmallApp):
+    def __init__(self):
+        self.TILE_SIZE=512
+        self.RESCALE=4
+        SmallApp.__init__(self,enable_console=False)
+        self.setWindowTitle('Tile Scan Correction')
+        self.open_file_button = QtGui.QPushButton('Open', self)
+        self.save_button = QtGui.QPushButton('Save', self)
+        self.tif2tif_button = QtGui.QPushButton('Tif 2 Tif', self)
+        self.tif2tif_button.setToolTip('''
+        Tif files in selected folder will be read and saved back to tif. Opening saved back tif files takes less time
+        ''')
+        self.view=QtGui.QComboBox(self)
+        self.low_resolution = gui_generic.LabeledCheckBox(self, 'Low resolution')
+        self.low_resolution.input.setCheckState(2)
+        self.show_correction = gui_generic.LabeledCheckBox(self, 'Show correction')
+        self.red = gui_generic.LabeledCheckBox(self, 'Red')
+        self.green = gui_generic.LabeledCheckBox(self, 'Green')
+        self.blue = gui_generic.LabeledCheckBox(self, 'Blue')
+        self.red.input.setCheckState(2)
+        self.blue.input.setCheckState(2)
+        self.green.input.setCheckState(2)
+        self.image=gui_generic.Image(self)
+        self.image.img.setLevels([0,255])
+        self.npoints = gui_generic.LabeledComboBox(self, 'Number of points', map(str,[3,5,7,10,15]))
+        self.npoints.input.setCurrentIndex(2)
+        
+        self.vcorrection=numpy.ones((3,self.TILE_SIZE))
+        self.vcorrection_lr=numpy.ones((3,self.TILE_SIZE/self.RESCALE))
+        self.hcorrection=numpy.ones((3,self.TILE_SIZE))
+        self.hcorrection_lr=numpy.ones((3,self.TILE_SIZE/self.RESCALE))
+        self.hprofile=numpy.ones((3,self.TILE_SIZE))
+        self.vprofile=numpy.ones((3,self.TILE_SIZE))
+        self.color_channels = [False,False,False]
+        self.parameters_widget = ParameterTree(self, showHeader=False)
+        self.parameters_widget.setMinimumWidth(200)
+        self.parameters_widget.setMaximumWidth(500)
+        self.update_parameter_tree()
+            
+        self.hplot=gui_generic.Plot(self)
+        self.vplot=gui_generic.Plot(self)
+        self.vplot.setMinimumWidth(300)
+        self.hplot.setMinimumWidth(300)
+        self.vplot.setFixedHeight(200)
+        self.hplot.setFixedHeight(200)
+        self.hplot.plot.setTitle('Horizontal correction')
+        self.vplot.plot.setTitle('Vertical correction')
+        
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.image, 1, 0, 1, 5)
+        self.layout.addWidget(self.parameters_widget, 1, 5, 1, 3)
+        self.layout.addWidget(self.open_file_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.save_button, 0, 1, 1, 1)
+        self.layout.addWidget(self.low_resolution, 0, 2, 1, 1)
+        self.layout.addWidget(self.show_correction, 0, 3, 1, 1)
+        self.layout.addWidget(self.red, 0, 4, 1, 1)
+        self.layout.addWidget(self.green, 0, 5, 1, 1)
+        self.layout.addWidget(self.blue, 0, 6, 1, 1)
+        self.layout.addWidget(self.npoints, 0, 7, 1, 1)
+        self.layout.addWidget(self.tif2tif_button, 0, 8, 1, 1)
+        self.layout.addWidget(self.hplot, 2, 0, 1, 3)
+        self.layout.addWidget(self.vplot, 2, 3, 1, 3)
+        self.setLayout(self.layout)
+        self.connect(self.open_file_button, QtCore.SIGNAL('clicked()'),  self.open_file)
+        self.connect(self.save_button, QtCore.SIGNAL('clicked()'),  self.save)
+        self.connect(self.show_correction.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.low_resolution.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.red.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.green.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.blue.input, QtCore.SIGNAL('stateChanged(int)'), self.display_image)
+        self.connect(self.npoints.input, QtCore.SIGNAL('currentIndexChanged(int)'), self.update_parameter_tree)
+        self.connect(self.tif2tif_button, QtCore.SIGNAL('clicked()'), self.tif2tif)
+        self.open_file_button.setFixedWidth(100)
+        
+    def _param_config(self,n):
+        xval=numpy.linspace(0,1,n)
+        xvalconfig=[{'name': '{0:0=2}'.format(i), 'type': 'float', 'value': xval[i]} for i in range(n)]
+        yvalconfig=[{'name': '{0:0=2}'.format(i), 'type': 'float', 'value': 1.0, 'step': 0.01} for i in range(n)]
+        x_group= {'name': 'X', 'type': 'group', 'expanded' : False, 'children': xvalconfig}
+        hy_group= {'name': 'Horizontal Y', 'type': 'group', 'expanded' : True, 'children': yvalconfig}
+        vy_group= {'name': 'Vertical Y', 'type': 'group', 'expanded' : True, 'children': yvalconfig}
+        xy_group_template={'name': '', 'type': 'group', 'expanded' : True, 'children': [hy_group,vy_group]}
+        import copy
+        r=copy.deepcopy(xy_group_template)
+        r['name']='Red'
+        r['expanded'] = self.color_channels[0]
+        g=copy.deepcopy(xy_group_template)
+        g['name']='Green'
+        g['expanded'] = self.color_channels[1]
+        b=copy.deepcopy(xy_group_template)
+        b['name']='Blue'
+        b['expanded'] = self.color_channels[2]
+        params = [x_group,r,g,b]
+        return params
+        
+    def update_parameter_tree(self):
+        self.parameters = Parameter.create(name='params', type='group', children=self._param_config(int(self.npoints.input.currentText())))
+        self.parameters_widget.setParameters(self.parameters, showTop=False)
+        self.parameters.sigTreeStateChanged.connect(self.parameter_changed)
+        self.default_correction_curves()
+        self.display_image()
+        
+    def default_correction_curves(self):
+        '''
+        tile profiles to default correction curves
+        '''
+        x=numpy.array([c.value() for c in [c for c in self.parameters.children() if c.name()=='X'][0].children()])
+        indexes=x*self.TILE_SIZE
+        indexes[-1]-=1
+        hnew_values = numpy.round(self.hprofile[:,numpy.cast['int'](indexes)],2)
+        vnew_values = numpy.round(self.vprofile[:,numpy.cast['int'](indexes)],2)
+        colors=['Red','Green','Blue']
+        self.parameters.blockSignals(True)
+        for i in range(len(colors)):
+            for d in [c for c in self.parameters.children() if c.name()==colors[i]][0].children():
+                for v in d.children():
+                    if 'Horizontal' in d.name():
+                        v.setValue(hnew_values[i,int(v.name())])
+                    elif 'Vertical' in d.name():
+                        v.setValue(vnew_values[i,int(v.name())])
+        self.parameters.blockSignals(False)
+        self.points2correction_curves(x,hnew_values, vnew_values)
+        self.update_plots(x,hnew_values,vnew_values)
+            
+    def update_plots(self,x,hcorrection, vcorrection):
+        if hasattr(self, 'hplot') and hasattr(self, 'vplot'):
+            colors=['Red','Green','Blue']
+            curves = {'horizontal':[],'vertical':[]}
+            self.hplot._clear_curves()
+            self.vplot._clear_curves()
+            self.hplot.curves = []
+            self.vplot.curves = []
+            plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)}
+            for i in range(len(colors)):
+                tracecolor=[0,0,0]
+                tracecolor[i]=127
+                plotparams['symbolBrush']=tuple(numpy.array(tracecolor)*2)
+                c1 = self.hplot.plot.plot(pen=tracecolor, **plotparams)
+                c1.setData(x,hcorrection[i])
+                self.hplot.curves.append(c1)
+                curves['horizontal'].append(hcorrection[i])
+                c1 = self.vplot.plot.plot(pen=tracecolor, **plotparams)
+                c1.setData(x,vcorrection[i])
+                self.vplot.curves.append(c1)
+                curves['vertical'].append(vcorrection[i])
+            if hasattr(self, 'hprofile') and hasattr(self, 'vprofile'):
+                x=numpy.arange(self.TILE_SIZE,dtype=numpy.float)/self.TILE_SIZE
+                for i in range(len(colors)):
+                    tracecolor=[0,0,0]
+                    tracecolor[i]=255
+                    c1 = self.hplot.plot.plot(pen=tracecolor)
+                    c1.setData(x,self.hprofile[i])
+                    self.hplot.curves.append(c1)
+                    curves['horizontal'].append(self.hprofile[i])
+                    c1 = self.vplot.plot.plot(pen=tracecolor)
+                    c1.setData(x,self.vprofile[i])
+                    self.vplot.curves.append(c1)
+                    curves['vertical'].append(self.vprofile[i])
+            y1=numpy.concatenate([c for c in curves['horizontal'] if c.sum() != 0])
+            self.hplot.plot.setYRange(y1.min(), y1.max())
+            y2=numpy.concatenate([c for c in curves['vertical'] if c.sum() != 0])
+            self.vplot.plot.setYRange(y2.min(), y2.max())
+            #This is necessary for unknown reason
+            self.hplot.plot.setYRange(y1.min(), y1.max())
+            self.vplot.plot.setYRange(y2.min(), y2.max())
+        
+    def open_file(self):
+        '''
+        1) Open file
+        2) Create downsampled version of image
+        3) Create trench corrected image which will be the input for correction
+        4) Calculate tile profiles
+        '''
+        self.filename = self.ask4filename('Select tif file', 'c:\\' if os.name=='nt' else '/tmp/Santiago', '*.tif')
+        if not os.path.exists(self.filename):
+            return
+        import tifffile
+        self.tilescan=tifffile.imread(self.filename)
+        if self.tilescan.shape[0]%self.TILE_SIZE!=0 or self.tilescan.shape[1]%self.TILE_SIZE!=0:
+            self.notify_user('Warning', 'Size {1} of {0} is not the multiple of tile size ({2})'.format(self.filename,self.tilescan.shape, self.TILE_SIZE))
+            return
+        self.lowres=self.tilescan[0.5*self.RESCALE::self.RESCALE,0.5*self.RESCALE::self.RESCALE]#signal.downsample_2d_rgbarray(self.tilescan,self.RESCALE)
+        self.color_channels = [numpy.nonzero(self.lowres[:,:,0])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0,numpy.nonzero(self.lowres[:,:,1])[0].shape[0]>0]
+        self.trench_corrected=self.trench_correction(self.tilescan)
+        self.trench_corrected_lowres=self.trench_correction(self.lowres)
+        self.tile_profile(self.trench_corrected)
+        self.default_correction_curves()
+        self.image.plot.setTitle(self.filename)
+        self.display_image()
+        
+    def trench_correction(self,image):
+        corrected=numpy.cast['float'](numpy.copy(image))
+        #Remove vertical trenches
+        color=2
+        for color in range(3):
+            for i in range(1,corrected.shape[1]/512):
+                start=i*512-1
+                end=i*512+3
+                corr=corrected[:,start:end,color]
+                step=(corrected[:,end,color]-corrected[:,start,2])/(end-start-1)
+                c=numpy.ones((corr.shape[0],2))
+                c[:,1]*=2
+                corr[:,1:3]=(c.T*step+corr[:,0]).T
+                corrected[:,start:end,color]=corr
+            #Remove horizontal trenches
+            for i in range(1,corrected.shape[0]/512):
+                start=i*512-1
+                end=i*512+3
+                corr=corrected[start:end,:,color]
+                step=(corrected[end,:,color]-corrected[start,:,color])/(end-start-1)
+                c=numpy.ones((2,corr.shape[1]))
+                c[1]*=2
+                corr[1:3]=c*step+corr[0]
+                corrected[start:end,:,color]=corr
+        corrected=numpy.where(corrected<0,0,corrected)
+        return corrected
+        
+    def tile_profile(self,image):
+        '''
+        calculate average horizontal and vertical profiles
+        '''
+        self.hprofile=numpy.zeros((3,self.TILE_SIZE))
+        self.vprofile=numpy.zeros((3,self.TILE_SIZE))
+        for ci in range(3):
+            p1=image[:,:,ci].mean(axis=1).reshape(image[:,:,0].shape[0]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            if p1.max()==0: continue
+            self.hprofile[ci]=p1/p1.max()
+            p2=image[:,:,ci].mean(axis=0).reshape(image[:,:,0].shape[1]/self.TILE_SIZE,self.TILE_SIZE).mean(axis=0)
+            if p2.max()==0: continue
+            self.vprofile[ci]=p2/p2.max()
+        
+    def display_image(self):
+        if not hasattr(self, 'trench_corrected'):
+            return
+        img = numpy.copy(self.trench_corrected_lowres if self.low_resolution.input.checkState()==2 else self.trench_corrected)
+        if self.show_correction.input.checkState()==2:
+            img=self.correct(self.trench_corrected)
+        if self.red.input.checkState()==0:
+            img[:,:,0]=0
+        if self.green.input.checkState()==0:
+            img[:,:,1]=0
+        if self.blue.input.checkState()==0:
+            img[:,:,2]=0
+        self.image.set_image(numpy.fliplr(numpy.rollaxis(img,0,2)),alpha=1.0)
+        
+    def correct(self,image):
+        '''
+        Should work for both full resolution and low resolution
+        '''
+#        if self.low_resolution.input.checkState()==2:
+#            vcorr=self.vcorrection_lr
+#            hcorr=self.hcorrection_lr
+#            size=self.TILE_SIZE/self.RESCALE
+#        else:
+        if 1:
+            vcorr=self.vcorrection
+            hcorr=self.hcorrection
+            size=self.TILE_SIZE
+        vcorr=numpy.where(vcorr==0.0, 1.0,vcorr)
+        vcorr=1.0/vcorr
+        hcorr=numpy.where(hcorr==0.0, 1.0,hcorr)
+        hcorr=1.0/hcorr
+        vcorr_img=numpy.zeros_like(image,dtype=numpy.float)
+        hcorr_img=numpy.zeros_like(image,dtype=numpy.float)
+#        for i in range(3):
+#            if self.color_channels[i] and i==1:
+#                vcorr_img[:,:,i] = numpy.tile(vcorr[i],(image.shape[0],image.shape[1]/size))
+#                hcorr_img[:,:,i] = numpy.tile(hcorr[i],(image.shape[1], image.shape[0]/size)).T
+        vcorr_img = numpy.tile(vcorr.T.flatten(),(image.shape[0], image.shape[1]/size)).reshape(image.shape[0],image.shape[1],3)
+        hcorr_img = numpy.tile(hcorr.T, (image.shape[0]/size,image.shape[1])).reshape(image.shape[0],image.shape[1],3)
+        out=image*hcorr_img*vcorr_img
+        if self.low_resolution.input.checkState()==2:
+#            out=signal.downsample_2d_rgbarray(out,self.RESCALE)
+            out = out[0.5*self.RESCALE::self.RESCALE,0.5*self.RESCALE::self.RESCALE]
+        return out
+    
+    def save(self):
+        import tifffile
+        fn=self.filename.replace('.tif','_corrected{0}.tif'.format('_lowres' if self.low_resolution.input.checkState()==2 else ''))
+        tifffile.imsave(fn,numpy.cast['uint8'](255*signal.scale(self.correct(self.trench_corrected))))
+        self.notify_user('Save done', 'Saved to {0}'.format(fn))
+        
+    def parameter_changed(self, param, changes):
+        values={}
+        x=numpy.array([v.value() for v in [c.children() for c in param.children() if c.name()=='X'][0]])
+        colors=['Red','Green','Blue']
+        hcorrection_points = numpy.zeros((3,x.shape[0]))
+        vcorrection_points = numpy.zeros((3,x.shape[0]))
+        for c in param.children():
+            if c.name()=='X': continue
+            h=numpy.array([v.value() for v in [t for t in c.children() if 'Horizontal' in t.name()][0].children()])
+            v=numpy.array([v.value() for v in [t for t in c.children() if 'Vertical' in t.name()][0].children()])
+            hcorrection_points[colors.index(c.name())]=h
+            vcorrection_points[colors.index(c.name())]=v
+        self.update_plots(x,hcorrection_points, vcorrection_points)
+        self.points2correction_curves(x,hcorrection_points, vcorrection_points)
+        self.display_image()
+        
+    def points2correction_curves(self,x,h,v):
+        from scipy.interpolate import interp1d
+        for i in range(3):
+            #Horizontal
+            fh=interp1d(x*self.TILE_SIZE, h[i], kind='linear')
+            self.hcorrection[i]=fh(numpy.arange(self.TILE_SIZE))
+            fhlr=interp1d(x*self.TILE_SIZE/self.RESCALE, h[i], kind='linear')
+            self.hcorrection_lr[i]=fh(numpy.arange(self.TILE_SIZE/self.RESCALE))
+            #Vertical
+            fv=interp1d(x*self.TILE_SIZE, v[i], kind='linear')
+            self.vcorrection[i]=fv(numpy.arange(self.TILE_SIZE))
+            fvlr=interp1d(x*self.TILE_SIZE/self.RESCALE, v[i], kind='linear')
+            self.vcorrection_lr[i]=fv(numpy.arange(self.TILE_SIZE/self.RESCALE))
+            
+    def tif2tif(self):
+        self.folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder','c:\\' if os.name=='nt' else '/tmp/Santiago' ))
+        if not os.path.exists(self.folder):
+            return
+        tiffiles=[f for f in fileop.find_files_and_folders(self.folder,  extension = 'tif')[1] if '_prep.tif' not in tf]
+        import tifffile
+        for tf in tiffiles:
+            print tiffiles.index(tf)+1, len(tiffiles), tf
+            data=tifffile.imread(tf)
+            new_fn=tf.replace('.tif', '_prep.tif')
+            tifffile.imsave(new_fn,data)
+        self.notify_user('Tif file preparation is ready', '{0} files are converted'.format(len(tiffiles)))
 
 def run_gui():
     '''

@@ -16,18 +16,26 @@ class QueuedSocketHelpers(object):
         
     def _get_queue(self, connection):
         if connection == None:
-            queue = self.socket_queues['fromsocket']
+            if self.socket_queues.has_key('fromsocket'):
+                queue = self.socket_queues['fromsocket']
+            elif len(self.socket_queues.keys())==1:
+                queue = self.socket_queues.values()[0]['fromsocket']
+            else:
+                raise RuntimeError('Unknown socket queue format {0}'.format(self.socket_queues))
         else:
             queue = self.socket_queues[connection]['fromsocket']
         return queue
         
     def recv(self, connection=None, put_message_back=False):
         queue = self._get_queue(connection)
-        if not queue.empty():
-            m=queue.get()
-            if put_message_back:
-                queue.put(m)
-            return m
+        try:
+            if not queue.empty():
+                m=queue.get()
+                if put_message_back:
+                    queue.put(m)
+                return m
+        except IOError:
+            pass
 
     def send(self, msg, connection=None):
         if connection == None:
@@ -126,7 +134,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                     message = utils.str2object(message)
                     if hasattr(message,'has_key') and message.has_key('sync'):
                         if message['sync'].has_key('t2'):
-                            message['sync']['t1*'] = time.time()
+                            message['sync']['t1'] = time.time()
                             self.socket_queues['fromsocket'].put(message)
                         else:
                             message['sync']['t2']=time.time()
@@ -168,7 +176,7 @@ def start_sockets(uiname, config, log, enable_sockets):
                                                                                     config.CONNECTIONS[server_name]['port'],
                                                                                     multiprocessing.Queue(), 
                                                                                     multiprocessing.Queue(), 
-                                                                                    ip= config.CONNECTIONS[server_name]['ip']['main_ui'],
+                                                                                    ip= config.CONNECTIONS[server_name]['ip'][server_name],
                                                                                     log=log)
     else:
         sockets[uiname] = QueuedSocket('{0}-{1} socket'.format(uiname, 'main_ui'), 
@@ -297,7 +305,7 @@ class TestQueuedSocket(unittest.TestCase):
         logfiles = []
         for uiname in uinames:
             config.user_interface_name = uiname
-            logger = log.Logger(filename=fileop.get_logfilename(config), remote_logpath = config.REMOTE_LOG_PATH)
+            logger = log.Logger(filename=log.get_logfilename(config), remote_logpath = config.REMOTE_LOG_PATH)
             sockets = start_sockets(uiname, config, log=logger, enable_sockets = True)#Unit under test
             logger.start()
             time.sleep(4.0)

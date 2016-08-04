@@ -4,13 +4,13 @@ generic.gui module has generic gui widgets like labeled widgets. It also contain
 import os.path
 import numpy
 import time
-import copy
+import copy,Queue,logging,tempfile
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
-from visexpman.engine.generic import utils,stringop,fileop,signal
+from visexpman.engine.generic import utils,stringop,fileop,signal,introspect
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import traceback,sys,Queue
 
@@ -54,6 +54,12 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.error_timer = QtCore.QTimer()
         self.error_timer.timeout.connect(self.catch_error_message)
         self.error_timer.start(200)
+        self.timer=QtCore.QTimer()
+        self.timer.start(50)#ms
+        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        
+    def check_queue(self):
+        pass
 
     def _set_window_title(self, animal_file=''):
         self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
@@ -87,11 +93,171 @@ class VisexpmanMainWindow(Qt.QMainWindow):
     def catch_error_message(self):
         if not error_messages.empty():
             self.logger.error(error_messages.get())
+            
+    def _start_engine(self,engine):
+        self.engine = engine
+        self.to_engine, self.from_engine = self.engine.get_queues()
+        self.engine.start()
+        
+    def _stop_engine(self):
+        self.to_engine.put('terminate')
+        self.engine.join()
+        
+    def send_all_parameters2engine(self):
+        values, paths, refs = self.params.get_parameter_tree()
+        for i in range(len(refs)):
+            self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
+            
+    def load_all_parameters(self):
+        values, paths, refs = self.params.get_parameter_tree()
+        paths = ['/'.join(p) for p in paths]
+        for item in self.engine.guidata.to_dict():
+            mwname = item['path'].split('/')[0]
+            if mwname == 'params':
+                try:
+                    r = refs[paths.index([p for p in paths if p == item['path']][0])]
+                except IndexError:
+                    continue
+                r.setValue(item['value'])
+                r.setDefault(item['value'])
+            elif mwname == 'stimulusbrowser':
+                self.stimulusbrowser.select_stimulus(item['value'])
+            else:
+                ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
+                wname = ref.__class__.__name__.lower()
+                if 'checkbox' in wname:
+                    ref.setCheckState(2 if item['value'] else 0)
+                elif 'qtabwidget' in wname:
+                    ref.setCurrentIndex(item['value'])
         
     def closeEvent(self, e):
         e.accept()
         self.exit_action()
+
+class SimpleAppWindow(Qt.QMainWindow):
+    def __init__(self):
+        if QtCore.QCoreApplication.instance() is None:
+            self.qt_app = Qt.QApplication([])
+        Qt.QMainWindow.__init__(self)
+        if not hasattr(self, 'logfile'):
+            self.logfile = os.path.join(tempfile.gettempdir(), 'log_{0}.txt'.format(utils.timestamp2ymdhms(time.time(), filename=True)))
+        logging.basicConfig(filename= self.logfile,
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.INFO)
+        self.logtext=''
+        self.debugw = Debug(self)
+        self.logw=self.debugw.log
+        self.add_dockwidget(self.debugw, 'Log/Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
+        self.init_gui()
+        self.error_timer = QtCore.QTimer()
+        self.error_timer.timeout.connect(self.catch_error_message)
+        self.error_timer.start(300)
+        self.log_update_timer = QtCore.QTimer()#Makes sure that whole logfile is always displayed on screen
+        self.log_update_timer.timeout.connect(self.logfile2screen)
+        self.log_update_timer.start(300)
+        if hasattr(self,'maximized') and self.maximized:
+            self.showMaximized()
+        else:
+            self.show()
+        if QtCore.QCoreApplication.instance() is not None:
+            QtCore.QCoreApplication.instance().exec_()
+
+    def init_gui(self):
+        '''
+        Placeholder for creating application specific widgets and layout
+        '''
+                    
+    def logfile2screen(self):
+        newlogtext=fileop.read_text_file(self.logfile)
+        if len(newlogtext)!=len(self.logtext):
+            self.logtext=newlogtext
+            self.logw.update(self.logtext)
+
+    def log(self, msg, loglevel='info'):
+        getattr(logging, loglevel)(str(msg))
+        self.logw.update(fileop.read_text_file(self.logfile))
         
+    def catch_error_message(self):
+        if not error_messages.empty():
+            self.log(error_messages.get(),'error')
+            
+    def add_dockwidget(self, widget, title, position, allowed_areas):
+        dock = QtGui.QDockWidget(title, self)
+        dock.setAllowedAreas(allowed_areas)
+        dock.setWidget(widget)
+        self.addDockWidget(position, dock)
+        dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
+        
+    def ask4confirmation(self, action2confirm):
+        reply = QtGui.QMessageBox.question(self, 'Confirm:', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.No:
+            return False
+        else:
+            return True
+            
+    def ask4filename(self,title, directory, filter):
+        filename = str(QtGui.QFileDialog.getOpenFileName(self, title, directory, filter))
+        if os.name=='nt':
+            filename=filename.replace('/','\\')
+        return filename
+        
+    def ask4filenames(self,title, directory, filter):
+        filenames = map(str,QtGui.QFileDialog.getOpenFileNames(self, title, directory, filter))
+        if os.name=='nt':
+            filenames=[filename.replace('/','\\') for filename in filenames]
+        return filenames
+        
+    def ask4foldername(self,title, directory):
+        foldername = str(QtGui.QFileDialog.getExistingDirectory(self, title, directory))
+        if os.name=='nt':
+            foldername=foldername.replace('/','\\')
+        return foldername
+        
+    def notify_user(self, title, message):#OBSOLETE
+        self.notify(self, title, message)
+        
+    def notify(self, title, message):
+        QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
+
+class Progressbar(QtGui.QWidget):
+    def __init__(self, maxtime, name = '', autoclose = False, timer=False):
+        self.maxtime = maxtime
+        self.autoclose = autoclose
+        QtGui.QWidget.__init__(self)
+        self.setWindowTitle(name)
+        self.progressbar = QtGui.QProgressBar(self)
+        self.progressbar.setTextVisible(False)
+        self.progressbar.setRange(0, maxtime)
+        self.progressbar.setMinimumWidth(300)
+        self.progressbar.setMinimumHeight(30)
+        self.setMinimumWidth(320)
+        self.setMinimumHeight(50)
+        self.move(10,10)
+        self.l = QtGui.QGridLayout()
+        self.l.addWidget(self.progressbar, 0, 0, 1, 1)
+        self.setLayout(self.l)
+        self.t0=time.time()
+        if timer:
+            self.maxtime=100
+            self.timer=QtCore.QTimer()
+            self.timer.start(200)#ms
+            self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_time)
+    
+    def update(self,value):
+        self.progressbar.setValue(value)
+        if self.autoclose and value == 100:
+            self.close()
+        
+    def update_time(self):
+        now=time.time()
+        dt=now-self.t0
+        if dt>self.maxtime:
+            dt = self.maxtime
+            self.timer.stop()
+            if self.autoclose:
+                self.close()
+        self.progressbar.setValue(dt)
+
 class ToolBar(QtGui.QToolBar):
     '''
     Toolbar holding the following shortcuts:
@@ -123,14 +289,14 @@ class Debug(QtGui.QTabWidget):
         self.log = TextOut(self)
         self.console = PythonConsole(self)
         self.addTab(self.log, 'Log')
-        self.addTab(self.console, 'Console')
+        self.addTab(self.console, 'Python Debug')
         self.setTabPosition(self.South)
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
             selfw = parent.parent
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: MainUI, numpy, utils, fileop, signal')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: main gui widget, numpy, utils, fileop, signal')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
@@ -139,7 +305,7 @@ class ParameterTable(ParameterTree):
         self.params = Parameter.create(name='params', type='group', children=params)
         self.setParameters(self.params, showTop=False)
         
-    def get_parameter_tree(self, return_dict = False):
+    def get_parameter_tree(self, return_dict = False,variable_names=False):
         nodes = [[children for children in self.params.children()]]
         import itertools
         while True:
@@ -168,11 +334,37 @@ class ParameterTable(ParameterTree):
         if return_dict:
             res = {}
             for i in range(len(paths)):
-                res[paths[i][-1]]=values[i]
+                k=paths[i][-1]
+                if variable_names:
+                    k=stringop.to_variable_name(k)
+                res[k]=values[i]
             return res
         else:
             return values, paths, refs
-    
+
+class AddNote(QtGui.QWidget):
+    def __init__(self, parent,text):
+        QtGui.QWidget.__init__(self, parent)
+        self.text=QtGui.QTextEdit(self)
+        self.text.setPlainText(text)
+        self.text.ensureCursorVisible()
+        self.text.setCursorWidth(1)
+        self.text.moveCursor(QtGui.QTextCursor.End)
+        self.text.setFixedWidth(250)
+        self.text.setFixedHeight(80)
+        self.move(100,100)
+        self.save=QtGui.QPushButton('Save' ,parent=self)
+        self.l = QtGui.QGridLayout()
+        self.l.addWidget(self.text, 0, 0, 1, 1)
+        self.l.addWidget(self.save, 0, 1, 1, 1)
+        self.setLayout(self.l)
+        self.connect(self.save, QtCore.SIGNAL('clicked()'), self.save_note)
+        self.show()
+        
+    def save_note(self):
+        self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
+        self.close()
+            
 class TextOut(QtGui.QTextEdit):
     def __init__(self, parent):
         QtGui.QTextEdit.__init__(self, parent)
@@ -186,11 +378,11 @@ class TextOut(QtGui.QTextEdit):
         self.moveCursor(QtGui.QTextCursor.End)
         
 class Plot(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent):
+    def __init__(self,parent,**kwargs):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.setBackground((255,255,255))
         self.setAntialiasing(True)
-        self.plot=self.addPlot()
+        self.plot=self.addPlot(**kwargs)
         self.plot.enableAutoRange()
         self.plot.showGrid(True,True,1.0)
         
@@ -202,18 +394,27 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             return
         self.plot.setYRange(min(y), max(y))
         
-    def update_curves(self, x, y, plot_average=False, colors = []):
+    def update_curves(self, x, y, plot_average=False, colors = [], plotparams=[]):
         self._clear_curves()
+        if len(x)==0: return
         ncurves = len(x)
         self.curves = []
         minimums = []
         maximums = []
+        if len(plotparams)>0 and any([True for pp in plotparams if 'name' in pp.keys()]):
+            if self.plot.legend != None:
+                self.plot.legend.scene().removeItem(self.plot.legend)
+            self.plot.addLegend()
+            self.plot.legend.setScale(0.7)
         for i in range(ncurves):
-            if colors == []:
-                pen = (0,0,0)
+            if len(plotparams)>0:
+                self.curves.append(self.plot.plot(**plotparams[i]))
             else:
-                pen=colors[i]
-            self.curves.append(self.plot.plot(pen=pen))
+                if colors == []:
+                    pen = (0,0,0)
+                else:
+                    pen=colors[i]
+                self.curves.append(self.plot.plot(pen=pen))
             self.curves[-1].setData(x[i], y[i])
             minimums.append(y[i].min())
             maximums.append(y[i].max())
@@ -222,7 +423,8 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             self.curves[-1].setPen((200,0,0), width=3)
             x_,y_ = signal.average_of_traces(x,y)
             self.curves[-1].setData(x_, y_)
-        self.plot.setYRange(min(minimums), max(maximums))
+        if min(minimums)<max(maximums):
+            self.plot.setYRange(min(minimums), max(maximums))
         
     def _clear_curves(self):
         if hasattr(self, 'curve'):
@@ -232,17 +434,46 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             map(self.plot.removeItem, self.curves)
             del self.curves
         
-    def add_linear_region(self, boundaries):
+    def add_linear_region(self, boundaries, color=(40,40,40,100)):
         if len(boundaries)%2==1:
             raise RuntimeError('Invalid boundaries: {0}'.format(boundaries))
         if hasattr(self,'linear_regions'):
             for linear_region in self.linear_regions:
                 self.plot.removeItem(linear_region)
-        c=(40,40,40,100)
         self.linear_regions=[]
         for i in range(len(boundaries)/2):
-            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = c))
+            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
+            
+class TimeAxisItem(pyqtgraph.AxisItem):
+    def __init__(self, *args, **kwargs):
+        pyqtgraph.AxisItem.__init__(self,*args, **kwargs)
+
+    def tickStrings(self, values, scale, spacing):
+        return [QtCore.QTime().addMSecs(value).toString('hh:mm') for value in values]
+            
+class TabbedPlots(QtGui.QWidget):
+    def __init__(self, parent,names,plot_kwargs={}):
+        QtGui.QWidget.__init__(self, parent)
+        self.names=names
+        self.tab = QtGui.QTabWidget(self)
+        self.tab.setTabPosition(self.tab.South)
+        for pn in names:
+            p=Plot(self, **plot_kwargs.get(pn,{}))
+            setattr(self, pn, p)
+            self.tab.addTab(p, pn)
+            
+class TabbedImages(QtGui.QWidget):
+    def __init__(self, parent,names):
+        QtGui.QWidget.__init__(self, parent)
+        self.names=names
+        self.tab = QtGui.QTabWidget(self)
+        self.tab.setTabPosition(self.tab.South)
+        for pn in names:
+            p=Image(self)
+            setattr(self, pn, p)
+            self.tab.addTab(p, pn)
+
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):
@@ -258,7 +489,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.rois = []
         
-    def set_image(self, image, color_channel=None, alpha = 0.8):
+    def set_image(self, image, color_channel=None, alpha = 0.8, imargs={}):
         self.rawimage=image
         im=alpha*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
         if len(image.shape) == 2 and color_channel is not None:
@@ -272,7 +503,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 raise RuntimeError('Invalid image configuration: {0}, {1}'.format(image.shape, color_channel))
         elif len(image.shape) == 3 and image.shape[2] ==3:
             im[:,:,:3]=image
-        self.img.setImage(im)
+        self.img.setImage(im,**imargs)
         
     def set_scale(self,scale):
         self.img.setScale(scale)
@@ -351,6 +582,15 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                     self.rois[i].setPen(self.selected_color)
                 else:
                     self.rois[i].setPen(self.unselected_color)
+                
+def index2filename(index):
+    filename = str(index.model().filePath(index))
+    #Make compatible filename with win and linux systems
+    filename = filename.replace('/', os.sep)
+    filename = list(filename)
+    filename[0] = filename[0].lower()
+    filename = ''.join(filename)
+    return filename
         
 class FileTree(QtGui.QTreeView):
     def __init__(self,parent, root, extensions = []):
@@ -358,7 +598,7 @@ class FileTree(QtGui.QTreeView):
         QtGui.QTreeView.__init__(self,parent)
         self.model = QtGui.QFileSystemModel(self)
         self.setModel(self.model)
-        self.setRootIndex(self.model.setRootPath( root ))
+        self.set_root(root)
         filterlist = ['*.'+e for e in extensions]
         self.model.setNameFilters(QtCore.QStringList(filterlist))
         self.model.setNameFilterDisables(False)
@@ -371,6 +611,9 @@ class FileTree(QtGui.QTreeView):
         
     def test(self,i):
         print self.model.filePath(self.currentIndex())
+        
+    def set_root(self,root):
+        self.setRootIndex(self.model.setRootPath( root ))
 
 class ArrowButtons(QtGui.QGroupBox):
     def __init__(self, name, parent):
