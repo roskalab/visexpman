@@ -779,6 +779,7 @@ class MainPoller(Poller):
         self.process_status_timer = QtCore.QTimer()
         self.process_status_timer.timeout.connect(self.update_process_status)
         self.process_status_timer.start(10000)
+        self.first_mouse_file_created=False
         
     def update_process_status(self):
         try:
@@ -1675,6 +1676,10 @@ class MainPoller(Poller):
         gcamp_injection_date = '{0}-{1}-{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
 
         id_text = str(self.parent.animal_parameters_widget.id.currentText())
+        if not self.first_mouse_file_created:
+            if not self.ask4confirmation('Current user is {0}. Is that correct? If not, mouse file won\'t be created.\r\nGUI needs to be restarted for selecting the correct user.'.format(self.user)):
+                return
+        self.first_mouse_file_created=True
         if id_text == '':
             self.notify('Please provide animal name')
             return

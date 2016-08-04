@@ -364,7 +364,7 @@ if 0:
             self.pre_runnable = 'MovingGratingPre'
             self._create_parameters_from_locals(locals())
 if 1:
-    class ShortMovingGratingConfig(MovingGratingNoMarchingConfig):
+    class ZoltanMovingGratingConfig(MovingGratingNoMarchingConfig):
         def _create_parameters(self):
             MovingGratingNoMarchingConfig._create_parameters(self)
             self.ENABLE_FLASH = False
