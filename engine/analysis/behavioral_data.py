@@ -1,7 +1,6 @@
 import hdf5io,unittest,numpy,os
 from visexpman.engine.generic import introspect
 from pylab import *
-from skimage.filter import threshold_otsu
 from scipy.ndimage.filters import gaussian_filter
 
 def extract_eyeblink(filename, baseline_length=0.5,blink_duration=0.5,threshold=0.01, debug=False, annotation=None):
@@ -49,7 +48,7 @@ def extract_eyeblink(filename, baseline_length=0.5,blink_duration=0.5,threshold=
             ylim([0,0.1])
             title(is_blinked[-1])
             savefig(os.path.join(outfolder, '{0}_{1}.png'.format(os.path.basename(filename),rep)),dpi=200)
-    return airpuff_t, airpuff, is_blinked, activity_t, activity
+    return airpuff_t, airpuff, numpy.array(is_blinked), activity_t, activity
     
 
 class TestBehavAnalysis(unittest.TestCase):
@@ -82,7 +81,8 @@ class TestBehavAnalysis(unittest.TestCase):
                 print fn
                 of=None#os.path.join(out,fn)
                 with introspect.Timer():
-                    airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=True,annotation=annotated)
+                    airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
+                    print is_blinked.sum()/float(is_blinked.shape[0])
 
 if __name__ == "__main__":
     unittest.main()

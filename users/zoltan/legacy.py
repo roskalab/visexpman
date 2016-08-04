@@ -18,8 +18,8 @@ import tempfile
 FIX1KHZ= False
 NOMATFILE= False
 NWEEKS=2
-NOT_50X50UM= True
-VERTICAL_FLIP=not True
+NOT_50X50UM= not True
+VERTICAL_FLIP=True
 
 class PhysTiff2Hdf5(object):
     '''
@@ -308,9 +308,7 @@ class PhysTiff2Hdf5(object):
         print utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
-        if VERTICAL_FLIP:
-            for i in range(h.raw_data.shape[0]):
-                h.raw_data[i,0]=numpy.fliplr(h.raw_data[i,0])
+
         h.fphys = fphys
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
@@ -358,7 +356,6 @@ class PhysTiff2Hdf5(object):
                 print 'sync signal not detected, assuming timing'
                 sig2=numpy.zeros_like(sig)
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
-            
             return sig2
         
     def yscanner_signal2trigger(self,waveform, fsample,nxlines):

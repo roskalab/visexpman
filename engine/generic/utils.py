@@ -42,7 +42,7 @@ def is_network_available():
             return True
         except:
             return False
-    elif platform.system() == 'Linux':
+    elif platform.system() == 'Linux' or platform.system()=='Darwin':
         try:
             response=urllib2.urlopen('http://gnu.org',timeout=1)
             return True
@@ -108,7 +108,7 @@ def toRGBarray(array):
 def coordinate_system(type, SCREEN_RESOLUTION=None):
     '''looks up proper settings for commonly used coordinate system conventions'''
     if type=='ulcorner':
-        if SCREEN_RESOLUTION is None: raise ValueError('Screen resolution is needed for converting to upper-left corner origo coordinate system.')
+        if SCREEN_RESOLUTION == None: raise ValueError('Screen resolution is needed for converting to upper-left corner origo coordinate system.')
         ORIGO = cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
         HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
         VERTICAL_AXIS_POSITIVE_DIRECTION = 'down'

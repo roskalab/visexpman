@@ -106,7 +106,7 @@ def free_space(path):
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(path), None, None, ctypes.pointer(free_bytes))
         return free_bytes.value
-    elif platform.system() == 'Linux':
+    elif platform.system() == 'Linux' or platform.system()=='Darwin':
         s=os.statvfs(path)
         return (s.f_bavail * s.f_frsize)
     else:
