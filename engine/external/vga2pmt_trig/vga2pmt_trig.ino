@@ -6,6 +6,8 @@
 byte input_state;
 unsigned long period=0;
 unsigned long pulse_width=0;
+unsigned long pulse_delay=200;
+unsigned long post_pulse_delay=2000;
 unsigned long period_calc;
 unsigned long periods[NSAMPLES];
 byte index=0;
@@ -13,21 +15,29 @@ bool frq_decided;
 unsigned long last_isr,now;
 
 ISR(INT0_vect) {
+  cli();
   input_state++;
-  if (input_state==4)
+  if (input_state==2)
   {
     input_state=0;
   }
-  if (input_state==3)
+  if ((input_state==1)||1)
   {    
+    //TODO: check level before turning on stim led to avoid pmt gets saturated
+    //TODO: serial port msg about number of improperly fired interrupts
     now=micros();
     if (frq_decided)
     {
-      PORTD&=~(1<<6);//pmt off
+      delayMicroseconds(pulse_delay);
+      PORTD|=1<<6;//pmt off
       PORTD|=1<<7;//stim led on
       delayMicroseconds(pulse_width);
       PORTD&=~(1<<7);//stim led off
-      PORTD|=1<<6;//pmt on 
+      PORTD&=~(1<<6);//pmt on 
+      while(((PIND&(1<<2))!=0))
+      {
+      }
+      //delayMicroseconds(post_pulse_delay);
     } 
     else if (~frq_decided)
     {
@@ -74,6 +84,7 @@ ISR(INT0_vect) {
       //overflow, do not update period
     }    
   }
+  sei();
 }
 
 
@@ -90,6 +101,8 @@ void setup() {
   last_isr=micros();
   period=PULSE_WIDTH_120HZ;
   frq_decided=false;
+  frq_decided=true;
+  pulse_width=200;//500 us
   sei();
 
 }
