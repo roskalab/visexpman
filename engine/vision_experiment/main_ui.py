@@ -37,6 +37,16 @@ class Advanced(QtGui.QWidget):
         if os.path.exists(folder):
             self.parent.to_engine.put({'function': 'fix_files', 'args':[folder]})
             
+    def check_files_clicked(self):
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.machine_config.EXPERIMENT_DATA_PATH))
+        if os.path.exists(folder):
+            self.parent.to_engine.put({'function': 'check_files', 'args':[folder]})
+            
+    def check_stim_timing_clicked(self):
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.machine_config.EXPERIMENT_DATA_PATH))
+        if os.path.exists(folder):
+            self.parent.to_engine.put({'function': 'check_stim_timing', 'args':[folder]})
+            
     def test_clicked(self):
         raise RuntimeError('ok')
 
@@ -349,6 +359,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
         self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
+        self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
         self.roi_adjust = RoiShift(self)
 #        self.trace_parameters = QtGui.QLabel('', self)
 #        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
@@ -361,6 +372,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
         self.layout.addWidget(self.aggregate,2,3,1,1)
         self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
+        self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
         self.setLayout(self.layout)
         self.setFixedHeight(140)
         self.setFixedWidth(550)
@@ -391,7 +403,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self._set_window_title()
         #Set up toobar
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'delete_all_rois', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
@@ -471,11 +483,14 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.remove_all_rois()
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
+                self.image.setFixedHeight(self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0]))
+                self.adjust_contrast()
             elif msg.has_key('image_title'):
                 self.image.plot.setTitle(msg['image_title'])
             elif msg.has_key('show_suggested_rois'):
                 self.image_w_rois = msg['show_suggested_rois']
                 self.image.set_image(self.image_w_rois)
+                self.adjust_contrast()
             elif msg.has_key('display_roi_rectangles'):
                 self.image.remove_all_rois()
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
@@ -500,7 +515,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.to_engine.put(reply == QtGui.QMessageBox.Yes)
             elif msg.has_key('notify'):
                 QtGui.QMessageBox.question(self, msg['notify']['title'], msg['notify']['msg'], QtGui.QMessageBox.Ok)
-            elif msg.has_key('delete_all_rois'):
+            elif msg.has_key('reset_datafile'):
                 self.image.remove_all_rois()
             elif msg.has_key('display_trace_parameters'):
                 pass
@@ -597,7 +612,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self.printc('Stimulus files and classes are refreshed.')
         
     def find_cells_action(self):
-        self.to_engine.put({'function': 'find_cells', 'args':[]})
+        if self.analysis_helper.find_cells_scaled.input.checkState()==2:
+            pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
+        else:
+            pixel_range=None
+        self.to_engine.put({'function': 'find_cells', 'args':[pixel_range]})
         
     def previous_roi_action(self):
         self.to_engine.put({'function': 'previous_roi', 'args':[]})
@@ -621,15 +640,19 @@ class MainUI(gui.VisexpmanMainWindow):
             return
         roi=movable_rois[0] 
         rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]
-        self.to_engine.put({'function': 'add_manual_roi', 'args':[rectangle]})
+        if self.analysis_helper.find_cells_scaled.input.checkState()==2:
+            pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
+        else:
+            pixel_range=None
+        self.to_engine.put({'function': 'add_manual_roi', 'args':[rectangle,pixel_range]})
         
     def save_rois_action(self):
         '''Also exports to mat file'''
         self.to_engine.put({'function': 'save_rois_and_export', 'args':[]})
         
-    def delete_all_rois_action(self):
-        self.to_engine.put({'function': 'delete_all_rois', 'args':[]})
-        
+    def reset_datafile_action(self):
+        self.to_engine.put({'function': 'reset_datafile', 'args':[]})
+
     def convert_stimulus_to_video_action(self):
         self.to_engine.put({'function': 'convert_stimulus_to_video', 'args':[]})
         
@@ -646,6 +669,7 @@ class MainUI(gui.VisexpmanMainWindow):
             im = numpy.copy(self.image_w_rois)
             im[:,:,2] *= state==2
             self.image.set_image(im)
+            self.adjust_contrast()
             
     def show_repetitions_changed(self,state):
         self.to_engine.put({'data': state==2, 'path': 'analysis_helper/show_repetitions/input', 'name': 'show_repetitions'})

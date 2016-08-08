@@ -334,7 +334,14 @@ class Analysis(object):
         if sigma*self.image_scale<0.2 or max_-min_>3:
             if not self.ask4confirmation('Automatic cell detection will take long with these parameters, do you want to continue?'):
                 return
-        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(self.meanimage, 0,2**16-1)), min_,max_,sigma,threshold_factor)
+        img2process=numpy.copy(self.meanimage)
+        if pixel_range != None:
+            image_range = self.meanimage.max()-self.meanimage.min()
+            low = float(pixel_range[0])/100*image_range
+            high = float(pixel_range[1])/100*image_range
+            img2process=numpy.where(img2process<low,low,img2process)
+            img2process=numpy.where(img2process>high,high,img2process)
+        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(img2process, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self._filter_rois()
         #Calculate roi bounding box
         self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_rois]
@@ -485,23 +492,43 @@ class Analysis(object):
         self.display_roi_curve()
         self._roi_area2image()
         
-    def delete_all_rois(self):
+    def reset_datafile(self):
         if not hasattr(self, 'current_roi_index'):
             return
-        if not self.unittest and not self.ask4confirmation('Removing all rois. Are you sure?'):
+        if not self.unittest and not self.ask4confirmation('Reset file: removing all rois and exported mat file. Are you sure?'):
             return
         self.rois = []
         del self.current_roi_index
-        self.to_gui.put({'delete_all_rois': None})
+        self.to_gui.put({'reset_datafile': None})
         self._roi_area2image()
-        self.printc('All rois removed')
+        file_info = os.stat(self.filename)
+        self.datafile = experiment_data.CaImagingData(self.filename)
+        self.datafile.load('rois')
+        self.datafile.rois = None
+        self.datafile.repetition_link = None
+        self.datafile.save(['rois', 'repetition_link'], overwrite=True)
+        self.datafile.close()
+        fileop.set_file_dates(self.filename, file_info)
+        self.printc('{0} datafile reset, rois and repetition links are removed'.format(self.filename))
+        outfile=self.filename.replace('.hdf5','.'+self.guidata.read('Save File Format'))
+        if os.path.exists(outfile):
+            os.remove(outfile)
+            self.printc('{0} removed'.format(outfile))
         
-    def add_manual_roi(self, rectangle):
+    def add_manual_roi(self, rectangle,pixel_range=None):
         rectangle = numpy.array(rectangle)/self.image_scale
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
+        self.printc('Roi {0}, {1}'.format(rectangle, self.raw_data.shape))
         raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
-        area=cone_data.roi_redetect(rectangle, self.meanimage, subimage_size=3)
+        img2process=numpy.copy(self.meanimage)
+        if pixel_range != None:
+            image_range = self.meanimage.max()-self.meanimage.min()
+            low = float(pixel_range[0])/100*image_range
+            high = float(pixel_range[1])/100*image_range
+            img2process=numpy.where(img2process<low,low,img2process)
+            img2process=numpy.where(img2process>high,high,img2process)
+        area=cone_data.roi_redetect(rectangle, img2process, subimage_size=3)
         self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
@@ -509,6 +536,26 @@ class Analysis(object):
         self.display_roi_curve()
         self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
+        
+    def readd_rois(self, filename):
+        rois=hdf5io.read_item(filename,'rois',filelocking=False)
+        h=experiment_data.CaImagingData(self.filename)
+        h.repetition_link=hdf5io.read_item(filename,'repetition_link',filelocking=False)
+        h.save('repetition_link')
+        h.close()
+        rectangles=[r['rectangle'] for r in rois]
+        areas=[r['area'] for r in rois]
+        
+        self.rois=[]
+        for i in range(len(rectangles)):
+            self.rois.append({'area':areas[i], 'rectangle':rectangles[i]})
+        
+        self._extract_roi_curves()
+        self._normalize_roi_curves()
+        self._roi_area2image()
+        self.current_roi_index = 0
+        self.display_roi_rectangles()
+        self.display_roi_curve()
         
     def _check_unsaved_rois(self, warning_only=False):
         if not hasattr(self,'filename'):
@@ -717,27 +764,7 @@ class Analysis(object):
             shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
         self.printc('Done')
         
-    def check_parameter_changes(self, parameter_name):
-        '''
-        parameter_name: name of parameter changed
-        Depending on which parameter changed certain things has to be recalculated
-        '''
-        tpp_opened = utils.safe_has_key(self.widget_status, 'tpp') and self.widget_status['tpp']
-        if 'Background Threshold' in parameter_name:
-            self._normalize_roi_curves()
-            self.display_roi_curve()
-        elif 'Baseline Lenght' in parameter_name:
-            self._normalize_roi_curves()
-            self.display_roi_curve()
-            if tpp_opened:
-                self.display_trace_parameter_distribution()
-        elif 'Include all Files' in parameter_name:
-            if tpp_opened:
-                self.display_trace_parameter_distribution()
-        elif 'Mean of Repetitions' in parameter_name:
-            self.display_roi_curve()
-            if tpp_opened:
-                self.display_trace_parameter_distribution()
+   
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
@@ -753,9 +780,49 @@ class Analysis(object):
         self.printc('DONE')
         self.notify('Info', 'ROI fixing is ready')
         
-    def nop(self):
-        pass
-
+    def check_files(self,folder):
+        self.printc('Checking '+folder)
+        files=fileop.listdir_fullpath(folder)
+        files.sort()
+        self.abort=False
+        self.broken_files=[]
+        for f in files:
+            if 'hdf5' not in f: continue
+            try:
+                self.open_datafile(f)
+            except:
+                self.broken_files.append(f)
+            if self.abort:break
+        self.printc('Broken files:')
+        [self.printc('{0}'.format(bf)) for bf in self.broken_files]
+        self.printc('DONE')
+        self.notify('Info', 'Checking files is ready')
+        
+    def check_stim_timing(self,folder):
+        files=fileop.listdir_fullpath(folder)
+        files.sort()
+        self.abort=False
+        problematic_files=[]
+        for f in files:
+            if 'hdf5' not in f: continue
+            try:
+                self.open_datafile(f)
+                if self.tsync[0]>11:
+                    problematic_files.append(f)
+            except:
+                import traceback
+                self.printc(traceback.format_exc())
+                problematic_files.append(f)
+                self.datafile.close()
+            if self.abort:break
+        self.printc('Problematic files')
+        [os.remove(f) for f in problematic_files]
+        problematic_files=[os.path.basename(f).split('_')[1] for f in problematic_files]
+        problematic_files.sort()
+        for f in problematic_files:
+            self.printc(f)
+        self.printc('DONE')
+        
     def meanimage2tiff(self,fn):
         import tifffile
         tifffile.imsave(fn, numpy.cast['uint16'](signal.scale(self.meanimage)*(2**16-1)))
@@ -795,8 +862,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.guidata.from_dict(utils.array2object(context_stream))
         else:
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
-
     def dump(self, filename=None):
+        #TODO: include logfile and context file content
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
                     'aggregated_rois', 'context_filename', 'cells']
