@@ -157,9 +157,9 @@ def area2edges(soma_roi):
     return numpy.array(edge_pixels)
 
 def calculate_background(rawdata,threshold=0.1):
-    mi=rawdata.mean(axis=0).mean(axis=0)
+    mi=rawdata.mean(axis=0)
     x,y = numpy.where(mi<mi.max()*threshold)
-    return rawdata[:,:,x,y].mean(axis=2).flatten()
+    return rawdata[:,x,y].mean(axis=1)
     
 def fast_read(f,vn):
     import tables
@@ -304,7 +304,7 @@ def aggregate_cells(folder):
     return aggregated_cells
     
 def aggregate_stage_coordinates(folder):
-    allhdf5files = fileop.find_recording_files(folder)
+    allhdf5files = experiment_data.find_recording_files(folder)
     rp=[[os.path.basename(f).replace('.hdf5',''), hdf5io.read_item(f, 'recording_parameters', filelocking=False)] for f in allhdf5files]
     return dict([(rpi[0], rpi[1]['absolute_stage_coordinates']) for rpi in rp if rpi[1].has_key('absolute_stage_coordinates')])
     

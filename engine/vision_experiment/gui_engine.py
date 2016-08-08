@@ -315,10 +315,10 @@ class Analysis(object):
         
     def _recalculate_background(self):
         background_threshold = self.guidata.read('Background threshold')*1e-2
-        self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
+        self.background = cone_data.calculate_background(self.raw_data[:,0],threshold=background_threshold)
         self.background_threshold=background_threshold
         
-    def find_cells(self):
+    def find_cells(self, pixel_range=None):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
             self.notify('Warning', 'Open datafile first')
             return
@@ -520,7 +520,7 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         self.printc('Roi {0}, {1}'.format(rectangle, self.raw_data.shape))
-        raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
+        raw = self.raw_data[:,0,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=1).mean(axis=1).flatten()
         img2process=numpy.copy(self.meanimage)
         if pixel_range != None:
             image_range = self.meanimage.max()-self.meanimage.min()
@@ -763,8 +763,6 @@ class Analysis(object):
         for fn in files2remove:
             shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
         self.printc('Done')
-        
-   
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)

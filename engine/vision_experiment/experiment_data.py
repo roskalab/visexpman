@@ -90,7 +90,7 @@ def is_recording_filename(filename):
         return False
     
 def find_recording_files(folder):
-    allhdf5files = find_files_and_folders(folder, extension = 'hdf5')[1]
+    allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
     return [f for f in allhdf5files if is_recording_filename(f)]
     
 #### Check file ####
