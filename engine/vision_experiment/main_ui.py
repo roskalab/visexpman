@@ -99,6 +99,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.setColumnCount(1)
         self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
         self.setMaximumWidth(350)
+        self.setMinimumHeight(400)
         self.populate()
         self.itemDoubleClicked.connect(self.stimulus_selected)
         self.itemSelectionChanged.connect(self.get_selected_stimulus)
@@ -276,10 +277,10 @@ class DataFileBrowser(gui.FileTree):
         return filename
         
     def file_selected(self,index):
-        self.selected_filename = self._get_filename(index)
+        self.selected_filename = gui.index2filename(index)
         
     def file_open(self,index):
-        filename = self._get_filename(index)
+        filename = gui.index2filename(index)
         if os.path.isdir(filename): return#Double click on folder is ignored
         ext = fileop.file_extension(filename)
         if ext == 'hdf5':
@@ -431,11 +432,17 @@ class MainUI(gui.VisexpmanMainWindow):
         gui.VisexpmanMainWindow.__init__(self, context)
         self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
-        self._start_engine()
+        self._start_engine(gui_engine.MainUIEngine(self.machine_config, self.logger, self.socket_queues))
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         self._set_window_title()
         #Set up toobar
-        self.toolbar = gui.ToolBar(self, ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit'])
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
+        elif self.machine_config.PLATFORM=='mc_mea':
+            toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
+        elif self.machine_config.PLATFORM=='us_cortical':
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
+        self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
         #Add dockable widgets
@@ -443,23 +450,25 @@ class MainUI(gui.VisexpmanMainWindow):
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        self.image = Image(self)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
-        self.adjust=gui.ImageAdjust(self)
-        self.adjust.setFixedHeight(40)
-        self.adjust.low.setValue(0)
-        self.adjust.high.setValue(99)
-        self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
-        self.plot = gui.Plot(self)
-        self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-        self.plot.setMaximumWidth(self.image.width())
-        self.plot.plot.setLabels(bottom='sec')
-        self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.image = Image(self)
+            self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+            self.adjust=gui.ImageAdjust(self)
+            self.adjust.setFixedHeight(40)
+            self.adjust.low.setValue(0)
+            self.adjust.high.setValue(99)
+            self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
+            self.plot = gui.Plot(self)
+            self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
+            self.plot.setMaximumWidth(self.image.width())
+            self.plot.plot.setLabels(bottom='sec')
+            self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         
         self.stimulusbrowser = StimulusTree(self, fileop.get_user_module_folder(self.machine_config) )
-        self.cellbrowser=CellBrowser(self)
-        self.analysis = QtGui.QWidget(self)
-        self.analysis.parent=self
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.cellbrowser=CellBrowser(self)
+            self.analysis = QtGui.QWidget(self)
+            self.analysis.parent=self
         
         self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat', 'tif', 'mp4'])
         self.analysis_helper = AnalysisHelper(self.analysis)
@@ -477,27 +486,22 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        self.main_tab.addTab(self.analysis, 'Analysis')
-        self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.main_tab.addTab(self.analysis, 'Analysis')
+            self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.advanced, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
-        self._load_all_parameters()
+        self.load_all_parameters()
         self.show()
-        self.timer=QtCore.QTimer()
-        self.timer.start(50)#ms
-        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
-        self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
-        self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repeptitions_changed)
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
+            self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+            self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+            self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
-        self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
-        self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
-        
-        self.network_status_timer=QtCore.QTimer()
-        if 0: self.network_status_timer.start(2000)#ms
-        self.connect(self.network_status_timer, QtCore.SIGNAL('timeout()'), self.check_network_status)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -566,130 +570,77 @@ class MainUI(gui.VisexpmanMainWindow):
             
                 
     def _init_variables(self):
-        imaging_channels = self.machine_config.PMTS.keys()
-        imaging_channels.append('both')
-        fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
-        fw1.sort()
-        fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
-        fw2.sort()
+        if hasattr(self.machine_config,'FILTERWHEEL'):
+            fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
+            fw1.sort()
+            fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
+            fw2.sort()
+        else:
+            fw1=[]
+            fw2=[]
+            
         self.params_config = [
-                {'name': 'Imaging', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
-                    {'name': 'Cell Name', 'type': 'str', 'value': ''},
-                    {'name': 'Scan Height', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Scan Width', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Pixel Size', 'type': 'float', 'value': 1.0, 'siPrefix': True},
-                    {'name': 'Pixel Size Unit', 'type': 'list', 'values': ['pixel/um', 'um/pixel', 'us'], 'value': 'pixel/um'},
-                    {'name': 'Imaging Channel', 'type': 'list', 'values': imaging_channels, 'value': imaging_channels[0]},
+                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
+                    {'name': 'Name', 'type': 'str', 'value': ''},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : False, 'children': [#'expanded' : True
-                    {'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''},
-                    {'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''},
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True                    
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Projector On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye'},
+                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     ]},
-                {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
-                    {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
-                    {'name': 'Background Threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
-                    {'name': 'Cell Detection', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Minimum Cell Radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
-                        {'name': 'Maximum Cell Radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
-                        {'name': 'Sigma', 'type': 'float', 'value': 1.0},
-                        {'name': 'Threshold Factor', 'type': 'float', 'value': 1.0}
-                        ]
-                    },
-#                    {'name': 'Trace Statistics', 'type': 'group', 'expanded' : False, 'children': [
-#                        {'name': 'Mean of Repetitions', 'type': 'bool', 'value': False},
-#                        {'name': 'Include All Files', 'type': 'bool', 'value': False},
-#                        ]},
-                    {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
                     ]
-                    },                    
-                    {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
-                        {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+        if len(fw1)>0:
+            self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
+        if len(fw2)>0:
+            self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
+        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
+            self.params_config.extend([
+                                                  {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
+                            {'name': 'Background Threshold', 'type': 'float', 'value': 10, 'siPrefix': True, 'suffix': '%'},
+                            {'name': 'Cell Detection', 'type': 'group', 'expanded' : False, 'children': [
+                                {'name': 'Minimum Cell Radius', 'type': 'float', 'value': 2.0, 'siPrefix': True, 'suffix': 'um'},
+                                {'name': 'Maximum Cell Radius', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'um'},
+                                {'name': 'Sigma', 'type': 'float', 'value': 1.0},
+                                {'name': 'Threshold Factor', 'type': 'float', 'value': 1.0}
+                                ]
+                            },
+                            {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
+                            ]
+                            },                    
+                            {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
+                                {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
+                                {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+                            ]},  ]               
+                        )
+        if self.machine_config.PLATFORM=='mc_mea':
+            self.params_config[0]['children'].extend([
+                {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
+                {'name': 'ND filter', 'type': 'str', 'value': ''},
+                {'name': 'Comment', 'type': 'str', 'value': ''},
+            ])
+        if self.machine_config.PLATFORM=='us_cortical':
+            self.params_config.append(
+            {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
+                    {'name': 'Protocol', 'type': 'list', 'values': self.machine_config.ULTRASOUND_PROTOCOLS},
+                    {'name': 'Number of Trials', 'type': 'int', 'value': 10},
+                    {'name': 'Enable Motor Positions', 'type': 'bool', 'value': False, },
+                    {'name': 'Motor Positions', 'type': 'str', 'value': ''},
                     ]},
-                    {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
-                        {'name': 'Scanner', 'type': 'group', 'expanded' : True, 'children': [
-                            {'name': 'Analog Input Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
-                            {'name': 'Analog Output Sampling Rate', 'type': 'float', 'value': 400.0, 'siPrefix': True, 'suffix': 'kHz'},
-                            {'name': 'Scan Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                            {'name': 'Scan Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                            {'name': 'Stimulus Flash Duty Cycle', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
-                            {'name': 'Stimulus Flash Delay', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'us'},
-                            {'name': 'Enable Flyback Scan', 'type': 'bool', 'value': False},
-                            {'name': 'Enable Phase Characteristics', 'type': 'bool', 'value': False},
-                            {'name': 'Scanner Position to Voltage Factor', 'type': 'float', 'value': 0.013},
-                        ]},
-                    ]}
-                    ]
-                
-
-
-
-
-#                {'name': 'Basic parameter data types', 'type': 'group', 'children': [
-#                {'name': 'Integer', 'type': 'int', 'value': 10},
-#                {'name': 'Float', 'type': 'float', 'value': 10.5, 'step': 0.1},
-#                {'name': 'String', 'type': 'str', 'value': "hi"},
-##                {'name': 'List', 'type': 'list', 'values': [1,2,3], 'value': 2},
-##                {'name': 'Named List', 'type': 'list', 'values': {"one": 1, "two": "twosies", "three": [3,3,3]}, 'value': 2},
-#                {'name': 'Boolean', 'type': 'bool', 'value': True, 'tip': "This is a checkbox"},
-##                {'name': 'Color', 'type': 'color', 'value': "FF0", 'tip': "This is a color button"},
-#            ]},
-#            {'name': 'Numerical Parameter Options', 'type': 'group', 'children': [
-#                {'name': 'Units + SI prefix', 'type': 'float', 'value': 1.2e-6, 'step': 1e-6, 'siPrefix': True, 'suffix': 'V'},
-#                {'name': 'Limits (min=7;max=15)', 'type': 'int', 'value': 11, 'limits': (7, 15), 'default': -6},
-#                {'name': 'DEC stepping', 'type': 'float', 'value': 1.2e6, 'dec': True, 'step': 1, 'siPrefix': True, 'suffix': 'Hz'},
-#        
-#    ]}]
-        
-    def _start_engine(self):
-        self.engine = gui_engine.GUIEngine(self.machine_config, self.logger, self.socket_queues)
-        self.to_engine, self.from_engine = self.engine.get_queues()
-        self.engine.start()
-        
-    def _stop_engine(self):
-        self.to_engine.put('terminate')
-        self.engine.join()
-
-    def _dump_all_parameters(self):#TODO: rename
-        values, paths, refs = self.params.get_parameter_tree()
-        for i in range(len(refs)):
-            self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
             
-    def _load_all_parameters(self):
-        values, paths, refs = self.params.get_parameter_tree()
-        paths = ['/'.join(p) for p in paths]
-        for item in self.engine.guidata.to_dict():
-            mwname = item['path'].split('/')[0]
-            if mwname == 'params':
-                try:
-                    r = refs[paths.index([p for p in paths if p == item['path']][0])]
-                except IndexError:
-                    continue
-                r.setValue(item['value'])
-                r.setDefault(item['value'])
-            elif mwname == 'stimulusbrowser':
-                self.stimulusbrowser.select_stimulus(item['value'])
-            else:
-                ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
-                wname = ref.__class__.__name__.lower()
-                if 'checkbox' in wname:
-                    ref.setCheckState(2 if item['value'] else 0)
-                elif 'qtabwidget' in wname:
-                    ref.setCurrentIndex(item['value'])
+            )
+                        
 
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
         
     def stop_action(self):
-        pass
+        self.to_engine.put({'function': 'stop_experiment', 'args':[]})
         
     def refresh_stimulus_files_action(self):
         self.stimulusbrowser.populate()
@@ -736,11 +687,14 @@ class MainUI(gui.VisexpmanMainWindow):
         
     def reset_datafile_action(self):
         self.to_engine.put({'function': 'reset_datafile', 'args':[]})
+
+    def convert_stimulus_to_video_action(self):
+        self.to_engine.put({'function': 'convert_stimulus_to_video', 'args':[]})
         
     def exit_action(self):
         if hasattr(self, 'tpp'):
             self.tpp.close()
-        self._dump_all_parameters()
+        self.send_all_parameters2engine()
         self._stop_engine()
         self.close()
     
@@ -752,7 +706,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.image.set_image(im)
             self.adjust_contrast()
             
-    def show_repeptitions_changed(self,state):
+    def show_repetitions_changed(self,state):
         self.to_engine.put({'data': state==2, 'path': 'analysis_helper/show_repetitions/input', 'name': 'show_repetitions'})
         self.to_engine.put({'function': 'display_roi_curve', 'args':[]})
         

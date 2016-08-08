@@ -8,37 +8,45 @@ from PIL import Image
 import inspect
 import re
 import multiprocessing
-
 try:
     from OpenGL.GL import *
-    from OpenGL.GLU import *
     from OpenGL.GLUT import *
+    default_text=GLUT_BITMAP_TIMES_ROMAN_24
 except ImportError:
-    GLUT_BITMAP_TIMES_ROMAN_24=10
+    default_text=None
+    print 'opengl not installed'
 
-import command_handler
+
 import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
 from visexpman.engine.vision_experiment import screen
-from visexpman.users.test import unittest_aggregator
+try:
+    from visexpman.users.test import unittest_aggregator
+    test_mode=True
+except IOError:
+    test_mode=False
 
 import unittest
-command_extract = re.compile('SOC(.+)EOC')
+
 
 class Stimulations(experiment_control.StimulationControlHelper):#, screen.ScreenAndKeyboardHandler):
     """
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self, machine_config, queues, application_log):
+    def __init__(self, machine_config, parameters, queues, application_log):
         self.config=machine_config#TODO: eliminate self.config
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
-        self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
-        experiment_control.StimulationControlHelper.__init__(self, machine_config, queues, application_log)
-        self.grating_texture = glGenTextures(1)
-        glBindTexture(GL_TEXTURE_2D, self.grating_texture)
-        glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+        if hasattr(self, 'kwargs') and self.kwargs.has_key('screen') and self.kwargs['screen'] !=None:
+            self.screen=self.kwargs['screen']
+        else:
+            self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
+        experiment_control.StimulationControlHelper.__init__(self, machine_config, parameters, queues, application_log)
+        if self.config.SCREEN_MODE != 'psychopy':
+            self.grating_texture = glGenTextures(1)
+            glBindTexture(GL_TEXTURE_2D, self.grating_texture)
+            glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         #Calculate axis factors
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
@@ -91,8 +99,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         caller_name =inspect.getframeinfo(caller_function_info)[2]
         frame_info = {}
         frame_info['counter'] = self.frame_counter
-        if is_last:
-            frame_info['counter']  -= 1
+        #Removed: when 1 frame time stimulus is presented, the last and first enrties will have the same counter value and from this the duration cannot be consistently calculated
+        #if is_last: #ensures that there are not stimulus_frame_info entries with the same counter value
+        #    frame_info['counter']  -= 1
         frame_info['stimulus_type'] = caller_name
         frame_info['is_last'] = is_last
         frame_info['parameters'] = {}
@@ -109,20 +118,21 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def _append_to_stimulus_frame_info(self,values):
         self.stimulus_frame_info[-1]['parameters'].update(values)
             
-    def trigger_pulse(self, pin, width):
+    def trigger_pulse(self, pin, width,polarity=True):
         '''
         Generates trigger pulses
         '''
         if hasattr(self.digital_output,'set_data_bit'):
-            self.digital_output.set_data_bit(pin, 1, log = False)
+            self.digital_output.set_data_bit(pin, int(polarity), log = False)
             time.sleep(width)
-            self.digital_output.set_data_bit(pin, 0, log = False)
+            self.digital_output.set_data_bit(pin, int(not polarity), log = False)
 
     def _frame_trigger_pulse(self):
         '''
         Generates frame trigger pulses
         '''
-        self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
+        if self.config.FRAME_TRIGGER_PIN!=-1:
+            self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
             
     def block_start(self, block_name = 'stimulus function'):
         if hasattr(self.digital_output,'set_data_bit'):
@@ -149,6 +159,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def _add_block_end(self, is_block, frame_i, nframes):
         if frame_i == nframes - 1 and is_block:
             self.block_end()
+            
+    def draw(self):
+        '''
+        This method is called after drawing a stimulus, User can overdefine this function with drawing a mask, additional object etc
+        '''
         
     def _show_text(self):
         '''
@@ -176,7 +191,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         color_to_set = colors.convert_color(color, self.config)
         glClearColor(color_to_set[0], color_to_set[1], color_to_set[2], 0.0)
         
-    def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
+    def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = default_text):
         '''
         Adds text to text list
         '''
@@ -212,10 +227,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, 
-                        flip = True, count = True, is_block = False, save_frame_info = True, frame_trigger = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, 
+                is_block = False, save_frame_info = True, frame_trigger = True):
         '''
-        duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
+        Show a fullscreen simulus where color is the color of the screen. 
+            duration: duration of stimulus, 0.0: one frame time, -1.0: forever, 
+                    any other value is interpreted in seconds        
         '''
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
@@ -252,8 +269,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if count and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, flip = True, is_block = False):
-        '''
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, 
+            flip = True, is_block = False):
+        '''        
         Two use cases are handled here:
             - showing individual image files
                 duration: duration of showing individual image file
@@ -261,16 +279,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             - showing the content of a folder
                 duration: duration of showing each image file in folder
                 path: path of folder containing images
-        position: position of image on screen in pixels. This can be controlled by parameters and a formula when images in a folder are shown
-        
-        If duration is 0, then each image will be shown for one display update time. 
-        Otherwise duration shall be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE to avoid dropped frames            
-        
-        Usage:
-            Show a single image which path is image_path for 1 second in a centered position:
-                show_image(image_path,  duration = 1.0,  position = (0, 0))
-            Play the content of a directory (directory_path) which contains image files. Each imag is shown for one frame time :
-                show_image(directory_path,  duration = 0,  position = (0, 0))
+        Image is shown for one frame time if duration is 0.
+        Further parameters:
+            position: position of image on screen in pixels.
+            stretch: stretch of image, 1 means no scaling, 0.5 means half size
+        Example:
+            Show a single image  for 1 second in a centered position:
+                self.show_image('c:\\images\\frame.png',  duration = 1.0,  position = (0, 0))
+            Play the content of a directory (directory_path) which contains image files. 
+            Each image is shown for one frame time:
+                show_image('c:\\images',  duration = 0,  position = (0, 0))
         '''
         #Generate log messages
         flips_per_frame = duration/(1.0/self.config.SCREEN_EXPECTED_FRAME_RATE)
@@ -308,24 +326,31 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
 
-    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  
-                orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None, L_shape_config = None, X_shape_angle = None,
-                flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
+    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  
+                background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, 
+                ncorners = None, inner_radius = None, L_shape_config = None, X_shape_angle = None,
+                flip = True, is_block = False, save_frame_info = True, enable_centering = True, 
+                part_of_drawing_sequence = False,angle=None):
         '''
-        This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
-        If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
-        color: 2d numpy array: duration is ignored and the first dimension will be the number of intensities displayed
-        
-        Examples:
-        flash on  right half of screen self.show_shape(shape='rect', pos = utils.rc((0, self.config.SCREEN_SIZE_UM['col']/4)), size = utils.rc((self.config.SCREEN_SIZE_UM['row'],self.config.SCREEN_SIZE_UM['col']/2)), color = self.color, duration = self.experiment_config.FLASH_DURATION,background_color=0.0)
-        
-        L_shape_config:
-        shorter_side
-        longer_side
-        shorter_position: start, middle, end
-        angle = 45, 90, 135
-        width
-        
+        Shows simple, individual shapes like rectangle, circle or ring.
+            shape: 'spot', 'rectangle', 'annulus', 'triangle', 'star'
+            duration: duration in seconds, 0 means 1 frame time
+            pos: position(s) of stimulus in row/column recarray format. Its dimension is micormeter on retina. 
+                    By default 0,0 is te center of the screen but COORDINATE_SYSTEM 
+                    shall be checked in machine config. If multiple values are provided, the object will be 
+                    displayed at each position for one frame time, duration parameter is overridden. 
+                    This can be used for presenting a moving object.                    
+            color: color of a the displayed object. If 2d numpy array is provided, the object is presented 
+                    with each color for one frame time. An array of colors can be used to generate 
+                    a flickering object
+            background_color: background color. If None, the system default background color is used.
+            orientation: orienatation of object in degrees
+            size: size of stimulus in row/column recarray format in micrometer. If multiple values are provided, 
+                    the object will be displayed with each sizes for one frame time, duration parameter is 
+                    overridden. Looming stimulus can be generated by providing and array of sizes.
+            enable_centering: object position will be shifted to preset screen center
+            L_shape_config: dictionary of shorter_side, longer_side lengths, shorter_position: start, middle, end, 
+                    angle = 45, 90, 135 and width of shape
         '''
         if save_frame_info:
             self.log.info('show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')', source = 'stim')
@@ -516,14 +541,15 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
-    def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], box_size = utils.cr((0,  0)), background_color = None, 
-            flip = True, save_frame_info = True,block_trigger=False):
+    def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], 
+            box_size = utils.cr((0,  0)), background_color = None, flip = True, save_frame_info = True,
+            block_trigger=False):
         '''
         Shows checkerboard:
             n_checkers = (x dir (column), y dir (rows))
-            pos - position of display area
+            pos - position of display area in um
             box_size - size of a box in um
-            duration - duration of stimulus in seconds            
+            duration - duration of displaying each pattern in seconds
             color - array of color values. Dimensions:
                             1. Frame
                             2. row
@@ -553,9 +579,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                     
-    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
-                    velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, 
-                    part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
+    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
+                    display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
+                    velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  
+                    duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False, 
+                    is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -565,25 +593,31 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 - 'saw': sawtooth profile
                 - 'sin': sine
                 - 'cos': cosine
-                profile parameter can be a list of these keywords. Then different profiles are applied to each color channel
-            - white_bar_width: length of one bar in um (pixel)
-            - display area
+                profile parameter can be a list of these keywords. Then different profiles are applied to each 
+                color channel
+            - white_bar_width: length of one bar in um
+            - display area: by default the whole screen but it can be confined to a smaller surface
+            - pos: position of display area            
             - orientation: orientation of grating in degrees
             - starting_phase: starting phase of stimulus in degrees
             - velocity: velocity of the movement of grating in um/s
-            - color_contrast: color contrast of grating stimuli. Can be a single intensity value of an rgb value. Accepted range: 0...1
-            - color_offset: color (intensity) offset of stimulus. Can be a single intensity value of an rgb value. Accepted range: 0...1
-            - pos: position of stimuli
-            - duty_cycle: duty cycle of grating stimulus with sqr profile. Its interpretation is different from the usual: duty cycle tells how many times the spatial frequency is the width of the black stripe
+            - color_contrast: color contrast of grating stimulus.
+            - color_offset: color (intensity) offset of stimulus.
+            - duty_cycle: duty cycle of grating stimulus with sqr profile. Its interpretation is 
+                            different from the usual: period = (bar_width * (1.0 + duty_cycle). 
+                            For a 50% black and white the duty_cycle value should be 1.0
             - noise_intensity: Maximum contrast of random noise mixed to the stimulus.
         
         Usage examples:
         1) Show a simple, fullscreen, grating stimuli for 3 seconds with 45 degree orientation
             show_grating(duration = 3.0, orientation = 45, velocity = 100, white_bar_width = 100)
         2) Show grating with sine profile on a 500x500 area with 10 degree starting phase
-            show_grating(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, white_bar_width = 200)
-        3) Show grating with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
-            show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
+            show_grating(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, 
+                        velocity = 100, white_bar_width = 200)
+        3) Show grating with sawtooth profile on a 500x500 area where the color contrast is 
+                light red and the color offset is light blue
+            show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, 
+                    color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """
         if white_bar_width == -1:
             bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
@@ -738,27 +772,32 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
-    def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0), block_trigger = False):
+    def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0), 
+            block_trigger = False):
         '''
-        Maintains backward compatibility with old stimulations using show_dots
+        Maintains backward compatibility with old stimulations using show_dots. Use the show_shapes instead
         '''
         raise NotImplementedError('block handling and trigger generation is not implemented')
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
                     
-    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, are_same_shapes_over_frames = False, colors_per_shape = True, save_frame_info = True):
+    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  
+                            color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, 
+                            are_same_shapes_over_frames = False, colors_per_shape = True, save_frame_info = True):
         '''
         Shows a huge number (up to several hunders) of shapes.
         Parameters:
-            shape_size: one dimensional list of shape sizes in um or the size of rectangle, in this case a two dimensional array is also supported
+            shape_size: one dimensional list of shape sizes in um or the size of rectangle, 
+                in this case a two dimensional array is also supported
             shape_positions: one dimensional list of shape positions (row, col) in um.
             nshapes: number of shapes per frame
-            color: can be a single tuple of the rgb values that apply to each shapes over the whole stimulation. Both list and numpy formats are supported
-                    Optionally a two dimensional list can be provided where the dimensions are organized as above controlling the color of each shape individually
+            color: can be a single tuple of the rgb values that apply to each shapes over the whole stimulation. 
+                Both list and numpy formats are supported. Optionally a two dimensional list can be provided 
+                where the dimensions are organized as above controlling the color of each shape individually
             duration: duration of each frame in s. When 0, frame is shown for one frame time.
             are_same_shapes_over_frames: if True, all frames show the same shapes with different colors
 
-        The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, these will be segmented to frames assuming
-        that on each frame the number of shapes are equal.
+        The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, 
+        these will be segmented to frames assuming that on each frame the number of shapes are equal.
         '''
         raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log_on_flip_message_initial = 'show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')'
@@ -926,28 +965,59 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, fly_in=False, fly_out=False, save_frame_info =True, is_block = False):
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, 
+                            spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,
+                            offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,
+                            duration_calc_only=False,save_frame_info =True, is_block = False):
+        '''
+        Show vertical bars where the distribution of the color of the bar corresponds to the distribution of
+        a natural scene which means that the spectra of the colors over spatial freuqency is 1/f
+            speed: the speed of the movement of the vertical bars in um/s
+            duration: duration of the stimulus. speed*duration detemines the lower end of 
+                the spatial frequency range
+            minimal_spatial_period: the higher end of the spatial frequency range in um
+            spatial_resolution: The spatial frequency resolution. By default it corresponds to one pixel.
+            direction: the stimulus and its movement is rotated to this angle
+            fly_in: when stimulus starts, the barcode pattern flies on
+            fly_out: at the end of the stimulus the barcode pattern flies out
+            background: background color of the stimulus when fly_in and fly_out enabled
+            circular: The stimulus flashes up with the initial pattern and at the 
+                end the very same pattern is shown.
+            offset, scale: with this the 1/f profile can be shifted and scaled
+            duration_calc_only: the function returns with the precalculated duration of the stimulus. 
+                No stimulus is presented.
+        '''
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
-        self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
-        if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        if not duration_calc_only:
+            self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
+        self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        if 0:#For testing only
+            self.intensity_profile = numpy.linspace(0,1,self.intensity_profile.shape[0])
+            self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0
+            self.intensity_profile[-0.1*self.intensity_profile.shape[0]:]=1.0
         self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
+        if save_frame_info and not duration_calc_only:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
         if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
             self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
         intensity_profile_length = self.intensity_profile.shape[0]
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
-        fly_in_out = self.config.BACKGROUND_COLOR[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
+        bg=colors.convert_color(self.config.BACKGROUND_COLOR[0] if background is None else background, self.config)
+        fly_in_out = bg[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
         intensity_profile_length += (fly_in+fly_out)*fly_in_out.shape[0]
         if fly_in:
             alltexture=numpy.concatenate((fly_in_out,alltexture))
         if fly_out:
             alltexture=numpy.concatenate((alltexture,fly_in_out))
+        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        if duration_calc_only:
+            return (alltexture.shape[0]-(0 if circular else self.config.SCREEN_RESOLUTION['col']))/(ds*float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
@@ -956,6 +1026,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         angles = angles + direction*numpy.pi/180.0
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
+        if self.config.COORDINATE_SYSTEM == 'ulcorner':
+            vertices += self.config.SCREEN_UM_TO_PIXEL_SCALE*numpy.array([self.machine_config.SCREEN_CENTER['col'], self.machine_config.SCREEN_CENTER['col']])
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -972,7 +1044,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              [1.0, 0.0],
                              ])
         glTexCoordPointerf(texture_coordinates)
-        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         t0=time.time()
         texture_pointer = 0
         frame_counter = 0
@@ -987,16 +1058,18 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if start_index < end_index:
                 texture = alltexture[start_index:end_index]
             else:
-                break
-#                texture = numpy.zeros_like(texture)
-#                texture[:-end_index] = alltexture[start_index:]
-#                texture[-end_index:] = alltexture[:end_index]
-#            if start_index >= intensity_profile_length:
-#                break
+                if circular:
+                    texture = numpy.zeros_like(texture)
+                    texture[:-end_index] = alltexture[start_index:]
+                    texture[-end_index:] = alltexture[:end_index]
+                    if start_index >= intensity_profile_length-1:
+                        break
+                else:
+                    break
             texture_pointer += ds
             frame_counter += 1
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
             self._flip(frame_trigger = True)
@@ -1008,19 +1081,20 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
-        if save_frame_info:
+        if save_frame_info and not duration_calc_only:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
-    def white_noise(self, duration, square_size,save_frame_info=True):
+    def show_white_noise(self, duration, square_size,save_frame_info=True):
         '''
         Generates white noise stimulus using numpy.random.random
         
         duration: duration of white noise stimulus in seconds
-        square_size: size of squares. Number of squares is calculated from screen size but fractional squares are not displayed.
-        The array of squares is centered
+        square_size: size of squares. Number of squares is calculated from screen size but 
+        fractional squares are not displayed. The array of squares is centered
         '''
         if save_frame_info:
-            self.log.info('white_noise(' + str(duration)+ ', ' + str(square_size) + ')', source = 'stim')
+            self.log.info('show_white_noise(' + str(duration)+ ', ' + str(square_size) + ')', source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe())
         square_size_pixel = square_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
@@ -1044,6 +1118,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
+            self.draw()
             self._flip(frame_trigger = True)
             if self.abort:
                 break
@@ -1138,9 +1213,7 @@ class AdvancedStimulation(StimulationHelpers):
     ''' 
     
     def moving_comb(self, speed, orientation, bar_width, tooth_size, tooth_type, contrast, background,pos = utils.rc((0,0))):
-        '''
-        tooth_type: square, sawtooth
-        '''
+        #tooth_type: square, sawtooth
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         bar_width_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*bar_width
         tooth_size_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*tooth_size
@@ -1297,28 +1370,53 @@ class AdvancedStimulation(StimulationHelpers):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
-    def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
+    def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, 
+                        background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
+        '''
+        Presents increasing spot stimulus.
+            spot_sizes: list of spot sizes in um
+            on_time: duration of flashing the spot
+            off_time: duration of pause between spots
+            color: color of spot
+            background_color: background color of screen
+            pos: position of spots in um,
+        '''
         raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
         self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, block_trigger = block_trigger, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+    def angle2screen_pos(self,angle,axis=None):
+        distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.tan(numpy.radians(angle))
+        if axis!=None:
+            distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
+        self.machine_config.SCREEN_PIXEL_WIDTH#mm
+        return (distance_from_center/self.machine_config.SCREEN_PIXEL_WIDTH)/self.machine_config.SCREEN_UM_TO_PIXEL_SCALE#um coordinate
+        
+    def angle2size(self,size_deg, pos_deg):
+        minangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'-')
+        maxangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'+')
+        size_row=self.angle2screen_pos(maxangle['row'],'row')-self.angle2screen_pos(minangle['row'],'row')
+        size_col=self.angle2screen_pos(maxangle['col'],'col')-self.angle2screen_pos(minangle['col'],'col')
+        return utils.rc((size_row,size_col))
 
-    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
-        '''        
-        Aka Marching Squares
-    
-        Input parameters/use cases
-        1) nrows, ncolumns -> if None, automatically calculate for the whole screen surface
-        2) shape size -> if none, nrows and ncolumns and screen size will be used for determining the shape size
-        3) optional: display area
-        4) Random order
-        5) Colors
-        6) On time, off time
-        7) flash repeat
-        8) Sequence repeat
-        9) Background color
-    
+    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, 
+                                display_size = None, flash_repeat = 1, sequence_repeat = 1, 
+                                background_color = None,shape_colors = [1.0], random_order = False):
+        '''
+        The screen is divided into a meshgrid and rectangles are presented in each position 
+                to map the recpeive field.
+        display_size: row,col format in um, by default the whole screen
+        shape_size: size of the rectangle in row/col format in um. If None, the shape size is calculated from the
+                display size and the nrows and ncolumns
+        nrows,ncolumns: number of rows and columns. If not provided calculated from display_size and shape_size
+        flash_repeat: number of flashes for each position and color
+        sequence_repeat: number of repeat for the whole sequence of rectangles flashed at 
+                different positions and colors
+        shape_colors: rectangles are shown at each position in these colors.
+        background_color: background color of screen
+        random_order: order of positions are shuffled. It tries to avoid adjacent positions shown subsequently
         '''
         shape_size, nrows, ncolumns, display_size, shape_colors, background_color = \
                 self._parse_receptive_field_parameters(shape_size, nrows, ncolumns, display_size, shape_colors, background_color)
@@ -1330,17 +1428,51 @@ class AdvancedStimulation(StimulationHelpers):
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
                                                                             off_time = off_time)
+        self.display_size=display_size
+        import random,itertools
+        positions_and_colors=[[c,p] for c,p in itertools.product(shape_colors,positions)]
         if random_order:
-            import random
-            random.seed(0)
-            random.shuffle(positions)
+            ct=0
+            while True:
+                positions_and_colors,success = utils.shuffle_positions_avoid_adjacent(positions_and_colors,shape_size)
+                if success:
+                    break
+                else:
+                    ct+=1
+                if ct>=10:
+                    raise RuntimeError('Could not generate non adjacent random order of squares')
+                    
+            #random.shuffle(positions_and_colors)
+        if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
+            positions_and_colors_angle=positions_and_colors
+            #Consider positions in degree units and convert them to real screen positions
+            #correct for screen center
+            screen_center_um=self.machine_config.SCREEN_CENTER
+            positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
+            #Correct for display center
+            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
+            positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
+            #Convert angles to positions
+            positions_and_colors = [[p,self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
+            pos=numpy.array([p for a,d,c,p in positions_and_colors])
+            offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
+            #offset=utils.rc_add(offset,screen_center_um,'+')
+            positions_and_colors = [[a,d,c,utils.rc_add(p,offset,'-')] for a,d,c, p in positions_and_colors]
+            #Convert to ulcorner
+            if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
+                positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
+        else:
+            positions_and_colors= [[0,shape_size,c,p] for c,p in positions_and_colors]
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
-            for p in positions:
-                for color in shape_colors:
+            for angle,shape_size_i, color,p in positions_and_colors:
+                    print angle
+                    #print shape_size_i['row']
+            #for p in positions:
+             #   for color in shape_colors:
                     for r2 in range(flash_repeat):
                         if self.abort:
                             break
@@ -1348,11 +1480,12 @@ class AdvancedStimulation(StimulationHelpers):
                             self.block_start(block_name = 'position')
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         self.show_shape(shape = 'rect',
-                                    size = shape_size,
+                                    size = shape_size_i,
                                     color = color,
                                     background_color = background_color,
                                     duration = on_time,
-                                    pos = p)
+                                    pos = p,
+                                    angle=angle)
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         if hasattr(self, 'block_end'):
                             self.block_end(block_name = 'position')
@@ -1387,9 +1520,11 @@ class AdvancedStimulation(StimulationHelpers):
         
     def receptive_field_explore_durations_and_positions(self, **kwargs):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
-        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
+        offtime=kwargs['off_time'] if kwargs['off_time']>0 else 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+offtime)+off_time, positions
         
-    def moving_shape_trajectory(self, size, speeds, directions,repetition,center=utils.rc((0,0)), pause=0.0,moving_range=None, shape_starts_from_edge=False):
+    def moving_shape_trajectory(self, size, speeds, directions,repetition,center=utils.rc((0,0)), 
+                pause=0.0,moving_range=None, shape_starts_from_edge=False):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
@@ -1426,10 +1561,21 @@ class AdvancedStimulation(StimulationHelpers):
         duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
         return trajectories, trajectory_directions, duration
         
-        
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=None, pause=0.0, repetition = 1, center = utils.rc((0,0)), block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, 
+                        moving_range=None, pause=0.0, repetition = 1, center = utils.rc((0,0)), 
+                        block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
         '''
-        shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
+        Present a moving simulus in different directions:
+            shape: shape of moving object, see show_shapes()
+            size: size of stimulus
+            speeds: list of speeds in um/s that are used for moving the shape
+            directions: list of motion directions in degree 
+            color: color of shape
+            center: center of movement
+            pause: pause between each sweep in seconds
+            moving_range: range of movement in um
+            shape_starts_from_edge: if True, moving shape starts from the edge of the screen
+                        such that shape is not visible
         '''
         
         #TODO:
@@ -1457,52 +1603,7 @@ class AdvancedStimulation(StimulationHelpers):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
         
-    def white_noise_obsolete(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
-        '''
-        pixel_size : in um
-        flickering_frequency: pattern change frequency, 0: max frame rate
-        colors: set of colors or intensities to be used
-        n_on_pixels: if provided the number of white pixels shown. colors shall be a list of two.
-        '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
-        #TODO: has to be reworked
-        self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')', source='stim')
-        self._save_stimulus_frame_info(inspect.currentframe())
-        if flickering_frequency == 0:
-            npatterns = duration * self.config.SCREEN_EXPECTED_FRAME_RATE
-            pattern_duration = 1
-        else:
-            npatterns = duration * flickering_frequency
-            pattern_duration = self.config.SCREEN_EXPECTED_FRAME_RATE/flickering_frequency
-        if not hasattr(pixel_size, 'dtype'):
-            pixel_size = utils.rc((pixel_size, pixel_size))
-        npixels = utils.rc((int(self.config.SCREEN_SIZE_UM['row']/pixel_size['row']), int(self.config.SCREEN_SIZE_UM['col']/pixel_size['col'])))
-        if isinstance(colors[0],list):
-            n_channels = len(colors[0])
-        else:
-            n_channels = 1
-        color = numpy.zeros((npatterns, npixels['row'], npixels['col'], n_channels))
-        numpy.random.seed(0)
-        randmask = numpy.random.random(color.shape[:-1])
-        if n_on_pixels is None:
-            ranges =  numpy.linspace(0, 1, len(colors)+1)
-            for r_i in range(ranges.shape[0]-1):
-                indexes = numpy.nonzero(numpy.where(randmask > ranges[r_i], 1, 0) * numpy.where(randmask <= ranges[r_i + 1], 1, 0))
-                color[indexes] = colors[r_i]
-        elif len(colors) == 2:
-            indexes = numpy.nonzero(randmask[0])
-            if set_seed:
-                import random
-                random.seed(0)
-            for pattern_i in range(int(npatterns)):
-                rows = [random.choice(indexes[0]) for i in range(n_on_pixels)]
-                cols = [random.choice(indexes[1]) for i in range(n_on_pixels)]
-                color[pattern_i][rows, cols] = colors[-1]
-                pass
-        color = numpy.repeat(color, pattern_duration, 0)
-        self.show_checkerboard(npixels, duration = 0, color = color, box_size = pixel_size, save_frame_info = True)
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-
+    
     def sine_wave_shape(self):
         pass
         
@@ -1559,102 +1660,144 @@ class AdvancedStimulation(StimulationHelpers):
             from visexpman.engine.hardware_interface.scanner_control import ScannerError
             raise ScannerError('Position(s) are beyond the scanner\'s operational range')
         daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
+if test_mode:
+    class TestStimulationPatterns(unittest.TestCase):
         
-class TestStimulationPatterns(unittest.TestCase):
+        @unittest.skip('')
+        def test_01_curtain(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
     
-    @unittest.skip('')
-    def test_01_curtain(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
-
-    @unittest.skip('')
-    def test_02_moving_shape(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        from visexpman.users.test.test_stimulus import TestMovingShapeConfig
-        context = stimulation_tester('test', 'GUITestConfig', 'TestMovingShapeConfig', ENABLE_FRAME_CAPTURE = True)
-        ec = TestMovingShapeConfig(context['machine_config'])
-        bgcolor = colors.convert_color(ec.SHAPE_BACKGROUND, context['machine_config'])[0]*255
-        calculated_duration = float(fileop.read_text_file(context['logger'].filename).split('\n')[0].split(' ')[-1])
-        captured_files = map(os.path.join, len(os.listdir(context['machine_config'].CAPTURE_PATH))*[context['machine_config'].CAPTURE_PATH],os.listdir(context['machine_config'].CAPTURE_PATH))
-        captured_files.sort()
-        captured_files=captured_files[1:]#Drop first frame which is some garbage from the video buffer
-        #remove menu frames (red)
-        stim_frames = [captured_file for captured_file in captured_files if not (numpy.asarray(Image.open(captured_file))[:,:,0].sum() > 0 and numpy.asarray(Image.open(captured_file))[:,:,1:].sum() == 0)]
-        #Check pause durations
-        overall_intensity = [numpy.asarray(Image.open(f)).sum() for f in stim_frames]
-        mean_intensity_per_frame = overall_intensity/(context['machine_config'].SCREEN_RESOLUTION['row']*context['machine_config'].SCREEN_RESOLUTION['col']*3)
-        edges = signal.trigger_indexes(mean_intensity_per_frame)
-        pauses = numpy.diff(edges[1:-1])[::2]/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE)
-        self.assertGreaterEqual(pauses.min(), ec.PAUSE_BETWEEN_DIRECTIONS)
-        #TODO: check captured files: shape size, speed
-        numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
-
-    @unittest.skip('')
-    def test_03_natural_stim_spectrum(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        from PIL import Image
-        from visexpman.engine.generic import fileop
-        spd = 300
-        duration = 1.5
-        repeats = 2
-        context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = True,
-                DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd)
-        intensities = []
-        fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
-        #Check if number of frames generated corresponds to duration, repeat and frame rate
-        self.assertAlmostEqual(len(fns), duration*repeats*context['machine_config'].SCREEN_EXPECTED_FRAME_RATE,delta=5)
-        fns.sort()
-        for f in fns[1:]:#First frame might be some garbage in the frame buffer
-            im = numpy.asarray(Image.open(f))
-            first_column = im[:,0]
-            self.assertEqual(first_column.std(),0)#Check if columns have the same color
-            intensities.append(first_column.mean())
-        intensities = numpy.array(intensities)
-        spectrum = abs(numpy.fft.fft(intensities))/2/intensities.shape[0]
-        spectrum = spectrum[:spectrum.shape[0]/2]
-        #TODO: test for checking periodicity
-        #TODO: test for checking 1/x spectrum
-
-    @unittest.skip('')
-    def test_04_natural_export(self):
-        export = True
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
-                STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
-                EXPORT_INTENSITY_PROFILE = export,
-                DURATION = 3.0, REPEATS = 2, DIRECTIONS = range(0, 360, 180), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
-
-#    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
-    @unittest.skip('')
-    def test_05_export2video(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
-        videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
-        self.assertTrue(os.path.exists(videofile))
-        self.assertGreater(os.path.getsize(videofile), 30e3)
-        os.remove(videofile)
+        @unittest.skip('')
+        def test_02_moving_shape(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.users.test.test_stimulus import TestMovingShapeConfig
+            context = stimulation_tester('test', 'GUITestConfig', 'TestMovingShapeConfig', ENABLE_FRAME_CAPTURE = True)
+            ec = TestMovingShapeConfig(context['machine_config'])
+            bgcolor = colors.convert_color(ec.SHAPE_BACKGROUND, context['machine_config'])[0]*255
+            calculated_duration = float(fileop.read_text_file(context['logger'].filename).split('\n')[0].split(' ')[-1])
+            captured_files = map(os.path.join, len(os.listdir(context['machine_config'].CAPTURE_PATH))*[context['machine_config'].CAPTURE_PATH],os.listdir(context['machine_config'].CAPTURE_PATH))
+            captured_files.sort()
+            captured_files=captured_files[1:]#Drop first frame which is some garbage from the video buffer
+            #remove menu frames (red)
+            stim_frames = [captured_file for captured_file in captured_files if not (numpy.asarray(Image.open(captured_file))[:,:,0].sum() > 0 and numpy.asarray(Image.open(captured_file))[:,:,1:].sum() == 0)]
+            #Check pause durations
+            overall_intensity = [numpy.asarray(Image.open(f)).sum() for f in stim_frames]
+            mean_intensity_per_frame = overall_intensity/(context['machine_config'].SCREEN_RESOLUTION['row']*context['machine_config'].SCREEN_RESOLUTION['col']*3)
+            edges = signal.trigger_indexes(mean_intensity_per_frame)
+            pauses = numpy.diff(edges[1:-1])[::2]/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE)
+            self.assertGreaterEqual(pauses.min(), ec.PAUSE_BETWEEN_DIRECTIONS)
+            #TODO: check captured files: shape size, speed
+            numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
     
-    @unittest.skip('Funtion is not ready')
-    def test_06_texture(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
+        #@unittest.skip('')
+        def test_03_natural_stim_spectrum(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            from PIL import Image
+            from visexpman.engine.generic import fileop
+            spd = 800
+            duration = 12
+            repeats = 1
+            context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = not True,
+                    DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd,MSP=120,CIRCULAR= True)
+            intensities = []
+            fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
+            #Check if number of frames generated corresponds to duration, repeat and frame rate
+            self.assertAlmostEqual(len(fns), duration*repeats*context['machine_config'].SCREEN_EXPECTED_FRAME_RATE,delta=5)
+            fns.sort()
+            for f in fns[1:]:#First frame might be some garbage in the frame buffer
+                im = numpy.asarray(Image.open(f))
+                first_column = im[:,0]
+                self.assertEqual(first_column.std(),0)#Check if columns have the same color
+                intensities.append(first_column.mean())
+            intensities = numpy.array(intensities)
+            spectrum = abs(numpy.fft.fft(intensities))/2/intensities.shape[0]
+            spectrum = spectrum[:spectrum.shape[0]/2]
+            #TODO: test for checking periodicity
+            #TODO: test for checking 1/x spectrum
+    
+        @unittest.skip('')
+        def test_04_natural_export(self):
+            export = True
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
+                    STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
+                    EXPORT_INTENSITY_PROFILE = export,
+                    DURATION = 3.0, REPEATS = 2, DIRECTIONS = range(0, 360, 180), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
+    
+    #    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
+        @unittest.skip('')
+        def test_05_export2video(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
+            videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
+            self.assertTrue(os.path.exists(videofile))
+            self.assertGreater(os.path.getsize(videofile), 30e3)
+            os.remove(videofile)
         
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-    def test_07_point_laser_beam(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
-
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-    def test_08_point_laser_beam_out_of_range(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
-        self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
+        @unittest.skip('Funtion is not ready')
+        def test_06_texture(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
+            
+        @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+        def test_07_point_laser_beam(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
+    
+        @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+        def test_08_point_laser_beam_out_of_range(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
+            self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
+            
+        @unittest.skip('')
+        def test_09_show_grating_non_texture(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.users.test.test_stimulus import TestMovingShapeConfig
+            context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
         
-    @unittest.skip('')
-    def test_09_show_grating_non_texture(self):
-        from visexpman.engine.visexp_app import stimulation_tester
-        from visexpman.users.test.test_stimulus import TestMovingShapeConfig
-        context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
+        @unittest.skip('')
+        def test_10_block_trigger(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            import hdf5io
+            from visexpman.users.test.test_stimulus import TestStimulusBlockParams
+            context = stimulation_tester('test', 'GUITestConfig', 'TestStimulusBlockParams')
+            ec = TestStimulusBlockParams(context['machine_config'])
+            stim_context = hdf5io.read_item(fileop.get_context_filename(context['machine_config']), 'context', filelocking=False)
+            sfi=utils.array2object(stim_context)['last_experiment_stimulus_frame_info']
+            expected_number_of_blocks = len(ec.COLORS)*2**2+len(ec.IMAGE_FOLDERS)*len(ec.IMAGE_STRETCHES)+len(ec.SHAPES)*len(ec.T_SHAPE)*len(ec.POSITIONS)*len(ec.SIZES)*len(ec.COLORS)
+            expected_number_of_blocks += numpy.prod(map(len, [getattr(ec, p) for p in ['T_GRATING', 'GRATING_PROFILES', 'GRATING_WIDTH', 'GRATING_SPEEDS']]))
+            expected_number_of_blocks += 2
+            if 0:
+                for s in sfi:
+                    if s.has_key('block_start') or s.has_key('block_end'):
+                        print s.keys()
+                    else:
+                        print s['stimulus_type']
+            self.assertEqual(len([s for s in sfi if 'block_start' in s]), expected_number_of_blocks)
+            self.assertEqual(len([s for s in sfi if 'block_end' in s]), expected_number_of_blocks)
+            #block start and block end entries must be adjacent, no stimulus info should be in between
+            self.assertEqual((numpy.array([i for i in range(len(sfi)) if 'block_end' in sfi[i]])-numpy.array([i for i in range(len(sfi)) if 'block_start' in sfi[i]])).sum(), expected_number_of_blocks)
+            #Check if block indexes are increasing:
+            bidiff = numpy.diff(numpy.array([s['block_start' if s.has_key('block_start') else 'block_end'] for s in sfi if 'block_start' in s or 'block_end' in s]))
+            self.assertGreaterEqual(bidiff.min(),0)
+        
+        @unittest.skip('')    
+        def test_11_checkerboard(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestCheckerboardConfig', ENABLE_FRAME_CAPTURE = False)
+        
+        @unittest.skip('')
+        def test_12_movinggrating(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
+        
+        @unittest.skip('')            
+        def test_13_receptive_field(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNewAngle', ENABLE_FRAME_CAPTURE = False)
+        
     
     @unittest.skip('')    
     def test_10_block_trigger(self):
