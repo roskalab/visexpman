@@ -283,6 +283,7 @@ class Analysis(object):
         self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale]})
         self._recalculate_background()
+        self._red_channel_statistics()
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
             if self.rois is not None and len(self.rois)>0:
@@ -396,6 +397,24 @@ class Analysis(object):
             area[:,i] = numpy.where(area[:,i]<0,0,area[:,i])
         return area
         
+    def _red_channel_statistics(self):
+        red=self.raw_data[:,1]
+        x,y = cone_data.pixels_below_threshold(red,self.guidata.read('Background threshold')*1e-2)
+        lowest_pixels=red[:,x,y]
+        nostim_indexes=[]
+        for i in range(self.tsync.shape[0]/2):
+            start=self.tsync[2*i]
+            end=self.tsync[2*i+1]
+            nostim_indexes.extend(list(numpy.where(self.timg<start)[0]))
+            nostim_indexes.extend(list(numpy.where(self.timg>end)[0]))
+        self.red_stat={}
+        self.red_stat['allpixels']={}
+        self.red_stat['allpixels']['nostim']=red[nostim_indexes].mean()
+        self.red_stat['allpixels']['withstim']=red.mean()
+        self.red_stat['lowest_green_pixels']={}
+        self.red_stat['lowest_green_pixels']['nostim']=lowest_pixels[nostim_indexes].mean()
+        self.red_stat['lowest_green_pixels']['withstim']=lowest_pixels.mean()
+        
     def _normalize_roi_curves(self):
         if not hasattr(self, 'rois'):
             return
@@ -410,6 +429,7 @@ class Analysis(object):
             r['stimulus_name']=self.experiment_name
             r['meanimage']=self.meanimage
             r['image_scale']=self.image_scale
+            r['red']=self.red_stat
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
