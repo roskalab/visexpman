@@ -7,7 +7,7 @@ import shutil
 import numpy
 import tempfile
 import time
-import subprocess as sub
+import subprocess
 import multiprocessing,threading,Queue
 from distutils import file_util,  dir_util
 try:
@@ -111,6 +111,14 @@ def free_space(path):
         return (s.f_bavail * s.f_frsize)
     else:
         raise NotImplementedError('')
+        
+def folder_size(path):
+    if platform.system() == 'Linux' or platform.system()=='Darwin':
+        tmp='/tmp/o.txt'
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        subprocess.call('du -sh {0}>>{1}'.format(path,tmp), shell=True)
+        return read_text_file(tmp).split('\t')[0]
     
 def set_file_dates(path, file_info):
     try:
@@ -124,7 +132,7 @@ def set_file_dates(path, file_info):
 def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
     ccmd = 'lsof -Fp '+filename
-    p=sub.Popen(ccmd, shell=True)
+    p=subprocess.Popen(ccmd, shell=True)
     res= p.communicate()
     pids = re.findall('p(\d+)', res)
     if len(pids)<1: return False
