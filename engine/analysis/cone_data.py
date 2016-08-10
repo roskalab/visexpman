@@ -273,7 +273,7 @@ def aggregate_cells(folder):
     aggregated_cells = []
     allhdf5files.sort()
     for hdf5file in allhdf5files:
-        print allhdf5files.index(hdf5file)+1,len(allhdf5files)
+        print allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells)
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
         fntags= experiment_data.parse_recording_filename(hdf5file)
         if fntags['id'] in skip_ids or not experiment_data.is_recording_filename(hdf5file):
@@ -471,7 +471,7 @@ class TestCA(unittest.TestCase):
         self.assertTrue(isinstance(cells,list))
         [self.assertTrue('scan_region' in cell.keys()) for cell in cells]
         [self.assertGreater(len(cell.keys()),0) for cell in cells]
-        expected_cell_properties = ['image_scale', 'area', 'match_weight', 'meanimage', 'stimulus_name', 'tsync', 'raw', 'baseline_length', 'normalized', 'background', 'background_threshold', 'rectangle', 'timg']
+        expected_cell_properties = ['image_scale', 'area', 'match_weight', 'meanimage', 'stimulus_name', 'tsync', 'raw', 'baseline_length', 'normalized', 'background', 'background_threshold', 'rectangle', 'timg', 'red']
         for cell in cells:
             repeats=cell[[c for c in cell.keys() if 'scan_region' !=c][0]].values()
             for r in repeats:

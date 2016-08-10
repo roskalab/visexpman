@@ -267,7 +267,7 @@ class Analysis(object):
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
-        if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == fileop.parse_recording_filename(filename)['id']:
+        if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
             self.notify('Warning', 'ROIS cannot be copied to a file itself')
             del self.reference_roi_filename
             del self.reference_rois
@@ -387,9 +387,9 @@ class Analysis(object):
         for r in self.rois:
             if r.has_key('area') and hasattr(r['area'], 'dtype'):
                 area = self._clip_area(copy.deepcopy(r['area']))
-                r['raw'] = self.raw_data[:,:,area[:,0], area[:,1]].mean(axis=2).flatten()
+                r['raw'] = self.raw_data[:,0,area[:,0], area[:,1]].mean(axis=1)
             elif r.has_key('rectangle'):
-                r['raw'] = self.raw_data[:,:,r['rectangle'][0]-0.5*r['rectangle'][2]: r['rectangle'][0]+0.5*r['rectangle'][2], r['rectangle'][1]-0.5*r['rectangle'][3]: r['rectangle'][1]+0.5*r['rectangle'][3]].mean(axis=2).mean(axis=2).flatten()
+                r['raw'] = self.raw_data[:,0,r['rectangle'][0]-0.5*r['rectangle'][2]: r['rectangle'][0]+0.5*r['rectangle'][2], r['rectangle'][1]-0.5*r['rectangle'][3]: r['rectangle'][1]+0.5*r['rectangle'][3]].mean(axis=1).mean(axis=1)
                 
     def _clip_area(self,area):
         for i in range(2):#Make sure that indexing is correct even if area falls outside the image
@@ -398,6 +398,9 @@ class Analysis(object):
         return area
         
     def _red_channel_statistics(self):
+        self.red_stat={}
+        if self.raw_data.shape[1]==1:
+            return
         red=self.raw_data[:,1]
         x,y = cone_data.pixels_below_threshold(red,self.guidata.read('Background threshold')*1e-2)
         lowest_pixels=red[:,x,y]
@@ -407,10 +410,9 @@ class Analysis(object):
             end=self.tsync[2*i+1]
             nostim_indexes.extend(list(numpy.where(self.timg<start)[0]))
             nostim_indexes.extend(list(numpy.where(self.timg>end)[0]))
-        self.red_stat={}
-        self.red_stat['allpixels']={}
-        self.red_stat['allpixels']['nostim']=red[nostim_indexes].mean()
-        self.red_stat['allpixels']['withstim']=red.mean()
+        self.red_stat['roi_pixels']={}
+        self.red_stat['roi_pixels']['nostim']=red[nostim_indexes]
+        self.red_stat['roi_pixels']['withstim']=red
         self.red_stat['lowest_green_pixels']={}
         self.red_stat['lowest_green_pixels']['nostim']=lowest_pixels[nostim_indexes].mean()
         self.red_stat['lowest_green_pixels']['withstim']=lowest_pixels.mean()
@@ -429,7 +431,10 @@ class Analysis(object):
             r['stimulus_name']=self.experiment_name
             r['meanimage']=self.meanimage
             r['image_scale']=self.image_scale
-            r['red']=self.red_stat
+            r['red']=copy.deepcopy(self.red_stat)
+            if self.red_stat!={}:
+                r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,r['area'][:,0],r['area'][:,1]].mean()
+                r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,r['area'][:,0],r['area'][:,1]].mean()
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
@@ -540,7 +545,7 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         self.printc('Roi {0}, {1}'.format(rectangle, self.raw_data.shape))
-        raw = self.raw_data[:,0,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=1).mean(axis=1).flatten()
+        raw = self.raw_data[:,0,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=1).mean(axis=1)
         img2process=numpy.copy(self.meanimage)
         if pixel_range != None:
             image_range = self.meanimage.max()-self.meanimage.min()
