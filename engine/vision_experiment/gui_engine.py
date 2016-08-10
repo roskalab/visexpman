@@ -268,7 +268,7 @@ class Analysis(object):
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
-        if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == fileop.parse_recording_filename(filename)['id']:
+        if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
             self.notify('Warning', 'ROIS cannot be copied to a file itself')
             del self.reference_roi_filename
             del self.reference_rois
@@ -284,6 +284,7 @@ class Analysis(object):
         self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale]})
         self._recalculate_background()
+        self._red_channel_statistics()
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
             if self.rois is not None and len(self.rois)>0:
@@ -316,7 +317,7 @@ class Analysis(object):
         
     def _recalculate_background(self):
         background_threshold = self.guidata.read('Background threshold')*1e-2
-        self.background = cone_data.calculate_background(self.raw_data,threshold=background_threshold)
+        self.background = cone_data.calculate_background(self.raw_data[:,0],threshold=background_threshold)
         self.background_threshold=background_threshold
         
     def find_cells(self, pixel_range=None):
@@ -387,15 +388,35 @@ class Analysis(object):
         for r in self.rois:
             if r.has_key('area') and hasattr(r['area'], 'dtype'):
                 area = self._clip_area(copy.deepcopy(r['area']))
-                r['raw'] = self.raw_data[:,:,area[:,0], area[:,1]].mean(axis=2).flatten()
+                r['raw'] = self.raw_data[:,0,area[:,0], area[:,1]].mean(axis=1)
             elif r.has_key('rectangle'):
-                r['raw'] = self.raw_data[:,:,r['rectangle'][0]-0.5*r['rectangle'][2]: r['rectangle'][0]+0.5*r['rectangle'][2], r['rectangle'][1]-0.5*r['rectangle'][3]: r['rectangle'][1]+0.5*r['rectangle'][3]].mean(axis=2).mean(axis=2).flatten()
+                r['raw'] = self.raw_data[:,0,r['rectangle'][0]-0.5*r['rectangle'][2]: r['rectangle'][0]+0.5*r['rectangle'][2], r['rectangle'][1]-0.5*r['rectangle'][3]: r['rectangle'][1]+0.5*r['rectangle'][3]].mean(axis=1).mean(axis=1)
                 
     def _clip_area(self,area):
         for i in range(2):#Make sure that indexing is correct even if area falls outside the image
             area[:,i] = numpy.where(area[:,i]>=self.raw_data.shape[i+2]-1,self.raw_data.shape[i+2]-1,area[:,i])
             area[:,i] = numpy.where(area[:,i]<0,0,area[:,i])
         return area
+        
+    def _red_channel_statistics(self):
+        self.red_stat={}
+        if self.raw_data.shape[1]==1:
+            return
+        red=self.raw_data[:,1]
+        x,y = cone_data.pixels_below_threshold(red,self.guidata.read('Background threshold')*1e-2)
+        lowest_pixels=red[:,x,y]
+        nostim_indexes=[]
+        for i in range(self.tsync.shape[0]/2):
+            start=self.tsync[2*i]
+            end=self.tsync[2*i+1]
+            nostim_indexes.extend(list(numpy.where(self.timg<start)[0]))
+            nostim_indexes.extend(list(numpy.where(self.timg>end)[0]))
+        self.red_stat['roi_pixels']={}
+        self.red_stat['roi_pixels']['nostim']=red[nostim_indexes]
+        self.red_stat['roi_pixels']['withstim']=red
+        self.red_stat['lowest_green_pixels']={}
+        self.red_stat['lowest_green_pixels']['nostim']=lowest_pixels[nostim_indexes].mean()
+        self.red_stat['lowest_green_pixels']['withstim']=lowest_pixels.mean()
         
     def _normalize_roi_curves(self):
         if not hasattr(self, 'rois'):
@@ -411,6 +432,10 @@ class Analysis(object):
             r['stimulus_name']=self.experiment_name
             r['meanimage']=self.meanimage
             r['image_scale']=self.image_scale
+            r['red']=copy.deepcopy(self.red_stat)
+            if self.red_stat!={}:
+                r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,r['area'][:,0],r['area'][:,1]].mean()
+                r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,r['area'][:,0],r['area'][:,1]].mean()
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
@@ -521,7 +546,7 @@ class Analysis(object):
         rectangle[0] +=0.5*rectangle[2]
         rectangle[1] +=0.5*rectangle[3]
         self.printc('Roi {0}, {1}'.format(rectangle, self.raw_data.shape))
-        raw = self.raw_data[:,:,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=2).mean(axis=2).flatten()
+        raw = self.raw_data[:,0,rectangle[0]-0.5*rectangle[2]: rectangle[0]+0.5*rectangle[2], rectangle[1]-0.5*rectangle[3]: rectangle[1]+0.5*rectangle[3]].mean(axis=1).mean(axis=1)
         img2process=numpy.copy(self.meanimage)
         if pixel_range != None:
             image_range = self.meanimage.max()-self.meanimage.min()
@@ -1273,7 +1298,7 @@ class TestMainUIEngineIF(unittest.TestCase):
         import visexpman.engine
         self.appcontext = visexpman.engine.application_init(user = 'test', config = 'GUITestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
         self.appcontext['logger'].start()
-        self.engine = GUIEngine(self.machine_config, self.appcontext['logger'], self.appcontext['socket_queues'], unittest=True)
+        self.engine = MainUIEngine(self.machine_config, self.appcontext['logger'], self.appcontext['socket_queues'], unittest=True)
         
         self.engine.save_context()
         self.from_gui, self.to_gui = self.engine.get_queues()

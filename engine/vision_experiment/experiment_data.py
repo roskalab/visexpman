@@ -90,7 +90,7 @@ def is_recording_filename(filename):
         return False
     
 def find_recording_files(folder):
-    allhdf5files = find_files_and_folders(folder, extension = 'hdf5')[1]
+    allhdf5files = fileop.find_files_and_folders(folder, extension = 'hdf5')[1]
     return [f for f in allhdf5files if is_recording_filename(f)]
     
 #### Check file ####
@@ -146,13 +146,23 @@ def check(h, config):
     return error_messages
     
 def get_id(timestamp=None):
+    '''
+    unique id for datafiles:
+        v1: unix timestamp
+        v2: unix timestamp - epoch to make it shorter
+        v3: yyyymmddhhmmss format for better readability
+    '''
+    version='v3'
     if timestamp is None:
         timestamp = time.time()
     epoch = time.mktime((2014, 11, 01, 0,0,0,0,0,0))
-    if 0:
+    if version=='v2':
         return str(int(numpy.round(timestamp-epoch, 1)*10))
-    else:
+    elif version=='v1':
         return str(int(numpy.round(timestamp, 1)*10))
+    elif version=='v3':
+        time_struct = time.localtime(timestamp)
+        return '{0:0=4}{1:0=2}{2:0=2}{3:0=2}{4:0=2}{5:0=2}{6}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec,int(10*(timestamp-int(timestamp))))
 
 ############### Preprocess measurement data ####################
 if hdf5io_available:

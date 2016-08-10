@@ -157,9 +157,13 @@ def area2edges(soma_roi):
     return numpy.array(edge_pixels)
 
 def calculate_background(rawdata,threshold=0.1):
-    mi=rawdata.mean(axis=0).mean(axis=0)
+    x,y = pixels_below_threshold(rawdata,threshold)
+    return rawdata[:,x,y].mean(axis=1)
+    
+def pixels_below_threshold(rawdata,threshold):
+    mi=rawdata.mean(axis=0)
     x,y = numpy.where(mi<mi.max()*threshold)
-    return rawdata[:,:,x,y].mean(axis=2).flatten()
+    return x,y
     
 def fast_read(f,vn):
     import tables
