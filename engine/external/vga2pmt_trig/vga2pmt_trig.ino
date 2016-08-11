@@ -26,7 +26,7 @@ ISR(INT0_vect) {
     //TODO: check level before turning on stim led to avoid pmt gets saturated
     //TODO: serial port msg about number of improperly fired interrupts
     now=micros();
-    if (frq_decided)
+    if (1)
     {
       delayMicroseconds(pulse_delay);
       PORTD|=1<<6;//pmt off
@@ -39,46 +39,6 @@ ISR(INT0_vect) {
       }
       //delayMicroseconds(post_pulse_delay);
     } 
-    else if (~frq_decided)
-    {
-      
-      period_calc=(now-last_isr);
-      last_isr=now;
-      periods[index]=period_calc;
-      index++;
-      if (index==NSAMPLES)
-      {
-        period_calc=0;
-        
-        for(int i=0;i<NSAMPLES;i++)
-        {
-          period_calc+=periods[i];
-        }
-        period_calc/=NSAMPLES;
-        /*Serial.print(period_calc);
-        Serial.print(' ');
-        Serial.print(_60HZ_US);
-        Serial.print(' ');
-        Serial.print(PULSE_WIDTH_60HZ);
-        Serial.print(' ');*/
-        if ((0.8*_60HZ_US<period_calc)&&(1.2*_60HZ_US>period_calc))
-        {
-          pulse_width=PULSE_WIDTH_60HZ;
-          frq_decided=true;
-        }
-        else if ((0.8*_120HZ_US<period_calc)&&(1.2*_120HZ_US>period_calc))
-        {
-          pulse_width=PULSE_WIDTH_120HZ;
-          frq_decided=true;
-        }
-        else
-        {
-          index=0;
-        }
-        /*Serial.print(pulse_width);
-        Serial.print("\r\n");*/        
-      }     
-    }
     else
     {
       //overflow, do not update period
