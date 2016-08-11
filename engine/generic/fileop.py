@@ -429,7 +429,7 @@ class DataAcquisitionFile(object):
             
     def add(self,data):
         if data.shape[1]!=self.nchannels:
-            raise RuntimeError('Invalid number of channels: {0}, expected: {1}'.format(data.shape[1],self.nchannels))
+            raise RuntimeError('Invalid number of channels: {0}, expected: {1}, data.shape: {2}'.format(data.shape[1],self.nchannels,data.shape))
         getattr(self, self.dataname).append(self._scale(data))
 #        getattr(self, self.dataname).append(data)
             

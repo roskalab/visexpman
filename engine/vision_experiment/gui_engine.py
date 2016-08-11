@@ -60,9 +60,11 @@ class ExperimentHandler(object):
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
-            self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
-            self.sync_recorder.start()
-            self.sync_recording_started=False
+            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS'):
+                self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
+                self.sync_recorder.start()
+                self.sync_recording_started=False
+            self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
     
     def open_stimulus_file(self, filename, classname):
         if not os.path.exists(filename):
@@ -87,7 +89,7 @@ class ExperimentHandler(object):
             self.send({'function': 'set_context_variable','args':['background_color',self.guidata.read('Grey Level')*1e-2]},'stim')            
         elif parameter_name == 'Stimulus Center X' or parameter_name == 'Stimulus Center Y':
             v=utils.rc((self.guidata.read('Stimulus Center Y'), self.guidata.read('Stimulus Center X')))
-            self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')            
+            self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')
         
     def start_experiment(self):
         if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
@@ -95,7 +97,6 @@ class ExperimentHandler(object):
         if self.sync_recording_started:
             self.notify('Warning', 'Experiment already running')
             return
-            
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
         filename=os.sep.join(cf.split(os.sep)[:-1])
@@ -111,11 +112,21 @@ class ExperimentHandler(object):
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
+        #Outfolder is date+id. Later all the files will be merged from id this folder
+        experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
+        if not os.path.exists(experiment_parameters['outfolder']):
+            os.makedirs(experiment_parameters['outfolder'])
         if self.machine_config.PLATFORM=='us_cortical':
             for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Motor Positions']:
                 experiment_parameters[pn]=self.guidata.read(pn)
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
-            self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
+            if self.santiago_setup:
+                #UDP command for sending duration and path to imaging
+                cmd='sec {0} filename {1}'.format(experiment_parameters['duration']+self.machine_config.CA_IMAGING_START_DELAY, experiment_parameters['outfolder'])
+                utils.send_udp(self.machine_config.CONNECTIONS['ca_imaging']['ip']['ca_imaging'],446,cmd)
+                time.sleep(1)
+            else:
+                self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
             nchannels=nchannels[1]-nchannels[0]+1
@@ -124,10 +135,17 @@ class ExperimentHandler(object):
             self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
-        self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        if self.santiago_setup:
+            #UDP command for stim including path and stimulus source code
+            cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
+            utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
+        else:
+            self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        self.start_time=time.time()
         self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_duration))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
+        #TEST: utils.send_udp('192.168.1.106',446, 'sec 10 filename x:\\data\\setup\\santiago') 
         
     def finish_experiment(self):
         self.printc('Finishing experiment')
@@ -145,7 +163,6 @@ class ExperimentHandler(object):
                     if k !='stimulus_source_code' or k!='status':
                         txt+='{0}\t{1}\r'.format(k,v)
                 txt+=self.current_experiment_parameters['stimulus_source_code']
-                    
                 outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
                 if os.path.exists(outfile):
                     if not self.ask4confirmation ('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
@@ -156,7 +173,7 @@ class ExperimentHandler(object):
             self._stop_sync_recorder()
             
     def save_experiment_files(self, aborted=False):
-        fn=experiment_data.get_recording_path(self.current_experiment_parameters, self.machine_config, prefix = 'sync')
+        fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
         if aborted:
             os.remove(self.daqdatafile.filename)
         else:
@@ -173,7 +190,11 @@ class ExperimentHandler(object):
             self.sync_recording_started=False
             d,n=self.sync_recorder.stop_daq()
             self.printc('Sync signal recording stopped')
-            self.daqdatafile.add(d)
+            if len(d.shape)==3:
+                self.printc('Warning: 3 d data, 2 d expected')
+                d=d[0]
+            elif d.shape[0]!=0:
+                self.daqdatafile.add(d)
             self.daqdatafile.hdf5.machine_config=experiment_data.pack_configs(self)
             self.daqdatafile.hdf5.save('machine_config')
             self.daqdatafile.close()
@@ -181,7 +202,10 @@ class ExperimentHandler(object):
     def run_all_iterations(self):
         if self.sync_recording_started:
             self.read_sync_recorder()
-        
+            if self.santiago_setup:
+                if time.time()-self.start_time>self.current_experiment_parameters['duration']+self.machine_config.CA_IMAGING_START_DELAY:
+                    [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
+
     def stop_experiment(self):
         self.printc('Aborting experiment, please wait...')
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
@@ -966,7 +990,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                self.run_all_iterations()
+                if hasattr(self,'run_all_iterations'):
+                    self.run_all_iterations()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:
@@ -997,9 +1022,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.close_open_files()
             time.sleep(20e-3)
         self.close()
-        
-    def run_all_iterations(self):
-        pass
         
     def close_open_files(self):
         if hasattr(self, 'datafile') and self.datafile.h5f.isopen==1:

@@ -169,6 +169,7 @@ class ReiAnalysisConfig(ElphysRetinalCaImagingConfig):
         self.BLOCK_TRIGGER_PIN = 0
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
+        
 
 class TamasSetupConfig(ElphysRetinalCaImagingConfig):
     '''
