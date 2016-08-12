@@ -1787,7 +1787,7 @@ if test_mode:
             from visexpman.engine.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
         
-        @unittest.skip('')            
+        @unittest.skip('')
         def test_13_receptive_field(self):
             from visexpman.engine.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNewAngle', ENABLE_FRAME_CAPTURE = False)

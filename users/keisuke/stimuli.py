@@ -31,3 +31,4 @@ class MovingBarParameters(experiment.ExperimentConfig):
         self.SHAPE = 'rect'
         self.runnable = 'MovingShapeExperiment'        
         self._create_parameters_from_locals(locals())
+        

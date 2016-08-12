@@ -418,8 +418,77 @@ def phys2mat(filename):
             del metadata[k]
         scipy.io.savemat(f.replace('.phys','.mat'), {'data': data, 'metadata': metadata}, oned_as='column')
         
+def merge_ca_data(folder,**kwargs):
+    files=os.listdir(folder)
+    #Stimulus info
+    stimdatafile=os.path.join(folder,[f for f in files if os.path.splitext(f)[1]=='.mat'][0])
+    stimulus = utils.array2object(scipy.io.loadmat(stimdatafile)['serialized'])
+    keep_keys=['experiment_config_name', 'stimulus_frame_info', 'generated_data', 'experiment_name', 'experiment_source', 'config', 'software_environment']
+    stimulus=dict([(k, stimulus[k]) for k in keep_keys])#!!!!
+    #Imaging data
+    imaging_folder=[os.path.join(folder,f) for f in files if os.path.isdir(os.path.join(folder,f))][0]
+    recording_name=os.path.basename(imaging_folder)
+    frames=[os.path.join(imaging_folder,f) for f in os.listdir(imaging_folder) if os.path.splitext(f)[1]=='.png']
+    channels=['top','side']
+    from PIL import Image
+    rawdata=[]
+    for channel in channels:
+        chframes=[f for f in frames if os.path.basename(f).split('_')[-2]==channel]
+        chframes.sort()
+        rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
+    raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))#!!!!
+    #Sync data
+    syncfile=os.path.join(folder,[f for f in files if os.path.splitext(f)[1]=='.hdf5'][0])    
+    hsync=hdf5io.Hdf5io(syncfile)
+    machine_config=hsync.findvar('machine_config')#!!!!
+    sync_scaling=hsync.findvar('sync_scaling')
+    recording_parameters = {}
+    recording_parameters['resolution_unit'] = 'pixel/um'
+    recording_parameters['pixel_size'] = float(os.path.splitext(os.path.basename(frames[0]))[0].split('_')[-3])
+    recording_parameters['scanning_range'] = utils.rc((map(float,os.path.splitext(os.path.basename(frames[0]))[0].split('_')[-7:-5])))
+    recording_parameters['elphys_sync_sample_rate'] = machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
+    recording_parameters['experiment_name']=stimulus['experiment_name']
+    recording_parameters['experiment_source']= kwargs['stimulus_source_code']
+    recording_parameters['experiment_source_file'] = kwargs['stimfile']
+    for k,v in kwargs.items():
+        if not recording_parameters.has_key(k):
+            recording_parameters[k]=v
+    hsync.load('sync')
+    sync_and_elphys = numpy.zeros((hsync.sync.shape[0], 5))#!!!!!
+    sync_and_elphys[:,2]=hsync.sync[:,2]#block trigger
+    #TODO: convert y scanner to binary
+    sync_and_elphys[:,4]=hsync.sync[:,0]#frame trigger
+    hsync.close()
+    #Save everything to final file
+    filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
+    h=hdf5io.Hdf5io(filename)
+    h.recording_parameters=recording_parameters
+    h.sync_and_elphys_data = sync_and_elphys
+    h.fsync=syncfile
+    h.fimg=imaging_folder
+    h.fstim=stimdatafile
+    h.elphys_sync_conversion_factor=1
+    h.raw_data=raw_data
+    h.sync_scaling=sync_scaling
+    h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
+    h.configs_stim['machine_config']=machine_config['machine_config']
+    h.machine_config=machine_config
+    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config'])
+    h.close()
+    return filename
+    
+def archive_raw(folder,filename):
+    import zipfile
+    zfn=filename.replace('.hdf5','.zip')
+    zf = zipfile.ZipFile(zfn, 'w',zipfile.ZIP_DEFLATED)
+    files=fileop.find_files_and_folders(folder)[1]
+    for f in files:
+        zf.write(f, f.replace(folder,''))
+    zf.close()
+    return zfn
         
 class TestConverter(unittest.TestCase):
+    @unittest.skip('')
     def test_01_phystiff2hdf5(self):
 #        p=PhysTiff2Hdf5('/tmp/rei_repeats','/tmp/rei_repeats')
         p=PhysTiff2Hdf5('/tmp/rei_data','/tmp/rei_data')
@@ -431,6 +500,10 @@ class TestConverter(unittest.TestCase):
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data')
 #        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')
         
+    def test_02_merge_ca_data(self):
+        folder='/mnt/data/data/setup/santiago/20160811/201608112105114'
+        filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
+        archive_raw(folder,filename)
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:

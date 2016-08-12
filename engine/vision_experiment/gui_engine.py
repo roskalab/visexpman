@@ -86,7 +86,13 @@ class ExperimentHandler(object):
         elif parameter_name == 'Bullseye Shape':
             self.send({'function': 'set_variable','args':['bullseye_type',self.guidata.read('Bullseye Shape')]},'stim')
         elif parameter_name == 'Grey Level':
-            self.send({'function': 'set_context_variable','args':['background_color',self.guidata.read('Grey Level')*1e-2]},'stim')            
+            if self.santiago_setup:
+                cmd='SOCcolorEOC{0}EOP'.format(int(self.guidata.read('Grey Level')*1e-2*255))
+                utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
+                self.printc(cmd)
+                
+            else:
+                self.send({'function': 'set_context_variable','args':['background_color',self.guidata.read('Grey Level')*1e-2]},'stim')            
         elif parameter_name == 'Stimulus Center X' or parameter_name == 'Stimulus Center Y':
             v=utils.rc((self.guidata.read('Stimulus Center Y'), self.guidata.read('Stimulus Center X')))
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')
@@ -178,7 +184,16 @@ class ExperimentHandler(object):
             os.remove(self.daqdatafile.filename)
         else:
             shutil.move(self.daqdatafile.filename,fn)
-            self.printc('{0} saved'.format(fn))
+            self.printc('Sync data saved to {0}'.format(fn))
+            if self.santiago_setup:
+                from visexpman.users.zoltan import legacy
+                filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
+                self.printc('Data saved to {0}'.format(filename))
+                archive_fn=legacy.archive_raw(self.current_experiment_parameters['outfolder'],filename)
+                if 0:
+                    shutil.rmtree(self.current_experiment_parameters['outfolder'])
+                shutil.move(archive_fn, os.path.join(os.path.dirname(experiment_parameters['outfolder']),'raw'))
+                self.printc('Rawdata archived')
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
