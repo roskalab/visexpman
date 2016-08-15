@@ -269,7 +269,7 @@ class PhysTiff2Hdf5(object):
         stiminfo_available=False
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min']
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min', 'Nostim']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
             print 'no stim metadata found'
@@ -283,6 +283,8 @@ class PhysTiff2Hdf5(object):
                 block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
             elif stimdata['experiment_config_name'][0]=='Fullfield10min':
                 block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
+            elif stimdata['experiment_config_name'][0]=='Nostim':
+                block_startend=[stimdata['stimulus_frame_info'][0][0]['counter'][0][0][0][0], stimdata['stimulus_frame_info'][0][-1]['counter'][0][0][0][0]]
             pulse_start=signal.trigger_indexes(data[1])[::2]
             sig=numpy.zeros_like(data[1])
             boundaries=pulse_start[block_startend]

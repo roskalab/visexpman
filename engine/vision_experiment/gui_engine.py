@@ -401,6 +401,7 @@ class Analysis(object):
     def _red_channel_statistics(self):
         self.red_stat={}
         if self.raw_data.shape[1]==1:
+            self.red_stat=0
             return
         red=self.raw_data[:,1]
         x,y = cone_data.pixels_below_threshold(red,self.guidata.read('Background threshold')*1e-2)
@@ -433,7 +434,7 @@ class Analysis(object):
             r['meanimage']=self.meanimage
             r['image_scale']=self.image_scale
             r['red']=copy.deepcopy(self.red_stat)
-            if self.red_stat!={}:
+            if self.red_stat!=0:
                 r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,r['area'][:,0],r['area'][:,1]].mean()
                 r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,r['area'][:,0],r['area'][:,1]].mean()
             if r.has_key('matches'):
@@ -702,8 +703,12 @@ class Analysis(object):
                 x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
                 y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
         for i in range(len(x)):
-            baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
-            parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
+            try:
+                baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
+                parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
+            except IndexError:
+                pass
+            
         x_,y_ = signal.average_of_traces(x,y)
         parameters_ = {}
         if mean_of_repetitions:
