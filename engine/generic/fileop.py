@@ -192,6 +192,20 @@ def copy(src, dst, update=1):
     else: 
         dir_util.mkpath(dst)
         return dir_util.copy_tree(src, dst, update=1)
+        
+def move2zip(src,dst,delete=False):
+    '''
+    Zip contents of src and save it to dst. if delete==True, remove src folder
+    '''
+    import zipfile
+    zf = zipfile.ZipFile(dst, 'w',zipfile.ZIP_DEFLATED)
+    files=find_files_and_folders(src)[1]
+    for f in files:
+        zf.write(f, f.replace(src,''))
+    zf.close()
+    if delete:
+        shutil.rmtree(src)
+    return dst
 
 ################# File finders ####################
 
@@ -418,7 +432,7 @@ class DataAcquisitionFile(object):
         self.hdf5 = hdf5io.Hdf5io(self.filename,filelocking=False)
         setattr(self.hdf5,dataname+'_scaling', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
         self.hdf5.save(dataname+'_scaling')
-        datacompressor = tables.Filters(complevel=compression_level, complib='blosc', shuffle = 1)
+        datacompressor = tables.Filters(complevel=compression_level, complib='zlib', shuffle = 1)
         datatype = tables.UInt16Atom(self.nchannels)
         setattr(self,self.dataname, self.hdf5.h5f.create_earray(self.hdf5.h5f.root, dataname, datatype, (0,),filters=datacompressor))
                     
@@ -431,6 +445,7 @@ class DataAcquisitionFile(object):
         if data.shape[1]!=self.nchannels:
             raise RuntimeError('Invalid number of channels: {0}, expected: {1}, data.shape: {2}'.format(data.shape[1],self.nchannels,data.shape))
         getattr(self, self.dataname).append(self._scale(data))
+        self.hdf5.h5f.flush()
 #        getattr(self, self.dataname).append(data)
             
     def close(self):

@@ -109,6 +109,9 @@ class ExperimentHandler(object):
         stimulus_source_code = fileop.read_text_file(filename)
         #Find out duration
         experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
+        if self.santiago_setup and experiment_duration>150:
+            if not self.ask4confirmation('Longer recordings than 150 s may result memory error. Do you want to continue?'):
+                return
         #Collect experiment parameters
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
@@ -126,12 +129,7 @@ class ExperimentHandler(object):
             for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Motor Positions']:
                 experiment_parameters[pn]=self.guidata.read(pn)
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
-            if self.santiago_setup:
-                #UDP command for sending duration and path to imaging
-                cmd='sec {0} filename {1}'.format(experiment_parameters['duration']+self.machine_config.CA_IMAGING_START_DELAY, experiment_parameters['outfolder'])
-                utils.send_udp(self.machine_config.CONNECTIONS['ca_imaging']['ip']['ca_imaging'],446,cmd)
-                time.sleep(1)
-            else:
+            if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
@@ -142,6 +140,11 @@ class ExperimentHandler(object):
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
         if self.santiago_setup:
+            time.sleep(1)
+            #UDP command for sending duration and path to imaging
+            cmd='sec {0} filename {1}'.format(experiment_parameters['duration']+self.machine_config.CA_IMAGING_START_DELAY, experiment_parameters['outfolder'])
+            utils.send_udp(self.machine_config.CONNECTIONS['ca_imaging']['ip']['ca_imaging'],446,cmd)
+            time.sleep(1)
             #UDP command for stim including path and stimulus source code
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
@@ -176,6 +179,8 @@ class ExperimentHandler(object):
                 fileop.write_text_file(outfile,txt)
                 self.printc('Experiment info saved to {0}'.format(outfile))
         else:
+            if self.santiago_setup:
+                time.sleep(1.5)
             self._stop_sync_recorder()
             
     def save_experiment_files(self, aborted=False):
@@ -187,17 +192,22 @@ class ExperimentHandler(object):
             self.printc('Sync data saved to {0}'.format(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
+                #time.sleep(2+self.current_experiment_parameters['duration']/50.)
+                time.sleep(1)
+                self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
                 self.printc('Data saved to {0}'.format(filename))
-                archive_fn=legacy.archive_raw(self.current_experiment_parameters['outfolder'],filename)
+                dst=os.path.join(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'), os.path.basename(filename.replace('.hdf5','.zip')))
+                fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 if 0:
                     shutil.rmtree(self.current_experiment_parameters['outfolder'])
-                shutil.move(archive_fn, os.path.join(os.path.dirname(experiment_parameters['outfolder']),'raw'))
+                    shutil.move(archive_fn, os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'))
                 self.printc('Rawdata archived')
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
         if d!=None:
+            self.last_ai_read=d
             self.daqdatafile.add(d)
             
     def _stop_sync_recorder(self):
@@ -214,6 +224,7 @@ class ExperimentHandler(object):
             self.daqdatafile.hdf5.save('machine_config')
             self.daqdatafile.close()
             
+            
     def run_all_iterations(self):
         if self.sync_recording_started:
             self.read_sync_recorder()
@@ -229,6 +240,7 @@ class ExperimentHandler(object):
         self.enable_check_network_status=True
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
+        self.printc('Experiment stopped')
         
     def check_mcd_recording_started(self):
         if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
@@ -1209,6 +1221,7 @@ class CaImagingEngine(GUIEngine):
             #Wait till process terminates
             while self.daq_process.is_alive():
                 time.sleep(0.2)
+                print 'daq alive'
             #Set scanner voltages to 0V
             daq_instrument.set_voltage(self.machine_config.TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
             self.printc('Imaging stopped')

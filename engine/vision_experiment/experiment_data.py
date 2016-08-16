@@ -72,12 +72,12 @@ def parse_recording_filename(filename):
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
     items['extension'] = fileop.file_extension(filename)
-    fnp = items['file'].replace(items['extension'],'').split('_')
+    fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
     offset = 1 if len(fnp[-1]) != 12 else 0
-    items['id'] = fnp[-1-offset]
-    items['experiment_name'] = fnp[-2-offset]
+    items['id'] = fnp[-offset]
+    items['experiment_name'] = fnp[-1-offset]
     items['tag'] = fnp[1]
     return items
         

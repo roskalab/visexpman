@@ -144,7 +144,7 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         FULLSCREEN = not True
-        self.root_folder = 'x:\\data\\setup\\santiago'
+        self.root_folder = 'x:\\santiago-setup'
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
