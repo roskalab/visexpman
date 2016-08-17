@@ -257,7 +257,7 @@ class MovingGratingFionaHC(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
-        self.MARCH_TIME=4.0#
+        self.MARCH_TIME=4.0#4
         self.GRATING_STAND_TIME = 0
         self.GREY_INSTEAD_OF_MARCHING=True
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0
