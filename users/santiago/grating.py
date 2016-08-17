@@ -14,7 +14,7 @@ class MovingGratingNoMarchingConfig1(experiment.ExperimentConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 4.0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = range(0, 360, 45)#[:1]
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800

@@ -199,9 +199,12 @@ class ExperimentHandler(object):
                 self.printc('Data saved to {0}'.format(filename))
                 dst=os.path.join(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'), os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
-                if 0:
-                    shutil.rmtree(self.current_experiment_parameters['outfolder'])
-                    shutil.move(archive_fn, os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'))
+                current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
+                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if os.path.isdir(os.path.join(current_folder, fi))]
+                try:
+                    [shutil.rmtree(f) for f in folders]
+                except:
+                    pass    
                 self.printc('Rawdata archived')
         
     def read_sync_recorder(self):
@@ -290,8 +293,11 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
             #Stop sync recorder
+            self.log.info(self.log.pid)
+            self.log.info(os.getpid())
             self.sync_recorder.queues['command'].put('terminate')
             self.sync_recorder.join()
+            self.log.info('Sync recorder terminated')
 
 class Analysis(object):
     def __init__(self,machine_config):
