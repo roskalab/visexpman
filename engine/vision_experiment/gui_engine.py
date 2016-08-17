@@ -174,13 +174,19 @@ class ExperimentHandler(object):
                 txt+=self.current_experiment_parameters['stimulus_source_code']
                 outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
                 if os.path.exists(outfile):
-                    if not self.ask4confirmation ('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
+                    if not self.ask4confirmation('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
                         return
                 fileop.write_text_file(outfile,txt)
                 self.printc('Experiment info saved to {0}'.format(outfile))
         else:
             if self.santiago_setup:
-                time.sleep(1.5)
+                t0=time.time()
+                while True:
+                    if len([True for d in os.listdir(self.current_experiment_parameters['outfolder']) if os.path.isdir(os.path.join(self.current_experiment_parameters['outfolder'],d))])>0:
+                        break
+                    if time.time()-t0>10:
+                        break
+                    time.sleep(1)
             self._stop_sync_recorder()
             
     def save_experiment_files(self, aborted=False):
@@ -192,16 +198,16 @@ class ExperimentHandler(object):
             self.printc('Sync data saved to {0}'.format(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
-                #time.sleep(2+self.current_experiment_parameters['duration']/50.)
-                time.sleep(1)
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
                 self.printc('Data saved to {0}'.format(filename))
                 dst=os.path.join(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'), os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
-                if 0:
-                    shutil.rmtree(self.current_experiment_parameters['outfolder'])
-                    shutil.move(archive_fn, os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'))
+                #Remove failed recordings
+                current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
+                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if os.path.isdir(os.path.join(current_folder, fi))]
+                self.printc(folders)
+                [shutil.rmtree(f) for f in folders]
                 self.printc('Rawdata archived')
         
     def read_sync_recorder(self):
@@ -229,7 +235,7 @@ class ExperimentHandler(object):
         if self.sync_recording_started:
             self.read_sync_recorder()
             if self.santiago_setup:
-                if time.time()-self.start_time>self.current_experiment_parameters['duration']+self.machine_config.CA_IMAGING_START_DELAY:
+                if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
 
     def stop_experiment(self):
