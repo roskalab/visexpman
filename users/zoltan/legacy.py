@@ -523,10 +523,19 @@ class TestConverter(unittest.TestCase):
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data/20150206')
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data')
 #        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')
-        
+    @unittest.skip('')    
     def test_02_merge_ca_data(self):
         folder='/data/data/user/Zoltan/20160817/not enough frames'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
+        
+    def test_03_yscanner_sig(self):
+        for f in [os.path.join('/tmp/fre',f) for f in os.listdir('/tmp/fre')]:
+            h=hdf5io.Hdf5io(f)
+            h.load('sync')
+            h.load('sync_scaling')
+            yscanner2sync(numpy.cast['float'](h.sync[:,0])/h.sync_scaling['scale']-h.sync_scaling['offset'],10000)
+            h.close()
+            h.sync_scaling
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
