@@ -276,24 +276,25 @@ class PhysTiff2Hdf5(object):
             if not NOMATFILE and not self.irlaser:
                 return
         if stiminfo_available:
-            if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
-                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
-                block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
-            elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
-                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
-            elif stimdata['experiment_config_name'][0]=='Fullfield10min':
-                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
-            elif stimdata['experiment_config_name'][0]=='Nostim':
-                block_startend=[stimdata['stimulus_frame_info'][0][0]['counter'][0][0][0][0], stimdata['stimulus_frame_info'][0][-1]['counter'][0][0][0][0]]
-            pulse_start=signal.trigger_indexes(data[1])[::2]
             sig=numpy.zeros_like(data[1])
-            boundaries=pulse_start[block_startend]
+            pulse_start=signal.trigger_indexes(data[1])[::2]
+            if stimdata['experiment_config_name'][0]=='Nostim':
+                boundaries=numpy.array([metadata['Sample Rate']*10,metadata['Sample Rate']*11])
+            else:
+                if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
+                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
+                    block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
+                elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
+                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
+                elif stimdata['experiment_config_name'][0]=='Fullfield10min':
+                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
+                boundaries=pulse_start[block_startend]
             for i in range(boundaries.shape[0]/2):
                 sig[boundaries[2*i]:boundaries[2*i+1]]=5
             sync_and_elphys[:,2]=sig
         else:
             sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
-        sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
+        sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2], raw_data.shape[0])
         if sig is None:
             return
         sync_and_elphys[:,4] = sig
@@ -362,7 +363,7 @@ class PhysTiff2Hdf5(object):
             
             return sig2
         
-    def yscanner_signal2trigger(self,waveform, fsample,nxlines):
+    def yscanner_signal2trigger(self,waveform, fsample,nxlines,nframes):
         if self.irlaser:
             threshold_factor = 1e-5
         else:
@@ -404,10 +405,10 @@ class PhysTiff2Hdf5(object):
         except:
             pdb.set_trace()
 #        nperiods = (waveform.shape[0]-start_of_first_frame)/nsample_per_period
-        nperiods = (end_of_last_frame-start_of_first_frame)/nsample_per_period
+        nperiods = nframes#(end_of_last_frame-start_of_first_frame)/nsample_per_period
         trigger_signal = numpy.zeros_like(waveform)
         pulses = numpy.concatenate((numpy.zeros(start_of_first_frame), numpy.tile(one_period, nperiods)))
-        trigger_signal[:pulses.shape[0]]=pulses
+        trigger_signal[:min(pulses.shape[0],trigger_signal.shape[0])]=pulses[:min(pulses.shape[0],trigger_signal.shape[0])]
         return trigger_signal
         
 def phys2mat(filename):
@@ -438,9 +439,9 @@ class TestConverter(unittest.TestCase):
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
-        if fileop.free_space(sys.argv[1])<30e9:
+        if fileop.free_space(sys.argv[1])<30e9 and 0:
             raise RuntimeError('{0} is running out of free space'.format(sys.argv[1]))
-        elif fileop.free_space(sys.argv[1])<100e9:
+        elif fileop.free_space(sys.argv[1])<100e9 and 0:
             print 'Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9))
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False

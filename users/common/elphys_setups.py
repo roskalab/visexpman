@@ -90,6 +90,17 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.BLOCK_TRIGGER_PIN = 0
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
+        
+class ReiDebugConfig(ReiSetupConfig):
+    def _set_user_parameters(self):
+        ReiSetupConfig._set_user_parameters(self)
+        self.root_folder = 'c:\\temp\\0'
+        self.LOG_PATH = os.path.join(self.root_folder, 'log')
+        self.EXPERIMENT_LOG_PATH = self.LOG_PATH        
+        self.EXPERIMENT_DATA_PATH = self.root_folder
+
+        self.CONTEXT_PATH = self.root_folder
+        self.DELETED_FILES_PATH = 'c:\\temp\\'
 
 class ReiAnalysisConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):

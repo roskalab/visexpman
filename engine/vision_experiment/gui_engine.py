@@ -795,7 +795,6 @@ class Analysis(object):
             shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
         self.printc('Done')
         
-        
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
         files=fileop.listdir_fullpath(folder)
@@ -852,6 +851,22 @@ class Analysis(object):
         for f in problematic_files:
             self.printc(f)
         self.printc('DONE')
+        
+    def set_stim_timing(self,t0=10,t1=11):
+        for f in os.listdir(os.path.dirname(self.filename)):
+            f=os.path.join(os.path.dirname(self.filename),f)
+            if f[-4:]=='hdf5' and 'nostim' in os.path.basename(f).lower():
+                self.open_datafile(f)
+                self.tsync=numpy.array([t0,t1])
+                datafile = experiment_data.CaImagingData(self.filename)
+                datafile.load('sync_and_elphys_data')
+                datafile.sync_and_elphys_data[:,self.machine_config.ELPHYS_SYNC_RECORDING['SYNC_INDEXES'][0]]=0
+                datafile.sync_and_elphys_data[t0*10000:t1*10000,self.machine_config.ELPHYS_SYNC_RECORDING['SYNC_INDEXES'][0]]=5
+                datafile.save('sync_and_elphys_data')
+                datafile.close()
+                if hasattr(self, 'rois') and len(self.rois)>0:
+                    self.readd_rois(self.filename)
+                    self.save_rois_and_export(ask_overwrite=False)
         
     def meanimage2tiff(self,fn):
         import tifffile
