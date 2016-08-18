@@ -70,9 +70,11 @@ class ExperimentHandler(object):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
             return
-        self.printc('Opening {0} in gedit, scroll to class {1}'.format(filename, classname))
+        lines=fileop.read_text_file(filename).split('\n')
+        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1
+        self.printc('Opening {0}/{1} in gedit at line {2}'.format(filename, classname,line))
         import subprocess
-        process = subprocess.Popen(['gedit', filename], shell=self.machine_config.OS != 'Linux')
+        process = subprocess.Popen(['gedit', filename, '+{0}'.format(line)], shell=self.machine_config.OS != 'Linux')
         
     def check_parameter_changes(self, parameter_name):
         '''
@@ -185,6 +187,7 @@ class ExperimentHandler(object):
                     if len([True for d in os.listdir(self.current_experiment_parameters['outfolder']) if os.path.isdir(os.path.join(self.current_experiment_parameters['outfolder'],d))])>0:
                         break
                     if time.time()-t0>10:
+                        self.printc('Timeout')
                         break
                     time.sleep(1)
             self._stop_sync_recorder()

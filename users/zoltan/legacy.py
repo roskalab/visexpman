@@ -472,7 +472,7 @@ def merge_ca_data(folder,**kwargs):
     sync_and_elphys = numpy.zeros((hsync.sync.shape[0], 5))
     sync_and_elphys[:,2]=hsync.sync[:,2]#block trigger
     #TODO: convert y scanner to binary
-    sync_and_elphys[:,4]=yscanner2sync(hsync.sync[:,0], machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])#frame trigger
+    sync_and_elphys[:,4]=yscanner2sync(hsync.sync[:,0], machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],raw_data.shape[0])#frame trigger
     hsync.close()
     #Save everything to final file
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
@@ -492,24 +492,32 @@ def merge_ca_data(folder,**kwargs):
     h.close()
     return filename
     
-def yscanner2sync(sig,fsample):
+def yscanner2sync(sig,fsample,nframes):
     indexes=numpy.where(abs(numpy.diff(sig))>0.05)[0]
     start=indexes[0]
     end=indexes[-1]
     fft=numpy.fft.fft(sig[start:start+fsample*10 if start+fsample*10<end else end])
     frqs=numpy.fft.fftfreq(fft.shape[0],1.0/fsample)
-    d=numpy.sign(numpy.diff(abs(fft)))
-    peaks=frqs[numpy.nonzero(numpy.roll(d,1)-d)[0]-1]
-    frame_rate=peaks[1]#First peak is considered as frame rate
+    frame_rate=find_peak(frqs,abs(fft))#First peak after dc is considered as frame rate
+    if 0:
+        from pylab import cla,clf,savefig
+        cla()
+        clf()
+        plot(sig)
+        savefig('c:\\Data\\plot.png')
     if frame_rate<0.2 or frame_rate>15:
         raise RuntimeError('{0} Hz frame rate found,{1}'.format(frame_rate,peaks))
-    nperiods=numpy.floor((end-start)/float(fsample)*frame_rate)
+    nperiods=nframes#numpy.floor((end-start)/float(fsample)*frame_rate)
     period=int(numpy.round(fsample/frame_rate,0))
     ontime=int(1/1.2*period)
     oneperiod=5*numpy.concatenate((numpy.ones(ontime),numpy.zeros(period-ontime)))
     sigout=numpy.zeros_like(sig)
     sigout[start:start+period*nperiods]=numpy.tile(oneperiod,nperiods)
     return sigout
+    
+def find_peak(frqs,fft):
+    indexes=numpy.where(numpy.logical_and(frqs>0.2,frqs<30))[0]
+    return frqs[indexes][fft[indexes].argmax()]
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')
