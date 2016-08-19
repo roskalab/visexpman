@@ -186,6 +186,20 @@ def copy(src, dst, update=1):
     else: 
         dir_util.mkpath(dst)
         return dir_util.copy_tree(src, dst, update=1)
+        
+def move2zip(src,dst,delete=False):
+    '''
+    Zip contents of src and save it to dst. if delete==True, remove src folder
+    '''
+    import zipfile
+    zf = zipfile.ZipFile(dst, 'w',zipfile.ZIP_DEFLATED)
+    files=find_files_and_folders(src)[1]
+    for f in files:
+        zf.write(f, f.replace(src,''))
+    zf.close()
+    if delete:
+        shutil.rmtree(src)
+return dst
 
 ################# File finders ####################
 

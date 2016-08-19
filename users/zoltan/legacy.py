@@ -152,15 +152,26 @@ class PhysTiff2Hdf5(object):
         fphys,ftiff = entry
         self.build_hdf5(fphys,ftiff)
         
-    def backup_files(self,fphys,ftiff,fhdf5):
-        bu_folder = 'D:\\backup'
-        if not os.path.exists(bu_folder) or os.name=='posix':
-            return
-        import shutil
-        shutil.copy(fphys, bu_folder)
-        shutil.copy(fhdf5, bu_folder)
-        os.path.join(bu_folder, os.path.basename(os.path.dirname(ftiff))+'_'+os.path.basename(ftiff))
-        shutil.copy(ftiff, os.path.join(bu_folder, os.path.basename(os.path.dirname(ftiff))+'_'+os.path.basename(ftiff)))
+    def backup_files(self,fphys,ftiff,fhdf5,fcoords,fstim):
+        '''
+        Raw datafiles (csv, coord file, stim datafile and phys file is zipped and saved to x:\rei-data\raw
+        
+        hdf5 file is copied to x\rei-data\processed
+        '''
+        root='x:\\rei-setup'
+        subfolder=fhdf5.split(os.sep)[-3:-2]
+        raw=os.path.join(root, 'raw',*subfolder)
+        processed=os.path.join(root, 'processed',*subfolder)
+        [os.makedirs(fold) for fold in [raw,processed] if not os.path.exists(fold)]
+        #zip raw files to tmp and then copy them to rldata:
+        import shutil,zipfile
+        zfn=os.path.join(os.path.join(tempfile.gettempdir(),os.path.basename(fhdf5)))
+        zf = zipfile.ZipFile(zfn, 'w',zipfile.ZIP_DEFLATED)
+        [zf.write(src, os.path.basename(src)) for src in [fphys,ftiff, fcoords] if os.path.exists(src)]
+        zf.close()
+        shutil.move(zfn,os.path.join(raw, os.path.basename(zfn)))
+        #copy hdf5 to rldata
+        shutil.copy(fhdf5, processed)
         
     def build_hdf5(self,fphys,ftiff,folder=None):
         t0=time.time()
@@ -323,7 +334,7 @@ class PhysTiff2Hdf5(object):
         h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
         fileop.set_file_dates(filename, id)
-        if 0: self.backup_files(fphys,ftiff,filename)
+        self.backup_files(fphys,ftiff,filename,coordsfn,matfile[0] if len(matfile)>0 else '' )
         return filename
         
     def parse_stimulus_name(self,metadata):
