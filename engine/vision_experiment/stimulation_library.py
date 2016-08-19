@@ -777,7 +777,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Maintains backward compatibility with old stimulations using show_dots. Use the show_shapes instead
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
+        #raise NotImplementedError('block handling and trigger generation is not implemented')
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
                     
     def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  
@@ -799,7 +799,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, 
         these will be segmented to frames assuming that on each frame the number of shapes are equal.
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
+        #raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log_on_flip_message_initial = 'show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')'
         self.log_on_flip_message_continous = 'show_shapes'
         first_flip = False
@@ -877,7 +877,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     first_flip = True
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
-                self._flip_and_block_trigger(i, n_frames_per_pattern, True, block_trigger)
+                self._flip(frame_trigger = True)
                 if self.abort:
                     break
             if self.abort:
