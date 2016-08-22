@@ -215,7 +215,7 @@ class Protocol(object):
         
     def on_each_file(self):
         '''
-        Called when new new recording (not session) started
+        OBSOLETE
         '''
 
 ######################### Restore experiment config from measurement data #########################

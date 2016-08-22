@@ -360,7 +360,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def stimulate(self,waveform=None):
         now=time.time()
         fsample=self.machine_config.STIM_SAMPLE_RATE
-        if waveform is None:
+        if waveform == None:
             self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
             self.stimulus_waveform[0]=0
             self.stimulus_waveform[-1]=0
@@ -665,6 +665,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.datafile.load(vn)
             setattr(self, vn, getattr(self.datafile, vn))
         stat=self.datafile.findvar('stat')
+        stat['laser voltage']=numpy.round(self.datafile.findvar('parameters')['Laser Intensity'],1)
         self.datafile.close()
         self.enable_speed_update=False
         self.to_gui.put({'set_live_state': 0})
