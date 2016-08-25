@@ -1,4 +1,4 @@
-import time
+import time,tempfile
 import scipy.io
 import copy
 import cPickle as pickle
@@ -197,6 +197,7 @@ class ExperimentHandler(object):
         if aborted:
             os.remove(self.daqdatafile.filename)
         else:
+            shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
             shutil.move(self.daqdatafile.filename,fn)
             self.printc('Sync data saved to {0}'.format(fn))
             if self.santiago_setup:
@@ -347,7 +348,10 @@ class Analysis(object):
         self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale]})
         self._recalculate_background()
-        self._red_channel_statistics()
+        try:
+            self._red_channel_statistics()
+        except:
+            self.printc('No red stat')
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
             if self.rois is not None and len(self.rois)>0:
