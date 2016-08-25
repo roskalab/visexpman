@@ -159,15 +159,16 @@ class PhysTiff2Hdf5(object):
         hdf5 file is copied to x\rei-data\processed
         '''
         root='x:\\rei-setup'
-        subfolder=fhdf5.split(os.sep)[-3:-2]
+        subfolder=fhdf5.split(os.sep)[-3:-1]
         raw=os.path.join(root, 'raw',*subfolder)
         processed=os.path.join(root, 'processed',*subfolder)
         [os.makedirs(fold) for fold in [raw,processed] if not os.path.exists(fold)]
         #zip raw files to tmp and then copy them to rldata:
         import shutil,zipfile
-        zfn=os.path.join(os.path.join(tempfile.gettempdir(),os.path.basename(fhdf5)))
+        zfn=os.path.join(os.path.join(tempfile.gettempdir(),os.path.basename(fhdf5).replace('.hdf5','.zip')))
         zf = zipfile.ZipFile(zfn, 'w',zipfile.ZIP_DEFLATED)
-        [zf.write(src, os.path.basename(src)) for src in [fphys,ftiff, fcoords] if os.path.exists(src)]
+        fstim=os.path.join(os.path.dirname(fphys),fstim)
+        [zf.write(src, os.path.basename(src)) for src in [fphys,ftiff, fcoords,fstim] if os.path.exists(src)]
         zf.close()
         shutil.move(zfn,os.path.join(raw, os.path.basename(zfn)))
         #copy hdf5 to rldata
@@ -407,7 +408,7 @@ class PhysTiff2Hdf5(object):
             raise RuntimeError(frame_rate)
         #first frame's start time has to be calculated
         if start_of_first_frame>fsample*10:
-            pdb.set_trace()
+            #pdb.set_trace()
             raise RuntimeError(start_of_first_frame)
         flyback_duration = 10#sample
         nsample_per_period = int(fsample/frame_rate)

@@ -199,7 +199,7 @@ def move2zip(src,dst,delete=False):
     zf.close()
     if delete:
         shutil.rmtree(src)
-return dst
+    return dst
 
 ################# File finders ####################
 
