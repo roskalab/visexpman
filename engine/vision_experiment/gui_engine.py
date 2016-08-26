@@ -1,4 +1,4 @@
-import time
+import time,tempfile
 import scipy.io
 import copy
 import cPickle as pickle
@@ -70,9 +70,11 @@ class ExperimentHandler(object):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
             return
-        self.printc('Opening {0} in gedit, scroll to class {1}'.format(filename, classname))
+        lines=fileop.read_text_file(filename).split('\n')
+        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1
+        self.printc('Opening {0}/{1} in gedit at line {2}'.format(filename, classname,line))
         import subprocess
-        process = subprocess.Popen(['gedit', filename], shell=self.machine_config.OS != 'Linux')
+        process = subprocess.Popen(['gedit', filename, '+{0}'.format(line)], shell=self.machine_config.OS != 'Linux')
         
     def check_parameter_changes(self, parameter_name):
         '''
@@ -185,6 +187,7 @@ class ExperimentHandler(object):
                     if len([True for d in os.listdir(self.current_experiment_parameters['outfolder']) if os.path.isdir(os.path.join(self.current_experiment_parameters['outfolder'],d))])>0:
                         break
                     if time.time()-t0>10:
+                        self.printc('Timeout')
                         break
                     time.sleep(1)
             self._stop_sync_recorder()
@@ -194,6 +197,7 @@ class ExperimentHandler(object):
         if aborted:
             os.remove(self.daqdatafile.filename)
         else:
+            shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
             shutil.move(self.daqdatafile.filename,fn)
             self.printc('Sync data saved to {0}'.format(fn))
             if self.santiago_setup:
@@ -203,11 +207,12 @@ class ExperimentHandler(object):
                 self.printc('Data saved to {0}'.format(filename))
                 dst=os.path.join(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'), os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
-                #Remove failed recordings
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
                 folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if os.path.isdir(os.path.join(current_folder, fi))]
-                self.printc(folders)
-                [shutil.rmtree(f) for f in folders]
+                try:
+                    [shutil.rmtree(f) for f in folders]
+                except:
+                    pass    
                 self.printc('Rawdata archived')
         
     def read_sync_recorder(self):
@@ -296,8 +301,11 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
             #Stop sync recorder
+            self.log.info(self.log.pid)
+            self.log.info(os.getpid())
             self.sync_recorder.queues['command'].put('terminate')
             self.sync_recorder.join()
+            self.log.info('Sync recorder terminated')
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -340,7 +348,10 @@ class Analysis(object):
         self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale]})
         self._recalculate_background()
-        self._red_channel_statistics()
+        try:
+            self._red_channel_statistics()
+        except:
+            self.printc('No red stat')
         self.rois = self.datafile.findvar('rois')
         if hasattr(self, 'reference_rois'):
             if self.rois is not None and len(self.rois)>0:

@@ -159,16 +159,16 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True
         #### Network ####
-        stim_computer_ip = '192.168.1.105'
+        stim_computer_ip = '192.168.1.103'
         elphys_computer_ip = '172.27.26.48'
-        imaging_computer_ip = '192.168.1.106'
+        imaging_computer_ip = '192.168.1.101'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = imaging_computer_ip #bind to specific network card
         self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = imaging_computer_ip
 
         self.BASE_PORT = 10000
-        SYNC_RECORDER_CHANNELS='Dev1/ai4:6'
+        SYNC_RECORDER_CHANNELS='Dev1/ai4:7'
         self.SYNC_RECORDER_SAMPLE_RATE=10000
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         COORDINATE_SYSTEM='center'
