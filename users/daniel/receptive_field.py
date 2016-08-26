@@ -66,7 +66,20 @@ class ReceptiveFieldExploreNewAngleAdrianInverted(ReceptiveFieldExploreNewAngleA
         self.COLORS = [0.0]
         self.BACKGROUND_COLOR = 1.0
 
-
+class ReceptiveFieldFionaEquiFine(ReceptiveFieldExploreNew):
+    def _create_parameters(self):
+        ReceptiveFieldExploreNew._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 10
+        self.NCOLUMNS = 18
+        #self.SIZE_DIMENSION='angle'
+        #self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        #self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 1
+        self.OFF_TIME = 1
+        self.REPEATS = 1
+        
 class ReceptiveFieldFionaFine(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
@@ -74,11 +87,11 @@ class ReceptiveFieldFionaFine(ReceptiveFieldExploreNew):
         self.NROWS = 10
         self.NCOLUMNS = 18
         self.SIZE_DIMENSION='angle'
-        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
-        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#((65.0,96.7))#((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#((38.7,55.4))#((44.4,45.0))#degrees
 #        self.SHAPE_SIZE = 10
-        self.ON_TIME = 1.2
-        self.OFF_TIME = 1.2
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8
         self.REPEATS = 1 
         
 class ReceptiveFieldFionaFineBW(ReceptiveFieldExploreNew):
