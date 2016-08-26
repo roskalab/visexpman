@@ -8,7 +8,7 @@ import time
 
 class GrayBackgndOnly_5_min(experiment.ExperimentConfig):
     def _create_parameters(self):
-		self.runnable = 'GrayBackgndOnly'
+        self.runnable = 'GrayBackgndOnly'
         self.FULLSCREEN_TIME = 300.0 # 5 Minutes
         self.FULLSCREEN_COLOR = 0.25 # Medium gray contrast
         
@@ -16,21 +16,18 @@ class GrayBackgndOnly_5_min(experiment.ExperimentConfig):
 
 class GrayBackgndOnly_10_min(experiment.ExperimentConfig):
     def _create_parameters(self):
-		self.runnable = 'GrayBackgndOnly'
+        self.runnable = 'GrayBackgndOnly'
         self.FULLSCREEN_TIME = 600.0 # 5 Minutes
         self.FULLSCREEN_COLOR = 0.25 # Medium gray contrast
         
         self._create_parameters_from_locals(locals())
-		
+
 class GrayBackgndOnly_15_min(experiment.ExperimentConfig):
     def _create_parameters(self):
-		self.runnable = 'GrayBackgndOnly'
+        self.runnable = 'GrayBackgndOnly'
         self.FULLSCREEN_TIME = 900.0 # 5 Minutes
         self.FULLSCREEN_COLOR = 0.25 # Medium gray contrast
-        
         self._create_parameters_from_locals(locals())
-		
-        
         
 class GrayBackgndOnly(experiment.Experiment):
     def prepare(self):
