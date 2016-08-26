@@ -509,6 +509,21 @@ def yscanner2sync(sig,fsample):
     sigout=numpy.zeros_like(sig)
     sigout[start:start+period*nperiods]=numpy.tile(oneperiod,nperiods)
     return sigout
+    
+def rewrite_hdf5(folder):
+    '''
+    Reads all nodes of hdf5 file and saves it back. 
+    Could be used for reconverting old files with arrays with lzo compression to zlib compression.
+    '''
+    files=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
+    for f in files:
+        print f, files.index(f), len(files)
+        h=hdf5io.Hdf5io(f)
+        rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' ]
+        for rn in rootnodes:
+            h.load(rn)
+            h.save(rn)
+        h.close()
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')
