@@ -688,6 +688,10 @@ class Analysis(object):
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
         self.printc('Data exported to  {0}'.format(self.datafile.outfile))
+        #Copy to BACKUP_PATH/user/date/filename
+        dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
+        self.printc('Data backed up to  {0}'.format(dst))
+            
         
     def roi_shift(self, h, v):
         if not hasattr(self, 'rois'):

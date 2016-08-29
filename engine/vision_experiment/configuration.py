@@ -315,7 +315,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         ELPHYS_SYNC_RECORDING['ELPHYS_INDEXES'] = [0,1]
         ELPHYS_SYNC_RECORDING['SYNC_INDEXES'] = [2,3,4]#stim frame sync, y scanner, imaging frame sync, block trigger
         
-        DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync_and_elphys_data', 'conversion_factor', 'recording_parameters', 'stimulus_frame_info']
+        DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync', 'conversion_factor', 'recording_parameters', 'stimulus_frame_info']
         for an in self.USER_INTERFACE_NAMES:
             if 'analysis' not in an:
                 DATA_FILE_NODES.extend(['configs_{0}'.format(an), 'software_environment_{0}'.format(an)])

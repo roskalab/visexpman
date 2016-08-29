@@ -592,13 +592,12 @@ def index2filename(index):
     return filename
         
 class FileTree(QtGui.QTreeView):
-    def __init__(self,parent, root, extensions = []):
+    def __init__(self,parent, root, filterlist = []):
         self.parent=parent
         QtGui.QTreeView.__init__(self,parent)
         self.model = QtGui.QFileSystemModel(self)
         self.setModel(self.model)
         self.set_root(root)
-        filterlist = ['*.'+e for e in extensions]
         self.model.setNameFilters(QtCore.QStringList(filterlist))
         self.model.setNameFilterDisables(False)
         self.hideColumn(2)

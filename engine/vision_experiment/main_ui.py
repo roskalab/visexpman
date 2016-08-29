@@ -436,12 +436,13 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
         
-            self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat', 'tif', 'mp4', 'zip'])
-            self.analysis_helper = AnalysisHelper(self.analysis)
-            self.analysis.layout = QtGui.QGridLayout()
-            self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
-            self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
-            self.analysis.setLayout(self.analysis.layout)
+        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+        self.analysis_helper = AnalysisHelper(self.analysis)
+        self.analysis.layout = QtGui.QGridLayout()
+        self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
+        self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
+        self.analysis.setLayout(self.analysis.layout)
+        
         
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
