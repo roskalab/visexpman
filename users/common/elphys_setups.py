@@ -9,9 +9,10 @@ try:
 except:
     pass
 
-class ReiSetupConfig(ElphysRetinalCaImagingConfig):
+class ReiBaseConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
+        self.BACKUP_PATH='x:\\rei-setup\\processed'
         FULLSCREEN = not True
         self.root_folder = 'r:\\production\\rei-setup'
         self.root_folder = 'd:\\Data\\cone'
@@ -90,25 +91,25 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
         
-class ReiOldConfig(ReiSetupConfig):
+class ReiSetupConfig(ReiBaseConfig):
     def _set_user_parameters(self):
-        ReiSetupConfig._set_user_parameters(self)
+        ReiBaseConfig._set_user_parameters(self)
         self.root_folder = 'q:\\'
         self.LOG_PATH = os.path.join(self.root_folder, 'log')
         self.EXPERIMENT_LOG_PATH = self.LOG_PATH        
         self.EXPERIMENT_DATA_PATH = self.root_folder
         self.CONTEXT_PATH = self.root_folder
         
-class ReiDebugConfig(ReiSetupConfig):
+class ReiDebugConfig(ReiBaseConfig):
     def _set_user_parameters(self):
-        ReiSetupConfig._set_user_parameters(self)
+        ReiBaseConfig._set_user_parameters(self)
         self.root_folder = 'c:\\temp\\0'
         self.LOG_PATH = os.path.join(self.root_folder, 'log')
         self.EXPERIMENT_LOG_PATH = self.LOG_PATH        
         self.EXPERIMENT_DATA_PATH = self.root_folder
-
         self.CONTEXT_PATH = self.root_folder
         self.DELETED_FILES_PATH = 'c:\\temp\\'
+        
         
 
 class ReiAnalysisConfig(ElphysRetinalCaImagingConfig):

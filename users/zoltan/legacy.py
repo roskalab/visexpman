@@ -328,11 +328,11 @@ class PhysTiff2Hdf5(object):
         h.fphys = fphys
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
-        h.sync_and_elphys_data = sync_and_elphys
-        h.elphys_sync_conversion_factor=1
+        h.sync = sync_and_elphys
+        h.sync_conversion_factor=1
         h.phys_metadata = utils.object2array(metadata)
         h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
-        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
+        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync', 'sync_conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
         fileop.set_file_dates(filename, id)
         self.backup_files(fphys,ftiff,filename,coordsfn,matfile[0] if len(matfile)>0 else '' )

@@ -470,7 +470,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
         
-        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['hdf5', 'mat', 'tif', 'mp4'])
+        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4'])
         self.analysis_helper = AnalysisHelper(self.analysis)
         self.analysis.layout = QtGui.QGridLayout()
         self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)

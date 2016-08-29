@@ -72,12 +72,12 @@ def parse_recording_filename(filename):
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
     items['extension'] = fileop.file_extension(filename)
-    fnp = items['file'].replace(items['extension'],'').split('_')
+    fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
     offset = 1 if len(fnp[-1]) != 12 else 0
-    items['id'] = fnp[-1-offset]
-    items['experiment_name'] = fnp[-2-offset]
+    items['id'] = fnp[-offset]
+    items['experiment_name'] = fnp[-1-offset]
     items['tag'] = fnp[1]
     return items
         
@@ -118,7 +118,7 @@ def check(h, config):
             error_messages.append('inconsistent imaging_run_info')
         if not isinstance(h.stimulus_frame_info, list):
             error_messages.append('Invalid stimulus_frame_info')
-        sync_signals = numpy.cast['float'](h.sync_and_elphys_data[:,config.ELPHYS_SYNC_RECORDING['SYNC_INDEXES']])/h.ephys_sync_conversion_factor
+        sync_signals = numpy.cast['float'](h.sync[:,config.ELPHYS_SYNC_RECORDING['SYNC_INDEXES']])/h.ephys_sync_conversion_factor
         ca_frame_trigger = sync_signals[:,2]
         block_trigger = sync_signals[:,0]
         ca_frame_trigger_edges = signal.trigger_indexes(ca_frame_trigger)
@@ -256,8 +256,15 @@ if hdf5io_available:
                 raise NotImplementedError('')
             return imagearray
         
-        
-    
+        def backup(self,dst_root, nsubfolders):
+            '''
+            Backs up file to dst root considering nsubfolders
+            '''
+            dst=os.path.join(dst_root,*self.filename.split(os.sep)[-(1+nsubfolders):])
+            if not os.path.exists(os.path.dirname(dst)):
+                os.makedirs(os.path.dirname(dst))
+            shutil.copy2(self.filename,dst)
+            return dst
         
 def timing_from_file(filename):
     '''
@@ -272,15 +279,20 @@ def read_sync_rawdata(h):
     '''
     Reads sync traces
     '''
-    for v in  ['configs_stim', 'sync_and_elphys_data', 'elphys_sync_conversion_factor']:
+    for v in  ['configs_stim', 'sync', 'sync_conversion_factor']:
         if not hasattr(h, v):
             h.load(v)
+    if not hasattr(h, 'sync'):
+        h.load('sync_and_elphys_data')
+        h.sync=h.sync_and_elphys_data
+        h.load('elphys_sync_conversion_factor')
+        h.sync_conversion_factor=h.elphys_sync_conversion_factor
     machine_config = h.configs_stim['machine_config']
-    sync_and_elphys_data = numpy.cast['float'](h.sync_and_elphys_data)
-    sync_and_elphys_data /= h.elphys_sync_conversion_factor#Scale back to original value
-    elphys = sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['ELPHYS_INDEXES']]
-    stim_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]]
-    img_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
+    sync = numpy.cast['float'](h.sync)
+    sync /= h.sync_conversion_factor#Scale back to original value
+    elphys = sync[:,machine_config['ELPHYS_SYNC_RECORDING']['ELPHYS_INDEXES']]
+    stim_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]]
+    img_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
     return elphys, stim_sync, img_sync
 
 def get_sync_events(h):
@@ -291,7 +303,7 @@ def get_sync_events(h):
     for v in  ['recording_parameters']:
         if not hasattr(h, v):
             h.load(v)
-    telphyssync = numpy.arange(h.sync_and_elphys_data.shape[0],dtype='float')/h.recording_parameters['elphys_sync_sample_rate']
+    telphyssync = numpy.arange(h.sync.shape[0],dtype='float')/h.recording_parameters['elphys_sync_sample_rate']
     #calculate time of sync events
     h.tsync = telphyssync[signal.trigger_indexes(stim_sync)]
     h.timg = telphyssync[signal.trigger_indexes(img_sync)[0::2]]
