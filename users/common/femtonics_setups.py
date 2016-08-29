@@ -19,4 +19,9 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.COORDINATE_SYSTEM='center'
         self.ENABLE_FRAME_CAPTURE = False
         self.GUI['SIZE'] =  utils.cr((1024,768)) 
+        stim_computer_ip = '172.27.26.69'
+        behavioral_computer_ip = '192.168.2.3'
+        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
+        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
+        
         

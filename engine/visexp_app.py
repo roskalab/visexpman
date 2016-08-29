@@ -202,7 +202,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
         if parameters.has_key('experiment_config_source_code'):
             introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
-            self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.socket_queues, \
+            self.experiment_config = getattr(experiment_module, parameters['stimclass'])(self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
         elif parameters.has_key('stimulus_source_code'):
             introspect.import_code(parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)

@@ -118,7 +118,8 @@ class ExperimentHandler(object):
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
-        experiment_parameters['stimulus_source_code']=stimulus_source_code
+        source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
+        experiment_parameters[source_code_type]=stimulus_source_code
         experiment_parameters['stimclass']=classname
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
@@ -156,7 +157,7 @@ class ExperimentHandler(object):
         self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_duration))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
-        #TEST: utils.send_udp('192.168.1.106',446, 'sec 10 filename x:\\data\\setup\\santiago') 
+        
         
     def finish_experiment(self):
         self.printc('Finishing experiment')

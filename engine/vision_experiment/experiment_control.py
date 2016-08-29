@@ -485,6 +485,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         try:
             self.prepare()#Computational intensive precalculations for stimulus
+            #import pdb;pdb.set_trace()
             self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
             time.sleep(0.1)
             if self.machine_config.PLATFORM=='hi_mea':

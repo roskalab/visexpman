@@ -418,7 +418,7 @@ class MainUI(gui.VisexpmanMainWindow):
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical'] and 0:
             self.image = Image(self)
             self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
             self.adjust=gui.ImageAdjust(self)
@@ -445,7 +445,6 @@ class MainUI(gui.VisexpmanMainWindow):
         self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
         self.analysis.setLayout(self.analysis.layout)
         
-        
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
@@ -454,7 +453,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.main_tab.addTab(self.analysis, 'Analysis')
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.advanced, 'Advanced')
