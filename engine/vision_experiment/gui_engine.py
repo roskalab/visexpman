@@ -63,7 +63,7 @@ class ExperimentHandler(object):
             if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS'):
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
                 self.sync_recorder.start()
-                self.sync_recording_started=False
+            self.sync_recording_started=False
             self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
     
     def open_stimulus_file(self, filename, classname):
