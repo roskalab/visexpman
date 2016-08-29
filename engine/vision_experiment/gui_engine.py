@@ -124,7 +124,7 @@ class ExperimentHandler(object):
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
+        experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
         if self.machine_config.PLATFORM=='us_cortical':
@@ -205,7 +205,7 @@ class ExperimentHandler(object):
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
                 self.printc('Data saved to {0}'.format(filename))
-                dst=os.path.join(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,'raw'), os.path.basename(filename.replace('.hdf5','.zip')))
+                dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
                 folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if os.path.isdir(os.path.join(current_folder, fi))]
@@ -688,9 +688,10 @@ class Analysis(object):
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
         self.printc('Data exported to  {0}'.format(self.datafile.outfile))
-        #Copy to BACKUP_PATH/user/date/filename
-        dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
-        self.printc('Data backed up to  {0}'.format(dst))
+        if not self.santiago_setup:
+            #Copy to BACKUP_PATH/user/date/filename
+            dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
+            self.printc('Data backed up to  {0}'.format(dst))
             
         
     def roi_shift(self, h, v):

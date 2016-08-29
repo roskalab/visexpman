@@ -198,6 +198,8 @@ def move2zip(src,dst,delete=False):
     Zip contents of src and save it to dst. if delete==True, remove src folder
     '''
     import zipfile
+    if not os.path.exists(os.path.dirname(dst)):
+        os.makedirs(os.path.dirname(dst))
     zf = zipfile.ZipFile(dst, 'w',zipfile.ZIP_DEFLATED)
     files=find_files_and_folders(src)[1]
     for f in files:
