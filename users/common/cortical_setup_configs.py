@@ -147,11 +147,8 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         self.root_folder = 'x:\\santiago-setup'
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = self.root_folder
+        EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'processed')
         CONTEXT_PATH = self.root_folder
-        if 0:
-            CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
-            os.mkdir(CAPTURE_PATH)
         self.DELETED_FILES_PATH = 'c:\\temp'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         FREE_SPACE_ERROR_THRESHOLD = 30e9
