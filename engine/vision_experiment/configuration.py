@@ -82,7 +82,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
         ############# Network #####################      
-        self.BASE_PORT = 10000
+        self.BASE_PORT = 20000
         CONNECTIONS = {
         'stim': {'port': self.BASE_PORT, 'ip': {'stim': '', 'main_ui': ''}},
         }

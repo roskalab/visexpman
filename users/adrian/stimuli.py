@@ -83,7 +83,7 @@ class MyGrating(grating.MovingGratingNoMarchingConfig):
         self.MARCH_TIME = 1.0#Before
         self.GRATING_STAND_TIME = 0.0#Afterwards
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = range(0, 360, 45)[::2]
         random.shuffle(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]
         self.VELOCITIES = [1200.0]

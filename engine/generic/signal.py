@@ -34,7 +34,7 @@ def histogram_shift(data, output_range, min = None, max = None, gamma = 1.0, ban
     
 def scale(data, output_range_min = 0.0, output_range_max =1.0):
     return (numpy.cast['float'](data) - data.min())/(data.max() - data.min())*(output_range_max - output_range_min)+output_range_min
-
+    
 def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
     '''
     If im is uint8, the result is scaled back to the range of this datatype
@@ -259,6 +259,18 @@ def downsample_2d_rgbarray(ar, fact,pool=None):
         for ci in range(ar.shape[2]):
             out[:,:,ci]=downsample_2d_array(ar[:,:,ci],fact)
     return out
+    
+def to_16bit(data):
+    datarange=data.max()-data.min()
+    scale=(2**16-1)/datarange
+    offset=data.min()
+    scaled=numpy.cast['uint16']((data-offset)*scale)
+    scale={'scale':scale, 'offset':offset, 'range':datarange}
+    return scaled, scale
+    
+def from_16bit(scaled,scale):
+    return numpy.cast['float'](scaled)/scale['scale']+scale['offset']
+
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -427,6 +439,15 @@ class TestSignal(unittest.TestCase):
         pool=multiprocessing.Pool(introspect.get_available_process_cores())
         res=downsample_2d_rgbarray(a,2,pool)
         numpy.testing.assert_array_equal(numpy.array(a.shape[:2]), numpy.array(res.shape[:2])*2)
+        
+    def test_17_scale_16bit(self):
+        data=numpy.random.random((1000,100))*200-50
+#        data=numpy.arange(-10,10)
+        s,sc=to_16bit(data)
+        data_= from_16bit(s,sc)
+        numpy.testing.assert_array_almost_equal(data,data_,2)
+
+        
         
     
 

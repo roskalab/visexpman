@@ -23,7 +23,7 @@ except ImportError:
     context_file_type='mat'
 
 class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be moved to stim.py
-    def __init__(self, machine_config, socket_queues, command, log):
+    def __init__(self, machine_config, socket_queues, command, log,context={}):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
         self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
         self.experiment_configs.sort()
@@ -31,6 +31,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
             self.experiment_configs = self.experiment_configs[:10]#TODO: give some warning
         self.load_stim_context()
         StimulationScreen.__init__(self)
+        if self.machine_config.PLATFORM=='ao_cortical':
+            self.mes_interface=dict([(k, context[k]) for k in ['mes_command','mes_response']])
         if not introspect.is_test_running() and machine_config.MEASURE_FRAME_RATE:
             #Call measure framerate by putting a message into queue.
             self.socket_queues['fromsocket'].put({'function': 'measure_frame_rate', 'kwargs' :{'duration':1.0, 'background_color': self.stim_context['background_color']}})
@@ -233,6 +235,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
         runnable=self.experiment_config if self.isstimclass else self.experiment_config.runnable
         if parameters.get('stimulus_only', False):
             runnable.prepare()
+        if hasattr(self, 'mes_interface'):
+            runnable.mes_interface=self.mes_interface
         getattr(runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters
         self.stim_context['last_experiment_stimulus_frame_info'] = runnable.stimulus_frame_info
@@ -251,7 +255,7 @@ def run_main_ui(context):
         main_ui.MainUI(context=context)
 
 def run_stim(context, timeout = None):
-    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
+    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'], context=context)
     context['logger'].start()
     stim.run(timeout=timeout)
     

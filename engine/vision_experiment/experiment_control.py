@@ -1,4 +1,4 @@
-import time
+import time,pdb
 import os.path
 import tempfile
 import uuid
@@ -18,6 +18,12 @@ import multiprocessing
 import tables
 import sys
 import zmq
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except ImportError:
+    pass
 
 import experiment_data
 import visexpman.engine
@@ -478,6 +484,70 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.user_data = {}
         self.abort = False
         
+    def start_sync_recording(self):
+        '''
+        For unknown reason SimpleAnalogIn does not work in this context
+        '''
+        ai_channel=self.machine_config.SYNC_RECORDER_CHANNELS
+        self.n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+        sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+        nsamples=int(self.sync_recording_duration*sample_rate)
+        self.ai_data = numpy.zeros(nsamples*self.n_ai_channels, dtype=numpy.float64)
+        self.analog_input = PyDAQmx.Task()
+        self.analog_input.CreateAIVoltageChan(ai_channel,
+                                                        'ai',
+                                                        DAQmxConstants.DAQmx_Val_RSE,
+                                                        -5, 
+                                                        5, 
+                                                        DAQmxConstants.DAQmx_Val_Volts,
+                                                        None)
+        self.analog_input.CfgSampClkTiming("OnboardClock",
+                                                        sample_rate,
+                                                        DAQmxConstants.DAQmx_Val_Rising,
+                                                        DAQmxConstants.DAQmx_Val_ContSamps,
+                                                        nsamples*5)
+        self.analog_input.StartTask()
+        self.sync_recorder_started=time.time()
+        
+    def finish_sync_recording(self):
+        now=time.time()
+        wait=self.sync_recorder_started+self.sync_recording_duration-now
+        if wait>0 and not self.abort: 
+            self.printl('Waiting {0:0.0f} s for sync recorder'.format(wait))
+            time.sleep(wait)
+        read = DAQmxTypes.int32()
+        samples2read=int(self.ai_data.shape[0]/self.n_ai_channels) if not self.abort else 10* self.n_ai_channels
+        self.analog_input.ReadAnalogF64(samples2read,
+                                            self.machine_config.SYNC_RECORDING_BUFFER_TIME,
+                                            DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                            self.ai_data,
+                                            self.ai_data.shape[0],
+                                            DAQmxTypes.byref(read),
+                                            None)
+        self.ai_data = self.ai_data[:read.value * self.n_ai_channels]
+        self.ai_data = self.ai_data.flatten('F').reshape((self.n_ai_channels, read.value)).transpose()
+        self.analog_input.StopTask()
+        
+    def start_ao(self):
+        mesfn=experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = 'data').replace('.hdf5','.mat')
+        fp=open(mesfn,'wt')
+        fp.write(str(int(1000*self.mes_record_time)))
+        fp.close()
+        while not self.mes_interface['mes_response'].empty():
+            self.mes_interface['mes_response'].get()#Make sure that response buffer is empty
+        self.mes_interface['mes_command'].put('SOCstart_recordingEOC{0}EOP' .format(mesfn))
+        t0=time.time()
+        while True:
+            if time.time()-t0>self.machine_config.MES_RECORD_START_DELAY:
+                self.printl('MES did not start')
+                self.abort=True
+                break
+            if not self.mes_interface['mes_response'].empty():
+                if 'SOCstart_recordingEOCstartedEOP' in self.mes_interface['mes_response'].get():
+                    self.printl('MES started')
+                    break
+            time.sleep(1)
+        
     def execute(self):
         '''
         Calls the run method of the experiment class. 
@@ -486,7 +556,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         try:
             self.prepare()#Computational intensive precalculations for stimulus
             #import pdb;pdb.set_trace()
-            self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
+            if self.machine_config.PLATFORM=='ao_cortical':
+                self.mes_record_time=self.parameters['duration']+self.machine_config.MES_RECORD_START_DELAY
+                self.sync_recording_duration=self.mes_record_time+1#little overhead making sure that the last sync pulses from MES are recorded
+                self.start_sync_recording()
+                self.printl('Sync signal recording started')
+                self.start_ao()
+                    
             time.sleep(0.1)
             if self.machine_config.PLATFORM=='hi_mea':
                 #send start signal
@@ -503,6 +579,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'trigger':'stim started'})
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
+                self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
                 self.run()
             except:
                 self.send({'trigger':'stim error'})
@@ -512,8 +589,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
-            elif self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='us_cortical':
+            elif self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            if self.machine_config.PLATFORM=='ao_cortical':
+                self.finish_sync_recording()
+                self.printl('Sync signal recording finished')
             if not self.abort:
                 self.printl('Stimulation ended')
                 self._save2file()
@@ -572,6 +652,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self._prepare_data2save()
             res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
             self.datafile.save(variables2save)
+            if hasattr(self, 'ai_data'):
+                self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.ai_data)
+                self.datafile.save(['sync', 'sync_scaling'])
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':

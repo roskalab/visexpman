@@ -75,6 +75,9 @@ class Logger(multiprocessing.Process,LoggerHelper):
     
     Machine config is not passed on purpose. 
     Passing such items including big dinctionaries increase the runtime of the start() method of the process
+    
+    The process/log channel architecture makes sure that parallel processes can send log messages to the same logfile.
+    Generally logging would be sufficient for this purpose but with logger file write cannot be controlled while stimulation is presented
     '''
     def __init__(self, *args, **kwargs):
         multiprocessing.Process.__init__(self)
