@@ -348,7 +348,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         ################ Mes parameters #############
         STIM_RECORDS_ANALOG_SIGNALS = True
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
-        MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
+        MES_RECORD_OVERHEAD = [3.0, [1.0, 10.0]]
         OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
         MES_Z_SCAN_SCOPE = [100.0, [0.0, 200.0]]
         DEFAULT_Z_SCAN_OVERLAP = [10.0, [0.0,  50]]

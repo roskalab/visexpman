@@ -213,6 +213,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
     Supported use cases: fixed size squares are presented with no gaps and no overlaps. Fractional squares are not shown at the edges
     '''
     def prepare(self):
+#	print self.machine_config.SCREEN_SIZE_UM
         shape_size, nrows, ncolumns, display_size, shape_colors, background_color = \
                 self._parse_receptive_field_parameters(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None,
                                                     self.experiment_config.NROWS if hasattr(self.experiment_config, 'NROWS') else None,
@@ -228,6 +229,9 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                                             sequence_repeat = self.experiment_config.REPEAT_SEQUENCE,
                                                                             on_time = self.experiment_config.ON_TIME,
                                                                             off_time = self.experiment_config.OFF_TIME)
+        self.fragment_durations=[self.stimulus_duration]
+        self.duration=self.stimulus_duration
+        
             
     def run(self):
         self.receptive_field_explore(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None, 
@@ -242,4 +246,5 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     shape_colors = self.experiment_config.COLORS, 
                                     random_order = self.experiment_config.ENABLE_RANDOM_ORDER)
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
+        #print self.shape_size,self.machine_config.SCREEN_SIZE_UM,self.ncolumns,self.nrows
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}

@@ -22,11 +22,11 @@ class ExperimentConfig(Config):
     socket queues
     log
     '''
-    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, screen=None):
+    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, screen=None, create_runnable=True):
         Config.__init__(self, machine_config=machine_config,ignore_range = True)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         self.name=self.__class__.__name__
-        if machine_config != None:
+        if machine_config != None and create_runnable:
             self.create_runnable(machine_config, queues, experiment_module, parameters, log) # needs to be called so that runnable is instantiated and other checks are done
 
     def create_runnable(self, machine_config, queues, experiment_module, parameters, log):
@@ -246,6 +246,8 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     a = experiment_module.MovingDot(machine_config, None, experiment_config)
     
 def get_experiment_duration(experiment_config_class, config, source=None):
+    if '_'in experiment_config_class:
+        raise ExperimentConfigError('Stimulus name cannot contain _ character')
     if source is None:
         stimulus_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)
         if len(stimulus_class)==1:
@@ -260,7 +262,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         if hasattr(ecclass, 'calculate_stimulus_duration'):
             experiment_class_object=ecclass
         else:
-            experiment_config_class_object = ecclass(None)
+            experiment_config_class_object = ecclass(config, create_runnable=False)
             if hasattr(experiment_config_module,experiment_config_class_object.runnable):
                 experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
             else:
@@ -360,6 +362,12 @@ class testExperimentHelpers(unittest.TestCase):
         context = stimulation_tester('test', 'GUITestConfig', 'TestStim1', ENABLE_FRAME_CAPTURE = False)
         src=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test','test_stimulus.py'))
         context = stimulation_tester('test', 'GUITestConfig', 'TestStim1', ENABLE_FRAME_CAPTURE = False, stimulus_source_code = src)
+        
+    def test_07(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        get_experiment_duration('ReceptiveFieldExploreNewAngleAdrian', conf, source=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(),'users','adrian','receptive_field.py')))
+        
         
     
     

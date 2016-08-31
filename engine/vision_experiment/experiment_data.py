@@ -31,7 +31,7 @@ import unittest
 
 #### Recording filename handling ####
 
-def get_recording_name(config, parameters, separator):
+def get_recording_name(parameters, separator):
     name = ''
     for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
         if parameters.has_key(k) and parameters[k]!='':
@@ -41,19 +41,18 @@ def get_recording_name(config, parameters, separator):
 def get_recording_filename(config, parameters, prefix):
     if prefix != '':
         prefix = prefix + '_'
-    return prefix + get_recording_name(config, parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
+    return prefix + get_recording_name(parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
 
-def get_recording_path(parameters, config, prefix = ''):
-    return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters, prefix))
+def get_recording_path(config, parameters, prefix = ''):
+    return os.path.join(get_user_experiment_data_folder(parameters), get_recording_filename(config, parameters, prefix))
     
-def get_user_experiment_data_folder(config):
+def get_user_experiment_data_folder(parameters):
     '''
     Returns path to folder where user's experiment data can be saved
     '''
-    for parname in ['user', 'EXPERIMENT_DATA_PATH']:
-        if not hasattr(config, parname):
-            raise RuntimeError('{0} parameter is not available'.format(parname))
-    user_experiment_data_folder = os.path.join(config.EXPERIMENT_DATA_PATH, config.user)
+    if not parameters.has_key('outfolder'):
+        raise RuntimeError('outfolder is not available')
+    user_experiment_data_folder = parameters['outfolder']
     if not os.path.exists(user_experiment_data_folder):
         os.makedirs(user_experiment_data_folder)
     return user_experiment_data_folder

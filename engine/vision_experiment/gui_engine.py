@@ -64,6 +64,7 @@ class ExperimentHandler(object):
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
                 self.sync_recorder.start()
             self.sync_recording_started=False
+            self.experiment_running=False
             self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
     
     def open_stimulus_file(self, filename, classname):
@@ -102,7 +103,7 @@ class ExperimentHandler(object):
     def start_experiment(self):
         if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
             return
-        if self.sync_recording_started:
+        if self.sync_recording_started or self.experiment_running:
             self.notify('Warning', 'Experiment already running')
             return
         cf=self.guidata.read('Selected experiment class')
@@ -125,7 +126,10 @@ class ExperimentHandler(object):
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
+        if self.machine_config.PLATFORM=='ao_cortical':
+            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+        else:
+            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
         if self.machine_config.PLATFORM=='us_cortical':
@@ -134,6 +138,10 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
+        if self.machine_config.PLATFORM=='ao_cortical':
+            experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+self.machine_config.MES_RECORD_OVERHEAD))
+            if not self.ask4confirmation('Is AO line scan selected on MES user interface? Is {0} set as t4? Do you want to continue experiment?'.format(experiment_parameters['mes_record_time'])):
+                return
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
             nchannels=nchannels[1]-nchannels[0]+1
@@ -157,10 +165,11 @@ class ExperimentHandler(object):
         self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_duration))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
+        self.experiment_running=True
         
         
     def finish_experiment(self):
-        self.printc('Finishing experiment')
+        self.printc('Finishing experiment...')
         if self.machine_config.PLATFORM=='mc_mea':
             if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
                 #Find latest mcd file and save experiment metadata to the same folder
@@ -192,15 +201,18 @@ class ExperimentHandler(object):
                         break
                     time.sleep(1)
             self._stop_sync_recorder()
+            self.experiment_running=False
             
     def save_experiment_files(self, aborted=False):
         fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
         if aborted:
-            os.remove(self.daqdatafile.filename)
+            if hasattr(self, 'daqdatafile'):
+                os.remove(self.daqdatafile.filename)
         else:
-            shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
-            shutil.move(self.daqdatafile.filename,fn)
-            self.printc('Sync data saved to {0}'.format(fn))
+            if hasattr(self, 'daqdatafile'):
+                shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
+                shutil.move(self.daqdatafile.filename,fn)
+                self.printc('Sync data saved to {0}'.format(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -215,6 +227,8 @@ class ExperimentHandler(object):
                 except:
                     pass    
                 self.printc('Rawdata archived')
+            elif self.machine_config.PLATFORM=='ao_cortical':
+                self.printc('TODO: merge ao files')
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
@@ -252,6 +266,7 @@ class ExperimentHandler(object):
         self.enable_check_network_status=True
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
+        self.experiment_running=False
         self.printc('Experiment stopped')
         
     def check_mcd_recording_started(self):

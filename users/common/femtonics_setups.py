@@ -18,7 +18,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
         self.SCREEN_RESOLUTION = utils.cr([1280, 800])
         self.SCREEN_MAX_FRAME_RATE = 60.0
-        self.COORDINATE_SYSTEM='center'
+        self.COORDINATE_SYSTEM='ulcorner'
         self.ENABLE_FRAME_CAPTURE = False
         self.GUI['SIZE'] =  utils.cr((1024,768)) 
         #Network
@@ -43,13 +43,14 @@ class AOSetup(AoCorticalCaImagingConfig):
                      'GUI_ANALYSIS'  : ['', stim_computer_ip],
         }   
         #Sync signal
-        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:3'
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:4'
         self.SYNC_RECORDER_SAMPLE_RATE=50000
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         self.DIGITAL_IO_PORT='COM4'
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TRIGGER_PIN = 0
         
-        self.MES_RECORD_START_DELAY=12
+        self.MES_RECORD_OVERHEAD=5
+        self.SYNC_RECORD_OVERHEAD=2
         
         
