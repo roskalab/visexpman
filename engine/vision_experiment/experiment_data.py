@@ -176,6 +176,7 @@ if hdf5io_available:
             self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
             if self.raw_data.shape[0]<self.timg.shape[0]:
                 raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
+            #self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
             return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
             
         def convert(self,format):
@@ -288,10 +289,21 @@ def read_sync_rawdata(h):
         h.sync_conversion_factor=h.elphys_sync_conversion_factor
     machine_config = h.configs_stim['machine_config']
     sync = numpy.cast['float'](h.sync)
-    sync /= h.sync_conversion_factor#Scale back to original value
-    elphys = sync[:,machine_config['ELPHYS_SYNC_RECORDING']['ELPHYS_INDEXES']]
-    stim_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]]
-    img_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
+    if hasattr(h, 'sync_conversion_factor'):#Legacy, should be eliminated
+        sync /= h.sync_conversion_factor#Scale back to original value
+    else:
+        h.load('sync_scaling')
+        sync=signal.from_16bit(h.sync, h.sync_scaling)
+    
+    if machine_config.has_key('ELPHYS_SYNC_RECORDING'):
+        elphys = sync[:,machine_config['ELPHYS_SYNC_RECORDING']['ELPHYS_INDEXES']]
+        stim_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]]
+        img_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
+    else:
+        elphys = numpy.zeros_like(sync[:,0])
+        print "TODO: remove tmp code"
+        img_sync =  sync[:,machine_config['TIMG_SYNC_INDEX'] if machine_config.has_key('TIMG_SYNC_INDEX') else 0]
+        stim_sync =  sync[:,machine_config['TSTIM_SYNC_INDEX'] if machine_config.has_key('TSTIM_SYNC_INDEX') else 2]
     return elphys, stim_sync, img_sync
 
 def get_sync_events(h):
@@ -302,7 +314,11 @@ def get_sync_events(h):
     for v in  ['recording_parameters']:
         if not hasattr(h, v):
             h.load(v)
-    telphyssync = numpy.arange(h.sync.shape[0],dtype='float')/h.recording_parameters['elphys_sync_sample_rate']
+    if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical':
+        fsample=h.configs_stim['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
+    else:
+        fsample=h.recording_parameters['elphys_sync_sample_rate']
+    telphyssync = numpy.arange(h.sync.shape[0],dtype='float')/fsample
     #calculate time of sync events
     h.tsync = telphyssync[signal.trigger_indexes(stim_sync)]
     h.timg = telphyssync[signal.trigger_indexes(img_sync)[0::2]]
@@ -347,12 +363,17 @@ def get_imagedata(h):
         h = hdf5io.Hdf5io(h, filelocking=False)
         h_opened = True
     h.load('raw_data')
-    meanimage = h.raw_data.mean(axis=0)[0]
-    h.load('recording_parameters')
-    if h.recording_parameters['resolution_unit']=='pixel/um':
-        scale = 1/h.recording_parameters['pixel_size']
+    if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical':
+        scale=numpy.diff(h.timg).mean()
+        meanimage = h.raw_data[:,0,0,:]
     else:
-        raise NotImplementedError('')
+        meanimage = h.raw_data.mean(axis=0)[0]
+        h.load('recording_parameters')
+        if h.recording_parameters['resolution_unit']=='pixel/um':
+            
+            scale = 1/h.recording_parameters['pixel_size']
+        else:
+            raise NotImplementedError('')
     if h_opened:
         h.close()
     return meanimage, scale
@@ -1281,6 +1302,23 @@ def gammatext2hdf5(filename):
     
 def yscanner2sync(waveform):
     pass
+    
+def hdf52mat(filename):
+    h=hdf5io.Hdf5io(filename)
+    ignore_nodes=['hashes']
+    rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    mat_data={}
+    for rn in rootnodes:
+        if os.path.basename(filename).split('_')[-2] in rn:
+            rnt='idnode'
+        else:
+            rnt=rn
+        mat_data[rnt]=h.findvar(rn)
+    if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+        del mat_data['soma_rois_manual_info']
+    h.close()
+    matfile=filename.replace('.hdf5', '_mat.mat')
+    scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
 
 try:
     import paramiko

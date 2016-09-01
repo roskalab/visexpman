@@ -16,7 +16,7 @@ try:
 except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
-from visexpman.engine.analysis import cone_data
+from visexpman.engine.analysis import cone_data,aod
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
 from visexpman.engine.visexp_app import stimulation_tester
@@ -140,7 +140,7 @@ class ExperimentHandler(object):
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM=='ao_cortical':
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+self.machine_config.MES_RECORD_OVERHEAD))
-            if not self.ask4confirmation('Is AO line scan selected on MES user interface? Is {0} set as t4? Do you want to continue experiment?'.format(experiment_parameters['mes_record_time'])):
+            if not self.ask4confirmation('Is AO line scan selected on MES user interface? Do you want to continue experiment?'):
                 return
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
@@ -228,7 +228,11 @@ class ExperimentHandler(object):
                     pass    
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
-                self.printc('TODO: merge ao files')
+                fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+                a=aod.AOData(fn)
+                a.tomat()
+                a.close()
+                self.printc('MES data merged to {0}'.format(fn))
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
@@ -361,8 +365,8 @@ class Analysis(object):
             msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
             self.notify('Error', msg)
             raise RuntimeError(msg)
-        self.experiment_name=self.datafile.findvar('recording_parameters')['experiment_name']
-        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale]})
+        self.experiment_name= self.datafile.findvar('parameters')['stimclass'] if self.machine_config.PLATFORM=='ao_cortical' else self.datafile.findvar('recording_parameters')['experiment_name']
+        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync if self.machine_config.PLATFORM=='ao_cortical' else None]})
         self._recalculate_background()
         try:
             self._red_channel_statistics()
@@ -399,6 +403,7 @@ class Analysis(object):
         self.image_w_rois[:,:,1] = self.meanimage
         
     def _recalculate_background(self):
+        if self.machine_config.PLATFORM=='ao_cortical':return
         background_threshold = self.guidata.read('Background threshold')*1e-2
         self.background = cone_data.calculate_background(self.raw_data[:,0],threshold=background_threshold)
         self.background_threshold=background_threshold
@@ -875,7 +880,10 @@ class Analysis(object):
             return
         self.printc('Removing {0}, please wait...'.format(', '.join(files2remove)))
         for fn in files2remove:
-            shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
+            if hasattr(self.machine_config, 'DELETED_FILES_PATH'):
+                shutil.move(fn,self.machine_config.DELETED_FILES_PATH)
+            else:
+                os.remove(fn)
         self.printc('Done')
         
     def fix_files(self,folder):

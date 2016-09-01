@@ -209,7 +209,10 @@ def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
     
 def time2index(times,timepoint):
-        return numpy.where(times>timepoint)[0][0]
+    '''
+    tells at which index happend timepoint in times 
+    '''
+    return numpy.where(times>timepoint)[0][0]
         
 def df_over_f(t, x, tstim, baseline_length):
     baseline = x[numpy.where(numpy.logical_and(t<tstim,t>tstim-baseline_length))].mean()

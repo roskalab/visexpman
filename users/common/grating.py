@@ -3,28 +3,52 @@ from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
 
-class MovingGratingNew(experiment.Stimulus):
-    def default_stimulus_configuration(self):
-        self.BAR_WIDTH=100
-        self.DUTY_CYCLE=0.5
-        self.SPEED=100
-        self.DIRECTIONS=range(0,360,45)
-        self.COLOR=1.0
-        self.BACKGROUND=0.0
-        self.PAUSE_BETWEEN_SWEEPS=0.0
-        self.REPETITIONS=1
-        self.MOVE_TIME=10.0
-        self.NSWEEPS=1
-        self.STAND_TIME=0.0
-        
-    def _calc_move_time(self):
-        return self.MOVE_TIME if self.NSWEEPS is None else self.NSWEEPS#TODO: NOT READY
-        
-    def calculate_stimulus_duration(self):
-        pass
-        
-    def run(self):
-        pass
+class MovingGratingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        #Timing        
+        self.NUMBER_OF_MARCHING_PHASES = 4 #number of static bar compositions at beginning
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3 #how many times the bar hit a point -> this + speed = moving time
+        self.MARCH_TIME = 2.5 # standing phase time
+        self.GRATING_STAND_TIME = 2.0 #post-moving-phase time
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.WHITE_BAR_WIDTHS = [300.0]
+        self.VELOCITIES = [1200.0]
+        self.DUTY_CYCLES = [2.5] #white and blck bar ratio -> number of bars 
+        self.REPEATS = 3
+        self.PAUSE_BEFORE_AFTER = 5.0 #very beginning and end witing time
+        self.COLOR_CONTRAST = 1.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+    
+    def _create_parameters_from_locals(self, locals,  check_path = True):
+        if len(locals['self'].DUTY_CYCLES)==1 and len(locals['self'].ORIENTATIONS)>1:
+            locals['self'].DUTY_CYCLES=locals['self'].DUTY_CYCLES*len(locals['self'].ORIENTATIONS)
+        experiment.ExperimentConfig._create_parameters_from_locals(self, locals)
+
+class MovingGratingNoMarchingConfig(MovingGratingConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.COLOR_CONTRAST = 1.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+#        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+
     
 class MovingGrating(experiment.Experiment):
     '''
@@ -121,66 +145,68 @@ class MovingGrating(experiment.Experiment):
         self.experiment_specific_data['segment_info'] = {} 
         is_first_dislayed = False
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
-                #Show marching grating
-                orientation = stimulus_unit['orientation']
-                if not is_first_dislayed:
-                    is_first_dislayed = True
-                    static_grating_duration = self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.MARCH_TIME
-                else:
-                    static_grating_duration = self.experiment_config.MARCH_TIME
-                    
-                if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING_COLOR'):
-                    marching_color = self.experiment_config.GREY_INSTEAD_OF_MARCHING_COLOR
-                else:
-                    marching_color = 0
-                if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING') and self.experiment_config.GREY_INSTEAD_OF_MARCHING:
-                        self.show_fullscreen(color = marching_color, duration = static_grating_duration)
-                else:
-                    for phase in self.marching_phases:
-                        self.show_grating(duration = static_grating_duration, 
-                                    profile = profile, 
-                                    orientation = orientation, 
-                                    velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
-                                    duty_cycle = stimulus_unit['duty_cycle'],
-                                    starting_phase = phase+stimulus_unit['starting_phase'],
-                                    color_contrast = stimulus_unit['color_contrast'])
-                #Show moving grating
-                self.show_grating(duration = stimulus_unit['move_time'], 
-                            profile = profile, 
-                            orientation = orientation, 
-                            velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
-                            duty_cycle = stimulus_unit['duty_cycle'],
-                            starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
-                            color_contrast = stimulus_unit['color_contrast']
-                            )
-                #Show static grating
-                if self.experiment_config.GRATING_STAND_TIME>0:
-                    self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
-                            profile = profile, 
-                            orientation = orientation, 
-                            velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
-                            duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],
-                            color_contrast = stimulus_unit['color_contrast'])
-                #Save segment info to help synchronizing stimulus with measurement data
-                segment_info = {}
-                segment_info['fragment_id'] = fragment_id
-                segment_info['orientation'] = orientation
-                segment_info['velocity'] = stimulus_unit['velocity']
-                segment_info['white_bar_width'] = stimulus_unit['white_bar_width']
-                segment_info['duty_cycle'] = stimulus_unit['duty_cycle']
-                segment_info['marching_phases'] = self.marching_phases
-                segment_info['starting_phases'] = self.experiment_config.STARTING_PHASES
-                segment_info['marching_start_frame'] = frame_counter
-                frame_counter += int(self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-                segment_info['moving_start_frame'] = frame_counter
-                frame_counter += int(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-                segment_info['standing_start_frame'] = frame_counter
-                frame_counter += int(self.experiment_config.GRATING_STAND_TIME * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-                segment_info['standing_last_frame'] = frame_counter-1
-                segment_id = 'segment_{0:3.0f}' .format(segment_counter)
-                segment_id = segment_id.replace(' ', '0')
-                self.experiment_specific_data['segment_info'][segment_id] = segment_info
-                segment_counter += 1
+            #Show marching grating
+            orientation = stimulus_unit['orientation']
+            if not is_first_dislayed:
+                is_first_dislayed = True
+                static_grating_duration = self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.MARCH_TIME
+            else:
+                static_grating_duration = self.experiment_config.MARCH_TIME
+                
+            if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING_COLOR'):
+                marching_color = self.experiment_config.GREY_INSTEAD_OF_MARCHING_COLOR
+            else:
+                marching_color = 0
+            if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING') and self.experiment_config.GREY_INSTEAD_OF_MARCHING:
+                    self.show_fullscreen(color = marching_color, duration = static_grating_duration)
+            else:
+                for phase in self.marching_phases:
+                    self.show_grating(duration = static_grating_duration, 
+                                profile = profile, 
+                                orientation = orientation, 
+                                velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
+                                duty_cycle = stimulus_unit['duty_cycle'],
+                                starting_phase = phase+stimulus_unit['starting_phase'],
+                                color_contrast = stimulus_unit['color_contrast'])
+            #Show moving grating
+            self.block_start('moving')
+            self.show_grating(duration = stimulus_unit['move_time'], 
+                        profile = profile, 
+                        orientation = orientation, 
+                        velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
+                        duty_cycle = stimulus_unit['duty_cycle'],
+                        starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
+                        color_contrast = stimulus_unit['color_contrast']
+                        )
+            self.block_end('moving')
+            #Show static grating
+            if self.experiment_config.GRATING_STAND_TIME>0:
+                self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
+                        profile = profile, 
+                        orientation = orientation, 
+                        velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
+                        duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],
+                        color_contrast = stimulus_unit['color_contrast'])
+            #Save segment info to help synchronizing stimulus with measurement data
+            segment_info = {}
+            segment_info['fragment_id'] = fragment_id
+            segment_info['orientation'] = orientation
+            segment_info['velocity'] = stimulus_unit['velocity']
+            segment_info['white_bar_width'] = stimulus_unit['white_bar_width']
+            segment_info['duty_cycle'] = stimulus_unit['duty_cycle']
+            segment_info['marching_phases'] = self.marching_phases
+            segment_info['starting_phases'] = self.experiment_config.STARTING_PHASES
+            segment_info['marching_start_frame'] = frame_counter
+            frame_counter += int(self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+            segment_info['moving_start_frame'] = frame_counter
+            frame_counter += int(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+            segment_info['standing_start_frame'] = frame_counter
+            frame_counter += int(self.experiment_config.GRATING_STAND_TIME * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+            segment_info['standing_last_frame'] = frame_counter-1
+            segment_id = 'segment_{0:3.0f}' .format(segment_counter)
+            segment_id = segment_id.replace(' ', '0')
+            self.experiment_specific_data['segment_info'][segment_id] = segment_info
+            segment_counter += 1
         if '--MICROLED'in sys.argv:
             self.config.STIMULUS2MEMORY = False
             s = MicroLEDArray(self.machine_config)
