@@ -478,7 +478,7 @@ def merge_ca_data(folder,**kwargs):
     recording_parameters['scanning_range'] = utils.rc((map(float,os.path.splitext(os.path.basename(frames[0]))[0].split('_')[-7:-5])))
     recording_parameters['elphys_sync_sample_rate'] = machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
     recording_parameters['experiment_name']=stimulus['experiment_name']
-    recording_parameters['experiment_source']= kwargs['stimulus_source_code']
+    recording_parameters['experiment_source']= kwargs['stimulus_source_code'] if kwargs.has_key('stimulus_source_code') else kwargs['experiment_config_source_code']
     recording_parameters['experiment_source_file'] = kwargs['stimfile']
     for k,v in kwargs.items():
         if not recording_parameters.has_key(k):
