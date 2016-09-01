@@ -17,7 +17,7 @@ import unittest
 import tempfile
 FIX1KHZ= False
 NOMATFILE= False
-NWEEKS=2
+NWEEKS=20
 NOT_50X50UM= not True
 VERTICAL_FLIP=True
 
@@ -233,7 +233,7 @@ class PhysTiff2Hdf5(object):
 #                rd*=(2**16-1)
 #                raw_data = numpy.cast['uint16'](rd)
                # if rawdata.shape[0]>800:return None#TMP fix for memory error
-                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,1:,:,:],0,2**16-1))
+                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,:,:,:],0,2**16-1))
             except MemoryError:#Too long recording
                 return None
         #Up-down flip

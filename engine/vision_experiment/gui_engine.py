@@ -348,7 +348,7 @@ class Analysis(object):
         #Calculate roi bounding box
         self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_rois]
         self.roi_rectangles = [[sum(r[:2])*0.5, sum(r[2:])*0.5, (r[1]-r[0]), (r[3]-r[2])] for r in self.roi_bounding_boxes]
-        self.rois = [{'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i]} for i in range(len(self.roi_rectangles))]
+        self.rois = [{'rectangle': self.roi_rectangles[i], 'area': self.suggested_rois[i], 'manual':False} for i in range(len(self.roi_rectangles))]
         self._extract_roi_curves()
         self._normalize_roi_curves()
         self._roi_area2image()
@@ -435,8 +435,10 @@ class Analysis(object):
             r['image_scale']=self.image_scale
             r['red']=copy.deepcopy(self.red_stat)
             if self.red_stat!=0:
-                r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,r['area'][:,0],r['area'][:,1]].mean()
-                r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,r['area'][:,0],r['area'][:,1]].mean()
+                area=copy.deepcopy(r['area'])
+                area=numpy.array([area[i] for i in range(area.shape[0]) if area[i][0]<r['red']['roi_pixels']['nostim'].shape[1] and area[i][1]<r['red']['roi_pixels']['nostim'].shape[2]])
+                r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,area[:,0],area[:,1]].mean()
+                r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,area[:,0],area[:,1]].mean()
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
@@ -556,7 +558,7 @@ class Analysis(object):
             img2process=numpy.where(img2process<low,low,img2process)
             img2process=numpy.where(img2process>high,high,img2process)
         area=cone_data.roi_redetect(rectangle, img2process, subimage_size=3)
-        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area})
+        self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area, 'manual':True})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()
         self.to_gui.put({'fix_roi' : None})
