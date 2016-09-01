@@ -74,8 +74,8 @@ def parse_recording_filename(filename):
     items['extension'] = fileop.file_extension(filename)
     fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
-    #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
-    offset = 1 if len(fnp[-1]) != 12 else 0
+    #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
+    offset = 2 if len(fnp[-1]) == 1 else 1
     items['id'] = fnp[-offset]
     items['experiment_name'] = fnp[-1-offset]
     items['tag'] = fnp[1]
