@@ -93,8 +93,9 @@ class CellBrowser(pyqtgraph.TreeWidget):
         return path
     
 class StimulusTree(pyqtgraph.TreeWidget):
-    def __init__(self,parent, root):
+    def __init__(self,parent, root,subdirs):
         self.parent=parent
+        self.subdirs=subdirs
         self.root=root
         pyqtgraph.TreeWidget.__init__(self,parent)
         self.setColumnCount(1)
@@ -102,15 +103,28 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.setMaximumWidth(350)
         self.setMinimumHeight(400)
         self.populate()
-        self.itemDoubleClicked.connect(self.stimulus_selected)
+        self.itemDoubleClicked.connect(self.stimulus_selected_for_open)
+        self.itemClicked.connect(self.stimulus_selected)
         self.itemSelectionChanged.connect(self.get_selected_stimulus)
-#        self.timer=QtCore.QTimer()
-#        self.timer.start(3000)#ms
-#        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self._populate)
+        #Local menu
+        self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.open_menu)
+
+    def open_menu(self, position):
+        self.menu = QtGui.QMenu(self)
+        stimulus_info_action = QtGui.QAction('Stimulus info', self)
+        stimulus_info_action.triggered.connect(self.stimulus_info_action)
+        self.menu.addAction(stimulus_info_action)
+        self.menu.exec_(self.viewport().mapToGlobal(position))
+        
+    def stimulus_info_action(self):
+        duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
+        self.parent.printc('{0} stimulus takes {1} seconds'.format(self.classname, duration))
         
     def populate(self):
+        subdirs=map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)
         files = fileop.find_files_and_folders(self.root)[1]
-        files = [f for f in files if fileop.file_extension(f) =='py']
+        files = [f for f in files if fileop.file_extension(f) =='py' and os.path.dirname(f) in subdirs]
         experiment_configs = []
         for f in files:
             try:
@@ -143,10 +157,14 @@ class StimulusTree(pyqtgraph.TreeWidget):
                     added_items[level].append(newwidget)
         self.blockSignals(False)
         
-    def stimulus_selected(self,selected_widget):
+    def stimulus_selected_for_open(self,selected_widget):
+        self.stimulus_selected(selected_widget, open=True)
+            
+    def stimulus_selected(self,selected_widget, open=False):
         if self._is_experiment_class(selected_widget):
-            filename, classname = self.filename_from_widget(selected_widget)
-            self.parent.to_engine.put({'function': 'open_stimulus_file', 'args':[filename, classname]})
+            self.filename, self.classname = self.filename_from_widget(selected_widget)
+            if open:
+                self.parent.to_engine.put({'function': 'open_stimulus_file', 'args':[self.filename, self.classname]})
             
     def select_stimulus(self, filename_classname):
         '''
@@ -241,6 +259,7 @@ class DataFileBrowser(gui.FileTree):
         self.setToolTip('Double click on file to open')
         self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.open_menu)
+        self.setSortingEnabled(True)
         
     def file_selected(self,index):
         self.selected_filename = gui.index2filename(index)
@@ -408,6 +427,8 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
+        elif self.machine_config.PLATFORM=='ao_cortical':
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -416,7 +437,7 @@ class MainUI(gui.VisexpmanMainWindow):
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.image = Image(self)
             self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
             self.adjust=gui.ImageAdjust(self)
@@ -429,20 +450,19 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.setMaximumWidth(self.image.width())
             self.plot.plot.setLabels(bottom='sec')
             self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
-        
-        self.stimulusbrowser = StimulusTree(self, fileop.get_user_module_folder(self.machine_config) )
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.cellbrowser=CellBrowser(self)
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
         
-        self.datafilebrowser = DataFileBrowser(self.analysis, self.machine_config.EXPERIMENT_DATA_PATH, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+        filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
+        self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
         self.analysis_helper = AnalysisHelper(self.analysis)
         self.analysis.layout = QtGui.QGridLayout()
         self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
         self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
         self.analysis.setLayout(self.analysis.layout)
-        
         
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
@@ -452,7 +472,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.main_tab.addTab(self.analysis, 'Analysis')
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.advanced, 'Advanced')
@@ -480,12 +500,14 @@ class MainUI(gui.VisexpmanMainWindow):
             if msg.has_key('printc'):
                 self.printc(msg['printc'])
             elif msg.has_key('send_image_data'):
-                self.meanimage, self.image_scale = msg['send_image_data']
+                self.meanimage, self.image_scale, boundaries = msg['send_image_data']
                 self.image.remove_all_rois()
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
                 self.image.setFixedHeight(self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0]))
                 self.adjust_contrast()
+                if hasattr(boundaries, 'shape'):
+                    self.image.add_linear_region(boundaries)
             elif msg.has_key('image_title'):
                 self.image.plot.setTitle(msg['image_title'])
             elif msg.has_key('show_suggested_rois'):

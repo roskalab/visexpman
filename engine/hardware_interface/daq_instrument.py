@@ -177,10 +177,9 @@ class SimpleAnalogIn(object):
                                             self.nsamples)
             self.analog_input.StartTask()
             
+            
     def read(self):
         if not self.finite:
-#            if hasattr(self, 'ai_data'):
- #               del self.ai_data
             self.ai_data = numpy.zeros(self.nsamples*self.n_ai_channels, dtype=numpy.float64)
             try:
                 self.analog_input.ReadAnalogF64(int(self.ai_data.shape[0]/self.n_ai_channels),
@@ -250,7 +249,6 @@ def analogi(ai_channel,sample_rate,duration, timeout=1):
         time.sleep(duration)
         ai_data = numpy.zeros((ai_data.shape[0],n_ai_channels), dtype=numpy.float64)
     return ai_data
-
 
 class ControlLoop():
     def __init__(self):

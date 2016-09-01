@@ -559,6 +559,18 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.roi_info = [[i, self.rois[i].x(), self.rois[i].y(), self.rois[i].size().x()] for i in range(len(self.rois))]
         self.emit(QtCore.SIGNAL('roi_update'))
         
+    def add_linear_region(self, boundaries, color=(40,40,40,100)):
+        if len(boundaries)%2==1:
+            raise RuntimeError('Invalid boundaries: {0}'.format(boundaries))
+        if hasattr(self,'linear_regions'):
+            for linear_region in self.linear_regions:
+                self.plot.removeItem(linear_region)
+        self.linear_regions=[]
+        for i in range(len(boundaries)/2):
+            self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
+            self.plot.addItem(self.linear_regions[-1])
+        
+        
 #    def load_rois(self,roi_info):
 #        scale=1
 #        self.roi_info = roi_info

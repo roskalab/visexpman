@@ -126,9 +126,21 @@ def application_init(**kwargs):
     context['user_interface_name'] = args['user_interface_name']
     context['command'] = multiprocessing.Queue()
     context['warning'] = []
+    if machine_config.PLATFORM=='ao_cortical':
+        from visexpman.engine.hardware_interface import network_interface
+        command_relay_server = network_interface.CommandRelayServer(machine_config)
+        mes_command=multiprocessing.Queue()
+        mes_response=multiprocessing.Queue()
+        context['mes_socket'] = network_interface.start_client(machine_config, 'STIM', 'STIM_MES', queue_in=mes_response, queue_out=mes_command)
+        context['command_relay_server'] = command_relay_server
+        context['mes_command']=mes_command
+        context['mes_response']=mes_response
     return context
     
 def stop_application(context):
+    if context.has_key('command_relay_server'):
+        context['mes_command'].put('stop_client')
+        context['command_relay_server'].shutdown_servers()
     #Terminate sockets
     queued_socket.stop_sockets(context['sockets'])
     #Terminate logger process

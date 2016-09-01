@@ -1,4 +1,4 @@
-import time
+import time,pdb
 import os.path
 import tempfile
 import uuid
@@ -18,6 +18,12 @@ import multiprocessing
 import tables
 import sys
 import zmq
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except ImportError:
+    pass
 
 import experiment_data
 import visexpman.engine
@@ -478,14 +484,70 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.user_data = {}
         self.abort = False
         
+    def start_sync_recording(self):
+        class Conf(object):
+            DAQ_CONFIG = [
+                    {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE'  :self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
+                    'AI_CHANNEL' : self.machine_config.SYNC_RECORDER_CHANNELS,
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
+                    'DURATION_OF_AI_READ' : 2*self.sync_recording_duration,
+                    'ENABLE' : True
+                    },]
+        
+        config=Conf()
+        self.analog_input = daq_instrument.AnalogIO(config)
+        self.sync_recorder_started=time.time()
+        self.abort=not self.analog_input.start_daq_activity()
+        
+    def start_ao(self):
+        mesfn=self.outputfilename.replace('.hdf5','.mat')
+        fp=open(mesfn,'wt')
+        fp.write(str(self.parameters['mes_record_time']))
+        fp.close()
+        while not self.mes_interface['mes_response'].empty():
+            self.mes_interface['mes_response'].get()#Make sure that response buffer is empty
+        self.mes_interface['mes_command'].put('SOCstart_recordingEOC{0}EOP' .format(mesfn))
+        t0=time.time()
+        while True:
+            if time.time()-t0>self.machine_config.MES_RECORD_OVERHEAD:
+                self.printl('MES did not start')
+                self.abort=True
+                break
+            if not self.mes_interface['mes_response'].empty():
+                if 'SOCstart_recordingEOCstartedEOP' in self.mes_interface['mes_response'].get():
+                    self.printl('MES started')
+                    break
+            time.sleep(1)
+        self.ao_expected_finish=time.time()+self.parameters['mes_record_time']/1000
+        time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
+            
+    def wait4ao(self):
+        while True:
+            if self.abort or time.time()-self.ao_expected_finish>self.machine_config.SYNC_RECORD_OVERHEAD:
+                break
+            time.sleep(0.5)
+        
     def execute(self):
         '''
         Calls the run method of the experiment class. 
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         try:
+            prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
+            self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
+            
             self.prepare()#Computational intensive precalculations for stimulus
-            self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
+            #import pdb;pdb.set_trace()
+            if self.machine_config.PLATFORM=='ao_cortical':
+                self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
+                self.start_sync_recording()
+                self.printl('Sync signal recording started')
+                self.start_ao()
+                    
             time.sleep(0.1)
             if self.machine_config.PLATFORM=='hi_mea':
                 #send start signal
@@ -502,6 +564,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'trigger':'stim started'})
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
+                self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
                 self.run()
             except:
                 self.send({'trigger':'stim error'})
@@ -511,13 +574,17 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
-            elif self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='us_cortical':
-                self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
-            if not self.abort:
+            elif self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
                 self.printl('Stimulation ended')
+                self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            if self.machine_config.PLATFORM=='ao_cortical':
+                self.wait4ao()
+                self.analog_input.finish_daq_activity(abort = self.abort)
+                self.printl('Sync signal recording finished')
+            if not self.abort:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='us_cortical':
+                if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical']:
                     self.send({'trigger':'stim data ready'})
             else:
                 self.printl('Stimulation stopped')
@@ -567,10 +634,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         variables2save = ['parameters', 'stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
+            self.datafile = hdf5io.Hdf5io(self.outputfilename,filelocking=False)
             self._prepare_data2save()
             res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
             self.datafile.save(variables2save)
+            if hasattr(self, 'analog_input'):
+                self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
+                self.datafile.save(['sync', 'sync_scaling'])
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
@@ -710,7 +780,7 @@ class ExperimentControl(object):#OBSOLETE
                 message = '{0} {1}'.format( context['experiment_count'],  message)
             message_to_screen += self.printl(message,  application_log = True) + '\n'
             if self.config.PLATFORM == 'rc_cortical':
-                measurement_duration = numpy.round(numpy.array(self.fragment_durations).sum() + self.config.MES_RECORD_START_DELAY * len(self.fragment_durations), 1)
+                measurement_duration = numpy.round(numpy.array(self.fragment_durations).sum() + self.config.MES_RECORD_OVERHEAD * len(self.fragment_durations), 1)
                 self.printl('SOCmeasurement_startedEOC{0}EOP'.format(measurement_duration))
             self.finished_fragment_index = 0
             for fragment_id in range(self.number_of_fragments):
@@ -871,7 +941,7 @@ class ExperimentControl(object):#OBSOLETE
             if self.analog_input.start_daq_activity():
                 self.printl('Analog signal recording started')
         if (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
-            self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
+            self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_OVERHEAD
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.timestamp2hm(time.time() + self.mes_record_time)))
             if self.config.IMAGING_CHANNELS == 'both':
                 channels = 'both'
