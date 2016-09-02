@@ -465,8 +465,9 @@ def merge_ca_data(folder,**kwargs):
         chframes=[f for f in frames if os.path.basename(f).split('_')[-2]==channel]
         chframes.sort()
         rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
-    raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))
-    raw_data = numpy.fliplr(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+    raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))    
+    raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
+    #raw_data = raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
     #Sync data
     syncfile=os.path.join(folder,[f for f in files if os.path.splitext(f)[1]=='.hdf5'][0])
     hsync=hdf5io.Hdf5io(syncfile)
@@ -478,8 +479,11 @@ def merge_ca_data(folder,**kwargs):
     recording_parameters['scanning_range'] = utils.rc((map(float,os.path.splitext(os.path.basename(frames[0]))[0].split('_')[-7:-5])))
     recording_parameters['elphys_sync_sample_rate'] = machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
     recording_parameters['experiment_name']=stimulus['experiment_name']
-    recording_parameters['experiment_source']= kwargs['stimulus_source_code'] if kwargs.has_key('stimulus_source_code') else kwargs['experiment_config_source_code']
-    recording_parameters['experiment_source_file'] = kwargs['stimfile']
+    try:
+        recording_parameters['experiment_source']= kwargs['stimulus_source_code'] if kwargs.has_key('stimulus_source_code') else kwargs['experiment_config_source_code']
+        recording_parameters['experiment_source_file'] = kwargs['stimfile']
+    except:
+        pass
     for k,v in kwargs.items():
         if not recording_parameters.has_key(k):
             recording_parameters[k]=v
@@ -562,11 +566,12 @@ class TestConverter(unittest.TestCase):
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data/20150206')
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data')
 #        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')
-    @unittest.skip('')    
+      
     def test_02_merge_ca_data(self):
         folder='/data/data/user/Zoltan/20160817/not enough frames'
+        folder='x:\\data\\user\\Zoltan\\1'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
-        
+    @unittest.skip('')  
     def test_03_yscanner_sig(self):
         for f in [os.path.join('/tmp/fre',f) for f in os.listdir('/tmp/fre')]:
             h=hdf5io.Hdf5io(f)

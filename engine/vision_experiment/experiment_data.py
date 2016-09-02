@@ -166,13 +166,14 @@ def get_id(timestamp=None):
 ############### Preprocess measurement data ####################
 if hdf5io_available:
     class CaImagingData(hdf5io.Hdf5io):
-        def __init__(self,filename,filelocking=False):
+        def __init__(self,filename,filelocking=False, **kwargs):
+            self.image_function=kwargs.get('image_function', 'meanimage')
             self.file_info = os.stat(filename)
             hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
             
         def prepare4analysis(self):
             self.tsync,self.timg = get_sync_events(self)
-            self.meanimage, self.image_scale = get_imagedata(self)
+            self.meanimage, self.image_scale = get_imagedata(self, self.image_function)
             self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
             if self.raw_data.shape[0]<self.timg.shape[0]:
                 raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
@@ -354,7 +355,7 @@ def get_activity_plotdata(h):#TODO rename
         h.close()
     return tsync, timg[:l], a[:l]
     
-def get_imagedata(h):
+def get_imagedata(h, image_function='mean'):
     '''
     Meanimage, rawdata and scale is returned
     '''
@@ -367,7 +368,10 @@ def get_imagedata(h):
         scale=numpy.diff(h.timg).mean()
         meanimage = h.raw_data[:,0,0,:]
     else:
-        meanimage = h.raw_data.mean(axis=0)[0]
+        if image_function=='mean':
+            meanimage = h.raw_data.mean(axis=0)[0]
+        elif image_function=='mip': 
+            meanimage = h.raw_data.max(axis=0)[0]
         h.load('recording_parameters')
         if h.recording_parameters['resolution_unit']=='pixel/um':
             

@@ -181,33 +181,8 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
 
 
-        self.SCANNER_CHARACTERISTICS['GAIN'] = [-1.12765460e-04,  -2.82919056e-06]#(p1+p2*A)*f+1, in PU
-        self.SCANNER_CHARACTERISTICS['PHASE'] = \
-                    [9.50324884e-08,  -1.43226725e-07, 1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]#(p1*a+p2)*f**2+(p3*a**2+p4*a+p5)*f+(p6*a+p7), in radians
         DATAFILE_COMPRESSION_LEVEL = 5
         
-        FILTERWHEEL = [{
-                        'connected to': 'main_ui',
-                        'port' :  'COM8',
-                        'baudrate' : 115200,
-                        'filters' : {
-                                                'IR': 1, 
-                                                'empty': 2, 
-                                                }
-                        },
-                        {
-                        'connected to': '',
-                        'port' :  'COM1',
-                        'baudrate' : 115200,
-                        'filters' : {
-                                                'ND10': 1, 
-                                                'ND20': 2, 
-                                                'ND30': 3, 
-                                                'ND40': 4, 
-                                                'ND infinity': 5, 
-                                                'ND0': 6, 
-                                                }
-                        }]
         self.DIGITAL_IO_PORT = 'parallel port'
         self.BLOCK_TRIGGER_PIN = 0
         self.ENABLE_PARALLEL_PORT = True

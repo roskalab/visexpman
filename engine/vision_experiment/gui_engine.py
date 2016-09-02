@@ -357,9 +357,9 @@ class Analysis(object):
             del self.reference_roi_filename
             del self.reference_rois
         self.filename = filename
-        self.to_gui.put({'image_title' :self.filename})
+        self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         self.printc('Opening {0}'.format(filename))
-        self.datafile = experiment_data.CaImagingData(filename)
+        self.datafile = experiment_data.CaImagingData(filename, image_function=self.guidata.read('3d to 2d Image Function'))
         self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
         if self.tsync.shape[0]==0 or  self.timg.shape[0]==0:
             msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
@@ -645,7 +645,11 @@ class Analysis(object):
             high = float(pixel_range[1])/100*image_range
             img2process=numpy.where(img2process<low,low,img2process)
             img2process=numpy.where(img2process>high,high,img2process)
-        area=cone_data.roi_redetect(rectangle, img2process, subimage_size=3)
+        if self.guidata.read('Manual Roi')=='cell shape':
+            area=cone_data.roi_redetect(rectangle, img2process, subimage_size=3)
+        elif self.guidata.read('Manual Roi')=='rectangle':
+            areax,areay=numpy.meshgrid(numpy.arange(rectangle[0]-0.5*rectangle[2],rectangle[0]+0.5*rectangle[2]),numpy.arange(rectangle[1]-0.5*rectangle[3],rectangle[1]+0.5*rectangle[3]))
+            area= numpy.cast['int'](numpy.round(numpy.array([areax.flatten(), areay.flatten()]).T))
         self.rois.append({'rectangle': rectangle.tolist(), 'raw': raw, 'area': area, 'manual':True})
         self.current_roi_index = len(self.rois)-1
         self._normalize_roi_curves()

@@ -394,7 +394,7 @@ class AnalysisHelper(QtGui.QWidget):
         self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
         self.setLayout(self.layout)
         self.setFixedHeight(140)
-        self.setFixedWidth(550)
+        self.setFixedWidth(530)
         self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
         self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
         self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
@@ -439,6 +439,8 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.image = Image(self)
+            #self.image.setFixedHeight(480)
+            #self.image.setFixedWidth(480)
             self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
             self.adjust=gui.ImageAdjust(self)
             self.adjust.setFixedHeight(40)
@@ -598,6 +600,8 @@ class MainUI(gui.VisexpmanMainWindow):
                                 ]
                             },
                             {'name': 'Save File Format', 'type': 'list', 'values': ['mat', 'tif', 'mp4'], 'value': 'mat'},
+                            {'name': 'Manual Roi', 'type': 'list', 'values': ['rectangle', 'cell shape'], 'value': 'rectangle'},
+                            {'name': '3d to 2d Image Function', 'type': 'list', 'values': ['mean', 'mip'], 'value': 'mean'},
                             ]
                             },                    
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
@@ -655,20 +659,20 @@ class MainUI(gui.VisexpmanMainWindow):
         Adds (all) manually placed roi(s)
         '''
         movable_rois = [r for r in self.image.rois if r.translatable]#Rois manually placed
-        if len(movable_rois)>1:
+        if len(movable_rois)>0 and 0:
             self.printc('Only one manually placed roi can be added!')
             return
         elif len(movable_rois)==0:
             self.printc('Put roi first on image!')
             return
-        roi=movable_rois[0] 
-        rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]
-        if self.analysis_helper.find_cells_scaled.input.checkState()==2:
-            pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
-        else:
-            pixel_range=None
-        self.to_engine.put({'function': 'add_manual_roi', 'args':[rectangle,pixel_range]})
-        
+        for roi in movable_rois:
+            rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]
+            if self.analysis_helper.find_cells_scaled.input.checkState()==2:
+                pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
+            else:
+                pixel_range=None
+            self.to_engine.put({'function': 'add_manual_roi', 'args':[rectangle,pixel_range]})
+            
     def save_rois_action(self):
         '''Also exports to mat file'''
         self.to_engine.put({'function': 'save_rois_and_export', 'args':[]})
