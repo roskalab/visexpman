@@ -74,7 +74,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'undefined']]
-        USER_INTERFACE_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
+        USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
         FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
@@ -82,7 +82,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
         ############# Network #####################      
-        self.BASE_PORT = 10000
+        self.BASE_PORT = 20000
         CONNECTIONS = {
         'stim': {'port': self.BASE_PORT, 'ip': {'stim': '', 'main_ui': ''}},
         }
@@ -315,7 +315,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         ELPHYS_SYNC_RECORDING['ELPHYS_INDEXES'] = [0,1]
         ELPHYS_SYNC_RECORDING['SYNC_INDEXES'] = [2,3,4]#stim frame sync, y scanner, imaging frame sync, block trigger
         
-        DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync_and_elphys_data', 'conversion_factor', 'recording_parameters', 'stimulus_frame_info']
+        DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync', 'conversion_factor', 'recording_parameters', 'stimulus_frame_info']
         for an in self.USER_INTERFACE_NAMES:
             if 'analysis' not in an:
                 DATA_FILE_NODES.extend(['configs_{0}'.format(an), 'software_environment_{0}'.format(an)])
@@ -348,7 +348,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         ################ Mes parameters #############
         STIM_RECORDS_ANALOG_SIGNALS = True
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
-        MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
+        MES_RECORD_OVERHEAD = [3.0, [1.0, 10.0]]
         OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
         MES_Z_SCAN_SCOPE = [100.0, [0.0, 200.0]]
         DEFAULT_Z_SCAN_OVERLAP = [10.0, [0.0,  50]]

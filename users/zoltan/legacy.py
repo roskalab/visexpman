@@ -233,11 +233,12 @@ class PhysTiff2Hdf5(object):
 #                rd*=(2**16-1)
 #                raw_data = numpy.cast['uint16'](rd)
                # if rawdata.shape[0]>800:return None#TMP fix for memory error
-                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,::-1,:,:],0,2**16-1))
+                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,1:,:,:],0,2**16-1))
             except MemoryError:#Too long recording
                 return None
         #Up-down flip
-        raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+        if VERTICAL_FLIP:
+            raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
         print 'rawdata ok', time.time()-t0
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
@@ -406,7 +407,7 @@ class PhysTiff2Hdf5(object):
             raise RuntimeError(frame_rate)
         #first frame's start time has to be calculated
         if start_of_first_frame>fsample*10:
-            pdb.set_trace()
+            #pdb.set_trace()
             raise RuntimeError(start_of_first_frame)
         flyback_duration = 10#sample
         nsample_per_period = int(fsample/frame_rate)
@@ -477,7 +478,7 @@ def merge_ca_data(folder,**kwargs):
     recording_parameters['scanning_range'] = utils.rc((map(float,os.path.splitext(os.path.basename(frames[0]))[0].split('_')[-7:-5])))
     recording_parameters['elphys_sync_sample_rate'] = machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
     recording_parameters['experiment_name']=stimulus['experiment_name']
-    recording_parameters['experiment_source']= kwargs['stimulus_source_code']
+    recording_parameters['experiment_source']= kwargs['stimulus_source_code'] if kwargs.has_key('stimulus_source_code') else kwargs['experiment_config_source_code']
     recording_parameters['experiment_source_file'] = kwargs['stimfile']
     for k,v in kwargs.items():
         if not recording_parameters.has_key(k):

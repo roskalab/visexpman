@@ -405,8 +405,8 @@ class CommandRelayServer(object):
         self.config = config        
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
             self._generate_queues()
-            self.log = log.LoggerThread(self.command_queue, self.log_queue, 'server log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no', local_saving = True) 
-            self.log.start()
+#            self.log = log.LoggerThread(self.command_queue, self.log_queue, 'server log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no', local_saving = True) 
+#            self.log.start()
             self._create_servers()
             self._start_servers()
         
@@ -471,7 +471,7 @@ class CommandRelayServer(object):
                 for endpoint, server in connection.items():
                     server.shutdown()
             self.command_queue.put('TERMINATE')
-            self.log.join()
+            #self.log.join()
                 
     def get_debug_info(self, time_format = True):
         debug_info = []
@@ -494,7 +494,7 @@ class CommandRelayServer(object):
                 connection_status[connection_name + '/' + endpoint]  = server.server.connected
         if connection_id != None and endpoint_name != None:
             connection_status = self.servers[connection_id][endpoint_name].server.connected
-        return connection_status        
+        return connection_status
     
 
 class QueuedClient(QtCore.QThread):
