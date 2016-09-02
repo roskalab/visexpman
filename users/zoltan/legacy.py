@@ -152,15 +152,27 @@ class PhysTiff2Hdf5(object):
         fphys,ftiff = entry
         self.build_hdf5(fphys,ftiff)
         
-    def backup_files(self,fphys,ftiff,fhdf5):
-        bu_folder = 'D:\\backup'
-        if not os.path.exists(bu_folder) or os.name=='posix':
-            return
-        import shutil
-        shutil.copy(fphys, bu_folder)
-        shutil.copy(fhdf5, bu_folder)
-        os.path.join(bu_folder, os.path.basename(os.path.dirname(ftiff))+'_'+os.path.basename(ftiff))
-        shutil.copy(ftiff, os.path.join(bu_folder, os.path.basename(os.path.dirname(ftiff))+'_'+os.path.basename(ftiff)))
+    def backup_files(self,fphys,ftiff,fhdf5,fcoords,fstim):
+        '''
+        Raw datafiles (csv, coord file, stim datafile and phys file is zipped and saved to x:\rei-data\raw
+        
+        hdf5 file is copied to x\rei-data\processed
+        '''
+        root='x:\\rei-setup'
+        subfolder=fhdf5.split(os.sep)[-3:-1]
+        raw=os.path.join(root, 'raw',*subfolder)
+        processed=os.path.join(root, 'processed',*subfolder)
+        [os.makedirs(fold) for fold in [raw,processed] if not os.path.exists(fold)]
+        #zip raw files to tmp and then copy them to rldata:
+        import shutil,zipfile
+        zfn=os.path.join(os.path.join(tempfile.gettempdir(),os.path.basename(fhdf5).replace('.hdf5','.zip')))
+        zf = zipfile.ZipFile(zfn, 'w',zipfile.ZIP_DEFLATED)
+        fstim=os.path.join(os.path.dirname(fphys),fstim)
+        [zf.write(src, os.path.basename(src)) for src in [fphys,ftiff, fcoords,fstim] if os.path.exists(src)]
+        zf.close()
+        shutil.move(zfn,os.path.join(raw, os.path.basename(zfn)))
+        #copy hdf5 to rldata
+        shutil.copy(fhdf5, processed)
         
     def build_hdf5(self,fphys,ftiff,folder=None):
         t0=time.time()
@@ -268,29 +280,32 @@ class PhysTiff2Hdf5(object):
         stiminfo_available=False
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min']
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min', 'Nostim']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
             print 'no stim metadata found'
             if not NOMATFILE and not self.irlaser:
                 return
         if stiminfo_available:
-            if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
-                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
-                block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
-            elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
-                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
-            elif stimdata['experiment_config_name'][0]=='Fullfield10min':
-                block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
-            pulse_start=signal.trigger_indexes(data[1])[::2]
             sig=numpy.zeros_like(data[1])
-            boundaries=pulse_start[block_startend]
+            pulse_start=signal.trigger_indexes(data[1])[::2]
+            if stimdata['experiment_config_name'][0]=='Nostim':
+                boundaries=numpy.array([metadata['Sample Rate']*10,metadata['Sample Rate']*11])
+            else:
+                if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
+                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
+                    block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
+                elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
+                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
+                elif stimdata['experiment_config_name'][0]=='Fullfield10min':
+                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
+                boundaries=pulse_start[block_startend]
             for i in range(boundaries.shape[0]/2):
                 sig[boundaries[2*i]:boundaries[2*i+1]]=5
             sync_and_elphys[:,2]=sig
         else:
             sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
-        sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
+        sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2], raw_data.shape[0])
         if sig is None:
             return
         sync_and_elphys[:,4] = sig
@@ -312,14 +327,14 @@ class PhysTiff2Hdf5(object):
         h.fphys = fphys
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
-        h.sync_and_elphys_data = sync_and_elphys
-        h.elphys_sync_conversion_factor=1
+        h.sync = sync_and_elphys
+        h.sync_conversion_factor=1
         h.phys_metadata = utils.object2array(metadata)
         h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
-        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
+        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync', 'sync_conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
         fileop.set_file_dates(filename, id)
-        if 0: self.backup_files(fphys,ftiff,filename)
+        self.backup_files(fphys,ftiff,filename,coordsfn,matfile[0] if len(matfile)>0 else '' )
         return filename
         
     def parse_stimulus_name(self,metadata):
@@ -358,7 +373,7 @@ class PhysTiff2Hdf5(object):
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
             return sig2
         
-    def yscanner_signal2trigger(self,waveform, fsample,nxlines):
+    def yscanner_signal2trigger(self,waveform, fsample,nxlines,nframes):
         if self.irlaser:
             threshold_factor = 1e-5
         else:
@@ -400,10 +415,10 @@ class PhysTiff2Hdf5(object):
         except:
             pdb.set_trace()
 #        nperiods = (waveform.shape[0]-start_of_first_frame)/nsample_per_period
-        nperiods = (end_of_last_frame-start_of_first_frame)/nsample_per_period
+        nperiods = nframes#(end_of_last_frame-start_of_first_frame)/nsample_per_period
         trigger_signal = numpy.zeros_like(waveform)
         pulses = numpy.concatenate((numpy.zeros(start_of_first_frame), numpy.tile(one_period, nperiods)))
-        trigger_signal[:pulses.shape[0]]=pulses
+        trigger_signal[:min(pulses.shape[0],trigger_signal.shape[0])]=pulses[:min(pulses.shape[0],trigger_signal.shape[0])]
         return trigger_signal
         
 def phys2mat(filename):
