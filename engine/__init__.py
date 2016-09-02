@@ -61,6 +61,7 @@ def application_init(**kwargs):
         argparser.add_argument('-c', '--config', help = 'Machine config that reside in either user\'s folder or in visexpman.users.common')
         argparser.add_argument('-a', '--user_interface_name', help = 'Application to be started: main_ui, stim, ca_imaging')
         argparser.add_argument('--testmode', help = 'Test mode')
+        argparser.add_argument('--kill', help = 'Kill other python processes before software starts')
         parsed_args = argparser.parse_args()
         for parname in parnames:
             if getattr(parsed_args,parname) is None:

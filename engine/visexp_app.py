@@ -546,7 +546,8 @@ class TestStim(unittest.TestCase):
     
 if __name__=='__main__':
     if len(sys.argv)>1:
-        #introspect.kill_other_python_processes()
+        if '--kill' in sys.argv:
+            introspect.kill_other_python_processes()
         run_application()
     else:
         unittest.main()
