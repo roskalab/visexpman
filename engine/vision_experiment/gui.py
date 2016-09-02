@@ -887,6 +887,8 @@ class MainPoller(Poller):
                         os.remove(fullpath)
                         print (fullpath, 'removed')
                         self.printc((fullpath, 'removed'))
+                    except WindowsError:
+                        print traceback.format_exc()
                     except:
                         print traceback.format_exc()
                         import pdb
