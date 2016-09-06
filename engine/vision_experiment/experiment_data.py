@@ -166,6 +166,12 @@ def get_id(timestamp=None):
 ############### Preprocess measurement data ####################
 if hdf5io_available:
     class CaImagingData(hdf5io.Hdf5io):
+        '''
+        datatypes:
+            ao: 2d array
+            ca: time, channel, height, width
+        
+        '''
         def __init__(self,filename,filelocking=False, **kwargs):
             self.image_function=kwargs.get('image_function', 'meanimage')
             self.file_info = os.stat(filename)
@@ -175,6 +181,9 @@ if hdf5io_available:
             self.tsync,self.timg = get_sync_events(self)
             self.meanimage, self.image_scale = get_imagedata(self, self.image_function)
             self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
+            if self.datatype=='ao':
+                print 'Warning, figure out why number of sync pulses is more than data frames'
+                self.timg = self.timg[:self.raw_data.shape[0]]
             if self.raw_data.shape[0]<self.timg.shape[0]:
                 raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
             #self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
@@ -302,7 +311,7 @@ def read_sync_rawdata(h):
         img_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
     else:
         elphys = numpy.zeros_like(sync[:,0])
-        print "TODO: remove tmp code"
+        print "TODO: remove constants from code"
         img_sync =  sync[:,machine_config['TIMG_SYNC_INDEX'] if machine_config.has_key('TIMG_SYNC_INDEX') else 0]
         stim_sync =  sync[:,machine_config['TSTIM_SYNC_INDEX'] if machine_config.has_key('TSTIM_SYNC_INDEX') else 2]
     return elphys, stim_sync, img_sync
@@ -323,6 +332,8 @@ def get_sync_events(h):
     #calculate time of sync events
     h.tsync = telphyssync[signal.trigger_indexes(stim_sync)]
     h.timg = telphyssync[signal.trigger_indexes(img_sync)[0::2]]
+    if h.findvar('datatype')=='ao':
+        h.timg=h.timg[int(h.findvar('sync_pulses_to_skip')):]
     return h.tsync,h.timg
     
 def get_ca_activity(h, mask = None):
@@ -367,6 +378,10 @@ def get_imagedata(h, image_function='mean'):
     if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical':
         scale=numpy.diff(h.timg).mean()
         meanimage = h.raw_data[:,0,0,:]
+        if meanimage.shape[1]/meanimage.shape[0]>1:
+            print 'TODO: consider averaging of rois?'
+            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
+        
     else:
         if image_function=='mean':
             meanimage = h.raw_data.mean(axis=0)[0]
@@ -374,7 +389,6 @@ def get_imagedata(h, image_function='mean'):
             meanimage = h.raw_data.max(axis=0)[0]
         h.load('recording_parameters')
         if h.recording_parameters['resolution_unit']=='pixel/um':
-            
             scale = 1/h.recording_parameters['pixel_size']
         else:
             raise NotImplementedError('')
@@ -1318,6 +1332,8 @@ def hdf52mat(filename):
         else:
             rnt=rn
         mat_data[rnt]=h.findvar(rn)
+        if hasattr(mat_data[rnt], 'has_key') and len(mat_data[rnt].keys())==0:
+            mat_data[rnt]=0
     if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     h.close()

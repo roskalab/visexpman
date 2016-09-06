@@ -14,7 +14,9 @@ class AOData(experiment_data.CaImagingData):
             raise RuntimeError('No mes file found for {0}'.format(self.filename))
         experiment_data.CaImagingData.__init__(self,filename)
         self.process_mes_file()
-        
+        self.datatype='ao'
+        self.save('datatype')
+
     def tomat(self):
         experiment_data.hdf52mat(self.filename)
 
@@ -23,16 +25,18 @@ class AOData(experiment_data.CaImagingData):
         if str(mesdata['DATA']['Type'][0][0][0])!='Line2':
             raise NotImplementedError('Only line scan data processing is supported')
         self.image=numpy.copy(mesdata['DATA']['IMAGE'][0][0])
-        self.raw_data=self.image.reshape(self.image.shape[0],1,1,self.image.shape[1])#time, channel, null, roi
+        self.raw_data=self.image.reshape(self.image.shape[1],1,1,self.image.shape[0])#time, channel, null, roi
         #Save mesfile content to hdf5 file
         mesdata['DATA']['IMAGE']=0
         self.mesdata=utils.object2array(mesdata['DATA'])
         self.save('raw_data')
         self.save('mesdata')
+        self.sync_pulses_to_skip=int(mesdata['DATA']['Clipping'][0][0]['savedHeightBegin'][0][0][0][0])
+        self.save('sync_pulses_to_skip')
         
 class TestAODData(unittest.TestCase):
     def test_01(self):
-        fn='v:\\experiment_data_ao\\adrian\\data_MovingGratingAdrian_201609011425405.hdf5'
+        fn='v:\\experiment_data_ao\\adrian\\data_MovingGratingShort_201609061039512.hdf5'
         a=AOData(fn)
         a.prepare4analysis()
         a.close()

@@ -1,6 +1,6 @@
 import os
 import os.path
-import numpy
+import numpy,copy,hdf5io
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment.configuration import AoCorticalCaImagingConfig
 
@@ -13,10 +13,10 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.EXPERIMENT_DATA_PATH = 'v:\\experiment_data_ao'
         self.CONTEXT_PATH='v:\\context'
         #Stimulus screen
-        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 250.0
-        self.SCREEN_PIXEL_WIDTH = 0.375
-        self.SCREEN_EXPECTED_FRAME_RATE = 60.0
+        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 190.0
         self.SCREEN_RESOLUTION = utils.cr([1280, 768])
+        self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
+        self.SCREEN_EXPECTED_FRAME_RATE = 60.0
         self.SCREEN_MAX_FRAME_RATE = 60.0
         self.FULLSCREEN=False
         self.COORDINATE_SYSTEM='ulcorner'
@@ -56,5 +56,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.MES_RECORD_OVERHEAD=12
         self.MES_RECORD_START_WAITTIME=6
         self.SYNC_RECORD_OVERHEAD=5
+        self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
+        
         
         
