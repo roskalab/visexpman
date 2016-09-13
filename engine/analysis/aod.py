@@ -22,7 +22,7 @@ class AOData(experiment_data.CaImagingData):
 
     def process_mes_file(self):
         mesdata=scipy.io.loadmat(self.mesfilename)
-        if str(mesdata['DATA']['Type'][0][0][0])!='Line2':
+        if str(mesdata['DATA']['Type'][0][0][0])!='Line2' and str(mesdata['DATA']['Type'][0][0][0])!='FF':
             raise NotImplementedError('Only line scan data processing is supported')
         self.image=numpy.copy(mesdata['DATA']['IMAGE'][0][0])
         self.raw_data=self.image.reshape(self.image.shape[1],1,1,self.image.shape[0])#time, channel, null, roi
@@ -36,7 +36,7 @@ class AOData(experiment_data.CaImagingData):
         
 class TestAODData(unittest.TestCase):
     def test_01(self):
-        fn='v:\\experiment_data_ao\\adrian\\data_MovingGratingShort_201609061039512.hdf5'
+        fn='v:\\experiment_data_ao\\adrian\\data_MovingGratingShort_201609130938038.hdf5'
         a=AOData(fn)
         a.prepare4analysis()
         a.close()

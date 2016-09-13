@@ -18,7 +18,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
         self.SCREEN_MAX_FRAME_RATE = 60.0
-        self.FULLSCREEN=False
+        self.FULLSCREEN=True
         self.COORDINATE_SYSTEM='ulcorner'
         self.ENABLE_FRAME_CAPTURE = False
         self.GUI['SIZE'] =  utils.cr((1024,768)) 

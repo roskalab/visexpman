@@ -381,6 +381,10 @@ def get_imagedata(h, image_function='mean'):
         if meanimage.shape[1]/meanimage.shape[0]>1:
             print 'TODO: consider averaging of rois?'
             meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
+        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
+            scale*=meanimage.shape[0]/meanimage.shape[1]
+            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
+            
         
     else:
         if image_function=='mean':
