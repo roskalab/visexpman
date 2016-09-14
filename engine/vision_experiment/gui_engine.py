@@ -228,7 +228,12 @@ class ExperimentHandler(object):
                     pass    
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
+                #return
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+                #Wait till datafile is saved
+                time.sleep(0.5)
+                self.printc('Waiting for MES file')
+                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=120, min_size=1e6)
                 a=aod.AOData(fn)
                 a.tomat()
                 a.close()
@@ -366,7 +371,7 @@ class Analysis(object):
             self.notify('Error', msg)
             raise RuntimeError(msg)
         self.experiment_name= self.datafile.findvar('parameters')['stimclass'] if self.machine_config.PLATFORM=='ao_cortical' else self.datafile.findvar('recording_parameters')['experiment_name']
-        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, self.tsync if self.machine_config.PLATFORM=='ao_cortical' else None]})
+        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
         self._recalculate_background()
         try:
             self._red_channel_statistics()
@@ -403,7 +408,6 @@ class Analysis(object):
         self.image_w_rois[:,:,1] = self.meanimage
         
     def _recalculate_background(self):
-        if self.machine_config.PLATFORM=='ao_cortical':return
         background_threshold = self.guidata.read('Background threshold')*1e-2
         self.background = cone_data.calculate_background(self.raw_data[:,0],threshold=background_threshold)
         self.background_threshold=background_threshold
