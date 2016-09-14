@@ -173,7 +173,7 @@ if hdf5io_available:
         
         '''
         def __init__(self,filename,filelocking=False, **kwargs):
-            self.image_function=kwargs.get('image_function', 'meanimage')
+            self.image_function=kwargs.get('image_function', 'mean')
             self.file_info = os.stat(filename)
             hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
             
@@ -312,7 +312,9 @@ def read_sync_rawdata(h):
     else:
         elphys = numpy.zeros_like(sync[:,0])
         print "TODO: remove constants from code"
-        img_sync =  sync[:,machine_config['TIMG_SYNC_INDEX'] if machine_config.has_key('TIMG_SYNC_INDEX') else 0]
+        index=machine_config['TIMG_SYNC_INDEX'] if machine_config.has_key('TIMG_SYNC_INDEX') else 0
+        index=3
+        img_sync =  sync[:,index]
         stim_sync =  sync[:,machine_config['TSTIM_SYNC_INDEX'] if machine_config.has_key('TSTIM_SYNC_INDEX') else 2]
     return elphys, stim_sync, img_sync
 
@@ -375,27 +377,40 @@ def get_imagedata(h, image_function='mean'):
         h = hdf5io.Hdf5io(h, filelocking=False)
         h_opened = True
     h.load('raw_data')
-    if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical':
-        scale=numpy.diff(h.timg).mean()
-        meanimage = h.raw_data[:,0,0,:]
-        if meanimage.shape[1]/meanimage.shape[0]>1:
-            print 'TODO: consider averaging of rois?'
-            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
-        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
-            scale*=meanimage.shape[0]/meanimage.shape[1]
-            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
-            
-        
-    else:
+#    if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical':
+#        scale=numpy.diff(h.timg).mean()
+#        meanimage = h.raw_data[:,0,0,:]
+#        if meanimage.shape[1]/meanimage.shape[0]>1:
+#            print 'TODO: consider averaging of rois?'
+#            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
+#        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
+#            scale*=meanimage.shape[0]/meanimage.shape[1]
+#            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
+#            
+#        
+#    else:
+    if 1:
         if image_function=='mean':
             meanimage = h.raw_data.mean(axis=0)[0]
         elif image_function=='mip': 
             meanimage = h.raw_data.max(axis=0)[0]
         h.load('recording_parameters')
-        if h.recording_parameters['resolution_unit']=='pixel/um':
-            scale = 1/h.recording_parameters['pixel_size']
+        if not hasattr(h, 'recording_parameters'):
+            h.load('parameters')
+            par=h.parameters
+        else:
+            par=h.recording_parameters
+        if par['resolution_unit']=='pixel/um':
+            scale = 1/par['pixel_size']
         else:
             raise NotImplementedError('')
+
+#        if meanimage.shape[1]/meanimage.shape[0]>1:
+#            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
+#        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
+#            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
+        
+    
     if h_opened:
         h.close()
     return meanimage, scale

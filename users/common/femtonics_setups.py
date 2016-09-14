@@ -14,7 +14,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.CONTEXT_PATH='v:\\context'
         #Stimulus screen
         self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 190.0
-        self.SCREEN_RESOLUTION = utils.cr([1280, 768])
+        self.SCREEN_RESOLUTION = utils.cr([1280, 720])
         self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
         self.SCREEN_MAX_FRAME_RATE = 60.0
@@ -47,7 +47,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.SYNC_RECORDER_CHANNELS='Dev1/ai0:3'#0: ao, 1: frame sync, 2: block, 3: ao
         self.SYNC_RECORDER_SAMPLE_RATE=40000#mes sync pulses are very short
         self.SYNC_RECORDING_BUFFER_TIME=5.0
-        self.TIMG_SYNC_INDEX=0
+        self.TIMG_SYNC_INDEX=3
         self.TSTIM_SYNC_INDEX=2
         self.DIGITAL_IO_PORT='COM4'
         self.BLOCK_TRIGGER_PIN = 1
