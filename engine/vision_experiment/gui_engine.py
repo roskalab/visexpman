@@ -233,7 +233,7 @@ class ExperimentHandler(object):
                 #Wait till datafile is saved
                 time.sleep(0.5)
                 self.printc('Waiting for MES file')
-                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=120, min_size=1e6)
+                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=60+0.5*self.current_experiment_parameters['duration'], min_size=1e6)
                 a=aod.AOData(fn)
                 a.tomat()
                 a.close()

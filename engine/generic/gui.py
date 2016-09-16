@@ -83,6 +83,8 @@ class VisexpmanMainWindow(Qt.QMainWindow):
             self.debug.log.update(self.text)
         loglevels = ['warning', 'error']
         loglevel = [l for l in loglevels if l in text.lower()]
+        if 'error' in text.lower():
+            QtGui.QMessageBox.question(self, 'Error', text, QtGui.QMessageBox.Ok)
         if len(loglevel)>0:
             loglevel = loglevel[0]
             getattr(self.logger, loglevel)(text.replace('{0}: '.format(loglevel.upper()),''), self.source_name)
