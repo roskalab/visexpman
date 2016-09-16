@@ -51,6 +51,9 @@ class TreadmillSpeedReader(multiprocessing.Process):
         spd+=0.01*(numpy.random.random()-0.5)
         return spd
         
+    def open_serial(self):
+        self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
+        
     def run(self):
         logging.basicConfig(filename= fileop.get_log_filename(self.machine_config).replace('.txt', '_speed_reader.txt'),
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -58,7 +61,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
         self.last_run=time.time()
         self.start_time=time.time()
         try:
-            self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
+            self.open_serial()
         except:
             msg=traceback.format_exc()
             print msg
@@ -93,6 +96,11 @@ class TreadmillSpeedReader(multiprocessing.Process):
                     msg=self.queue.get()
                     if msg=='terminate':
                         break
+                    elif msg=='restart':
+                        self.s.close()
+                        time.sleep(0.5)
+                        self.open_serial()
+                        logging.info('Serial port restarted')
                     elif msg.has_key('pulse'):
                         byte_command=0
                         channel, command=msg['pulse']
@@ -202,6 +210,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Pack source code')
         self.software_env = experiment_data.pack_software_environment()
         self.start_time=time.time()
+        self.stim_number=0
         
         
     def reset_data(self):
@@ -360,7 +369,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def stimulate(self,waveform=None):
         now=time.time()
         fsample=self.machine_config.STIM_SAMPLE_RATE
-        if waveform == None:
+        if waveform is None:
             self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
             self.stimulus_waveform[0]=0
             self.stimulus_waveform[-1]=0
@@ -425,7 +434,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if xst.shape[0]>0:
                 t0=min(t0, xst[0])
                 x.append(xst)
-                y.append(yst*ys.max())
+                y.append(yst*(ys.max() if ys.max()!=0 else 0.1))
                 trace_names.append('stimulus')
         if self.forcerun_values.shape[0]>0 and self.parameters['Force Run Trace']:
             xf,yf=self.values2trace(self.forcerun_values, now)
@@ -556,7 +565,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 if hasattr(stat,'has_key'):
                     stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
                     uptime='Uptime {0} min'.format(int((now-self.start_time)/60))
-                    self.to_gui.put({'statusbar':[stat,uptime,'Number of files: {0}'.format(self.filecounter)]})
+                    sc=self.stim_number + stat['stimulus counter'] if stat.has_key('stimulus counter') else 0
+                    self.to_gui.put({'statusbar':[stat,uptime,'Number of files: {0}, Number of Stimuli: {1}'.format(self.filecounter, sc)]})
                     
     def start_recording(self):
         #logging.info(introspect.python_memory_usage())
@@ -829,23 +839,27 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names, 'vertical_lines': xp}})
             self.to_gui.put({'set_success_rate_title': os.path.basename(folder)})
             logging.info('Protocol order: {0}'.format(', '.join(protocol_order)))
+        self.stim_number=sum([s['stimulus counter'] for s in self.summary if s.has_key('stimulus counter')])
             
     def read_file_summary(self,filename):
         '''
         Read time of recording, duration, protocol, success rate and other stat parameters
         '''
-        h=hdf5io.Hdf5io(filename)
-        for vn in ['protocol_name', 'speed_values', 'stat']:
-            h.load(vn)
-            if not hasattr(h, vn):
-                h.close()
-                return {}
-        duration=h.speed_values[-1,0]-h.speed_values[0,0]
-        t=h.speed_values[0,0]
-        data_item ={'t':t, 'duration':duration, 'protocol': h.protocol_name}
-        data_item.update(h.stat)
-        h.close()
-        return data_item
+        try:
+            h=hdf5io.Hdf5io(filename)
+            for vn in ['protocol_name', 'speed_values', 'stat']:
+                h.load(vn)
+                if not hasattr(h, vn):
+                    h.close()
+                    return {}
+            duration=h.speed_values[-1,0]-h.speed_values[0,0]
+            t=h.speed_values[0,0]
+            data_item ={'t':t, 'duration':duration, 'protocol': h.protocol_name}
+            data_item.update(h.stat)
+            h.close()
+            return data_item
+        except:
+            return {}
         
     def run(self):
         logging.info('Engine started')
