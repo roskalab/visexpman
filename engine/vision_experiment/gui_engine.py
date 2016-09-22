@@ -233,7 +233,7 @@ class ExperimentHandler(object):
                 #Wait till datafile is saved
                 time.sleep(0.5)
                 self.printc('Waiting for MES file')
-                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=120, min_size=1e6)
+                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=60+0.5*self.current_experiment_parameters['duration'], min_size=1e6)
                 a=aod.AOData(fn)
                 a.tomat()
                 a.close()
@@ -404,12 +404,14 @@ class Analysis(object):
         self.datafile.close()
         
     def _init_meanimge_w_rois(self):
-        self.image_w_rois = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1], 3))
+        self.image_w_rois = numpy.ones((self.meanimage.shape[0], self.meanimage.shape[1], 3))*self.meanimage.min()
         self.image_w_rois[:,:,1] = self.meanimage
         
     def _recalculate_background(self):
         background_threshold = self.guidata.read('Background threshold')*1e-2
         self.background = cone_data.calculate_background(self.raw_data[:,0],threshold=background_threshold)
+        if any(numpy.isnan(self.background)):
+            self.printc('Background cannot be calculated')
         self.background_threshold=background_threshold
         
     def find_cells(self, pixel_range=None):
@@ -516,7 +518,10 @@ class Analysis(object):
             return
         baseline_length = self.guidata.read('Baseline lenght')
         for r in self.rois:
-            r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tsync[0], baseline_length)
+            if any(numpy.isnan(self.background)):
+                r['normalized'] = numpy.copy(r['raw'])
+            else:
+                r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tsync[0], baseline_length)
             r['baseline_length'] = baseline_length
             r['background'] = self.background
             r['background_threshold']=self.background_threshold
@@ -805,9 +810,12 @@ class Analysis(object):
                 tdiff = self.tsync[0]-self.rois[self.current_roi_index]['matches'][fn]['tsync'][0]
                 x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
                 y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
-        for i in range(len(x)):
-            baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
-            parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
+        try:
+            for i in range(len(x)):
+                baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
+                parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
+        except:
+                self.printc('Trace parameters cannot be calculated')
         x_,y_ = signal.average_of_traces(x,y)
         parameters_ = {}
         if mean_of_repetitions:

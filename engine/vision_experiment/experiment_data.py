@@ -410,7 +410,8 @@ def get_imagedata(h, image_function='mean'):
 #        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
 #            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
         
-    
+    if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical' and 0:
+        meanimage=meanimage[:2*meanimage.shape[0]/int(h.parameters['nrois']),:]
     if h_opened:
         h.close()
     return meanimage, scale

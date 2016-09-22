@@ -83,6 +83,8 @@ class VisexpmanMainWindow(Qt.QMainWindow):
             self.debug.log.update(self.text)
         loglevels = ['warning', 'error']
         loglevel = [l for l in loglevels if l in text.lower()]
+        if 'error' in text.lower():
+            QtGui.QMessageBox.question(self, 'Error', text, QtGui.QMessageBox.Ok)
         if len(loglevel)>0:
             loglevel = loglevel[0]
             getattr(self.logger, loglevel)(text.replace('{0}: '.format(loglevel.upper()),''), self.source_name)
@@ -676,14 +678,17 @@ class ImageAdjust(QtGui.QWidget):
         self.low = QtGui.QSlider(Qt.Qt.Horizontal,self)
         hl=QtGui.QLabel('High', self)
         ll=QtGui.QLabel('Low', self)
+        self.fit_image=QtGui.QPushButton('Fit Image' ,parent=self)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(ll, 0, 0)
         self.layout.addWidget(self.low, 0, 1)
         self.layout.addWidget(hl, 0, 2)
         self.layout.addWidget(self.high, 0, 3)
+        self.layout.addWidget(self.fit_image, 0, 4)
         self.setLayout(self.layout)
         self.high.setFixedWidth(100)
         self.low.setFixedWidth(100)
+        
 
 
 class GroupBox(QtGui.QGroupBox):#OBSOLETE
