@@ -1,5 +1,6 @@
 import random,logging,time,numpy
 from visexpman.engine.vision_experiment.experiment import Protocol
+from visexpman.engine.hardware_interface import daq_instrument
     
 class FearResponse(Protocol):
     '''
@@ -36,32 +37,50 @@ class FearResponse(Protocol):
     def reset(self):
         self.generate_post_triggertime()
         self.stim_counter=0
-        if 0:
-            self.engine.speed_reader_q.put('restart')
-            time.sleep(0.5)
         if self.engine.parameters['Enable Periodic Save']:
             logging.warning('!!! Disable periodic save and restart recording !!!')
+        self.waveform=numpy.zeros((2,(self.post_trigger_time+self.PRE_TRIGGER_TIME)*self.engine.machine_config.STIM_SAMPLE_RATE))
+        npulses=int(self.STIMULUS_DURATION/(self.STIMULUS_ONTIME+self.STIMULUS_OFFTIME))
+        stimulus=numpy.tile(numpy.concatenate(
+                        (numpy.ones(self.STIMULUS_ONTIME*self.engine.machine_config.STIM_SAMPLE_RATE), 
+                        numpy.zeros(self.STIMULUS_OFFTIME*self.engine.machine_config.STIM_SAMPLE_RATE))
+                        ),npulses)*self.engine.parameters['Laser Intensity']
+        stim_start=self.PRE_TRIGGER_TIME*self.engine.machine_config.STIM_SAMPLE_RATE
+        self.waveform[0,stim_start:stim_start+stimulus.shape[0]]=stimulus
+        airpuff_start=(self.PRE_TRIGGER_TIME+self.AIRPUFF_TIME)*self.engine.machine_config.STIM_SAMPLE_RATE
+        self.waveform[1, airpuff_start:airpuff_start+self.engine.parameters['Air Puff Duration']*self.engine.machine_config.STIM_SAMPLE_RATE]=5.0
+        self.waveform_started=False
+        numpy.save('c:\\temp\\1.npy',self.waveform)
+        
         
     def update(self):
-        elapsed_time=time.time()-self.engine.actual_recording_started
-        if elapsed_time>=self.PRE_TRIGGER_TIME and not self.trigger_fired:
-            self.trigger_fired=True
-            if self.ENABLE_AIRPUFF and not self.ENABLE_VISUAL_STIMULUS:
-                self.engine.airpuff()
-                self.airpuff_fired=True
-            if self.ENABLE_VISUAL_STIMULUS:
-                npulses=int(self.STIMULUS_DURATION/(self.STIMULUS_ONTIME+self.STIMULUS_OFFTIME))
-                fsample=self.engine.machine_config.STIM_SAMPLE_RATE
-                waveform=numpy.tile(numpy.concatenate(
-                        (numpy.ones(self.STIMULUS_ONTIME*fsample), 
-                        numpy.zeros(self.STIMULUS_OFFTIME*fsample))
-                        ),npulses)
-                self.engine.stimulate(waveform)
-                self.stim_counter+=1
-        if self.ENABLE_AIRPUFF and self.trigger_fired and not self.airpuff_fired and elapsed_time>=self.PRE_TRIGGER_TIME+self.AIRPUFF_TIME:
-            self.engine.airpuff()
-            self.airpuff_fired=True
-        if elapsed_time>self.PRE_TRIGGER_TIME+self.post_trigger_time:
+        now=time.time()
+        elapsed_time=now-self.engine.actual_recording_started
+        if not self.waveform_started:
+            aoch='Dev1/ao0:1'
+            self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform_start(aoch,self.waveform,self.engine.machine_config.STIM_SAMPLE_RATE)
+            self.waveform_started=True
+            self.engine.airpuff_values=numpy.concatenate((self.engine.airpuff_values,numpy.array([[now+self.PRE_TRIGGER_TIME+self.AIRPUFF_TIME, 1]])))
+            self.engine.stimulus_values=numpy.concatenate((self.engine.stimulus_values,numpy.array([[now+self.PRE_TRIGGER_TIME-1e-3, 0],[now+self.PRE_TRIGGER_TIME, 1],[now+self.PRE_TRIGGER_TIME+self.STIMULUS_DURATION, 1],[now+self.PRE_TRIGGER_TIME+self.STIMULUS_DURATION+1e-3, 0]])))
+#        if elapsed_time>=self.PRE_TRIGGER_TIME and not self.trigger_fired:
+#            self.trigger_fired=True
+#            if self.ENABLE_AIRPUFF and not self.ENABLE_VISUAL_STIMULUS:
+#                self.engine.airpuff()
+#                self.airpuff_fired=True
+#            if self.ENABLE_VISUAL_STIMULUS:
+#                npulses=int(self.STIMULUS_DURATION/(self.STIMULUS_ONTIME+self.STIMULUS_OFFTIME))
+#                fsample=self.engine.machine_config.STIM_SAMPLE_RATE
+#                waveform=numpy.tile(numpy.concatenate(
+#                        (numpy.ones(self.STIMULUS_ONTIME*fsample), 
+#                        numpy.zeros(self.STIMULUS_OFFTIME*fsample))
+#                        ),npulses)
+#                self.engine.stimulate(waveform)
+#                self.stim_counter+=1
+#        if self.ENABLE_AIRPUFF and self.trigger_fired and not self.airpuff_fired and elapsed_time>=self.PRE_TRIGGER_TIME+self.AIRPUFF_TIME:
+#            self.engine.airpuff()
+#            self.airpuff_fired=True
+        if elapsed_time>self.PRE_TRIGGER_TIME+self.post_trigger_time and self.waveform_started:
+            daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
             self.engine.save_during_session()
             
     def stat(self):

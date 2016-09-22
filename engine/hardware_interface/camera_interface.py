@@ -260,8 +260,11 @@ class ImagingSourceCamera(VideoCamera):
         if self.dllref.IC_SnapImage(self.grabber_handle, int(self.snap_timeout)) == 1:
             addr = self.dllref.IC_GetImagePtr(self.grabber_handle)
             p = ctypes.cast(addr, ctypes.POINTER(ctypes.c_byte))
-            buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(p.contents), self.frame_size)
-            frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
+            try:
+                buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(p.contents), self.frame_size)
+                frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
+            except ValueError:
+                return False
             self.frames.append(frame)
 #            self.framep.append(p)
 
@@ -272,6 +275,7 @@ class ImagingSourceCamera(VideoCamera):
 #            import gc
 #            gc.collect
             time.sleep(1e-3)
+            return True
         
     def stop(self):
         if self.isrunning:
@@ -313,8 +317,8 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         self.datafile.create_earray(self.datafile.root, 'ic_timestamps', tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
         
     def save(self):
-        ImagingSourceCamera.save(self)
-        if  len(self.frames)>0:
+        res=ImagingSourceCamera.save(self)
+        if  len(self.frames)>0 and res:
             self.datafile.root.ic_timestamps.append(numpy.array([[time.time()]]))
             self.datafile.root.ic_frames.append(numpy.expand_dims(self.frames[-1],0))
             

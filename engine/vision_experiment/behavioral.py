@@ -10,7 +10,7 @@ from visexpman.engine.hardware_interface import daq_instrument,camera_interface
 from visexpman.engine.vision_experiment import experiment,experiment_data
 DEBUG=False
 NREWARD_VOLUME=100
-SPEED_BUFFER_SIZE=20000
+SPEED_BUFFER_SIZE=10000
 EVENT_BUFFER_SIZE=1000
 FRAME_TIME_BUFFER_SIZE=10000
 EMULATE_SPEED= False
@@ -54,6 +54,21 @@ class TreadmillSpeedReader(multiprocessing.Process):
     def open_serial(self):
         self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
         
+    def pulse(self,channel,command):
+        byte_command=0
+        channel&=3
+        byte_command = channel<<6
+        if command=='off':
+            byte_command|=0
+        elif command=='on':
+            byte_command|=63
+        else:
+            byte_command|=int(round(command/5e-3))&63
+        if DEBUG:
+            logging.debug(bin(byte_command))
+        self.s.write(chr(byte_command))
+        logging.info(byte_command)
+        
     def run(self):
         logging.basicConfig(filename= fileop.get_log_filename(self.machine_config).replace('.txt', '_speed_reader.txt'),
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -70,7 +85,7 @@ class TreadmillSpeedReader(multiprocessing.Process):
         logging.info('Speed reader started')
         self.msg_counter=0
         while True:
-            try:
+            try:  
                 now=time.time()
                 if int(now*10)%100==0:
                     logging.info(self.msg_counter)
@@ -98,24 +113,12 @@ class TreadmillSpeedReader(multiprocessing.Process):
                         break
                     elif msg=='restart':
                         self.s.close()
-                        time.sleep(0.5)
+                        time.sleep(0.2)
                         self.open_serial()
                         logging.info('Serial port restarted')
                     elif msg.has_key('pulse'):
-                        byte_command=0
                         channel, command=msg['pulse']
-                        channel&=3
-                        byte_command = channel<<6
-                        if command=='off':
-                            byte_command|=0
-                        elif command=='on':
-                            byte_command|=63
-                        else:
-                            byte_command|=int(round(command/5e-3))&63
-                        if DEBUG:
-                            logging.debug(bin(byte_command))
-                        self.s.write(chr(byte_command))
-                        logging.info(byte_command)
+                        self.pulse(channel,command)
                 time.sleep(0.01)
             except:
                 logging.error(traceback.format_exc())
@@ -211,7 +214,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.software_env = experiment_data.pack_software_environment()
         self.start_time=time.time()
         self.stim_number=0
-        
         
     def reset_data(self):
         self.speed_values=numpy.empty((0,2))
@@ -355,7 +357,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def airpuff(self):
         if not self.parameters['Enable Air Puff']: return
-        self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
+        daq_instrument.set_digital_pulse('Dev1/port0/line0', self.parameters['Air Puff Duration'])
+#        self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Air Puff Duration']]})
         logging.info('Airpuff')
         now=time.time()
         self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
@@ -381,12 +384,17 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
         self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
         self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+stimulus_duration, 1],[now+stimulus_duration+1e-3, 0]])))
+        return
         if os.name=='nt':
             if hasattr(self, 'stimulus_daq_handle'):
                 daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
             aoch=getattr(self.machine_config, self.parameters['Stimulus Channel'].upper()+'_AO_CHANNEL')
             self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform_start(aoch,self.stimulus_waveform,fsample)
-            
+
+#            aoch=getattr(self.machine_config, self.parameters['Stimulus Channel'].upper()+'_AO_CHANNEL')
+#            p=multiprocessing.Process(target=daq_instrument.set_waveform, args=(aoch,self.stimulus_waveform,fsample))
+#            p.start()
+#            self.processes.append(p)
 
     def set_speed_update(self, state):
         self.enable_speed_update=state
@@ -614,6 +622,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if hasattr(self, 'iscamera'):
             self.iscamera.stop()
             self.iscamera.close()
+            del self.iscamera
         self.save2file()
         
     def periodic_save(self):
@@ -804,6 +813,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         '''
         logging.info('Generating today\'s success rate plot')
         if os.path.isdir(folder):
+            if len(os.listdir(folder))>500:
+                logging.info('Too many recording, success rate plot is not updated')
+                return
             self.summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
         elif hasattr(self, 'summary'):
             self.summary.append(self.read_file_summary(folder))
