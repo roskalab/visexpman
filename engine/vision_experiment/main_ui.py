@@ -484,11 +484,12 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self.load_all_parameters()
         self.show()
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+            self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -590,7 +591,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:            
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.params_config.extend([
                                                   {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
@@ -731,9 +732,15 @@ class MainUI(gui.VisexpmanMainWindow):
     def adjust_contrast(self):#TODO: self.adjust widget shall be integrated into image widget
         if hasattr(self.image, 'rawimage'):
             image_range = self.image.rawimage.max()-self.image.rawimage.min()
-            low = float(self.adjust.low.value())/100*image_range
-            high = float(self.adjust.high.value())/100*image_range
+            low = self.image.rawimage.min() + float(self.adjust.low.value())/100*image_range
+            high = self.image.rawimage.min() + float(self.adjust.high.value())/100*image_range
             self.image.img.setLevels([low,high])
+            
+    def fit_image(self):
+        if self.machine_config.PLATFORM in ['ao_cortical']:
+            fitrange=[self.image_scale*48,self.image_scale*self.meanimage.shape[1]]#TODO: take this constant from datafile
+            self.image.plot.setXRange(0,fitrange[0])
+            self.image.plot.setYRange(0,fitrange[1])
             
     def send_widget_status(self):
         if hasattr(self, 'tpp'):
