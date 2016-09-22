@@ -148,6 +148,27 @@ def total_size(source):
                 elif os.path.isdir(itempath):
                     total_size_bytes += total_size(itempath)
         return total_size_bytes
+        
+def wait4file_ready(f,timeout=60, min_size=0):
+    if os.path.exists(f):
+        filesize_prev=os.path.getsize(f)
+    else:
+        filesize_prev=0
+    t0=time.time()
+    while True:
+        if os.path.exists(f):
+            filesize=os.path.getsize(f)
+        else:
+            time.sleep(0.5)
+            continue
+        if filesize==filesize_prev and filesize>min_size:
+            break
+        else:
+            filesize_prev=filesize
+            time.sleep(0.2)
+        if time.time()-t0>timeout:
+            raise RuntimeError('Wait for {} file timeout'.format(f))
+
 
 ################# File/directory operations ####################
 

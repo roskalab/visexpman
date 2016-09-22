@@ -428,7 +428,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM=='us_cortical':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='ao_cortical':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -484,11 +484,12 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self.load_all_parameters()
         self.show()
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
+            self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -506,7 +507,9 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.remove_all_rois()
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
-                self.image.setFixedHeight(self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0]))
+                h=self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0])
+                if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
+                self.image.setFixedHeight(h)
                 self.adjust_contrast()
                 if hasattr(boundaries, 'shape'):
                     self.image.add_linear_region(boundaries)
@@ -586,8 +589,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.params_config.extend([
                                                   {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
@@ -603,7 +607,9 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': 'Manual Roi', 'type': 'list', 'values': ['rectangle', 'cell shape'], 'value': 'rectangle'},
                             {'name': '3d to 2d Image Function', 'type': 'list', 'values': ['mean', 'mip'], 'value': 'mean'},
                             ]
-                            },                    
+                            }])
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
+                self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
                                 {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
                                 {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
@@ -726,9 +732,15 @@ class MainUI(gui.VisexpmanMainWindow):
     def adjust_contrast(self):#TODO: self.adjust widget shall be integrated into image widget
         if hasattr(self.image, 'rawimage'):
             image_range = self.image.rawimage.max()-self.image.rawimage.min()
-            low = float(self.adjust.low.value())/100*image_range
-            high = float(self.adjust.high.value())/100*image_range
+            low = self.image.rawimage.min() + float(self.adjust.low.value())/100*image_range
+            high = self.image.rawimage.min() + float(self.adjust.high.value())/100*image_range
             self.image.img.setLevels([low,high])
+            
+    def fit_image(self):
+        if self.machine_config.PLATFORM in ['ao_cortical']:
+            fitrange=[self.image_scale*48,self.image_scale*self.meanimage.shape[1]]#TODO: take this constant from datafile
+            self.image.plot.setXRange(0,fitrange[0])
+            self.image.plot.setYRange(0,fitrange[1])
             
     def send_widget_status(self):
         if hasattr(self, 'tpp'):

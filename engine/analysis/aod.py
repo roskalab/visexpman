@@ -22,10 +22,22 @@ class AOData(experiment_data.CaImagingData):
 
     def process_mes_file(self):
         mesdata=scipy.io.loadmat(self.mesfilename)
-        if str(mesdata['DATA']['Type'][0][0][0])!='Line2' and str(mesdata['DATA']['Type'][0][0][0])!='FF':
-            raise NotImplementedError('Only line scan data processing is supported')
+        if str(mesdata['DATA']['Type'][0][0][0])=='Line2':
+            raise NotImplementedError('Line scan data processing is not supported')
+        elif str(mesdata['DATA']['Type'][0][0][0])!='FF':
+            raise NotImplementedError('Only checkerboard scanning is supported')
         self.image=numpy.copy(mesdata['DATA']['IMAGE'][0][0])
-        self.raw_data=self.image.reshape(self.image.shape[1],1,1,self.image.shape[0])#time, channel, null, roi
+        self.ao_drift=mesdata['DATA']['AO_collection_usedpixels'][0][0][0][0]
+        nrois=self.image.shape[0]/self.ao_drift
+        if self.image.shape[0]%self.ao_drift!=0:
+            raise RuntimeError('Imaged data cannot be processed')
+        nframes=mesdata['DATA']['FoldedFrameInfo'][0][0]['numFrames'][0][0][0][0]
+        xsize=mesdata['DATA']['FoldedFrameInfo'][0][0]['numFrameLines'][0][0][0][0]
+        offset=mesdata['DATA']['FoldedFrameInfo'][0][0]['firstFramePos'][0][0][0][0]
+        scale=mesdata['DATA']['WidthStep'][0][0][0][0]#um/pixel
+        img=self.image[:,offset:offset+float(xsize)*float(nframes)].reshape(self.image.shape[0], xsize, nframes,1, order='A')
+        img=img.swapaxes(0,2).swapaxes(1,3)
+        self.raw_data=img
         #Save mesfile content to hdf5 file
         mesdata['DATA']['IMAGE']=0
         self.mesdata=utils.object2array(mesdata['DATA'])
@@ -33,11 +45,19 @@ class AOData(experiment_data.CaImagingData):
         self.save('mesdata')
         self.sync_pulses_to_skip=int(mesdata['DATA']['Clipping'][0][0]['savedHeightBegin'][0][0][0][0])
         self.save('sync_pulses_to_skip')
+        self.load('parameters')
+        self.parameters['nrois']=nrois
+        self.parameters['resolution_unit']='pixel/um'
+        self.parameters['pixel_size']=1.0/scale
+        self.save('parameters')
         
 class TestAODData(unittest.TestCase):
     def test_01(self):
-        fn='v:\\experiment_data_ao\\adrian\\data_MovingGratingShort_201609130938038.hdf5'
+        fn='v:\\experiment_data_ao\\adrian\\test\\data_GrayBackgndOnly5min_201609141833241.hdf5'
+        fn='v:\\experiment_data_ao\\adrian\\test\\data_MovingGratingAdrian_201609141828279.hdf5'
         a=AOData(fn)
+        a.load('sync')
+        #plot(a.sync[::10,0]);show()
         a.prepare4analysis()
         a.close()
         
