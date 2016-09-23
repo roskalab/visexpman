@@ -217,4 +217,16 @@ class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
 #Support for old config classes
 class GratingConfig(MovingGratingConfig):
     pass
-    
+
+if __name__ == "__main__":
+    from visexpman.engine.visexp_app import stimulation_tester
+    import traceback,pdb
+    from visexpA.engine.generic.introspect import full_exc_info
+    try:
+        stimulation_tester('daniel', 'StimulusDevelopment', 'ShortMovingGratingConfig')
+    except:
+        traceback.print_exc()
+        pdb.post_mortem(full_exc_info()[2])
+        raise
+    finally:
+        pass

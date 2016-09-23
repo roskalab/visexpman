@@ -1,5 +1,6 @@
 import numpy
 import copy
+import os
 import time
 import random
 from visexpman.engine.generic import utils

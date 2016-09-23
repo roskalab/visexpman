@@ -59,6 +59,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.frame_counter = 0
         self.stimulus_frame_info = []
         self.frame_rates = []
+        import serial
+        self.serial = serial.Serial('/dev/ttyUSB0')
         
     def _init_variables(self):
         self.delayed_frame_counter = 0 #counts how many frames were delayed
@@ -122,10 +124,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Generates trigger pulses
         '''
-        if hasattr(self.digital_output,'set_data_bit'):
+        if hasattr(self.digital_output,'set_data_bit') and 0:
             self.digital_output.set_data_bit(pin, int(polarity), log = False)
             time.sleep(width)
             self.digital_output.set_data_bit(pin, int(not polarity), log = False)
+        else:
+            self.serial.setRTS(False)
+            time.sleep(width)
+            self.serial.setRTS(True)
 
     def _frame_trigger_pulse(self):
         '''
@@ -302,7 +308,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if is_block:
                 self.block_start()
             for fn in fns:
+                mytime = time.time()
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
+                print(1./(time.time()-mytime))
+                if self.abort:
+                    break
             self.screen.clear_screen()
             self._flip(frame_trigger = True)
             if is_block:
@@ -850,6 +860,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)        
         glEnableClientState(GL_VERTEX_ARRAY)
         shape_pointer = 0
+        t0 = time.time()
         for frame_i in range(n_frames):
             start_i = shape_pointer * n_vertices
             end_i = (shape_pointer + nshapes) * n_vertices
@@ -868,6 +879,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         glColor3fv(colors.convert_color(color_corrected[frame_i][shape_i].tolist()))
                     else:
                         glColor3fv(colors.convert_color(color_corrected, self.config))
+                    pdb.set_trace()
                     glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices)
                     if self.abort:
                         break
@@ -882,7 +894,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     break
             if self.abort:
                 break
-                
+        print t0 - time.time()
         glDisableClientState(GL_VERTEX_ARRAY)
         #Restore original background color
         if background_color != None:            

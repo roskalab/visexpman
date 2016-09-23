@@ -5,53 +5,21 @@ import os
 import numpy
 import time
 
-# class NaturalMovie(experiment.ExperimentConfig):
-#     def _create_parameters(self):
-# #        self.FILENAME = 'c:\\Data\\nn.3707-sv1_frames'
-# #        self.FILENAME = 'c:\\Data\\nn.3707-sv2_frames'
-#         self.FILENAME = 'c:\\Data\\spont_falco_moving_frames'
-# #        self.FILENAME = 'c:\\Data\\stimulated_falco_sound_frames'
-#         self.FRAME_RATE=60.0
-#         self.STRETCH = 1.0
-#         self.runnable = 'NaturalMovieExperiment'
-#         self._create_parameters_from_locals(locals())
-        
         
 class NaturalMovieSv1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.READ_ELECTRODE_COORDINATE =  False
         self.JUMPING = False
-        self.FILENAME = 'c:\\Data\\movies\\catmovie1'
-        self.FRAME_RATE= 30.0
-        self.STRETCH = 4.573
+        self.FILENAME = '/mnt/datafast/stimdata/BB_test'#rownianBalls_small'
+        self.FRAME_RATE = 60.0
+        self.STRETCH = 1.573
         self.runnable = 'NaturalMovieExperiment'
-        self.BACKGROUND_TIME = 0.5
+        self.BACKGROUND_TIME = 3
         self.BACKGROUND_COLOR = 0.5
-        self.REPETITIONS = 8
+        self.REPETITIONS = 0
         self._create_parameters_from_locals(locals())
         
-# class NaturalMovieSv2(experiment.ExperimentConfig):
-#     def _create_parameters(self):
-#         self.FILENAME = 'c:\\Data\\movies\\catmovie2'
-#         self.FRAME_RATE= 30.0
-#         self.STRETCH = 4.573
-#         self.runnable = 'NaturalMovieExperiment'
-#         self.BACKGROUND_TIME = 0.5
-#         self.BACKGROUND_COLOR = 0.5
-#         self.REPETITIONS = 3
-#         self._create_parameters_from_locals(locals())
-#        
-# class NaturalMovieSv3(experiment.ExperimentConfig):
-#     def _create_parameters(self):
-#         self.FILENAME = 'c:\\Data\\movies\\catmovie3'
-#         self.FRAME_RATE= 30.0
-#         self.STRETCH = 4.573
-#         self.runnable = 'NaturalMovieExperiment'
-#         self.BACKGROUND_TIME = 0.5
-#         self.BACKGROUND_COLOR = 0.5
-#         self.REPETITIONS = 3
-#         self._create_parameters_from_locals(locals())
-#         
+
 class NaturalBarsConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEED = 300.0#um/s
@@ -111,3 +79,16 @@ class NaturalMovieExperiment(experiment.Experiment):
                     break
             if self.abort:
                 break
+
+if __name__ == "__main__":
+    from visexpman.engine.visexp_app import stimulation_tester
+    import traceback,pdb
+    from visexpA.engine.generic.introspect import full_exc_info
+    try:
+        stimulation_tester('antonia', 'StimulusDevelopment', 'NaturalMovieSv1')
+    except:
+        traceback.print_exc()
+        pdb.post_mortem(full_exc_info()[2])
+        raise
+    finally:
+        pass

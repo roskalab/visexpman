@@ -532,7 +532,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             exc_info = sys.exc_info()
             raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
         finally:
-            self.close()#If something goes wrong, close serial port
+            s.close()#If something goes wrong, close serial port
             
 
     def close(self):
