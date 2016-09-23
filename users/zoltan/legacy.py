@@ -17,7 +17,7 @@ import unittest
 import tempfile
 FIX1KHZ= False
 NOMATFILE= False
-NWEEKS=20
+NWEEKS=2
 NOT_50X50UM= not True
 VERTICAL_FLIP=True
 
@@ -72,6 +72,7 @@ class PhysTiff2Hdf5(object):
         pairs = []
         #ids=[str(os.path.basename(o).split('_')[-2]) for o in self.outfiles]
         for pf in processable_physfiles:
+            #print processable_physfiles.index(pf),len(processable_physfiles)
             if 1:
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
@@ -233,7 +234,7 @@ class PhysTiff2Hdf5(object):
 #                rd*=(2**16-1)
 #                raw_data = numpy.cast['uint16'](rd)
                # if rawdata.shape[0]>800:return None#TMP fix for memory error
-                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,:,:,:],0,2**16-1))
+                raw_data = numpy.cast['uint16'](signal.scale(rawdata[:,::-1,:,:],0,2**16-1))
             except MemoryError:#Too long recording
                 return None
         #Up-down flip
@@ -251,7 +252,8 @@ class PhysTiff2Hdf5(object):
                 txt=f.read()
             data=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
             metadata={}
-            metadata['Sample Rate']=10000
+            metadata['Sample Rate']=5000
+            recording_parameters['elphys_sync_sample_rate']=5000
             try:
                 metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,os.path.basename(fphys).replace('.csv','').split('_')[-3:])
             except:
@@ -271,7 +273,7 @@ class PhysTiff2Hdf5(object):
         recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if metadata.has_key('Stimulus file') and os.path.exists(metadata['Stimulus file']) else ''
         recording_parameters['experiment_source_file'] = metadata['Stimulus file'] if metadata.has_key('Stimulus file') else ''
         recording_parameters['absolute_stage_coordinates'] = absolute_stage_coordinates
-        if float(metadata['Sample Rate'])!=(10000 if not FIX1KHZ else 1000):
+        if float(metadata['Sample Rate'])!=(10000 if not FIX1KHZ else 1000) and not self.irlaser:
             if 1:
                 raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
         if data.shape[0]!=3:

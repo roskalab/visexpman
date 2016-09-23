@@ -712,7 +712,7 @@ class Analysis(object):
             try:
                 baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
                 parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
-            except IndexError:
+            except IndexError, ValueError:
                 pass
             
         x_,y_ = signal.average_of_traces(x,y)
