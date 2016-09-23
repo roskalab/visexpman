@@ -51,6 +51,15 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self.command_buffer = ''
         self.precalculate_duration_mode=False
         
+        if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+            self.vaf = 1
+        else:
+            self.vaf = -1
+        if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+            self.haf = 1
+        else:
+            self.haf = -1
+        
     def _flip(self,  trigger = False,  saveFrame = False, count = True):
         """
         """
@@ -200,11 +209,11 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, frame_trigger = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, frame_trigger = True,save_frame_info=True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        if count and not self.precalculate_duration_mode:
+        if count and not self.precalculate_duration_mode and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
@@ -244,7 +253,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     break
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        if count and not self.precalculate_duration_mode:
+        if count and not self.precalculate_duration_mode and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True):
@@ -1420,7 +1429,7 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
 
-    def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False):
+    def moving_shape_trajectory_old(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
@@ -1431,7 +1440,7 @@ class StimulationSequences(Stimulations):
         if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
             self.haf = 1
         else:
-            self.has = -1
+            self.haf = -1
         if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
             speeds = [speeds]
         if hasattr(size, 'dtype'):
@@ -1458,6 +1467,92 @@ class StimulationSequences(Stimulations):
                     trajectory_directions.append(direction)
         duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
         return trajectories, trajectory_directions, duration
+        
+    def moving_shape_trajectory(self, size, speeds, directions,repetition,center=utils.rc((0,0)), 
+                pause=0.0,moving_range=None, shape_starts_from_edge=False):
+        '''
+        Calculates moving shape trajectory and total duration of stimulus
+        '''
+        if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+            self.vaf = 1
+        else:
+            self.vaf = -1
+        if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+            self.haf = 1
+        else:
+            self.haf = -1
+        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
+            speeds = [speeds]
+        if hasattr(size, 'dtype'):
+            shape_size = max(size['row'], size['col'])
+        else:
+            shape_size = size
+        if shape_starts_from_edge:
+            self.movement = numpy.sqrt(2)*max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) + shape_size
+        else:
+            self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        if moving_range is not None:
+            self.movement = moving_range+ shape_size
+#        print self.movement,directions,speeds
+        trajectory_directions = []
+        trajectories = []
+        nframes = 0
+        for spd in speeds:
+            for direction in directions:
+                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                if spd == 0:
+                    raise RuntimeError('Zero speed is not supported')
+                spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                t=utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
+                t['row'] +=center['row']
+                t['col'] +=center['col']
+                for rep in range(repetition):
+                    trajectories.append(t)
+                    nframes += trajectories[-1].shape[0]
+                    trajectory_directions.append(direction)
+        duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
+        return trajectories, trajectory_directions, duration
+        
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, 
+                        moving_range=None, pause=0.0, repetition = 1, center = utils.rc((0,0)), 
+                        block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
+        '''
+        Present a moving simulus in different directions:
+            shape: shape of moving object, see show_shapes()
+            size: size of stimulus
+            speeds: list of speeds in um/s that are used for moving the shape
+            directions: list of motion directions in degree 
+            color: color of shape
+            center: center of movement
+            pause: pause between each sweep in seconds
+            moving_range: range of movement in um
+            shape_starts_from_edge: if True, moving shape starts from the edge of the screen
+                        such that shape is not visible
+        '''
+        
+        #TODO:
+#        if hasattr(self, 'screen_center'):
+#            pos_with_offset = utils.rc_add(pos, self.screen_center)
+#        else:
+#            pos_with_offset = pos
+        self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + ')')
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe())
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
+        for block in range(len(trajectories)):
+            self.show_shape(shape = shape,  pos = trajectories[block], 
+                            color = color,  background_color = background_color, 
+                            orientation =self.vaf*trajectory_directions[block] , size = size)
+            if pause > 0:
+                self.show_fullscreen(duration = pause, color = background_color, frame_trigger = True)
+            if self.abort:
+                break
+        self.show_fullscreen(duration = 0, color = background_color,  frame_trigger = True)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        return duration
         
         
     def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0, noshow=False):

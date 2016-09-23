@@ -102,7 +102,7 @@ class AngleStimulus(experiment.Experiment):
     def moving_T_and_L(self, direction):
         self.lt_longer_side = 0.6*min(self.machine_config.SCREEN_SIZE_UM['col'], self.machine_config.SCREEN_SIZE_UM['row'])
         for spd in self.experiment_config.SPEEDS:
-            positions = self.moving_shape_trajectory(self.experiment_config.BAR_WIDTH, spd, [direction],1,pause=0.0,shape_starts_from_edge=True)
+            positions = self.moving_shape_trajectory_old(self.experiment_config.BAR_WIDTH, spd, [direction],1,pause=0.0,shape_starts_from_edge=True)
             positions[0][0] = utils.rc_add(positions[0][0], self.experiment_config.POSITION)
             for sh in ['X', 'L']:
                 for ltangle in self.experiment_config.LT_ANGLES:
