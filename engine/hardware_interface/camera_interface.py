@@ -37,6 +37,7 @@ class VideoCamera(instrument.Instrument):
         self.config = config
         self.debug=debug
         self._init_camera()
+        super(VideoCamera, self).__init__(config=config)
         
     def start(self):
         pass
