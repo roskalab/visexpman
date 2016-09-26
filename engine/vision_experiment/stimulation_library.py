@@ -324,8 +324,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         framedata = handler.root.stimulus_frames[f1i].astype(float)/255  # put actual image frames into the list of paths
                     if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
                         framedata = framedata[::-1]  # flip row order = flip image TOP to Bottom
-                    #self._show_image(framedata, duration, position, stretch, flip, is_block=False)
-                    print(time.time() - mytime)
+                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip, is_block=False)
+                    print(1./(time.time() - mytime))
                     if self.abort:
                         break
                 self.screen.clear_screen()
@@ -342,7 +342,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             for fn in fns:
                 mytime = time.time()
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
-                print(time.time()-mytime)
+                print(1./(time.time()-mytime))
                 if self.abort:
                     break
             self.screen.clear_screen()

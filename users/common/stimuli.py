@@ -184,7 +184,7 @@ class MovingGrating(experiment.Experiment):
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
                 #Show marching grating
                 if orientation != stimulus_unit['orientation']:
-                    self.block_trigger_pulse()
+                    pass #self.block_trigger_pulse()
                 orientation = stimulus_unit['orientation']
                 if not is_first_dislayed:
                     is_first_dislayed = True
