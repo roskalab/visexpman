@@ -104,6 +104,7 @@ class Screen(object):
     def init_flip_variables(self):
         self.flip_time = time.time()
         self.flip_time_previous = self.flip_time
+        self.frame_times=[]
         self.frame_rate = 0.0
         self.wait_time_left = 0.0
         self.elapsed_time = 0.0
@@ -243,6 +244,7 @@ class Screen(object):
             self.frame_rate = self.config.SCREEN_EXPECTED_FRAME_RATE
         self.after_flip()
         self.flip_time_previous = self.flip_time
+        self.frame_times.append(self.flip_time)
         
         if DISPLAY_FRAME_RATE:
             print self.frame_rate

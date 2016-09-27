@@ -562,12 +562,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i-1)
         for i in block_end_indexes:
             self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i+1)
+        self.datafile.frame_times=self.screen.frame_times()
         
     def _save2file(self):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs_{0}', 'frame_times'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
             self._prepare_data2save()
