@@ -501,6 +501,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 s.write('e')
                 s.close()
                 self.send({'trigger':'stim started'})
+            elif self.machine_config.PLATFORM=='intrinsic':
+                pass#TODO: start camera here
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.run()
@@ -514,6 +516,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self._send_himea_cmd("stop")
             elif self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='us_cortical':
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            elif self.machine_config.PLATFORM=='intrinsic':
+                pass#TODO: stop camera here
             if not self.abort:
                 self.printl('Stimulation ended')
                 self._save2file()

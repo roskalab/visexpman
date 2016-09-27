@@ -449,6 +449,15 @@ class ElectroporationConfig(VisionExperimentConfig):
         EXPERIMENT_START_TRIGGER = [10, [10, 15]]
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
+        
+class IntrinsicConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'intrinsic'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.KEYS['start stimulus'] = 'e'
+        STIM_RECORDS_ANALOG_SIGNALS = False
+        self._create_parameters_from_locals(locals())
 
 class BehavioralConfig(object):
         PLATFORM = 'behav'
