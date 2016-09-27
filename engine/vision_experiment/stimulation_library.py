@@ -303,6 +303,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self.block_start()
             for fn in fns:
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
+                if self.abort:
+                    break
             self.screen.clear_screen()
             self._flip(frame_trigger = True)
             if is_block:

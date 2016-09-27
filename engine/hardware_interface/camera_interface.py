@@ -47,7 +47,7 @@ class VideoCamera(instrument.Instrument):
     def save(self):
         pass
         
-    def _init_camera(self):
+    def _init_camera(self, config = None):
         pass
         
     def close(self):
