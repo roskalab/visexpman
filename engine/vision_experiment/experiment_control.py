@@ -501,6 +501,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 s.write('e')
                 s.close()
                 self.send({'trigger':'stim started'})
+            elif self.machine_config.PLATFORM=='intrinsic':
+                pass#TODO: start camera here
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.run()
@@ -514,6 +516,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self._send_himea_cmd("stop")
             elif self.machine_config.PLATFORM=='elphys_retinal_ca' or self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='us_cortical':
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            elif self.machine_config.PLATFORM=='intrinsic':
+                pass#TODO: stop camera here
             if not self.abort:
                 self.printl('Stimulation ended')
                 self._save2file()
@@ -532,7 +536,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             exc_info = sys.exc_info()
             raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
         finally:
-            self.close()#If something goes wrong, close serial port
+            s.close()#If something goes wrong, close serial port
             
 
     def close(self):
@@ -562,12 +566,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i-1)
         for i in block_end_indexes:
             self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i+1)
+        self.datafile.frame_times=self.screen.frame_times()
         
     def _save2file(self):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs_{0}', 'frame_times'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
             self._prepare_data2save()

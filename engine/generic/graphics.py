@@ -104,6 +104,7 @@ class Screen(object):
     def init_flip_variables(self):
         self.flip_time = time.time()
         self.flip_time_previous = self.flip_time
+        self.frame_times=[]
         self.frame_rate = 0.0
         self.wait_time_left = 0.0
         self.elapsed_time = 0.0
@@ -243,6 +244,7 @@ class Screen(object):
             self.frame_rate = self.config.SCREEN_EXPECTED_FRAME_RATE
         self.after_flip()
         self.flip_time_previous = self.flip_time
+        self.frame_times.append(self.flip_time)
         
         if DISPLAY_FRAME_RATE:
             print self.frame_rate
@@ -355,10 +357,10 @@ class Screen(object):
         '''
         Renders an image file on screen with its original size.
         '''
-        im = Image.open(path)
+        im = Image.open(path).convert('RGB')
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
             im = im.transpose(Image.FLIP_TOP_BOTTOM)
-        image = (numpy.cast['float'](numpy.asarray(im))/255.0)[:,:,:3]
+        image = numpy.cast['float'](numpy.asarray(im))/255.0
         self.render_image(image, position = position, stretch=stretch,position_in_pixel=False)
         
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
@@ -371,9 +373,8 @@ class Screen(object):
                                 [position['col']*scale - 0.5 * image.shape[1]*stretch, position['row']*scale - 0.5 * image.shape[0]*stretch],
                                 ])
         glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
+        glVertexPointerf(numpy.squeeze(vertices))
         dt = GL_FLOAT
-#        dt = GL_UNSIGNED_BYTE
         glTexImage2D(GL_TEXTURE_2D, 0, 3, image.shape[1], image.shape[0], 0, GL_RGB, dt, image)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)

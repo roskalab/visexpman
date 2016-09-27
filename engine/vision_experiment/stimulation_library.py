@@ -15,7 +15,8 @@ try:
 except ImportError:
     default_text=None
     print 'opengl not installed'
-
+from contextlib import closing
+import tables
 
 import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
@@ -59,7 +60,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.frame_counter = 0
         self.stimulus_frame_info = []
         self.frame_rates = []
-        
+        import serial
+        try:
+            self.serial = serial.Serial('/dev/ttyUSB0')
+        except:
+            self.serial = None
+
     def _init_variables(self):
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
@@ -122,10 +128,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Generates trigger pulses
         '''
-        if hasattr(self.digital_output,'set_data_bit'):
+        if hasattr(self.digital_output,'set_data_bit') and 0:
             self.digital_output.set_data_bit(pin, int(polarity), log = False)
             time.sleep(width)
             self.digital_output.set_data_bit(pin, int(not polarity), log = False)
+        elif self.serial is not None:
+            self.serial.setRTS(False)
+            time.sleep(width)
+            self.serial.setRTS(True)
+        else:
+            time.sleep(width)
 
     def _frame_trigger_pulse(self):
         '''
@@ -296,21 +308,48 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             raise RuntimeError('This duration is not possible, it should be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE')                
         self.log.info('show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(stretch)  + ', ' + ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
-        if os.path.isdir(path):
+
+        if os.path.isfile(path) and 'hdf5' in path: # a hdf5 file with stimulus_frames variable having nframes * x * y dimensions
+            with closing(tables.open_file(path,'r')) as handler:
+                full_chunk = 0
+                if full_chunk: # read big chunk
+                    allframedata = handler.root.stimulus_frames[:5000].astype(float)/255
+                if is_block:
+                    self.block_start()
+                for f1i in range(handler.root.stimulus_frames.shape[0]):
+                    mytime = time.time()
+                    if full_chunk:
+                        framedata = allframedata[f1i]
+                    else:
+                        framedata = handler.root.stimulus_frames[f1i].astype(float)/255  # put actual image frames into the list of paths
+                    if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
+                        framedata = framedata[::-1]  # flip row order = flip image TOP to Bottom
+                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip, is_block=False)
+                    print(1./(time.time() - mytime))
+                    if self.abort:
+                        break
+                self.screen.clear_screen()
+                self._flip(frame_trigger=True)
+                if is_block:
+                    self.block_end()
+        elif os.path.isfile(path):
+            self._show_image(path,duration,position,flip,is_block)
+        elif os.path.isdir(path):
             fns = os.listdir(path)
             fns.sort()
             if is_block:
                 self.block_start()
             for fn in fns:
+                mytime = time.time()
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
+                print(1./(time.time()-mytime))
                 if self.abort:
                     break
             self.screen.clear_screen()
             self._flip(frame_trigger = True)
             if is_block:
                 self.block_end()
-        else:
-            self._show_image(path,duration,position,flip,is_block)
+
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def _show_image(self,path,duration,position,stretch,flip,is_block):
@@ -320,7 +359,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         for i in range(nframes):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+            if hasattr(path,'shape'):  # show image already loaded
+                self.screen.render_image(path, position=utils.rc_add(position, self.machine_config.SCREEN_CENTER),
+                                             stretch=stretch)
+            else:  # load image file given its path as a string
+                self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._add_block_start(is_block, i, nframes)
                 self._flip(frame_trigger = True)
@@ -852,6 +895,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)        
         glEnableClientState(GL_VERTEX_ARRAY)
         shape_pointer = 0
+        t0 = time.time()
         for frame_i in range(n_frames):
             start_i = shape_pointer * n_vertices
             end_i = (shape_pointer + nshapes) * n_vertices
@@ -884,7 +928,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     break
             if self.abort:
                 break
-                
+        print t0 - time.time()
         glDisableClientState(GL_VERTEX_ARRAY)
         #Restore original background color
         if background_color != None:            

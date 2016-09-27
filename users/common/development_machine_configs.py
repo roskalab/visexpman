@@ -27,10 +27,10 @@ class StimulusDevelopment(VisionExperimentConfig):
         
         #=== screen ===
         FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800,600])
+        SCREEN_RESOLUTION = utils.cr([1680,1050])#utils.cr([1024,768])
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
-#        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
 #        SCREEN_MAX_FRAME_RATE = 60.0
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         STIM_RECORDS_ANALOG_SIGNALS = False
@@ -38,4 +38,10 @@ class StimulusDevelopment(VisionExperimentConfig):
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
+        self._create_parameters_from_locals(locals())
+
+class StimulusDevelopmentFullScreen(StimulusDevelopment):
+    def _set_user_parameters(self):
+        StimulusDevelopment._set_user_parameters(self)
+        FULLSCREEN = True
         self._create_parameters_from_locals(locals())

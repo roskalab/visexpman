@@ -1,9 +1,12 @@
 import numpy
 import copy
+import os
 import time
 import random
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
+from contextlib import closing
+import tables
 
 class SpotWaveform(experiment.Experiment):
     '''
@@ -181,7 +184,7 @@ class MovingGrating(experiment.Experiment):
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
                 #Show marching grating
                 if orientation != stimulus_unit['orientation']:
-                    self.block_trigger_pulse()
+                    pass #self.block_trigger_pulse()
                 orientation = stimulus_unit['orientation']
                 if not is_first_dislayed:
                     is_first_dislayed = True
@@ -264,7 +267,11 @@ class PixelSizeCalibration(experiment.Experiment):
 
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]
+        if 'hdf5' in self.experiment_config.FILENAME:
+            with closing(tables.open_file(self.experiment_config.FILENAME)) as hf:
+                self.fragment_durations = len(hf.root.stimulus_frames)
+        else:
+            self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME)) /float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]
         
     def run(self):
         if self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
