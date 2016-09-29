@@ -1822,7 +1822,8 @@ class MainPoller(Poller):
         region_name = self.parent.get_current_region_name()
         self.printc('1. Laser intensity read')
         if region_name == '':
-            region_name = 'r'
+            self.printc('Region name must be provided')
+            return
         if self.scan_regions.has_key(region_name):
             #Ask for confirmation to overwrite if region name already exists
             #if not self.ask4confirmation('Overwriting scan region'):
