@@ -550,7 +550,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_PIXEL_WIDTH = [477.0/1280., [0, 0.99]] # mm, screen
             gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         IMAGE_PROJECTED_ON_RETINA = False
-        FULLSCREEN = not False
+        FULLSCREEN =  not False
         ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led']
     
 
@@ -585,7 +585,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
         #=== stage ===
         motor_serial_port = {
-                                    'port' :  'COM1',
+                                    'port' :  'COM7',
                                     'baudrate' : 19200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,

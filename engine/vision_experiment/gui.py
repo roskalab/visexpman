@@ -38,6 +38,7 @@ BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following forma
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
 
 ENABLE_SCAN_REGION_SERIALIZATION= False
+STAGE=True
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
@@ -780,6 +781,11 @@ class MainPoller(Poller):
         self.process_status_timer.timeout.connect(self.update_process_status)
         self.process_status_timer.start(10000)
         self.first_mouse_file_created=False
+        if STAGE:
+            self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=0.8)
+            self.stage.reset()
+            self.stage.setparams()
+            self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
         
     def update_process_status(self):
         try:
@@ -863,6 +869,8 @@ class MainPoller(Poller):
         self.update_network_connection_status()
         
     def close(self):
+        if STAGE:
+            self.stage.close()
         self.save_cells()
         if hasattr(self, 'mouse_file'):
             h = hdf5io.Hdf5io(self.config.CONTEXT_FILE,filelocking=False)
@@ -1377,6 +1385,16 @@ class MainPoller(Poller):
 ################### Stage #######################
     def read_stage(self, display_coords = False):
         self.printc('Reading stage and objective position, please wait')
+        #result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
+        self.stage_position = self.stage.read_position()
+        self.stage_position=numpy.array([self.stage_position[0], self.stage_position[1], 0])
+        if display_coords:
+            self.printc('rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
+        else:
+            self.printc('Read stage ready')
+        self.save_context()
+        self.parent.update_position_display()
+        return True
         result = False
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCreadEOP')
@@ -1405,20 +1423,20 @@ class MainPoller(Poller):
         if not self.mes_interface.overwrite_relative_position(0, self.config.MES_TIMEOUT):
             self.printc('Setting objective to 0 did not succeed')
             return result
-        if not self.stage_position_valid:
-            self.read_stage(display_coords = False)
-            self.stage_position_valid = True
+        #if not self.stage_position_valid:
+        self.read_stage(display_coords = False)
+        self.stage_position_valid = True
         self.stage_origin = self.stage_position
         self.save_context()
-        utils.empty_queue(self.queues['stim']['in'])
-        self.queues['stim']['out'].put('SOCstageEOCoriginEOP')
-        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], 10.0):
-            while not self.queues['stim']['in'].empty():
-                response = self.queues['stim']['in'].get()
-                if 'SOCstageEOC' in response:
-                    self.printc('Origin set')
-                    self.stage_origin_set = True
-                    result = True
+#        utils.empty_queue(self.queues['stim']['in'])
+#        self.queues['stim']['out'].put('SOCstageEOCoriginEOP')
+#        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], 10.0):
+#            while not self.queues['stim']['in'].empty():
+#                response = self.queues['stim']['in'].get()
+#                if 'SOCstageEOC' in response:
+        self.printc('Origin set')
+        self.stage_origin_set = True
+        result = True
         self.origin_set = True
         self.parent.update_position_display()
         self.printc('Stage origin: {0}'.format(self.stage_origin))
@@ -1475,22 +1493,23 @@ class MainPoller(Poller):
             del self.xy_scan
         if hasattr(self, 'xz_scan'):
             del self.xz_scan
-        utils.empty_queue(self.queues['stim']['in'])
-        self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
+#        utils.empty_queue(self.queues['stim']['in'])
+#        self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
         self.printc('movement {0}, {1}'.format(movement[0], movement[1]))
-        if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
-            self.printc('Stage does not respond, 1')
-            return False
-        while not self.queues['stim']['in'].empty():
-            response = self.queues['stim']['in'].get()
-            if 'SOCstageEOC' in response:
-                self.stage_position = self.parse_list_response(response)
-                self.save_context()
-                self.parent.update_position_display()
-                self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
-                return True
-        self.printc('Stage does not respond, 2')
-        return False
+#        if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
+#            self.printc('Stage does not respond, 1')
+#            return False
+#        while not self.queues['stim']['in'].empty():
+#            response = self.queues['stim']['in'].get()
+#            if 'SOCstageEOC' in response:
+        new_pos = self.stage.move(float(movement[0]), float(movement[1]))
+        self.stage_position = numpy.array([new_pos [0], new_pos [1], 0])
+        self.save_context()
+        self.parent.update_position_display()
+        self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
+        return True
+#        self.printc('Stage does not respond, 2')
+#        return False
 
     def stop_stage(self):
         utils.empty_queue(self.queues['stim']['in'])
@@ -2174,6 +2193,8 @@ class MainPoller(Poller):
         self.experiment_parameters = {}
         self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
         self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
+        self.read_stage()
+        self.experiment_parameters['stage_position']=self.stage_position
         if not self.experiment_parameters['intrinsic']:
             self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
             region_name = self.parent.get_current_region_name()
@@ -2590,7 +2611,9 @@ class MainPoller(Poller):
         self.emit(QtCore.SIGNAL('ask4confirmation'), action2confirm)
         while self.gui_thread_queue.empty() :
             time.sleep(0.1) 
-        return self.gui_thread_queue.get()
+        reply=self.gui_thread_queue.get()
+        self.printc('Ask for confirmation: {0}, {1}'.format(action2confirm, reply))
+        return reply
         
         
     def notify(self, msg):

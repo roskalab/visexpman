@@ -34,7 +34,7 @@ class StageControl(instrument.Instrument):
                                                                 parity = self.config.STAGE[self.id]['SERIAL_PORT']['parity'],
                                                                 stopbits = self.config.STAGE[self.id]['SERIAL_PORT']['stopbits'],
                                                                 bytesize = self.config.STAGE[self.id]['SERIAL_PORT']['bytesize'],
-                                                                timeout = 0.1)
+                                                                timeout = 0.1*15)
     def read_position(self):
         pass
         
@@ -48,8 +48,97 @@ class StageControl(instrument.Instrument):
                     self.serial_port.close()
                 except AttributeError:
                     pass
+                    
+class AllegraStage(serial.Serial):
+    def __init__(self,port, timeout=1,um_per_step=0.75/51.0):
+        serial.Serial.__init__(self,port, 19200, timeout=timeout)
+        self.um_per_step=um_per_step
+        time.sleep(0.1)
+        self.read(100)
+        
+    def reset(self):
+        self.setRTS(1)
+        time.sleep(20e-3)
+        self.setRTS(0)
+        time.sleep(0.5)
+        self.read(100)
+        
+    def joystick_on(self):
+        self.write('jon\n')
+        response=self.read(100)
+        if 'Joystick is on\r\n' not in response:
+            raise RuntimeError('Joystick cannot be enabled: "{0}"'.format(response))
+        
+    def joystick_off(self):
+        self.write('joff\n')
+        response=self.read(100)
+        if response!='Joystick is off\r\n':
+            raise RuntimeError('Joystick cannot be disabled: "{0}"'.format(response))
+        
+    def read_position(self):
+        ntrials=5
+        for trial in range(ntrials):
+            self.write('rx\nry\n')
+            time.sleep(0.5)
+            response=self.read(100)
+            try:
+                self.position = self.parse_position(response)
+                break
+            except:
+                if trial==ntrials-1:
+                    raise RuntimeError('Stage position cannot be read: "{0}"'.format(response))
+                else:
+                    time.sleep(0.5)
+        return self.position
+        
+    def parse_position(self, response):
+        values=[int(l[1:]) for l in response.split('\r\n')[:-1] if (l[0]=='X' or l[0]=='Y') and not ' ' in l]
+        if len(values)!=2:
+            raise RuntimeError('Stage position cannot be read: "{0}"'.format(response))
+        return numpy.array(values)*self.um_per_step
+        
+    def setparams(self, speed=5000,acceleration=2000):
+        self.speed=speed
+        self.acceleration=acceleration
+        self.write('velx {0}\naccx {1}\nvely {0}\naccy {1}\n'.format(int(speed), int(acceleration)))
+        self.read(100)#Flush
+        
+    def move(self,x,y):
+        if x>2000 or y>2000:
+            raise RuntimeError('Big movements are not supported')
+        self.joystick_off()
+        #self.read(100)#Flush
+        stepsx=int(x/self.um_per_step)
+        stepsy=int(y/self.um_per_step)
+        self.write('rx\nry\n')
+        time.sleep(0.1)
+        self.write('posx {0}\nposy {1}\n'.format(stepsx,stepsy))
+        time.sleep(0.05)
+        self.write('movrx\nmovry\n')
+        movement_time=1.2*float(max(abs(stepsx), abs(stepsy)))/self.speed
+        time.sleep(movement_time)
+        response=self.read(100)
+        lines=response.split('\r\n')
+        try:
+            initial_position = self.parse_position(response)
+        except:
+            self.joystick_on()
+            raise RuntimeError('Initial position unknown: {0}'.format('\r\n'.join(lines)))
+        if 'Done Y' not in lines or 'X Stopping' not in lines or 'X Rel. move' not in lines or 'Y Rel. move' not in lines:
+            self.joystick_on()
+            raise RuntimeError('Stage was not moved: "{0}"'.format('\r\n'.join(lines)))
+        self.joystick_on()
+        final_position=self.read_position()
+        if any(final_position-initial_position!=numpy.array([x,y])):
+            raise RuntimeError('Stage was not moved to desired position. Inital: {0}, final: {1}, movement: {2}, {3}'
+                .format(initial_position,final_position,x,y))
+        return final_position
                 
-class AllegraStage(StageControl):
+    def stop(self):
+        self.write('STOPALL\n')
+        return self.read(100)
+                
+class AllegraStageOld(StageControl):
     
     def init_instrument(self):
         if hasattr(self.config, 'STAGE'):
@@ -57,7 +146,7 @@ class AllegraStage(StageControl):
                 self.command_counter = 0
                 self.acceleration = self.config.STAGE[self.id]['ACCELERATION']
                 self.speed = self.config.STAGE[self.id]['SPEED']
-                self.reset_controller()
+                #self.reset_controller()
         self.read_position()
 
     def move(self, new_position, relative = True, speed = None, acceleration = None):
@@ -136,6 +225,7 @@ class AllegraStage(StageControl):
                 self.execute_command('rx\nry\nrz')
                 time.sleep(0.5) #used to be 0.5 s
                 response = self.serial_port.read(100)
+                print 'r',response
                 position = []
                 for line in response.replace('\r','').split('\n'):
                     if len(line) > 0:
@@ -161,6 +251,10 @@ class AllegraStage(StageControl):
         time.sleep(20e-3) #Min 20 ms
         self.serial_port.setRTS(False)
         time.sleep(0.5) #used to be 0.5 s
+        response = self.serial_port.read(100)
+        time.sleep(1)
+        response = self.serial_port.read(100)
+        print 'after reset', response
         
     def stop(self):
         self.execute_command('STOPALL')
@@ -172,6 +266,7 @@ class AllegraStage(StageControl):
         for cmd in commands:
             if len(cmd) > 0:
                 self.serial_port.write(cmd + '\n')
+                print 'c',cmd + '\n'
                 if wait_after_command:
                     time.sleep(100e-3) #Takes 100 ms to complete the command
                 self.command_counter += 1
@@ -314,15 +409,43 @@ class MotorTestConfig(visexpman.engine.generic.configuration.Config):
         self._create_parameters_from_locals(locals())
         
         #Test with different positions, speeds and accelerations, log, disabled
-#class TestAllegraStage(unittest.TestCase):
-class TestAllegraStage():
+class TestAllegraStage(unittest.TestCase):
+    def test_01(self):
+        a=AllegraStage('COM7',timeout=0.8)
+        a.reset()
+        a.setparams()
+        a.move(1,-200)
+        for i in range(3):
+            print a.read_position()
+        for j in range(3):
+            try:
+                a.move(10,20)
+                print '+',  j,   a.position
+            except:
+                print '+',  j,  'error',  a.position
+            try:
+                a.move(-10,-20)
+                print '-',  j,   a.position
+            except:
+                print '-',  j,  'error',  a.position
+        print a.position
+        a.close()
+#        a=AllegraStage('COM7',timeout=0.8)
+#        print a.read_position()
+#        a.close()
+
+        
+        
+
+class TestAllegraStageOld():
     def setUp(self):
         self.config = MotorTestConfig()
         self.stage = AllegraStage(self.config, None)
 
     def tearDown(self):
         self.stage.release_instrument()
-        
+    
+    @unittest.skip('')       
     def test_01_initialize_stage(self):
         self.assertEqual((hasattr(self.stage, 'SPEED'), hasattr(self.stage, 'ACCELERATION'), 
                         hasattr(self.stage, 'position'), hasattr(self.stage, 'position_ustep')),
@@ -336,13 +459,15 @@ class TestAllegraStage():
 #         result2 = self.motor.move(initial_position, relative = False)
 #         self.assertEqual((result1, result2, (abs(self.motor.position - initial_position)).sum()), (True, True, 0.0))
 
+    @unittest.skip('')   
     def test_03_relative_movement(self):
         initial_position = self.stage.position
         movement_vector = numpy.array([10000.0,1000.0,10.0])
         result1 = self.stage.move(movement_vector)
         result2 = self.stage.move(-movement_vector)
         self.assertEqual((result1, result2, (abs(self.stage.position - initial_position)).sum()), (True, True, 0.0))
-        
+    
+    @unittest.skip('')   
     def test_04_movements_stage_disabled(self):
         self.config.STAGE[0]['ENABLE'] = False
         self.stage.release_instrument()
@@ -352,6 +477,7 @@ class TestAllegraStage():
         result1 = self.stage.move(movement_vector)        
         self.assertEqual((result1, (abs(self.stage.position - initial_position)).sum()), (False, 0.0))
         
+    @unittest.skip('')       
     def test_05_big_movement_at_different_speeds(self):
         initial_position = self.stage.position
         movement_vector = numpy.array([300000.0,-50000.0,100.0])
@@ -376,6 +502,7 @@ class TestMotorizedGoniometer(unittest.TestCase):
     def tearDown(self):
         self.mg.release_instrument()
 
+    @unittest.skip('')   
     def test_01_goniometer_small_movement(self):
         angle_factor = -16.0
         movements = [angle_factor * numpy.array([1.0, 1.0])]#, -angle_factor * numpy.array([1.0, 2.0])]

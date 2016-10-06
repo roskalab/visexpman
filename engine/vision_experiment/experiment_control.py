@@ -295,7 +295,7 @@ class ExperimentControl(object):
                         self.printl('{0} is set to {1}'.format(parameter_name2set.replace('_', ' ').capitalize(), value))
                         setattr(self,  parameter_name2set,  value)
             #read stage and objective
-            raw_stage_pos = self.stage.read_position()
+            raw_stage_pos = numpy.zeros(3)#self.stage.read_position()
             self.stage_position = raw_stage_pos - self.stage_origin
             msg='DEBUG: Stage position abs {0}, rel: {1}, origin: {2}' .format(raw_stage_pos, self.stage_position, self.stage_origin)
             self.printl(msg,  application_log = True)
@@ -518,7 +518,7 @@ class ExperimentControl(object):
             self.filterwheels.append(instrument.Filterwheel(self.config, self.log, self.start_time, id =id))
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.analog_input = None #This is instantiated at the beginning of each fragment
-        self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
+        #self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
         if self.config.PLATFORM == 'mes':
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
@@ -528,7 +528,7 @@ class ExperimentControl(object):
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
         self.led_controller.release_instrument()
-        self.stage.release_instrument()
+        #self.stage.release_instrument()
 
 
     ############### File handling ##################
