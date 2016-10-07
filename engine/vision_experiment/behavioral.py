@@ -357,7 +357,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def airpuff(self):
         if not self.parameters['Enable Air Puff']: return
-        daq_instrument.set_digital_pulse('Dev1/port0/line0', self.parameters['Air Puff Duration'])
+        waveform=numpy.ones((1,1000*self.parameters['Air Puff Duration']+2))*5
+        waveform[0,0]=0
+        waveform[0,-1]=0
+        daq_instrument.set_waveform('Dev1/ao1',waveform,sample_rate = 1000)
+        #daq_instrument.set_digital_pulse('Dev1/port0/line0', self.parameters['Air Puff Duration'])
 #        self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Air Puff Duration']]})
         logging.info('Airpuff')
         now=time.time()

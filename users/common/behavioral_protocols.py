@@ -1,6 +1,46 @@
 import random,logging,time,numpy
 from visexpman.engine.vision_experiment.experiment import Protocol
 from visexpman.engine.hardware_interface import daq_instrument
+
+
+
+class LickResponse(Protocol):
+    DURATION_MIN=15
+    DURATION_MAX=30
+    TRIGGER_TIME=5
+    def generate_duration(self):
+        self.duration=numpy.round(numpy.random.random()*(self.DURATION_MAX-self.DURATION_MIN)+self.DURATION_MIN,0)-self.TRIGGER_TIME
+        logging.info('Expected, duration: {0} s'.format(self.duration, self.post_trigger_time+self.PRE_TRIGGER_TIME))
+        
+    def reset(self):
+        self.generate_duration()
+        self.trigger_fired=False
+        self.ai_started=False
+        self.fs=1000
+        self.waveform=self.engine.parameters['Laser Intensity']*numpy.ones((1,self.fs*self.engine.parameters['Pulse Duration']+1))
+        self.waveform[0,-1]=0
+        
+    def update(self):
+        now=time.time()
+        elapsed_time=now-self.engine.actual_recording_started
+        if not self.ai_started:
+            self.ai_started=True
+            self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',self.fs, self.duration)
+        if elapsed_time>=self.TRIGGER_TIME and not self.trigger_fired:
+            self.trigger_fired=True
+            analog_output, wf_duration = daq_instrument.set_waveform_start('Dev1/ao0',self.waveform,sample_rate = self.fs)
+            daq_instrument.set_digital_pulse('Dev1/port0/line0', self.engine.parameters['Water Open Time'])
+            wait=wf_duration - (time.time()-now)
+            if wait>0:
+                time.sleep(wait)
+            daq_instrument.set_waveform_finish(analog_output, 5)
+        if elapsed_time>self.duration:
+            self.engine.sync=self.ai.finish()
+            if 'sync' not in self.engine.varnames:
+                self.engine.varnames.append('sync')
+            self.engine.save_during_session()    
+        
+        
     
 class FearResponse(Protocol):
     '''
