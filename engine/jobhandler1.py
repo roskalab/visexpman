@@ -565,11 +565,15 @@ class DatafileDatabase(object):
                 lines[row['id']]=line
                 pass
             export_filename=self.filename.replace('.hdf5','_{0}.txt'.format(region))
-            fp=open(export_filename,'w')
-            ids=lines.keys()
-            ids.sort()
-            [fp.write(lines[i]) for i in ids]
-            fp.close()
+            try:
+                fp=open(export_filename,'w')
+                ids=lines.keys()
+                ids.sort()
+                [fp.write(lines[i]) for i in ids]
+                fp.close()
+            except IOError:
+                logging.info('Exporting {0} to {1} failed'.format(self.filename,export_filename))
+
             #chmod(export_filename)
 
     def close(self):

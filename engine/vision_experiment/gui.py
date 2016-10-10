@@ -792,6 +792,8 @@ class MainPoller(Poller):
             if not hasattr(self, 'mouse_file'):
                 return
             animalid= os.path.basename(self.mouse_file).split('_')[1]
+            if not hasattr(self.parent,'main_widget'):#gui has not yet started 
+                return
             region=str(self.parent.get_current_region_name())
             user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
             path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
@@ -1455,7 +1457,7 @@ class MainPoller(Poller):
         if abs(movement[0]) > self.config.TILTING_LIMIT or abs(movement[1]) > self.config.TILTING_LIMIT:
             self.printc('Requested tilting is too big')
             return
-        if not self.ask4confirmation('Make surre that anesthesia tube not touching mouse nose'):
+        if not self.ask4confirmation('Make sure that anesthesia tube not touching mouse nose'):
             return
         mg = stage_control.MotorizedGoniometer(self.config, id = 1)
         speed = 150#IDEA: speed may depend on movement
@@ -2612,7 +2614,6 @@ class MainPoller(Poller):
         while self.gui_thread_queue.empty() :
             time.sleep(0.1) 
         reply=self.gui_thread_queue.get()
-        self.printc('Ask for confirmation: {0}, {1}'.format(action2confirm, reply))
         return reply
         
         

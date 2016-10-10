@@ -104,7 +104,7 @@ class AllegraStage(serial.Serial):
         self.read(100)#Flush
         
     def move(self,x,y):
-        if x>2000 or y>2000:
+        if abs(x)>2000 or abs(y)>2000:
             raise RuntimeError('Big movements are not supported')
         self.joystick_off()
         #self.read(100)#Flush
@@ -129,7 +129,9 @@ class AllegraStage(serial.Serial):
             raise RuntimeError('Stage was not moved: "{0}"'.format('\r\n'.join(lines)))
         self.joystick_on()
         final_position=self.read_position()
-        if any(final_position-initial_position!=numpy.array([x,y])):
+        movement=final_position-initial_position
+        error=numpy.array([x,y])-movement
+        if (abs(error)).sum()>1:
             raise RuntimeError('Stage was not moved to desired position. Inital: {0}, final: {1}, movement: {2}, {3}'
                 .format(initial_position,final_position,x,y))
         return final_position

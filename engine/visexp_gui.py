@@ -711,6 +711,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def ask4confirmation(self, action2confirm):
         utils.empty_queue(self.poller.gui_thread_queue)
         reply = QtGui.QMessageBox.question(self, 'Confirm following action', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        self.log.info('Ask for confirmation: {0}, {1}'.format(action2confirm, reply))
         if reply == QtGui.QMessageBox.No:
             self.poller.gui_thread_queue.put(False)
         else:
