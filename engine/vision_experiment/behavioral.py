@@ -344,7 +344,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on' if state else 'off']})
             
     def reward(self):
-        self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
+        if self.machine_config.__class__.__name__ == 'BehavioralSetup':
+            daq_instrument.set_digital_pulse('Dev1/port0/line0', self.parameters['Water Open Time'])
+        else:
+            self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
         logging.info('Reward')
         now=time.time()
         self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))

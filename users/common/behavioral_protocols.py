@@ -5,18 +5,24 @@ from visexpman.engine.hardware_interface import daq_instrument
 
 
 class LickResponse(Protocol):
+    '''
+    TBD
+    '''
     DURATION_MIN=15
     DURATION_MAX=30
     TRIGGER_TIME=5
+    SAMPLE_RATE=1000
+    LICK_WAIT_TIME=1.0#Successful lick is expected to happen after water delivery but within this time range
+    LICK_THRESHOLD=2.0#V
     def generate_duration(self):
         self.duration=numpy.round(numpy.random.random()*(self.DURATION_MAX-self.DURATION_MIN)+self.DURATION_MIN,0)-self.TRIGGER_TIME
-        logging.info('Expected, duration: {0} s'.format(self.duration, self.post_trigger_time+self.PRE_TRIGGER_TIME))
+        logging.info('Expected, duration: {0} s'.format(self.duration))
         
     def reset(self):
         self.generate_duration()
         self.trigger_fired=False
         self.ai_started=False
-        self.fs=1000
+        self.fs=self.SAMPLE_RATE
         self.waveform=self.engine.parameters['Laser Intensity']*numpy.ones((1,self.fs*self.engine.parameters['Pulse Duration']+1))
         self.waveform[0,-1]=0
         
@@ -38,9 +44,30 @@ class LickResponse(Protocol):
             self.engine.sync=self.ai.finish()
             if 'sync' not in self.engine.varnames:
                 self.engine.varnames.append('sync')
-            self.engine.save_during_session()    
+            self.engine.recording_started_state['sync']=0
+            self.engine.save_during_session()
+            
+    def sync2events(self, sync):
+        '''
+        ch 0: valve, ch1 lick
+        '''
+        from visexpman.engine.generic import signal
+        t_reward=signal.trigger_indexes(sync[:,1])[0]/float(self.SAMPLE_RATE)
+        sig=numpy.where(sync[:,0]>self.LICK_THRESHOLD,True,False)
+        lick_events=numpy.nonzero(numpy.diff(sig))[0][::2]/float(self.SAMPLE_RATE)
+        nlicks=lick_events.shape[0]
+        dt=lick_events-t_reward
+        successful_licks=numpy.where(numpy.logical_and(dt>0, dt<self.LICK_WAIT_TIME))[0].shape[0]
+        success_rate=0 if successful_licks ==0 else 1.0
+        return success_rate, nlicks, successful_licks
         
-        
+    def stat(self):
+        if hasattr(self.engine, 'sync'):
+            success_rate, nlicks, successful_licks=self.sync2events(self.engine.sync)
+            return {'Number of licks':nlicks, 'Success Rate':success_rate, 'Successful licks': successful_licks}
+        else:
+            return {'Success Rate':0.0}
+            
     
 class FearResponse(Protocol):
     '''
