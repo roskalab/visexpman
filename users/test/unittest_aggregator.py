@@ -188,8 +188,6 @@ def select_path_exists(paths, dirs = True):
             return path
             
 TEST_valid_file = select_path_exists(['/mnt/rzws/codes/visexpman/__init__.py', '/etc/fstab', 'c:\\temp\\dummy.txt', 'r:\\codes\\visexpman\\__init__.py', 'x:\\src\\visexpman\\__init__.py', 'v:\\codes\\ao-cortical\\visexpman\\__init__.py', 'c:\\Users\\rz\\codes\\__init__.py', 'c:\\WINDOWS\\TASKMAN.exe'],dirs=False)
-if TEST_valid_file is None:
-    raise IOError('TEST_valid_file parameter incorrect')
 TEST_invalid_file = '/home'
     
 def prepare_test_data(modulename, working_folder=None, clean_working_dir = True, copy_only_first_file = False):

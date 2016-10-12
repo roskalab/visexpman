@@ -8,7 +8,7 @@ class UltrasoundSetupConfig(UltrasoundConfig):
     def _set_user_parameters(self):
         self.BACKGROUND_COLOR=[0.0]*3
         FULLSCREEN = True
-        self.root_folder = 'v:\\'
+        self.root_folder = 'x:\\ultrasound'
         LOG_PATH = os.path.join(self.root_folder,'log')
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
         CONTEXT_PATH = os.path.join(self.root_folder,'context')
@@ -74,23 +74,17 @@ class UltrasoundSetupConfigDebug(UltrasoundSetupConfig):
 class UltrasoundSetupConfigDevOffline(UltrasoundSetupConfig):
     def _set_user_parameters(self):
         UltrasoundSetupConfig._set_user_parameters(self)
-        self.EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.SCREEN_RESOLUTION = utils.cr([800,600])
-        #self.SCREEN_RESOLUTION = utils.cr([1366, 768])
         self.SCREEN_POSITION=utils.cr([0, 0])
         self.FULLSCREEN=False
-        self.SCREEN_MODE = 'psychopy'
-        self.PSYCHOPY_MONITOR_NAME='testMonitor'
+#        self.SCREEN_MODE = 'psychopy'
+#        self.PSYCHOPY_MONITOR_NAME='testMonitor'
         stim_computer_ip = '127.0.0.1'
         behavioral_computer_ip = '127.0.0.1'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         self.CONNECTIONS['behavioral']['ip']['behavioral'] = behavioral_computer_ip
         self.CONNECTIONS['behavioral']['ip']['main_ui'] = behavioral_computer_ip
-        self.root_folder = 'c:\\Data'
-        self.LOG_PATH = os.path.join(self.root_folder,'log')
-        self.EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
-        self.CONTEXT_PATH = os.path.join(self.root_folder,'context')
         self.DIGITAL_IO_PORT=False
 
 class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):
