@@ -565,7 +565,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
+                self._start_frame_capture()
                 self.run()
+                self._stop_frame_capture()
             except:
                 self.send({'trigger':'stim error'})
                 exc_info = sys.exc_info()
@@ -610,6 +612,17 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
     def check_abort(self):
         if is_key_pressed(self.machine_config.KEYS['abort']) or utils.get_key(self.recv(put_message_back=True), 'function') == 'stop_all':
             self.abort = True
+            
+    def _start_frame_capture(self):
+        '''
+        ensures that frame capture is started when stimulus is running
+        
+        '''
+        if self.machine_config.ENABLE_FRAME_CAPTURE:
+           self.screen.start_frame_capture=True
+           
+    def _stop_frame_capture(self):
+        self.screen.start_frame_capture=False
 
     def _prepare_data2save(self):
         '''
