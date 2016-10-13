@@ -453,8 +453,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.plot.setLabels(bottom='sec')
             self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.cellbrowser=CellBrowser(self)
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
@@ -475,7 +476,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab.addTab(self.params, 'Parameters')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.main_tab.addTab(self.analysis, 'Analysis')
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
+        if self.machine_config.PLATFORM in ['us_cortical']:
+            self.eye_camera=gui.Image(self)
+            self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.advanced, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -557,6 +562,13 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.statusbar.showMessage(msg['update_network_status'])
             elif msg.has_key('highlight_multiple_rois'):
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
+            elif msg.has_key('eye_camera_image'):
+                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 1)
+                h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
+                if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
+                self.eye_camera.setFixedHeight(h)
+                self.eye_camera.plot.setTitle(time.time())
+                
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             
@@ -627,8 +639,9 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Number of Trials', 'type': 'int', 'value': 1},
                     {'name': 'Motor Positions', 'type': 'str', 'value': ''},
                     ]},
-            
             )
+            self.params_config[0]['expanded']=True
+            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
                         
 
     ############# Actions #############

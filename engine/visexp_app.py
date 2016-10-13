@@ -549,5 +549,9 @@ if __name__=='__main__':
         if '--kill' in sys.argv:
             introspect.kill_other_python_processes()
         run_application()
+        import psutil
+        psutil.Process(os.getpid()).kill()#Sometimes the application does not terminate however all processes are terminated. psutil.Process(os.getpid()).open_files() fails
+        
     else:
         unittest.main()
+    

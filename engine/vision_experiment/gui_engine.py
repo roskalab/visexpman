@@ -17,7 +17,7 @@ except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
 from visexpman.engine.visexp_app import stimulation_tester
 
@@ -60,7 +60,7 @@ class ExperimentHandler(object):
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
-            if 0 and hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical']:
+            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical']:
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
                 self.sync_recorder.start()
             self.sync_recording_started=False
@@ -68,6 +68,31 @@ class ExperimentHandler(object):
             self.experiment_finish_time=time.time()
             self.batch_running=False
             self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
+            self.eye_camera_running=False
+            
+    def start_eye_camera(self):
+        if not self.eye_camera_running:
+            self.printc('Start eye camera')
+            self.eye_camera=camera_interface.ImagingSourceCamera(None)
+            self.eye_camera.frame_rate=15.0
+            self.eye_camera.set_framerate()
+            self.eye_camera.start()
+            self.eye_camera_running=True
+        
+    def stop_eye_camera(self):
+        if self.eye_camera_running:
+            self.printc('Stop eye camera')
+            self.eye_camera_running=False
+            self.eye_camera.stop()
+            self.eye_camera.close()
+        
+    def eyecamera2screen(self):
+        if self.eye_camera_running:
+            self.eye_camera.save()
+            if len(self.eye_camera.frames)>0:
+                if self.to_gui.qsize()<5:#To avoid data congestion
+                    self.to_gui.put({'eye_camera_image':self.eye_camera.frames[-1][::2,::2].T})
+                    self.eye_camera.frames=[]
     
     def open_stimulus_file(self, filename, classname):
         if not os.path.exists(filename):
@@ -95,18 +120,26 @@ class ExperimentHandler(object):
                 cmd='SOCcolorEOC{0}EOP'.format(int(self.guidata.read('Grey Level')*1e-2*255))
                 utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
                 self.printc(cmd)
-                
             else:
                 self.send({'function': 'set_context_variable','args':['background_color',self.guidata.read('Grey Level')*1e-2]},'stim')            
         elif parameter_name == 'Stimulus Center X' or parameter_name == 'Stimulus Center Y':
             v=utils.rc((self.guidata.read('Stimulus Center Y'), self.guidata.read('Stimulus Center X')))
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')
+        elif parameter_name == 'Enable Eye Camera':
+            state=self.guidata.read('Enable Eye Camera')
+            if state:
+                self.start_eye_camera()
+            else:
+                self.stop_eye_camera()
             
     def _get_experiment_parameters(self):
         '''
         Parse parameters, user interface inputs for generating experiment parameters
         '''
         cf=self.guidata.read('Selected experiment class')
+        if cf == None:
+            self.notify('Warning', 'Select stimulus')
+            return
         classname=cf.split(os.sep)[-1]
         filename=os.sep.join(cf.split(os.sep)[:-1])
         stimulus_source_code = fileop.read_text_file(filename)
@@ -133,7 +166,7 @@ class ExperimentHandler(object):
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
         if self.machine_config.PLATFORM=='us_cortical':
-            for pn in ['Protocol', 'Number of Trials', 'Motor Positions']:
+            for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Eye Camera']:
                 experiment_parameters[pn]=self.guidata.read(pn)
             experiment_parameters['motor position']=0
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
@@ -152,6 +185,8 @@ class ExperimentHandler(object):
             return
         self.printc('Generating batch, please wait')
         experiment_parameters=self._get_experiment_parameters()
+        if experiment_parameters==None:
+            return
         if self.machine_config.PLATFORM == 'us_cortical':
             if not (experiment_parameters['Number of Trials']>1 or ',' in experiment_parameters['Motor Positions']):
                 self.notify('Warning', 'Batch cannot be generated. Motor Positions shall be configured or Number of Trials shall be greater than 1!')
@@ -209,6 +244,8 @@ class ExperimentHandler(object):
             return
         if experiment_parameters==None:
             experiment_parameters=self._get_experiment_parameters()
+            if experiment_parameters==None:
+                return
         if self.machine_config.PLATFORM=='ao_cortical':
             if not self.ask4confirmation('Is AO line scan selected on MES user interface? Do you want to continue experiment?'):
                 return
@@ -220,6 +257,12 @@ class ExperimentHandler(object):
             self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
+        if experiment_parameters['Enable Eye Camera']:
+            self.stop_eye_camera()
+            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), 'eye_cam_{0}.hdf5'.format(experiment_parameters['id']))
+            self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename)
+            self.eye_camera_running=True
+            self.printc('Saving eye video')
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -237,7 +280,6 @@ class ExperimentHandler(object):
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
-        
         
     def finish_experiment(self):
         self.printc('Finishing experiment...')
@@ -272,6 +314,10 @@ class ExperimentHandler(object):
                         break
                     time.sleep(1)
             self._stop_sync_recorder()
+            if hasattr(self, 'eye_camera') and self.eye_camera.isrunning:
+                self.eye_camera.stop()
+                self.eye_camera_running=False
+                self.start_eye_camera()
             self.experiment_running=False
             self.experiment_finish_time=time.time()
             
@@ -280,11 +326,22 @@ class ExperimentHandler(object):
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
+            if hasattr(self, 'eye_camera_filename'):
+                os.remove(self.eye_camera_filename)
         else:
             if hasattr(self, 'daqdatafile'):
                 #shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
-                shutil.move(self.daqdatafile.filename,fn)
+                if not os.path.exists(os.path.dirname(fn)):
+                    time.sleep(0.1)
+                shutil.copy(self.daqdatafile.filename,fn)
+                try:
+                    os.remove(self.daqdatafile.filename)
+                except:
+                    self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
+            if hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
+                self.printc('TODO: save tmp eye camera image')
+                shutil.move(self.eye_camera_filename, os.path.dirname(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -331,9 +388,9 @@ class ExperimentHandler(object):
             self.daqdatafile.hdf5.save('machine_config')
             self.daqdatafile.close()
             
-            
     def run_all_iterations(self):
         self.check_batch()
+        self.eyecamera2screen()
         if self.sync_recording_started:
             self.read_sync_recorder()
             if self.santiago_setup:
@@ -410,6 +467,7 @@ class ExperimentHandler(object):
             self.sync_recorder.queues['command'].put('terminate')
             self.sync_recorder.join()
             self.log.info('Sync recorder terminated')
+        self.stop_eye_camera()
 
 class Analysis(object):
     def __init__(self,machine_config):

@@ -86,7 +86,11 @@ class UltrasoundSetupConfigDevOffline(UltrasoundSetupConfig):
         self.CONNECTIONS['behavioral']['ip']['behavioral'] = behavioral_computer_ip
         self.CONNECTIONS['behavioral']['ip']['main_ui'] = behavioral_computer_ip
         self.DIGITAL_IO_PORT=False
-
+        self.root_folder = 'c:\\ultrasound'
+        self.LOG_PATH = os.path.join(self.root_folder,'log')
+        self.EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
+        self.CONTEXT_PATH = os.path.join(self.root_folder,'context')
+        
 class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):
     '''
     '''
