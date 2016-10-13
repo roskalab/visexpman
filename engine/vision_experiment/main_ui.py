@@ -426,7 +426,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
+            toolbar_buttons = ['start_experiment', 'start_batch', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='ao_cortical':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
@@ -453,18 +453,17 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.plot.setLabels(bottom='sec')
             self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.cellbrowser=CellBrowser(self)
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
-        
-        filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
-        self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
-        self.analysis_helper = AnalysisHelper(self.analysis)
-        self.analysis.layout = QtGui.QGridLayout()
-        self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
-        self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
-        self.analysis.setLayout(self.analysis.layout)
+            filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+            self.analysis_helper = AnalysisHelper(self.analysis)
+            self.analysis.layout = QtGui.QGridLayout()
+            self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
+            self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
+            self.analysis.setLayout(self.analysis.layout)
         
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
@@ -474,7 +473,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.main_tab.addTab(self.analysis, 'Analysis')
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.advanced, 'Advanced')
@@ -625,8 +624,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config.append(
             {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
                     {'name': 'Protocol', 'type': 'list', 'values': self.machine_config.ULTRASOUND_PROTOCOLS},
-                    {'name': 'Number of Trials', 'type': 'int', 'value': 10},
-                    {'name': 'Enable Motor Positions', 'type': 'bool', 'value': False, },
+                    {'name': 'Number of Trials', 'type': 'int', 'value': 1},
                     {'name': 'Motor Positions', 'type': 'str', 'value': ''},
                     ]},
             
@@ -636,6 +634,9 @@ class MainUI(gui.VisexpmanMainWindow):
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
+        
+    def start_batch_action(self):
+        self.to_engine.put({'function': 'start_batch', 'args':[]})
         
     def stop_action(self):
         self.to_engine.put({'function': 'stop_experiment', 'args':[]})

@@ -29,7 +29,7 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         self.SCREEN_WIDTH=600#mm
         self.SCREEN_MOUSE_DISTANCE=180#mm
         self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.radians(1.0/self.MOUSE_1_VISUAL_DEGREE_ON_RETINA))*self.SCREEN_MOUSE_DISTANCE/(self.SCREEN_WIDTH/float(self.SCREEN_RESOLUTION['col']))        
-        self.GUI['SIZE'] =  utils.cr((600,400))
+        self.GUI['SIZE'] = utils.cr((600,400))
         self.SYNC_RECORDER_CHANNELS='Dev2/ai0:4'#stim sync and block trigger, ultrasound frame sync, behavioral reward, video recorder sync
         self.SYNC_RECORDER_SAMPLE_RATE=5000
         self.SYNC_RECORDING_BUFFER_TIME=5.0

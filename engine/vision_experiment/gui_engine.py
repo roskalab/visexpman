@@ -60,11 +60,13 @@ class ExperimentHandler(object):
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
-            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical']:
+            if 0 and hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical']:
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
                 self.sync_recorder.start()
             self.sync_recording_started=False
             self.experiment_running=False
+            self.experiment_finish_time=time.time()
+            self.batch_running=False
             self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
     
     def open_stimulus_file(self, filename, classname):
@@ -99,13 +101,11 @@ class ExperimentHandler(object):
         elif parameter_name == 'Stimulus Center X' or parameter_name == 'Stimulus Center Y':
             v=utils.rc((self.guidata.read('Stimulus Center Y'), self.guidata.read('Stimulus Center X')))
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')
-        
-    def start_experiment(self):
-        if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
-            return
-        if self.sync_recording_started or self.experiment_running:
-            self.notify('Warning', 'Experiment already running')
-            return
+            
+    def _get_experiment_parameters(self):
+        '''
+        Parse parameters, user interface inputs for generating experiment parameters
+        '''
         cf=self.guidata.read('Selected experiment class')
         classname=cf.split(os.sep)[-1]
         filename=os.sep.join(cf.split(os.sep)[:-1])
@@ -133,13 +133,83 @@ class ExperimentHandler(object):
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
         if self.machine_config.PLATFORM=='us_cortical':
-            for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Motor Positions']:
+            for pn in ['Protocol', 'Number of Trials', 'Motor Positions']:
                 experiment_parameters[pn]=self.guidata.read(pn)
+            experiment_parameters['motor position']=0
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM=='ao_cortical':
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+self.machine_config.MES_RECORD_OVERHEAD))
+        return experiment_parameters
+            
+    def start_batch(self):
+        if self.machine_config.PLATFORM not in ['rc_cortical', 'us_cortical']:
+            self.notify('Warning', 'Batch experiments are not supported on {0} platform'.format(self.machine_config.PLATFORM ))
+            return
+        if self.batch_running:
+            self.notify('Warning', 'Batch is already running')
+            return
+        self.printc('Generating batch, please wait')
+        experiment_parameters=self._get_experiment_parameters()
+        if self.machine_config.PLATFORM == 'us_cortical':
+            if not (experiment_parameters['Number of Trials']>1 or ',' in experiment_parameters['Motor Positions']):
+                self.notify('Warning', 'Batch cannot be generated. Motor Positions shall be configured or Number of Trials shall be greater than 1!')
+                return
+            if ',' in experiment_parameters['Motor Positions']:
+                motor_positions=map(float,experiment_parameters['Motor Positions'].split(','))
+                start=motor_positions[0]
+                end=motor_positions[1]
+                step=motor_positions[2] if start<end else -motor_positions[2]
+                motor_positions=numpy.arange(start,end,step)
+                motor_positions_repeats=numpy.repeat(motor_positions, experiment_parameters['Number of Trials'])
+                self.batch=[]
+                for i in range(motor_positions_repeats.shape[0]):
+                    par=copy.deepcopy(experiment_parameters)
+                    par['motor position']=motor_positions_repeats[i]
+                    par['is batch']=True
+                    par['id']=experiment_data.get_id()
+                    if len(self.batch)>0 and par['id']==self.batch[-1]['id']:
+                        time.sleep(0.11)
+                        par['id']=experiment_data.get_id()
+                    par['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),par['id'])
+                    self.batch.append(par)
+            else:
+                experiment_parameters['is batch']=True
+                self.batch=[]
+                for i in range(experiment_parameters['Number of Trials']):
+                    par=copy.deepcopy(experiment_parameters)
+                    par['id']=experiment_data.get_id()
+                    if len(self.batch)>0 and par['id']==self.batch[-1]['id']:
+                        time.sleep(0.11)
+                        par['id']=experiment_data.get_id()
+                    par['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),par['id'])
+                    self.batch.append(par)
+            [self.printc('Batch generated: {0}/{1} um' .format(b['id'], b['motor position'])) for b in self.batch]
+        elif self.machine_config.PLATFORM == 'rc_cortical':
+            raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
+        self.batch_running=True
+        
+    def check_batch(self):
+        if self.batch_running:
+            if not self.experiment_running and time.time()-self.experiment_finish_time>self.machine_config.WAIT_BETWEEN_BATCH_JOBS:
+                if len(self.batch)==0:
+                    self.batch_running=False
+                    self.notify('Info', 'Batch finished')
+                    return
+                self.printc('Starting next batch item, {0} left'.format(len(self.batch)))
+                self.start_experiment(experiment_parameters=self.batch[0])
+                self.batch=self.batch[1:]
+        
+    def start_experiment(self, experiment_parameters=None):
+        if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
+            return
+        if self.sync_recording_started or self.experiment_running:
+            self.notify('Warning', 'Experiment already running')
+            return
+        if experiment_parameters==None:
+            experiment_parameters=self._get_experiment_parameters()
+        if self.machine_config.PLATFORM=='ao_cortical':
             if not self.ask4confirmation('Is AO line scan selected on MES user interface? Do you want to continue experiment?'):
                 return
         if hasattr(self, 'sync_recorder'):
@@ -157,12 +227,13 @@ class ExperimentHandler(object):
             utils.send_udp(self.machine_config.CONNECTIONS['ca_imaging']['ip']['ca_imaging'],446,cmd)
             time.sleep(1)
             #UDP command for stim including path and stimulus source code
+            stimulus_source_code=[v for k, v in experiment_parameters.keys() if 'source_code' in k][0]
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
         else:
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
-        self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_duration))
+        self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_parameters['duration']))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
@@ -202,6 +273,7 @@ class ExperimentHandler(object):
                     time.sleep(1)
             self._stop_sync_recorder()
             self.experiment_running=False
+            self.experiment_finish_time=time.time()
             
     def save_experiment_files(self, aborted=False):
         fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
@@ -210,7 +282,7 @@ class ExperimentHandler(object):
                 os.remove(self.daqdatafile.filename)
         else:
             if hasattr(self, 'daqdatafile'):
-                shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
+                #shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
                 shutil.move(self.daqdatafile.filename,fn)
                 self.printc('Sync data saved to {0}'.format(fn))
             if self.santiago_setup:
@@ -261,6 +333,7 @@ class ExperimentHandler(object):
             
             
     def run_all_iterations(self):
+        self.check_batch()
         if self.sync_recording_started:
             self.read_sync_recorder()
             if self.santiago_setup:
@@ -268,6 +341,12 @@ class ExperimentHandler(object):
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
 
     def stop_experiment(self):
+        if self.batch_running:
+            self.batch_running=False
+            self.batch=[]
+            if self.ask4confirmation('Terminate only batch?'):
+                self.printc('Batch terminated')
+                return
         self.printc('Aborting experiment, please wait...')
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
