@@ -34,7 +34,7 @@ class StageControl(instrument.Instrument):
                                                                 parity = self.config.STAGE[self.id]['SERIAL_PORT']['parity'],
                                                                 stopbits = self.config.STAGE[self.id]['SERIAL_PORT']['stopbits'],
                                                                 bytesize = self.config.STAGE[self.id]['SERIAL_PORT']['bytesize'],
-                                                                timeout = 0.1*15)
+                                                                timeout = 0.1)
     def read_position(self):
         pass
         
@@ -65,12 +65,14 @@ class AllegraStage(serial.Serial):
         
     def joystick_on(self):
         self.write('jon\n')
+        time.sleep(0.3)
         response=self.read(100)
         if 'Joystick is on\r\n' not in response:
             raise RuntimeError('Joystick cannot be enabled: "{0}"'.format(response))
         
     def joystick_off(self):
         self.write('joff\n')
+        time.sleep(0.3)
         response=self.read(100)
         if response!='Joystick is off\r\n':
             raise RuntimeError('Joystick cannot be disabled: "{0}"'.format(response))
@@ -110,12 +112,18 @@ class AllegraStage(serial.Serial):
         #self.read(100)#Flush
         stepsx=int(x/self.um_per_step)
         stepsy=int(y/self.um_per_step)
-        self.write('rx\nry\n')
-        time.sleep(0.1)
-        self.write('posx {0}\nposy {1}\n'.format(stepsx,stepsy))
-        time.sleep(0.05)
-        self.write('movrx\nmovry\n')
-        movement_time=1.2*float(max(abs(stepsx), abs(stepsy)))/self.speed
+        self.write('rx\n')
+        self.write('ry\n')
+        time.sleep(0.3)
+        self.write('posx {0}\n'.format(stepsx))
+        time.sleep(0.3)
+        self.write('posy {0}\n'.format(stepsy))
+        time.sleep(0.3)
+        self.write('movrx\n')
+        time.sleep(0.3)
+        self.write('movry\n')
+        time.sleep(0.3)
+        movement_time=1.5*float(max(abs(stepsx), abs(stepsy)))/self.speed
         time.sleep(movement_time)
         response=self.read(100)
         lines=response.split('\r\n')

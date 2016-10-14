@@ -782,7 +782,7 @@ class MainPoller(Poller):
         self.process_status_timer.start(10000)
         self.first_mouse_file_created=False
         if STAGE:
-            self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=0.8)
+            self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
             self.stage.reset()
             self.stage.setparams()
             self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
@@ -1459,10 +1459,13 @@ class MainPoller(Poller):
             return
         if not self.ask4confirmation('Make sure that anesthesia tube not touching mouse nose'):
             return
+        self.printc('Init goniometer')
         mg = stage_control.MotorizedGoniometer(self.config, id = 1)
+        self.printc('Set goniometer speed')
         speed = 150#IDEA: speed may depend on movement
         if mg.set_speed(speed):
             time.sleep(1.0)
+            self.printc('Moving goniometer')
             result = mg.move(numpy.array(movement))
             if not result:
                 self.printc('Tilting was NOT successful')
