@@ -158,7 +158,7 @@ class ElphysUI(gui.SimpleAppWindow):
         trigger_message='sec {0} filename {1}'.format(imaging_duration,self.imaging_filename)
         self.recordingq=Queue.Queue()
         #ai5: y sacnner signal
-        self.daq=DaqRecorder(self.clamp_signal_command, self.sample_rate, 'Dev1/ai11:14','Dev1/ao0',trigger_message, imaging_ip,self.recordingq)
+        self.daq=DaqRecorder(self.clamp_signal_command, self.sample_rate, 'Dev1/ai10:14','Dev1/ao0',trigger_message, imaging_ip,self.recordingq)
         self.daq.start()
         self.running=True
         self.log('Recording started, trigger message: {0}'.format(trigger_message))
