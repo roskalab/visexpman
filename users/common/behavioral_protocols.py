@@ -31,7 +31,7 @@ class LickResponse(Protocol):
         elapsed_time=now-self.engine.actual_recording_started
         if not self.ai_started:
             self.ai_started=True
-            self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',self.fs, self.duration)
+            self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:2',self.fs, self.duration)
         if elapsed_time>=self.TRIGGER_TIME and not self.trigger_fired:
             self.trigger_fired=True
             analog_output, wf_duration = daq_instrument.set_waveform_start('Dev1/ao0',self.waveform,sample_rate = self.fs)

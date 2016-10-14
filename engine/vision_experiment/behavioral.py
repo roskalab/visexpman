@@ -374,7 +374,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if channel=='air':
             self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,'on' if state else 'off']})
         elif channel=='water':
-            self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
+            if self.machine_config.__class__.__name__ == 'BehavioralSetup':
+                daq_instrument.set_digital_line('Dev1/port0/line0', state)
+            else:
+                self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
         
     def stimulate(self,waveform=None):
         now=time.time()
