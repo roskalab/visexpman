@@ -30,13 +30,14 @@ from visexpman.engine.hardware_interface import scanner_control,daq_instrument,i
 from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui,fileop,stringop,introspect,utils,colors,signal
 
+#OBSOLETE
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
               
 UNSELECTED_ROI_COLOR = (150,100,100)
 SELECTED_ROI_COLOR = (255,00,0)              
 ############### Common widgets ###############
-#OBSOLETE
+
 class StandardIOWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)

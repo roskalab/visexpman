@@ -200,7 +200,9 @@ class testParameter(unittest.TestCase):
         value = '/home/unknown_user'
         self.assertRaises(IOError,  Parameter,  value,  is_path = True)
         
-    def test_03_valid_file_parameter(self):     
+    def test_03_valid_file_parameter(self):
+        if unittest_aggregator.TEST_valid_file==None:
+            raise IOError('TEST_valid_file parameter incorrect')
         p = Parameter(unittest_aggregator.TEST_valid_file,  is_file = True)
         self.assertEqual((p._type,  p.v),  ('file', unittest_aggregator.TEST_valid_file))
         

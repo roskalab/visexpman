@@ -311,6 +311,7 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         self.datafile=tables.open_file(filename, 'w')
         self.datafile.create_earray(self.datafile.root, 'ic_frames', tables.UInt8Atom((480, 744)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='blosc', shuffle = 1))
         self.datafile.create_earray(self.datafile.root, 'ic_timestamps', tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
+        self.start()
         
     def save(self):
         ImagingSourceCamera.save(self)
@@ -321,6 +322,7 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
     def stop(self):
         ImagingSourceCamera.stop(self)
         self.datafile.close()
+        self.close()
         
 
 class TestISConfig(configuration.Config):
