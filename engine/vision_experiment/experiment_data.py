@@ -11,7 +11,7 @@ import hashlib
 import string
 import shutil
 import tempfile
-import time
+import time,datetime
 import StringIO
 from PIL import Image,ImageDraw
 
@@ -72,12 +72,12 @@ def parse_recording_filename(filename):
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
     items['extension'] = fileop.file_extension(filename)
-    fnp = items['file'].replace(items['extension'],'').split('_')
+    fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
-    #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
-    offset = 1 if len(fnp[-1]) != 12 else 0
-    items['id'] = fnp[-1-offset]
-    items['experiment_name'] = fnp[-2-offset]
+    #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
+    offset = 2 if len(fnp[-1]) == 1 else 1
+    items['id'] = fnp[-offset]
+    items['experiment_name'] = fnp[-1-offset]
     items['tag'] = fnp[1]
     return items
         
@@ -146,13 +146,28 @@ def check(h, config):
     return error_messages
     
 def get_id(timestamp=None):
+    '''
+    unique id for datafiles:
+        v1: unix timestamp
+        v2: unix timestamp - epoch to make it shorter
+        v3: yyyymmddhhmmss format for better readability
+    '''
+    version='v3'
     if timestamp is None:
         timestamp = time.time()
     epoch = time.mktime((2014, 11, 01, 0,0,0,0,0,0))
-    if 0:
+    if version=='v2':
         return str(int(numpy.round(timestamp-epoch, 1)*10))
-    else:
+    elif version=='v1':
         return str(int(numpy.round(timestamp, 1)*10))
+    elif version=='v3':
+        time_struct = time.localtime(timestamp)
+        return '{0:0=4}{1:0=2}{2:0=2}{3:0=2}{4:0=2}{5:0=2}{6}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec,int(10*(timestamp-int(timestamp))))
+
+def id2timestamp(id_str):
+    format="%Y%m%d%H%M%S"
+    return time.mktime(datetime.datetime.strptime(id_str[:-1], format).timetuple())+int(id_str[-1])*0.1
+    
 
 ############### Preprocess measurement data ####################
 if hdf5io_available:

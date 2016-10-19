@@ -1,51 +1,31 @@
 import random,logging,time,numpy
-from visexpman.engine.vision_experiment.experiment import Protocol
+from visexpman.engine.vision_experiment.experiment import Protocol,BehavioralProtocol
 from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.engine.analysis import behavioral_data
 
 
 
-class LickResponse(Protocol):
+class LickResponse(BehavioralProtocol):
     '''
     TBD
     '''
-    DURATION_MIN=15
-    DURATION_MAX=30
-    TRIGGER_TIME=5
-    SAMPLE_RATE=1000
-    LICK_WAIT_TIME=1.0#Successful lick is expected to happen after water delivery but within this time range
-    LICK_THRESHOLD=2.0#V
-    def generate_duration(self):
-        self.duration=numpy.round(numpy.random.random()*(self.DURATION_MAX-self.DURATION_MIN)+self.DURATION_MIN,0)-self.TRIGGER_TIME
-        logging.info('Expected, duration: {0} s'.format(self.duration))
-        
-    def reset(self):
-        self.generate_duration()
-        self.trigger_fired=False
-        self.ai_started=False
-        self.fs=self.SAMPLE_RATE
-        self.waveform=self.engine.parameters['Laser Intensity']*numpy.ones((1,self.fs*self.engine.parameters['Pulse Duration']+1))
+    DURATION_MIN=10/2
+    DURATION_MAX=20/2
+    TRIGGER_TIME=2
+    LICK_WAIT_TIME=1.0#Successful lick is expected to happen after laser pulse finished but within this time range
+    
+    def prepare(self):
+        self.waveform=self.engine.parameters['Laser Intensity']*numpy.ones((1,self.engine.machine_config.AI_SAMPLE_RATE*self.engine.parameters['Pulse Duration']+1))
         self.waveform[0,-1]=0
         
-    def update(self):
+    def triggered(self):
         now=time.time()
-        elapsed_time=now-self.engine.actual_recording_started
-        if not self.ai_started:
-            self.ai_started=True
-            self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:2',self.fs, self.duration)
-        if elapsed_time>=self.TRIGGER_TIME and not self.trigger_fired:
-            self.trigger_fired=True
-            analog_output, wf_duration = daq_instrument.set_waveform_start('Dev1/ao0',self.waveform,sample_rate = self.fs)
-            daq_instrument.set_digital_pulse('Dev1/port0/line0', self.engine.parameters['Water Open Time'])
-            wait=wf_duration - (time.time()-now)
-            if wait>0:
-                time.sleep(wait)
-            daq_instrument.set_waveform_finish(analog_output, 5)
-        if elapsed_time>self.duration:
-            self.engine.sync=self.ai.finish()
-            if 'sync' not in self.engine.varnames:
-                self.engine.varnames.append('sync')
-            self.engine.recording_started_state['sync']=0
-            self.engine.save_during_session()
+        analog_output, wf_duration = daq_instrument.set_waveform_start('Dev1/ao0',self.waveform,sample_rate = self.engine.machine_config.AI_SAMPLE_RATE)
+        daq_instrument.set_digital_pulse('Dev1/port0/line0', self.engine.parameters['Water Open Time'])
+        wait=wf_duration - (time.time()-now)
+        if wait>0:
+            time.sleep(wait)
+        daq_instrument.set_waveform_finish(analog_output, 5)
             
     def sync2events(self, sync):
         '''
@@ -62,12 +42,23 @@ class LickResponse(Protocol):
         return success_rate, nlicks, successful_licks
         
     def stat(self):
-        if hasattr(self.engine, 'sync'):
-            success_rate, nlicks, successful_licks=self.sync2events(self.engine.sync)
-            return {'Number of licks':nlicks, 'Success Rate':success_rate, 'Successful licks': successful_licks}
-        else:
-            return {'Success Rate':0.0}
-            
+        nlicks=0
+        success_rate=0
+        successful_licks=0
+        lick=self.engine.sync[:,0]
+        stimulus=self.engine.sync[:,2]
+        fsample=self.engine.machine_config.AI_SAMPLE_RATE
+        self.events,self.lick_times,self.successful_lick_times = \
+                        behavioral_data.lick_detection(lick,stimulus,fsample,self.LICK_WAIT_TIME,
+                                    self.engine.parameters['Voltage Threshold'],
+                                    self.engine.parameters['Max Lick Duration'],
+                                    self.engine.parameters['Min Lick Duration'],
+                                    self.engine.parameters['Mean Voltage Threshold'])
+        success_rate = 100 if self.successful_lick_times.shape[0]>0 else 0
+        nlicks=self.lick_times.shape[0]
+        successful_licks=self.successful_lick_times.shape[0]
+        self.stat={'Number of licks':nlicks, 'Success Rate':success_rate, 'Successful licks': successful_licks}
+        return self.stat
     
 class FearResponse(Protocol):
     '''
@@ -86,7 +77,7 @@ class FearResponse(Protocol):
     ENABLE_AIRPUFF=True
     ENABLE_AUDITORY_STIMULUS=False
     ENABLE_VISUAL_STIMULUS=False
-    STIMULUS_DURATION=10.0
+    STIMULUS_DURATION=2.0
     STIMULUS_ONTIME=1.0
     STIMULUS_OFFTIME=1.0
     TRIGGER_TIME_MIN=12.0#cannot be less than PRE_TRIGGER_TIME
@@ -111,8 +102,12 @@ class FearResponse(Protocol):
         stimulus=numpy.tile(numpy.concatenate(
                         (numpy.ones(self.STIMULUS_ONTIME*self.engine.machine_config.STIM_SAMPLE_RATE), 
                         numpy.zeros(self.STIMULUS_OFFTIME*self.engine.machine_config.STIM_SAMPLE_RATE))
-                        ),npulses)*self.engine.parameters['Laser Intensity']
+                        ),npulses)*self.engine.parameters['Laser Intensity']*self.ENABLE_VISUAL_STIMULUS
         stim_start=self.PRE_TRIGGER_TIME*self.engine.machine_config.STIM_SAMPLE_RATE
+        import logging
+        logging.info(stimulus.shape)
+        logging.info(self.waveform.shape)
+        logging.info(stim_start)
         self.waveform[0,stim_start:stim_start+stimulus.shape[0]]=stimulus
         airpuff_start=(self.PRE_TRIGGER_TIME+self.AIRPUFF_TIME)*self.engine.machine_config.STIM_SAMPLE_RATE
         self.waveform[1, airpuff_start:airpuff_start+self.engine.parameters['Air Puff Duration']*self.engine.machine_config.STIM_SAMPLE_RATE]=5.0
@@ -162,7 +157,7 @@ class FearAirpuffLaser(FearResponse):
     STIMULUS_DURATION=2.0
     STIMULUS_ONTIME=1.0
     STIMULUS_OFFTIME=1.0
-    AIRPUFF_TIME=0.5
+    AIRPUFF_TIME=0.75
     
 class FearLaserOnly(FearResponse):
     __doc__=FearResponse.__doc__
@@ -173,7 +168,6 @@ class FearLaserOnly(FearResponse):
     STIMULUS_ONTIME=1.0
     STIMULUS_OFFTIME=1.0
 
-    
 class FearAuditoryOnly(FearResponse):
     __doc__=FearResponse.__doc__
     ENABLE_AIRPUFF=True

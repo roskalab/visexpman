@@ -278,5 +278,5 @@ if __name__ == "__main__":
     export_fileformat = 'png'
     frame_rate=1/0.64#s
     frame_rate=1#s
-    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 200, dfpf_threshold=0.0, maxcellradius=65/2, sigma=0.2, frame_rate=frame_rate,ppenable= True)
+    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 200, dfpf_threshold=0.0, maxcellradius=65/2, sigma=0.2, frame_rate=frame_rate,ppenable= not True)
     
