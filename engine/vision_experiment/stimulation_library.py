@@ -53,7 +53,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
             self.haf = 1
         else:
-            self.has = -1
+            self.haf = -1
         self.frame_counter = 0
         self.stimulus_frame_info = []
         self.frame_rates = []
