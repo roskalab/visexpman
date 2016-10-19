@@ -1,7 +1,8 @@
 #TODO: low volt/high/mid voltage?? volt instead of all voltage values
 #TODO: color assignment
-import hdf5io,unittest,numpy,os
-from visexpman.engine.generic import introspect,fileop,utils
+import hdf5io,unittest,numpy,os,multiprocessing
+from visexpman.engine.generic import introspect,fileop,utils,signal
+from visexpman.engine.vision_experiment import experiment_data
 from pylab import *
 from scipy.ndimage.filters import gaussian_filter
 
@@ -299,20 +300,108 @@ def plot_aggregated():
     
 
                 
-    show()  
+    show()
+    
+def lick_detection_folder(folder,fsample,lick_wait_time,threshold=0.25,max_width=0.1,min_width=0.01,mean_threshold=0.07):
+    fns=[os.path.join(folder,f) for f in os.listdir(folder) if 'hdf5' in f and 'lick' in f.lower()]
+    fns.sort()
+    default_pars=[fsample,lick_wait_time,threshold,max_width,min_width,mean_threshold]
+    pars=[]
+    for f in fns:
+        h=hdf5io.Hdf5io(f)
+        h.load('sync')
+        lick=h.sync[:,0]
+        stimulus=h.sync[:,2]
+        h.close()
+        pi=[lick,stimulus]
+        pi.extend(default_pars)
+        pars.append(tuple(pi))
+    ids=[experiment_data.id2timestamp(experiment_data.parse_recording_filename(f)['id']) for f in fns]
+    p=multiprocessing.Pool(introspect.get_available_process_cores())
+    
+    res=map(lick_detection_wrapper,pars)
+    output=[[ids[i], res[i][0],res[i][1], res[i][2]] for i in range(len(res))]
+    return output
+        
+def lick_detection_wrapper(pars):
+    lick,stim,lick_wait_time,fsample,threshold,max_width,min_width,mean_threshold=pars
+    res=lick_detection(lick,stim,lick_wait_time,fsample,threshold,max_width,min_width,mean_threshold)
+    return res
+    
+def lick_detection(lick,stimulus,fsample,lick_wait_time,threshold=0.25,max_width=0.1,min_width=0.01,mean_threshold=0.07):
+    '''
+    max_width=100 (0.1s)
+    min_width=100 (0.01s)
+    threshold=0.25V
+    mean_threshold=0.07V
+    '''
+    indexes=numpy.nonzero(numpy.diff(numpy.where(lick>threshold,1,0)))[0]
+    edge_distances=numpy.diff(indexes)
+    pulse_start_indexes=numpy.where(numpy.logical_and(edge_distances<max_width*fsample, edge_distances>min_width*fsample))[0]
+    pulse_start=indexes[pulse_start_indexes]
+    pulse_end=indexes[pulse_start_indexes+1]
+    keep_pulse_indexes=numpy.where(lick[pulse_start+(pulse_end-pulse_start)/2]>threshold)[0]
+    pulse_start=pulse_start[keep_pulse_indexes]
+    pulse_end=pulse_end[keep_pulse_indexes]
+    if lick.mean()>mean_threshold:
+        pulse_end=numpy.array([])
+        pulse_start=numpy.array([])
+    
+    #Valid pulse is where next edge is within width_range
+    #Filter indexes
+    
+    widths=pulse_end-pulse_start
+    events=numpy.zeros_like(lick)
+    if pulse_start.shape[0]>0:
+        events[pulse_start]=1
+    lick_times=pulse_start/float(fsample)
+    stim_events=signal.trigger_indexes(stimulus)
+    if stim_events.shape[0]>1:
+        stimulus_end=stim_events[1]/float(fsample)
+        successful_indexes=numpy.where(numpy.logical_and(lick_times>stimulus_end,lick_times<stimulus_end+lick_wait_time))[0]
+        successful_lick_times=lick_times[successful_indexes]
+    else:
+        successful_lick_times=numpy.array([])
+    return events,lick_times,successful_lick_times
+    
+    
+#    h.close()
+    
     
     
 
 class TestBehavAnalysis(unittest.TestCase):
-        def test_01_extract_speedchnage(self):
+        def test_01_lick_detection(self):
+            
+            folder='/tmp/behav'
+            
+            fns=[os.path.join(folder,f) for f in os.listdir(folder) if 'hdf5' in f]
+            fns.sort()
+            licks=hdf5io.read_item('/tmp/traces.hdf5','licks')
+            pp=not True
+            fsample=1000
+            threshold=0.25
+            max_width=0.1
+            min_width=0.01
+            mean_threshold=0.07
+            lick_wait_time=1
+            result=lick_detection_folder(folder,fsample,lick_wait_time,threshold,max_width,min_width,mean_threshold)
+            
+
+
+            
+
+    
+        @unittest.skip('')
+        def test_02_extract_speedchnage(self):
             if 1:
                 process_all('/tmp/setup1')
             #else:
                 plot_aggregated()
             #s=ProcessBehavioralData('/mnt/data/behavioral/dasha/setup1/Rat465+910/m23_rplp_RE/20160802','StimStopReward')
     
-        @unittest.skip('')    
-        def test_02_blink_detect(self):
+        @unittest.skip('')
+        def test_03_blink_detect(self):
             fn='/tmp/fear/data_FearResponse_1466414204.hdf5'
             annotated = {
                     'data_FearResponse_1466413859.hdf5': [582],
