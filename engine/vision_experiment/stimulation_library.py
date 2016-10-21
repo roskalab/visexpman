@@ -306,7 +306,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if is_block:
                 self.block_end()
         else:
-            self._show_image(path,duration,position,flip,is_block)
+            self._show_image(path,duration,position,stretch,flip,is_block)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def _show_image(self,path,duration,position,stretch,flip,is_block):
@@ -579,8 +579,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
-                    velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  
-                    duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False, 
+                    velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
+                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, part_of_drawing_sequence = False,
                     is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
@@ -605,6 +605,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                             different from the usual: period = (bar_width * (1.0 + duty_cycle). 
                             For a 50% black and white the duty_cycle value should be 1.0
             - noise_intensity: Maximum contrast of random noise mixed to the stimulus.
+            - flicker = {'frequency':,'modulation_size'}: 
+                        grating flickering frequency. Grating pattern is modulated with Modulation Size
         
         Usage examples:
         1) Show a simple, fullscreen, grating stimuli for 3 seconds with 45 degree orientation
@@ -668,9 +670,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
         vertices = vertices + numpy.array([pos_adjusted])
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
-        #== Generate grating profile        
+        #glEnableClientState(GL_VERTEX_ARRAY)
+        #glVertexPointerf(vertices)
+        #== Generate grating profile
         if isinstance(profile, str):
             profile_adjusted = [profile,  profile,  profile]            
         else:
@@ -721,13 +723,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                                         numpy.arange(n_frames)/float(n_frames), numpy.arange(pixel_velocities.shape[0])/float(pixel_velocities.shape[0]), pixel_velocities)
         #== Generate texture  
         texture = stimulus_profile
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        glEnable(GL_TEXTURE_2D)
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-                             
+        texture=texture.swapaxes(0,1)
+        if flicker.has_key('frequency') and flicker.has_key('modulation_size'):
+            modulation_size_p=flicker['modulation_size']*self.config.SCREEN_UM_TO_PIXEL_SCALE
+            modulation_pixels=int(display_area_adjusted[1]/modulation_size_p)
+            texture=numpy.tile(texture,(modulation_pixels,1,1))
+            flicker_state=False
+            switch_count=int(self.config.SCREEN_EXPECTED_FRAME_RATE/float(flicker['frequency']))
+
         texture_coordinates = numpy.array(
                              [
                              [cut_off_ratio, 1.0],
@@ -735,21 +738,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              [0.0, 0.0],
                              [cut_off_ratio, 0.0],
                              ])
-        texture_coordinates = numpy.array(
-                             [
-                             [1.0, cut_off_ratio],
-                             [0.0, cut_off_ratio],
-                             [0.0, 0.0],
-                             [1.0, 0.0],
-                             ])
-
-        glTexCoordPointerf(texture_coordinates)
+        self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         start_time = time.time()
-#         pixel_velocity= -1.5/stimulus_profile.shape[0]
-#         n_frames = int(numpy.sqrt(800**2+600**2)/1.5)
         phase = 0
         for i in range(n_frames):
             phase += pixel_velocities[i]
+            if flicker.has_key('frequency') and flicker.has_key('modulation_size'):
+                if i%switch_count==0:
+                    flicker_state=not flicker_state
+                    texture1=numpy.copy(texture)
+                    texture1[int(flicker_state)::2]=0.0
+                    glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture1)
+            
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -1124,9 +1125,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     
             
 class StimulationHelpers(Stimulations):
-    def _init_texture(self,size):
+    def _init_texture(self,size,orientation=0,texture_coordinates=None):
         from visexpman.engine.generic import geometry
-        vertices = geometry.rectangle_vertices(size, orientation = 0)
+        vertices = geometry.rectangle_vertices(size, orientation = orientation)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
@@ -1134,7 +1135,8 @@ class StimulationHelpers(Stimulations):
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
         glEnable(GL_TEXTURE_2D)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-        texture_coordinates = numpy.array(
+        if texture_coordinates is None:
+            texture_coordinates = numpy.array(
                              [
                              [1.0, 1.0],
                              [0.0, 1.0],
