@@ -345,7 +345,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             del self.iscamera
         self.update_plot()
         self.save2file()
-        self.show_day_success_rate(self.recording_folder)
+#        self.show_day_success_rate(self.recording_folder)
 
     def save_during_session(self):
         if self.session_ongoing and not self.protocol.is_alive():
@@ -419,6 +419,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.update_plot()
             
     def show_animal_statistics(self):
+        logging.info('Generating plots, please wait')
+        current_animal_folder=os.path.join(self.datafolder, self.current_animal)
+        ls=behavioral_data.LickSummary(current_animal_folder,self.parameters['Best N'])
+        self.best=ls.best
+        logging.info('Done')
+        self.to_gui.put({'show_animal_statistics':[self.current_animal, ls.best]})
         return
         if self.session_ongoing: 
             self.notify('Warning', 'Stat cannot be shown during recording')
@@ -731,6 +737,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
                                 {'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
+                                {'name': 'Best N', 'type': 'float', 'value': 10},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):
@@ -1099,7 +1106,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.close()
         
 class AnimalStatisticsPlots(QtGui.QTabWidget):
-    def __init__(self, parent, data, animal_name, best):
+    def __init__(self, parent, animal_name, best):
         QtGui.QTabWidget.__init__(self)
         self.setWindowIcon(gui.get_icon('behav'))
         gui.set_win_icon()
@@ -1107,17 +1114,27 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
         self.setWindowTitle('Summary of '+animal_name)
         self.setTabPosition(self.North)
-        self.pages=[]
-        for i in range(len(data)):
-            self.pages.append(PlotPage(data[i],self))
-            self.addTab(self.pages[-1],str(i))
-        if best['x'].shape[0]>0:
-            self.best=gui.Plot(self)
-            pp=[{'pen':None, 'symbol':'o', 'symbolSize':12, 'symbolBrush': (128,255,0,128)}]
-            self.best.update_curves([best['x']],[best['y']], plotparams=pp)
-            self.best.plot.setLabels(left='success rate [%]', bottom='time [days]')
-            self.best.plot.setTitle('StimStopReward')
-            self.addTab(self.best,'Best success rate over {0} stimulus'.format(best['n']))
+        self.lick_plots=[]
+        pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (128,255,0,128), 'pen': None}]
+        for pn in best.keys():
+            p=gui.Plot(self)
+            p.update_curves([best[pn]['licks'][:,0]],[best[pn]['licks'][:,1]],plotparams=pp)
+            p.plot.setLabels(left='successful licks', bottom='number of licks')
+            self.lick_plots.append(p)
+            self.addTab(self.lick_plots[-1],pn)
+        self.latency_plots=gui.Plot(self)
+        x=[]
+        y=[]
+        days=best.keys()
+        days.sort()
+        for d in range(len(days)):
+            y.extend(best[days[d]]['latency'])
+            x.extend(best[days[d]]['latency'].shape[0]*[d])
+        x=numpy.array(x)
+        y=numpy.array(y)
+        self.latency_plots.update_curves([x],[y], plotparams=pp)
+        self.latency_plots.plot.setLabels(left='lick latency [ms]', bottom='time [days]')
+        self.addTab(self.latency_plots,'Best {0} lick latencies'.format(best.values()[0]['latency'].shape[0]))
         self.show()
         
 class PlotPage(QtGui.QWidget):

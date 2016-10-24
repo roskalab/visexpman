@@ -365,15 +365,58 @@ def lick_detection(lick,stimulus,fsample,lick_wait_time,threshold=0.25,max_width
         successful_lick_times=lick_times[successful_indexes]
     else:
         successful_lick_times=numpy.array([])
-    return events,lick_times,successful_lick_times
+    return events,lick_times,successful_lick_times,stim_events/float(fsample)
     
     
 #    h.close()
     
-    
+class LickSummary(object):
+    def __init__(self, folder, n):
+        self.read_data(folder)
+        self.select_best(n)
+        
+    def read_data(self,folder):
+        days=[fn for fn in os.listdir(folder) if os.path.isdir(os.path.join(folder, fn))]
+        self.data={}
+        for d in days:
+            files=[os.path.join(folder, d, f) for f in os.listdir(os.path.join(folder, d)) if os.path.splitext(f)[1]=='.hdf5' and 'LickResponse' in f]
+            self.data[d]={}
+            for f in files:
+                h=hdf5io.Hdf5io(f)
+                [h.load(vn) for vn in ['stat','sync','machine_config','protocol','parameters']]
+                if hasattr(h, 'stat') and h.stat!=None:
+                    t=experiment_data.id2timestamp(experiment_data.parse_recording_filename(f)['id'])
+                    lick=h.sync[:,0]
+                    stimulus=h.sync[:,2]
+                    events,lick_times,successful_lick_times,stim_events=lick_detection(lick,stimulus,
+                                h.machine_config['AI_SAMPLE_RATE'],
+                                h.protocol['LICK_WAIT_TIME'],
+                                h.parameters['Voltage Threshold'],
+                                h.parameters['Max Lick Duration'],
+                                h.parameters['Min Lick Duration'],
+                                h.parameters['Mean Voltage Threshold'])
+                    h.stat['latency']=(successful_lick_times[0]-stim_events[1]) if successful_lick_times.shape[0]>0 else numpy.inf
+                    import copy
+                    self.data[d][t]=copy.deepcopy(h.stat)
+                h.close()
+                
+    def select_best(self,n):
+        self.best={}
+        for d in self.data.keys():
+            timestamps=self.data[d].keys()
+            timestamps.sort()
+            latency=numpy.array([self.data[d][ti]['latency'] for ti in timestamps])
+            best_index=numpy.array([latency[li:li+n].sum() for li in range(latency.shape[0]-n)]).argmin()
+            best_latencies=latency[best_index:best_index+n]*1000
+            if numpy.inf in best_latencies: continue
+            best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[best_index:best_index+n]])
+            self.best[d]={'latency': best_latencies, 'licks':best_licks}
+        pass
+        
     
 
 class TestBehavAnalysis(unittest.TestCase):
+        @unittest.skip('')
         def test_01_lick_detection(self):
             
             folder='/tmp/behav'
@@ -435,6 +478,10 @@ class TestBehavAnalysis(unittest.TestCase):
                 with introspect.Timer():
                     airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
                     print is_blinked.sum()/float(is_blinked.shape[0])
+                    
+        def test_04_lick_summary(self):
+            folder='/tmp/behav'
+            ls=LickSummary(folder,10)
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,8 +9,8 @@ class LickResponse(BehavioralProtocol):
     '''
     TBD
     '''
-    DURATION_MIN=10/2
-    DURATION_MAX=20/2
+    DURATION_MIN=10
+    DURATION_MAX=20
     TRIGGER_TIME=2
     LICK_WAIT_TIME=1.0#Successful lick is expected to happen after laser pulse finished but within this time range
     
@@ -48,7 +48,7 @@ class LickResponse(BehavioralProtocol):
         lick=self.engine.sync[:,0]
         stimulus=self.engine.sync[:,2]
         fsample=self.engine.machine_config.AI_SAMPLE_RATE
-        self.events,self.lick_times,self.successful_lick_times = \
+        self.events,self.lick_times,self.successful_lick_times, stim_events = \
                         behavioral_data.lick_detection(lick,stimulus,fsample,self.LICK_WAIT_TIME,
                                     self.engine.parameters['Voltage Threshold'],
                                     self.engine.parameters['Max Lick Duration'],
