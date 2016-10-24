@@ -155,14 +155,15 @@ class ReceptiveFieldFionaSuperFine(ReceptiveFieldExploreNew):
 class ReceptiveFieldFionaCoarse(ReceptiveFieldExploreNew):
     def _create_parameters(self):
         ReceptiveFieldExploreNew._create_parameters(self)
-        self.NROWS = 5
-        self.NCOLUMNS = 9
+        self.NROWS = 1 #5
+        self.NCOLUMNS = 1 #9
         self.SIZE_DIMENSION='angle'
         self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
         self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
 #        self.SHAPE_SIZE = 10
         self.ON_TIME = 0.8
-        self.OFF_TIME = 0.8     
+        self.OFF_TIME = 0.8   
+        self.REPEATS = 200  
 
 class ReceptiveFieldExplore(experiment.Experiment):
     '''

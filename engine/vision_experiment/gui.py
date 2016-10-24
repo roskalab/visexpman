@@ -2722,7 +2722,7 @@ class MainPoller(Poller):
                     msg='ERROR: Automatic backup failed, please make sure that files are copied to u:\\backup'
                     self.printc(msg)
                     self.notify(msg)
-                    raise 
+                    #raise 
                 
     def cells2pickled_ready(self, cells):
         '''

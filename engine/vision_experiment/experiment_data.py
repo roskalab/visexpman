@@ -542,7 +542,7 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     return block_times, stimulus_parameter_times,block_info, organized_blocks
 
 
-import paramiko,platform,time
+import platform,time
 class RlvivoBackup(object):
     def __init__(self, files,user,id,animalid, todatabig=False):
         '''
@@ -573,9 +573,13 @@ class RlvivoBackup(object):
         self.close()
         
     def connect(self):
-        self.ssh = paramiko.SSHClient()
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+        try:
+            import paramiko
+            self.ssh = paramiko.SSHClient()
+            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.ssh.connect('rlvivo1.fmi.ch', username='mouse',password=file.read_text_file('v:\\codes\\jobhandler\\pw.txt'))
+        except:
+            raise
         
     def close(self):
         self.ssh.close()
