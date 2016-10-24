@@ -245,8 +245,8 @@ class Jobhandler(object):
             error_msg=''
             file_info = os.stat(filename)
             logging.info(str(file_info))
-            mes_extractor = importers.MESExtractor(filename, config = self.analysis_config)
-            data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
+            mes_extractor = importers.MESExtractor(filename, config = self.analysis_config, close_file=False)
+            data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
             extract_prepost_scan(mes_extractor.hdfhandler)
             mes_extractor.hdfhandler.close()
             #fileop.set_file_dates(filename, file_info)
@@ -446,7 +446,7 @@ def database_status(filename):
     try:
         h=tables.open_file(filename, mode = "r")
         r2=h.root.last_job_added[0]
-        unprocessed_jobs=len([1 for row in h.root.datafiles.where('(~is_analyzed | ~is_mesextractor | ~is_converted) & is_measurement_ready')])
+        unprocessed_jobs=len([1 for row in h.root.datafiles.where('(~is_analyzed | ~is_mesextractor | ~is_converted) & is_measurement_ready & ~is_error')])
     except:
         logging.error(traceback.format_exc())
         r2=None
