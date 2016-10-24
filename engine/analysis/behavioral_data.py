@@ -404,8 +404,8 @@ class LickSummary(object):
             timestamps.sort()
             latency=numpy.array([self.data[d][ti]['latency'] for ti in timestamps])
             best_index=numpy.array([latency[li:li+n].sum() for li in range(latency.shape[0]-n)]).argmin()
-            best_latencies=latency[best_index:best_index+n]
-            best_licks=[[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[best_index:best_index+n]]
+            best_latencies=latency[best_index:best_index+n]*1000
+            best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[best_index:best_index+n]])
             self.best[d]={'latency': best_latencies, 'licks':best_licks}
         pass
         
