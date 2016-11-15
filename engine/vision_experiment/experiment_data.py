@@ -11,7 +11,7 @@ import hashlib
 import string
 import shutil
 import tempfile
-import time
+import time,datetime
 import StringIO
 from PIL import Image,ImageDraw
 
@@ -162,6 +162,11 @@ def get_id(timestamp=None):
     elif version=='v3':
         time_struct = time.localtime(timestamp)
         return '{0:0=4}{1:0=2}{2:0=2}{3:0=2}{4:0=2}{5:0=2}{6}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec,int(10*(timestamp-int(timestamp))))
+
+def id2timestamp(id_str):
+    format="%Y%m%d%H%M%S"
+    return time.mktime(datetime.datetime.strptime(id_str[:-1], format).timetuple())+int(id_str[-1])*0.1
+    
 
 ############### Preprocess measurement data ####################
 if hdf5io_available:

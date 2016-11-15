@@ -405,7 +405,7 @@ class RcCorticalCaImagingConfig(CorticalCaImagingConfig):
         PARSE_PERIOD = [5.0, [0.0, 10.0]]
         JOB_LIST_FILE_CHECK_PERIOD = [15.0, [0.0, 60.0]]
         ENABLE_ZIGZAG_CORRECTION = True
-        
+        self.WAIT_BETWEEN_BATCH_JOBS=1.0
         self._create_parameters_from_locals(locals())
         
 class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
@@ -422,6 +422,7 @@ class UltrasoundConfig(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         self.BASE_PORT = 10000
         self.CONNECTIONS['behavioral']= {'port': self.BASE_PORT+1, 'ip': {'behavioral': '', 'main_ui': ''}}
+        self.WAIT_BETWEEN_BATCH_JOBS=1.0
         self._create_parameters_from_locals(locals())
         
 class MCMEAConfig(VisionExperimentConfig):

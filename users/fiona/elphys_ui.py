@@ -23,18 +23,18 @@ class CWidget(QtGui.QWidget):
         self.parametersw.setFixedWidth(300)
         self.parametersw.setFixedHeight(300)
         params = [
-                    {'name': 'Clamp Mode', 'type': 'list', 'value': 'current', 'values': ['I','U']},
+                    {'name': 'Clamp Mode', 'type': 'list', 'value': 'current', 'values': ['V','I']},
                     {'name': 'Waveform', 'type': 'list', 'value': 'square', 'values': ['square','from file']},
                     {'name': 'Sampling Rate', 'type': 'float', 'value': 10000.0, 'suffix': ' Hz' },
-                    {'name': 'Voltage Clamp Gain', 'type': 'float', 'value': 20, 'suffix': ' mV/V' },
+                    {'name': 'Voltage Clamp Gain', 'type': 'float', 'value': 100, 'suffix': ' mV/V' },
                     {'name': 'Current Clamp Gain', 'type': 'float', 'value': 400.0, 'suffix': ' pA/V' },
                     {'name': 'Imaging IP Address', 'type': 'str', 'value': parent.config.IMAGING_IP},
-                    {'name': 'Enable Imaging', 'type': 'bool', 'value': True},
+                    #{'name': 'Enable Imaging', 'type': 'bool', 'value': True},
                     {'name': 'Square Signal', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Amplitude', 'type': 'float', 'value': 1,  'suffix': ' mV or pA'},
                     {'name': 'Pulse Width', 'type': 'float', 'value': 20,  'suffix': ' ms'},
                     {'name': 'Frequency', 'type': 'float', 'value': 10,  'suffix': ' Hz'},
-                    {'name': 'Number of Pulses', 'type': 'int', 'value': 5},
+                    {'name': 'Number of Pulses', 'type': 'int', 'value': 50},
                                                                                                 ]}]
         self.parameters = Parameter.create(name='params', type='group', children=params)
         self.parametersw.setParameters(self.parameters, showTop=False)
@@ -68,7 +68,7 @@ class DaqRecorder(threading.Thread):
         self.result=result
         
     def run(self):
-        recording=daq_instrument.analogio(self.ai_channel,self.ao_channel,self.sample_rate,self.waveform,timeout=1,action=self.trigger_imaging)
+        recording=daq_instrument.analogio(self.ai_channel,self.ao_channel,self.sample_rate,self.waveform,timeout=1)
         self.result.put(recording)
         
     def trigger_imaging(self):
@@ -114,13 +114,14 @@ class ElphysUI(gui.SimpleAppWindow):
                 self.log('Decrease square signal frequency or pulse width')
                 return
             self.clamp_signal = numpy.tile(numpy.concatenate((numpy.ones(onsamples),numpy.zeros(offsamples))), self.square_params['Number of Pulses'])
-            self.clamp_signal = numpy.concatenate((numpy.zeros(offsamples), self.clamp_signal))*self.square_params['Amplitude']
+            self.clamp_signal = numpy.concatenate((numpy.zeros(offsamples), self.clamp_signal))*self.square_params['Amplitude']*1e-3
             self.clamp_mode=[p for p in param.children() if p.name()=='Clamp Mode'][0].value()
             if self.clamp_mode=='I':
                 factor=[p for p in param.children() if p.name()=='Current Clamp Gain'][0].value()*1e-12
-            elif self.clamp_mode=='U':
+            elif self.clamp_mode=='V':
                 factor=[p for p in param.children() if p.name()=='Voltage Clamp Gain'][0].value()*1e-3
-            self.clamp_signal_command = self.clamp_signal*factor
+            #factor=1
+            self.clamp_signal_command = self.clamp_signal/factor
             self.clamp_signal_command=numpy.concatenate((numpy.zeros(self.config.INITIAL_RECORDING_DELAY*sr),self.clamp_signal_command, numpy.zeros(self.config.POST_RECORD_TIME*sr)))
             self.clamp_signal_t = numpy.arange(self.clamp_signal.shape[0])/sr
             self.cw.plotw.update_curve(self.clamp_signal_t,self.clamp_signal, pen=(0,150,0))
@@ -157,7 +158,7 @@ class ElphysUI(gui.SimpleAppWindow):
         trigger_message='sec {0} filename {1}'.format(imaging_duration,self.imaging_filename)
         self.recordingq=Queue.Queue()
         #ai5: y sacnner signal
-        self.daq=DaqRecorder(self.clamp_signal_command, self.sample_rate, 'Dev1/ai1:6','Dev1/ao1',trigger_message, imaging_ip,self.recordingq)
+        self.daq=DaqRecorder(self.clamp_signal_command, self.sample_rate, 'Dev1/ai10:14','Dev1/ao0',trigger_message, imaging_ip,self.recordingq)
         self.daq.start()
         self.running=True
         self.log('Recording started, trigger message: {0}'.format(trigger_message))

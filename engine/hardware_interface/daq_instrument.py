@@ -12,8 +12,9 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
+    default_aimode=DAQmxConstants.DAQmx_Val_RSE
 except:
-    pass
+    default_aimode=None
 from visexpman.engine.generic import configuration,utils,fileop
 try:
     from visexpman.users.test import unittest_aggregator
@@ -28,14 +29,18 @@ class DaqInstrumentError(Exception):
     Raised when Daq related error detected
     '''
 
-def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None):
-    n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None, aimode=default_aimode, ailimit=5):
+    try:
+        n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+    except IndexError:
+        n_ai_channels=1
     if os.name=='nt':
         analog_output = PyDAQmx.Task()
+        nsamples=waveform.shape[0]
         analog_output.CreateAOVoltageChan(ao_channel,
                                         'ao',
-                                        waveform.min()-0.1, 
-                                        waveform.max()+0.1, 
+                                        waveform.min()-1, 
+                                        waveform.max()+1, 
                                         DAQmxConstants.DAQmx_Val_Volts,
                                         None)
         analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(ai_channel.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)
@@ -43,9 +48,9 @@ def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None):
         analog_input = PyDAQmx.Task()
         analog_input.CreateAIVoltageChan(ai_channel,
                                         'ai',
-                                        DAQmxConstants.DAQmx_Val_RSE,
-                                        -5, 
-                                        5, 
+                                        aimode,
+                                        -ailimit, 
+                                        ailimit, 
                                         DAQmxConstants.DAQmx_Val_Volts,
                                         None)
         read = DAQmxTypes.int32()
@@ -53,13 +58,13 @@ def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None):
                                         sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
                                         DAQmxConstants.DAQmx_Val_FiniteSamps,
-                                        waveform.shape[0])
+                                        nsamples)
         analog_input.CfgSampClkTiming("OnboardClock",
                                         sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
                                         DAQmxConstants.DAQmx_Val_FiniteSamps,
-                                        waveform.shape[0])
-        analog_output.WriteAnalogF64(waveform.shape[0],
+                                        nsamples)
+        analog_output.WriteAnalogF64(nsamples,
                                         False,
                                         timeout,
                                         DAQmxConstants.DAQmx_Val_GroupByChannel,

@@ -248,12 +248,13 @@ class Screen(object):
         if DISPLAY_FRAME_DELAY:
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
                 print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
-        if self.config.ENABLE_FRAME_CAPTURE:
+        if self.config.ENABLE_FRAME_CAPTURE and self.start_frame_capture:
             if hasattr(self.config, 'CAPTURE_FORMAT'):
                 fileformat = self.config.CAPTURE_FORMAT
             else:
                 fileformat = 'png'
-            self.save_frame(fileop.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.{0}'.format(fileformat))))
+            self.save_frame(os.path.join(self.config.CAPTURE_PATH,  'captured_{1:0=10}.{0}'.format(fileformat, self.captured_frame_counter)))
+            self.captured_frame_counter+=1
         if self.config.STIMULUS2MEMORY:
             if not hasattr(self, 'stimulus_bitmaps'):
                 self.stimulus_bitmaps = []
@@ -314,7 +315,8 @@ class Screen(object):
         glTranslatef(position[0],  position[1],  position[2])
         
     def initialization(self):
-        pass
+        self.start_frame_capture=False
+        self.captured_frame_counter=0
         
     def render_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = default_text):
         '''

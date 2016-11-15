@@ -446,7 +446,7 @@ class DataAcquisitionFile(object):
         self.offset=-datarange[0]
         self.dataname=dataname
         if filename is None:
-            self.filename=os.path.join(tempfile.gettempdir(), 'recorded.hdf5')
+            self.filename=os.path.join(tempfile.gettempdir(), 'recorded_{0}.hdf5'.format(time.time()))
             if os.path.exists(self.filename):
                 os.remove(self.filename)
         else:

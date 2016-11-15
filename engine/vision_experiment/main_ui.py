@@ -426,7 +426,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
+            toolbar_buttons = ['start_experiment', 'start_batch', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='ao_cortical':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
@@ -455,16 +455,16 @@ class MainUI(gui.VisexpmanMainWindow):
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.cellbrowser=CellBrowser(self)
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
-        
-        filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
-        self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
-        self.analysis_helper = AnalysisHelper(self.analysis)
-        self.analysis.layout = QtGui.QGridLayout()
-        self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
-        self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
-        self.analysis.setLayout(self.analysis.layout)
+            filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+            self.analysis_helper = AnalysisHelper(self.analysis)
+            self.analysis.layout = QtGui.QGridLayout()
+            self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
+            self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
+            self.analysis.setLayout(self.analysis.layout)
         
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
@@ -474,9 +474,13 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.main_tab.addTab(self.analysis, 'Analysis')
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
+        if self.machine_config.PLATFORM in ['us_cortical']:
+            self.eye_camera=gui.Image(self)
+            self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.advanced, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -558,6 +562,13 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.statusbar.showMessage(msg['update_network_status'])
             elif msg.has_key('highlight_multiple_rois'):
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
+            elif msg.has_key('eye_camera_image'):
+                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 1)
+                h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
+                if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
+                self.eye_camera.setFixedHeight(h)
+                self.eye_camera.plot.setTitle(time.time())
+                
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             
@@ -625,17 +636,20 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config.append(
             {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
                     {'name': 'Protocol', 'type': 'list', 'values': self.machine_config.ULTRASOUND_PROTOCOLS},
-                    {'name': 'Number of Trials', 'type': 'int', 'value': 10},
-                    {'name': 'Enable Motor Positions', 'type': 'bool', 'value': False, },
+                    {'name': 'Number of Trials', 'type': 'int', 'value': 1},
                     {'name': 'Motor Positions', 'type': 'str', 'value': ''},
                     ]},
-            
             )
+            self.params_config[0]['expanded']=True
+            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
                         
 
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
+        
+    def start_batch_action(self):
+        self.to_engine.put({'function': 'start_batch', 'args':[]})
         
     def stop_action(self):
         self.to_engine.put({'function': 'stop_experiment', 'args':[]})
