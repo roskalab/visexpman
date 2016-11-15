@@ -547,7 +547,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.start_sync_recording()
                 self.printl('Sync signal recording started')
                 self.start_ao()
-                    
             time.sleep(0.1)
             if self.machine_config.PLATFORM=='hi_mea':
                 #send start signal

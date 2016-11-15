@@ -30,7 +30,7 @@ class AOData(experiment_data.CaImagingData):
         self.ao_drift=mesdata['DATA']['AO_collection_usedpixels'][0][0][0][0]
         nrois=self.image.shape[0]/self.ao_drift
         if self.image.shape[0]%self.ao_drift!=0:
-            raise RuntimeError('Imaged data cannot be processed')
+            raise RuntimeError('Image data cannot be processed')
         nframes=mesdata['DATA']['FoldedFrameInfo'][0][0]['numFrames'][0][0][0][0]
         xsize=mesdata['DATA']['FoldedFrameInfo'][0][0]['numFrameLines'][0][0][0][0]
         offset=mesdata['DATA']['FoldedFrameInfo'][0][0]['firstFramePos'][0][0][0][0]

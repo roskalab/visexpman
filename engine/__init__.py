@@ -62,6 +62,7 @@ def application_init(**kwargs):
         argparser.add_argument('-a', '--user_interface_name', help = 'Application to be started: main_ui, stim, ca_imaging')
         argparser.add_argument('--testmode', help = 'Test mode')
         argparser.add_argument('--kill', help = 'Kill other python processes before software starts')
+        argparser.add_argument('--nofullscreen', help = '')
         parsed_args = argparser.parse_args()
         for parname in parnames:
             if getattr(parsed_args,parname) is None:

@@ -29,3 +29,8 @@ class MovingGratingShort(MovingGratingNoMarchingConfig):
         self.REPEATS = 1
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
         self.ENABLE_RANDOM_ORDER = False #True
+
+class MovingGratingArjun(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.VELOCITIES = [400.0, 1200.0, 2000.0]

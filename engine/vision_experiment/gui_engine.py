@@ -230,10 +230,13 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 #return
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+                #if self.current_experiment_parameters['duration']>5*60: return
                 #Wait till datafile is saved
                 time.sleep(0.5)
                 self.printc('Waiting for MES file')
-                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=60+0.5*self.current_experiment_parameters['duration'], min_size=1e6)
+                to = (60 if self.current_experiment_parameters['duration']>120 else 30)+0.5*self.current_experiment_parameters['duration']
+                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=to, min_size=1e6)
+                self.printc('Reading MES file')
                 a=aod.AOData(fn)
                 a.tomat()
                 a.close()
