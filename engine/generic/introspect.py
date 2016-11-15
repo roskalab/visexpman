@@ -34,7 +34,7 @@ def get_process_name(pid):
 
 def get_python_processes():
     pids = []
-    for pid in psutil.pids():
+    for pid in (psutil.pids() if hasattr(psutil, 'pids') else psutil.get_pid_list()):
         try:
             if 'python' in get_process_name(pid):
                 pids.append(pid)

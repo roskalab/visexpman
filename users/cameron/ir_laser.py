@@ -3,7 +3,7 @@ import numpy
 
 class IRLaser(stimuli.LaserPulse):
     def stimulus_configuration(self):
-        stimuli.AOPulse.stimulus_configuration(self)
+        stimuli.LaserPulse.stimulus_configuration(self)
         self.INITIAL_DELAY=1
         self.PULSE_DURATION=0.5
         self.PERIOD_TIME=5

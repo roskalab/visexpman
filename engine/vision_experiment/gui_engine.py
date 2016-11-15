@@ -257,7 +257,7 @@ class ExperimentHandler(object):
             self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
-        if experiment_parameters['Enable Eye Camera']:
+        if experiment_parameters.has_key('Enable Eye Camera') and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
             self.eye_camera_filename=os.path.join(tempfile.gettempdir(), 'eye_cam_{0}.hdf5'.format(experiment_parameters['id']))
             self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename)
@@ -357,7 +357,7 @@ class ExperimentHandler(object):
                     pass    
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
-                #return
+                return
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
                 #if self.current_experiment_parameters['duration']>5*60: return
                 #Wait till datafile is saved
