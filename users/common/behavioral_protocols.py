@@ -7,12 +7,14 @@ from visexpman.engine.analysis import behavioral_data
 
 class LickResponse(BehavioralProtocol):
     '''
-    TBD
+    Generates a laser pulse and releases water reward at the same time
     '''
     DURATION_MIN=10
     DURATION_MAX=20
     TRIGGER_TIME=2
     LICK_WAIT_TIME=1.0#Successful lick is expected to happen after laser pulse finished but within this time range
+    WATER_RELEASE_AFTER_FLASH=False
+    WATER_RELEASE_AFTER_FLASH_DELAY=0.5
     
     def prepare(self):
         self.waveform=self.engine.parameters['Laser Intensity']*numpy.ones((1,self.engine.machine_config.AI_SAMPLE_RATE*self.engine.parameters['Pulse Duration']+1))
@@ -21,11 +23,15 @@ class LickResponse(BehavioralProtocol):
     def triggered(self):
         now=time.time()
         analog_output, wf_duration = daq_instrument.set_waveform_start('Dev1/ao0',self.waveform,sample_rate = self.engine.machine_config.AI_SAMPLE_RATE)
-        daq_instrument.set_digital_pulse('Dev1/port0/line0', self.engine.parameters['Water Open Time'])
+        if not self.WATER_RELEASE_AFTER_FLASH:
+            daq_instrument.set_digital_pulse('Dev1/port0/line0', self.engine.parameters['Water Open Time'])
         wait=wf_duration - (time.time()-now)
         if wait>0:
             time.sleep(wait)
         daq_instrument.set_waveform_finish(analog_output, 5)
+        if self.WATER_RELEASE_AFTER_FLASH:
+            time.sleep(self.WATER_RELEASE_AFTER_FLASH_DELAY)
+            daq_instrument.set_digital_pulse('Dev1/port0/line0', self.engine.parameters['Water Open Time'])
             
     def sync2events(self, sync):
         '''
@@ -59,6 +65,10 @@ class LickResponse(BehavioralProtocol):
         successful_licks=self.successful_lick_times.shape[0]
         self.stat={'Number of licks':nlicks, 'Success Rate':success_rate, 'Successful licks': successful_licks}
         return self.stat
+        
+class LickResponse2(LickResponse):
+    WATER_RELEASE_AFTER_FLASH=True
+    WATER_RELEASE_AFTER_FLASH_DELAY=0.5
     
 class FearResponse(Protocol):
     '''

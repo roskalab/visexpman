@@ -401,16 +401,26 @@ class LickSummary(object):
                 h.close()
                 
     def select_best(self,n):
+        n=int(n)
         self.best={}
         for d in self.data.keys():
             timestamps=self.data[d].keys()
             timestamps.sort()
+            timestamps=numpy.array(timestamps)
             latency=numpy.array([self.data[d][ti]['latency'] for ti in timestamps])
-            best_index=numpy.array([latency[li:li+n].sum() for li in range(latency.shape[0]-n)]).argmin()
-            best_latencies=latency[best_index:best_index+n]*1000
-            if numpy.inf in best_latencies: continue
-            best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[best_index:best_index+n]])
-            self.best[d]={'latency': best_latencies, 'licks':best_licks}
+            if n==0:
+                successful_indexes=numpy.array([i for i in range(latency.shape[0]) if latency[i] !=numpy.inf])
+                print successful_indexes
+                if successful_indexes.shape[0]>0:
+                    best_latencies=latency[successful_indexes]*1000
+                    best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[successful_indexes]])
+                    self.best[d]={'latency': best_latencies, 'licks':best_licks}
+            else:
+                best_index=numpy.array([latency[li:li+n].sum() for li in range(latency.shape[0]-n)]).argmin()
+                best_latencies=latency[best_index:best_index+n]*1000
+                if numpy.inf in best_latencies: continue
+                best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[best_index:best_index+n]])
+                self.best[d]={'latency': best_latencies, 'licks':best_licks}
         pass
         
     

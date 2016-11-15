@@ -406,7 +406,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.datafile.load('protocol')
             lick_wait_time=self.datafile.protocol['LICK_WAIT_TIME']
             logging.info('Detecting licks')
-            self.events,self.lick_times,self.successful_lick_times = \
+            self.events,self.lick_times,self.successful_lick_times,s = \
                         behavioral_data.lick_detection(lick,stimulus,fsample,lick_wait_time,
                                     self.parameters['Voltage Threshold'],
                                     self.parameters['Max Lick Duration'],
@@ -424,7 +424,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         ls=behavioral_data.LickSummary(current_animal_folder,self.parameters['Best N'])
         self.best=ls.best
         logging.info('Done')
-        self.to_gui.put({'show_animal_statistics':[self.current_animal, ls.best]})
+        if self.best!={}:
+            self.to_gui.put({'show_animal_statistics':[self.current_animal, ls.best]})
         return
         if self.session_ongoing: 
             self.notify('Warning', 'Stat cannot be shown during recording')
@@ -555,7 +556,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         x=timestamp2hhmmfp(numpy.array([s[0] for s in self.summary]))
         nlicks=numpy.array([s[2].shape[0] for s in self.summary])
         successfull_licks=numpy.array([s[3].shape[0] for s in self.summary])
-        success_rate=numpy.where(successfull_licks>0,100,0)
+        success_rate=numpy.where(successfull_licks>0,1,0)
         y=[nlicks,successfull_licks,success_rate]
         x=len(y)*[x]
         trace_names=['nlicks', 'successful_licks', 'success_rate']
@@ -848,7 +849,7 @@ class Behavioral(gui.SimpleAppWindow):
             else:
                 for tn in msg['update_success_rate_plot']['trace_names']:
                     if tn =='success_rate':
-                        plotparams.append({'name': tn, 'pen':(255,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
+                        plotparams.append({'name': tn, 'pen':(255,0,0), 'symbol':'o', 'symbolSize':3, 'symbolBrush': (200,0,0)})
                     elif tn=='nlicks':
                         plotparams.append({'name': tn, 'pen':(0,0,0)})
                     elif tn=='successful_licks':
@@ -1115,8 +1116,10 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         self.setWindowTitle('Summary of '+animal_name)
         self.setTabPosition(self.North)
         self.lick_plots=[]
-        pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (128,255,0,128), 'pen': None}]
-        for pn in best.keys():
+        pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': None}]
+        days=best.keys()
+        days.sort()
+        for pn in days:
             p=gui.Plot(self)
             p.update_curves([best[pn]['licks'][:,0]],[best[pn]['licks'][:,1]],plotparams=pp)
             p.plot.setLabels(left='successful licks', bottom='number of licks')
@@ -1125,8 +1128,6 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         self.latency_plots=gui.Plot(self)
         x=[]
         y=[]
-        days=best.keys()
-        days.sort()
         for d in range(len(days)):
             y.extend(best[days[d]]['latency'])
             x.extend(best[days[d]]['latency'].shape[0]*[d])
