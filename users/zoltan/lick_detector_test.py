@@ -1,8 +1,10 @@
-import numpy,hdf5io,os,random
-from pylab import plot,show
+import numpy,hdf5io,os,random, unittest
+from pylab import plot,show, legend, xlabel, ylabel
 from visexpman.engine.generic import fileop
 from visexpman.engine.analysis import behavioral_data
 datafolder='/home/rz/mysoftware/data/lick'
+datafolder='c:\\visexp\\data'
+
 aggregated_file=os.path.join(datafolder,'aggregated.hdf5')
 def aggregate_lick_waveforms():
     files=[f for f in fileop.find_files_and_folders(datafolder)[1] if os.path.splitext(f)[1]=='.hdf5']
@@ -53,18 +55,84 @@ def read_waveforms(nsamples=10):
     indexes=numpy.cast['int'](indexes)
     return licks, indexes
     
-def test_lick_detector():
-    licks, indexes=read_waveforms(nsamples=10)
-    from visexpman.engine.hardware_interface import daq_instrument
-    #ao0: waveform, ai0: lick detector output which is compared with indexes, 
-    #ai1: ao0 resampled and compared with original signal. This tests how the detector's analog input distorts the lick signal
-    aidata=daq_instrument.analogio('Dev1/ai0:1','Dev1/ao0',1000,licks)
+class TestLick(unittest.TestCase):
+    def test_lick_detector(self):
+        ignore=['data_LickResponse_201610232030107.hdf5', 
+        'data_LickResponse_201610232100184.hdf5', 
+        'data_LickResponse_201610241732272.hdf5', 
+        'data_LickResponse_201610232030249.hdf5', 
+        'data_LickResponse_201610241732272.hdf5', 
+        'data_LickResponse_201611111239353.hdf5', 
+        'data_LickResponse_201610241746417.hdf5', 
+        'data_LickResponse_201611031555226.hdf5', 
+        'data_LickResponse_201611031553506.hdf5', 
+        'data_LickResponse_201611122054328.hdf5', 
+        'data_LickResponse_201610232032200.hdf5', 
+        'data_LickResponse_201610241752478.hdf5', 
+        'data_LickResponse_201610241745259.hdf5', 
+        'data_LickResponse_201611122110287.hdf5'
+        ]
+        
+        lick_indexes=hdf5io.read_item(aggregated_file,'indexes')
+        lick=hdf5io.read_item(aggregated_file,'lick')
+        
+#        exclude.insert(0, '1')
+#        lick_indexes['1']=numpy.array([0])
+#        lick['1']=numpy.linspace(0, 0.5, 1000)
+        nsamples=600
+        fs=1000.
+        random.seed(1)
+        selection=[random.choice(lick.keys()) for k in range(nsamples)]
+        failed=[]
+        for s in selection:
+            if s in ignore: continue
+            print selection.index(s), len(selection)
+            lickwf=lick[s]
+            indexes=numpy.cast['int'](numpy.array(lick_indexes[s]))
+            if indexes.shape[0]==0:
+                continue
+            #print s, indexes.shape[0]
+            from visexpman.engine.hardware_interface import daq_instrument
+            sample_factor=10.
+            #ao0: waveform, ai0: lick detector output which is compared with indexes, 
+            #ai1: ao0 resampled and compared with original signal. This tests how the detector's analog input distorts the lick signal
+            ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',fs*sample_factor, lickwf.shape[0]/fs)
+            daq_instrument.set_waveform( 'Dev1/ao0',lickwf.reshape(1, lickwf.shape[0]),sample_rate = fs)
+            aidata=ai.finish()
+            detector_pulses=numpy.where(numpy.diff(numpy.where(aidata[:,1]>2.5,1,0))==1)[0]
+            for i in indexes:
+                if i<110 or lickwf.shape[0]-i<110:#Ignore  pulses at very beginning and end
+                    continue
+                dt=(detector_pulses/sample_factor-i)
+                dt=numpy.where(dt<0, numpy.inf, dt)
+                if dt.shape[0]==0:
+                    pass
+                dt=dt.min()
+                if not (dt>0 and dt<110):
+                    pass
+                    pass
+                    print i, s, dt
+                    failed.append(s)
+                    break
+                self.assertTrue(dt>0)
+                self.assertTrue(dt<110)
+            if 0:
+                expected=numpy.zeros(lickwf.shape[0]*sample_factor)
+                expected[indexes*int(sample_factor)]=1
+                t=numpy.arange(expected.shape[0], dtype=numpy.float)/(fs*sample_factor)
+                plot(t, aidata[:,0]);plot(t, aidata[:,1]);plot(t, expected)
+                ylabel('V')
+                legend(['test signal','detector output',  'expected output'])
+                show()
+                pass            
+        print failed
+    
     
     
     
         
         
 if __name__ == "__main__":
-    #aggregate_lick_waveforms()
-    read_waveforms()
+    unittest.main()
+    
     
