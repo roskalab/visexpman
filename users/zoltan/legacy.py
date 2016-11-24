@@ -18,7 +18,7 @@ import tempfile
 FIX1KHZ= False
 NOMATFILE= False
 NWEEKS=2
-NOT_50X50UM= not True
+NOT_50X50UM= True
 VERTICAL_FLIP=True
 
 class PhysTiff2Hdf5(object):
@@ -281,9 +281,17 @@ class PhysTiff2Hdf5(object):
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
         matfile=[f for f in os.listdir(os.path.dirname(fphys)) if os.path.basename(fphys) in f and f[-4:]=='.mat']
         stiminfo_available=False
+#        if len(matfile)==0:
+#            if metadata['Stimulus file'] =='D:\stimfiles\Rei\spot.py':
+#                matfile=['q:\\Rei\\20161103 Gnat2-GCaMP small prep\\20161103_C1#730.phys_Spot_1478183692_0.mat']
+#            elif metadata['Stimulus file'] =='D:\stimfiles\Rei\annulus.py':
+#                matfile=['q:\\Rei\\20161103 Gnat2-GCaMP small prep\\20161103_C1#726.phys_Annulus_1478183255_0.mat']
+#            elif metadata['Stimulus file'] =='D:\stimfiles\Rei\largespot.py':
+#                matfile=['q:\\Rei\\20161103 Gnat2-GCaMP small prep\\20161103_C1#728.phys_LargeSpot_1478183315_0.mat']
+        #matfile[0]='20161020_C1#281.phys_MovingShapeParameters_1476953394_0.mat'
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min', 'Nostim']
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot', 'LargeSpot10sec','Fullfield10min', 'Nostim', 'MovingRectangleParameters']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
             print 'no stim metadata found'
@@ -292,13 +300,30 @@ class PhysTiff2Hdf5(object):
         if stiminfo_available:
             sig=numpy.zeros_like(data[1])
             pulse_start=signal.trigger_indexes(data[1])[::2]
+            sync_recording_duration=pulse_start[-1]/float(metadata['Sample Rate'])
+            stim_duration=stimdata['stimulus_frame_info'][0][-1]['counter'][0][0][0][0]/60.
+            if abs(stim_duration-sync_recording_duration)>20:
+                raise RuntimeError('Stimulus duration {0} s, recorded sync signal lenght: {1}'.format(stim_duration,sync_recording_duration))
             if stimdata['experiment_config_name'][0]=='Nostim':
                 boundaries=numpy.array([metadata['Sample Rate']*10,metadata['Sample Rate']*11])
             else:
-                if stimdata['experiment_config_name'][0]=='MovingShapeParameters':
-                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
-                    block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
-                elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec']:
+                if stimdata['experiment_config_name'][0] in ['MovingShapeParameters','MovingRectangleParameters']:
+                    if 'DS_new.py' in metadata['Stimulus file'] or 'DS_rectangle.py' in metadata['Stimulus file']:
+                        block_startend=numpy.array([item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='moving_shape'])
+                        pause=stimdata['config']['experiment_config'][0][0]['PAUSE_BETWEEN_DIRECTIONS'][0][0][0][0]
+                        frame_rate=stimdata['config']['machine_config'][0][0]['SCREEN_EXPECTED_FRAME_RATE'][0][0][0][0]
+                        gap=pause*float(metadata['Sample Rate'])
+                        block_end_boundaries=pulse_start[numpy.where(numpy.diff(pulse_start)>gap)[0]]
+                        block_start_boundaries=pulse_start[numpy.where(numpy.diff(pulse_start)>gap)[0]+1]
+                        block_start_boundaries = numpy.roll(block_start_boundaries,1)
+                        block_start_boundaries[0]=pulse_start[block_startend[0]]
+                        indexes=numpy.array([[block_start_boundaries[i], block_end_boundaries[i]] for i in range(block_start_boundaries.shape[0])]).flatten()
+                        #Correspond these to closest pulses
+                        block_startend=[abs(pulse_start-i).argmin() for i in indexes]
+                    else:#Cameron's stimfile
+                        block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
+                        block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
+                elif stimdata['experiment_config_name'][0] in ['FlashedShapePar','Annulus','Spot', 'LargeSpot10sec','LargeSpot']:
                     block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
                 elif stimdata['experiment_config_name'][0]=='Fullfield10min':
                     block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
@@ -384,17 +409,18 @@ class PhysTiff2Hdf5(object):
             threshold_factor = 1.0
         #First harmonic will be the frame rate
         factor=5
-        f=numpy.fft.fft(waveform[:waveform.shape[0]/factor])
-        f=f[:f.shape[0]/2]
-        df=1.0/(waveform.shape[0]/fsample)
-        frame_rate = factor*abs(f)[1:].argmax()*df#First harmonic has the highest amplitude
-        if abs(f)[1:].argmax()==0:
-            frame_rate=10.0
-        if frame_rate>30 and not self.allow_high_framerate:#Then probably x scanner signal
-            frame_rate /= nxlines
-            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][0]
-            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][-1]
-        else:
+#        f=numpy.fft.fft(waveform[:waveform.shape[0]/factor])
+#        f=f[:f.shape[0]/2]
+#        df=1.0/(waveform.shape[0]/fsample)
+#        frame_rate = factor*abs(f)[1:].argmax()*df#First harmonic has the highest amplitude
+#        if abs(f)[1:].argmax()==0:
+#            frame_rate=10.0
+#        if frame_rate>30 and not self.allow_high_framerate:#Then probably x scanner signal
+#            frame_rate /= nxlines
+#            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][0]
+#            end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>2000*threshold_factor)[0][-1]
+#        else:
+        if 1:
             start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][0]
             end_of_last_frame = numpy.where(abs(numpy.diff(waveform))>1000*threshold_factor)[0][-1]
         #Try to extract first period
@@ -404,10 +430,15 @@ class PhysTiff2Hdf5(object):
         frame_rate=fsample/period_time        
         frame_rate=10.0
         if NOT_50X50UM:
-            frame_rate=20.0
-        if (frame_rate<5 or frame_rate>20) and not self.allow_high_framerate:
-            pdb.set_trace()
-            raise RuntimeError(frame_rate)
+            if nxlines==299:
+                frame_rate=2.54
+            elif nxlines==199:
+                frame_rate=5.71
+            else:
+                frame_rate=10.0
+#        if (frame_rate<5 or frame_rate>20) and not self.allow_high_framerate:
+#            pdb.set_trace()
+#            raise RuntimeError(frame_rate)
         #first frame's start time has to be calculated
         if start_of_first_frame>fsample*10:
             #pdb.set_trace()

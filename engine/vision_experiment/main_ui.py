@@ -460,7 +460,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
             self.plot = gui.Plot(self)
             self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-            self.plot.setMaximumWidth(self.image.width())
+            self.plot.setMaximumWidth(self.image.width()*1.2)
             self.plot.plot.setLabels(bottom='sec')
             self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         
