@@ -683,8 +683,6 @@ Text Label 4400 6800 2    60   ~ 0
 AI3
 Text Notes 2200 850  2    60   ~ 0
 temp sensor
-Text Notes 7700 5600 2    60   ~ 0
-TODOS:\n DAC output to adc OK\n light sensor amplifier OK\n lowpass parameters 3.9 k, 0.1uF?\n D0-D7 header? OK
 $Comp
 L CONN_01X02 P9
 U 1 1 5834CCD8
