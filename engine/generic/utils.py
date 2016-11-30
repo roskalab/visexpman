@@ -257,6 +257,7 @@ dim_names0 = ['row','col','depth']
 
 def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     '''If a tuple is given as raw, the output will be 0dimensional rc array'''
+    # TODO: refactor signature to use separate row, col, depth positional arguments. Current signature leaves too many ambiguitites  e.g. when single rc pair is provided)
     order = argsort(dim_order)
     dim_order = sorted(dim_order)
     dim_names = [dim_names0[n] for n in dim_order] # sorted ensures that field ordering will always be as dim_names0, this way nd will always give [row,col] or [row,col,depth] ordered data
@@ -270,14 +271,16 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
         return numpy.array(tuple(raw), dtype,ndmin=nd) 
     #handle normal situation: input is a list (array) of tuples, each tuple contains 1 to 3 elements from the row,col,depth tuple
     raw = numpy.array(raw, ndmin=2)
+    if raw.shape == (1,2):  # single row, col pair was provided in list or tuple format
+        raw = raw.T
     if numpy.squeeze(raw).ndim!=2 and raw.size!=len(dim_names): #1 dimensional with exactly 1 to 3 values is accepted as row,col pair
         raise RuntimeError('At least '+ str(len(dim_names)) +' values are needed')
     dtype={'names':dim_names,'formats':[raw.dtype]*len(dim_names)}
     if raw.ndim > len(dim_names):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
     if raw.ndim==2 and raw.shape[0]!=len(dim_names): # required format (2,x)
-        raise RuntimeError('Input array provided to rc should be {0}, got {1}').format(raw.T.shape, raw.shape)
-    raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
+        raise RuntimeError('Input array provided to rc should be {0}, got {1}'.format(raw.T.shape, raw.shape))
+    raw = numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
     return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
 def rc_add(operand1, operand2,  operation = '+'):

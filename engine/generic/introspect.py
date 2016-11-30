@@ -552,11 +552,26 @@ class Timer(object):
 
     def __enter__(self):
         self.tstart = time.time()
+        return self
 
     def __exit__(self, type, value, traceback):
+        self.elapsed = time.time() - self.tstart
         if self.name:
             print '[%s]' % self.name,
-        print 'Elapsed: %s' % (time.time() - self.tstart)
+        print 'Elapsed: %s' % (self.elapsed)
+
+    def __float__(self):
+        return float(self.elapsed)
+
+    def __coerce__(self, other):
+        return (float(self), other)
+
+    def __str__(self):
+        return str(float(self))
+
+    def __repr__(self):
+        return str(float(self))
+
 
 def celery_available():
     try:
