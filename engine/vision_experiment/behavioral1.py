@@ -257,6 +257,15 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
         self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
         daq_instrument.set_waveform('Dev1/ao0',self.stimulus_waveform,sample_rate = fsample)
+        
+    def convert_folder(self,folder):
+        files=fileop.find_files_and_folders(folder)[1]
+        hdf5files=[f for f in files if os.path.splitext(f)[1]=='.hdf5']
+        logging.info('Converting hdf5 files to mat')
+        for f in hdf5files:
+            experiment_data.hdf52mat(f)
+            logging.info(f)
+        
     
     def update_plot(self):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
@@ -423,9 +432,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
         ls=behavioral_data.LickSummary(current_animal_folder,self.parameters['Best N'])
         self.best=ls.best
+        self.latency=ls.latency
         logging.info('Done')
         if self.best!={}:
-            self.to_gui.put({'show_animal_statistics':[self.current_animal, ls.best]})
+            self.to_gui.put({'show_animal_statistics':[self.current_animal, ls.best, ls.latency, self.parameters['Histogram bin size']]})
         return
         if self.session_ongoing: 
             self.notify('Warning', 'Stat cannot be shown during recording')
@@ -739,6 +749,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
                                 {'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
                                 {'name': 'Best N', 'type': 'float', 'value': 10},
+                                {'name': 'Histogram bin size', 'type': 'float', 'value': 50e-3, 'siPrefix': True, 'suffix': 's'},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):
@@ -768,7 +779,7 @@ class Behavioral(gui.SimpleAppWindow):
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
         self.add_dockwidget(self.plots, 'Plots', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
         
-        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'edit_protocol', 'show_animal_statistics', 'exit']
+        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'edit_protocol', 'show_animal_statistics', 'convert_folder', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -917,6 +928,11 @@ class Behavioral(gui.SimpleAppWindow):
         
     def edit_protocol_action(self):
         self.to_engine.put({'function': 'edit_protocol','args':[]})
+        
+    def convert_folder_action(self):
+        folder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        self.to_engine.put({'function': 'convert_folder','args':[folder]})
+
         
     def exit_action(self):
         if hasattr(self,'asp'):
@@ -1107,7 +1123,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.close()
         
 class AnimalStatisticsPlots(QtGui.QTabWidget):
-    def __init__(self, parent, animal_name, best):
+    def __init__(self, parent, animal_name, best,latency,binsize):
         QtGui.QTabWidget.__init__(self)
         self.setWindowIcon(gui.get_icon('behav'))
         gui.set_win_icon()
@@ -1136,6 +1152,33 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         self.latency_plots.update_curves([x],[y], plotparams=pp)
         self.latency_plots.plot.setLabels(left='lick latency [ms]', bottom='time [days]')
         self.addTab(self.latency_plots,'Best {0} lick latencies'.format(best.values()[0]['latency'].shape[0]))
+        #Histogram plots
+        self.histw=QtGui.QWidget()
+        self.histw.plots=[]
+        self.histw.l = QtGui.QGridLayout()
+        ct=0
+        alllatency=[]
+        for v in latency.values():
+            alllatency.extend(v)
+        bins=numpy.arange(min(alllatency),max(alllatency),binsize)
+        bins=numpy.append(bins, max(alllatency))
+        hist={}
+        ymax=0
+        for d in days:
+            hist[d]=numpy.histogram(latency[d],bins)[0]
+            ymax=max(ymax, hist[d].max())
+        for d in days:
+            self.histw.plots.append(gui.Plot(self.histw))
+            self.histw.plots[-1].plot.setTitle(d)
+            self.histw.plots[-1].update_curve(bins[:-1]*1000,hist[d], plotparams={'fillLevel':-0.3, 'brush': (50,50,128,100)})
+            self.histw.plots[-1].plot.setLabels(left='number of licks', bottom='time shift [ms]')
+            self.histw.plots[-1].plot.setYRange(0, ymax)
+            self.histw.l.addWidget(self.histw.plots[-1], ct/2, ct%2, 1, 1)
+            ct+=1
+        self.histw.setLayout(self.histw.l)
+        self.addTab(self.histw,'Lick Latency Histograms')
+        
+        
         self.show()
         
 class PlotPage(QtGui.QWidget):

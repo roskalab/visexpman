@@ -1275,6 +1275,26 @@ def gammatext2hdf5(filename):
     
 def yscanner2sync(waveform):
     pass
+    
+def hdf52mat(filename):
+    h=hdf5io.Hdf5io(filename)
+    ignore_nodes=['hashes']
+    rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    mat_data={}
+    for rn in rootnodes:
+        if os.path.basename(filename).split('_')[-2] in rn:
+            rnt='idnode'
+        else:
+            rnt=rn
+        mat_data[rnt]=h.findvar(rn)
+        if hasattr(mat_data[rnt], 'has_key') and len(mat_data[rnt].keys())==0:
+            mat_data[rnt]=0
+    if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+        del mat_data['soma_rois_manual_info']
+    h.close()
+    matfile=filename.replace('.hdf5', '_mat.mat')
+    scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+
 
 try:
     import paramiko
