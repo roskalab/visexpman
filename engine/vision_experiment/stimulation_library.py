@@ -102,7 +102,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.printl('Abort pressed', application_log = True)
             self.abort = True
 
-    def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
+    def _save_stimulus_frame_info(self, caller_function_info, is_last = False, parameters=None):
         '''
         Saves:
         -frame counter
@@ -126,6 +126,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             for arg in args:
                 if arg != 'self':
                     frame_info['parameters'][arg] = values[arg]
+            if hasattr(parameters, 'has_key'):
+                frame_info['parameters'].update(parameters)
             self.stimulus_frame_info.append(frame_info)
 
     def _frame_trigger_pulse(self):
@@ -1539,7 +1541,7 @@ class StimulationSequences(Stimulations):
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + ')')
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
         if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe())
+            self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories})
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         for block in range(len(trajectories)):
             self.show_shape(shape = shape,  pos = trajectories[block], 

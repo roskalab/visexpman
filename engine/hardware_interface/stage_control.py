@@ -88,6 +88,8 @@ class AllegraStage(serial.Serial):
                 break
             except:
                 if trial==ntrials-1:
+                    print('Stage position read fail.')
+                    return numpy.zeros((2,))
                     raise RuntimeError('Stage position cannot be read: "{0}"'.format(response))
                 else:
                     time.sleep(0.5)

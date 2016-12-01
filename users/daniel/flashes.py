@@ -16,6 +16,19 @@ class ProjectorFlashConfig(experiment.ExperimentConfig):
         self.runnable = 'ProjectorFlashExp'
         self._create_parameters_from_locals(locals())
 
+        
+class FionaFlashConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.PAUSE_BETWEEN_FLASHES = 8.0
+        self.NUMBER_OF_FLASHES = 5.0
+        self.FLASH_DURATION = 8.0
+        self.FLASH_AMPLITUDE = 1.0 #max 1.0
+        self.DELAY_BEFORE_FIRST_FLASH = 8.0
+        self.FLASH_COLOR = [1.0, 1.0, 1.0] #rgb
+        self.runnable = 'ProjectorFlashExp'
+        self._create_parameters_from_locals(locals())
+        
+        
 class ProjectorFlashExp(experiment.Experiment):
     def prepare(self):
         self.period_time = self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES

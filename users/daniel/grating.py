@@ -240,14 +240,14 @@ class MovingGratingFiona(MovingGratingNoMarchingConfig):
         self.MARCH_TIME=4.0#
         self.GRATING_STAND_TIME = 0
         self.GREY_INSTEAD_OF_MARCHING=True
-        self.GREY_INSTEAD_OF_MARCHING_COLOR=0.15
+        self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [1200.0]#1800
         #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 2
+        self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 5.0
         self.CLEAR_SCREEN_AT_END=True
         self.CLEAR_SCREEN_AT_END_COLOR=0
@@ -287,6 +287,17 @@ class MovingGratingAdrian(MovingGratingNoMarchingConfig):
         if self.ENABLE_RANDOM_ORDER:
             import random
             random.shuffle(self.ORIENTATIONS)
+            
+class MovingGratingAdrianSpeed(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.GRATING_STAND_TIME = 0.5#after
+        self.MARCH_TIME = 3.0#before
+        self.PAUSE_BEFORE_AFTER = 1.0
+        self.REPEATS = 3
+        self.VELOCITIES = [400.0, 1200.0, 2000.0]#1800
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.ENABLE_RANDOM_ORDER = False #True
         
 class MovingGratingTest(MovingGratingNoMarchingConfig):
     def _create_parameters(self):

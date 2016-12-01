@@ -38,7 +38,7 @@ BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following forma
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
 
 ENABLE_SCAN_REGION_SERIALIZATION= False
-STAGE=True
+STAGE= True
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
@@ -783,7 +783,7 @@ class MainPoller(Poller):
         self.first_mouse_file_created=False
         if STAGE:
             self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
-            self.stage.reset()
+            #self.stage.reset()
             self.stage.setparams()
             self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
         

@@ -3,11 +3,13 @@ from visexpman.engine.vision_experiment import experiment
 
 class FionaMovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.BAR_WIDTH=200#um
+        self.BAR_WIDTH=8000#8000#um
         self.BAR_LENGHT=6000#um
         self.SPEEDS=[1200]
         self.DIRECTIONS=range(0,360,45)
-        self.PAUSE=0.5#Pause between directions
+        import random
+        random.shuffle(self.DIRECTIONS)
+        self.PAUSE=3.0#Pause between directions
         self.runnable = 'MovingBarExperiment1'
         self._create_parameters_from_locals(locals())
         self.REPEATS=3
