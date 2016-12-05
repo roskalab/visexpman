@@ -85,7 +85,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.frame_rates.append(self.screen.frame_rate)
         self.check_abort()
 
-    def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
+    def _save_stimulus_frame_info(self, caller_function_info, is_last = False,parameters=None):
         '''
         Saves:
         -frame counter
@@ -109,6 +109,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     frame_info['parameters'][arg] = ''
                 else:
                     frame_info['parameters'][arg] = values[arg]
+        if hasattr(parameters,'has_key'):
+            frame_info['parameters'].update(parameters)
         self.stimulus_frame_info.append(frame_info)
         if is_last and self.stimulus_frame_info[-2].has_key('counter') and self.stimulus_frame_info[-1]['counter']<self.stimulus_frame_info[-2]['counter']:
             raise RuntimeError('frame counter value cannot decrease: {0}, {1}'.format(*self.stimulus_frame_info[-2:]))
@@ -1583,7 +1585,7 @@ class AdvancedStimulation(StimulationHelpers):
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')', source='stim')
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
         if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe())
+            self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories})
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         for block in range(len(trajectories)):
             self.show_shape(shape = shape,  pos = trajectories[block], 
