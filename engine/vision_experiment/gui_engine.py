@@ -1141,6 +1141,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.guidata.from_dict(utils.array2object(context_stream))
         else:
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
+
     def dump(self, filename=None):
         #TODO: include logfile and context file content
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
@@ -1217,6 +1218,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 elif msg.has_key('trigger'):
                     if hasattr(self,'trigger_handler'):
                         self.trigger_handler(msg['trigger'])
+                elif msg.has_key('notify'):
+                    self.notify(msg['notify'][0],msg['notify'][1])
         
     def run(self):
         while True:
