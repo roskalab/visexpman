@@ -515,6 +515,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         while True:
             if time.time()-t0>self.machine_config.MES_RECORD_OVERHEAD:
                 self.printl('MES did not start')
+                self.send({'notify':['Warning', 'MES did not start']})
                 self.abort=True
                 break
             if not self.mes_interface['mes_response'].empty():
@@ -526,16 +527,19 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
             
     def wait4ao(self):
+        if self.abort:
+            return
         while True:
-            if self.abort or time.time()-self.ao_expected_finish>self.machine_config.SYNC_RECORD_OVERHEAD*5:
+            if self.abort or time.time()-self.ao_expected_finish>self.machine_config.SYNC_RECORD_OVERHEAD:
+                self.printl('Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.')
+                #self.send({'notify':['Info', 'Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.']})
                 break
             if not self.mes_interface['mes_response'].empty():
                 msg=self.mes_interface['mes_response'].get()
                 self.printl(msg)
                 if 'SOCacquire_line_scanEOCsaveOKEOP' in msg:
-                    self.send({'notify':['Info', 'MES done']})
                     break
-            time.sleep(0.5)
+            time.sleep(0.1)
         
     def execute(self):
         '''

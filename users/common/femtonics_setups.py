@@ -53,9 +53,10 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TRIGGER_PIN = 0
         
-        self.MES_RECORD_OVERHEAD=12
-        self.MES_RECORD_START_WAITTIME=6
-        self.SYNC_RECORD_OVERHEAD=5
+        self.MES_RECORD_OVERHEAD=20
+        self.MES_RECORD_OVERHEAD2=40
+        self.MES_RECORD_START_WAITTIME=15
+        self.SYNC_RECORD_OVERHEAD=10
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
         if '--nofullscreen' in sys.argv:
             self.FULLSCREEN=False
