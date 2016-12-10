@@ -18,8 +18,9 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
         self.SCREEN_MAX_FRAME_RATE = 60.0
+        self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
         self.FULLSCREEN=True
-        self.COORDINATE_SYSTEM='ulcorner'
+        self.COORDINATE_SYSTEM='center'
         self.ENABLE_FRAME_CAPTURE = False
         self.GUI['SIZE'] =  utils.cr((1024,768)) 
         #Network
@@ -53,9 +54,10 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TRIGGER_PIN = 0
         
-        self.MES_RECORD_OVERHEAD=12
-        self.MES_RECORD_START_WAITTIME=6
-        self.SYNC_RECORD_OVERHEAD=5
+        self.MES_RECORD_OVERHEAD=20
+        self.MES_RECORD_OVERHEAD2=40
+        self.MES_RECORD_START_WAITTIME=15
+        self.SYNC_RECORD_OVERHEAD=10
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
         if '--nofullscreen' in sys.argv:
             self.FULLSCREEN=False

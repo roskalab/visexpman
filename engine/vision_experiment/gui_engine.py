@@ -173,7 +173,8 @@ class ExperimentHandler(object):
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM=='ao_cortical':
-            experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+self.machine_config.MES_RECORD_OVERHEAD))
+            oh=self.machine_config.MES_RECORD_OVERHEAD if experiment_parameters['duration']>180 else self.machine_config.MES_RECORD_OVERHEAD2
+            experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         return experiment_parameters
             
     def start_batch(self):
@@ -247,7 +248,7 @@ class ExperimentHandler(object):
             if experiment_parameters==None:
                 return
         if self.machine_config.PLATFORM=='ao_cortical':
-            if not self.ask4confirmation('Is AO line scan selected on MES user interface? Do you want to continue experiment?'):
+            if not self.ask4confirmation('Is AO line scan selected on MES user interface?'):#\r\nIs MES reconnected to stim?'):
                 return
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
@@ -436,6 +437,9 @@ class ExperimentHandler(object):
         elif trigger_name=='stim data ready':
             self.save_experiment_files()
             self.printc('Experiment ready')
+            if self.machine_config.PLATFORM=='ao_cortical':
+                msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
+                self.notify('Info', 'Experiment ready'+'\r\n'+msg)
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
@@ -1141,6 +1145,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.guidata.from_dict(utils.array2object(context_stream))
         else:
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
+
     def dump(self, filename=None):
         #TODO: include logfile and context file content
         variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
@@ -1217,6 +1222,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 elif msg.has_key('trigger'):
                     if hasattr(self,'trigger_handler'):
                         self.trigger_handler(msg['trigger'])
+                elif msg.has_key('notify'):
+                    self.notify(msg['notify'][0],msg['notify'][1])
         
     def run(self):
         while True:
