@@ -6,25 +6,38 @@ import numpy
 import copy
 import time
 
+
 class NaturalMovieOnly(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.MOVIE_REPEATS=1
-        self.FILENAME = 'c:\\Data\\catcam17'
+        # self.FILENAME = 'c:\\Data\\catcam17'
+        self.FILENAME = 'c:\\Data\\Movies\\movie_a_1'
+        # self.FILENAME = 'c:\\Data\\Movies\\movie_a_2'
+        # self.FILENAME = 'c:\\Data\\Movies\\movie_a_3'
+        # self.FRAME_RATE=30.0 # Change frame rate back to 25 fps when possible (by adding images). 
         self.FRAME_RATE=30.0 # Change frame rate back to 25 fps when possible (by adding images). 
-        self.STRETCH = 2.75 # Covers 661 pixels vertical / 51 angular degrees. 
-        self.runnable = 'NaturalMovieOnly'
+        # self.STRETCH = 2.75 # Covers 661 pixels vertical / 51 angular degrees. 
+        self.STRETCH = 1.2
+        self.runnable = 'NaturalMovieOnlyE'
         
         self._create_parameters_from_locals(locals())
         
+class NaturalMovieOnly1(NaturalMovieOnly):
+    def _create_parameters(self):
+        NaturalMovieOnly._create_parameters(self)
+        self.FILENAME = 'c:\\data\\Movies\\movie_a_1'
         
-    def _create_parameters_from_locals(self, locals,  check_path = True):
-        if len(locals['self'].DUTY_CYCLES)==1 and len(locals['self'].ORIENTATIONS)>1:
-            locals['self'].DUTY_CYCLES=locals['self'].DUTY_CYCLES*len(locals['self'].ORIENTATIONS)
-        experiment.ExperimentConfig._create_parameters_from_locals(self, locals)
-
+class NaturalMovieOnly2(NaturalMovieOnly):
+    def _create_parameters(self):
+        NaturalMovieOnly._create_parameters(self)
+        self.FILENAME = 'c:\\data\\Movies\\movie_a_2'
         
+class NaturalMovieOnly3(NaturalMovieOnly):
+    def _create_parameters(self):
+        NaturalMovieOnly._create_parameters(self)
+        self.FILENAME = 'c:\\data\\Movies\\movie_a_3'
         
-class NaturalMovieOnly(experiment.Experiment):
+class NaturalMovieOnlyE(experiment.Experiment):
     def prepare(self):
         self.movie_fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]
         
