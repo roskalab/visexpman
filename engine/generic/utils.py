@@ -827,7 +827,7 @@ def timestamp2ymdhm(timestamp):
 
 def timestamp2ymd(timestamp,separator='-'):
     time_struct = time.localtime(timestamp)
-    return '{0:0=4}{3}{1:0=2}{3}{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday,separator).replace('+',' ')
+    return '{0:0=4}{3}{1:0=2}{3}{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, separator).replace('+',' ')
 
 
 class Timeout(object):
