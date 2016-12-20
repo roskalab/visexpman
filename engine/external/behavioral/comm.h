@@ -11,11 +11,16 @@ Communication class for parsing commands which come in the following format:
 #define MAX_PARAMS 8
 #define STARTOFPARAM ','
 #define ENDOFCOMMAND '\r'
+#define DEBUG_PARSE false
+
+#define NO_ERROR 0
+#define NO_COMMAND_TERMINATOR 101
+#define WRONG_PARAMETER 102
 
 class Comm {
     public:
         Comm(void);
-        void parse(void);
+        int parse(void);
         void put(char* c);
         char buffer[COMM_BUFFER_SIZE];
         float par[MAX_PARAMS];
@@ -23,10 +28,7 @@ class Comm {
         char command[COMMAND_NAME_SIZE];
     private:
         char parameter_buffer[COMMAND_NAME_SIZE];
-
-        
-
-
+        void flush_command(int index);
 };
 
 
