@@ -10,12 +10,37 @@ float voltage_threshold_adc=1024/5.0*voltage_threshold;
 float max_width_us=100000;
 float min_width_us=10000;
 
+/*
+Communication class for parsing commands which come in the following format:
+    command,param1=val1,param2=val2\r\n
+    command\r\n
+    command,val1,val2
+*/
+#define COMM_BUFFER_SIZE 256
+class Comm {
+    public:
+        void parse(void);
+        void write(char* c);
+    private:
+      char buffer[COMM_BUFFER_SIZE];
+        
+
+};
+
+void Comm::parse(void)
+{
+  int i=0;
+  i++;
+}
+
 void setup() {
   // put your setup code here, to run once:
   pinMode(outPin, OUTPUT);
   Serial.begin(115200);
   rise=false;
   last_run=micros();
+  Comm c;
+  c=Comm();
 }
 
 void loop() {  
