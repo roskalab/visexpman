@@ -29,11 +29,11 @@ ISR(INT0_vect) {
     if (1)
     {
       delayMicroseconds(pulse_delay);
-      PORTD|=1<<6;//pmt off
-      PORTD|=1<<7;//stim led on
+      PORTD|=1<<0;//pmt off
+      PORTD|=1<<1;//stim led on
       delayMicroseconds(pulse_width);
-      PORTD&=~(1<<7);//stim led off
-      PORTD&=~(1<<6);//pmt on 
+      PORTD&=~(1<<1);//stim led off
+      PORTD&=~(1<<0);//pmt on 
       while(((PIND&(1<<2))!=0))
       {
       }
@@ -49,12 +49,16 @@ ISR(INT0_vect) {
 
 
 void setup() {
-  Serial.begin(115200);
+  /*pinMode(0, OUTPUT);
+  pinMode(13, OUTPUT);  */
+  //Serial.begin(115200);
+  //return;
   DDRD&=~(1<<2);//pind2 int0
-  DDRD|=(1<<7);//pind7 stimulus led
-  DDRD|=(1<<6);//pind6 pmt enable
-  PORTD&=~(1<<7);
-  PORTD&=~(1<<6);
+  DDRD|=(1<<1);//pind7 stimulus led
+  DDRD|=(1<<0);//pind6 pmt enable
+  
+  PORTD&=~(1<<1);
+  PORTD&=~(1<<0);
   EICRA|=3;//both edges
   EIMSK|=1;
   input_state=0;
@@ -64,13 +68,15 @@ void setup() {
   frq_decided=true;
   pulse_width=200;//500 us
   sei();
-
+  
 }
 
 void loop() {
-  /*digitalWrite(7, HIGH);
+  /*digitalWrite(0, HIGH);
+  digitalWrite(13, HIGH);
   delay(2);
-  digitalWrite(7, LOW);
+  digitalWrite(0, LOW);
+  digitalWrite(13, LOW);
   delay(3);*/
 
 }
