@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <iostream>
-using namespace std;
+#if (PLATFORM==PC)
+  #include <iostream>
+  using namespace std;
+#endif
 
 Comm::Comm(void)
 {

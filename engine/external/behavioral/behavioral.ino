@@ -1,3 +1,4 @@
+#include "hitmiss.h"
 
 char b;
 unsigned long prev,now;
@@ -43,6 +44,8 @@ void setup() {
    prev=millis();
    //For testing:
    DDRD|=(1<<7)|(1<<6)|(1<<5);
+
+   HitMiss protocol=HitMiss();
    
 }
 
