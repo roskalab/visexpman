@@ -3,6 +3,9 @@
 #define PULSE_WIDTH_60HZ (1000000/(60*6/2))
 #define _60HZ_US (1000000/60)*2
 #define _120HZ_US (1000000/120)*2
+
+#define PMT_GATE 0
+#define STIM_LED 1
 byte input_state;
 unsigned long period=0;
 unsigned long pulse_width=0;
@@ -29,11 +32,11 @@ ISR(INT0_vect) {
     if (1)
     {
       delayMicroseconds(pulse_delay);
-      PORTD|=1<<0;//pmt off
-      PORTD|=1<<1;//stim led on
+      PORTD|=1<<PMT_GATE;//pmt off
+      PORTD|=1<<STIM_LED;//stim led on
       delayMicroseconds(pulse_width);
-      PORTD&=~(1<<1);//stim led off
-      PORTD&=~(1<<0);//pmt on 
+      PORTD&=~(1<<STIM_LED);//stim led off
+      PORTD&=~(1<<PMT_GATE);//pmt on 
       while(((PIND&(1<<2))!=0))
       {
       }
@@ -54,11 +57,10 @@ void setup() {
   //Serial.begin(115200);
   //return;
   DDRD&=~(1<<2);//pind2 int0
-  DDRD|=(1<<1);//pind7 stimulus led
-  DDRD|=(1<<0);//pind6 pmt enable
-  
-  PORTD&=~(1<<1);
-  PORTD&=~(1<<0);
+  DDRD|=(1<<STIM_LED);//pind7 stimulus led
+  DDRD|=(1<<PMT_GATE);//pind6 pmt enable
+  PORTD&=~(1<<STIM_LED);
+  PORTD&=~(1<<PMT_GATE);
   EICRA|=3;//both edges
   EIMSK|=1;
   input_state=0;

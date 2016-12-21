@@ -49,5 +49,6 @@ class GrayBackgndOnly(experiment.Experiment):
          self.duration=self.fragment_durations[0]
         
     def run(self):
-        self.show_fullscreen(duration = self.experiment_config.FULLSCREEN_TIME,color = self.experiment_config.FULLSCREEN_COLOR)
+        #self.show_shape(shape='r',size=100,duration=20, color=1.0, background_color=0.0)
+        self.show_fullscreen(duration = self.experiment_config.FULLSCREEN_TIME,color = self.experiment_config.FULLSCREEN_COLOR,is_block=True)
         # You can also have control signals here. 

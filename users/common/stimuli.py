@@ -248,3 +248,27 @@ class ReceptiveFieldExplore(experiment.Experiment):
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
         #print self.shape_size,self.machine_config.SCREEN_SIZE_UM,self.ncolumns,self.nrows
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
+
+class LaserPulse(experiment.Stimulus):
+    def stimulus_configuration(self):
+        self.INITIAL_DELAY=10.0
+        self.PULSE_DURATION=20e-3
+        self.PERIOD_TIME=10.0
+        self.NPULSES=1
+        self.LASER_AMPLITUDE=1.0
+        self.SAMPLE_RATE=1000
+        
+    def calculate_waveform(self):
+        init=numpy.zeros(int(self.SAMPLE_RATE*self.INITIAL_DELAY))
+        pulse=numpy.concatenate((numpy.ones(int(self.SAMPLE_RATE*self.PULSE_DURATION)), numpy.zeros(int(self.SAMPLE_RATE*(self.PERIOD_TIME-self.PULSE_DURATION)))))
+        self.waveform=numpy.concatenate((init,numpy.tile(pulse,self.NPULSES)))*self.LASER_AMPLITUDE
+        self.waveform=self.waveform.reshape(1,self.waveform.shape[0])
+
+    def calculate_stimulus_duration(self):
+        self.calculate_waveform()
+        self.duration = self.waveform.shape[1]/float(self.SAMPLE_RATE)
+        
+    def run(self):
+        from visexpman.engine.hardware_interface import daq_instrument
+        self.show_fullscreen(color=0.0,duration=0)
+        daq_instrument.set_waveform('Dev1/ao0',self.waveform,sample_rate = self.SAMPLE_RATE)

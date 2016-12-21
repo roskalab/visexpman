@@ -1,3 +1,5 @@
+import sys
+sys.path.append("/data/software/ultrasound") 
 import os
 from PIL import Image
 import numpy
@@ -150,10 +152,11 @@ def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', cente
         baselines.append(baseline)
         reponse_size=(roi_curves[i].max()-baseline)/baseline
         t=numpy.arange(roi_curves[i].shape[0])/frame_rate
-        plot(t,roi_curves[i]/baseline-1)
+        #plot(t,roi_curves[i]/baseline-1)
+        plot(t,roi_curves[i])
         xlabel('t [s]')
-        ylabel('df/f')
-        title('max df/f: {0:0.3f}'.format(reponse_size))
+        ylabel('raw')
+        #title('max df/f: {0:0.3f}'.format(reponse_size))
         cellfolder=os.path.join(os.path.dirname(f),'cells_and_plots')
         if not os.path.exists(cellfolder):
             os.mkdir(cellfolder)
@@ -185,7 +188,7 @@ def process_file(filename,baseline_duration=5.0,export_fileformat = 'png', cente
     del nonresponding_roi_curves[stimulated_cell_index]
     nonresponding_roi_curves_integral = copy.deepcopy(roi_curves_integral)
     del nonresponding_roi_curves_integral[stimulated_cell_index]
-    scipy.io.savemat(f.replace('.tif','.mat'), data,oned_as='column')
+    #scipy.io.savemat(f.replace('.tif','.mat'), data,oned_as='column')
     return stimulated_cell_curve,nonresponding_roi_curves,stimulated_cell_curve_integral,nonresponding_roi_curves_integral
     
 def plot_aggregated_curves(curves, legendtxt, filename,baseline_duration,ylab,plot_mean_only=False,frame_rate=1):
@@ -268,16 +271,17 @@ def process_folder(folder, baseline_duration=5,export_fileformat = 'png',center_
                 'not_responding_cells_integrated': nrc_int, 'not_responding_cells_integrated_mean': nrc_int_mean, 'not_responding_cells_integrated_std': nrc_int_std}
     analysis_parameters = {'folder':folder, 'baseline_duration':baseline_duration,'export_fileformat' : export_fileformat,'center_tolerance' : center_tolerance, 'dfpf_threshold':dfpf_threshold, maxcellradius:'maxcellradius', sigma:'sigma', frame_rate:'frame_rate'}
     data['analysis_parameters']=analysis_parameters
-    scipy.io.savemat(os.path.join(folder, 'aggregated_curves.mat'), data,oned_as='column')
+    #scipy.io.savemat(os.path.join(folder, 'aggregated_curves.mat'), data,oned_as='column')
 
 if __name__ == "__main__":
     folder='/mnt/rzws/dataslow/rajib/'
 #    folder='/home/rz/codes/data/rajib/'
     folder='/tmp/2016-04-21-N2a_Piezo1_GCaMP_hCav12-for_evaluation'
     folder='/tmp/2016-04-27-GCaMP_test_N2a'
+    folder='/data/data/user/Zoltan/2'
     baseline_duration=5
     export_fileformat = 'png'
     frame_rate=1/0.64#s
-    frame_rate=1#s
-    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 200, dfpf_threshold=0.0, maxcellradius=65/2, sigma=0.2, frame_rate=frame_rate,ppenable= True)
+    frame_rate=10#s
+    process_folder(folder, baseline_duration,export_fileformat,center_tolerance = 200, dfpf_threshold=0.0, maxcellradius=60/2, sigma=0.2, frame_rate=frame_rate,ppenable= True)
     

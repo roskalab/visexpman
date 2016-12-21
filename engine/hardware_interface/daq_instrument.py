@@ -12,8 +12,9 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
+    default_aimode=DAQmxConstants.DAQmx_Val_RSE
 except:
-    pass
+    default_aimode=None
 from visexpman.engine.generic import configuration,utils,fileop
 try:
     from visexpman.users.test import unittest_aggregator
@@ -28,7 +29,7 @@ class DaqInstrumentError(Exception):
     Raised when Daq related error detected
     '''
 
-def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None, aimode=DAQmxConstants.DAQmx_Val_RSE, ailimit=5):
+def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None, aimode=default_aimode, ailimit=5):
     try:
         n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
     except IndexError:
