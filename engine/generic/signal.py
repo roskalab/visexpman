@@ -273,6 +273,15 @@ def to_16bit(data):
     
 def from_16bit(scaled,scale):
     return numpy.cast['float'](scaled)/scale['scale']+scale['offset']
+    
+def measure_sin(sig,  fsample,  p0=[1, 1, 0, 0]):
+    import scipy.optimize
+    def sinus(x, a, f, ph, o):
+        return a*numpy.sin(numpy.pi*2*x*f+ph)+o
+    t=numpy.arange(sig.shape[0])/float(fsample)
+    par,  cov=scipy.optimize.curve_fit(sinus, t, sig, p0=p0)
+    a, f, ph, o=par
+    return a, f
 
 
 class TestSignal(unittest.TestCase):

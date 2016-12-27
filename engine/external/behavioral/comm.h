@@ -8,7 +8,7 @@ Communication class for parsing commands which come in the following format:
 #define PC 0
 #define ARDUINO 1
 #define UC 2
-#define PLATFORM ARDUINO
+#define PLATFORM PC
 #define COMM_BUFFER_SIZE 256
 #define COMMAND_SIZE 32
 #define COMMAND_NAME_SIZE 16

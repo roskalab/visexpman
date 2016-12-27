@@ -1,10 +1,13 @@
 #if (PLATFORM==PC)
   #include <string.h>
   #include "hitmiss.cpp"
+#endif
+#if (PLATFORM==PC)
   #include <iostream>
   #include <unistd.h>
   using namespace std;
 #endif
+
 
 #if (PLATFORM==PC)
   void test(Comm* c, int id)
@@ -59,13 +62,6 @@
           usleep(1000000);
           c.run();
       }
-      //cout<<c.laser_voltage<<" "<<c.laser_duration<<" "<<c.pre_trial_interval<<" "<<c.reponse_window_time<<" "<<c.water_dispense_delay<<" "<<c.water_dispense_time<<" "<<c.drink_time<<endl ;
-  	return 0;
-  }
- #else
-  void func(void)
-  {
-    inti=0;
-  }
+      return 0;
   }
 #endif

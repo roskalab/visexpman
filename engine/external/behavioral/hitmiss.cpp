@@ -23,7 +23,7 @@ HitMiss::HitMiss(void)
 
 void HitMiss::run(void)
 {
-    int res;
+    int res,i;
     res=parse();
     if (res==NO_ERROR)
     {
@@ -63,10 +63,17 @@ void HitMiss::run(void)
             #if (PLATFORM==PC)
                 now=milliseconds();
                 cout<<"Wait for lick event" <<endl;
+                if (now%2000==0)
+                {
+                    cout<<"HIT"<<endl;
+                    result=HIT;
+                    state=WATERREWARD;
+                    break;
+                }
             #elif (PLATFORM==ARDUINO)
                 now=millis();
                 //todo: hardware call, check if lick condition has happened
-                result=MISS;
+                result=HIT;
                 state=WATERREWARD;
             #endif
             //check timeout

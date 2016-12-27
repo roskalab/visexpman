@@ -471,6 +471,77 @@ class AnalogIoHelpers(object):
     def set_digital_output(self, **kwargs):
         self.queues['command'].put(['_set_digital_output', kwargs])
         
+class AnalogRecorder(multiprocessing.Process):
+    '''
+	Records analog inputs until stop signal is sent
+	Usage:
+	queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue()}
+        d=daq_instrument.AnalogRecorder('Dev1/ai0:1' ,  1000)
+        d.start()
+        time.sleep(10)
+        data=numpy.empty([0, 2])
+        d.commandq.put('stop')
+        while not d.dataq.empty():
+            data=numpy.concatenate((data, d.dataq.get()))
+        print data.shape
+        d.join()
+
+    '''
+    def __init__(self, channels, sample_rate):
+        self.commandq=multiprocessing.Queue()
+        self.dataq=multiprocessing.Queue()
+        multiprocessing.Process.__init__(self)
+        self.channels=channels
+        self.sample_rate=sample_rate
+        self.timeout=3
+        self.buffer_size=int(self.timeout*self.sample_rate*10)
+        ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.channels)
+        
+    def run(self):
+        self.analog_input = PyDAQmx.Task()
+        self.analog_input.CreateAIVoltageChan(self.channels,
+                                                            'ai',
+                                                            DAQmxConstants.DAQmx_Val_RSE,
+                                                            -10,
+                                                            10,
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+        self.analog_input.CfgSampClkTiming("OnboardClock",
+                                        int(self.sample_rate),
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_ContSamps,
+                                        self.buffer_size)
+                                        
+        self.read = DAQmxTypes.int32()
+        self.analog_input.StartTask()
+        self.number_of_ai_samples = int(self.buffer_size * self.sample_rate * self.number_of_ai_channels)
+        while True:
+            if not self.commandq.empty():
+                cmd=self.commandq.get()
+                if cmd=='stop':
+                    break
+#            try:
+            if 1:
+                samples_to_read = self.sample_rate
+                self.ai_data = numpy.zeros(self.buffer_size*self.number_of_ai_channels, dtype=numpy.float64)
+                self.analog_input.ReadAnalogF64(-1,
+                                        self.timeout,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        self.ai_data,
+                                        samples_to_read,
+                                        DAQmxTypes.byref(self.read),
+                                        None)
+                ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+                ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
+                self.dataq.put(ai_data)
+        
+#            except PyDAQmx.DAQError:
+#                pass
+            time.sleep(0.1)
+        
+        self.analog_input.ClearTask()
+        
+        
 class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
     '''
     At waveform generation always continous sampling mode is selected.
