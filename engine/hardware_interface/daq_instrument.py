@@ -364,6 +364,28 @@ def set_digital_line(channel, value):
                                     None,
                                     None)
     digital_output.ClearTask()
+
+
+def set_digital_pulse(channel, duration):
+    digital_output = PyDAQmx.Task()
+    digital_output.CreateDOChan(channel,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+    digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(1)], dtype=numpy.uint8),
+                                    None,
+                                    None)
+    time.sleep(duration)
+    digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(0)], dtype=numpy.uint8),
+                                    None,
+                                    None)
+
+    digital_output.ClearTask()
     
 def read_digital_line(channel):
     digital_input = PyDAQmx.Task()
