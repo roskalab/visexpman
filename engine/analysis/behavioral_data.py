@@ -398,7 +398,7 @@ class LickSummary(object):
                                 h.parameters['Min Lick Duration'],
                                 h.parameters['Mean Voltage Threshold'])
                     h.stat['latency']=(successful_lick_times[0]-stim_events[1]) if successful_lick_times.shape[0]>0 else numpy.inf
-                    self.latency[d].extend(list(lick_times-stim_events[1]))
+                    self.latency[d].extend(list(lick_times-stim_events[0]))
                     import copy
                     self.data[d][t]=copy.deepcopy(h.stat)
                 h.close()
