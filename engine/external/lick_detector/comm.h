@@ -8,13 +8,13 @@ Communication class for parsing commands which come in the following format:
 #define PC 0
 #define ARDUINO 1
 #define UC 2
-#define PLATFORM PC
+#define PLATFORM ARDUINO
 #define COMM_BUFFER_SIZE 256
 #define COMMAND_SIZE 32
 #define COMMAND_NAME_SIZE 16
 #define MAX_PARAMS 8
 #define STARTOFPARAM ','
-#define ENDOFCOMMAND '\r'
+#define ENDOFCOMMAND '\n'
 #define DEBUG_PARSE false
 
 #define NO_ERROR 0

@@ -1,4 +1,4 @@
-import numpy,hdf5io,os,random, unittest
+import numpy,hdf5io,os,random, unittest, time
 from pylab import plot,show, legend, xlabel, ylabel
 from visexpman.engine.generic import fileop
 from visexpman.engine.analysis import behavioral_data
@@ -56,6 +56,7 @@ def read_waveforms(nsamples=10):
     return licks, indexes
     
 class TestLick(unittest.TestCase):
+    @unittest.skip('')
     def test_lick_detector(self):
         ignore=['data_LickResponse_201610232030107.hdf5', 
         'data_LickResponse_201610232100184.hdf5', 
@@ -79,7 +80,7 @@ class TestLick(unittest.TestCase):
 #        exclude.insert(0, '1')
 #        lick_indexes['1']=numpy.array([0])
 #        lick['1']=numpy.linspace(0, 0.5, 1000)
-        nsamples=600
+        nsamples=600/300
         fs=1000.
         random.seed(1)
         selection=[random.choice(lick.keys()) for k in range(nsamples)]
@@ -96,10 +97,10 @@ class TestLick(unittest.TestCase):
             sample_factor=10.
             #ao0: waveform, ai0: lick detector output which is compared with indexes, 
             #ai1: ao0 resampled and compared with original signal. This tests how the detector's analog input distorts the lick signal
-            ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',fs*sample_factor, lickwf.shape[0]/fs)
+            ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:3',fs*sample_factor, lickwf.shape[0]/fs)
             daq_instrument.set_waveform( 'Dev1/ao0',lickwf.reshape(1, lickwf.shape[0]),sample_rate = fs)
             aidata=ai.finish()
-            detector_pulses=numpy.where(numpy.diff(numpy.where(aidata[:,1]>2.5,1,0))==1)[0]
+            detector_pulses=numpy.where(numpy.diff(numpy.where(aidata[:,3]>2.5,1,0))==1)[0]
             for i in indexes:
                 if i<110 or lickwf.shape[0]-i<110:#Ignore  pulses at very beginning and end
                     continue
@@ -116,16 +117,26 @@ class TestLick(unittest.TestCase):
                     break
                 self.assertTrue(dt>0)
                 self.assertTrue(dt<110)
-            if 0:
+            if 1:
                 expected=numpy.zeros(lickwf.shape[0]*sample_factor)
                 expected[indexes*int(sample_factor)]=1
                 t=numpy.arange(expected.shape[0], dtype=numpy.float)/(fs*sample_factor)
-                plot(t, aidata[:,0]);plot(t, aidata[:,1]);plot(t, expected)
+                plot(t, aidata[:,0]);plot(t, aidata[:,1]);plot(t, aidata[:,2]);plot(t, aidata[:,3]);plot(t, expected)
                 ylabel('V')
-                legend(['test signal','detector output',  'expected output'])
+                legend(['water', 'test signal','laser','detector output',  'expected output'])
                 show()
-                pass            
+                pass
         print failed
+        
+    def test_protocol(self):
+        import serial
+        s=serial.Serial('COM8', 115200, timeout=1)
+        time.sleep(2)
+        s.write('ping\r\n')
+        time.sleep(1)
+        print s.read(100)
+        time.sleep(1)
+        s.close()
     
     
     

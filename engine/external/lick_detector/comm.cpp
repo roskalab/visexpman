@@ -41,7 +41,7 @@ int Comm::parse(void)
     }
 //    cout<<endl<<"eoc found "<<eoc_found<<" "<< i<<endl;
     if (!eoc_found)
-    {
+    {   
         return NO_COMMAND_TERMINATOR;
     }
     param_counter=0;
@@ -86,7 +86,7 @@ int Comm::parse(void)
         #endif
     }
     nparams=param_counter;
-    n=(param_counter>0) ? sop[0] : eoc;
+    n=(param_counter>0) ? sop[0] : (eoc-1);
     memcpy(command,buffer,n);
     //Remove parsed command from buffer
     flush_command(eoc);

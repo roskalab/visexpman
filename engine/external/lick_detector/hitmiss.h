@@ -2,6 +2,9 @@
 This class implements the hit/miss protocol
 */
 #include "comm.h"
+#if (PLATFORM==ARDUINO)
+  #include "lick.h"
+#endif
 
 typedef enum result_t {
     HIT = 0,
@@ -22,6 +25,9 @@ class HitMiss:public Comm {
     public:
         HitMiss(void);
         void run(void);
+    #if (PLATFORM==ARDUINO)
+        LickDetector lick_detector;
+    #endif
     private:
     //Protocol parameters
         float laser_voltage;
