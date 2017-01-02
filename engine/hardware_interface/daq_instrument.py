@@ -563,6 +563,15 @@ class AnalogRecorder(multiprocessing.Process):
         
         self.analog_input.ClearTask()
         
+    def read(self):
+        data=numpy.empty([0, self.number_of_ai_channels])
+        while not self.dataq.empty():
+            r=self.dataq.get()
+            data=numpy.concatenate((data, r))
+            time.sleep(0.05)
+            
+        return data
+        
         
 class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
     '''

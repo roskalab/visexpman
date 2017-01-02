@@ -24,8 +24,11 @@ LickProtocolRunner::LickProtocolRunner()
   pinMode(LICKDETECTEDPIN, OUTPUT);
   pinMode(REWARDPIN, OUTPUT);
   pinMode(LASERPIN, OUTPUT);
+  pinMode(DEBUGPIN, OUTPUT);
+  digitalWrite(LICKDETECTEDPIN, LOW);
   digitalWrite(LASERPIN, LOW);
   digitalWrite(REWARDPIN, LOW);
+  digitalWrite(DEBUGPIN, LOW);
   Serial.begin(115200);
 }
 
@@ -38,8 +41,8 @@ void LickProtocolRunner::loop(void)
     c[0]=Serial.read();
     c[1]=0;
     protocol.put(c);
-    protocol.run();
   }
+  protocol.run();
 }
 
 

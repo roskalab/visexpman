@@ -30,6 +30,7 @@ class Comm {
         float par[MAX_PARAMS];
         int nparams;
         char command[COMMAND_NAME_SIZE];
+        void debug_pulse(void);
     private:
         char parameter_buffer[COMMAND_NAME_SIZE];
         void flush_command(int index);

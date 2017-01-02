@@ -31,8 +31,8 @@ void HitMiss::run(void)
     int res,i;
     res=parse();
     if (res==NO_ERROR)
-    {      
-        if ((strcmp(command,"start_protocol")==0)&&(nparams==7))
+    {           
+        if ((strcmp(command,"start_protocol")==0)&&(nparams==7)&& (state==IDLE))
         {
             laser_voltage = par[0];
             laser_duration = par[1];
@@ -41,16 +41,38 @@ void HitMiss::run(void)
             water_dispense_delay = par[4];
             water_dispense_time = par[5];
             drink_time = par[6];
-            state=PRETRIAL;
+            set_state(PRETRIAL);
+          #if (PLATFORM==ARDUINO)
+            Serial.print("Protocol parameters: ");
+            for(i=0;i<7;i++)
+            {
+              Serial.print(par[i]);
+              Serial.print(",");
+            }
+            Serial.print("\r\n");
+          #endif
         }
         else if ((strcmp(command,"reset_protocol")==0)&&(nparams==0))
         {            
-            state=IDLE;
+            set_state(IDLE);
+            Serial.println("Protocol state set to idle");
+        }
+        else if ((strcmp(command,"protocol_state")==0)&&(nparams==0))
+        {            
+            Serial.print("Protocol state: ");
+            Serial.println(state);
         }
         else if ((strcmp(command,"ping")==0)&&(nparams==0))
+        {          
+          #if (PLATFORM==ARDUINO)
+            debug_pulse();
+            Serial.println("pong");
+          #endif
+        }
+        else
         {
           #if (PLATFORM==ARDUINO)
-            Serial.println("pong");
+            Serial.println("unknown command");
           #endif
         }
      
@@ -62,9 +84,10 @@ void HitMiss::run(void)
                 cout<<"Pretrial Wait "<<pre_trial_interval<<" s"<<endl;
             #elif (PLATFORM==ARDUINO)
                 Serial.println("Pretrial wait");
-                delay(pre_trial_interval*1000);
+                delay((int)(pre_trial_interval*1000));
+                Serial.println("End of pretrial wait");
             #endif
-            state=LICKTRIAL;
+            set_state(LICKTRIAL);
             break;
         case LICKTRIAL:
             #if (PLATFORM==PC)
@@ -74,13 +97,13 @@ void HitMiss::run(void)
                 Serial.println("Lick trial");
                 //todo: replace this to dac call
                 digitalWrite(LASERPIN, HIGH);
-                delay((int)laser_duration*1000);
+                delay((int)(laser_duration*1000));
                 digitalWrite(LASERPIN, LOW);
                 //Reset lick counter
                 lick_detector.reset_lick_counter();
                 t_wait_for_response=millis();
             #endif
-            state=WAIT4RESPONSE;
+            set_state(WAIT4RESPONSE);
             break;
         case WAIT4RESPONSE:
             #if (PLATFORM==PC)
@@ -90,7 +113,7 @@ void HitMiss::run(void)
                 {
                     cout<<"HIT"<<endl;
                     result=HIT;
-                    state=WATERREWARD;
+                    set_state(WATERREWARD);
                     break;
                 }
             #elif (PLATFORM==ARDUINO)
@@ -100,14 +123,17 @@ void HitMiss::run(void)
                 {
                   Serial.println("Lick detected");
                   result=HIT;
-                  state=WATERREWARD;
+                  set_state(WATERREWARD);
                 }
             #endif
             //check timeout
             if ((now-t_wait_for_response)>(unsigned long)(reponse_window_time*1000))
             {                
-                state=ENDOFTRIAL;
+                set_state(ENDOFTRIAL);
                 result=MISS;
+             #if (PLATFORM==ARDUINO)
+                Serial.println("Lick timeout");
+             #endif
             }
             break;
         case WATERREWARD:
@@ -123,7 +149,7 @@ void HitMiss::run(void)
                 delay(drink_time*1000);
             #endif
             Serial.println("Water reward");
-            state=ENDOFTRIAL;
+            set_state(ENDOFTRIAL);
             break;
         case ENDOFTRIAL:
             #if (PLATFORM==PC)
@@ -133,7 +159,7 @@ void HitMiss::run(void)
                 //todo: call send results(result, number_of_licks)
                 //Perhaps it will be evaluated by host sw
             #endif
-            state=IDLE;
+            set_state(IDLE);
             break;
         case IDLE:
         default:
@@ -148,3 +174,9 @@ unsigned long HitMiss::milliseconds(void)
       return (unsigned long)(time(0)*1000);
   #endif
 }
+void HitMiss::set_state(protocol_state_t state2set)
+{
+  debug_pulse();
+  state=state2set;
+}
+

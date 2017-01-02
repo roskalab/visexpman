@@ -45,4 +45,6 @@ class HitMiss:public Comm {
         unsigned long t_wait_for_response;
         unsigned long now;
         unsigned long milliseconds(void);
+        void set_state(protocol_state_t state2set);
+    
 };

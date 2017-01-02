@@ -129,13 +129,33 @@ class TestLick(unittest.TestCase):
         print failed
         
     def test_protocol(self):
+        laser_voltage = 1.5
+        laser_duration = 0.2
+        pre_trial_interval = 3.0
+        reponse_window_time = 0.5
+        water_dispense_delay = 0.5
+        water_dispense_time = 0.2
+        drink_time = 2
+        pars=[laser_voltage, laser_duration,  pre_trial_interval, reponse_window_time, water_dispense_delay,\
+                water_dispense_time, drink_time]
         import serial
         s=serial.Serial('COM8', 115200, timeout=1)
         time.sleep(2)
-        s.write('ping\r\n')
-        time.sleep(1)
-        print s.read(100)
-        time.sleep(1)
+        for i in range(2):
+            s.write('ping\r\n')
+            #time.sleep(1)
+            print s.readline()
+        s.write('reset_protocol\r\n')
+        print s.readline()
+        s.write('protocol_state\r\n')
+        print s.readline()
+        parstr=','.join(map(str, pars))
+        s.write('start_protocol,{0}\r\n'.format(parstr))
+        print s.readline()
+        time.sleep(pre_trial_interval)
+        print s.readline()
+        time.sleep(4)
+        print s.read(300)
         s.close()
     
     

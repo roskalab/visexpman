@@ -2,10 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "config.h"
 #if (PLATFORM==PC)
   #include <iostream>
   using namespace std;
 #endif
+
+#if (PLATFORM==ARDUINO)
+  #include "Arduino.h"
+#endif
+
 
 Comm::Comm(void)
 {
@@ -117,3 +123,13 @@ void Comm::put(char* c)
 {
     strcat(buffer, c);
 }
+
+void Comm::debug_pulse(void)
+{
+#if (PLATFORM==ARDUINO)
+  digitalWrite(DEBUGPIN, HIGH);
+  delayMicroseconds(DEBUG_PULSE_DURATION_US);
+  digitalWrite(DEBUGPIN, LOW);
+#endif
+}
+
