@@ -514,7 +514,7 @@ class AnalogRecorder(multiprocessing.Process):
         self.dataq=multiprocessing.Queue()
         multiprocessing.Process.__init__(self)
         self.channels=channels
-        self.sample_rate=sample_rate
+        self.sample_rate=int(sample_rate)
         self.timeout=3
         self.buffer_size=int(self.timeout*self.sample_rate*10)
         ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.channels)
@@ -568,7 +568,7 @@ class AnalogRecorder(multiprocessing.Process):
         while not self.dataq.empty():
             r=self.dataq.get()
             data=numpy.concatenate((data, r))
-            time.sleep(0.05)
+            time.sleep(0.01)
             
         return data
         

@@ -20,6 +20,13 @@ class LickProtocolRunner {
 
 LickProtocolRunner::LickProtocolRunner()
 {
+  //Init timer
+  TCNT1=0;
+  TCCR1B=3;//64 prescale
+  OCR1AL=231;//1kHz
+  OCR1AH=0;
+  TIMSK1 |= 1<<1;
+  //Init protocol handler
   protocol=HitMiss();
   pinMode(LICKDETECTEDPIN, OUTPUT);
   pinMode(REWARDPIN, OUTPUT);
@@ -35,7 +42,7 @@ LickProtocolRunner::LickProtocolRunner()
 void LickProtocolRunner::loop(void)
 {
   char c[2];
-  protocol.lick_detector.update();//detect lick events
+  //protocol.lick_detector.update();//detect lick events
   if (Serial.available()>0)
   {
     c[0]=Serial.read();
@@ -47,6 +54,22 @@ void LickProtocolRunner::loop(void)
 
 
 LickProtocolRunner lpr;
+
+int isr_counter;
+
+ISR(TIMER1_COMPA_vect) {
+   TCNT1=0;
+   isr_counter++;
+   if (isr_counter%100==0)
+   {
+     //digitalWrite(DEBUGPIN, HIGH);
+     lpr.protocol.lick_detector.update();//detect lick events
+     //delayMicroseconds(200);
+     //digitalWrite(DEBUGPIN, LOW);
+   }
+   
+}
+
 
 void setup() {
   // put your setup code here, to run once:

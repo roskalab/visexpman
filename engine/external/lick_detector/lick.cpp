@@ -9,14 +9,16 @@ LickDetector::LickDetector(void)
   duration_max_ms=(unsigned long)(LICK_DURATION_MAX*1e3);
   duration_min_ms=(unsigned long)(LICK_DURATION_MIN*1e3);
   voltage_threshold_adc=(int)ADCMAXCOUNT/ADCREF*LICK_THRESHOLD;
-  rise=false;
   last_run=micros();
-  reset_lick_counter();
+  reset();
 }
 
-void LickDetector::reset_lick_counter(void)
+void LickDetector::reset(void)
 {
+  cli();
+  rise=false;
   lick_counter=0;
+  sei();
 }
 
 int LickDetector::get_lick_number(void)
@@ -38,7 +40,7 @@ float LickDetector::get_last_lick_time(void)
 void LickDetector::update(void)
 {
   timestamp_us = millis();
-  if (timestamp_us-last_run>DETECTOR_RUN_PERIOD_MS)
+  if ((timestamp_us-last_run>DETECTOR_RUN_PERIOD_MS)||1)
   { 
     last_run=timestamp_us;
     //Serial.println(duration_max_us);
@@ -71,7 +73,6 @@ void LickDetector::update(void)
         digitalWrite(LICKDETECTEDPIN, LOW);
       }
     }
-    
   }
 }
 

@@ -2,7 +2,7 @@ class LickDetector {
     public:
         LickDetector(void);
         void update(void);
-        void reset_lick_counter(void);
+        void reset(void);
         int get_lick_number(void);
         float get_last_lick_time(void);
     private:

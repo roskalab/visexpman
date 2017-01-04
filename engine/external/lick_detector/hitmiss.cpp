@@ -100,7 +100,7 @@ void HitMiss::run(void)
                 delay((int)(laser_duration*1000));
                 digitalWrite(LASERPIN, LOW);
                 //Reset lick counter
-                lick_detector.reset_lick_counter();
+                lick_detector.reset();
                 t_wait_for_response=millis();
             #endif
             set_state(WAIT4RESPONSE);
@@ -144,7 +144,7 @@ void HitMiss::run(void)
             #elif (PLATFORM==ARDUINO)
                 delay(water_dispense_delay*1000);
                 digitalWrite(REWARDPIN, HIGH);
-                delay((int)water_dispense_time*1000);
+                delay((int)(water_dispense_time*1000));
                 digitalWrite(REWARDPIN, LOW);
                 delay(drink_time*1000);
             #endif
