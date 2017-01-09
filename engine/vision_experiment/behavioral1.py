@@ -110,6 +110,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_time=time.time()
         self.stim_number=0
         self.session_ongoing=False
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -271,7 +272,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['lick', 'reward', 'stimulus', 'airpuff']
+        trace_names=['reward', 'lick raw',  'stimulus', 'detected lick',  'protocol debug']
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:#Also ignore airpuff
             x[-1]=self.lick_times
             y[-1]=numpy.ones_like(self.lick_times)
@@ -332,7 +333,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def start_recording(self):
         #logging.info(introspect.python_memory_usage())
         self._start_protocol()
-        self.ai=daq_instrument.SimpleAnalogIn(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE, self.protocol.duration+1, timeout=self.protocol.duration+4)
+        self.ai=daq_instrument.AnalogRecorder(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE)
+        self.ai.start()
+        time.sleep(2)
         self.id=experiment_data.get_id()
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
@@ -346,7 +349,13 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.actual_recording_started=time.time()
     
     def finish_recording(self):
-        self.sync=self.ai.finish()
+        self.ai.commandq.put('stop')
+        while True:
+            self.sync=self.ai.read()
+            if self.sync.shape[0]>0: 
+                #self.ai.read()
+                break
+            time.sleep(0.01)
         self.stop_video_recording()
         if hasattr(self, 'iscamera'):
             self.iscamera.stop()
@@ -664,6 +673,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             time.sleep(40e-3)
         
     def close(self):
+        self.serialport.close()
         if hasattr(self, 'stimulus_daq_handle'):
             daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
         if self.session_ongoing:
@@ -737,12 +747,12 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
                                 {'name': 'Pulse Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 ]},
-                            {'name': 'Lick Detection', 'type': 'group', 'expanded' : True, 'children': [
-                                {'name': 'Voltage Threshold', 'type': 'float', 'value': 0.25,'siPrefix': True, 'suffix': 'V'},
-                                {'name': 'Min Lick Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Max Lick Duration', 'type': 'float', 'value': 100e-3,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Mean Voltage Threshold', 'type': 'float', 'value': 0.07,'siPrefix': True, 'suffix': 'V'},
-                                ]},
+#                            {'name': 'Lick Detection', 'type': 'group', 'expanded' : True, 'children': [
+#                                {'name': 'Voltage Threshold', 'type': 'float', 'value': 0.25,'siPrefix': True, 'suffix': 'V'},
+#                                {'name': 'Min Lick Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
+#                                {'name': 'Max Lick Duration', 'type': 'float', 'value': 100e-3,'siPrefix': True, 'suffix': 's'},
+#                                {'name': 'Mean Voltage Threshold', 'type': 'float', 'value': 0.07,'siPrefix': True, 'suffix': 'V'},
+#                                ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
@@ -824,15 +834,15 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('update_events_plot'):
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
-                if tn =='lick':
+                if tn =='lick raw':
                     plotparams.append({'name': tn, 'pen':(255,0,0)})
                 elif tn=='reward':
                     plotparams.append({'name': tn, 'pen':(0,0,255)})
-                elif tn=='airpuff':
+                elif tn=='detected lick':
                     plotparams.append({'name': tn, 'pen':(0,0,0)})
                 elif tn=='stimulus':
                     plotparams.append({'name': tn, 'pen':(0,255,0)})
-                elif tn=='licks':
+                elif tn=='protocol debug':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (255,0,0,150)})
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
@@ -1316,7 +1326,7 @@ class TestBehavEngine(unittest.TestCase):
 
 if __name__ == '__main__':
     if len(sys.argv)>1:
-        if not ('BehavioralSetup' in sys.argv):
+        if ('BehavioralSetup' in sys.argv[1]):
             introspect.kill_other_python_processes()
             #Check number of python processes
             if len(introspect.get_python_processes())>1:

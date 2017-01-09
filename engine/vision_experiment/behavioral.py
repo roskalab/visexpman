@@ -1,3 +1,6 @@
+'''
+OBSOLETE: based on run/no run behavior
+'''
 import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging
 import numpy,visexpman, traceback,serial,re,subprocess,platform
 import cv2

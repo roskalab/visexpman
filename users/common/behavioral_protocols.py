@@ -1,9 +1,37 @@
 import random,logging,time,numpy
 from visexpman.engine.vision_experiment.experiment import Protocol,BehavioralProtocol
+from visexpman.engine.hardware_interface.lick_detector import HitMissProtocolHandler
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.analysis import behavioral_data
 
 
+class HitMiss(BehavioralProtocol):
+    '''
+    After pretrial wait a laser pulse is generated. If lick happens within 0.5 second, 
+    the trial is considered successful.
+    '''
+    PRETRIAL_DURATION_MIN=10
+    PRETRIAL_DURATION_MAX=20
+    FLASH_DURATION=0.2
+    RESPONSE_WINDOW=0.5
+    REWARD_DELAY=0.5
+    DRINK_TIME=2
+    def prepare(self):
+        self.pretrial_duration=\
+            numpy.round(numpy.random.random()*(self.PRETRIAL_DURATION_MAX-self.PRETRIAL_DURATION_MIN)+self.PRETRIAL_DURATION_MIN,0)
+        logging.info('Pretrial duration {0} s'.format(self.pretrial_duration))
+            
+    #def TODO: contiue here: run protocol handler!!!!
+    def run(self):
+        self.hmph=HitMissProtocolHandler(self.engine.serialport,
+                    self.engine.parameters['Laser Intensity'],
+                    self.pretrial_duration,
+                    self.REWARD_DELAY)
+        self.hmph.start()
+        self.hmph.join()
+        while not self.hmph.log.empty():
+            l=self.hmph.log.get()
+            logging.info(l)
 
 class LickResponse(BehavioralProtocol):
     '''

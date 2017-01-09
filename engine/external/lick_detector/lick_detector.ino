@@ -60,7 +60,7 @@ int isr_counter;
 ISR(TIMER1_COMPA_vect) {
    TCNT1=0;
    isr_counter++;
-   if (isr_counter%100==0)
+   if (isr_counter%10==0)
    {
      //digitalWrite(DEBUGPIN, HIGH);
      lpr.protocol.lick_detector.update();//detect lick events

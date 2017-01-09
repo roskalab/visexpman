@@ -14,7 +14,7 @@ class HitMissProtocolHandler(threading.Thread):
                 drink_time = 2):
         #multiprocessing.Process.__init__(self)
         threading.Thread.__init__(self)
-        self.init_wait=2.0
+        self.init_wait=2.0*0
         self.fsample=1000
         self.serial_port=serial_port
         self.pars=[laser_voltage, laser_duration,  pre_trial_interval, reponse_window_time, water_dispense_delay,\
@@ -71,7 +71,7 @@ class LickProtocolRunner(object):
     def __init__(self, serialport, laser_voltage, pre_trial_interval, water_dispense_delay,  aichannels,  fsample):
         self.ai=daq_instrument.AnalogRecorder(aichannels , fsample)
         self.ai.start()
-        time.sleep(0.1)
+        time.sleep(2)
         self.hmph=HitMissProtocolHandler(serialport,laser_voltage,pre_trial_interval,water_dispense_delay)
         self.hmph.start()
         
@@ -132,22 +132,39 @@ class TestProtocolHandler(unittest.TestCase):
         lick_indexes=hdf5io.read_item(aggregated_file,'indexes')
         lick=hdf5io.read_item(aggregated_file,'lick')
         wf=lick.values()[numpy.argmax(map(len, lick_indexes.values()))]
+        wfs=[wf]
+        nlicks=map(len, lick_indexes.values())
+        import random
+        random.seed(1)
+        ntests=50
+        indexes=[random.choice([i for i in range(len(nlicks)) if nlicks[i]>10]) for t in range(ntests-1)]
+        wfs.extend([lick.values()[i] for i in indexes])
         fs=1000
         laser_voltage=1
         pre_trial_interval=15
         water_dispense_delay=0.5
         serialport='COM8'
         serialport=serial.Serial(serialport, 115200, timeout=1)
-        if hasattr(serialport,  'write'):
-            time.sleep(2)
-        fsample=5e3
-        aichannels='Dev1/ai0:4'
-        lpr=LickProtocolRunner(serialport, laser_voltage, pre_trial_interval, water_dispense_delay,  aichannels,  fsample)
-        daq_instrument.set_waveform( 'Dev1/ao0',wf.reshape(1, wf.shape[0]),sample_rate = fs)
-        d, log=lpr.finish()
-        print log
-        t=numpy.arange(d[:, 0].shape[0], dtype=numpy.float)/fsample
-        [plot(t, d[:, i]+i*5) for i in range(5)];legend(['reward','lick signal', 'laser', 'lick detector output',  'debug'], loc='lower left');show()
+        figct=0
+        for wf in wfs:
+            if hasattr(serialport,  'write'):
+                time.sleep(2)
+            fsample=5e3
+            aichannels='Dev1/ai0:4'
+            lpr=LickProtocolRunner(serialport, laser_voltage, pre_trial_interval, water_dispense_delay,  aichannels,  fsample)
+            daq_instrument.set_waveform( 'Dev1/ao0',wf.reshape(1, wf.shape[0]),sample_rate = fs)
+            d, log=lpr.finish()
+            print log
+            t=numpy.arange(d[:, 0].shape[0], dtype=numpy.float)/fsample
+            [plot(t, d[:, i]) for i in range(4)];
+            plot(t, d[:,4]+5)
+            plot(t, numpy.ones_like(t)*0.25)
+            legend(['reward','lick signal', 'laser', 'lick detector output',  'debug',  'lick threshold'], loc='upper left',  fontsize=4)
+            savefig('c:\\Data\\{0}.png'.format(figct), dpi=300)
+            cla()
+            clf()
+            figct+=1
+            #show()
         if hasattr(serialport,  'write'):
             serialport.close()
     

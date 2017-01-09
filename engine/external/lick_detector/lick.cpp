@@ -39,10 +39,10 @@ float LickDetector::get_last_lick_time(void)
 }
 void LickDetector::update(void)
 {
-  timestamp_us = millis();
-  if ((timestamp_us-last_run>DETECTOR_RUN_PERIOD_MS)||1)
+  timestamp = millis();
+  if (1)//((timestamp_us-last_run>DETECTOR_RUN_PERIOD_MS)||1)
   { 
-    last_run=timestamp_us;
+    //last_run=timestamp;
     //Serial.println(duration_max_us);
     /*#if (ENABLE_DEBUG_PULSES)
       digitalWrite(LICKDETECTEDPIN, HIGH);
@@ -53,7 +53,8 @@ void LickDetector::update(void)
     if ((adc_val>voltage_threshold_adc)&&(!rise))
     {
       rise=true;
-      rise_time=timestamp_us;
+      //digitalWrite(LICKDETECTEDPIN, HIGH);//DEBUG
+      rise_time=timestamp;
       #if (ENABLE_DEBUG_PULSES)
         digitalWrite(LICKDETECTEDPIN, HIGH);
         delayMicroseconds(200);
@@ -63,13 +64,14 @@ void LickDetector::update(void)
     else if ((adc_val<voltage_threshold_adc)&&rise)
     {      
       rise=false;
-      dt=timestamp_us-rise_time;
+      //digitalWrite(LICKDETECTEDPIN, LOW);//DEBUG
+      dt=timestamp-rise_time;
       if ((dt>duration_min_ms) && (dt<duration_max_ms))
       {
         lick_counter++;
-        last_lick_time=timestamp_us;
+        last_lick_time=timestamp;
         digitalWrite(LICKDETECTEDPIN, HIGH);
-        delayMicroseconds(400);
+        delayMicroseconds(500);
         digitalWrite(LICKDETECTEDPIN, LOW);
       }
     }

@@ -14,7 +14,7 @@ class LickDetector {
         int voltage_threshold_adc;
         unsigned long duration_max_ms;
         unsigned long duration_min_ms;
-        unsigned long timestamp_us;
+        unsigned long timestamp;
         unsigned long dt;
         int adc_val;
 };

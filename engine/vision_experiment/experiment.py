@@ -1,4 +1,4 @@
-import sys
+import sys, threading, time
 import logging
 import os
 import visexpman
@@ -191,6 +191,64 @@ class Stimulus(stimulation_library.AdvancedStimulation):
             if vn.isupper():
                 d[vn]=getattr(self,vn)
         return d
+        
+class BehavioralProtocol(threading.Thread):
+#class BehavioralProtocol(multiprocessing.Process):
+    '''
+    Compulsory parameters:
+        TRIGGER_TIME: when actions triggered
+        DURATION_MIN, DURATION_MAX: overall duration will be randomized between these values
+    '''
+    ENABLE_IMAGING_SOURCE_CAMERA=False
+    def __init__(self,engine):
+        threading.Thread.__init__(self)
+        #multiprocessing.Process.__init__(self)
+        self.engine=engine
+        self.init()
+        
+    def generate_duration(self):
+        if self.TRIGGER_TIME>self.DURATION_MIN:
+            raise RuntimeError('duration range ({0}, {1}) shall be longer than trigger time ({2})'.format(self.DURATION_MIN, self.DURATION_MAX,self.TRIGGER_TIME))
+        self.duration=numpy.round(numpy.random.random()*(self.DURATION_MAX-self.DURATION_MIN)+self.DURATION_MIN,0)
+        logging.info('Protocol duration is {0}'.format(self.duration))
+        
+    def prepare(self):
+        '''
+        precalculation, initialization
+        '''
+        
+    def init(self):
+        if not hasattr(self, 'duration') and hasattr(self, 'TRIGGER_TIME'):
+            self.generate_duration()
+        self.prepare()
+        self.starttime=time.time()
+        
+    def run(self):
+        self.init()
+        self.trigger_fired=False
+        while True:
+            now=time.time()
+            if now-self.starttime>self.TRIGGER_TIME and not self.trigger_fired:
+                logging.info('Protocol event trigger')
+                self.triggered()
+                self.trigger_fired=True
+            if self.isfinished():
+                logging.info('Protocol finishes')
+                break
+            time.sleep(0.1)
+        
+    def triggered(self):
+        '''
+        When protocol main event triggered, actions taken implemented here
+        '''
+        
+    def stat(self):
+        '''
+        calculate statistics
+        '''
+        
+    def isfinished(self):
+        return time.time()-self.starttime>=self.duration
 
 class Protocol(object):
     ENABLE_IMAGING_SOURCE_CAMERA=False
@@ -212,6 +270,11 @@ class Protocol(object):
     def reset(self):
         '''
         Resets state variables
+        '''
+        
+    def on_each_file(self):
+        '''
+        OBSOLETE
         '''
 
 ######################### Restore experiment config from measurement data #########################
