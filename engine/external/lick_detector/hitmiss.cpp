@@ -22,6 +22,7 @@ HitMiss::HitMiss(void)
     state=IDLE;
     #if (PLATFORM==ARDUINO)
       lick_detector=LickDetector();
+      dac=Dac();
     #endif
     
 }
@@ -95,7 +96,9 @@ void HitMiss::run(void)
                 cout<<"Lick trial, laser flash "<<laser_voltage<<"V duration "<<laser_duration<< "s " <<t_wait_for_response<<endl;
             #elif (PLATFORM==ARDUINO)
                 Serial.println("Lick trial");
-                //todo: replace this to dac call
+                //todo: Enable this:
+                //dac.set(laser_voltage);
+                //dac.set(0.0f);
                 digitalWrite(LASERPIN, HIGH);
                 delay((int)(laser_duration*1000));
                 digitalWrite(LASERPIN, LOW);
@@ -179,4 +182,3 @@ void HitMiss::set_state(protocol_state_t state2set)
   debug_pulse();
   state=state2set;
 }
-

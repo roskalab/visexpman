@@ -4,6 +4,7 @@ This class implements the hit/miss protocol
 #include "comm.h"
 #if (PLATFORM==ARDUINO)
   #include "lick.h"
+  #include "dac.h"
 #endif
 
 typedef enum result_t {
@@ -27,6 +28,7 @@ class HitMiss:public Comm {
         void run(void);
     #if (PLATFORM==ARDUINO)
         LickDetector lick_detector;
+        Dac dac;
     #endif
     private:
     //Protocol parameters
@@ -46,5 +48,6 @@ class HitMiss:public Comm {
         unsigned long now;
         unsigned long milliseconds(void);
         void set_state(protocol_state_t state2set);
+        void set_voltage(float voltage,int channel);
     
 };

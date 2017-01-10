@@ -3,6 +3,7 @@
 #define REWARDPIN 3
 #define LASERPIN 2
 #define DEBUGPIN 4
+#define SLAVESELECTPIN 10
 #define ADCREF 5.0
 #define ADCMAXCOUNT 1024
 #define DETECTOR_RUN_PERIOD_MS 10
