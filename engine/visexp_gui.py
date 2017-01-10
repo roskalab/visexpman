@@ -55,7 +55,10 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text = ''
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = False)
         QtGui.QWidget.__init__(self)
-        self.user, ok = QtGui.QInputDialog.getItem(self, QtCore.QString('User'), QtCore.QString(''), QtCore.QStringList(gui.USERS))
+        if len(sys.argv)==4:
+            self.user=sys.argv[3]
+        else:
+            self.user, ok = QtGui.QInputDialog.getItem(self, QtCore.QString('User'), QtCore.QString(''), QtCore.QStringList(gui.USERS))
         self.user=str(self.user)
         if not ok:
             raise RuntimeError('Unknown user')

@@ -785,7 +785,8 @@ class MainPoller(Poller):
             self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
             #self.stage.reset()
             self.stage.setparams()
-            self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
+            if 0:
+                self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
         
     def update_process_status(self):
         try:
@@ -2252,7 +2253,7 @@ class MainPoller(Poller):
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
         self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo')
         self.generate_experiment_start_command()
-        if self.experiment_parameters.has_key('objective_positions') and self.ask4confirmation('Issue command for all depths?'):
+        if self.experiment_parameters.has_key('objective_positions') and (self.user=='daniel' or self.ask4confirmation('Issue command for all depths?')):
             while True:
                 if self.next_experiment()==None:
                     break
