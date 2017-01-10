@@ -267,6 +267,8 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             time.sleep(1.0)
             result, laser_intensity = self.mes_interface.read_laser_intensity()
+#            if not result:
+#                self.printl('Laser intensity CANNOT be read,  assuming 0%')
             if result:
                 self.initial_laser_intensity = laser_intensity
                 self.laser_intensity = laser_intensity
