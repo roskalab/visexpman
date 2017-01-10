@@ -20,14 +20,27 @@ class HitMiss(BehavioralProtocol):
         self.pretrial_duration=\
             numpy.round(numpy.random.random()*(self.PRETRIAL_DURATION_MAX-self.PRETRIAL_DURATION_MIN)+self.PRETRIAL_DURATION_MIN,0)
         logging.info('Pretrial duration {0} s'.format(self.pretrial_duration))
-            
-    #def TODO: contiue here: run protocol handler!!!!
+        if self.engine.parameters['Enable Lick Simulation']:
+            import hdf5io,os,random
+            datafolder='c:\\visexp\\data'
+            self.fsampleao=1000
+            aggregated_file=os.path.join(datafolder,'aggregated.hdf5')
+            lick_indexes=hdf5io.read_item(aggregated_file,'indexes')
+            lick=hdf5io.read_item(aggregated_file,'lick')
+            nlicks=map(len, lick_indexes.values())
+            index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>30])
+            wf=lick.values()[index]
+            maxnsamples=(self.pretrial_duration+self.FLASH_DURATION+self.RESPONSE_WINDOW)*self.fsampleao
+            wf=wf[:maxnsamples]
+    
     def run(self):
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
                     self.engine.parameters['Laser Intensity'],
                     self.pretrial_duration,
                     self.REWARD_DELAY)
         self.hmph.start()
+        if self.engine.parameters['Enable Lick Simulation']:
+            daq_instrument.set_waveform( 'Dev1/ao0',wf.reshape(1, wf.shape[0]),sample_rate = self.fsampleao)
         self.hmph.join()
         while not self.hmph.log.empty():
             l=self.hmph.log.get()

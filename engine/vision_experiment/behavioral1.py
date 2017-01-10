@@ -362,6 +362,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.iscamera.close()
             del self.iscamera
         self.update_plot()
+        logging.info('TODO: quantify timing of events')
         self.save2file()
 #        self.show_day_success_rate(self.recording_folder)
 
@@ -758,6 +759,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
                                 {'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
+                                {'name': 'Enable Lick Simulation', 'type': 'bool', 'value': False},
                                 {'name': 'Best N', 'type': 'float', 'value': 10},
                                 {'name': 'Histogram bin size', 'type': 'float', 'value': 50e-3, 'siPrefix': True, 'suffix': 's'},
                                 ]},
