@@ -44,7 +44,7 @@ class ZmqSocket(QObject):
         if flags&POLLIN: self.readyRead.emit()
         elif flags&POLLOUT: self.readyWrite.emit()
         elif flags&POLLERR: print "ZmqSocket.activity(): POLLERR"
-        else: print str(flags) + " ZmqSocket.activity(): fail"
+        else: pass#print str(flags) + " ZmqSocket.activity(): fail"
 
     def _recv(self, flags=NOBLOCK):
         try: _msg=self._socket.recv(flags=flags)
