@@ -51,7 +51,7 @@ class MEAConfig(HiMEAConfig):
         CONTEXT_PATH = self.root_folder
         EXPERIMENT_FILE_FORMAT = 'mat'
         
-        RECORDING_MACHINE_PORT = recordingMachineName + ':75000'
+        RECORDING_MACHINE_PORT = recordingMachineName + ':75002'
         
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
