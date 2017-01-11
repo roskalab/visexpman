@@ -1,4 +1,4 @@
-#if (PLATFORM==PC)
+/*#if (PLATFORM==PC)
   #include <string.h>
   #include "hitmiss.cpp"
 #endif
@@ -64,4 +64,4 @@
       }
       return 0;
   }
-#endif
+#endif*/
