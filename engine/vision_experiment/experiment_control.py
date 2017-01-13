@@ -602,10 +602,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
        if self.config.ENABLE_MEA_START_COMMAND:
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
+            poller = zmq.Poller()
             socket.connect("tcp://" + self.machine_config.RECORDING_MACHINE_PORT)#"tcp://12.0.1.1:75000")
             socket.send(cmd)
-            socket.recv()#This is blocking!!!
-        
+            
+            poller.register(socket, zmq.POLLIN)
+            if poller.poll(3000): #ms
+                socket.recv()#This is blocking!!!
+            else:
+                raise IOError("Request timeout!")
         
 class ExperimentControl(object):#OBSOLETE
     '''
