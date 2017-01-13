@@ -10,16 +10,17 @@ class HitMiss(BehavioralProtocol):
     After pretrial wait a laser pulse is generated. If lick happens within 0.5 second, 
     the trial is considered successful.
     '''
-    PRETRIAL_DURATION_MIN=10
-    PRETRIAL_DURATION_MAX=20
+    PRETRIAL_DURATION_MIN=10/2
+    PRETRIAL_DURATION_MAX=20/2
+    PRETRIAL_DURATION=0
     FLASH_DURATION=0.2
     RESPONSE_WINDOW=0.5
     REWARD_DELAY=0.5
     DRINK_TIME=2
     def prepare(self):
-        self.pretrial_duration=\
+        self.PRETRIAL_DURATION=\
             numpy.round(numpy.random.random()*(self.PRETRIAL_DURATION_MAX-self.PRETRIAL_DURATION_MIN)+self.PRETRIAL_DURATION_MIN,0)
-        logging.info('Pretrial duration {0} s'.format(self.pretrial_duration))
+        logging.info('Pretrial duration {0} s'.format(self.PRETRIAL_DURATION))
         if self.engine.parameters['Enable Lick Simulation']:
             import hdf5io,os,random
             datafolder='c:\\visexp\\data'
@@ -29,22 +30,25 @@ class HitMiss(BehavioralProtocol):
             lick=hdf5io.read_item(aggregated_file,'lick')
             nlicks=map(len, lick_indexes.values())
             index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>30])
-            wf=lick.values()[index]
-            maxnsamples=(self.pretrial_duration+self.FLASH_DURATION+self.RESPONSE_WINDOW)*self.fsampleao
-            wf=wf[:maxnsamples]
+            self.wf=lick.values()[index]
+            maxnsamples=(self.PRETRIAL_DURATION+self.FLASH_DURATION+self.RESPONSE_WINDOW)*self.fsampleao
+            self.wf=self.wf[-maxnsamples:]
+            self.wf[-1]=0
+            logging.info('Test waveform loaded')
     
     def run(self):
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
                     self.engine.parameters['Laser Intensity'],
-                    self.pretrial_duration,
+                    self.PRETRIAL_DURATION,
                     self.REWARD_DELAY)
         self.hmph.start()
         if self.engine.parameters['Enable Lick Simulation']:
-            daq_instrument.set_waveform( 'Dev1/ao0',wf.reshape(1, wf.shape[0]),sample_rate = self.fsampleao)
+            daq_instrument.set_waveform( 'Dev1/ao0',self.wf.reshape(1, self.wf.shape[0]),sample_rate = self.fsampleao)
         self.hmph.join()
         while not self.hmph.log.empty():
-            l=self.hmph.log.get()
-            logging.info(l)
+            l=self.hmph.log.get().replace('\r', '').replace('\n', '')
+            if len(l)>0:
+                logging.info(l)
 
 class LickResponse(BehavioralProtocol):
     '''

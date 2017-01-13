@@ -7,7 +7,7 @@ import PyQt4.QtCore as QtCore
 import hdf5io,unittest
 from visexpman.engine.generic import gui,utils,fileop,introspect
 from visexpman.engine.analysis import behavioral_data
-from visexpman.engine.hardware_interface import daq_instrument,camera_interface
+from visexpman.engine.hardware_interface import daq_instrument,camera_interface, lick_detector
 from visexpman.engine.vision_experiment import experiment,experiment_data
 DEBUG=False
 NREWARD_VOLUME=100
@@ -110,7 +110,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_time=time.time()
         self.stim_number=0
         self.session_ongoing=False
-        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -272,16 +271,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['reward', 'lick raw',  'stimulus', 'detected lick',  'protocol debug']
+        trace_names=['reward', 'lick raw',  'stimulus', 'licks',  'protocol/debug']
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:#Also ignore airpuff
-            x[-1]=self.lick_times
-            y[-1]=numpy.ones_like(self.lick_times)
-            trace_names[-1]='licks'
+            x[3]=self.lick_times
+            y[3]=numpy.ones_like(self.lick_times)*2
+            x[4]=self.protocol_state_change_times
+            y[4]=numpy.ones_like(self.protocol_state_change_times)
         else:
             y=y[:-1]
             x=x[:-1]
             trace_names=trace_names[:-1]
-        
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
         
     def _load_protocol(self):
@@ -325,17 +324,17 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
         self.session_ongoing=True
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
-        logging.info('Session started using {0} protocol'.format(self.current_protocol))
+        logging.info('Session started with {0} protocol'.format(self.current_protocol))
 
     def start_recording(self):
         #logging.info(introspect.python_memory_usage())
-        self._start_protocol()
         self.ai=daq_instrument.AnalogRecorder(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE)
         self.ai.start()
-        time.sleep(2)
+        self._start_protocol()
         self.id=experiment_data.get_id()
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
@@ -350,19 +349,26 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     
     def finish_recording(self):
         self.ai.commandq.put('stop')
+        time.sleep(0.5)
         while True:
             self.sync=self.ai.read()
             if self.sync.shape[0]>0: 
                 #self.ai.read()
                 break
             time.sleep(0.01)
+        logging.info('Recorded {0} s'.format(self.sync.shape[0]/float(self.machine_config.AI_SAMPLE_RATE)))
         self.stop_video_recording()
         if hasattr(self, 'iscamera'):
             self.iscamera.stop()
             self.iscamera.close()
             del self.iscamera
+        try:
+            self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+        except:
+            logging.info(traceback.format_exc())
         self.update_plot()
-        logging.info('TODO: quantify timing of events')
+        stat_str='{0}'.format(copy.deepcopy(self.stat))
+        self.to_gui.put({'statusbar':stat_str})
         self.save2file()
 #        self.show_day_success_rate(self.recording_folder)
 
@@ -377,6 +383,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Wait until protocol finishes')
         self.protocol.join()
         self.finish_recording()
+        self.serialport.close()
         self.session_ongoing=False
         self.to_gui.put({'set_recording_state': 'idle'})
         logging.info('Session ended')
@@ -390,15 +397,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             setattr(self.datafile, nn, object_parameters2dict(var))
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         self.datafile.sync=self.sync
-        self.datafile.stat=self.protocol.stat()
-        self.to_gui.put({'statusbar':self.datafile.stat})
+        self.datafile.stat=self.stat
         self.datafile.frame_times=self.frame_times
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
         self.datafile.parameters=copy.deepcopy(self.parameters)
         self.datafile.software=self.software_env
         self.datafile.animal=self.current_animal
-        nodes=['stat', 'frame_times', 'sync', 'animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'parameters', 'software']
+        nodes=['stat','frame_times', 'sync', 'animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'parameters', 'software']
         self.datafile.save(nodes)
         self.datafile.close()
         del self.datafile
@@ -674,7 +680,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             time.sleep(40e-3)
         
     def close(self):
-        self.serialport.close()
         if hasattr(self, 'stimulus_daq_handle'):
             daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
         if self.session_ongoing:
@@ -837,15 +842,15 @@ class Behavioral(gui.SimpleAppWindow):
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
                 if tn =='lick raw':
-                    plotparams.append({'name': tn, 'pen':(255,0,0)})
+                    plotparams.append({'name': tn, 'pen':(0, 255,0)})
                 elif tn=='reward':
                     plotparams.append({'name': tn, 'pen':(0,0,255)})
-                elif tn=='detected lick':
-                    plotparams.append({'name': tn, 'pen':(0,0,0)})
+                elif tn=='licks':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0, 255,0,150)})
                 elif tn=='stimulus':
-                    plotparams.append({'name': tn, 'pen':(0,255,0)})
-                elif tn=='protocol debug':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (255,0,0,150)})
+                    plotparams.append({'name': tn, 'pen':(255,0,0)})
+                elif tn=='protocol/debug':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0,0,0,150)})
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
             self.plots.events.plot.setXRange(0,tmax)
@@ -1004,7 +1009,7 @@ class CWidget(QtGui.QWidget):
         
 class FileBrowserW(gui.FileTree):
     def __init__(self,parent):
-        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['mat','hdf5', 'avi'])
+        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['*.mat','*.hdf5', '*.avi'])
         self.doubleClicked.connect(self.open_file)
         self.clicked.connect(self.file_selected)
         

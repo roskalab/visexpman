@@ -1,6 +1,6 @@
 import serial, multiprocessing, unittest, time, numpy, threading
 from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.generic import introspect
+from visexpman.engine.generic import introspect, signal
 from pylab import *
 
 #class HitMissProtocolHandler(multiprocessing.Process):
@@ -93,9 +93,57 @@ class LickProtocolRunner(object):
             log.append(l)
         self.ai.join()
         return d,  log
+        
+def detect_events(sync, fsample):
+    '''
+    sync signal order:
+        reward
+        raw lick signal
+        stimulus/laser
+        lick detector output
+        debug/protocol state changes
+        
+    1) Converts sync signals to timestamps
+    2) Lick number quanitfication
+    '''
+    #TODO: this function should go to behavioral_data module
+    ts=1.0/fsample
+    threshold=2.5
+    reward=sync[:, 0]
+    stimulus=sync[:, 2]
+    lick=sync[:, 3]
+    protocol_state=sync[:, 4]
+    reward_t=signal.trigger_indexes(reward, abs_threshold=threshold)*ts
+    stimulus_t=signal.trigger_indexes(stimulus, abs_threshold=threshold)*ts
+    lick_t=(signal.trigger_indexes(lick, abs_threshold=threshold)*ts)[::2]
+    protocol_state_t=(signal.trigger_indexes(protocol_state, abs_threshold=threshold)*ts)[::2]
+    if protocol_state_t.shape[0]>=4:
+        dt_pretrial=round(protocol_state_t[3]-protocol_state_t[2], 3)
+    else:
+        dt_pretrial=None
+    stim_start=stimulus_t[0]
+    stim_end=stimulus_t[1]
+    lick_numbers={'total':int(lick_t.shape[0]),  'postflash' : int(numpy.where(lick_t>stimulus_t[0])[0].shape[0])}
+    #Was it successful?
+    result=reward_t.shape[0]==2
+    stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial}
+    if result:
+        first_lick=lick_t[numpy.where(lick_t>stim_start)[0].min()]
+        stat['lick_latency']= round(first_lick-stim_start, 3)
+        stat['reward_delay']=round(reward_t[0]-first_lick, 3)
+        if protocol_state_t.shape[0]>=7:
+            stat['drink_time']=round(protocol_state_t[6]-reward_t[1], 3)
+        lick_numbers['postreward']=int(numpy.where(lick_t>reward_t[0])[0].shape[0])
+    elif (not result) and protocol_state_t.shape[0]>=7:
+        stat['response_window']=round(protocol_state_t[5]-protocol_state_t[3], 3)
+        
+    if 0:
+        plot(protocol_state+5);plot(stimulus);plot(reward);plot(lick);show()
+    return stat, lick_t, protocol_state_t
+    
     
 class TestProtocolHandler(unittest.TestCase):
-    @unittest.skip('')
+    #@unittest.skip('')
     def test_01_no_lick(self):
         reps=1
         laser_voltage=1
@@ -115,6 +163,7 @@ class TestProtocolHandler(unittest.TestCase):
             t=numpy.arange(d[:, 0].shape[0], dtype=numpy.float)/fsample
             events=t[numpy.where(numpy.diff(numpy.where(d[:,4]>d[:,4].max()/2,1,0))==1)[0]]
             deltats.append((numpy.cast['int'](numpy.diff(events)*1000000))[2:-1])
+            detect_events(d, fsample)
             print deltats[-1]
             if reps==1:
                 print log
@@ -136,12 +185,12 @@ class TestProtocolHandler(unittest.TestCase):
         nlicks=map(len, lick_indexes.values())
         import random
         random.seed(1)
-        ntests=50
+        ntests=1
         indexes=[random.choice([i for i in range(len(nlicks)) if nlicks[i]>10]) for t in range(ntests-1)]
         wfs.extend([lick.values()[i] for i in indexes])
         fs=1000
         laser_voltage=1
-        pre_trial_interval=15
+        pre_trial_interval=16
         water_dispense_delay=0.5
         serialport='COM8'
         serialport=serial.Serial(serialport, 115200, timeout=1)
@@ -154,6 +203,7 @@ class TestProtocolHandler(unittest.TestCase):
             lpr=LickProtocolRunner(serialport, laser_voltage, pre_trial_interval, water_dispense_delay,  aichannels,  fsample)
             daq_instrument.set_waveform( 'Dev1/ao0',wf.reshape(1, wf.shape[0]),sample_rate = fs)
             d, log=lpr.finish()
+            detect_events(d, fsample)
             print log
             t=numpy.arange(d[:, 0].shape[0], dtype=numpy.float)/fsample
             [plot(t, d[:, i]) for i in range(4)];

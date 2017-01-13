@@ -96,14 +96,13 @@ void HitMiss::run(void)
                 cout<<"Lick trial, laser flash "<<laser_voltage<<"V duration "<<laser_duration<< "s " <<t_wait_for_response<<endl;
             #elif (PLATFORM==ARDUINO)
                 Serial.println("Lick trial");
-                //todo: Enable this:
-                //dac.set(laser_voltage);
-                //dac.set(0.0f);
-                digitalWrite(LASERPIN, HIGH);
-                delay((int)(laser_duration*1000));
-                digitalWrite(LASERPIN, LOW);
                 //Reset lick counter
                 lick_detector.reset();
+                digitalWrite(LASERPIN, HIGH);
+                dac.set(laser_voltage);
+                delay((int)(laser_duration*1000));
+                dac.set(0.0f);
+                digitalWrite(LASERPIN, LOW);
                 t_wait_for_response=millis();
             #endif
             set_state(WAIT4RESPONSE);
@@ -121,7 +120,7 @@ void HitMiss::run(void)
                 }
             #elif (PLATFORM==ARDUINO)
                 now=millis();
-                //todo: hardware call, check if lick condition has happened
+                //Check if lick condition has happened
                 if (lick_detector.get_lick_number()>0)
                 {
                   Serial.println("Lick detected");
@@ -130,7 +129,7 @@ void HitMiss::run(void)
                 }
             #endif
             //check timeout
-            if ((now-t_wait_for_response)>(unsigned long)(reponse_window_time*1000))
+            if ((now-t_wait_for_response)>(unsigned long)((reponse_window_time-laser_duration)*1000))
             {                
                 set_state(ENDOFTRIAL);
                 result=MISS;

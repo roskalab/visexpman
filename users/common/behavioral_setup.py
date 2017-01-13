@@ -44,3 +44,5 @@ class OfficeTest(BehavioralSetup):
     LASER_AO_CHANNEL='/Dev2/ao0'
     ENABLE_CAMERA=False
     ARDUINO_SERIAL_PORT='COM8'
+    SCREEN_SIZE=[1280,1024]
+    PLOT_WIDGET_WIDTH=600

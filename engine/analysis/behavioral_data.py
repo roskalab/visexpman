@@ -431,6 +431,43 @@ class LickSummary(object):
                     best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[best_index:best_index+n]])
                 self.best[d]={'latency': best_latencies, 'licks':best_licks}
         pass    
+        
+def check_hitmiss_files(filename):
+    '''
+    Check:
+        1) measured durations are realistic
+        2) Sync recording length is realistic
+    '''
+    if os.path.isdir(filename):
+        files=[f for f in fileop.listdir_fullpath(filename) if os.path.splitext(f)[1]=='.hdf5']
+    else:
+        files=[filename]
+    for f in files:
+        print f
+        h=hdf5io.Hdf5io(f)
+        map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat'])
+        recording_duration=h.sync.shape[0]/float(h.machine_config['AI_SAMPLE_RATE'])
+        protocol_duration=h.protocol['PRETRIAL_DURATION']+h.protocol['FLASH_DURATION']
+        if h.stat['result']:
+            protocol_duration+=h.protocol['DRINK_TIME']+h.protocol['REWARD_DELAY']
+        else:
+            protocol_duration+=h.protocol['RESPONSE_WINDOW']
+        if protocol_duration>recording_duration:
+            raise RuntimeError('protocol_duration duration ({0}) is longer than sync recording duration ({1})'.format(protocol_duration, recording_duration))
+        dt=20e-3
+        if abs(h.stat[ 'pretrial_duration'] - h.protocol['PRETRIAL_DURATION'])>dt:
+            raise RuntimeError('Pretrial duration is measured to {0}, expected: {1}'.format(h.stat[ 'pretrial_duration'], h.protocol['PRETRIAL_DURATION']))
+        if h.stat['result'] and abs(h.stat[ 'reward_delay']-(h.protocol['REWARD_DELAY']))>dt:
+                if abs((h.stat[ 'reward_delay']-h.stat['lick_latency'])-h.protocol['REWARD_DELAY'])>dt:#Lick happens during stimulus
+                    from visexpman.engine.hardware_interface import lick_detector
+                    s,lt,pst=lick_detector.detect_events(h.sync,5000)
+                    raise RuntimeError('Reward delay is measured to {0}, expected: {1}'.format(h.stat[ 'reward_delay'], h.protocol['REWARD_DELAY']+0*h.stat[ 'lick_latency']))
+        if h.stat['result'] and abs(h.stat[ 'drink_time']-h.protocol['DRINK_TIME'])>dt:
+            raise RuntimeError('Reward delay is measured to {0}, expected: {1}'.format(h.stat[ 'drink_time'], h.protocol['DRINK_TIME']))
+        if not h.stat['result'] and abs(h.stat['response_window']-h.protocol['RESPONSE_WINDOW'])>dt:
+            raise RuntimeError('Response window is measured to {0}, expected: {1}'.format(h.stat['response_window'], h.protocol['RESPONSE_WINDOW']))
+        h.close()
+    
 
 class TestBehavAnalysis(unittest.TestCase):
         @unittest.skip('')
@@ -496,9 +533,13 @@ class TestBehavAnalysis(unittest.TestCase):
                     airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
                     print is_blinked.sum()/float(is_blinked.shape[0])
                     
+        @unittest.skip('')            
         def test_04_lick_summary(self):
             folder='c:\\Users\\mouse\\Desktop\\Lick BL6\\October 2016\\m2_BL6_lp'
             ls=LickSummary(folder,15)
+            
+        def test_05_check_hitmissfiles(self):
+            check_hitmiss_files('c:\\Data\\mouse\\test2\\20170113')
 
 if __name__ == "__main__":
     unittest.main()
