@@ -5,6 +5,7 @@ class LickDetector {
         void reset(void);
         int get_lick_number(void);
         float get_last_lick_time(void);
+        unsigned long first_lick_time;
     private:
         bool rise;
         unsigned long last_run;

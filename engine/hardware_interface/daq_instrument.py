@@ -512,6 +512,7 @@ class AnalogRecorder(multiprocessing.Process):
     def __init__(self, channels, sample_rate):
         self.commandq=multiprocessing.Queue()
         self.dataq=multiprocessing.Queue()
+        self.responseq=multiprocessing.Queue()
         multiprocessing.Process.__init__(self)
         self.channels=channels
         self.sample_rate=int(sample_rate)
@@ -537,6 +538,7 @@ class AnalogRecorder(multiprocessing.Process):
         self.read = DAQmxTypes.int32()
         self.analog_input.StartTask()
         self.number_of_ai_samples = int(self.buffer_size * self.sample_rate * self.number_of_ai_channels)
+        self.responseq.put('started')
         while True:
             if not self.commandq.empty():
                 cmd=self.commandq.get()

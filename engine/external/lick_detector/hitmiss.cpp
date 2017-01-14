@@ -126,6 +126,19 @@ void HitMiss::run(void)
                   Serial.println("Lick detected");
                   result=HIT;
                   set_state(WATERREWARD);
+                  //Reward delay offset has to be modified if lick has happened during flash
+                  cli();
+                  if (t_wait_for_response>lick_detector.first_lick_time)
+                  {
+                    water_dispense_delay_correction=t_wait_for_response-lick_detector.first_lick_time;
+                  }
+                  else
+                  {
+                    water_dispense_delay_correction=0;
+                  }
+                  sei();
+                  Serial.print("Water dispense delay correction [ms]: ");
+                  Serial.println(water_dispense_delay_correction);
                 }
             #endif
             //check timeout
@@ -144,9 +157,9 @@ void HitMiss::run(void)
                 cout<<"Release water for "<<water_dispense_time<<" s"<<endl;
                 cout<<"Drink time "<<drink_time<<" s"<<endl;
             #elif (PLATFORM==ARDUINO)
-                delay(water_dispense_delay*1000);
+                delay((water_dispense_delay)*1000-water_dispense_delay_correction);
                 digitalWrite(REWARDPIN, HIGH);
-                delay((int)(water_dispense_time*1000));
+                delay((int)((water_dispense_time)*1000));
                 digitalWrite(REWARDPIN, LOW);
                 delay(drink_time*1000);
             #endif

@@ -58,11 +58,14 @@ class HitMissProtocolHandler(threading.Thread):
             self.s.close()
             raise RuntimeError('Protocol start failed, response: {0}'.format(resp))
         time.sleep(self.pars[2])
+        ct=0
         while True:
             resp=self.s.readline()
-            self.log.put(resp)
+            ct+=1
+            if len(resp)>0:
+                self.log.put(resp)
             time.sleep(0.1)
-            if 'End of trial' in resp:
+            if 'End of trial' in resp or ct>1000:
                 break
         if not hasattr(self.serial_port, 'write'):
             self.s.close()
@@ -143,7 +146,7 @@ def detect_events(sync, fsample):
     
     
 class TestProtocolHandler(unittest.TestCase):
-    #@unittest.skip('')
+    @unittest.skip('')
     def test_01_no_lick(self):
         reps=1
         laser_voltage=1
@@ -185,7 +188,7 @@ class TestProtocolHandler(unittest.TestCase):
         nlicks=map(len, lick_indexes.values())
         import random
         random.seed(1)
-        ntests=1
+        ntests=3
         indexes=[random.choice([i for i in range(len(nlicks)) if nlicks[i]>10]) for t in range(ntests-1)]
         wfs.extend([lick.values()[i] for i in indexes])
         fs=1000

@@ -443,11 +443,12 @@ def check_hitmiss_files(filename):
     else:
         files=[filename]
     for f in files:
-        print f
+        if len(files)>1:
+            print f
         h=hdf5io.Hdf5io(f)
         map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat'])
         recording_duration=h.sync.shape[0]/float(h.machine_config['AI_SAMPLE_RATE'])
-        protocol_duration=h.protocol['PRETRIAL_DURATION']+h.protocol['FLASH_DURATION']
+        protocol_duration=h.protocol['PRETRIAL_DURATION']
         if h.stat['result']:
             protocol_duration+=h.protocol['DRINK_TIME']+h.protocol['REWARD_DELAY']
         else:
@@ -455,6 +456,12 @@ def check_hitmiss_files(filename):
         if protocol_duration>recording_duration:
             raise RuntimeError('protocol_duration duration ({0}) is longer than sync recording duration ({1})'.format(protocol_duration, recording_duration))
         dt=20e-3
+        if 0:
+            reward=h.sync[:, 0]
+            stimulus=h.sync[:, 2]
+            lick=h.sync[:, 3]
+            protocol_state=h.sync[:, 4]
+            plot(protocol_state+5);plot(stimulus);plot(reward);plot(lick);show()
         if abs(h.stat[ 'pretrial_duration'] - h.protocol['PRETRIAL_DURATION'])>dt:
             raise RuntimeError('Pretrial duration is measured to {0}, expected: {1}'.format(h.stat[ 'pretrial_duration'], h.protocol['PRETRIAL_DURATION']))
         if h.stat['result'] and abs(h.stat[ 'reward_delay']-(h.protocol['REWARD_DELAY']))>dt:
@@ -539,7 +546,7 @@ class TestBehavAnalysis(unittest.TestCase):
             ls=LickSummary(folder,15)
             
         def test_05_check_hitmissfiles(self):
-            check_hitmiss_files('c:\\Data\\mouse\\test2\\20170113')
+            check_hitmiss_files('c:\\Data\\mouse\\test2\\20170114')
 
 if __name__ == "__main__":
     unittest.main()

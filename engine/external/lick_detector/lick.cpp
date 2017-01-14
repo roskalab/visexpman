@@ -18,6 +18,7 @@ void LickDetector::reset(void)
   cli();
   rise=false;
   lick_counter=0;
+  first_lick_time=0;
   sei();
 }
 
@@ -70,6 +71,10 @@ void LickDetector::update(void)
       {
         lick_counter++;
         last_lick_time=timestamp;
+        if (lick_counter==1)
+        {
+          first_lick_time=timestamp;
+        }
         digitalWrite(LICKDETECTEDPIN, HIGH);
         delayMicroseconds(500);
         digitalWrite(LICKDETECTEDPIN, LOW);

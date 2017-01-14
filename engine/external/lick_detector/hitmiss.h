@@ -47,6 +47,7 @@ class HitMiss:public Comm {
         unsigned long t_wait_for_response;
         unsigned long now;
         unsigned long milliseconds(void);
+        unsigned long water_dispense_delay_correction;
         void set_state(protocol_state_t state2set);
         void set_voltage(float voltage,int channel);
     

@@ -265,22 +265,28 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         for f in hdf5files:
             experiment_data.hdf52mat(f)
             logging.info(f)
-        
     
     def update_plot(self):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
         trace_names=['reward', 'lick raw',  'stimulus', 'licks',  'protocol/debug']
-        if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:#Also ignore airpuff
-            x[3]=self.lick_times
-            y[3]=numpy.ones_like(self.lick_times)*2
+        if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
         else:
             y=y[:-1]
             x=x[:-1]
             trace_names=trace_names[:-1]
+        if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
+            x[3]=self.lick_times
+            y[3]=numpy.ones_like(self.lick_times)*2
+        else:
+            del x[3]
+            del y[3]
+            del trace_names[3]
+        
+        self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
         
     def _load_protocol(self):
@@ -334,12 +340,17 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #logging.info(introspect.python_memory_usage())
         self.ai=daq_instrument.AnalogRecorder(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE)
         self.ai.start()
+        t0=time.time()
+        while self.ai.responseq.empty():
+            time.sleep(0.1)
+            if time.time()-t0>10:
+                break
+        #time.sleep(2.5)#This value is experimental!!!
         self._start_protocol()
         self.id=experiment_data.get_id()
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
         self.filename+='.hdf5'
-        self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera=camera_interface.ImagingSourceCameraSaver(self.filename)
         self.start_video_recording(videofilename)
@@ -348,14 +359,17 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.actual_recording_started=time.time()
     
     def finish_recording(self):
+        self.protocol.join()
+        logging.info('Protocol finished')
         self.ai.commandq.put('stop')
         time.sleep(0.5)
         while True:
             self.sync=self.ai.read()
+            logging.info('ai data shape: '+str(self.sync.shape[0]))
             if self.sync.shape[0]>0: 
                 #self.ai.read()
                 break
-            time.sleep(0.01)
+            time.sleep(0.1)
         logging.info('Recorded {0} s'.format(self.sync.shape[0]/float(self.machine_config.AI_SAMPLE_RATE)))
         self.stop_video_recording()
         if hasattr(self, 'iscamera'):
@@ -366,11 +380,21 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
         except:
             logging.info(traceback.format_exc())
+        self.stat2gui()
         self.update_plot()
-        stat_str='{0}'.format(copy.deepcopy(self.stat))
-        self.to_gui.put({'statusbar':stat_str})
         self.save2file()
+        try:
+            behavioral_data.check_hitmiss_files(self.filename)
+        except:
+            logging.info(traceback.format_exc())
 #        self.show_day_success_rate(self.recording_folder)
+
+    def stat2gui(self):
+        timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers'])
+        stat_str='Result: {1}, lick numbers: {0}'.format(self.stat['lick_numbers'],  'Hit' if self.stat['result'] else 'Miss')
+        logging.info(stat_str)
+        logging.info(timingstr)
+        self.to_gui.put({'statusbar':stat_str+' '+timingstr})
 
     def save_during_session(self):
         if self.session_ongoing and not self.protocol.is_alive():
@@ -381,7 +405,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not self.session_ongoing:
             return
         logging.info('Wait until protocol finishes')
-        self.protocol.join()
         self.finish_recording()
         self.serialport.close()
         self.session_ongoing=False
@@ -419,25 +442,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.filename=filename
         self.datafile_opened=time.time()
         self.datafile=hdf5io.Hdf5io(self.filename)
-        for vn in ['sync']:
-            self.datafile.load(vn)
-            setattr(self, vn, getattr(self.datafile, vn))
-        self.datafile.load('protocol_name')
-        if 'lick' in self.datafile.protocol_name.lower():#TODO this is a hack, a more general solution has to be added
-            lick=self.datafile.sync[:,0]
-            stimulus=self.datafile.sync[:,2]
-            self.datafile.load('machine_config')
-            fsample=self.datafile.machine_config['AI_SAMPLE_RATE']
-            self.datafile.load('protocol')
-            lick_wait_time=self.datafile.protocol['LICK_WAIT_TIME']
-            logging.info('Detecting licks')
-            self.events,self.lick_times,self.successful_lick_times,s = \
-                        behavioral_data.lick_detection(lick,stimulus,fsample,lick_wait_time,
-                                    self.parameters['Voltage Threshold'],
-                                    self.parameters['Max Lick Duration'],
-                                    self.parameters['Min Lick Duration'],
-                                    self.parameters['Mean Voltage Threshold'])
-        self.to_gui.put({'statusbar':'Number of licks: {0}, successful licks: {1}'.format(self.lick_times.shape[0],self.successful_lick_times.shape[0])})
+        self.sync=self.datafile.findvar('sync')
+        self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+        self.stat2gui()
         self.datafile.close()
         self.to_gui.put({'set_events_title': os.path.basename(filename)})
         logging.info('Opened {0}'.format(filename))
