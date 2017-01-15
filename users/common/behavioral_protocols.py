@@ -26,10 +26,17 @@ class HitMiss(BehavioralProtocol):
             datafolder='c:\\visexp\\data'
             self.fsampleao=1000
             aggregated_file=os.path.join(datafolder,'aggregated.hdf5')
-            lick_indexes=hdf5io.read_item(aggregated_file,'indexes')
-            lick=hdf5io.read_item(aggregated_file,'lick')
+            if not hasattr(self.engine, 'lick_test'):
+                self.engine.lick_test={}
+                lick_indexes=hdf5io.read_item(aggregated_file,'indexes')
+                lick=hdf5io.read_item(aggregated_file,'lick')
+                self.engine.lick_test['lick']=lick
+                self.engine.lick_test['lick_indexes']=lick_indexes
+            else:
+                lick = self.engine.lick_test['lick']
+                lick_indexes = self.engine.lick_test['lick_indexes']
             nlicks=map(len, lick_indexes.values())
-            index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>30])
+            index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>50])
             self.wf=lick.values()[index]
             maxnsamples=(self.PRETRIAL_DURATION+self.FLASH_DURATION+self.RESPONSE_WINDOW)*self.fsampleao
             self.wf=self.wf[-maxnsamples:]
@@ -37,6 +44,7 @@ class HitMiss(BehavioralProtocol):
             logging.info('Test waveform loaded')
     
     def run(self):
+        logging.info('Hitmiss started')
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
                     self.engine.parameters['Laser Intensity'],
                     self.PRETRIAL_DURATION,

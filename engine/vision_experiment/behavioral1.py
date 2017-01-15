@@ -345,7 +345,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             time.sleep(0.1)
             if time.time()-t0>10:
                 break
-        #time.sleep(2.5)#This value is experimental!!!
+        time.sleep(1)#This value is experimental!!!
         self._start_protocol()
         self.id=experiment_data.get_id()
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
@@ -363,11 +363,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Protocol finished')
         self.ai.commandq.put('stop')
         time.sleep(0.5)
+        t0=time.time()
         while True:
             self.sync=self.ai.read()
             logging.info('ai data shape: '+str(self.sync.shape[0]))
             if self.sync.shape[0]>0: 
                 #self.ai.read()
+                break
+            if time.time()-t0>10:
+                logging.error('Not enough AI samples?')
+                logging.info(self.ai.dataq.qsize())
                 break
             time.sleep(0.1)
         logging.info('Recorded {0} s'.format(self.sync.shape[0]/float(self.machine_config.AI_SAMPLE_RATE)))
@@ -378,12 +383,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             del self.iscamera
         try:
             self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
-        except:
-            logging.info(traceback.format_exc())
-        self.stat2gui()
-        self.update_plot()
-        self.save2file()
-        try:
+            self.stat2gui()
+            self.update_plot()
+            self.save2file()
             behavioral_data.check_hitmiss_files(self.filename)
         except:
             logging.info(traceback.format_exc())

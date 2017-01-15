@@ -570,7 +570,7 @@ class AnalogRecorder(multiprocessing.Process):
         while not self.dataq.empty():
             r=self.dataq.get()
             data=numpy.concatenate((data, r))
-            time.sleep(0.01)
+            time.sleep(0.02)
             
         return data
         
