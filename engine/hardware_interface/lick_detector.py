@@ -129,7 +129,7 @@ def detect_events(sync, fsample):
     lick_numbers={'total':int(lick_t.shape[0]),  'postflash' : int(numpy.where(lick_t>stimulus_t[0])[0].shape[0])}
     #Was it successful?
     result=reward_t.shape[0]==2
-    stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial}
+    stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial, 'lick_times':lick_t,'stimulus_t':stimulus_t}
     if result:
         first_lick=lick_t[numpy.where(lick_t>stim_start)[0].min()]
         stat['lick_latency']= round(first_lick-stim_start, 3)

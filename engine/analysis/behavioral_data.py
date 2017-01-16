@@ -474,7 +474,116 @@ def check_hitmiss_files(filename):
         if not h.stat['result'] and abs(h.stat['response_window']-h.protocol['RESPONSE_WINDOW'])>dt:
             raise RuntimeError('Response window is measured to {0}, expected: {1}'.format(h.stat['response_window'], h.protocol['RESPONSE_WINDOW']))
         h.close()
-    
+        
+class HitmissAnalysis(object):
+    '''
+    Analysis type decided on subfolders in input folder:
+        Day analyis:
+            number of flashes,number of hits, success rate
+            lick times histogram
+        Animal analysis:
+            success rate per day
+            lick latency histogram for all days
+        Multiple animals:
+            aggregate success rate at each day to a single plot, different curve for each animal
+    '''
+    def __init__(self,folder,histogram_bin_time=20):
+        self.folder=folder
+        self.histogram_bin_time=histogram_bin_time
+        items_in_folder=fileop.listdir_fullpath(folder)
+        nsubfolders=len([f for f in items_in_folder if os.path.isdir(f)])
+        nitems=len(items_in_folder)
+        nfiles=nitems-nsubfolders
+        if nfiles==nitems:
+            self.analysis_type='day'
+            self.day_analysis()
+        elif nfiles==1:
+            self.analysis_type='animal'
+            self.animal_analysis()
+        elif nsubfolders==nitems:
+            self.analysis_type='all'
+            self.all_animals()
+        
+    def day_analysis(self,folder=None):
+        if isinstance(folder,str) and os.path.exists(folder):
+            self.alldatafiles=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
+        else:
+            self.alldatafiles=[f for f in fileop.find_files_and_folders(self.folder)[1] if os.path.splitext(f)[1]=='.hdf5']
+        self.lick_latencies=[]
+        self.nhits=0
+        self.nflashes=len(self.alldatafiles)
+        self.lick_times=[]
+        for f in self.alldatafiles:
+            h=hdf5io.Hdf5io(f)
+            stat=h.findvar('stat')
+            if not stat.has_key('stimulus_t'):
+                sync=h.findvar('sync')
+                machine_config=h.findvar('machine_config')
+                from visexpman.engine.hardware_interface import lick_detector
+                try:
+                    stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
+                except:
+                    pass
+                h.stat=stat
+                h.save('stat')
+            h.close()
+            self.nhits+=stat['result']
+            if stat.has_key('lick_latency'):
+                self.lick_latencies.append(stat['lick_latency']*1000)
+            self.lick_times.extend((1000*(stat['lick_times']-stat['stimulus_t'][0])).tolist())
+        self.lick_latencies=numpy.array(map(int,self.lick_latencies))
+        self.lick_times=numpy.array(map(int,self.lick_times))
+        self.success_rate=self.nhits/float(self.nflashes)
+        return self.lick_times,self.lick_latencies,self.nflashes,self.nhits,self.success_rate
+        
+    def add2day_analysis(self,filename):
+        stat=hdf5io.read_item(filename,'stat')
+        self.nhits+=stat['result']
+        self.nflashes+=1
+        self.success_rate=self.nhits/float(self.nflashes)
+        if stat.has_key('lick_latency'):
+            numpy.append(self.lick_latencies,stat['lick_latency']*1000)
+        self.lick_times=numpy.concatenate((self.lick_times,numpy.cast['int'](stat['lick_times']*1000)))
+        
+    def animal_analysis(self, animal_name=None):
+        '''
+        data for plot 1: success rate vs day
+        data for plot 2: lick latency histogram
+        data for plot 3: lick time histogram for each day
+        '''
+        if animal_name==None:
+            animal_folder=self.folder
+        else:
+            animal_folder=os.path.join(self.folder,animal_name)
+        self.days=[os.path.basename(f) for f in fileop.listdir_fullpath(animal_folder) if os.path.isdir(f)]
+        self.days.sort()
+        lick_times_histogram={}
+        lick_latency_histogram={}
+        success_rates=[]
+        for d in self.days:
+            lick_times,lick_latencies,nflashes,nhits,success_rate = self.day_analysis(os.path.join(animal_folder,d))
+            lick_times_histogram[d]=lick_times
+            lick_latency_histogram[d]=lick_latencies
+            success_rates.append(success_rate)
+        lick_times_histogram=self.generate_histogram(lick_times_histogram)
+        lick_latency_histogram=self.generate_histogram(lick_latency_histogram)
+        return self.days, success_rates, lick_times_histogram,lick_latency_histogram
+        
+    def generate_histogram(self,data):
+        values=numpy.concatenate(data.values())
+        bins=numpy.arange(values.min(),values.max(),self.histogram_bin_time)
+        hist={}
+        for k,v in data.items():
+            hist[k]=numpy.histogram(v,bins)
+        return bins[:-1],hist
+        
+    def all_animals(self):
+        animals=os.listdir(self.folder)
+        animal_success_rate={}
+        for animal in animals:
+            days, success_rates, lick_times_histogram,lick_latency_histogram = self.animal_analysis(animal)
+            animal_success_rate[animal]=[days,success_rates]
+        return animal_success_rate
 
 class TestBehavAnalysis(unittest.TestCase):
         @unittest.skip('')
@@ -540,13 +649,21 @@ class TestBehavAnalysis(unittest.TestCase):
                     airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
                     print is_blinked.sum()/float(is_blinked.shape[0])
                     
-        @unittest.skip('')            
+        @unittest.skip('')
         def test_04_lick_summary(self):
             folder='c:\\Users\\mouse\\Desktop\\Lick BL6\\October 2016\\m2_BL6_lp'
             ls=LickSummary(folder,15)
             
+        @unittest.skip('')
         def test_05_check_hitmissfiles(self):
             check_hitmiss_files('c:\\Data\\mouse\\test2\\20170114')
+            
+        
+        def test_06_hitmiss_analysis(self):
+            h=HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1/20170114')
+            h.add2day_analysis(h.alldatafiles[0])
+            HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
+            HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
 
 if __name__ == "__main__":
     unittest.main()
