@@ -88,7 +88,7 @@ class ReceptiveFieldFionaFine(ReceptiveFieldExploreNew):
         self.NCOLUMNS = 18
         self.SIZE_DIMENSION='angle'
         self.DISPLAY_SIZE = utils.rc((51.0,90.0))#((65.0,96.7))#((51.0,90.0))#degrees
-        self.DISPLAY_CENTER = utils.rc((4.0,32.0))#((38.7,55.4))#((44.4,45.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((25.5,24.0))#((38.7,55.4))#((44.4,45.0))#degrees
 #        self.SHAPE_SIZE = 10
         self.ON_TIME = 0.8
         self.OFF_TIME = 0.8

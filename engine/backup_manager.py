@@ -1,4 +1,4 @@
-import os,shutil,time,logging,datetime,filecmp,subprocess,threading,Queue
+import os,shutil,time,logging,datetime,filecmp,subprocess,threading,Queue, sys
 import traceback
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton/new'
@@ -180,6 +180,42 @@ def rei_backup():
         logging.error(msg)
         sendmail('zoltan.raics@fmi.ch', 'backup manager retinal file copy error', msg)
         
+def dani_purge():
+    delete_wait=2*86400
+    logging.basicConfig(filename= '/mnt/datafast/log/dani_purger4.txt',
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.DEBUG)
+    logging.info('Dani purger started')
+    src='/mnt/datafast/experiment_data/daniel'
+    dst1='/mnt/databig/data'
+    dst2=tape_path
+    src_files=list_all_files(src)
+    src_files=[f for f in src_files if os.path.splitext(f)[1] in ['.hdf5', '.mat']]
+    dst1_files=list_all_files(dst1)
+    dst1_files=[f for f in dst1_files if os.path.splitext(f)[1] in ['.hdf5', '.mat']]
+    dst2_files=list_all_files(dst2)
+    dst2_files=[f for f in dst2_files if os.path.splitext(f)[1] in ['.hdf5', '.mat']]
+    logging.info('Files listed')
+    files2delete=[]
+    for sf in src_files:
+        logging.info((sf, src_files.index(sf), len(src_files)))
+        if os.path.splitext(sf)[1]=='.hdf5':
+            if len([f for f in dst1_files if os.path.basename(f)==os.path.basename(sf)])==1 and\
+                    len([f for f in dst2_files if os.path.basename(f)==os.path.basename(sf)])==1:
+                files2delete.append(sf)
+        elif os.path.splitext(sf)[1]=='.mat':
+            if len([f for f in dst2_files if os.path.basename(f)==os.path.basename(sf)])==1:
+                files2delete.append(sf)
+    now=time.time()
+    files2delete = [f for f in files2delete if now-os.path.getmtime(f)>delete_wait]
+#    logging.info(files2delete)
+    logging.info(len(src_files))
+    for f in files2delete:
+        logging.info('{0} removed, file age: {1} hours'.format(os.path.basename(f), (now-os.path.getmtime(f))/3600))
+        os.remove(f)
+    logging.info(len(files2delete))
+    logging.info('Done')
+        
 def delete_empty_folder(root):
     all_dirs = []
     for rt, dirs, files in os.walk(root):            
@@ -241,4 +277,8 @@ def run():
     logging.info('done')
 
 if __name__ == "__main__":
-    run()
+    if len(sys.argv)>1 and sys.argv[1]=='dani':
+        dani_purge()
+    else:
+        run()
+    
