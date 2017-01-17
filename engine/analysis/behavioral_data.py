@@ -487,9 +487,9 @@ class HitmissAnalysis(object):
         Multiple animals:
             aggregate success rate at each day to a single plot, different curve for each animal
     '''
-    def __init__(self,folder,histogram_bin_time=20):
+    def __init__(self,folder,histogram_bin_time=20e-3):
         self.folder=folder
-        self.histogram_bin_time=histogram_bin_time
+        self.histogram_bin_time=histogram_bin_time*1e3
         items_in_folder=fileop.listdir_fullpath(folder)
         nsubfolders=len([f for f in items_in_folder if os.path.isdir(f)])
         nitems=len(items_in_folder)
@@ -520,10 +520,7 @@ class HitmissAnalysis(object):
                 sync=h.findvar('sync')
                 machine_config=h.findvar('machine_config')
                 from visexpman.engine.hardware_interface import lick_detector
-                try:
-                    stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
-                except:
-                    pass
+                stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
                 h.stat=stat
                 h.save('stat')
             h.close()
@@ -565,8 +562,12 @@ class HitmissAnalysis(object):
             lick_times_histogram[d]=lick_times
             lick_latency_histogram[d]=lick_latencies
             success_rates.append(success_rate)
+        success_rates=numpy.array(success_rates)
         lick_times_histogram=self.generate_histogram(lick_times_histogram)
         lick_latency_histogram=self.generate_histogram(lick_latency_histogram)
+        self.success_rates=success_rates
+        self.lick_times_histogram=lick_times_histogram
+        self.lick_latency_histogram=lick_latency_histogram
         return self.days, success_rates, lick_times_histogram,lick_latency_histogram
         
     def generate_histogram(self,data):
@@ -574,7 +575,7 @@ class HitmissAnalysis(object):
         bins=numpy.arange(values.min(),values.max(),self.histogram_bin_time)
         hist={}
         for k,v in data.items():
-            hist[k]=numpy.histogram(v,bins)
+            hist[k]=numpy.histogram(v,bins)[0]
         return bins[:-1],hist
         
     def all_animals(self):
@@ -583,6 +584,7 @@ class HitmissAnalysis(object):
         for animal in animals:
             days, success_rates, lick_times_histogram,lick_latency_histogram = self.animal_analysis(animal)
             animal_success_rate[animal]=[days,success_rates]
+        self.animal_success_rate=animal_success_rate
         return animal_success_rate
 
 class TestBehavAnalysis(unittest.TestCase):
