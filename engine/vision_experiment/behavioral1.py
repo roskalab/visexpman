@@ -1,4 +1,4 @@
-import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging
+import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging,datetime
 import numpy,visexpman, traceback,serial,re,subprocess,platform
 import cv2
 import PyQt4.Qt as Qt
@@ -93,8 +93,9 @@ class CameraHandler(object):
         return frame_color_corrected
 
 class BehavioralEngine(threading.Thread,CameraHandler):
-    def __init__(self,machine_config):
+    def __init__(self,machine_config,logfile_path=''):
         self.machine_config=machine_config
+        self.logfile_path=logfile_path
         threading.Thread.__init__(self)
         CameraHandler.__init__(self,machine_config)
         self.from_gui = Queue.Queue()
@@ -594,6 +595,19 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     self.iscamera.save()
                     if len(self.iscamera.frames)>0 and len(self.iscamera.frames)%4==0:
                         self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
+                #Run backup
+                t=datetime.datetime.fromtimestamp(self.last_run)
+                if (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+                    if os.path.exists(self.logfile_path) and os.path.getmtime(self.last_run-self.logfile_path)>self.machine_configBACKUP_LOG_TIMEOUT*60:
+                        logging.info('Backing up logfiles')
+                        logfilecomparer=fileop.FileComparer(os.dirname(self.logfile_path),self.machine_config.BACKUP_PATH,['.txt'])
+                        logfilecomparer.compare()
+                        logfilecomparer.sync()
+                        logging.info('Backing up data files')
+                        datafilecomparer=fileop.FileComparer(self.datafolder,self.machine_config.BACKUP_PATH,['.hdf5','.avi'])
+                        datafilecomparer.compare()
+                        datafilecomparer.sync()
+                        logging.info('Done')
             except:
                 logging.error(traceback.format_exc())
                 self.save_context()
@@ -649,7 +663,7 @@ class Behavioral(gui.SimpleAppWindow):
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
-        self.engine=BehavioralEngine(self.machine_config)
+        self.engine=BehavioralEngine(self.machine_config,logfile_path=self.logfile)
         self.engine.start()
         self.to_engine=self.engine.from_gui
         self.from_engine=self.engine.to_gui

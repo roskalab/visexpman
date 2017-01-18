@@ -1,4 +1,4 @@
-import sys
+import sys,filecmp
 import os, re
 import os.path
 import ctypes
@@ -585,6 +585,30 @@ def compare_timestamps(string1, string2):
 
 ################# Others ####################
 
+class FileComparer(object):
+    '''
+    Generic, platform independent class for comparing two folders and performing one directional sync
+    '''
+    def __init__(self,src,dst,filetypes=[]):
+        self.src=src
+        self.dst=dst
+        self.filetypes=filetypes
+        
+    def compare(self):
+        logging.info('Listing files in {0}'.format(self.src))
+        self.src_files=find_files_and_folders(self.src)[1]
+        self.copylist=[]
+        logging.info('Comparing files to {0}'.format(self.dst))
+        for src_file in self.src_files:
+            if not (os.path.splitext(src_file) in filetypes): continue
+            dst_file=s.replace(self.src,self.dst)
+            if (not os.path.exists(dst_file)) or not filecmp.cmp(src_file,dst_file):
+                self.copylist.append([src_file,dst_file])
+        
+    def sync(self):
+        for cl in self.copylist:
+            logging.info('Copy {0} to {1}'.format(*cl))
+            shutil.copy2(*cl) 
 
 def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     if thread:

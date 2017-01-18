@@ -20,6 +20,9 @@ class BehavioralSetup(BehavioralConfig):
         PROTOCOL_ORDER=['HitMiss']
         AI_CHANNELS='Dev1/ai0:4'#water valve, lick signal, laser, lick detector output, debug (protocol state)
         AI_SAMPLE_RATE=5000
+        BACKUPTIME=3#3am
+        BACKUP_LOG_TIMEOUT=60#minutes
+        BACKUP_PATH='x:\\behavioral\\'
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM4'
