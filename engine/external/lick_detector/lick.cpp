@@ -8,7 +8,8 @@ LickDetector::LickDetector(void)
 {
   duration_max_ms=(unsigned long)(LICK_DURATION_MAX*1e3);
   duration_min_ms=(unsigned long)(LICK_DURATION_MIN*1e3);
-  voltage_threshold_adc=(int)ADCMAXCOUNT/ADCREF*LICK_THRESHOLD;
+  voltage_threshold_adc=(int)(ADC_SCALE*LICK_THRESHOLD);
+  analogReference(INTERNAL);//1.1V internal reference selected
   last_run=micros();
   reset();
 }

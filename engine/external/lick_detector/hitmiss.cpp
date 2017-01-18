@@ -103,6 +103,11 @@ void HitMiss::run(void)
                 delay((int)(laser_duration*1000));
                 dac.set(0.0f);
                 digitalWrite(LASERPIN, LOW);
+                if (dac.check_output(0.0f))
+                {
+                  dac.set(0.0f);
+                  Serial.println("Could not turn off laser, retrying");
+                }
                 t_wait_for_response=millis();
             #endif
             set_state(WAIT4RESPONSE);
@@ -174,6 +179,7 @@ void HitMiss::run(void)
                 //todo: call send results(result, number_of_licks)
                 //Perhaps it will be evaluated by host sw
             #endif
+            dac.set(0.0f);//Make sure that laser is disabled
             set_state(IDLE);
             break;
         case IDLE:
