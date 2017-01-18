@@ -446,12 +446,17 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
             
-class TimeAxisItem(pyqtgraph.AxisItem):
+class TimeAxisItemHHmm(pyqtgraph.AxisItem):
     def __init__(self, *args, **kwargs):
         pyqtgraph.AxisItem.__init__(self,*args, **kwargs)
 
     def tickStrings(self, values, scale, spacing):
         return [QtCore.QTime().addMSecs(value).toString('hh:mm') for value in values]
+        
+class TimeAxisItemYYMMDD(pyqtgraph.AxisItem):
+    def tickStrings(self, values, scale, spacing):
+        return [QtCore.QDate(self.year,self.month,self.day).addDays(value).toString('yyyy-MM-dd') for value in values]
+
             
 class TabbedPlots(QtGui.QWidget):
     def __init__(self, parent,names,plot_kwargs={}):

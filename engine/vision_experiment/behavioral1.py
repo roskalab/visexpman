@@ -149,7 +149,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.current_animal=current_animal
         self.load_animal_file(switch2plot=True)
         
-    def add_animal(self,name):
+    def new_animal(self,name):
         if self.session_ongoing:
             return
         foldername=os.path.join(self.datafolder,name)
@@ -329,6 +329,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
+        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder)
+        logging.info('TODO: display success rate, n hits, n flashes')
+        
+        
         self.session_ongoing=True
         self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         self.start_recording()
@@ -387,6 +391,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.update_plot()
             self.save2file()
             behavioral_data.check_hitmiss_files(self.filename)
+            self.day_analysis.add2day_analysis(self.filename)
+            logging.info('TODO: display updated n hit, n flash success rate')
         except:
             logging.info(traceback.format_exc())
 #        self.show_day_success_rate(self.recording_folder)
@@ -453,118 +459,23 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.update_plot()
             
     def show_animal_statistics(self):
-        logging.info('Generating plots, please wait')
+        logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        ls=behavioral_data.LickSummary(current_animal_folder,self.parameters['Best N'])
-        self.best=ls.best
-        self.latency=ls.latency
+        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'])
         logging.info('Done')
-        if self.best!={}:
-            self.to_gui.put({'show_animal_statistics':[self.current_animal, ls.best, ls.latency, self.parameters['Histogram bin size']]})
-        return
-        if self.session_ongoing: 
-            self.notify('Warning', 'Stat cannot be shown during recording')
-            return
-        logging.info('Generating plots, please wait')
-        current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
-        day_folders.sort()
-        self.animal_stat={}
-        self.best_success_rate={}
-        days=[os.path.basename(df) for df in day_folders]
-        days.sort()
-        dayts=numpy.array([utils.datestring2timestamp(d,'%Y%m%d') for d in days])
-        dayts-=dayts[0]
-        dayts/=86400
-        days=dict(zip(days,dayts.tolist()))
-        for d in day_folders:
-            dayd=[self.read_file_summary(f) for f in fileop.listdir_fullpath(d) if os.path.splitext(f)[1]=='.hdf5']
-            protocols=list(set([di['protocol'] for di in dayd if di.has_key('protocol')]))
-            day_item={}
-            for protocol in protocols:
-                day_item[protocol]=numpy.array([[di['t'], di['Success Rate']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']==protocol]).T                
-            self.animal_stat[os.path.basename(d)]=day_item
-            self.best_success_rate[days[os.path.basename(d)]]=numpy.array([[di['t'], di['Success Rate'], di['stimulus'], di['duration']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']=='StimStopReward'])
-        #group days
-        max_plots_per_page=6
-        npages=int(numpy.ceil(len(self.animal_stat.keys())/float(max_plots_per_page)))
-        days=self.animal_stat.keys()
-        days.sort()
-        pages=[days[pi*max_plots_per_page:(pi+1)*max_plots_per_page] for pi in range(npages)]
-        self.animal_stat_per_page=[]
-        for page in pages:
-            self.animal_stat_per_page.append(dict([(d, self.animal_stat[d]) for d in page]))
-        #Create stat where best n days are selected
-        n=self.parameters['Best Success Rate Over Number Of Stimulus']
-        self.best_success_rate_selected={'x':[],'y':[]}
-        for d,di in self.best_success_rate.items():
-            if di.shape[0]>0:
-                sorted=di[di.argsort(axis=0)[:,0]]
-                max_success_rate=0
-                max_success_rate_indexes=numpy.array([])
-                for index in range(sorted.shape[0]):
-                    nstim=0
-                    indexes=[]
-                    for i in range(index,sorted.shape[0]):
-                        nstim+=sorted[i,2]
-                        indexes.append(i)
-                        if nstim>=n:
-                            #calculate weighted success rate
-                            selected=sorted[indexes]
-                            sr=(selected[:,1]*selected[:,3]/selected[:,3].sum()).sum()
-                            if sr>max_success_rate:
-                                max_success_rate=sr
-                                max_success_rate_indexes=numpy.array(indexes)
-                            break
-                if max_success_rate_indexes.shape[0]>0:
-                    y=sorted[max_success_rate_indexes,1]
-                    x=numpy.ones_like(y)*d
-                    self.best_success_rate_selected['x'].extend(x)
-                    self.best_success_rate_selected['y'].extend(y)
-        self.best_success_rate_selected['x']=numpy.array(self.best_success_rate_selected['x'])
-        self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])*100.0
-        self.best_success_rate_selected['n']=n
-        self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal, self.best_success_rate_selected]})
+        self.to_gui.put({'show_animal_statistics':self.analysis})
+        
+    def show_global_analysis(self):
+        logging.info('Generating success rate for each animal')
+        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder)
         logging.info('Done')
+        self.to_gui.put({'show_global_statistics':self.global_analysis})
     
     def show_animal_success_rate(self):
-        '''
-        Aggregates success rate and reward volumes
-        '''
         return
-        logging.info('Generating success rate and reward volume plots, please wait')
-        current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
-        day_folders.sort()
-        self.success_rate_summary={}
-        days=[os.path.basename(day_folder) for day_folder in day_folders]
-        days.sort()
-        self.reward_volume=[]
-        for day_folder in day_folders:
-            summaryd = [self.read_file_summary(f) for f in [os.path.join(day_folder,fn) for fn in os.listdir(day_folder) if os.path.splitext(fn)[1]=='.hdf5']]
-            protocol_names=list(set([s['protocol'] for s in summaryd if s.has_key('protocol')]))
-            daynum=int((utils.datestring2timestamp(os.path.basename(day_folder),'%Y%m%d')-utils.datestring2timestamp(days[0],'%Y%m%d'))/86400)
-            for pn in protocol_names:
-                if not self.success_rate_summary.has_key(pn):
-                    self.success_rate_summary[pn]=[]
-                self.success_rate_summary[pn].extend([[daynum, si['Success Rate']] for si in summaryd if si.has_key('protocol') and si['protocol']==pn])
-            self.reward_volume.append([daynum, sum([si['rewards'] for si in summaryd if si.has_key('rewards')])])
-        x=[]
-        y=[]
-        for p in self.success_rate_summary.keys():
-            d=numpy.array(self.success_rate_summary[p]).T
-            x.append(d[0])
-            y.append(d[1]*100)
-        self.x=x
-        self.y=y
-        self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': self.success_rate_summary.keys(), 'scatter':True}})
-        self.to_gui.put({'set_success_rate_title': self.current_animal})
-        if len(self.reward_volume)>0:
-            self.reward_volume=numpy.array(self.reward_volume)
-            x=self.reward_volume[:,0]
-            y=self.parameters['100 Reward Volume']*self.reward_volume[:,1]/NREWARD_VOLUME
-            self.to_gui.put({'update_reward_volume_plot':{'x':x, 'y':y}})
-        logging.info('Done')
+        #self.animal_analysis=behavioral_data.HitmissAnalysis(os.path.join(self.datafolder, self.current_animal))
+        
+        
         
     def day_summary(self, folder):
         summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
@@ -791,21 +702,17 @@ class Behavioral(gui.SimpleAppWindow):
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
         
-        self.plotnames=['events', 'success_rate', 'animal_weight']
+        self.plotnames=['events', 'animal_weight']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
         self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
-        self.plots.success_rate.setToolTip('''Displays success rate of days or a specific day depending on what is selected in Files tab.
-        A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
-        ''')
-        self.plots.success_rate.plot.setLabels(left='%')
         self.plots.tab.setMinimumWidth(self.machine_config.PLOT_WIDGET_WIDTH)
         self.plots.tab.setFixedHeight(self.machine_config.BOTTOM_WIDGET_HEIGHT)
         for pn in self.plotnames:
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
         self.add_dockwidget(self.plots, 'Plots', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
         
-        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'edit_protocol', 'show_animal_statistics', 'convert_folder', 'exit']
+        toolbar_buttons = ['record', 'stop', 'select_data_folder','new_animal', 'add_animal_weight', 'remove_last_animal_weight', 'edit_protocol', 'show_animal_statistics', 'show_global_analysis', 'convert_folder', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -902,9 +809,11 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('show_animal_statistics'):
             if hasattr(self, 'asp'):
                 del self.asp
-            self.asp = AnimalStatisticsPlots(self, *msg['show_animal_statistics'])
+            self.asp = AnimalStatisticsPlots(self, msg['show_animal_statistics'])
         elif msg.has_key('update_reward_volume_plot'):
             pass
+        elif msg.has_key('show_global_statistics'):
+            pass#TODO: popup plot
         
     def update_statusbar(self,msg=''):
         '''
@@ -935,11 +844,11 @@ class Behavioral(gui.SimpleAppWindow):
         self.cw.filebrowserw.set_root(self.engine.datafolder)
         self.update_statusbar()
         
-    def add_animal_action(self):
+    def new_animal_action(self):
         text, ok = QtGui.QInputDialog.getText(self, 'Add Animal', 
             'Enter animal name:')
         if ok:
-            self.to_engine.put({'function': 'add_animal','args':[str(text)]})
+            self.to_engine.put({'function': 'new_animal','args':[str(text)]})
             
     def add_animal_weight_action(self):
         self.aw=AddAnimalWeightDialog(self.to_engine)
@@ -951,6 +860,9 @@ class Behavioral(gui.SimpleAppWindow):
             
     def show_animal_statistics_action(self):
         self.to_engine.put({'function': 'show_animal_statistics','args':[]})
+        
+    def show_global_analysis_action(self):
+        self.to_engine.put({'function': 'show_global_analysis','args':[]})
         
     def edit_protocol_action(self):
         self.to_engine.put({'function': 'edit_protocol','args':[]})
@@ -1147,65 +1059,54 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         
     def cancel_clicked(self):
         self.close()
-        
+
 class AnimalStatisticsPlots(QtGui.QTabWidget):
-    def __init__(self, parent, animal_name, best,latency,binsize):
+    def __init__(self, parent, analysis):
         QtGui.QTabWidget.__init__(self)
         self.setWindowIcon(gui.get_icon('behav'))
         gui.set_win_icon()
         self.machine_config=parent.machine_config
         self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
-        self.setWindowTitle('Summary of '+animal_name)
+        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder))
         self.setTabPosition(self.North)
-        self.lick_plots=[]
-        pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': None}]
-        days=best.keys()
-        days.sort()
-        for pn in days:
-            p=gui.Plot(self)
-            p.update_curves([best[pn]['licks'][:,0]],[best[pn]['licks'][:,1]],plotparams=pp)
-            p.plot.setLabels(left='successful licks', bottom='number of licks')
-            self.lick_plots.append(p)
-            self.addTab(self.lick_plots[-1],pn)
-        self.latency_plots=gui.Plot(self)
-        x=[]
-        y=[]
-        for d in range(len(days)):
-            y.extend(best[days[d]]['latency'])
-            x.extend(best[days[d]]['latency'].shape[0]*[d])
-        x=numpy.array(x)
-        y=numpy.array(y)
-        self.latency_plots.update_curves([x],[y], plotparams=pp)
-        self.latency_plots.plot.setLabels(left='lick latency [ms]', bottom='time [days]')
-        self.addTab(self.latency_plots,'Best {0} lick latencies'.format(best.values()[0]['latency'].shape[0]))
-        #Histogram plots
-        self.histw=QtGui.QWidget()
-        self.histw.plots=[]
-        self.histw.l = QtGui.QGridLayout()
-        ct=0
-        alllatency=[]
-        for v in latency.values():
-            alllatency.extend(v)
-        bins=numpy.arange(min(alllatency),max(alllatency),binsize)
-        bins=numpy.append(bins, max(alllatency))
-        hist={}
-        ymax=0
-        for d in days:
-            hist[d]=numpy.histogram(latency[d],bins)[0]
-            ymax=max(ymax, hist[d].max())
-        for d in days:
-            self.histw.plots.append(gui.Plot(self.histw))
-            self.histw.plots[-1].plot.setTitle(d)
-            self.histw.plots[-1].update_curve(bins[:-1]*1000,hist[d], plotparams={'fillLevel':-0.3, 'brush': (50,50,128,100)})
-            self.histw.plots[-1].plot.setLabels(left='number of licks', bottom='time shift [ms]')
-            self.histw.plots[-1].plot.setYRange(0, ymax)
-            self.histw.l.addWidget(self.histw.plots[-1], ct/2, ct%2, 1, 1)
-            ct+=1
-        self.histw.setLayout(self.histw.l)
-        self.addTab(self.histw,'Lick Latency Histograms')
-        
-        
+        pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}]
+        days=numpy.array([utils.datestring2timestamp(d,format='%Y%m%d')/86400 for d in analysis.days])
+        days-=days[0]
+        axis=gui.TimeAxisItemYYMMDD(orientation='bottom')
+        axis.year=int(analysis.days[0][:4])
+        axis.month=int(analysis.days[0][4:6])
+        axis.day=int(analysis.days[0][6:])
+        success_rate_plot=gui.Plot(self,axisItems={'bottom': axis})
+        success_rate_plot.update_curves([days],[analysis.success_rates*100],plotparams=pp)
+        success_rate_plot.plot.setLabels(left='success rate [%]')
+        self.addTab(success_rate_plot,'Success rate')
+        lick_latency_histogram_plot=self.histograms(analysis.lick_latency_histogram)
+        lick_times_histogram_plot=self.histograms(analysis.lick_times_histogram)
+        self.addTab(lick_latency_histogram_plot,'Lick latencies')
+        self.addTab(lick_times_histogram_plot,'Lick times')
         self.show()
+        return
+        
+    def histograms(self,hist):
+        histw=QtGui.QWidget()
+        histw.plots=[]
+        histw.l = QtGui.QGridLayout()
+        bins=hist[0]
+        days=hist[1].keys()
+        days.sort()
+        ct=0
+        ymax=max(map(max,hist[1].values()))
+        for d in days:
+            histw.plots.append(gui.Plot(histw))
+            histw.plots[-1].plot.setTitle(d)
+            histw.plots[-1].update_curve(bins,hist[1][d], plotparams={'fillLevel':-0.3, 'brush': (50,50,128,100)})
+            histw.plots[-1].plot.setLabels(left='occurence', bottom='dt [ms]')
+            histw.plots[-1].plot.setYRange(0, ymax)
+            histw.l.addWidget(histw.plots[-1], ct/2, ct%2, 1, 1)
+            ct+=1
+        histw.setLayout(histw.l)
+        return histw
+        
         
 class PlotPage(QtGui.QWidget):
     '''
