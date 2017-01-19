@@ -514,23 +514,31 @@ class HitmissAnalysis(object):
         self.nflashes=len(self.alldatafiles)
         self.lick_times=[]
         for f in self.alldatafiles:
-            h=hdf5io.Hdf5io(f)
-            stat=h.findvar('stat')
-            if not stat.has_key('stimulus_t'):
-                sync=h.findvar('sync')
-                machine_config=h.findvar('machine_config')
-                from visexpman.engine.hardware_interface import lick_detector
-                stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
-                h.stat=stat
-                h.save('stat')
-            h.close()
-            self.nhits+=stat['result']
-            if stat.has_key('lick_latency'):
-                self.lick_latencies.append(stat['lick_latency']*1000)
-            self.lick_times.extend((1000*(stat['lick_times']-stat['stimulus_t'][0])).tolist())
+            try:
+                h=hdf5io.Hdf5io(f)
+                stat=h.findvar('stat')
+                if not stat.has_key('stimulus_t'):
+                    sync=h.findvar('sync')
+                    machine_config=h.findvar('machine_config')
+                    from visexpman.engine.hardware_interface import lick_detector
+                    stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
+                    h.stat=stat
+                    h.save('stat')
+                h.close()
+                self.nhits+=stat['result']
+                if stat.has_key('lick_latency'):
+                    self.lick_latencies.append(stat['lick_latency']*1000)
+                self.lick_times.extend((1000*(stat['lick_times']-stat['stimulus_t'][0])).tolist())
+            except:
+                import logging, traceback
+                logging.info(f)
+                logging.error(traceback.format_exc())
         self.lick_latencies=numpy.array(map(int,self.lick_latencies))
         self.lick_times=numpy.array(map(int,self.lick_times))
-        self.success_rate=self.nhits/float(self.nflashes)
+        if self.nflashes==0:
+            self.success_rate=0
+        else:
+            self.success_rate=self.nhits/float(self.nflashes)
         return self.lick_times,self.lick_latencies,self.nflashes,self.nhits,self.success_rate
         
     def add2day_analysis(self,filename):

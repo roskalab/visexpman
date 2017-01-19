@@ -70,13 +70,44 @@ void HitMiss::run(void)
             Serial.println("pong");
           #endif
         }
+        else if ((strcmp(command,"stim")==0)&&(nparams==2))
+        {
+        #if (PLATFORM==ARDUINO)
+          //par[0] voltage, par[1]: duration
+          digitalWrite(LASERPIN, HIGH);
+          dac.set(par[0]);
+          delay((int)(1000*par[1]));
+          dac.set(0.0);
+          digitalWrite(LASERPIN, LOW);
+          Serial.print("Laser pulse ");
+          Serial.print(par[0]);
+          Serial.print(" V and ");
+          Serial.print(par[1]);
+          Serial.println(" s");
+        #endif
+        }
+        else if ((strcmp(command,"reward")==0)&&(nparams==1))
+        {
+        #if (PLATFORM==ARDUINO)
+          if (par[0]==1.0)
+          {
+            digitalWrite(REWARDPIN, HIGH);
+            Serial.println("Reward ON");
+          }
+          else if (par[0]==0.0)
+          {
+            digitalWrite(REWARDPIN, LOW);
+            Serial.println("Reward OFF");
+          }
+        #endif
+        }
         else
         {
           #if (PLATFORM==ARDUINO)
             Serial.println("unknown command");
           #endif
         }
-     
+          
     }
     switch (state)
     {
@@ -164,8 +195,10 @@ void HitMiss::run(void)
             #elif (PLATFORM==ARDUINO)
                 delay((water_dispense_delay)*1000-water_dispense_delay_correction);
                 digitalWrite(REWARDPIN, HIGH);
+                digitalWrite(9, HIGH);//flash LED
                 delay((int)((water_dispense_time)*1000));
                 digitalWrite(REWARDPIN, LOW);
+                digitalWrite(9, LOW);
                 delay(drink_time*1000);
             #endif
             Serial.println("Water reward");
@@ -175,6 +208,8 @@ void HitMiss::run(void)
             #if (PLATFORM==PC)
                 cout<<"End of trial, result "<<result<<endl;
             #elif (PLATFORM==ARDUINO)
+                Serial.print("Number of licks ");
+                Serial.println(lick_detector.get_lick_number());
                 Serial.println("End of trial");
                 //todo: call send results(result, number_of_licks)
                 //Perhaps it will be evaluated by host sw

@@ -74,7 +74,7 @@ class LickProtocolRunner(object):
     def __init__(self, serialport, laser_voltage, pre_trial_interval, water_dispense_delay,  aichannels,  fsample):
         self.ai=daq_instrument.AnalogRecorder(aichannels , fsample)
         self.ai.start()
-        time.sleep(2)
+        time.sleep(3)
         self.hmph=HitMissProtocolHandler(serialport,laser_voltage,pre_trial_interval,water_dispense_delay)
         self.hmph.start()
         
@@ -100,10 +100,10 @@ class LickProtocolRunner(object):
 def detect_events(sync, fsample):
     '''
     sync signal order:
-        reward
         raw lick signal
-        stimulus/laser
         lick detector output
+        stimulus/laser
+        reward
         debug/protocol state changes
         
     1) Converts sync signals to timestamps
@@ -112,12 +112,13 @@ def detect_events(sync, fsample):
     #TODO: this function should go to behavioral_data module
     ts=1.0/fsample
     threshold=2.5
-    reward=sync[:, 0]
+    lick=sync[:,0]
     stimulus=sync[:, 2]
-    lick=sync[:, 3]
+    reward=sync[:, 3]
     protocol_state=sync[:, 4]
     reward_t=signal.trigger_indexes(reward, abs_threshold=threshold)*ts
-    stimulus_t=signal.trigger_indexes(stimulus, abs_threshold=threshold)*ts
+    threshold_stim=stimulus.min()+0.5*(stimulus.max()-stimulus.min())
+    stimulus_t=signal.trigger_indexes(stimulus, abs_threshold=threshold_stim)*ts
     lick_t=(signal.trigger_indexes(lick, abs_threshold=threshold)*ts)[::2]
     protocol_state_t=(signal.trigger_indexes(protocol_state, abs_threshold=threshold)*ts)[::2]
     if protocol_state_t.shape[0]>=4:
@@ -129,7 +130,7 @@ def detect_events(sync, fsample):
     lick_numbers={'total':int(lick_t.shape[0]),  'postflash' : int(numpy.where(lick_t>stimulus_t[0])[0].shape[0])}
     #Was it successful?
     result=reward_t.shape[0]==2
-    stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial, 'lick_times':lick_t,'stimulus_t':stimulus_t}
+    stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial, 'lick_times':lick_t,'stimulus_t':stimulus_t, 'stimulus duration': stimulus_t[1]-stimulus_t[0]}
     if result:
         first_lick=lick_t[numpy.where(lick_t>stim_start)[0].min()]
         stat['lick_latency']= round(first_lick-stim_start, 3)
@@ -149,13 +150,13 @@ class TestProtocolHandler(unittest.TestCase):
     @unittest.skip('')
     def test_01_no_lick(self):
         reps=1
-        laser_voltage=1
+        laser_voltage=1.2
         pre_trial_interval=5
         water_dispense_delay=0.5
-        serialport='COM8'
+        serialport='COM9'
         serialport=serial.Serial(serialport, 115200, timeout=1)
         fsample=5e3
-        aichannels='Dev1/ai0:4'
+        aichannels='Dev2/ai0:4'
         deltats=[]
         if hasattr(serialport,  'write'):
             time.sleep(2)
@@ -170,7 +171,7 @@ class TestProtocolHandler(unittest.TestCase):
             print deltats[-1]
             if reps==1:
                 print log
-                [plot(t, d[:, i]+i*5) for i in range(5)];legend(['reward','lick signal', 'laser', 'lick detector output',  'debug'], loc='lower left');show()
+                [plot(t, d[:, i]+i*5) for i in range(5)];legend(['lick raw','lick out', 'stim', 'reward',  'debug'], loc='lower left');show()
         if hasattr(serialport,  'write'):
             serialport.close()
         deltats=numpy.array(deltats)
@@ -188,31 +189,30 @@ class TestProtocolHandler(unittest.TestCase):
         nlicks=map(len, lick_indexes.values())
         import random
         random.seed(1)
-        ntests=3
+        ntests=1
         indexes=[random.choice([i for i in range(len(nlicks)) if nlicks[i]>10]) for t in range(ntests-1)]
         wfs.extend([lick.values()[i] for i in indexes])
         fs=1000
         laser_voltage=1
         pre_trial_interval=16
         water_dispense_delay=0.5
-        serialport='COM8'
+        serialport='COM9'
         serialport=serial.Serial(serialport, 115200, timeout=1)
         figct=0
         for wf in wfs:
             if hasattr(serialport,  'write'):
                 time.sleep(2)
             fsample=5e3
-            aichannels='Dev1/ai0:4'
+            aichannels='Dev2/ai0:4'
             lpr=LickProtocolRunner(serialport, laser_voltage, pre_trial_interval, water_dispense_delay,  aichannels,  fsample)
-            daq_instrument.set_waveform( 'Dev1/ao0',wf.reshape(1, wf.shape[0]),sample_rate = fs)
+            daq_instrument.set_waveform( 'Dev2/ao0',wf.reshape(1, wf.shape[0]),sample_rate = fs)
             d, log=lpr.finish()
             detect_events(d, fsample)
             print log
             t=numpy.arange(d[:, 0].shape[0], dtype=numpy.float)/fsample
-            [plot(t, d[:, i]) for i in range(4)];
-            plot(t, d[:,4]+5)
+            [plot(t, d[:, i]) for i in range(4)];plot(t, d[:,4]+5)
             plot(t, numpy.ones_like(t)*0.25)
-            legend(['reward','lick signal', 'laser', 'lick detector output',  'debug',  'lick threshold'], loc='upper left',  fontsize=4)
+            legend(['lick raw','lick out', 'stim', 'reward',  'debug', 'lick threshold'], loc='upper left',  fontsize=4)
             savefig('c:\\Data\\{0}.png'.format(figct), dpi=300)
             cla()
             clf()

@@ -51,7 +51,7 @@ class HitMiss(BehavioralProtocol):
                     self.REWARD_DELAY)
         self.hmph.start()
         if self.engine.parameters['Enable Lick Simulation']:
-            daq_instrument.set_waveform( 'Dev1/ao0',self.wf.reshape(1, self.wf.shape[0]),sample_rate = self.fsampleao)
+            daq_instrument.set_waveform( 'Dev2/ao0',self.wf.reshape(1, self.wf.shape[0]),sample_rate = self.fsampleao)
         self.hmph.join()
         while not self.hmph.log.empty():
             l=self.hmph.log.get().replace('\r', '').replace('\n', '')

@@ -219,7 +219,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def reward(self):
-        daq_instrument.set_digital_pulse('Dev1/port0/line0', self.parameters['Water Open Time'])
+        logging.info('NOT IMPLEMENTED')
         logging.info('Reward')
         
     def rewardx100(self):
@@ -239,12 +239,21 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def set_valve(self,channel,state):
         if channel=='air':
             waveform=numpy.ones((1,1000*0.1))*5*state
-            daq_instrument.set_waveform('Dev1/ao1',waveform,sample_rate = 1000)
+            #daq_instrument.set_waveform('Dev1/ao1',waveform,sample_rate = 1000)
         elif channel=='water':
-            daq_instrument.set_digital_line('Dev1/port0/line0', state)
+            #daq_instrument.set_digital_line('Dev1/port0/line0', state)
+            self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
+            self.serialport.write('reward,{0}\r\n'.format(state))
+            logging.info(self.serialport.readline())
+            self.serialport.close()
             
     def stimulate(self,waveform=None):
         now=time.time()
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
+        self.serialport.write('stim,{0},{1}\r\n'.format(self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
+        logging.info(self.serialport.readline())
+        self.serialport.close()
+        return
         fsample=self.machine_config.STIM_SAMPLE_RATE
         if waveform is None:
             self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
@@ -271,7 +280,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['reward', 'lick raw',  'stimulus', 'licks',  'protocol/debug']
+        trace_names=['licks', 'lick raw',  'stimulus', 'reward',  'protocol/debug']
         if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
@@ -280,12 +289,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             x=x[:-1]
             trace_names=trace_names[:-1]
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
-            x[3]=self.lick_times
-            y[3]=numpy.ones_like(self.lick_times)*2
+            x[0]=self.lick_times
+            y[0]=numpy.ones_like(self.lick_times)*2
         else:
-            del x[3]
-            del y[3]
-            del trace_names[3]
+            del x[0]
+            del y[0]
+            del trace_names[0]
         
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
@@ -331,9 +340,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
         self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder)
-        logging.info('TODO: display success rate, n hits, n flashes')
-        
-        
         self.session_ongoing=True
         self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         self.start_recording()
@@ -388,22 +394,23 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             del self.iscamera
         try:
             self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
-            self.stat2gui()
             self.update_plot()
             self.save2file()
             behavioral_data.check_hitmiss_files(self.filename)
             self.day_analysis.add2day_analysis(self.filename)
-            logging.info('TODO: display updated n hit, n flash success rate')
+            self.stat2gui()
         except:
             logging.info(traceback.format_exc())
 #        self.show_day_success_rate(self.recording_folder)
 
     def stat2gui(self):
-        timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers'])
+        timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers' and k!='lick_times'])
         stat_str='Result: {1}, lick numbers: {0}'.format(self.stat['lick_numbers'],  'Hit' if self.stat['result'] else 'Miss')
+        today_stat='Flashes: {0}, Hits: {1}, Success rate: {2} %'.format(self.day_analysis.nflashes, self.day_analysis.nhits, int(100*self.day_analysis.success_rate))
         logging.info(stat_str)
         logging.info(timingstr)
-        self.to_gui.put({'statusbar':stat_str+' '+timingstr})
+        logging.info(today_stat)
+        self.to_gui.put({'statusbar':stat_str+' '+today_stat})
 
     def save_during_session(self):
         if self.session_ongoing and not self.protocol.is_alive():
@@ -429,7 +436,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             setattr(self.datafile, nn, object_parameters2dict(var))
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         self.datafile.sync=self.sync
-        self.datafile.stat=self.stat
+        self.datafile.stat=copy.deepcopy(self.stat)
         self.datafile.frame_times=self.frame_times
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
