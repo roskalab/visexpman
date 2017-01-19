@@ -834,7 +834,40 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('update_reward_volume_plot'):
             pass
         elif msg.has_key('show_global_statistics'):
-            pass#TODO: popup plot
+            gs=msg['show_global_statistics']
+            t0=min([min(v[0]) for v in gs.animal_success_rate.values()])
+            axis=gui.TimeAxisItemYYMMDD(orientation='bottom')
+            axis.year=int(t0[:4])
+            axis.month=int(t0[4:6])
+            axis.day=int(t0[6:])
+            self.w=QtGui.QWidget()
+            self.w.setWindowIcon(gui.get_icon('behav'))
+            self.w.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
+            self.w.setWindowTitle('Summary of '+gs.folder)
+            self.w.p=gui.Plot(self.w,axisItems={'bottom': axis})
+            pp={ 'symbol':'o', 'symbolSize':8, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}
+            pps=[]
+            logging.info('TODO: generate trace colors')
+            for ln in gs.animal_success_rate.keys():
+                pps.append(copy.deepcopy(pp))
+                pps[-1]['name']=ln
+                pps[-1]['pen']=(50,255,0,128)
+            x=[tr[0] for tr in gs.animal_success_rate.values()]
+            xconverted=[]
+            t0ts=utils.datestring2timestamp(t0,format='%Y%m%d')/86400 
+            for xi in x:
+                xconverted.append([utils.datestring2timestamp(xii,format='%Y%m%d')/86400-t0ts for xii in xi])
+            y=[tr[1]*100 for tr in gs.animal_success_rate.values()]
+            print xconverted,y
+            self.w.p.update_curves(xconverted,y,plotparams=pps)
+            self.w.p.plot.setLabels(left='success rate [%]')
+            
+            self.w.l = QtGui.QGridLayout()
+            self.w.l.addWidget(self.w.p, 0,0, 1, 1)
+            self.w.setLayout(self.w.l)
+            
+            self.w.show()
+            
         
     def update_statusbar(self,msg=''):
         '''
@@ -1106,7 +1139,6 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         self.addTab(lick_latency_histogram_plot,'Lick latencies')
         self.addTab(lick_times_histogram_plot,'Lick times')
         self.show()
-        return
         
     def histograms(self,hist):
         histw=QtGui.QWidget()
