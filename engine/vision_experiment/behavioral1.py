@@ -5,7 +5,7 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import hdf5io,unittest
-from visexpman.engine.generic import gui,utils,fileop,introspect
+from visexpman.engine.generic import gui,utils,fileop,introspect,colors
 from visexpman.engine.analysis import behavioral_data
 from visexpman.engine.hardware_interface import daq_instrument,camera_interface, lick_detector
 from visexpman.engine.vision_experiment import experiment,experiment_data
@@ -404,8 +404,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
 #        self.show_day_success_rate(self.recording_folder)
 
     def stat2gui(self):
-        timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers' and k!='lick_times'])
+        if not hasattr(self,'stat'):
+            return 
         stat_str='Result: {1}, lick numbers: {0}'.format(self.stat['lick_numbers'],  'Hit' if self.stat['result'] else 'Miss')
+        timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers' and k!='lick_times'])
         today_stat='Flashes: {0}, Hits: {1}, Success rate: {2} %'.format(self.day_analysis.nflashes, self.day_analysis.nhits, int(100*self.day_analysis.success_rate))
         logging.info(stat_str)
         logging.info(timingstr)
@@ -749,10 +751,10 @@ class Behavioral(gui.SimpleAppWindow):
             plotparams=[]
             if msg['update_success_rate_plot'].has_key('scatter') and msg['update_success_rate_plot']['scatter']:
                 alpha=100
-                colors=[(0,0,0,alpha), (255,0,0,alpha), (0,255,0,alpha),(0,0,255,alpha), (255,255,0,alpha), (0,255,255,alpha), (255,255,0,alpha),(128,255,255,alpha)]
+                colors_=[(0,0,0,alpha), (255,0,0,alpha), (0,255,0,alpha),(0,0,255,alpha), (255,255,0,alpha), (0,255,255,alpha), (255,255,0,alpha),(128,255,255,alpha)]
                 color_i=0
                 for tn in msg['update_success_rate_plot']['trace_names']:
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':7, 'symbolBrush': colors[color_i]})
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':7, 'symbolBrush': colors_[color_i]})
                     color_i+=1
             else:
                 for tn in msg['update_success_rate_plot']['trace_names']:
@@ -778,33 +780,29 @@ class Behavioral(gui.SimpleAppWindow):
             pass
         elif msg.has_key('show_global_statistics'):
             gs=msg['show_global_statistics']
-            t0=min([min(v[0]) for v in gs.animal_success_rate.values()])
-            axis=gui.TimeAxisItemYYMMDD(orientation='bottom')
-            axis.year=int(t0[:4])
-            axis.month=int(t0[4:6])
-            axis.day=int(t0[6:])
             self.w=QtGui.QWidget()
             self.w.setWindowIcon(gui.get_icon('behav'))
             self.w.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
             self.w.setWindowTitle('Summary of '+gs.folder)
-            self.w.p=gui.Plot(self.w,axisItems={'bottom': axis})
+            self.w.p=gui.Plot(self.w)
             pp={ 'symbol':'o', 'symbolSize':8, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}
             pps=[]
-            logging.info('TODO: generate trace colors')
+            ci=0
             for ln in gs.animal_success_rate.keys():
                 pps.append(copy.deepcopy(pp))
+                color_=numpy.array(colors.get_color(ci))*255
+                ci+=1
                 pps[-1]['name']=ln
-                pps[-1]['pen']=(50,255,0,128)
+                pps[-1]['pen']=(color_[0],color_[1],color_[2],128)
+                pps[-1]['symbolBrush']=(color_[0],color_[1],color_[2],128)
             x=[tr[0] for tr in gs.animal_success_rate.values()]
             xconverted=[]
-            t0ts=utils.datestring2timestamp(t0,format='%Y%m%d')/86400 
             for xi in x:
-                xconverted.append([utils.datestring2timestamp(xii,format='%Y%m%d')/86400-t0ts for xii in xi])
+                xconverted.append([utils.datestring2timestamp(xii,format='%Y%m%d')/86400 for xii in xi])
+                xconverted[-1]=numpy.array(xconverted[-1])-xconverted[-1][0]
             y=[tr[1]*100 for tr in gs.animal_success_rate.values()]
-            print xconverted,y
             self.w.p.update_curves(xconverted,y,plotparams=pps)
-            self.w.p.plot.setLabels(left='success rate [%]')
-            
+            self.w.p.plot.setLabels(left='success rate [%]',bottom='day')
             self.w.l = QtGui.QGridLayout()
             self.w.l.addWidget(self.w.p, 0,0, 1, 1)
             self.w.setLayout(self.w.l)
