@@ -49,7 +49,7 @@ void LickProtocolRunner::loop(void)
     c[1]=0;
     protocol.put(c);
   }
-  protocol.run();
+  protocol.run();  
 }
 
 
@@ -77,7 +77,7 @@ void setup() {
   
 }
 
-void loop() {  
-  
+void loop() {
   lpr.loop();
+  
 }

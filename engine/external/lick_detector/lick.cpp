@@ -8,7 +8,7 @@ LickDetector::LickDetector(void)
 {
   duration_max_ms=(unsigned long)(LICK_DURATION_MAX*1e3);
   duration_min_ms=(unsigned long)(LICK_DURATION_MIN*1e3);
-  voltage_threshold_adc=(int)(ADC_SCALE*LICK_THRESHOLD);
+  voltage_threshold_adc=(int)(LICK_THRESHOLD/ADC_SCALE);
   analogReference(INTERNAL);//1.1V internal reference selected
   last_run=micros();
   reset();
@@ -46,11 +46,11 @@ void LickDetector::update(void)
   { 
     //last_run=timestamp;
     //Serial.println(duration_max_us);
-    /*#if (ENABLE_DEBUG_PULSES)
+    #if (ENABLE_DEBUG_PULSES)
       digitalWrite(LICKDETECTEDPIN, HIGH);
       delayMicroseconds(1000);
       digitalWrite(LICKDETECTEDPIN, LOW);
-    #endif*/
+    #endif
     adc_val = analogRead(LICKPIN);
     if ((adc_val>voltage_threshold_adc)&&(!rise))
     {
