@@ -1,0 +1,77 @@
+import logging,unittest,os,time,numpy,sys
+from visexpman.engine.generic import utils,fileop
+
+class LogChecker(object):
+    '''
+    checks logfiles in a specific folder, gathers most recent errors and sends a summary in email
+    '''
+    def __init__(self,logfile_folder,logfile,to='zoltan.raics@fmi.ch'):
+        self.logfile=logfile
+        self.nlines_before_error=2
+        if os.path.exists(self.logfile):
+            content=fileop.read_text_file(self.logfile)
+            done_timestamps=[self._line2timestamp(l) for l in content.split('\n') if 'Done' in l]
+            if len(done_timestamps)==0:
+                self.t0=0
+            else:
+                self.t0=max(done_timestamps)
+        else:
+            self.t0=0
+        logging.basicConfig(filename= self.logfile,
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+                    level=logging.INFO)
+        logging.info('Log checker started')
+        self.logfiles=[f for f in fileop.find_files_and_folders(logfile_folder)[1] if os.path.splitext(f)[1]=='.txt']
+        self.error_report='Errors since {0}\n'.format(utils.timestamp2ymdhm(self.t0))
+        for f in self.logfiles:
+            self.error_report+=self.checkfile(f)
+        utils.sendmail(to, 'errors, {0}'.format(logfile_folder), self.error_report)
+        logging.info('Done')
+        
+    def _line2timestamp(self,line):
+        return utils.datestring2timestamp(line.split('\t')[0].split(',')[0],format='%Y-%m-%d %H:%M:%S')
+        
+    def checkfile(self,filename):
+        if os.path.getmtime(filename)<self.t0:#File has not been modified since last run
+            return ''
+        lines=fileop.read_text_file(filename).split('\n')
+        #Find entry indexes
+        entry_lines=[]
+        for i in range(len(lines)):
+            try:
+                self._line2timestamp(lines[i])
+                entry_lines.append(i)
+            except:
+                pass
+        error_indexes = numpy.array([i for i in entry_lines if 'error' in lines[i].lower()])
+        lines2report=[]
+        for ei in error_indexes:
+            start=ei-self.nlines_before_error-1
+            if start<0:
+                start=0
+            endindex=entry_lines.index(ei)+1+self.nlines_before_error
+            if endindex>len(entry_lines)-1:
+                endindex=len(entry_lines)-1
+            end=entry_lines[endindex]
+            if self._line2timestamp(lines[ei])>self.t0:
+                lines2report.extend(range(start,end))
+        lines2report=set(lines2report)
+        if len(lines2report)==0:
+            return ''
+        error_report=30*'='+'\nErrors in {0}\n'.format(filename)+30*'='+'\n'
+        for i in lines2report:
+                error_report+=lines[i]
+        return error_report
+    
+class TestLogChecker(unittest.TestCase):
+    def test_01(self):
+        lc=LogChecker('/tmp/logtest','/tmp/log_checker.txt')
+        print lc.error_report
+        lc.t0=0
+        print lc.checkfile('/tmp/logtest/log_behav_2016-12-06_14-47-52.txt')
+    
+if __name__ == "__main__":
+    if len(sys.argv)==1:
+        unittest.main()
+    else:
+        LogChecker(*sys.argv[1:])
