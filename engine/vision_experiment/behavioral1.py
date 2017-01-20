@@ -491,65 +491,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         '''
         
         '''  
-        logging.info('Aggregating statistics on {0}, please wait'.format(folder))
-        self._load_protocol()
-        self.summary=behavioral_data.lick_detection_folder(folder,self.machine_config.AI_SAMPLE_RATE,self.protocol.LICK_WAIT_TIME,
-                                self.parameters['Voltage Threshold'],
-                                self.parameters['Max Lick Duration'],
-                                self.parameters['Min Lick Duration'],
-                                self.parameters['Mean Voltage Threshold'])
-        logging.info('Summary ready')
-        #Put summary on success rate plot
-        x=timestamp2hhmmfp(numpy.array([s[0] for s in self.summary]))
-        nlicks=numpy.array([s[2].shape[0] for s in self.summary])
-        successfull_licks=numpy.array([s[3].shape[0] for s in self.summary])
-        success_rate=numpy.where(successfull_licks>0,1,0)
-        y=[nlicks,successfull_licks,success_rate]
-        x=len(y)*[x]
-        trace_names=['nlicks', 'successful_licks', 'success_rate']
-        self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
-        return
-        logging.info('Generating today\'s success rate plot')
-        if os.path.isdir(folder):
-            if len(os.listdir(folder))>500:
-                logging.info('Too many recording, success rate plot is not updated')
-                return
-            self.summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
-        elif hasattr(self, 'summary'):
-            self.summary.append(self.read_file_summary(folder))
-        else:
-            return
-        #Sort
-        ts=[item['t'] for item in self.summary if item.has_key('t')]
-        ts.sort()
-        sorted=[]
-        for ti in ts:
-            sorted.append([item for item in self.summary if item.has_key('t') and ti==item['t']][0])
-        self.summary=sorted
-        xi=[]
-        yi=[]
-        for si in self.summary:
-            xi.append(si['t'])
-            yi.append(si['Success Rate'])
-        xp=[]
-        xp=numpy.array([self.summary[i]['t'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']])
-        protocol_order=[self.summary[i]['protocol'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']]
-        if len(self.summary)>0:
-            protocol_order.insert(0,self.summary[0]['protocol'])
-        if len(xi)>0:
-            if xp.shape[0]>0:
-                if xp.shape[0]%2==1:
-                    xp=numpy.append(xp, xi[-1])
-                #xp-=xi[0]
-            #xi-=xi[0]
-            xp=timestamp2hhmmfp(xp)
-            x=[timestamp2hhmmfp(numpy.array(xi))]
-            y=[numpy.array(yi)*100]
-            trace_names=['success_rate']
-            self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names, 'vertical_lines': xp}})
-            self.to_gui.put({'set_success_rate_title': os.path.basename(folder)})
-            logging.info('Protocol order: {0}'.format(', '.join(protocol_order)))
-        self.stim_number=sum([s['stimulus counter'] for s in self.summary if s.has_key('stimulus counter')])
+        self.day_analysis=behavioral_data.HitmissAnalysis(folder)
+        
             
     def read_file_summary(self,filename):
         '''
