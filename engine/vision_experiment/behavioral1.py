@@ -504,6 +504,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return {}
             
     def backup(self,confirmation=True):
+        if self.session_ongoing:
+            logging.warning('No backup during recording')
+            return
         if confirmation:
             if not self.ask4confirmation('Backing up datafiles to {0} might take long. Do you want to continue?'.format(self.machine_config.BACKUP_PATH)):
                 return
@@ -544,7 +547,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 #Run backup
                 t=datetime.datetime.fromtimestamp(self.last_run)
                 if (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
-                    if os.path.exists(self.logfile_path) and os.path.getmtime(self.last_run-self.logfile_path)>self.machine_configBACKUP_LOG_TIMEOUT*60:
+                    if os.path.exists(self.logfile_path) and self.last_run-os.path.getmtime(self.logfile_path)>self.machine_config.BACKUP_LOG_TIMEOUT*60:
                         self.backup(confirmation=False)
             except:
                 logging.error(traceback.format_exc())

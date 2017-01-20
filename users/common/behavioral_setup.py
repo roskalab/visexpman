@@ -50,5 +50,5 @@ class OfficeTest(BehavioralSetup):
     PLOT_WIDGET_WIDTH=600
     AI_CHANNELS='Dev2/ai0:4'
     BACKUP_PATH='x:\\behavioral\\test3'
-    BACKUPTIME=13
+    BACKUPTIME=14
     BACKUP_LOG_TIMEOUT=1#minutes
