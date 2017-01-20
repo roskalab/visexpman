@@ -590,7 +590,7 @@ $EndComp
 Text Label 2950 3900 2    60   ~ 0
 D4
 Text Notes 8500 1400 0    60   ~ 0
-V2.0 Modifications:\nOK Replace resistors and capacitors to 0805\nOK Replace opamps to SOIC\nMove holes on bnc footprint\nOK Analog multiplexer\nOK DAC chip: no filter but opamp drive, 10 and 0.1 uF capacitors\nPrototyping area?\nLabel are for bncs
+V2.1 Modifications:\nBNC footprint holes are increased\n\n
 Text Notes 1200 4050 0    60   ~ 0
 SCK
 Text Notes 1200 4150 0    60   ~ 0
