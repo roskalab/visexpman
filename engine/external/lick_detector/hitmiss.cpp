@@ -31,9 +31,9 @@ void HitMiss::run(void)
 {
     int res,i;
     res=parse();
-    if (res==NO_ERROR)
+    if ((res==NO_ERROR)&& (state==IDLE))
     {           
-        if ((strcmp(command,"start_protocol")==0)&&(nparams==7)&& (state==IDLE))
+        if ((strcmp(command,"start_protocol")==0)&&(nparams==7))
         {
             laser_voltage = par[0];
             laser_duration = par[1];

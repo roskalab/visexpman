@@ -1,4 +1,4 @@
-import sys,filecmp
+import sys,filecmp,logging
 import os, re
 import os.path
 import ctypes
@@ -600,15 +600,19 @@ class FileComparer(object):
         self.copylist=[]
         logging.info('Comparing files to {0}'.format(self.dst))
         for src_file in self.src_files:
-            if not (os.path.splitext(src_file) in filetypes): continue
-            dst_file=s.replace(self.src,self.dst)
+            if not (os.path.splitext(src_file)[1] in self.filetypes): continue
+            dst_file=src_file.replace(self.src,self.dst)
             if (not os.path.exists(dst_file)) or not filecmp.cmp(src_file,dst_file):
                 self.copylist.append([src_file,dst_file])
         
     def sync(self):
         for cl in self.copylist:
             logging.info('Copy {0} to {1}'.format(*cl))
+            d=os.path.dirname(cl[1])
+            if not os.path.exists(d):
+                os.makedirs(d)
             shutil.copy2(*cl) 
+        logging.info('Copied {0} files'.format(len(self.copylist)))
 
 def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     if thread:

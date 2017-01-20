@@ -22,7 +22,7 @@ class BehavioralSetup(BehavioralConfig):
         AI_SAMPLE_RATE=5000
         BACKUPTIME=3#3am
         BACKUP_LOG_TIMEOUT=60#minutes
-        BACKUP_PATH='x:\\behavioral\\'
+        BACKUP_PATH='x:\\behavioral'
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM4'
@@ -49,3 +49,6 @@ class OfficeTest(BehavioralSetup):
     SCREEN_SIZE=[1280,1024]
     PLOT_WIDGET_WIDTH=600
     AI_CHANNELS='Dev2/ai0:4'
+    BACKUP_PATH='x:\\behavioral\\test3'
+    BACKUPTIME=13
+    BACKUP_LOG_TIMEOUT=1#minutes

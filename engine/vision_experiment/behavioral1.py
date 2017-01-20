@@ -111,6 +111,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_time=time.time()
         self.stim_number=0
         self.session_ongoing=False
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -238,35 +239,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def set_valve(self,channel,state):
         if channel=='air':
-            waveform=numpy.ones((1,1000*0.1))*5*state
-            #daq_instrument.set_waveform('Dev1/ao1',waveform,sample_rate = 1000)
+            logging.info('Not supported')
         elif channel=='water':
-            #daq_instrument.set_digital_line('Dev1/port0/line0', state)
-            self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
-            self.serialport.write('reward,{0}\r\n'.format(state))
+            logging.info('Set {0} valve to {1}'.format(channel, state))
+            self.serialport.write('reward,{0}\r\n'.format(float(state)))
             logging.info(self.serialport.readline())
-            self.serialport.close()
             
     def stimulate(self,waveform=None):
         now=time.time()
-        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         self.serialport.write('stim,{0},{1}\r\n'.format(self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
         logging.info(self.serialport.readline())
-        self.serialport.close()
-        return
-        fsample=self.machine_config.STIM_SAMPLE_RATE
-        if waveform is None:
-            self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
-            self.stimulus_waveform[0]=0
-            self.stimulus_waveform[-1]=0
-            logging.info('Stimulate with {0} for {1} s'.format(self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
-        else:
-            self.stimulus_waveform=waveform
-            logging.info('Stimulating for {0} s'.format(waveform.shape[0]/fsample))
-        self.stimulus_waveform*=self.parameters['Laser Intensity']
-        stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
-        self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
-        daq_instrument.set_waveform('Dev1/ao0',self.stimulus_waveform,sample_rate = fsample)
         
     def convert_folder(self,folder):
         files=fileop.find_files_and_folders(folder)[1]
@@ -341,7 +323,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #self.show_day_success_rate(self.recording_folder)
         self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder)
         self.session_ongoing=True
-        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
@@ -424,7 +405,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Wait until protocol finishes')
         self.finish_recording()
-        self.serialport.close()
         self.session_ongoing=False
         self.to_gui.put({'set_recording_state': 'idle'})
         logging.info('Session ended')
@@ -522,6 +502,20 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return data_item
         except:
             return {}
+            
+    def backup(self,confirmation=True):
+        if confirmation:
+            if not self.ask4confirmation('Backing up datafiles to {0} might take long. Do you want to continue?'.format(self.machine_config.BACKUP_PATH)):
+                return
+        logging.info('Backing up logfiles')
+        self.logfilecomparer=fileop.FileComparer(os.path.dirname(self.logfile_path),self.machine_config.BACKUP_PATH,['.txt'])
+        self.logfilecomparer.compare()
+        self.logfilecomparer.sync()
+        logging.info('Backing up data files')
+        self.datafilecomparer=fileop.FileComparer(self.datafolder,self.machine_config.BACKUP_PATH,['.hdf5','.avi'])
+        self.datafilecomparer.compare()
+        self.datafilecomparer.sync()
+        logging.info('Done')
         
     def run(self):
         logging.info('Engine started')
@@ -551,15 +545,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 t=datetime.datetime.fromtimestamp(self.last_run)
                 if (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
                     if os.path.exists(self.logfile_path) and os.path.getmtime(self.last_run-self.logfile_path)>self.machine_configBACKUP_LOG_TIMEOUT*60:
-                        logging.info('Backing up logfiles')
-                        logfilecomparer=fileop.FileComparer(os.dirname(self.logfile_path),self.machine_config.BACKUP_PATH,['.txt'])
-                        logfilecomparer.compare()
-                        logfilecomparer.sync()
-                        logging.info('Backing up data files')
-                        datafilecomparer=fileop.FileComparer(self.datafolder,self.machine_config.BACKUP_PATH,['.hdf5','.avi'])
-                        datafilecomparer.compare()
-                        datafilecomparer.sync()
-                        logging.info('Done')
+                        self.backup(confirmation=False)
             except:
                 logging.error(traceback.format_exc())
                 self.save_context()
@@ -572,6 +558,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.stop_session()
         self.close_video_recorder()
         self.save_context()
+        self.serialport.close()
         logging.info('Engine terminated')
         
     def recalculate_stat(self,folder):
@@ -959,35 +946,29 @@ class LowLevelDebugW(QtGui.QWidget):
         for vn in valve_names:
             self.valves[vn]=gui.LabeledCheckBox(self,'Open {0} Valve'.format(vn.capitalize()))
             self.valves[vn].setToolTip('When checked, the valve is open')
-        self.fan=gui.LabeledCheckBox(self,'Fan on/off')
         self.connect(self.valves['water'].input, QtCore.SIGNAL('stateChanged(int)'),  self.water_valve_clicked)
         self.connect(self.valves['air'].input, QtCore.SIGNAL('stateChanged(int)'),  self.air_valve_clicked)
-        self.connect(self.fan.input, QtCore.SIGNAL('stateChanged(int)'),  self.fan_clicked)
         self.airpuff=QtGui.QPushButton('Air Puff', parent=self)
         self.connect(self.airpuff, QtCore.SIGNAL('clicked()'), self.airpuff_clicked)
         self.reward=QtGui.QPushButton('Reward', parent=self)
         self.connect(self.reward, QtCore.SIGNAL('clicked()'), self.reward_clicked)
         self.stimulate=QtGui.QPushButton('Stimulate', parent=self)
         self.connect(self.stimulate, QtCore.SIGNAL('clicked()'), self.stimulate_clicked)
-        self.forcerun=QtGui.QPushButton('Force Run', parent=self)
-        self.connect(self.forcerun, QtCore.SIGNAL('clicked()'), self.forcerun_clicked)
         self.rewardx100=QtGui.QPushButton('100 x Reward', parent=self)
         self.connect(self.rewardx100, QtCore.SIGNAL('clicked()'), self.rewardx100_clicked)
+        self.backup=QtGui.QPushButton('Backup datafiles', parent=self)
+        self.connect(self.backup, QtCore.SIGNAL('clicked()'), self.backup_clicked)
         self.l = QtGui.QGridLayout()
         [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
-        self.l.addWidget(self.fan, 0, i+1, 1, 1)
         self.l.addWidget(self.reward, 1, 0, 1, 1)
         self.l.addWidget(self.airpuff, 1, 1, 1, 1)
         self.l.addWidget(self.stimulate, 2, 0, 1, 1)
-        self.l.addWidget(self.forcerun, 2, 1, 1, 1)
         self.l.addWidget(self.rewardx100, 3, 0, 1, 1)
+        self.l.addWidget(self.backup, 4, 0, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(2,20)
         self.l.setRowStretch(3,20)
         
-    def forcerun_clicked(self):
-        self.parent.parent().to_engine.put({'function':'forcerun','args':[1]})
-    
     def airpuff_clicked(self):
         self.parent.parent().to_engine.put({'function':'airpuff','args':[]})
         
@@ -997,7 +978,6 @@ class LowLevelDebugW(QtGui.QWidget):
     def rewardx100_clicked(self):
         self.parent.parent().to_engine.put({'function':'rewardx100','args':[]})
             
-    
     def stimulate_clicked(self):
         self.parent.parent().to_engine.put({'function':'stimulate','args':[]})
     
@@ -1007,8 +987,8 @@ class LowLevelDebugW(QtGui.QWidget):
     def water_valve_clicked(self,state):
         self.parent.parent().to_engine.put({'function':'set_valve','args':['water', state==2]})
         
-    def fan_clicked(self,state):
-        self.parent.parent().to_engine.put({'function':'set_fan','args':[state==2]})
+    def backup_clicked(self):
+        self.parent.parent().to_engine.put({'function':'backup','args':[]})
         
 class AddAnimalWeightDialog(QtGui.QWidget):
     '''
