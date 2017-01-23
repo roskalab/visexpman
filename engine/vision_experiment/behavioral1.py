@@ -220,7 +220,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def reward(self):
-        logging.info('NOT IMPLEMENTED')
+        self.set_valve('water',True)
+        time.sleep(self.parameters['Water Open Time'])
+        self.set_valve('water',False)
         logging.info('Reward')
         
     def rewardx100(self):
@@ -313,6 +315,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.notify('Warning', 'Animal file does not exists')
             return
         today=utils.timestamp2ymd(time.time(),'')
+        if not self.serialport.closed:
+            self.serialport.close()
+            time.sleep(1)
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
+        time.sleep(2)
         if hasattr(self, 'weight'):
             last_entry_timestamp=utils.timestamp2ymd(self.weight[-1,0],'')
             if last_entry_timestamp<today and not self.ask4confirmation('No animal weight was added today. Do you want to continue?'):
@@ -323,6 +330,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #self.show_day_success_rate(self.recording_folder)
         self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder)
         self.session_ongoing=True
+        self.session_start_time=time.time()
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
@@ -449,6 +457,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.update_plot()
             
     def show_animal_statistics(self):
+        if self.session_ongoing:
+            return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
         self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'])
@@ -456,7 +466,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.to_gui.put({'show_animal_statistics':self.analysis})
         
     def show_global_analysis(self):
-        logging.info('Generating success rate for each animal')
+        if self.session_ongoing:
+            return
+        logging.info('Generating success rate for all animals in {0}'.format(self.datafolder))
         self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder)
         logging.info('Done')
         self.to_gui.put({'show_global_statistics':self.global_analysis})
@@ -546,9 +558,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                         self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
                 #Run backup
                 t=datetime.datetime.fromtimestamp(self.last_run)
-                if (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+                if not self.session_ongoing and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
                     if os.path.exists(self.logfile_path) and self.last_run-os.path.getmtime(self.logfile_path)>self.machine_config.BACKUP_LOG_TIMEOUT*60:
                         self.backup(confirmation=False)
+                if self.session_ongoing and self.last_run-self.session_start_time>self.machine_config.SESSION_TIMEOUT*60:
+                    logging.info('Automatically stopping session after {0} minutes'.format(self.machine_config.SESSION_TIMEOUT))
+                    self.stop_session()
             except:
                 logging.error(traceback.format_exc())
                 self.save_context()
@@ -1069,6 +1084,8 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         histw.plots=[]
         histw.l = QtGui.QGridLayout()
         bins=hist[0]
+        if bins is None:
+            return histw
         days=hist[1].keys()
         days.sort()
         ct=0

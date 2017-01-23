@@ -36,7 +36,7 @@ class HitMiss(BehavioralProtocol):
                 lick = self.engine.lick_test['lick']
                 lick_indexes = self.engine.lick_test['lick_indexes']
             nlicks=map(len, lick_indexes.values())
-            index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>50])
+            index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>60])
             self.wf=lick.values()[index]
             maxnsamples=(self.PRETRIAL_DURATION+self.FLASH_DURATION+self.RESPONSE_WINDOW)*self.fsampleao
             self.wf=self.wf[-maxnsamples:]

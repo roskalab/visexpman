@@ -23,6 +23,7 @@ class BehavioralSetup(BehavioralConfig):
         BACKUPTIME=3#3am
         BACKUP_LOG_TIMEOUT=60#minutes
         BACKUP_PATH='x:\\behavioral'
+        SESSION_TIMEOUT=120#Minutes
         
 class BehavioralSetup2(BehavioralSetup):
     ARDUINO_SERIAL_PORT='COM4'
@@ -52,3 +53,4 @@ class OfficeTest(BehavioralSetup):
     BACKUP_PATH='x:\\behavioral\\test3'
     BACKUPTIME=14
     BACKUP_LOG_TIMEOUT=1#minutes
+    #SESSION_TIMEOUT=10#Minutes

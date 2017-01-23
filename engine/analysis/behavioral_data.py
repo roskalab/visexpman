@@ -518,6 +518,8 @@ class HitmissAnalysis(object):
                 h=hdf5io.Hdf5io(f)
                 stat=h.findvar('stat')
                 if not stat.has_key('stimulus_t'):
+                    h.close()
+                    continue
                     sync=h.findvar('sync')
                     machine_config=h.findvar('machine_config')
                     from visexpman.engine.hardware_interface import lick_detector
@@ -580,6 +582,8 @@ class HitmissAnalysis(object):
         
     def generate_histogram(self,data):
         values=numpy.concatenate(data.values())
+        if values.shape[0]==0:
+            return None,None
         bins=numpy.arange(values.min(),values.max(),self.histogram_bin_time)
         hist={}
         for k,v in data.items():
@@ -670,7 +674,7 @@ class TestBehavAnalysis(unittest.TestCase):
             
         
         def test_06_hitmiss_analysis(self):
-            h=HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1/20170114')
+            h=HitmissAnalysis('c:\\Data\\mouse\\data4plotdev')
             h.add2day_analysis(h.alldatafiles[0])
             HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
             HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
