@@ -44,6 +44,7 @@ int Dac::check_output(float expected_voltage)
   dac_readback_voltage=(float)(ADC_SCALE*dac_readback);
   if (abs(dac_readback_voltage-expected_voltage)>20e-3)
   {
+    Serial.println(dac_readback_voltage);
     return 1;
   }
   else

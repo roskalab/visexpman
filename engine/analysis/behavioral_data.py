@@ -510,6 +510,8 @@ class HitmissAnalysis(object):
         else:
             self.alldatafiles=[f for f in fileop.find_files_and_folders(self.folder)[1] if os.path.splitext(f)[1]=='.hdf5']
         self.lick_latencies=[]
+        self.reward_latencies=[]
+        self.nsuccesfullicks=0
         self.nhits=0
         self.nflashes=len(self.alldatafiles)
         self.lick_times=[]
@@ -528,20 +530,26 @@ class HitmissAnalysis(object):
                     h.save('stat')
                 h.close()
                 self.nhits+=stat['result']
+                self.nsuccesfullicks+=stat['lick_result']
                 if stat.has_key('lick_latency'):
                     self.lick_latencies.append(stat['lick_latency']*1000)
+                if stat.has_key('reward_latency'):
+                    self.reward_latencies.append(stat['reward_latency']*1000)
                 self.lick_times.extend((1000*(stat['lick_times']-stat['stimulus_t'][0])).tolist())
             except:
                 import logging, traceback
                 logging.info(f)
                 logging.error(traceback.format_exc())
         self.lick_latencies=numpy.array(map(int,self.lick_latencies))
+        self.reward_latencies=numpy.array(map(int,self.reward_latencies))
         self.lick_times=numpy.array(map(int,self.lick_times))
         if self.nflashes==0:
             self.success_rate=0
+            self.lick_success_rate=0
         else:
             self.success_rate=self.nhits/float(self.nflashes)
-        return self.lick_times,self.lick_latencies,self.nflashes,self.nhits,self.success_rate
+            self.lick_success_rate=self.nsuccesfullicks/float(self.nflashes)            
+        return self.lick_times,self.lick_latencies,self.reward_latencies,self.nflashes,self.nhits,self.success_rate,self.lick_success_rate
         
     def add2day_analysis(self,filename):
         stat=hdf5io.read_item(filename,'stat')
@@ -566,19 +574,27 @@ class HitmissAnalysis(object):
         self.days.sort()
         lick_times_histogram={}
         lick_latency_histogram={}
+        reward_latency_histogram={}
         success_rates=[]
+        lick_success_rates=[]
         for d in self.days:
-            lick_times,lick_latencies,nflashes,nhits,success_rate = self.day_analysis(os.path.join(animal_folder,d))
+            lick_times,lick_latencies,reward_latencies,nflashes,nhits,success_rate,lick_success_rate = self.day_analysis(os.path.join(animal_folder,d))
             lick_times_histogram[d]=lick_times
             lick_latency_histogram[d]=lick_latencies
+            reward_latency_histogram[d]=reward_latencies
             success_rates.append(success_rate)
+            lick_success_rates.append(lick_success_rate)
         success_rates=numpy.array(success_rates)
+        lick_success_rates=numpy.array(lick_success_rates)
         lick_times_histogram=self.generate_histogram(lick_times_histogram)
         lick_latency_histogram=self.generate_histogram(lick_latency_histogram)
+        reward_latency_histogram=self.generate_histogram(reward_latency_histogram)
         self.success_rates=success_rates
+        self.lick_success_rates=lick_success_rates
         self.lick_times_histogram=lick_times_histogram
         self.lick_latency_histogram=lick_latency_histogram
-        return self.days, success_rates, lick_times_histogram,lick_latency_histogram
+        self.reward_latency_histogram=reward_latency_histogram
+        return self.days, success_rates, self.lick_success_rates, lick_times_histogram,lick_latency_histogram
         
     def generate_histogram(self,data):
         values=numpy.concatenate(data.values())
@@ -594,7 +610,7 @@ class HitmissAnalysis(object):
         animals=os.listdir(self.folder)
         animal_success_rate={}
         for animal in animals:
-            days, success_rates, lick_times_histogram,lick_latency_histogram = self.animal_analysis(animal)
+            days, success_rates, lick_success_rates, lick_times_histogram,lick_latency_histogram = self.animal_analysis(animal)
             animal_success_rate[animal]=[days,success_rates]
         self.animal_success_rate=animal_success_rate
         return animal_success_rate

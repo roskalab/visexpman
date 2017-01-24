@@ -10,8 +10,8 @@ class HitMiss(BehavioralProtocol):
     After pretrial wait a laser pulse is generated. If lick happens within 0.5 second, 
     the trial is considered successful.
     '''
-    PRETRIAL_DURATION_MIN=10/2
-    PRETRIAL_DURATION_MAX=20/2
+    PRETRIAL_DURATION_MIN=10
+    PRETRIAL_DURATION_MAX=20
     PRETRIAL_DURATION=0
     FLASH_DURATION=0.2
     RESPONSE_WINDOW=0.5
@@ -57,6 +57,11 @@ class HitMiss(BehavioralProtocol):
             l=self.hmph.log.get().replace('\r', '').replace('\n', '')
             if len(l)>0:
                 logging.info(l)
+                
+class HitMiss1secResponseWindow(HitMiss):
+    __doc__=HitMiss.__doc__
+    RESPONSE_WINDOW=1.0
+    
 
 class LickResponse(BehavioralProtocol):
     '''

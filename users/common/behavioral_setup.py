@@ -3,7 +3,7 @@ from visexpman.engine.vision_experiment.configuration import BehavioralConfig
 from visexpman.engine.generic import fileop
 
 class BehavioralSetup(BehavioralConfig):
-        LOG_PATH = fileop.select_folder_exists(['q:\\log', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
+        LOG_PATH = fileop.select_folder_exists(['c:\\Data\\log','q:\\log', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         ENABLE_CAMERA=True
@@ -16,8 +16,8 @@ class BehavioralSetup(BehavioralConfig):
         BOTTOM_WIDGET_HEIGHT=260
         PLOT_WIDGET_WIDTH=700
         MINIMUM_FREE_SPACE=20#GByte
-        ARDUINO_SERIAL_PORT='COM9'
-        PROTOCOL_ORDER=['HitMiss']
+        ARDUINO_SERIAL_PORT='COM5'
+        PROTOCOL_ORDER=['HitMiss','HitMiss1secResponseWindow']
         AI_CHANNELS='Dev1/ai0:4'#water valve, lick signal, laser, lick detector output, debug (protocol state)
         AI_SAMPLE_RATE=5000
         BACKUPTIME=3#3am
@@ -51,6 +51,6 @@ class OfficeTest(BehavioralSetup):
     PLOT_WIDGET_WIDTH=600
     AI_CHANNELS='Dev2/ai0:4'
     BACKUP_PATH='x:\\behavioral\\test3'
-    BACKUPTIME=14
-    BACKUP_LOG_TIMEOUT=1#minutes
+    BACKUPTIME=3
+    BACKUP_LOG_TIMEOUT=15#minutes
     #SESSION_TIMEOUT=10#Minutes
