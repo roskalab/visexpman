@@ -112,7 +112,7 @@ def detect_events(sync, fsample):
     #TODO: this function should go to behavioral_data module
     ts=1.0/fsample
     threshold=2.5
-    lick=sync[:,0]
+    lick=sync[:,1]
     stimulus=sync[:, 2]
     reward=sync[:, 3]
     protocol_state=sync[:, 4]
@@ -230,10 +230,12 @@ class TestProtocolHandler(unittest.TestCase):
             
     def test_03_detect_events(self):
         fsample=5e3
-        folder='c:\\Data\\mouse\\data4plotdev\\5\\20170124'
+        #folder='c:\\Data\\mouse\\data4plotdev\\5\\20170124'
         import os,hdf5io
-        files=[os.path.join(folder,f) for f in  os.listdir(folder) if os.path.splitext(f)[1]=='.hdf5']
-        d=hdf5io.read_item(files[0], 'sync')
+        #files=[os.path.join(folder,f) for f in  os.listdir(folder) if os.path.splitext(f)[1]=='.hdf5']
+        #f=files[0]
+        f='C:\\Data\\raicszol\\rtlick\\1\\20170125\\data_HitMiss1secResponseWindow_201701251220300.hdf5'
+        d=hdf5io.read_item(f, 'sync')
         detect_events(d, fsample)
     
 if __name__ == "__main__":

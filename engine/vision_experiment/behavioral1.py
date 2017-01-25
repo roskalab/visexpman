@@ -264,7 +264,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['licks', 'lick raw',  'stimulus', 'reward',  'protocol/debug']
+        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug']
         if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
@@ -273,13 +273,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             x=x[:-1]
             trace_names=trace_names[:-1]
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
-            x[0]=self.lick_times
-            y[0]=numpy.ones_like(self.lick_times)*2
+            x[1]=self.lick_times
+            y[1]=numpy.ones_like(self.lick_times)*2
         else:
-            del x[0]
-            del y[0]
-            del trace_names[0]
-        
+            del x[1]
+            del y[1]
+            del trace_names[1]
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
         

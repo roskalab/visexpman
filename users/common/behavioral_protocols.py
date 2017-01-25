@@ -48,7 +48,8 @@ class HitMiss(BehavioralProtocol):
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
                     self.engine.parameters['Laser Intensity'],
                     self.PRETRIAL_DURATION,
-                    self.REWARD_DELAY)
+                    self.REWARD_DELAY,
+                    reponse_window_time=self.RESPONSE_WINDOW)
         self.hmph.start()
         if self.engine.parameters['Enable Lick Simulation']:
             daq_instrument.set_waveform( 'Dev2/ao0',self.wf.reshape(1, self.wf.shape[0]),sample_rate = self.fsampleao)
