@@ -228,6 +228,7 @@ class TestProtocolHandler(unittest.TestCase):
         if hasattr(serialport,  'write'):
             serialport.close()
             
+    @unittest.skip('')         
     def test_03_detect_events(self):
         fsample=5e3
         #folder='c:\\Data\\mouse\\data4plotdev\\5\\20170124'
@@ -237,6 +238,26 @@ class TestProtocolHandler(unittest.TestCase):
         f='C:\\Data\\raicszol\\rtlick\\1\\20170125\\data_HitMiss1secResponseWindow_201701251220300.hdf5'
         d=hdf5io.read_item(f, 'sync')
         detect_events(d, fsample)
+        
+    
+    def test_04_rerun_stat(self):
+        import os,hdf5io
+        from visexpman.engine.generic import fileop
+        folder='c:\\Data\\raicszol\\data4plotdev'
+        files=fileop.find_files_and_folders(folder)[1]
+        for f in files:
+            if os.path.splitext(f)[1]=='.hdf5' and 'animal' not in f:
+                print f
+                h=hdf5io.Hdf5io(f)
+                h.load('sync')
+                s=numpy.copy(h.sync)
+                h.sync[:,0]=s[:,1]
+                h.sync[:,1]=s[:,3]
+                h.sync[:,3]=s[:,0]
+                h.stat=detect_events(h.sync, 5e3)[0]
+                h.save(['stat','sync'])
+                h.close()
+        
     
 if __name__ == "__main__":
     unittest.main()

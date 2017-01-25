@@ -59,9 +59,9 @@ class HitMiss(BehavioralProtocol):
             if len(l)>0:
                 logging.info(l)
                 
-class HitMiss1secResponseWindow(HitMiss):
+class HitMiss1secRewardDelay(HitMiss):
     __doc__=HitMiss.__doc__
-    RESPONSE_WINDOW=1.0
+    REWARD_DELAY=1.0
     
 
 class LickResponse(BehavioralProtocol):

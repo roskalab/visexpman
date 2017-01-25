@@ -688,12 +688,12 @@ class TestBehavAnalysis(unittest.TestCase):
         def test_05_check_hitmissfiles(self):
             check_hitmiss_files('c:\\Data\\mouse\\test2\\20170114')
             
-        
+        #@unittest.skip('')
         def test_06_hitmiss_analysis(self):
-            h=HitmissAnalysis('c:\\Data\\mouse\\data4plotdev')
+            h=HitmissAnalysis('c:\\Data\\raicszol\\data4plotdev')
             h.add2day_analysis(h.alldatafiles[0])
-            HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
-            HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
+            #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
+            #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
 
 if __name__ == "__main__":
     unittest.main()

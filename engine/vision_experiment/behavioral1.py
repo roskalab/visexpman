@@ -1066,7 +1066,12 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         axis.month=int(analysis.days[0][4:6])
         axis.day=int(analysis.days[0][6:])
         success_rate_plot=gui.Plot(self,axisItems={'bottom': axis})
-        success_rate_plot.update_curves([days],[analysis.success_rates*100],plotparams=pp)
+        pps=[copy.deepcopy(pp[0]),copy.deepcopy(pp[0])]
+        pps[0]['name']='Success rate'
+        pps[1]['name']='Lick success rate'
+        pps[1]['symbolBrush']=(255,50,0,128)
+        pps[1]['pen']=(255,50,0,128)
+        success_rate_plot.update_curves(2*[days],[analysis.success_rates*100,analysis.lick_success_rates *100],plotparams=pps)
         success_rate_plot.plot.setLabels(left='success rate [%]')
         self.addTab(success_rate_plot,'Success rate')
         lick_latency_histogram_plot=self.histograms(analysis.lick_latency_histogram)
@@ -1082,7 +1087,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         histw.plots=[]
         histw.l = QtGui.QGridLayout()
         bins=hist[0]
-        if bins is None:
+        if bins is None or bins.shape[0]==0:
             return histw
         days=hist[1].keys()
         days.sort()
