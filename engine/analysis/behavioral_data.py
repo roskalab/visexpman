@@ -603,8 +603,13 @@ class HitmissAnalysis(object):
         bins=numpy.arange(values.min(),values.max(),self.histogram_bin_time)
         hist={}
         for k,v in data.items():
-            hist[k]=numpy.histogram(v,bins)[0]
-        return bins[:-1],hist
+            if bins.shape[0]==1:
+                hist[k]=v.shape[0]
+            else:
+                hist[k]=numpy.histogram(v,bins)[0]
+        if bins.shape[0]>1:
+            bins=bins[:-1]
+        return bins,hist
         
     def all_animals(self):
         animals=os.listdir(self.folder)
@@ -690,7 +695,9 @@ class TestBehavAnalysis(unittest.TestCase):
             
         #@unittest.skip('')
         def test_06_hitmiss_analysis(self):
-            h=HitmissAnalysis('c:\\Data\\raicszol\\data4plotdev')
+            folder='c:\\Data\\raicszol\\data4plotdev'
+            folder='/tmp/data4plotdev'
+            h=HitmissAnalysis(folder)
             h.add2day_analysis(h.alldatafiles[0])
             #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
             #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
