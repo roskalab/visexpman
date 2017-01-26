@@ -10,8 +10,8 @@ class HitMiss(BehavioralProtocol):
     After pretrial wait a laser pulse is generated. If lick happens within 0.5 second, 
     the trial is considered successful.
     '''
-    PRETRIAL_DURATION_MIN=10/2
-    PRETRIAL_DURATION_MAX=20/2
+    PRETRIAL_DURATION_MIN=10
+    PRETRIAL_DURATION_MAX=20
     PRETRIAL_DURATION=0
     FLASH_DURATION=0.2
     RESPONSE_WINDOW=0.5
@@ -36,7 +36,7 @@ class HitMiss(BehavioralProtocol):
                 lick = self.engine.lick_test['lick']
                 lick_indexes = self.engine.lick_test['lick_indexes']
             nlicks=map(len, lick_indexes.values())
-            index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>50])
+            index=random.choice([i for i in range(len(nlicks)) if nlicks[i]>60])
             self.wf=lick.values()[index]
             maxnsamples=(self.PRETRIAL_DURATION+self.FLASH_DURATION+self.RESPONSE_WINDOW)*self.fsampleao
             self.wf=self.wf[-maxnsamples:]
@@ -48,7 +48,8 @@ class HitMiss(BehavioralProtocol):
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
                     self.engine.parameters['Laser Intensity'],
                     self.PRETRIAL_DURATION,
-                    self.REWARD_DELAY)
+                    self.REWARD_DELAY,
+                    reponse_window_time=self.RESPONSE_WINDOW)
         self.hmph.start()
         if self.engine.parameters['Enable Lick Simulation']:
             daq_instrument.set_waveform( 'Dev2/ao0',self.wf.reshape(1, self.wf.shape[0]),sample_rate = self.fsampleao)
@@ -57,6 +58,11 @@ class HitMiss(BehavioralProtocol):
             l=self.hmph.log.get().replace('\r', '').replace('\n', '')
             if len(l)>0:
                 logging.info(l)
+                
+class HitMiss1secRewardDelay(HitMiss):
+    __doc__=HitMiss.__doc__
+    REWARD_DELAY=1.0
+    
 
 class LickResponse(BehavioralProtocol):
     '''

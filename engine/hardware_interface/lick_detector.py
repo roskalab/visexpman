@@ -112,7 +112,7 @@ def detect_events(sync, fsample):
     #TODO: this function should go to behavioral_data module
     ts=1.0/fsample
     threshold=2.5
-    lick=sync[:,0]
+    lick=sync[:,1]
     stimulus=sync[:, 2]
     reward=sync[:, 3]
     protocol_state=sync[:, 4]
@@ -131,9 +131,16 @@ def detect_events(sync, fsample):
     #Was it successful?
     result=reward_t.shape[0]==2
     stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial, 'lick_times':lick_t,'stimulus_t':stimulus_t, 'stimulus duration': stimulus_t[1]-stimulus_t[0]}
+    stat['lick_result']=False
     if result:
         first_lick=lick_t[numpy.where(lick_t>stim_start)[0].min()]
         stat['lick_latency']= round(first_lick-stim_start, 3)
+        try:
+            first_lick_after_reward=lick_t[numpy.where(lick_t>reward_t[0])[0].min()]
+            stat['reward_latency']=first_lick_after_reward-reward_t[0]
+            stat['lick_result']=True
+        except ValueError:
+            pass
         stat['reward_delay']=round(reward_t[0]-first_lick, 3)
         if protocol_state_t.shape[0]>=7:
             stat['drink_time']=round(protocol_state_t[6]-reward_t[1], 3)
@@ -177,7 +184,7 @@ class TestProtocolHandler(unittest.TestCase):
         deltats=numpy.array(deltats)
         print 'timing std [us]',  deltats.std(axis=0)
     
-    #@unittest.skip('') 
+    @unittest.skip('') 
     def test_02_lick_generated(self):
         import os, hdf5io
         datafolder='c:\\visexp\\data'
@@ -220,6 +227,37 @@ class TestProtocolHandler(unittest.TestCase):
             #show()
         if hasattr(serialport,  'write'):
             serialport.close()
+            
+    @unittest.skip('')         
+    def test_03_detect_events(self):
+        fsample=5e3
+        #folder='c:\\Data\\mouse\\data4plotdev\\5\\20170124'
+        import os,hdf5io
+        #files=[os.path.join(folder,f) for f in  os.listdir(folder) if os.path.splitext(f)[1]=='.hdf5']
+        #f=files[0]
+        f='C:\\Data\\raicszol\\rtlick\\1\\20170125\\data_HitMiss1secResponseWindow_201701251220300.hdf5'
+        d=hdf5io.read_item(f, 'sync')
+        detect_events(d, fsample)
+        
+    
+    def test_04_rerun_stat(self):
+        import os,hdf5io
+        from visexpman.engine.generic import fileop
+        folder='c:\\Data\\raicszol\\data4plotdev'
+        files=fileop.find_files_and_folders(folder)[1]
+        for f in files:
+            if os.path.splitext(f)[1]=='.hdf5' and 'animal' not in f:
+                print f
+                h=hdf5io.Hdf5io(f)
+                h.load('sync')
+                s=numpy.copy(h.sync)
+                h.sync[:,0]=s[:,1]
+                h.sync[:,1]=s[:,3]
+                h.sync[:,3]=s[:,0]
+                h.stat=detect_events(h.sync, 5e3)[0]
+                h.save(['stat','sync'])
+                h.close()
+        
     
 if __name__ == "__main__":
     unittest.main()

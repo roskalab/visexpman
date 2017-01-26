@@ -111,7 +111,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_time=time.time()
         self.stim_number=0
         self.session_ongoing=False
-        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)        
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -220,7 +220,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def reward(self):
-        logging.info('NOT IMPLEMENTED')
+        self.set_valve('water',True)
+        time.sleep(self.parameters['Water Open Time'])
+        self.set_valve('water',False)
         logging.info('Reward')
         
     def rewardx100(self):
@@ -262,7 +264,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['licks', 'lick raw',  'stimulus', 'reward',  'protocol/debug']
+        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug']
         if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
@@ -271,13 +273,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             x=x[:-1]
             trace_names=trace_names[:-1]
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
-            x[0]=self.lick_times
-            y[0]=numpy.ones_like(self.lick_times)*2
+            x[1]=self.lick_times
+            y[1]=numpy.ones_like(self.lick_times)*2
         else:
-            del x[0]
-            del y[0]
-            del trace_names[0]
-        
+            del x[1]
+            del y[1]
+            del trace_names[1]
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
         
@@ -313,6 +314,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.notify('Warning', 'Animal file does not exists')
             return
         today=utils.timestamp2ymd(time.time(),'')
+        if not self.serialport.closed:
+            self.serialport.close()
+            time.sleep(1)
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
+        time.sleep(2)
         if hasattr(self, 'weight'):
             last_entry_timestamp=utils.timestamp2ymd(self.weight[-1,0],'')
             if last_entry_timestamp<today and not self.ask4confirmation('No animal weight was added today. Do you want to continue?'):
@@ -323,6 +329,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #self.show_day_success_rate(self.recording_folder)
         self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder)
         self.session_ongoing=True
+        self.session_start_time=time.time()
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
@@ -356,6 +363,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.ai.commandq.put('stop')
         time.sleep(0.5)
         t0=time.time()
+        abort_session=False
         while True:
             self.sync=self.ai.read()
             logging.info('ai data shape: '+str(self.sync.shape[0]))
@@ -365,6 +373,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if time.time()-t0>10:
                 logging.error('Not enough AI samples?')
                 logging.info(self.ai.dataq.qsize())
+                abort_session=True
                 break
             time.sleep(0.1)
         logging.info('Recorded {0} s'.format(self.sync.shape[0]/float(self.machine_config.AI_SAMPLE_RATE)))
@@ -382,18 +391,29 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.stat2gui()
         except:
             logging.info(traceback.format_exc())
+        if abort_session:
+            self.stop_session()
 #        self.show_day_success_rate(self.recording_folder)
 
     def stat2gui(self):
-        if not hasattr(self,'stat'):
-            return 
-        stat_str='Result: {1}, lick numbers: {0}'.format(self.stat['lick_numbers'],  'Hit' if self.stat['result'] else 'Miss')
-        timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers' and k!='lick_times'])
-        today_stat='Flashes: {0}, Hits: {1}, Success rate: {2} %'.format(self.day_analysis.nflashes, self.day_analysis.nhits, int(100*self.day_analysis.success_rate))
-        logging.info(stat_str)
-        logging.info(timingstr)
+        if hasattr(self,'stat'):
+            stat_str='Result: {1}, lick numbers: {0}'.format(self.stat['lick_numbers'],  'HIT' if self.stat['result'] else 'MISS')
+            timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers' and k!='lick_times'])
+            logging.info(stat_str)
+            logging.info(timingstr)
+        else:
+            stat_str=''
+        
+        if hasattr(self,'day_analysis'):
+            today_stat='Flashes: {0}, Hits: {1}, Success rate: {2} %, {3} %'.format(self.day_analysis.nflashes, self.day_analysis.nhits, int(100*self.day_analysis.success_rate), int(100*self.day_analysis.lick_success_rate))
+        else:
+            today_stat=''
         logging.info(today_stat)
-        self.to_gui.put({'statusbar':stat_str+' '+today_stat})
+        if self.session_ongoing:
+            session_time_str='Running for {0} minutes.'.format(int((self.last_run-self.session_start_time)/60))
+        else:
+            session_time_str=''
+        self.to_gui.put({'statusbar':stat_str+' '+today_stat+' '+session_time_str})
 
     def save_during_session(self):
         if self.session_ongoing and not self.protocol.is_alive():
@@ -449,6 +469,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.update_plot()
             
     def show_animal_statistics(self):
+        if self.session_ongoing:
+            return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
         self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'])
@@ -456,7 +478,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.to_gui.put({'show_animal_statistics':self.analysis})
         
     def show_global_analysis(self):
-        logging.info('Generating success rate for each animal')
+        if self.session_ongoing:
+            return
+        logging.info('Generating success rate for all animals in {0}'.format(self.datafolder))
         self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder)
         logging.info('Done')
         self.to_gui.put({'show_global_statistics':self.global_analysis})
@@ -480,7 +504,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         '''
         
         '''  
+        logging.info('Analysing {0}'.format(folder))
         self.day_analysis=behavioral_data.HitmissAnalysis(folder)
+        self.stat2gui()
+        logging.info('Done')
         
             
     def read_file_summary(self,filename):
@@ -504,6 +531,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return {}
             
     def backup(self,confirmation=True):
+        if self.session_ongoing:
+            logging.warning('No backup during recording')
+            return
         if confirmation:
             if not self.ask4confirmation('Backing up datafiles to {0} might take long. Do you want to continue?'.format(self.machine_config.BACKUP_PATH)):
                 return
@@ -543,9 +573,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                         self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
                 #Run backup
                 t=datetime.datetime.fromtimestamp(self.last_run)
-                if (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
-                    if os.path.exists(self.logfile_path) and os.path.getmtime(self.last_run-self.logfile_path)>self.machine_configBACKUP_LOG_TIMEOUT*60:
+                if not self.session_ongoing and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+                    if os.path.exists(self.logfile_path) and self.last_run-os.path.getmtime(self.logfile_path)>self.machine_config.BACKUP_LOG_TIMEOUT*60:
                         self.backup(confirmation=False)
+                if self.session_ongoing and self.last_run-self.session_start_time>self.machine_config.SESSION_TIMEOUT*60:
+                    logging.info('Automatically stopping session after {0} minutes'.format(self.machine_config.SESSION_TIMEOUT))
+                    self.stop_session()
             except:
                 logging.error(traceback.format_exc())
                 self.save_context()
@@ -634,11 +667,10 @@ class Behavioral(gui.SimpleAppWindow):
 #                                ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
+                                #{'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
-                                {'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
+                                #{'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
                                 {'name': 'Enable Lick Simulation', 'type': 'bool', 'value': False},
-                                {'name': 'Best N', 'type': 'float', 'value': 10},
                                 {'name': 'Histogram bin size', 'type': 'float', 'value': 50e-3, 'siPrefix': True, 'suffix': 's'},
                                 ]},
                     ]
@@ -884,9 +916,6 @@ class CWidget(QtGui.QWidget):
         self.main_tab.setTabPosition(self.main_tab.South)
         self.main_tab.setMinimumHeight(290)
         self.main_tab.setMinimumWidth(700)
-        self.live_speed=gui.LabeledCheckBox(self,'Live Speed')
-        self.live_speed.input.setCheckState(2)
-        self.connect(self.live_speed.input, QtCore.SIGNAL('stateChanged(int)'),  self.live_event_udpate_clicked)
         self.state=QtGui.QPushButton('Idle', parent=self)
         self.state.setMinimumWidth(100)
         self.state.setEnabled(False)
@@ -894,7 +923,6 @@ class CWidget(QtGui.QWidget):
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.main_tab, 0, 0, 2, 4)
         self.l.addWidget(self.state, 2, 0, 1, 1)
-        self.l.addWidget(self.live_speed, 2, 1, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(3,20)
         self.l.setRowStretch(3,20)
@@ -905,10 +933,6 @@ class CWidget(QtGui.QWidget):
             self.state.setStyleSheet('QPushButton {background-color: red; color: black;}')
         elif state=='idle':
             self.state.setStyleSheet('QPushButton {background-color: gray; color: black;}')
-        
-        
-    def live_event_udpate_clicked(self,state):
-        pass
         
 class FileBrowserW(gui.FileTree):
     def __init__(self,parent):
@@ -941,15 +965,12 @@ class LowLevelDebugW(QtGui.QWidget):
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
         self.parent=parent
-        valve_names=['water', 'air']
+        valve_names=['water']
         self.valves={}
         for vn in valve_names:
             self.valves[vn]=gui.LabeledCheckBox(self,'Open {0} Valve'.format(vn.capitalize()))
             self.valves[vn].setToolTip('When checked, the valve is open')
         self.connect(self.valves['water'].input, QtCore.SIGNAL('stateChanged(int)'),  self.water_valve_clicked)
-        self.connect(self.valves['air'].input, QtCore.SIGNAL('stateChanged(int)'),  self.air_valve_clicked)
-        self.airpuff=QtGui.QPushButton('Air Puff', parent=self)
-        self.connect(self.airpuff, QtCore.SIGNAL('clicked()'), self.airpuff_clicked)
         self.reward=QtGui.QPushButton('Reward', parent=self)
         self.connect(self.reward, QtCore.SIGNAL('clicked()'), self.reward_clicked)
         self.stimulate=QtGui.QPushButton('Stimulate', parent=self)
@@ -961,16 +982,12 @@ class LowLevelDebugW(QtGui.QWidget):
         self.l = QtGui.QGridLayout()
         [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
         self.l.addWidget(self.reward, 1, 0, 1, 1)
-        self.l.addWidget(self.airpuff, 1, 1, 1, 1)
         self.l.addWidget(self.stimulate, 2, 0, 1, 1)
         self.l.addWidget(self.rewardx100, 3, 0, 1, 1)
         self.l.addWidget(self.backup, 4, 0, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(2,20)
         self.l.setRowStretch(3,20)
-        
-    def airpuff_clicked(self):
-        self.parent.parent().to_engine.put({'function':'airpuff','args':[]})
         
     def reward_clicked(self):
         self.parent.parent().to_engine.put({'function':'reward','args':[]})
@@ -981,9 +998,6 @@ class LowLevelDebugW(QtGui.QWidget):
     def stimulate_clicked(self):
         self.parent.parent().to_engine.put({'function':'stimulate','args':[]})
     
-    def air_valve_clicked(self,state):
-        self.parent.parent().to_engine.put({'function':'set_valve','args':['air', state==2]})
-        
     def water_valve_clicked(self,state):
         self.parent.parent().to_engine.put({'function':'set_valve','args':['water', state==2]})
         
@@ -1052,12 +1066,19 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         axis.month=int(analysis.days[0][4:6])
         axis.day=int(analysis.days[0][6:])
         success_rate_plot=gui.Plot(self,axisItems={'bottom': axis})
-        success_rate_plot.update_curves([days],[analysis.success_rates*100],plotparams=pp)
+        pps=[copy.deepcopy(pp[0]),copy.deepcopy(pp[0])]
+        pps[0]['name']='Success rate'
+        pps[1]['name']='Lick success rate'
+        pps[1]['symbolBrush']=(255,50,0,128)
+        pps[1]['pen']=(255,50,0,128)
+        success_rate_plot.update_curves(2*[days],[analysis.success_rates*100,analysis.lick_success_rates *100],plotparams=pps)
         success_rate_plot.plot.setLabels(left='success rate [%]')
         self.addTab(success_rate_plot,'Success rate')
         lick_latency_histogram_plot=self.histograms(analysis.lick_latency_histogram)
+        reward_latency_histogram_plot=self.histograms(analysis.reward_latency_histogram)
         lick_times_histogram_plot=self.histograms(analysis.lick_times_histogram)
         self.addTab(lick_latency_histogram_plot,'Lick latencies')
+        self.addTab(reward_latency_histogram_plot,'Reward latencies')
         self.addTab(lick_times_histogram_plot,'Lick times')
         self.show()
         
@@ -1066,6 +1087,8 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         histw.plots=[]
         histw.l = QtGui.QGridLayout()
         bins=hist[0]
+        if bins is None or bins.shape[0]==0:
+            return histw
         days=hist[1].keys()
         days.sort()
         ct=0

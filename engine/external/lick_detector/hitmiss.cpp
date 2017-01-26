@@ -134,12 +134,15 @@ void HitMiss::run(void)
                 delay((int)(laser_duration*1000));
                 dac.set(0.0f);
                 digitalWrite(LASERPIN, LOW);
+                t_wait_for_response=millis();
+                delay(2);
                 if (dac.check_output(0.0f))
                 {
                   dac.set(0.0f);
                   Serial.println("Could not turn off laser, retrying");
+                  dac.check_output(0.0f);
                 }
-                t_wait_for_response=millis();
+                
             #endif
             set_state(WAIT4RESPONSE);
             break;

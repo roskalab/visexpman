@@ -9,9 +9,9 @@ class AOSetup(AoCorticalCaImagingConfig):
         AoCorticalCaImagingConfig._set_user_parameters(self)
         # Files
         self.EXPERIMENT_FILE_FORMAT = 'hdf5'
-        self.LOG_PATH = 'v:\\log'
+        self.LOG_PATH = 'v:\\log_ao'
         self.EXPERIMENT_DATA_PATH = 'v:\\experiment_data_ao'
-        self.CONTEXT_PATH='v:\\context'
+        self.CONTEXT_PATH='v:\\context_ao'
         #Stimulus screen
         self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 190.0
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])

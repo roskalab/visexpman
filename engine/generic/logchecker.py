@@ -1,6 +1,9 @@
 import logging,unittest,os,time,numpy,sys
 from visexpman.engine.generic import utils,fileop
 
+def logline2timestamp(line):
+    return utils.datestring2timestamp(line.split('\t')[0].split(',')[0],format='%Y-%m-%d %H:%M:%S')
+
 class LogChecker(object):
     '''
     checks logfiles in a specific folder, gathers most recent errors and sends a summary in email
@@ -29,7 +32,7 @@ class LogChecker(object):
         logging.info('Done')
         
     def _line2timestamp(self,line):
-        return utils.datestring2timestamp(line.split('\t')[0].split(',')[0],format='%Y-%m-%d %H:%M:%S')
+        return logline2timestamp(line)
         
     def checkfile(self,filename):
         if os.path.getmtime(filename)<self.t0:#File has not been modified since last run
@@ -62,13 +65,57 @@ class LogChecker(object):
         for i in lines2report:
                 error_report+=lines[i]
         return error_report
+        
+class Usage(object):
+    def __init__(self,folder,timerange=None):
+        self.folder=folder
+        if timerange is None:
+            self.t1=time.time()
+            self.t0=self.t1-86400
+        else:
+            self.t0=timerange[0]
+            self.t1=timerange[1]
+        self.tstep=3600*3
+        self.tbins=numpy.arange(self.t0,self.t1,self.tstep)
+        self.tbins=numpy.append(self.tbins,self.t1)
+        
+    def aggregate_timestamps(self):
+        self.logfiles=[os.path.join(self.folder,f) for f in os.listdir(self.folder) if os.path.splitext(f)[1]=='.txt']
+        timestamps={}
+        for f in self.logfiles:
+            if os.path.getmtime(f)<self.t0: continue
+            print f
+            lines=fileop.read_text_file(f).split('\n')
+            timestamps[f]=[]
+            for l in lines:
+                try:
+                    timestamps[f].append(logline2timestamp(l))
+                except:
+                    pass
+        self.timestamps=timestamps
+        return timestamps
+        
+    def plot(self):
+        ts=numpy.concatenate(map(numpy.array,self.timestamps.values()))
+        self.hist,b=numpy.histogram(ts,self.tbins)
+        from pylab import plot,savefig,show
+        x=(self.tbins[:-1]-self.tbins[-1])/3600.
+        plot(x,self.hist);show()#TODO: date time on x axis
+        
     
 class TestLogChecker(unittest.TestCase):
+    @unittest.skip('') 
     def test_01(self):
         lc=LogChecker('/tmp/logtest','/tmp/log_checker.txt')
         print lc.error_report
         lc.t0=0
         print lc.checkfile('/tmp/logtest/log_behav_2016-12-06_14-47-52.txt')
+        
+    def test_02_usage_stat(self):
+        now=time.time()
+        u=Usage('/tmp/log',[now-3*86400,now])
+        u.aggregate_timestamps()
+        u.plot()
     
 if __name__ == "__main__":
     if len(sys.argv)==1:
