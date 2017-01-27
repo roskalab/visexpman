@@ -54,6 +54,8 @@ class RepositoryChecker(object):
                 keep_last_record=True
         except:
             logging.error(traceback.format_exc())
+        finally:
+            shutil.rmtree(src)
         if not keep_last_record:
             os.remove(self.zipfn)
             
@@ -79,7 +81,17 @@ class RepositoryChecker(object):
             if 'error' in lines[i].lower() or 'warning' in lines[i].lower():
                 notifications+=lines[i]
         print notifications
-        
+        if len(notifications)>0:
+            import subprocess
+            message = 'Subject:{0}\n\n{1}\n'.format('tbd', notifications)
+            fn='/tmp/email.txt'
+            fp=open(fn,'w')
+            fp.write(message)
+            fp.close()
+            # Send the mail
+            cmd='/usr/sbin/sendmail {0} < {1}'.format(to,fn)
+            res=subprocess.call(cmd,shell=True)
+            os.remove(fn)
         
 class TestBehavAnalysis(unittest.TestCase):
     def test_01_repository(self):
