@@ -4,7 +4,7 @@
 #define _60HZ_US (1000000/60)*2
 #define _120HZ_US (1000000/120)*2
 
-#define PMT_GATE 0
+#define PMT_GATE 5
 #define STIM_LED 1
 byte input_state;
 unsigned long period=0;
