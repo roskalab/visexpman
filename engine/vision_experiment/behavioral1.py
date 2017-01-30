@@ -817,6 +817,7 @@ class Behavioral(gui.SimpleAppWindow):
             x=[tr[0] for tr in gs.animal_success_rate.values()]
             xconverted=[]
             for xi in x:
+                if len(xi)==0: continue
                 xconverted.append([utils.datestring2timestamp(xii,format='%Y%m%d')/86400 for xii in xi])
                 xconverted[-1]=numpy.array(xconverted[-1])-xconverted[-1][0]
             y=[tr[1]*100 for tr in gs.animal_success_rate.values()]

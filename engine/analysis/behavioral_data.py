@@ -503,6 +503,8 @@ class HitmissAnalysis(object):
         elif nsubfolders==nitems:
             self.analysis_type='all'
             self.all_animals()
+        else:
+            raise RuntimeError('Unknown analysis')
         
     def day_analysis(self,folder=None):
         if isinstance(folder,str) and os.path.exists(folder):
@@ -597,7 +599,10 @@ class HitmissAnalysis(object):
         return self.days, success_rates, self.lick_success_rates, lick_times_histogram,lick_latency_histogram
         
     def generate_histogram(self,data):
-        values=numpy.concatenate(data.values())
+        try:
+            values=numpy.concatenate(data.values())
+        except ValueError:
+            return None,None
         if values.shape[0]==0:
             return None,None
         bins=numpy.arange(values.min(),values.max(),self.histogram_bin_time)
@@ -605,6 +610,8 @@ class HitmissAnalysis(object):
         for k,v in data.items():
             if bins.shape[0]==1:
                 hist[k]=v.shape[0]
+            elif bins.shape[0]==0:
+                hist[k]=0
             else:
                 hist[k]=numpy.histogram(v,bins)[0]
         if bins.shape[0]>1:
