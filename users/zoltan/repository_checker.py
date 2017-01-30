@@ -1,4 +1,4 @@
-import os,zipfile,unittest,time,logging,shutil,filecmp,traceback
+import os,zipfile,unittest,time,logging,shutil,filecmp,traceback,sys
 
 class RepositoryChecker(object):
     def __init__(self, database_folder, repository_folder, vip_files=[], ignore_folder=[]):
@@ -36,6 +36,8 @@ class RepositoryChecker(object):
         os.mkdir(src)
         zipfiles=[os.path.join(self.database_folder, f) for f in os.listdir(self.database_folder) if os.path.splitext(f)[1]=='.zip' and '_'.join(os.path.basename(self.zipfn).split('_')[:-1]) in f]
         zipfiles.sort()
+        if len(zipfiles)==0:
+            return
         latest=zipfiles[-2]
         ziph = zipfile.ZipFile(latest, 'r')
         ziph.extractall(src)
@@ -108,4 +110,13 @@ class TestBehavAnalysis(unittest.TestCase):
 
         
 if __name__ == "__main__":
-    unittest.main()
+    if len(sys.argv)>1:
+        if sys.argv[1]=='rc':
+            r=RepositoryChecker('/home/rz/repocheck/rc', '/mnt/datafast/codes/jobhandler',vip_files=['visexpman/users/daniel/configurations.py'],ignore_folder=['visexpman/users/daniel'])
+            r.run()
+        elif sys.argv[1]=='ao':
+            r=RepositoryChecker('/home/rz/repocheck/ao', '/mnt/datafast/codes/ao-cortical',vip_files=[],ignore_folder=['visexpman/users/adrian'])
+            r.run()
+
+    else:
+        unittest.main()

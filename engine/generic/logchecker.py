@@ -29,6 +29,7 @@ class LogChecker(object):
         for f in self.logfiles:
             self.error_report+=self.checkfile(f)
         utils.sendmail(to, 'errors, {0}'.format(logfile_folder), self.error_report)
+        logging.error(self.error_report)
         logging.info('Done')
         
     def _line2timestamp(self,line):
@@ -121,4 +122,4 @@ if __name__ == "__main__":
     if len(sys.argv)==1:
         unittest.main()
     else:
-        LogChecker(*sys.argv[1:])
+        lc=LogChecker(*sys.argv[1:])
