@@ -11,14 +11,15 @@ class HitMissProtocolHandler(threading.Thread):
                 laser_duration = 0.2, 
                 reponse_window_time = 0.5, 
                 water_dispense_time = 0.2, 
-                drink_time = 2):
+                drink_time = 2,
+                wait4lick=1):
         #multiprocessing.Process.__init__(self)
         threading.Thread.__init__(self)
         self.init_wait=2.0*0
         self.fsample=1000
         self.serial_port=serial_port
         self.pars=[laser_voltage, laser_duration,  pre_trial_interval, reponse_window_time, water_dispense_delay,\
-                water_dispense_time, drink_time]
+                water_dispense_time, drink_time,wait4lick]
         self.log=multiprocessing.Queue()
         
     def cmd(self, cmd, wait=0):

@@ -39,6 +39,7 @@ class HitMiss:public Comm {
         float water_dispense_delay;
         float water_dispense_time;
         float drink_time;
+        float wait4lick;
     //Output
         float number_of_licks;
         result_t result;
