@@ -235,4 +235,4 @@ import sys
 import os
 import numpy
 
-version = 'Development_14.08'
+version = 'v0.1.0'

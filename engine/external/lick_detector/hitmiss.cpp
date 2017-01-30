@@ -19,6 +19,7 @@ HitMiss::HitMiss(void)
     water_dispense_delay = 0;
     water_dispense_time = 0;
     drink_time = 0;
+    wait4lick=1;
     state=IDLE;
     #if (PLATFORM==ARDUINO)
       lick_detector=LickDetector();
@@ -33,7 +34,7 @@ void HitMiss::run(void)
     res=parse();
     if ((res==NO_ERROR)&& (state==IDLE))
     {           
-        if ((strcmp(command,"start_protocol")==0)&&(nparams==7))
+        if ((strcmp(command,"start_protocol")==0)&&(nparams==8))
         {
             laser_voltage = par[0];
             laser_duration = par[1];
@@ -42,10 +43,11 @@ void HitMiss::run(void)
             water_dispense_delay = par[4];
             water_dispense_time = par[5];
             drink_time = par[6];
+            wait4lick = par[7];
             set_state(PRETRIAL);
           #if (PLATFORM==ARDUINO)
             Serial.print("Protocol parameters: ");
-            for(i=0;i<7;i++)
+            for(i=0;i<8;i++)
             {
               Serial.print(par[i]);
               Serial.print(",");
@@ -160,7 +162,7 @@ void HitMiss::run(void)
             #elif (PLATFORM==ARDUINO)
                 now=millis();
                 //Check if lick condition has happened
-                if (lick_detector.get_lick_number()>0)
+                if ((lick_detector.get_lick_number()>0)&&(wait4lick==1.0))
                 {
                   Serial.println("Lick detected");
                   result=HIT;
@@ -182,12 +184,21 @@ void HitMiss::run(void)
             #endif
             //check timeout
             if ((now-t_wait_for_response)>(unsigned long)((reponse_window_time-laser_duration)*1000))
-            {                
-                set_state(ENDOFTRIAL);
-                result=MISS;
+            {    
+                if (wait4lick==0.0)
+                {
+                  water_dispense_delay_correction=0;
+                  set_state(WATERREWARD);
+                  result=HIT;
+                }            
+                else
+                {
+                  set_state(ENDOFTRIAL);
+                  result=MISS;
              #if (PLATFORM==ARDUINO)
-                Serial.println("Lick timeout");
+                  Serial.println("Lick timeout");
              #endif
+                }
             }
             break;
         case WATERREWARD:

@@ -11,6 +11,7 @@ class LogChecker(object):
     def __init__(self,logfile_folder,logfile,to='zoltan.raics@fmi.ch'):
         self.logfile=logfile
         self.nlines_before_error=2
+        content=''
         if os.path.exists(self.logfile):
             content=fileop.read_text_file(self.logfile)
             done_timestamps=[self._line2timestamp(l) for l in content.split('\n') if 'Done' in l]
@@ -24,20 +25,20 @@ class LogChecker(object):
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
         logging.info('Log checker started')
-        self.logfiles=[f for f in fileop.find_files_and_folders(logfile_folder)[1] if os.path.splitext(f)[1]=='.txt']
+        self.logfiles=[f for f in fileop.find_files_and_folders(logfile_folder)[1] if os.path.splitext(f)[1]=='.txt' and not (f in content)]
         self.error_report='Errors since {0}\n'.format(utils.timestamp2ymdhm(self.t0))
         for f in self.logfiles:
+            logging.info(f)
             self.error_report+=self.checkfile(f)
-        utils.sendmail(to, 'errors, {0}'.format(logfile_folder), self.error_report)
-        logging.error(self.error_report)
+        if self.t0!=0:#Ignore errors at very first run
+            utils.sendmail(to, 'errors in {0}'.format(logfile_folder), self.error_report)
+            logging.error(self.error_report)
         logging.info('Done')
         
     def _line2timestamp(self,line):
         return logline2timestamp(line)
         
     def checkfile(self,filename):
-        if os.path.getmtime(filename)<self.t0:#File has not been modified since last run
-            return ''
         lines=fileop.read_text_file(filename).split('\n')
         #Find entry indexes
         entry_lines=[]
@@ -57,8 +58,8 @@ class LogChecker(object):
             if endindex>len(entry_lines)-1:
                 endindex=len(entry_lines)-1
             end=entry_lines[endindex]
-            if self._line2timestamp(lines[ei])>self.t0:
-                lines2report.extend(range(start,end))
+            #if self._line2timestamp(lines[ei])>self.t0:
+            lines2report.extend(range(start,end))
         lines2report=set(lines2report)
         if len(lines2report)==0:
             return ''
