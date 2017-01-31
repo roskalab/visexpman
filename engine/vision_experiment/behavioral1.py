@@ -327,7 +327,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
-        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder)
+        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder,protocol=self.parameters['Protocol'])
         self.session_ongoing=True
         self.session_start_time=time.time()
         self.start_recording()
@@ -392,8 +392,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         except:
             logging.info(traceback.format_exc())
         if abort_session:
-            self.stop_session()
-#        self.show_day_success_rate(self.recording_folder)
+            self.session_ongoing=False
+            self.to_gui.put({'set_recording_state': 'idle'})
+            logging.info('Session ended')
 
     def stat2gui(self):
         if hasattr(self,'stat'):
@@ -438,7 +439,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             setattr(self.datafile, nn, object_parameters2dict(var))
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         self.datafile.sync=self.sync
-        self.datafile.stat=copy.deepcopy(self.stat)
+        if hasattr(self,'stat'):
+            self.datafile.stat=copy.deepcopy(self.stat)
         self.datafile.frame_times=self.frame_times
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
@@ -473,7 +475,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'])
+        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'])
         logging.info('Done')
         self.to_gui.put({'show_animal_statistics':self.analysis})
         
@@ -481,7 +483,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if self.session_ongoing:
             return
         logging.info('Generating success rate for all animals in {0}'.format(self.datafolder))
-        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder)
+        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder,protocol=self.parameters['Protocol'])
         logging.info('Done')
         self.to_gui.put({'show_global_statistics':self.global_analysis})
     
@@ -802,7 +804,7 @@ class Behavioral(gui.SimpleAppWindow):
             self.w=QtGui.QWidget()
             self.w.setWindowIcon(gui.get_icon('behav'))
             self.w.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
-            self.w.setWindowTitle('Summary of '+gs.folder)
+            self.w.setWindowTitle('Summary of '+gs.folder + ' '+gs.protocol)
             self.w.p=gui.Plot(self.w)
             pp={ 'symbol':'o', 'symbolSize':8, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}
             pps=[]
@@ -817,6 +819,7 @@ class Behavioral(gui.SimpleAppWindow):
             x=[tr[0] for tr in gs.animal_success_rate.values()]
             xconverted=[]
             for xi in x:
+                if len(xi)==0: continue
                 xconverted.append([utils.datestring2timestamp(xii,format='%Y%m%d')/86400 for xii in xi])
                 xconverted[-1]=numpy.array(xconverted[-1])-xconverted[-1][0]
             y=[tr[1]*100 for tr in gs.animal_success_rate.values()]
@@ -1056,7 +1059,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         gui.set_win_icon()
         self.machine_config=parent.machine_config
         self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
-        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder))
+        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder)+' '+analysis.protocol)
         self.setTabPosition(self.North)
         pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}]
         days=numpy.array([utils.datestring2timestamp(d,format='%Y%m%d')/86400 for d in analysis.days])

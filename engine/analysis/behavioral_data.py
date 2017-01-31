@@ -445,6 +445,7 @@ def check_hitmiss_files(filename):
     for f in files:
         if len(files)>1:
             print f
+        ishitmiss='hitmiss' in os.path.basename(filename).split('_')[1].lower()
         h=hdf5io.Hdf5io(f)
         map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat'])
         recording_duration=h.sync.shape[0]/float(h.machine_config['AI_SAMPLE_RATE'])
@@ -464,14 +465,15 @@ def check_hitmiss_files(filename):
             plot(protocol_state+5);plot(stimulus);plot(reward);plot(lick);show()
         if abs(h.stat[ 'pretrial_duration'] - h.protocol['PRETRIAL_DURATION'])>dt:
             raise RuntimeError('Pretrial duration is measured to {0}, expected: {1}'.format(h.stat[ 'pretrial_duration'], h.protocol['PRETRIAL_DURATION']))
-        if h.stat['result'] and abs(h.stat[ 'reward_delay']-(h.protocol['REWARD_DELAY']))>dt:
+        
+        if ishitmiss and h.stat['result'] and abs(h.stat['reward_delay']-(h.protocol['REWARD_DELAY']))>dt:
                 if abs((h.stat[ 'reward_delay']-h.stat['lick_latency'])-h.protocol['REWARD_DELAY'])>dt:#Lick happens during stimulus
                     from visexpman.engine.hardware_interface import lick_detector
                     s,lt,pst=lick_detector.detect_events(h.sync,5000)
                     raise RuntimeError('Reward delay is measured to {0}, expected: {1}'.format(h.stat[ 'reward_delay'], h.protocol['REWARD_DELAY']+0*h.stat[ 'lick_latency']))
         if h.stat['result'] and abs(h.stat[ 'drink_time']-h.protocol['DRINK_TIME'])>dt:
             raise RuntimeError('Reward delay is measured to {0}, expected: {1}'.format(h.stat[ 'drink_time'], h.protocol['DRINK_TIME']))
-        if not h.stat['result'] and abs(h.stat['response_window']-h.protocol['RESPONSE_WINDOW'])>dt:
+        if ishitmiss and not h.stat['result'] and abs(h.stat['response_window']-h.protocol['RESPONSE_WINDOW'])>dt:
             raise RuntimeError('Response window is measured to {0}, expected: {1}'.format(h.stat['response_window'], h.protocol['RESPONSE_WINDOW']))
         h.close()
         
@@ -487,7 +489,8 @@ class HitmissAnalysis(object):
         Multiple animals:
             aggregate success rate at each day to a single plot, different curve for each animal
     '''
-    def __init__(self,folder,histogram_bin_time=20e-3):
+    def __init__(self,folder,histogram_bin_time=20e-3, protocol='HitMiss'):
+        self.protocol=protocol
         self.folder=folder
         self.histogram_bin_time=histogram_bin_time*1e3
         items_in_folder=fileop.listdir_fullpath(folder)
@@ -503,6 +506,8 @@ class HitmissAnalysis(object):
         elif nsubfolders==nitems:
             self.analysis_type='all'
             self.all_animals()
+        else:
+            raise RuntimeError('Unknown analysis')
         
     def day_analysis(self,folder=None):
         if isinstance(folder,str) and os.path.exists(folder):
@@ -517,6 +522,7 @@ class HitmissAnalysis(object):
         self.lick_times=[]
         for f in self.alldatafiles:
             try:
+                if os.path.basename(f).split('_')[1]!=self.protocol: continue
                 h=hdf5io.Hdf5io(f)
                 stat=h.findvar('stat')
                 if not stat.has_key('stimulus_t'):
@@ -597,7 +603,10 @@ class HitmissAnalysis(object):
         return self.days, success_rates, self.lick_success_rates, lick_times_histogram,lick_latency_histogram
         
     def generate_histogram(self,data):
-        values=numpy.concatenate(data.values())
+        try:
+            values=numpy.concatenate(data.values())
+        except ValueError:
+            return None,None
         if values.shape[0]==0:
             return None,None
         bins=numpy.arange(values.min(),values.max(),self.histogram_bin_time)
@@ -605,6 +614,8 @@ class HitmissAnalysis(object):
         for k,v in data.items():
             if bins.shape[0]==1:
                 hist[k]=v.shape[0]
+            elif bins.shape[0]==0:
+                hist[k]=0
             else:
                 hist[k]=numpy.histogram(v,bins)[0]
         if bins.shape[0]>1:
