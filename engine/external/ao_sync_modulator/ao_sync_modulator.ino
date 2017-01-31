@@ -7,11 +7,20 @@
 #define DELAY 100
 #define SYNCIN 3
 #define SYNCOUT 4
+#define COUNTER_MODE 1
+#define PULSE_DELAY_MODE 2
+#define MODE COUNTER_MODE
+#define COUNTER_PERIOD 48
+#define OFFCOUNTS 2
+#define LOWINPUTTIMEOUT 1000//ms
 byte syncin;
+byte counter;
+unsigned long inputlowstarted,now;
 
 ISR(INT1_vect) {
   cli();
   syncin=PIND&(1<<SYNCIN);
+#if (MODE==PULSE_DELAY_MODE)
   if (syncin!=0)
   {
     delayMicroseconds(DELAY);
@@ -21,7 +30,33 @@ ISR(INT1_vect) {
   {
     PORTD&=~(1<<SYNCOUT);
   }
-  
+#elif (MODE==COUNTER_MODE)
+  if (syncin!=0)//rising edge
+  {
+    now=millis();
+    if (now-inputlowstarted>LOWINPUTTIMEOUT)//If syncin was at LOW for more than LOWINPUTTIMEOUT, reset counter
+    {
+      counter=0;
+    }
+    if (counter==COUNTER_PERIOD-OFFCOUNTS+1)
+    {
+      PORTD&=~(1<<SYNCOUT);
+    }
+    else if (counter==COUNTER_PERIOD)
+    {
+      counter=0;
+    }
+    else
+    {
+      PORTD|=1<<SYNCOUT;
+    }
+    counter++;
+  }
+  else
+  {
+    inputlowstarted=millis();
+  }
+#endif
   
   
   sei();
@@ -29,6 +64,7 @@ ISR(INT1_vect) {
 
 
 void setup() {
+  counter=0;
   DDRD&=~(1<<SYNCIN);//int1
   DDRD|=(1<<SYNCOUT);
   EICRA|=1<<2;//falling edges
@@ -38,11 +74,4 @@ void setup() {
 }
 
 void loop() {
-  /*PORTD|=1<<SYNCOUT;//stim led on
-  PORTD|=1<<SYNCIN;//stim led on
-  delayMicroseconds(100);
-  PORTD&=~(1<<SYNCOUT);//stim led off
-  PORTD&=~(1<<SYNCIN);//stim led off
-  delayMicroseconds(100);*/
-
 }
