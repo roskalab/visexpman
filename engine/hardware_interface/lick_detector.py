@@ -121,6 +121,7 @@ def detect_events(sync, fsample):
     threshold_stim=stimulus.min()+0.5*(stimulus.max()-stimulus.min())
     stimulus_t=signal.trigger_indexes(stimulus, abs_threshold=threshold_stim)*ts
     lick_t=(signal.trigger_indexes(lick, abs_threshold=threshold)*ts)[::2]
+    lick_happened=lick_t.shape[0]>0
     protocol_state_t=(signal.trigger_indexes(protocol_state, abs_threshold=threshold)*ts)[::2]
     if protocol_state_t.shape[0]>=4:
         dt_pretrial=round(protocol_state_t[3]-protocol_state_t[2], 3)
@@ -134,18 +135,21 @@ def detect_events(sync, fsample):
     stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial, 'lick_times':lick_t,'stimulus_t':stimulus_t, 'stimulus duration': stimulus_t[1]-stimulus_t[0]}
     stat['lick_result']=False
     if result:
-        first_lick=lick_t[numpy.where(lick_t>stim_start)[0].min()]
-        stat['lick_latency']= round(first_lick-stim_start, 3)
-        try:
-            first_lick_after_reward=lick_t[numpy.where(lick_t>reward_t[0])[0].min()]
-            stat['reward_latency']=first_lick_after_reward-reward_t[0]
-            stat['lick_result']=True
-        except ValueError:
-            pass
-        stat['reward_delay']=round(reward_t[0]-first_lick, 3)
+        if lick_happened:
+            first_lick=lick_t[numpy.where(lick_t>stim_start)[0].min()]
+            stat['lick_latency']= round(first_lick-stim_start, 3)
+            try:
+                first_lick_after_reward=lick_t[numpy.where(lick_t>reward_t[0])[0].min()]
+                stat['reward_latency']=first_lick_after_reward-reward_t[0]
+                stat['lick_result']=True
+            except ValueError:
+                pass
+            stat['reward_delay']=round(reward_t[0]-first_lick, 3)
+            lick_numbers['postreward']=int(numpy.where(lick_t>reward_t[0])[0].shape[0])
+        else:#Lick protocol
+            stat['reward_delay']=round(reward_t[0]-stimulus_t[0], 3)
         if protocol_state_t.shape[0]>=7:
             stat['drink_time']=round(protocol_state_t[6]-reward_t[1], 3)
-        lick_numbers['postreward']=int(numpy.where(lick_t>reward_t[0])[0].shape[0])
     elif (not result) and protocol_state_t.shape[0]>=7:
         stat['response_window']=round(protocol_state_t[5]-protocol_state_t[3], 3)
         

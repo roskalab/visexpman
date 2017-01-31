@@ -65,10 +65,10 @@ class HitMiss1secRewardDelay(HitMiss):
     __doc__=HitMiss.__doc__
     REWARD_DELAY=1.0
     
-class Lick(Hitmiss):
+class Lick(HitMiss):
     __doc__=HitMiss.__doc__
     WAIT4LICK=False
-    REWARD_DELAY=1.0#delay between flash and reward
+    REWARD_DELAY=0.5#delay between flash and reward
     
 class LickResponse(BehavioralProtocol):
     '''
