@@ -390,11 +390,24 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.day_analysis.add2day_analysis(self.filename)
             self.stat2gui()
         except:
+            self.dump()
             logging.info(traceback.format_exc())
+            
         if abort_session:
             self.session_ongoing=False
             self.to_gui.put({'set_recording_state': 'idle'})
             logging.info('Session ended')
+            
+    def dump(self):
+        variables = ['sync', 'filename']
+        dump_data = {}
+        for v in variables:
+            if hasattr(self, v):
+                dump_data[v] = getattr(self,v)
+        filename = os.path.join(self.machine_config.LOG_PATH, 'dump_{0}.{1}'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-'),'npy'))
+        dump_stream=utils.object2array(dump_data)
+        numpy.save(filename,dump_stream)
+        logging.info('sync dumped to {0}'.format(filename))
 
     def stat2gui(self):
         if hasattr(self,'stat'):
