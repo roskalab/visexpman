@@ -1,4 +1,3 @@
-
 class Realign():
     def __init__(self, config, printc, mes_interface):
         self.config = config

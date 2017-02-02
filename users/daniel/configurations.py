@@ -1,3 +1,4 @@
+
 import os
 import os.path
 import serial
@@ -492,6 +493,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ANIMAL_FOLDER='/mnt/datafast/animals'
         v_drive_data_folder = os.path.join(v_drive_folder,  'experiment_data')
         LOG_PATH = os.path.join(v_drive_folder, 'log')
+        #CAPTURE_PATH = os.path.join(v_drive_folder, 'experiment_data')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\experiment_data'

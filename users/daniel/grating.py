@@ -166,6 +166,16 @@ class MovingGratingLongSpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
         self.ORIENTATIONS = range(0,360,45)
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
+        
+        
+class MovingGratingLongSpeedTuning180Config(MovingGratingNoMarchHor35812umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
+        self.VELOCITIES = [1200, 1200, 300, 300, 800, 800, 500, 500]
+        self.REPEATS = 1
+        self.ORIENTATIONS = [180, 225, 270, 315, 0, 45, 90, 135]
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
 
 
 class MovingGratingNoMarchingConfig(MovingGratingConfig):
@@ -204,6 +214,27 @@ class MovingGratingNoMarching6xConfig(MovingGratingConfig):
         self.VELOCITIES = [1200.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 6
+        self.PAUSE_BEFORE_AFTER = 3.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+#        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+
+class MovingGratingNoMarch3x180Config(MovingGratingConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 3.5
+        #Grating parameters
+        self.ORIENTATIONS = [180, 225, 270, 315, 0, 45, 90, 135]
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.COLOR_CONTRAST = 1.0
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 3.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
@@ -253,15 +284,38 @@ class MovingGratingFiona(MovingGratingNoMarchingConfig):
         self.CLEAR_SCREEN_AT_END_COLOR=0
         self.pre_runnable = 'BlackPre'
         self.BLACK_SCREEN_DURATION=2.0
-  
+        
+class MovingStandingGratingFiona(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.machine_config.TEXT_COLOR=[0.0,0.0,0.0]
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME=3.0#
+        self.GRATING_STAND_TIME = 3.0
+        self.GREY_INSTEAD_OF_MARCHING=False
+        self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.COLOR_CONTRAST = 1.0
+        self.VELOCITIES = [1200.0]#1800
+        #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 3
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.CLEAR_SCREEN_AT_END=True
+        self.CLEAR_SCREEN_AT_END_COLOR=0
+        self.pre_runnable = 'BlackPre'
+        self.BLACK_SCREEN_DURATION=2.0
+        
+        
 class MovingGratingFiona3x(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.machine_config.TEXT_COLOR=[0.0,0.0,0.0]
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
-        self.MARCH_TIME=4.0#
-        self.GRATING_STAND_TIME = 0
-        self.GREY_INSTEAD_OF_MARCHING=True
+        self.MARCH_TIME=3.0#
+        self.GRATING_STAND_TIME = 3.0
+        self.GREY_INSTEAD_OF_MARCHING=False
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
@@ -275,7 +329,8 @@ class MovingGratingFiona3x(MovingGratingNoMarchingConfig):
         self.CLEAR_SCREEN_AT_END_COLOR=0
         self.pre_runnable = 'BlackPre'
         self.BLACK_SCREEN_DURATION=2.0
-              
+        
+        
 class MovingGratingFionaHC(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)

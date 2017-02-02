@@ -16,7 +16,17 @@ class NaturalMovieOnly(experiment.ExperimentConfig):
         self.runnable = 'NaturalMovieOnlyE'
         
         self._create_parameters_from_locals(locals())
-                
+
+class FionaNaturalMovie(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.MOVIE_REPEATS=1
+        self.FILENAME = 'c:\\Data\\Movies\\catcam17_rotated'#'c:\\Data\\Movies\\catcam17'
+        self.FRAME_RATE=30.0 # Change frame rate back to 25 fps when possible (by adding images). 
+        self.STRETCH = 2.75 # Covers 661 pixels vertical / 51 angular degrees. 
+        self.runnable = 'NaturalMovieOnlyE'
+        
+        self._create_parameters_from_locals(locals())
+                        
 class NaturalMovieOnly1_1(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
