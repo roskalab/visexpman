@@ -31,7 +31,7 @@ class ReceptiveFieldFionaBasic(experiment.ExperimentConfig):
         
 class ReceptiveFieldFionaBasicAngle(ReceptiveFieldFionaBasic):#This is the original one!!!!!!!!!!!!
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.NROWS = 6
         self.NCOLUMNS = 9
         self.SIZE_DIMENSION='angle'
@@ -43,7 +43,7 @@ class ReceptiveFieldFionaBasicAngle(ReceptiveFieldFionaBasic):#This is the origi
 
 class ReceptiveFieldFionaEquiFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0]
         self.NROWS = 10
         self.NCOLUMNS = 18
@@ -57,7 +57,7 @@ class ReceptiveFieldFionaEquiFine(ReceptiveFieldFionaBasic):
         
 class ReceptiveFieldFionaFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0]
         self.NROWS = 10
         self.NCOLUMNS = 18
@@ -71,7 +71,7 @@ class ReceptiveFieldFionaFine(ReceptiveFieldFionaBasic):
         
 class ReceptiveFieldFionaFineBW(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0, 0.0]
         self.BACKGROUND_COLOR = 0.42
         self.NROWS = 10
@@ -86,7 +86,7 @@ class ReceptiveFieldFionaFineBW(ReceptiveFieldFionaBasic):
         
 class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0]
         self.NROWS = 10
         self.NCOLUMNS = 18
@@ -102,7 +102,7 @@ class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldFionaBasic):
         
 class ReceptiveFieldFionaExtraFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0]
         self.NROWS = 20
         self.NCOLUMNS = 36
@@ -116,7 +116,7 @@ class ReceptiveFieldFionaExtraFine(ReceptiveFieldFionaBasic):
      
 class ReceptiveFieldFionaSuperFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0]
         self.NROWS = 30
         self.NCOLUMNS = 54
@@ -129,7 +129,7 @@ class ReceptiveFieldFionaSuperFine(ReceptiveFieldFionaBasic):
          
 class ReceptiveFieldFionaCoarse(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.NROWS = 1 #5
         self.NCOLUMNS = 1 #9
         self.SIZE_DIMENSION='angle'
