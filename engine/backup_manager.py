@@ -153,7 +153,7 @@ class BackupManager(object):
                         shutil.copyfile(f,dst_file) 
                         logging.info('Copied {0} to {1} ({2})'.format(f, dst_file, os.path.getsize(dst_file)))
                 else:
-                    if copy['move']:
+                    if copy.get('move',False):
                         os.remove(f)
                         logging.info('Deleted {0}'.format(f))
             except:
