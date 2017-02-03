@@ -121,7 +121,7 @@ def detect_events(sync, fsample):
     threshold_stim=stimulus.min()+0.5*(stimulus.max()-stimulus.min())
     stimulus_t=signal.trigger_indexes(stimulus, abs_threshold=threshold_stim)*ts
     lick_t=(signal.trigger_indexes(lick, abs_threshold=threshold)*ts)[::2]
-    lick_happened=lick_t.shape[0]>0
+    post_stim_lick_happened=lick_t.shape[0]>0 and numpy.nonzero(lick_t>stimulus_t[0])[0].shape[0]>0
     protocol_state_t=(signal.trigger_indexes(protocol_state, abs_threshold=threshold)*ts)[::2]
     if protocol_state_t.shape[0]>=4:
         dt_pretrial=round(protocol_state_t[3]-protocol_state_t[2], 3)
@@ -135,7 +135,7 @@ def detect_events(sync, fsample):
     stat={'lick_numbers':lick_numbers, 'result': result, 'pretrial_duration': dt_pretrial, 'lick_times':lick_t,'stimulus_t':stimulus_t, 'stimulus duration': stimulus_t[1]-stimulus_t[0]}
     stat['lick_result']=False
     if result:
-        if lick_happened:
+        if post_stim_lick_happened:
             first_lick=lick_t[numpy.where(lick_t>stim_start)[0].min()]
             stat['lick_latency']= round(first_lick-stim_start, 3)
             try:
