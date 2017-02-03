@@ -21,11 +21,29 @@ class AOData(experiment_data.CaImagingData):
         experiment_data.hdf52mat(self.filename)
 
     def process_mes_file(self):
-        mesdata=scipy.io.loadmat(self.mesfilename)
-        if str(mesdata['DATA']['Type'][0][0][0])=='Line2':
+        nchannels=1
+        import h5py
+        mesdata=h5py.File(self.mesfilename,)
+        datatype=''.join(map(chr, mesdata[mesdata['DATA/Type'][0][0]].value.flatten()))
+        if datatype=='Line2':
             raise NotImplementedError('Line scan data processing is not supported')
-        elif str(mesdata['DATA']['Type'][0][0][0])!='FF':
+        elif datatype!='FF':
             raise NotImplementedError('Only checkerboard scanning is supported')
+        self.image=mesdata[mesdata['DATA/IMAGE'][0][0]].value
+        vert_size=int(mesdata[mesdata['DATA/TransversePixNum'][0][0]].value.flatten()[0])
+        horiz_size=48
+        nrois=[item2 for item2 in [item for item in mesdata[mesdata['DATA/info_Linfo'][0][0]].values() if 'lines' in item.name][0].values() if 'line1' in item2.name][0].shape[1]
+        nframes=int([item for item in mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values() if 'numFrames' in item.name][0][0][0])
+        xoffset=1
+        toffset=int([item for item in mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values() if 'firstFramePos' in item.name][0][0][0])
+        self.raw_data=numpy.zeros((nframes, nchannels, nrois, vert_size, horiz_size),dtype=self.image.dtype)
+        for i in range(nrois):
+            for j in range(nframes):
+                self.raw_data[j,0,i]=\
+                        self.image[horiz_size*i+xoffset:horiz_size*(i+1)+xoffset,vert_size*j+toffset:vert_size*(j+1)+toffset].T
+              
+        
+        
         self.image=numpy.copy(mesdata['DATA']['IMAGE'][0][0])
         self.ao_drift=mesdata['DATA']['AO_collection_usedpixels'][0][0][0][0]
         nrois=self.image.shape[0]/self.ao_drift
@@ -52,10 +70,11 @@ class AOData(experiment_data.CaImagingData):
         self.save('parameters')
         
 class TestAODData(unittest.TestCase):
-    @unittest.skip('')         
+    #@unittest.skip('')         
     def test_01(self):
         fn='v:\\experiment_data_ao\\adrian\\test\\data_GrayBackgndOnly5min_201609141833241.hdf5'
         fn='v:\\experiment_data_ao\\adrian\\test\\data_MovingGratingAdrian_201609141828279.hdf5'
+        fn='/mnt/rzws/temp/0_aodev/data_GrayBackgndOnly5min_201612132042235.hdf5'
         a=AOData(fn)
         a.load('sync')
         #plot(a.sync[::10,0]);show()
