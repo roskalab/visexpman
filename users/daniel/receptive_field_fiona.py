@@ -5,7 +5,7 @@ import random
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
-class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
+class ReceptiveFieldFionaBasic(experiment.ExperimentConfig):
     def _create_parameters(self):
 	# x = 4248 um,  y = 2389 um
         self.SHAPE = 'rect'
@@ -25,19 +25,13 @@ class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
         self.REPEATS = 1
         self.REPEAT_SEQUENCE = 1
         self.ENABLE_RANDOM_ORDER =  not False
-        self.runnable='ReceptiveFieldExplore'
+        self.runnable='ReceptiveFieldExploreF'
         self._create_parameters_from_locals(locals())
         
         
-class ReceptiveFieldExploreNewInverted(ReceptiveFieldExploreNew):
+class ReceptiveFieldFionaBasicAngle(ReceptiveFieldFionaBasic):#This is the original one!!!!!!!!!!!!
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
-        self.COLORS = [0.0]
-        self.BACKGROUND_COLOR = 1.0
-
-class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):#This is the original one!!!!!!!!!!!!
-    def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.NROWS = 6
         self.NCOLUMNS = 9
         self.SIZE_DIMENSION='angle'
@@ -46,28 +40,53 @@ class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):#This is the origi
 #        self.SHAPE_SIZE = 10
        # self.OFF_TIME = 0
         #self.ON_TIME = 2.0
-        
-       
-class ReceptiveFieldExploreNewAngleAdrian(ReceptiveFieldExploreNew):#This is the original one!!!!!!!!!!!!
+
+class ReceptiveFieldFionaEquiFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
-        self.NROWS = 6
-        self.NCOLUMNS = 9
-        self.SIZE_DIMENSION='angle'
-        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees Overall size of display in angles
-        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees Center
+        ReceptiveFieldFionaBasic._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 10
+        self.NCOLUMNS = 18
+        #self.SIZE_DIMENSION='angle'
+        #self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        #self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
 #        self.SHAPE_SIZE = 10
-        self.OFF_TIME = 2.0
-        self.ON_TIME = 1.0
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8
+        self.REPEATS = 1
         
-class ReceptiveFieldExploreNewAngleAdrianInverted(ReceptiveFieldExploreNewAngleAdrian):
+class ReceptiveFieldFionaFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
-        self.COLORS = [0.0]
-        self.BACKGROUND_COLOR = 1.0
-class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldExploreNew):
+        ReceptiveFieldFionaBasic._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 10
+        self.NCOLUMNS = 18
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#((65.0,96.7))#((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((25.5,24.0))#((38.7,55.4))#((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8
+        self.REPEATS = 1 
+        
+class ReceptiveFieldFionaFineBW(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldFionaBasic._create_parameters(self)
+        self.COLORS = [1.0, 0.0]
+        self.BACKGROUND_COLOR = 0.42
+        self.NROWS = 10
+        self.NCOLUMNS = 18
+        #self.SIZE_DIMENSION='angle'
+        #self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        #self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8
+        self.REPEATS = 1 
+        
+class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldFionaBasic):
+    def _create_parameters(self):
+        ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0]
         self.NROWS = 10
         self.NCOLUMNS = 18
@@ -78,9 +97,50 @@ class ReceptiveFieldExploreNewAngleFine(ReceptiveFieldExploreNew):
         self.ON_TIME = 1.4
         self.OFF_TIME = 1.4
         self.REPEATS = 2
-        
 
-class ReceptiveFieldExplore(experiment.Experiment):
+        
+        
+class ReceptiveFieldFionaExtraFine(ReceptiveFieldFionaBasic):
+    def _create_parameters(self):
+        ReceptiveFieldFionaBasic._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 20
+        self.NCOLUMNS = 36
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.45
+        self.OFF_TIME = 0.45
+        self.REPEATS = 1
+     
+class ReceptiveFieldFionaSuperFine(ReceptiveFieldFionaBasic):
+    def _create_parameters(self):
+        ReceptiveFieldFionaBasic._create_parameters(self)
+        self.COLORS = [1.0]
+        self.NROWS = 30
+        self.NCOLUMNS = 54
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.39
+        self.OFF_TIME = 0.39 
+         
+class ReceptiveFieldFionaCoarse(ReceptiveFieldFionaBasic):
+    def _create_parameters(self):
+        ReceptiveFieldFionaBasic._create_parameters(self)
+        self.NROWS = 1 #5
+        self.NCOLUMNS = 1 #9
+        self.SIZE_DIMENSION='angle'
+        self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
+        self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
+#        self.SHAPE_SIZE = 10
+        self.ON_TIME = 0.8
+        self.OFF_TIME = 0.8   
+        self.REPEATS = 200  
+
+class ReceptiveFieldExploreF(experiment.Experiment):
     '''
     Repeats: flash or sequence
     
