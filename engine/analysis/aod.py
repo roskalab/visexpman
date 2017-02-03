@@ -1,8 +1,8 @@
 import scipy.io,traceback
 import numpy,os,hdf5io,unittest
 from visexpman.engine.vision_experiment import experiment_data
-from visexpman.engine.generic import utils,signal
-from pylab import plot,show,figure, imshow
+from visexpman.engine.generic import utils,signal,fileop
+from pylab import plot,show,figure, imshow  
 
 class AOData(experiment_data.CaImagingData):
     '''
@@ -52,6 +52,7 @@ class AOData(experiment_data.CaImagingData):
         self.save('parameters')
         
 class TestAODData(unittest.TestCase):
+    @unittest.skip('')         
     def test_01(self):
         fn='v:\\experiment_data_ao\\adrian\\test\\data_GrayBackgndOnly5min_201609141833241.hdf5'
         fn='v:\\experiment_data_ao\\adrian\\test\\data_MovingGratingAdrian_201609141828279.hdf5'
@@ -60,8 +61,6 @@ class TestAODData(unittest.TestCase):
         #plot(a.sync[::10,0]);show()
         a.prepare4analysis()
         a.close()
-        
-
         
 if __name__ == '__main__':
     unittest.main()

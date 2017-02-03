@@ -62,15 +62,19 @@ class BackupManager(object):
     2) copy config
     
     '''
-    def __init__(self, config):
+    def __init__(self, config, simple=False):
+        '''
+        Simple mode: no watchdog checking, no new logfile
+        '''
         self.config=config
-        if self.islocked(): return
-        logging.basicConfig(filename= self.config.LOGPATH,
-                    format='%(asctime)s %(levelname)s\t%(message)s',
-                    level=logging.DEBUG)
-        logging.info('Started')
-        if self.check_dest_folders(): return
-        logging.info('Dest folders OK')
+        if not simple:
+            if self.islocked(): return
+            logging.basicConfig(filename= self.config.LOGPATH,
+                        format='%(asctime)s %(levelname)s\t%(message)s',
+                        level=logging.DEBUG)
+            logging.info('Started')
+            if self.check_dest_folders(): return
+            logging.info('Dest folders OK')
     
     def islocked(self):
         return os.path.exists(self.config.LOGPATH) and time.time()-os.path.getmtime(self.config.LOGPATH)<self.config.last_run_timeout
@@ -95,9 +99,9 @@ class BackupManager(object):
                 all_files.extend([root + os.sep + file for file in files])
         return all_files
     
-    def is_file_closed(self,f):
+    def is_file_closed(self,f,timeout):
         now=time.time()
-        return now-os.path.getmtime(f)>self.config.last_file_access_timeout
+        return now-os.path.getmtime(f)>timeout
                  
     def sendmail(self, to, subject, txt):
         if os.name=='posix':
@@ -135,9 +139,10 @@ class BackupManager(object):
         if copy.has_key('filter'):
             files=[f for f in files if copy['filter'] in os.path.basename(f)]
         files.sort()
+        timeout = copy.get('timeout',self.config.last_file_access_timeout)
         for f in files:
             try:
-                if not self.is_file_closed(f):
+                if not self.is_file_closed(f, timeout):
                     return
                 #generate dst filenames
                 dst_files = [os.path.join(dst, os.path.basename(f)) for dst in copy['dst']]

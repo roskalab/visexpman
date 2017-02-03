@@ -217,14 +217,24 @@ def copy(src, dst, update=1):
 def move2zip(src,dst,delete=False):
     '''
     Zip contents of src and save it to dst. if delete==True, remove src folder
+    src can be a list of files
+    when dst is a folder, zipfilename will be the name of the first file in src
     '''
     import zipfile
     if not os.path.exists(os.path.dirname(dst)):
         os.makedirs(os.path.dirname(dst))
+    if isinstance(src,list):
+        files=src
+        root=os.path.dirname(files[0])
+    else:
+        files=find_files_and_folders(src)[1]
+        root=src
+    files.sort()
+    if os.path.isdir(dst):
+        dst=os.path.join(dst,os.path.splitext(os.path.basename(files[0]))[0]+'.zip')
     zf = zipfile.ZipFile(dst, 'w',zipfile.ZIP_DEFLATED)
-    files=find_files_and_folders(src)[1]
     for f in files:
-        zf.write(f, f.replace(src,''))
+        zf.write(f, f.replace(root,''))
     zf.close()
     if delete:
         shutil.rmtree(src)
@@ -585,35 +595,6 @@ def compare_timestamps(string1, string2):
 
 ################# Others ####################
 
-class FileComparer(object):
-    '''
-    Generic, platform independent class for comparing two folders and performing one directional sync
-    '''
-    def __init__(self,src,dst,filetypes=[]):
-        self.src=src
-        self.dst=dst
-        self.filetypes=filetypes
-        
-    def compare(self):
-        logging.info('Listing files in {0}'.format(self.src))
-        self.src_files=find_files_and_folders(self.src)[1]
-        self.copylist=[]
-        logging.info('Comparing files to {0}'.format(self.dst))
-        for src_file in self.src_files:
-            if not (os.path.splitext(src_file)[1] in self.filetypes): continue
-            dst_file=src_file.replace(self.src,self.dst)
-            if (not os.path.exists(dst_file)) or not filecmp.cmp(src_file,dst_file):
-                self.copylist.append([src_file,dst_file])
-        
-    def sync(self):
-        for cl in self.copylist:
-            logging.info('Copy {0} to {1}'.format(*cl))
-            d=os.path.dirname(cl[1])
-            if not os.path.exists(d):
-                os.makedirs(d)
-            shutil.copy2(*cl) 
-        logging.info('Copied {0} files'.format(len(self.copylist)))
-
 def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     if thread:
         base = threading.Thread
@@ -856,6 +837,7 @@ class TestFileops(unittest.TestCase):
         lister.join()
         pass
         
+    @unittest.skip('')
     def test_03_parse_animal_filename(self):
         ap = {'imaging_channels': 'green', 'red_labeling': 'no', 'green_labeling': 'label', 
         'injection_target': '', 'ear_punch_left': '2', 'comment': 'tbd', 'strain': 'strain1', 
@@ -866,6 +848,7 @@ class TestFileops(unittest.TestCase):
             del ap[k]
         self.assertEqual(ap, ap_parsed)
         
+    @unittest.skip('')
     def test_04_dataacq_file(self):
         daf=DataAcquisitionFile(5,'sync', [-10.0,20.0])
         dd=numpy.empty((0,5))
@@ -882,6 +865,13 @@ class TestFileops(unittest.TestCase):
         s=h.findvar('sync_scaling')
         numpy.testing.assert_array_almost_equal(h.sync/s['scale']-s['offset'],dd,3)
         h.close()
+        
+    def test_05_move2zip(self):
+        from visexpman.engine.generic import introspect
+        with introspect.Timer(''):
+            move2zip(['/mnt/rzws/temp/0_aodev/data_GrayBackgndOnly5min_201612132042235.hdf5', 
+                    '/mnt/rzws/temp/0_aodev/data_GrayBackgndOnly5min_201612132042235.mat'],
+                    '/mnt/rzws/temp/0_aodev/outfolder')
         
 if __name__=='__main__':
 #    import sys
