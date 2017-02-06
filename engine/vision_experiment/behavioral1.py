@@ -111,7 +111,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_time=time.time()
         self.stim_number=0
         self.session_ongoing=False
-        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)        
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -284,7 +284,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def _load_protocol(self):
         logging.info('Loading protocol')
-        self.current_protocol = str(self.parameters['Protocol'])
+        if str(self.parameters['Protocol']) == 'Random Selection Hitmiss Lick':
+            if not hasattr(self, 'protocol_history'):
+                self.protocol_history=[]
+            last_n=5
+            prob=numpy.random.random(1)
+            prob=(prob>0.5)[0]
+            self.current_protocol='Lick' if prob else 'HitMiss'
+            if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
+                self.current_protocol = 'HitMiss' if self.current_protocol=='Lick' else 'Lick'
+            logging.info('Random selection: {0}'.format(self.current_protocol))
+        else:
+            self.current_protocol = str(self.parameters['Protocol'])
         modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__name__
         __import__(modulename)
         reload(sys.modules[modulename])
@@ -327,7 +338,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
-        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder,protocol=self.parameters['Protocol'])
+        analysis_protocol=str(self.parameters['Protocol'])
+        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder,protocol=analysis_protocol)
         self.session_ongoing=True
         self.session_start_time=time.time()
         self.start_recording()
@@ -564,7 +576,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         databuconf.last_file_access_timeout=1
         databuconf.COPY= [{'src':self.datafolder, 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.hdf5','.avi']},]
         self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
-        self.datailebackup.run()
+        self.datafilebackup.run()
         logging.info('Done')
         
     def run(self):
@@ -673,6 +685,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.setCentralWidget(self.cw)#Setting it as a central widget
         protocol_names=get_protocol_names()
         protocol_names_sorted=[pn for pn in self.machine_config.PROTOCOL_ORDER if pn in protocol_names]
+        protocol_names_sorted.insert(0,'Random Selection Hitmiss Lick')
         self.params_config=[
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},

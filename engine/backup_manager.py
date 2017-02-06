@@ -145,8 +145,8 @@ class BackupManager(object):
                 if not self.is_file_closed(f, timeout):
                     return
                 #generate dst filenames
-                dst_files = [os.path.join(dst, os.path.basename(f)) for dst in copy['dst']]
-                [os.makedirs(os.path.dirname(f)) for dst in copy['dst'] if not os.path.exists(os.path.dirname(f))]
+                dst_files = [f.replace(copy['src'], dst) for dst in copy['dst']]
+                [os.makedirs(os.path.dirname(dstf)) for dstf in dst_files if not os.path.exists(os.path.dirname(dstf))]
                 #compare files
                 if not all([os.path.exists(dst_file) and filecmp.cmp(f,dst_file) for dst_file in dst_files]):
                     for dst_file in dst_files:
