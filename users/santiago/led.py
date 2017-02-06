@@ -1,4 +1,6 @@
-from visexpman.engine.hardware_interface import daq_instrument
+import PyDAQmx
+import PyDAQmx.DAQmxConstants as DAQmxConstants
+import PyDAQmx.DAQmxTypes as DAQmxTypes
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
 import os
@@ -8,7 +10,6 @@ import time
         
 class LedConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.BEEP_AT_EXPERIMENT_START_STOP = True
         self.PAUSE_BETWEEN_FLASHES = 5.0
         self.NUMBER_OF_FLASHES = 4.0
         self.FLASH_DURATION = 1.0
@@ -34,6 +35,16 @@ class LedStimulation(experiment.Experiment):
         self.duration=(self.experiment_config.FLASH_DURATION+self.experiment_config.PAUSE_BETWEEN_FLASHES)*self.experiment_config.NUMBER_OF_FLASHES+self.experiment_config.DELAY_BEFORE_FIRST_FLASH
         self.fragment_durations = [self.duration]
         self.number_of_fragments = 1
+        self.amplitude=self.experiment_config.LED_CURRENT2VOLTAGE*self.experiment_config.LED_CURRENT
+        
+    def _set_voltage(self,v):
+        self.analog_output.WriteAnalogF64(1,
+                                        True,
+                                        timeout,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        numpy.ones((1,1))*v,
+                                        None,
+                                        None)
     
     
     def run(self, fragment_id = 0):
@@ -41,7 +52,29 @@ class LedStimulation(experiment.Experiment):
         if 0:
             daq_instrument.set_waveform('Dev1/ao0',numpy.array([self.waveform]),sample_rate = self.fsample)
         else:
-            self.printl(self.duration)
-            self.show_fullscreen(duration=self.duration)
+            self.analog_output = PyDAQmx.Task()
+            self.analog_output.CreateAOVoltageChan('Dev1/ao0',
+                                        'ao',
+                                        0, 
+                                        5, 
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+            self._set_voltage(0)
+            time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
+            for i in range(self.experiment_config.NUMBER_OF_FLASHES):
+                self._set_voltage(self.amplitude)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                time.sleep(self.experiment_config.FLASH_DURATION)
+                if self.abort:
+                    break
+                self._set_voltage(0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                time.sleep(self.experiment_config.PAUSE_BETWEEN_FLASHES)
+                if self.abort:
+                    break
+            self.analog_output.WaitUntilTaskDone(1.0)
+            self.analog_output.StopTask()
+            self.analog_output.ClearTask()
+            
     
 

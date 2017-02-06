@@ -111,7 +111,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.start_time=time.time()
         self.stim_number=0
         self.session_ongoing=False
-        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)        
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -284,7 +284,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def _load_protocol(self):
         logging.info('Loading protocol')
-        self.current_protocol = str(self.parameters['Protocol'])
+        if str(self.parameters['Protocol']) == 'Random Selection Hitmiss Lick':
+            if not hasattr(self, 'protocol_history'):
+                self.protocol_history=[]
+            last_n=5
+            prob=numpy.random.random(1)
+            prob=(prob>0.5)[0]
+            self.current_protocol='Lick' if prob else 'HitMiss'
+            if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
+                self.current_protocol = 'HitMiss' if self.current_protocol=='Lick' else 'Lick'
+            logging.info('Random selection: {0}'.format(self.current_protocol))
+        else:
+            self.current_protocol = str(self.parameters['Protocol'])
         modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__name__
         __import__(modulename)
         reload(sys.modules[modulename])
@@ -327,7 +338,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
-        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder)
+        analysis_protocol=str(self.parameters['Protocol'])
+        if analysis_protocol=='Lick':#TODO: protocol name specific!!!
+            analysis_protocol='HitMiss'#Always current protocol expect Lick selected
+        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder,protocol=analysis_protocol)
         self.session_ongoing=True
         self.session_start_time=time.time()
         self.start_recording()
@@ -390,10 +404,24 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.day_analysis.add2day_analysis(self.filename)
             self.stat2gui()
         except:
+            self.dump()
             logging.info(traceback.format_exc())
+            
         if abort_session:
-            self.stop_session()
-#        self.show_day_success_rate(self.recording_folder)
+            self.session_ongoing=False
+            self.to_gui.put({'set_recording_state': 'idle'})
+            logging.info('Session ended')
+            
+    def dump(self):
+        variables = ['sync', 'filename']
+        dump_data = {}
+        for v in variables:
+            if hasattr(self, v):
+                dump_data[v] = getattr(self,v)
+        filename = os.path.join(self.machine_config.LOG_PATH, 'dump_{0}.{1}'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-'),'npy'))
+        dump_stream=utils.object2array(dump_data)
+        numpy.save(filename,dump_stream)
+        logging.info('sync dumped to {0}'.format(filename))
 
     def stat2gui(self):
         if hasattr(self,'stat'):
@@ -438,7 +466,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             setattr(self.datafile, nn, object_parameters2dict(var))
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         self.datafile.sync=self.sync
-        self.datafile.stat=copy.deepcopy(self.stat)
+        if hasattr(self,'stat'):
+            self.datafile.stat=copy.deepcopy(self.stat)
         self.datafile.frame_times=self.frame_times
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
@@ -473,7 +502,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'])
+        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'])
         logging.info('Done')
         self.to_gui.put({'show_animal_statistics':self.analysis})
         
@@ -481,7 +510,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if self.session_ongoing:
             return
         logging.info('Generating success rate for all animals in {0}'.format(self.datafolder))
-        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder)
+        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder,protocol=self.parameters['Protocol'])
         logging.info('Done')
         self.to_gui.put({'show_global_statistics':self.global_analysis})
     
@@ -538,13 +567,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if not self.ask4confirmation('Backing up datafiles to {0} might take long. Do you want to continue?'.format(self.machine_config.BACKUP_PATH)):
                 return
         logging.info('Backing up logfiles')
-        self.logfilecomparer=fileop.FileComparer(os.path.dirname(self.logfile_path),self.machine_config.BACKUP_PATH,['.txt'])
-        self.logfilecomparer.compare()
-        self.logfilecomparer.sync()
+        from visexpman.engine import backup_manager
+        logbuconf=backup_manager.Config()
+        logbuconf.last_file_access_timeout=1
+        logbuconf.COPY= [{'src':os.path.dirname(self.logfile_path), 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.txt']},]
+        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+        self.logfilebackup.run()
         logging.info('Backing up data files')
-        self.datafilecomparer=fileop.FileComparer(self.datafolder,self.machine_config.BACKUP_PATH,['.hdf5','.avi'])
-        self.datafilecomparer.compare()
-        self.datafilecomparer.sync()
+        databuconf=backup_manager.Config()
+        databuconf.last_file_access_timeout=1
+        databuconf.COPY= [{'src':self.datafolder, 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.hdf5','.avi']},]
+        self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+        self.datafilebackup.run()
         logging.info('Done')
         
     def run(self):
@@ -653,6 +687,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.setCentralWidget(self.cw)#Setting it as a central widget
         protocol_names=get_protocol_names()
         protocol_names_sorted=[pn for pn in self.machine_config.PROTOCOL_ORDER if pn in protocol_names]
+        protocol_names_sorted.insert(0,'Random Selection Hitmiss Lick')
         self.params_config=[
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
@@ -802,7 +837,7 @@ class Behavioral(gui.SimpleAppWindow):
             self.w=QtGui.QWidget()
             self.w.setWindowIcon(gui.get_icon('behav'))
             self.w.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
-            self.w.setWindowTitle('Summary of '+gs.folder)
+            self.w.setWindowTitle('Summary of '+gs.folder + ' '+gs.protocol)
             self.w.p=gui.Plot(self.w)
             pp={ 'symbol':'o', 'symbolSize':8, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}
             pps=[]
@@ -817,6 +852,7 @@ class Behavioral(gui.SimpleAppWindow):
             x=[tr[0] for tr in gs.animal_success_rate.values()]
             xconverted=[]
             for xi in x:
+                if len(xi)==0: continue
                 xconverted.append([utils.datestring2timestamp(xii,format='%Y%m%d')/86400 for xii in xi])
                 xconverted[-1]=numpy.array(xconverted[-1])-xconverted[-1][0]
             y=[tr[1]*100 for tr in gs.animal_success_rate.values()]
@@ -1056,7 +1092,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         gui.set_win_icon()
         self.machine_config=parent.machine_config
         self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
-        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder))
+        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder)+' '+analysis.protocol)
         self.setTabPosition(self.North)
         pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}]
         days=numpy.array([utils.datestring2timestamp(d,format='%Y%m%d')/86400 for d in analysis.days])

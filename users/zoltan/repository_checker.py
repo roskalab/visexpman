@@ -1,4 +1,4 @@
-import os,zipfile,unittest,time,logging,shutil,filecmp,traceback
+import os,zipfile,unittest,time,logging,shutil,filecmp,traceback,sys
 
 class RepositoryChecker(object):
     def __init__(self, database_folder, repository_folder, vip_files=[], ignore_folder=[]):
@@ -36,23 +36,26 @@ class RepositoryChecker(object):
         os.mkdir(src)
         zipfiles=[os.path.join(self.database_folder, f) for f in os.listdir(self.database_folder) if os.path.splitext(f)[1]=='.zip' and '_'.join(os.path.basename(self.zipfn).split('_')[:-1]) in f]
         zipfiles.sort()
+        if len(zipfiles)==0:
+            return
         latest=zipfiles[-2]
         ziph = zipfile.ZipFile(latest, 'r')
         ziph.extractall(src)
         ziph.close()
         keep_last_record=False
         try:
-            #Compare vip files:
+            logging.info('Comparing vip files')
             vip_not_matching=[vf for vf in self.vip if not filecmp.cmp(vf.replace(self.repository_folder,src),vf)]
             if len(vip_not_matching):
                 logging.warning('VIP file(s) changed: {0}'.format(vip_not_matching))
                 keep_last_record=True
-            #Compare core files
+            logging.info('Comparing core files')
             core_not_matching=[cf for cf in self.core if not filecmp.cmp(cf.replace(self.repository_folder,src),cf)]
             if len(core_not_matching):
                 logging.error('Core file(s) changed: {0}'.format(core_not_matching))
                 keep_last_record=True
         except:
+            keep_last_record=True
             logging.error(traceback.format_exc())
         finally:
             shutil.rmtree(src)
@@ -83,25 +86,41 @@ class RepositoryChecker(object):
         print notifications
         if len(notifications)>0:
             import subprocess
-            message = 'Subject:{0}\n\n{1}\n'.format('tbd', notifications)
+            message = 'Subject:{0}\n\n{1}\n'.format('rc setup repository change', notifications)
             fn='/tmp/email.txt'
             fp=open(fn,'w')
             fp.write(message)
             fp.close()
             # Send the mail
-            cmd='/usr/sbin/sendmail {0} < {1}'.format(to,fn)
+            cmd='/usr/sbin/sendmail {0} < {1}'.format('zoltan.raics@fmi.ch',fn)
             res=subprocess.call(cmd,shell=True)
             os.remove(fn)
+            
+    def run(self):
+        self.read()
+        self.zip()
+        self.check()
+        self.notify()
+        logging.info('Done')
         
 class TestBehavAnalysis(unittest.TestCase):
     def test_01_repository(self):
         r=RepositoryChecker('/tmp/repocheck', '/mnt/datafast/codes/jobhandler', vip_files=['visexpman/users/daniel/configurations.py'],ignore_folder=['visexpman/users/daniel'])
-        r.read()
-        r.zip()
-        r.check()
-        r.notify()
+        r.run()
         pass
 
         
 if __name__ == "__main__":
-    unittest.main()
+    if len(sys.argv)>1:
+        if sys.argv[1]=='rc':
+            r=RepositoryChecker('/home/rz/repocheck/rc', '/mnt/datafast/codes/jobhandler',
+                                   vip_files=['visexpman/users/daniel/configurations.py','visexpman/users/daniel/flashes.py','visexpman/users/daniel/moving_bar.py',
+                                               'visexpman/users/daniel/receptive_field_fiona.py', 'visexpman/users/daniel/grating_fiona.py', 'visexpman/users/daniel/grating_base.py'],
+                                   ignore_folder=['visexpman/users/daniel'])
+            r.run()
+        elif sys.argv[1]=='ao':
+            r=RepositoryChecker('/home/rz/repocheck/ao', '/mnt/datafast/codes/ao-cortical',vip_files=[],ignore_folder=['visexpman/users/adrian'])
+            r.run()
+
+    else:
+        unittest.main()

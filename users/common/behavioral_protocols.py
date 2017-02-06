@@ -17,6 +17,7 @@ class HitMiss(BehavioralProtocol):
     RESPONSE_WINDOW=0.5
     REWARD_DELAY=0.5
     DRINK_TIME=2
+    WAIT4LICK=True
     def prepare(self):
         self.PRETRIAL_DURATION=\
             numpy.round(numpy.random.random()*(self.PRETRIAL_DURATION_MAX-self.PRETRIAL_DURATION_MIN)+self.PRETRIAL_DURATION_MIN,0)
@@ -44,12 +45,13 @@ class HitMiss(BehavioralProtocol):
             logging.info('Test waveform loaded')
     
     def run(self):
-        logging.info('Hitmiss started')
+        logging.info('{0} started'.format(self.__class__.__name__))
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
                     self.engine.parameters['Laser Intensity'],
                     self.PRETRIAL_DURATION,
                     self.REWARD_DELAY,
-                    reponse_window_time=self.RESPONSE_WINDOW)
+                    reponse_window_time=self.RESPONSE_WINDOW,
+                    wait4lick=float(self.WAIT4LICK))
         self.hmph.start()
         if self.engine.parameters['Enable Lick Simulation']:
             daq_instrument.set_waveform( 'Dev2/ao0',self.wf.reshape(1, self.wf.shape[0]),sample_rate = self.fsampleao)
@@ -63,7 +65,12 @@ class HitMiss1secRewardDelay(HitMiss):
     __doc__=HitMiss.__doc__
     REWARD_DELAY=1.0
     
-
+class Lick(HitMiss):
+    __doc__=HitMiss.__doc__
+    WAIT4LICK=False
+    RESPONSE_WINDOW=0.5
+    REWARD_DELAY=0.0
+    
 class LickResponse(BehavioralProtocol):
     '''
     Generates a laser pulse and releases water reward at the same time
