@@ -31,6 +31,7 @@ class LogChecker(object):
         self.logfiles=[f for f in fileop.find_files_and_folders(logfile_folder)[1] if os.path.splitext(f)[1]=='.txt' and not (f in content)]
         self.error_report='Errors since {0}\n'.format(utils.timestamp2ymdhm(self.t0))
         msglen=len(self.error_report)
+        self.logfiles.sort()
         for f in self.logfiles:
             logging.info((self.logfiles.index(f), len(self.logfiles), f))
             self.error_report+=self.checkfile(f)
