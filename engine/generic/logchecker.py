@@ -2,7 +2,10 @@ import logging,unittest,os,time,numpy,sys
 from visexpman.engine.generic import utils,fileop
 
 def logline2timestamp(line):
-    return utils.datestring2timestamp(line.split('\t')[0].split(',')[0],format='%Y-%m-%d %H:%M:%S')
+    try:
+        return utils.datestring2timestamp(line.split('\t')[0].split(',')[0],format='%Y-%m-%d %H:%M:%S')
+    except:
+        return 0
 
 class LogChecker(object):
     '''
@@ -27,11 +30,13 @@ class LogChecker(object):
         logging.info('Log checker started')
         self.logfiles=[f for f in fileop.find_files_and_folders(logfile_folder)[1] if os.path.splitext(f)[1]=='.txt' and not (f in content)]
         self.error_report='Errors since {0}\n'.format(utils.timestamp2ymdhm(self.t0))
+        msglen=len(self.error_report)
         self.logfiles.sort()
         for f in self.logfiles:
-            logging.info(f)
+            logging.info((self.logfiles.index(f), len(self.logfiles), f))
             self.error_report+=self.checkfile(f)
-        if self.t0!=0:#Ignore errors at very first run
+	logging.info((msglen, len(self.error_report)))
+        if self.t0!=0 and len(self.error_report)>msglen:#Ignore errors at very first run
             utils.sendmail(to, 'errors in {0}'.format(logfile_folder), self.error_report)
             logging.error(self.error_report)
         logging.info('Done')

@@ -55,6 +55,7 @@ class RepositoryChecker(object):
                 logging.error('Core file(s) changed: {0}'.format(core_not_matching))
                 keep_last_record=True
         except:
+            keep_last_record=True
             logging.error(traceback.format_exc())
         finally:
             shutil.rmtree(src)
@@ -112,7 +113,10 @@ class TestBehavAnalysis(unittest.TestCase):
 if __name__ == "__main__":
     if len(sys.argv)>1:
         if sys.argv[1]=='rc':
-            r=RepositoryChecker('/home/rz/repocheck/rc', '/mnt/datafast/codes/jobhandler',vip_files=['visexpman/users/daniel/configurations.py'],ignore_folder=['visexpman/users/daniel'])
+            r=RepositoryChecker('/home/rz/repocheck/rc', '/mnt/datafast/codes/jobhandler',
+                                   vip_files=['visexpman/users/daniel/configurations.py','visexpman/users/daniel/flashes.py','visexpman/users/daniel/moving_bar.py',
+                                               'visexpman/users/daniel/receptive_field_fiona.py', 'visexpman/users/daniel/grating_fiona.py', 'visexpman/users/daniel/grating_base.py'],
+                                   ignore_folder=['visexpman/users/daniel'])
             r.run()
         elif sys.argv[1]=='ao':
             r=RepositoryChecker('/home/rz/repocheck/ao', '/mnt/datafast/codes/ao-cortical',vip_files=[],ignore_folder=['visexpman/users/adrian'])
