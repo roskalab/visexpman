@@ -553,13 +553,18 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if not self.ask4confirmation('Backing up datafiles to {0} might take long. Do you want to continue?'.format(self.machine_config.BACKUP_PATH)):
                 return
         logging.info('Backing up logfiles')
-        self.logfilecomparer=fileop.FileComparer(os.path.dirname(self.logfile_path),self.machine_config.BACKUP_PATH,['.txt'])
-        self.logfilecomparer.compare()
-        self.logfilecomparer.sync()
+        from visexpman.engine import backup_manager
+        logbuconf=backup_manager.Config()
+        logbuconf.last_file_access_timeout=1
+        logbuconf.COPY= [{'src':os.path.dirname(self.logfile_path), 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.txt']},]
+        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+        self.logfilebackup.run()
         logging.info('Backing up data files')
-        self.datafilecomparer=fileop.FileComparer(self.datafolder,self.machine_config.BACKUP_PATH,['.hdf5','.avi'])
-        self.datafilecomparer.compare()
-        self.datafilecomparer.sync()
+        databuconf=backup_manager.Config()
+        databuconf.last_file_access_timeout=1
+        databuconf.COPY= [{'src':self.datafolder, 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.hdf5','.avi']},]
+        self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+        self.datailebackup.run()
         logging.info('Done')
         
     def run(self):
