@@ -339,6 +339,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
         analysis_protocol=str(self.parameters['Protocol'])
+        if analysis_protocol=='Lick':#TODO: protocol name specific!!!
+            analysis_protocol='HitMiss'#Always current protocol expect Lick selected
         self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder,protocol=analysis_protocol)
         self.session_ongoing=True
         self.session_start_time=time.time()
