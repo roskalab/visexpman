@@ -11,7 +11,7 @@ class LogChecker(object):
     '''
     checks logfiles in a specific folder, gathers most recent errors and sends a summary in email
     '''
-    def __init__(self,logfile_folder,logfile,to='zoltan.raics@fmi.ch'):
+    def __init__(self,logfile_folder,logfile,to='zoltan.raics@fmi.ch', ignore=None):
         self.logfile=logfile
         self.nlines_before_error=3
         content=''
@@ -28,7 +28,7 @@ class LogChecker(object):
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
         logging.info('Log checker started')
-        self.logfiles=[f for f in fileop.find_files_and_folders(logfile_folder)[1] if os.path.splitext(f)[1]=='.txt' and not (f in content)]
+        self.logfiles=[f for f in fileop.find_files_and_folders(logfile_folder)[1] if os.path.splitext(f)[1]=='.txt' and not (f in content) and ignore not in os.path.basename(f)]
         self.error_report='Errors since {0}\n'.format(utils.timestamp2ymdhm(self.t0))
         msglen=len(self.error_report)
         self.logfiles.sort()

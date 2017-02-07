@@ -45,7 +45,7 @@ class HitMiss(BehavioralProtocol):
             logging.info('Test waveform loaded')
     
     def run(self):
-        logging.info('Hitmiss started')
+        logging.info('{0} started'.format(self.__class__.__name__))
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
                     self.engine.parameters['Laser Intensity'],
                     self.PRETRIAL_DURATION,

@@ -518,13 +518,15 @@ class HitmissAnalysis(object):
         self.reward_latencies=[]
         self.nsuccesfullicks=0
         self.nhits=0
-        self.nflashes=len(self.alldatafiles)
+        self.nflashes=0
         self.lick_times=[]
         for f in self.alldatafiles:
             try:
-                if os.path.basename(f).split('_')[1]!=self.protocol: continue
+                if os.path.basename(f).split('_')[1]!=self.protocol: 
+                     continue
                 h=hdf5io.Hdf5io(f)
                 stat=h.findvar('stat')
+                self.nflashes+=1
                 if not stat.has_key('stimulus_t'):
                     h.close()
                     continue
