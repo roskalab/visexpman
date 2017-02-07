@@ -13,7 +13,7 @@ class LogChecker(object):
     '''
     def __init__(self,logfile_folder,logfile,to='zoltan.raics@fmi.ch'):
         self.logfile=logfile
-        self.nlines_before_error=2
+        self.nlines_before_error=3
         content=''
         if os.path.exists(self.logfile):
             content=fileop.read_text_file(self.logfile)
