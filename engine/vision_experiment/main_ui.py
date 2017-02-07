@@ -473,7 +473,7 @@ class MainUI(gui.VisexpmanMainWindow):
         
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
-        self.main_tab.addTab(self.params, 'Parameters')
+        self.main_tab.addTab(self.params, 'Settings')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.main_tab.addTab(self.analysis, 'Analysis')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
