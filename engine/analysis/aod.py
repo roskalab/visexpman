@@ -30,20 +30,17 @@ class AOData(experiment_data.CaImagingData):
         elif datatype!='FF':
             raise NotImplementedError('Only checkerboard scanning is supported')
         self.image=mesdata[mesdata['DATA/IMAGE'][0][0]].value
-        vert_size=int(mesdata[mesdata['DATA/TransversePixNum'][0][0]].value.flatten()[0])
-        horiz_size=48
-        nrois=[item2 for item2 in [item for item in mesdata[mesdata['DATA/info_Linfo'][0][0]].values() if 'lines' in item.name][0].values() if 'line1' in item2.name][0].shape[1]
+        height=int(mesdata[mesdata['DATA/TransversePixNum'][0][0]].value.flatten()[0])
+        width=48
+        nrois=mesdata[[item2 for item2 in [item for item in mesdata[mesdata['DATA/info_Linfo'][0][0]].values() if 'lines' in item.name][0].values() if 'line1' in item2.name][0].value[0,1]].shape[0]
         nframes=int([item for item in mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values() if 'numFrames' in item.name][0][0][0])
-        xoffset=1
+        xoffset=1*0
         toffset=int([item for item in mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values() if 'firstFramePos' in item.name][0][0][0])
-        self.raw_data=numpy.zeros((nframes, nchannels, nrois, vert_size, horiz_size),dtype=self.image.dtype)
-        for i in range(nrois):
-            for j in range(nframes):
-                self.raw_data[j,0,i]=\
-                        self.image[horiz_size*i+xoffset:horiz_size*(i+1)+xoffset,vert_size*j+toffset:vert_size*(j+1)+toffset].T
-              
-        
-        
+        self.raw_data=numpy.zeros((nframes, nchannels, nrois, height, width),dtype=self.image.dtype)
+        for roiid in range(nrois):
+            for framei in range(nframes):#TODO: speed it up!!!
+                self.raw_data[framei,0,roiid]=\
+                        self.image[height*framei+toffset:height*(framei+1)+toffset,width*roiid+xoffset:width*(roiid+1)+xoffset]
         self.image=numpy.copy(mesdata['DATA']['IMAGE'][0][0])
         self.ao_drift=mesdata['DATA']['AO_collection_usedpixels'][0][0][0][0]
         nrois=self.image.shape[0]/self.ao_drift
