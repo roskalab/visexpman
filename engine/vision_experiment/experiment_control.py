@@ -318,6 +318,7 @@ class ExperimentControl(object):
                 self.printl('Setting back laser did NOT succeed')
         self.printl('Closing devices')
         self._close_devices()
+        self.printl('Devices closed')
         utils.empty_queue(self.queues['gui']['out'])
         #Update logdata to files
         self.log.info('Experiment finished at {0}' .format(utils.datetime_string()))

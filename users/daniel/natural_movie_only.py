@@ -27,205 +27,205 @@ class FionaNaturalMovie(experiment.ExperimentConfig):
         
         self._create_parameters_from_locals(locals())
                         
-class NaturalMovieOnly1_1(NaturalMovieOnly):
+class NaturalMovieOnly1x1(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie1_1'
         self.STRETCH = 2.5 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly1_2(NaturalMovieOnly):
+class NaturalMovieOnly1x2(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie1_2'
         self.STRETCH = 2.5 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly1_3(NaturalMovieOnly):
+class NaturalMovieOnly1x3(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie1_3'
         self.STRETCH = 2.5 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly2_1(NaturalMovieOnly):
+class NaturalMovieOnly2x1(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie2_1'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly2_2(NaturalMovieOnly):
+class NaturalMovieOnly2x2(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie2_2'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly2_3(NaturalMovieOnly):
+class NaturalMovieOnly2x3(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie2_3'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly2_4(NaturalMovieOnly):
+class NaturalMovieOnly2x4(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie2_4'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly2_5(NaturalMovieOnly):
+class NaturalMovieOnly2x5(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie2_5'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_1(NaturalMovieOnly):
+class NaturalMovieOnly3x1(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_1'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
 
-class NaturalMovieOnly3_2(NaturalMovieOnly):
+class NaturalMovieOnly3x2(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_2'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_3(NaturalMovieOnly):
+class NaturalMovieOnly3x3(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_3'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_4(NaturalMovieOnly):
+class NaturalMovieOnly3x4(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_4'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_5(NaturalMovieOnly):
+class NaturalMovieOnly3x5(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_5'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_6(NaturalMovieOnly):
+class NaturalMovieOnly3x6(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_6'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_7(NaturalMovieOnly):
+class NaturalMovieOnly3x7(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_7'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_8(NaturalMovieOnly):
+class NaturalMovieOnly3x8(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_8'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly3_9(NaturalMovieOnly):
+class NaturalMovieOnly3x9(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie3_9'
         self.STRETCH = 1.65 # Covers 661 pixels vertical / 51 angular degrees. 
 
-class NaturalMovieOnly_Depixel1_1(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel1x1(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small1_1'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel1_2(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel1x2(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small1_2'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel1_3(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel1x3(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small1_3'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel2_1(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel2x1(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small2_1'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel2_2(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel2x2(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small2_2'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel2_3(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel2x3(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small2_3'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel2_4(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel2x4(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small2_4'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel2_5(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel2x5(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small2_5'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_1(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x1(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_1'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_2(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x2(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_2'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_3(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x3(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_3'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_4(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x4(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_4'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_5(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x5(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_5'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_6(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x6(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_6'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_7(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x7(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_7'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_8(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x8(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_8'
         self.STRETCH = 95 # Covers 661 pixels vertical / 51 angular degrees. 
         
-class NaturalMovieOnly_Depixel3_9(NaturalMovieOnly):
+class NaturalMovieOnlyDepixel3x9(NaturalMovieOnly):
     def _create_parameters(self):
         NaturalMovieOnly._create_parameters(self)
         self.FILENAME = 'c:\\Data\\Movies\\movie_small3_9'
