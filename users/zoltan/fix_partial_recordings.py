@@ -35,10 +35,10 @@ class FixPartial(object):
         mdrivefiles=file.find_files_and_folders(self.mdrive_folder)[1]
         for fns in config:
             for fn in fns:
-#                if 'hdf5' in fn:
-#                    src=[f for f in mdrivefiles if os.path.basename(f) ==fn]
-#                    shutil.copy(src[0], self.dst)
-#                else:
+                if 'hdf5' in fn:
+                    src=[f for f in mdrivefiles if os.path.basename(f) ==fn]
+                    shutil.copy(src[0], self.dst)
+                else:
                     shutil.copy(os.path.join(self.src,fn), self.dst)
                 
     def clone_hdf5files(self):
@@ -60,11 +60,17 @@ class FixPartial(object):
         analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
         for fns in config:
             for f in fns[:-1]:
+                try:
                     filename=os.path.join(self.dst,f).replace('.mat', '.hdf5')
                     mes_extractor = importers.MESExtractor(filename, config = analysis_config, close_file=False)
                     data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
                     mes_extractor.hdfhandler.close()
-                    print f, 'done'
+                except:
+                    if hasattr(mes_extractor,'sync_signal'):
+                        mes_extractor.hdfhandler.save('sync_signal',overwrite=True)
+                    mes_extractor.hdfhandler.close()
+                jobhandler1.hdf52mat(filename, analysis_config)
+                    
                 
                 
 if __name__=='__main__':
@@ -75,6 +81,5 @@ if __name__=='__main__':
     fp.clone_hdf5files()
     print 'mesextractor'
     fp.process()
-    print 'convert'
     print 'Done'
     

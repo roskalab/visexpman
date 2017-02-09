@@ -59,9 +59,9 @@ class VisionExperimentGui(QtGui.QWidget):
             self.user=sys.argv[3]
         else:
             self.user, ok = QtGui.QInputDialog.getItem(self, QtCore.QString('User'), QtCore.QString(''), QtCore.QStringList(gui.USERS))
+            if not ok:
+                raise RuntimeError('Unknown user')
         self.user=str(self.user)
-        if not ok:
-            raise RuntimeError('Unknown user')
         self.poller = gui.MainPoller(self)
         self.queues = self.poller.queues
         if ENABLE_MOUSE_FILE_HANDLER:
