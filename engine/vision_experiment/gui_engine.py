@@ -271,7 +271,7 @@ class ExperimentHandler(object):
             utils.send_udp(self.machine_config.CONNECTIONS['ca_imaging']['ip']['ca_imaging'],446,cmd)
             time.sleep(1)
             #UDP command for stim including path and stimulus source code
-            stimulus_source_code=[v for k, v in experiment_parameters.keys() if 'source_code' in k][0]
+            stimulus_source_code=[v for k, v in experiment_parameters.items() if 'experiment_config_source_code' in k][0]
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
         else:
