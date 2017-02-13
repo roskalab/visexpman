@@ -5,6 +5,7 @@ import numpy
 import os.path
 import os
 import time
+import pdb
 import unittest
 import pkgutil
 import inspect
@@ -254,7 +255,7 @@ def rc(raw,**kwargs):
 def cr(raw,  **kwargs):
     return rcd_pack(raw, dim_order = [1, 0],**kwargs)    
 dim_names0 = ['row','col','depth']
-
+import numbers
 def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     '''If a tuple is given as raw, the output will be 0dimensional rc array'''
     order = argsort(dim_order)
@@ -262,22 +263,23 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     dim_names = [dim_names0[n] for n in dim_order] # sorted ensures that field ordering will always be as dim_names0, this way nd will always give [row,col] or [row,col,depth] ordered data
     if isinstance(raw, (tuple, list)) and len(raw)==0: #empty list or tuple
         return numpy.recarray((0,), dtype={'names':dim_names, 'formats':[object]*2}) #returned array should be iterable (though length 0)
-    # handle case when input is a tuple having as many elements as dimensions (max 3)
-    if (isinstance(raw,(list,tuple)) and ((len(raw) == len(dim_names)) and (type(raw[0])==int or type(raw[0])==float or type(raw[0]) == numpy.float64 or type(raw[0]) == numpy.float32 or type(raw[0]) == numpy.int32)) or (hasattr(raw,'ndim') and raw.ndim==1 and raw.size==len(dim_names))):
+    # handle case when input is a tuple having as many elements as dimensions (max 3): check if input is just a single r,c,d tuple of numbers.
+    if (isinstance(raw,(list,tuple)) and ((len(raw) == len(dim_names)) and isinstance(raw[0], numbers.Number)))\
+                    or (hasattr(raw,'ndim') and raw.ndim==1 and raw.size==len(dim_names)):
         nd = kwargs.get('nd',0)
         raw = numpy.array(raw)[order] #reorder elements if they are not in row,col,depth order
         dtype={'names':dim_names,'formats':[raw[0].dtype]*len(dim_names)}
-        return numpy.array(tuple(raw), dtype,ndmin=nd) 
+        return numpy.array(tuple(raw), dtype,ndmin=nd)
     #handle normal situation: input is a list (array) of tuples, each tuple contains 1 to 3 elements from the row,col,depth tuple
     raw = numpy.array(raw, ndmin=2)
-    if numpy.squeeze(raw).ndim!=2 and raw.size!=len(dim_names): #1 dimensional with exactly 1 to 3 values is accepted as row,col pair
+    if numpy.squeeze(raw).ndim != 2 and raw.size!=len(dim_names):  # 1 dimensional with exactly 1 to 3 values is accepted as row,col pair
         raise RuntimeError('At least '+ str(len(dim_names)) +' values are needed')
     dtype={'names':dim_names,'formats':[raw.dtype]*len(dim_names)}
     if raw.ndim > len(dim_names):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
-    if raw.ndim==2 and raw.shape[0]!=len(dim_names): # required format (2,x)
+    if raw.ndim == 2 and raw.shape[0] != len(dim_names): # required format (2,x)
         raise RuntimeError('Input array provided to rc should be {0}, got {1}').format(raw.T.shape, raw.shape)
-    raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
+    raw = numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
     return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
 def rc_add(operand1, operand2,  operation = '+'):

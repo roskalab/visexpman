@@ -86,11 +86,12 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,
         dirs = [item[:item.rfind('.')] for item in dirs]
     return dirs
 
-def array2string(inarray):
-    if inarray.ndim == 2:
+def array2string(inarray, formatstring = ''):
+    if hasattr(inarray,'ndim') and inarray.ndim == 2:
         a = ["%.3g "*inarray.shape[1] % tuple(x) for x in inarray]
-    elif inarray.ndim == 1:
-        a = [str(x) for x in inarray]
+    elif isinstance(inarray, (list,tuple)) or (hasattr(inarray,'ndim') and inarray.ndim == 1):
+        fstr = '{0:'+formatstring +'}'
+        a = [fstr.format(x) for x in inarray]
     return numpy.array(a)
 
 def get_recent_file(flist, ref_date = None, mode = 'earlier', interval=numpy.Inf):
