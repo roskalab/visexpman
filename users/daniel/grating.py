@@ -195,7 +195,7 @@ class MovingGratingNoMarch3x180Config(grating_base.MovingGratingConfig):
 #        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
 
-class MovingGratingNoMarch3x180Config(MovingGratingConfig):
+class MovingGratingNoMarch3x180Config(grating_base.MovingGratingConfig):
     def _create_parameters(self):
         #Timing
         self.NUMBER_OF_MARCHING_PHASES = 1
