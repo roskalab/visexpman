@@ -1,6 +1,10 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
 import scipy.io,multiprocessing,stat,subprocess,io
+if len(sys.argv)==4:
+    visexpman_path=sys.argv[3]
+    print 'loading visexpman path'
+    sys.path.insert(0,visexpman_path)
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 try:
@@ -26,6 +30,7 @@ def chmod(f):
 
 class Jobhandler(object):
     def __init__(self,user,config_class):
+        import visexpman
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct=False)[0][1]()
         aconfigname = 'Config'
         self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
@@ -47,6 +52,8 @@ class Jobhandler(object):
         self.printl('Jobhandler started')
         import getpass
         self.printl('Current user is {0}'.format(getpass.getuser()))
+        import visexpman
+        logging.info('Current visexpman path {0}'.format(os.path.dirname(visexpman.__file__)))
         logging.info(sys.argv)
         logging.info(utils.module_versions(utils.imported_modules()[0])[0])
         self._check_freespace()
