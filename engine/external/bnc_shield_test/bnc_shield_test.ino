@@ -34,10 +34,9 @@ class BncShieldTester {
     void digital_loopback(int out,int in);
     void init_dac(void);
     void spi_transfer(char c);
-    float read_dac(void);
     void set_dac(float v);
-    void dac_selftest(void);
     void analog_loopback(int aichannel);
+    bool result;
 
 };
 
@@ -51,10 +50,13 @@ BncShieldTester::BncShieldTester(void)
   pinMode(D2_DAC_SELECT, OUTPUT);
   init_dac();
   analogReference(INTERNAL);//1.1V internal reference selected
+  Serial.println("Connections: 3->4, 0,1->2");
 }
 
 void BncShieldTester::run(void)
 {
+  digitalWrite(LED0, LOW);
+  result=true;
   led();
   digital_loopback(1,2);
   digital_loopback(2,1);
@@ -65,6 +67,11 @@ void BncShieldTester::run(void)
   analog_loopback(0);
   analog_loopback(1);
   analog_loopback(3);
+  if (result)
+  {
+    digitalWrite(LED0, HIGH);
+    Serial.println("All tests passed");
+  }
   delay(5000);
 }
 
@@ -97,23 +104,14 @@ void BncShieldTester::set_dac(float v)
   digitalWrite(SLAVESELECTPIN, HIGH);
 }
 
-float BncShieldTester::read_dac(void)
-{
-  int adc_val;
-  float readback_voltage;
-  adc_val = analogRead(DAC_READBACK_PIN);
-  
-  readback_voltage=(float)(adc_val*ADC_SCALE);
-  return readback_voltage;
-}
-
 void BncShieldTester::led(void)
 {
   Serial.print("LED test "); 
   digitalWrite(LED0, HIGH);
+  delay(100);
   digitalWrite(LED1, HIGH);
-  delay(1000);
   digitalWrite(LED0, LOW);
+  delay(100);
   digitalWrite(LED1, LOW);
   Serial.println("OK");
 }
@@ -152,10 +150,11 @@ void BncShieldTester::digital_loopback(int out,int in)
   }
   else
   {
+    result=false;
     Serial.print("Failed: expected 1, measured ");
-    Serial.print(val1);
+    Serial.print(val1,3);
     Serial.print(" expected 0, measured ");
-    Serial.println(val0);
+    Serial.println(val0,3);
   }
 }
 
@@ -193,6 +192,7 @@ void BncShieldTester::analog_loopback(int aichannel)
   }
   else
   {
+    result=false;
     Serial.print("Failed, vref1=");
     Serial.print(VREF1);
     Serial.print(" V, measured: ");
