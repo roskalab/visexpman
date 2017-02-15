@@ -12,20 +12,21 @@ class Spectra4Controller(object):
         self.intensity_increment=intensity_increment
         self.spectra4serial=serial.Serial(self.SPECTRA4_SERIAL_PORT,9600,timeout=1)
         self.digital_io=serial.Serial(self.DIGITAL_IO_PORT)
-        self.channels=['Red','Green','Cyan','UV','Blue','Teal']
+        self.channels=['Red','Green','Cyan','UV','reserved','Blue','Teal']#CORRECTION
         self.spectra4serial.write('\x57\x02\xFF\x50')#Init commands
         self.spectra4serial.write('\x57\x03\xFF\x50')#Init commands
         self.spectra4serial.write('\x4F\x7F\x50')#Disable all channels
         
     def enable_channel(self,channel):
-        channel_index=self.channels.index(channel)+1
+        channel_index=self.channels.index(channel)
         self.spectra4serial.write('\x4F{0}\x50'.format(hex(255^(1<<channel_index))))
     
     def set_intensity(self, channel, intensity):
         iic_address= '\x1a' if channel in ['Blue','Teal'] else '\x18'
-        channel_index=self.channels.index(channel)+1
-        if channel in ['Blue','Teal']:
-            channel_index-=2
+        if channel in ['Blue','Teal']:#CORRECTION
+            channel_index=self.channels.index(channel)-5#CORRECTION
+        else:#CORRECTION
+            channel_index=3-self.channels.index(channel)#CORRECTION
         intensity_word=intensity*16+0xF000
         w1=(intensity_word&0xFF00)>>8
         w2=intensity_word&255
