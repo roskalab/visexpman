@@ -257,24 +257,6 @@ class MovingGrating50pConfig(grating_base.MovingGratingConfig):
 #        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
         
-class MovingGratingTest(grating_base.MovingGratingNoMarchingConfig):
-    def _create_parameters(self):
-        grating_base.MovingGratingNoMarchingConfig._create_parameters(self)
-        self.GRATING_STAND_TIME = 0.0#after
-        self.MARCH_TIME = 0.0#before
-        self.PAUSE_BEFORE_AFTER = 1.0
-        self.REPEATS = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 100
-        self.ENABLE_RANDOM_ORDER = False #True
-        self.WHITE_BAR_WIDTHS=[50, 100]
-        self.ORIENTATIONS = range(0, 90, 90)
-        self.VELOCITIES = [200, 2000.0, 2800]#1800
-        self.DUTY_CYCLES = [2.0]
-        if self.ENABLE_RANDOM_ORDER:
-            import random
-            random.shuffle(self.ORIENTATIONS)
-
-        
 class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing
@@ -332,25 +314,7 @@ if 0:
             
             self.runnable = 'MovingGrating'
             self.pre_runnable = 'MovingGratingPre'
-            self._create_parameters_from_locals(locals())
-if 1:
-    class ZoltanMovingGratingConfig(grating_base.MovingGratingNoMarchingConfig):
-        def _create_parameters(self):
-            grating_base.MovingGratingNoMarchingConfig._create_parameters(self)
-            self.ENABLE_FLASH = False
-            #Timing
-            self.NUMBER_OF_MARCHING_PHASES = 1
-            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
-            self.MARCH_TIME = 0.5
-            self.GRATING_STAND_TIME = 0.5
-            #Grating parameters        
-            self.ORIENTATIONS = [0,45,90,135,180,225,270,315][::2]
-            self.WHITE_BAR_WIDTHS = [300.0]#300
-            self.PAUSE_BEFORE_AFTER = 0.0
-            self.REPEATS = 1
-            self.runnable = 'MovingGrating'
-            self.pre_runnable = 'MovingGratingPre'
-            self._create_parameters_from_locals(locals())        
+            self._create_parameters_from_locals(locals())     
         
 class MovingGratingSpeed100ums(grating_base.MovingGratingNoMarchingConfig):
     def _create_parameters(self):

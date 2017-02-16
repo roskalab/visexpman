@@ -129,6 +129,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        DIGITAL_OUTPUT='daq'
+        FRAME_TRIGGER_LINE='dev1/port0/line1'
         #=== stage ===
         motor_serial_port = {
                                     'port' :  'COM7',
@@ -167,7 +169,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 5000,
-                    'AI_CHANNEL' : 'Dev1/ai0:3',
+                    'AI_CHANNEL' : 'Dev1/ai0:4',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],

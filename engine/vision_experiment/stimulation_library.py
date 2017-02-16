@@ -135,9 +135,15 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         Generates frame trigger pulses
         '''
         if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
-            self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
+            if hasattr(self, 'digital_output'):
+                self.digital_output.set_trigger(True)
+            else:
+                self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
-            self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+            if hasattr(self, 'digital_output'):
+                self.digital_output.set_trigger(False)
+            else:
+                self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
             
     def block_start(self, block_name = ''):
         if hasattr(self, 'digital_output') and hasattr(self.digital_output,'set_data_bit'):

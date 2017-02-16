@@ -5,6 +5,8 @@ if getpass.getuser()=='rz':
      folder='/data/software/rc-setup/visexpman/users/zoltan'
 elif getpass.getuser()=='fm':
      folder=os.path.join(root,'fiona')
+elif getpass.getuser()=='st':
+     folder=os.path.join(root,'stuart')
 else:
      folder='/data/software/rc-setup/visexpman/users'
 os.chdir(folder)
