@@ -358,7 +358,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             time.sleep(0.1)
             if time.time()-t0>10:
                 break
-        time.sleep(1)#This value is experimental!!!
+        time.sleep(1.5)#This value is experimental!!!
         self._start_protocol()
         self.id=experiment_data.get_id()
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
