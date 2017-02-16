@@ -18,7 +18,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         GUI_REFRESH_PERIOD = 10.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
-        EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
+        EXPERIMENT_CONFIG = 'MovingGratingFiona'
         
         MES_TIMEOUT = 15.0
         CELL_MERGE_DISTANCE = 3.0

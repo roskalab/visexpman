@@ -1,7 +1,7 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
 import scipy.io,multiprocessing,stat,subprocess,io
-if len(sys.argv)==4:
+if len(sys.argv)==4 and 'jobhandler1' in sys.argv[0]:#only when jobhandler is run but not imported as a module
     visexpman_path=sys.argv[3]
     print 'loading visexpman path'
     sys.path.insert(0,visexpman_path)

@@ -1,6 +1,6 @@
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
-from visexpman.users.daniel import grating_base
+from visexpman.users.common import grating_base
 import numpy
 import time
 import random

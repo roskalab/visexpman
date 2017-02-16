@@ -26,13 +26,19 @@ class ExperimentConfig(Config):
             raise ValueError('You must specify the class which will run the experiment')
         else:
             if experiment_class == None and source_code == None:
-                self.runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  
-                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)[0][1]\
+                expconfigs=[]
+                for u in ['common',self.machine_config.user]:
+                    expconfigs.append(utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
+                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False))
+                self.runnable = expconfigs[0][0][1]\
                     (self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the actual stimulation
             else:
                 self.runnable = experiment_class(self.machine_config, self, self.queues, self.connections, self.application_log, source_code, parameters = parameters)
             if hasattr(self, 'pre_runnable'):
-                for pre_experiment_class in  utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment, direct=False):
+                expconfigs=[]
+                for u in ['common',self.machine_config.user]:
+                    expconfigs.extend(utils.fetch_classes('visexpman.users.'+ u, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment, direct=False))
+                for pre_experiment_class in expconfigs: 
                     if pre_experiment_class[1].__name__ == self.pre_runnable:
                         self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the pre experiment code
                         break
