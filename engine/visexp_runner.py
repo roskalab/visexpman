@@ -131,8 +131,8 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             self.queues['gui']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             time.sleep(3.0)
-            self.log.queue(self.connections['mes'].log_queue, 'mes connection')
-            self.log.queue(self.connections['gui'].log_queue, 'gui connection')
+#            self.log.queue(self.connections['mes'].log_queue, 'mes connection')
+#            self.log.queue(self.connections['gui'].log_queue, 'gui connection')
             self.log.info('Network connections terminated')
         
     def _init_network(self):
