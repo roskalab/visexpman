@@ -861,9 +861,7 @@ class Behavioral(gui.SimpleAppWindow):
             self.w.l = QtGui.QGridLayout()
             self.w.l.addWidget(self.w.p, 0,0, 1, 1)
             self.w.setLayout(self.w.l)
-            
             self.w.show()
-            
         
     def update_statusbar(self,msg=''):
         '''

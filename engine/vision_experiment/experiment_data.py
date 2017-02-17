@@ -174,7 +174,7 @@ if hdf5io_available:
         '''
         datatypes:
             ao: 2d array
-            ca: time, channel, height, width
+            ca: time, channel, (roi), height, width
         
         '''
         def __init__(self,filename,filelocking=False, **kwargs):
@@ -182,16 +182,30 @@ if hdf5io_available:
             self.file_info = os.stat(filename)
             hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
             
+        def load_sync(self,recalculate=False):
+            varnames=['tsync','timg']
+            for vn in varnames:
+                self.load(vn)
+            if len([1 for vn in varnames if hasattr(self,vn)])==0 or recalculate:
+                self.prepare4analysis()
+                self.save(varnames)
+                
+        def crop_rawdata(self):
+            nframes_original=self.raw_data.shape[0]
+            self.raw_data = self.raw_data[:self.timg.shape[0]]
+            if self.datatype=='ao':
+                print 'Warning, figure out why number of sync pulses is more than data frames'
+                print 'ao frames: {0}, n pulses {1}'.format(nframes_original, self.timg.shape[0])
+                self.timg = self.timg[-self.raw_data.shape[0]:]
+            if self.raw_data.shape[0]<self.timg.shape[0]:
+                raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
+            
+            
         def prepare4analysis(self):
             self.tsync,self.timg = get_sync_events(self)
             self.meanimage, self.image_scale = get_imagedata(self, self.image_function)
-            self.raw_data = self.raw_data[:self.timg.shape[0],:,:,:]
-            if self.datatype=='ao':
-                print 'Warning, figure out why number of sync pulses is more than data frames'
-                self.timg = self.timg[:self.raw_data.shape[0]]
-            if self.raw_data.shape[0]<self.timg.shape[0]:
-                raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
-            #self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
+            self.crop_rawdata()
+            self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
             return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
             
         def convert(self,format):
@@ -335,11 +349,11 @@ def get_sync_events(h):
         fsample=h.configs_stim['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
     else:
         fsample=h.recording_parameters['elphys_sync_sample_rate']
-    telphyssync = numpy.arange(h.sync.shape[0],dtype='float')/fsample
+    tsync = numpy.arange(h.sync.shape[0],dtype='float')/fsample
     #calculate time of sync events
-    h.tsync = telphyssync[signal.trigger_indexes(stim_sync)]
-    h.timg = telphyssync[signal.trigger_indexes(img_sync)[0::2]]
-    if h.findvar('datatype')=='ao':
+    h.tsync = tsync[signal.trigger_indexes(stim_sync)]
+    h.timg = tsync[signal.trigger_indexes(img_sync)[0::2]]
+    if h.findvar('datatype')=='ao' and 0:
         h.timg=h.timg[int(h.findvar('sync_pulses_to_skip')):]
     return h.tsync,h.timg
     

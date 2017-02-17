@@ -762,6 +762,32 @@ def pngsave(im, file):
     # and save
     im.save(file, "PNG", pnginfo=meta)
     
+def download_folder(server, user, src,dst,port=22,password=None):
+    import paramiko,zipfile
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(server, username=user,port=port,password=password)
+    tmpzip='/tmp/download.zip'
+    i,o,e1=ssh.exec_command('rm -f {0}'.format(tmpzip))
+    #*.pack: git repository specific, takes up a lot of space
+    i,o,e3=ssh.exec_command('cd {0};zip -0 -r {1} {2} -x *.pack'.format(os.path.dirname(src),tmpzip,os.path.basename(src)))
+    for e in [e1,e3]:
+        emsg=e.readline()
+        if emsg!='':
+            raise RuntimeError(emsg)
+    sftp=ssh.open_sftp()
+    localzip=os.path.join(tempfile.gettempdir(),'download.zip')
+    if os.path.exists(localzip):
+        os.remove(localzip)
+    sftp.get(tmpzip,localzip)
+    zip_ref = zipfile.ZipFile(localzip, 'r')
+    zip_ref.extractall(dst)
+    zip_ref.close()
+    sftp.close()
+    ssh.close()
+    os.remove(localzip)
+    
+    
 ################# End of functions ####################  
 
 import unittest
@@ -866,12 +892,18 @@ class TestFileops(unittest.TestCase):
         numpy.testing.assert_array_almost_equal(h.sync/s['scale']-s['offset'],dd,3)
         h.close()
         
+    @unittest.skip('')    
     def test_05_move2zip(self):
         from visexpman.engine.generic import introspect
         with introspect.Timer(''):
             move2zip(['/mnt/rzws/temp/0_aodev/data_GrayBackgndOnly5min_201612132042235.hdf5', 
                     '/mnt/rzws/temp/0_aodev/data_GrayBackgndOnly5min_201612132042235.mat'],
                     '/mnt/rzws/temp/0_aodev/outfolder')
+                    
+    def test_06_download_folder(self):
+        from visexpman.engine.generic import introspect
+        with introspect.Timer():
+            download_folder('192.168.1.4', 'rz','/data/codes/visexpman', '/tmp',9128)
         
 if __name__=='__main__':
 #    import sys

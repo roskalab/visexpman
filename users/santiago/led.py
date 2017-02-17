@@ -38,6 +38,7 @@ class LedStimulation(experiment.Experiment):
         self.amplitude=self.experiment_config.LED_CURRENT2VOLTAGE*self.experiment_config.LED_CURRENT
         
     def _set_voltage(self,v):
+        timeout=1
         self.analog_output.WriteAnalogF64(1,
                                         True,
                                         timeout,
@@ -61,7 +62,7 @@ class LedStimulation(experiment.Experiment):
                                         None)
             self._set_voltage(0)
             time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
-            for i in range(self.experiment_config.NUMBER_OF_FLASHES):
+            for i in range(int(self.experiment_config.NUMBER_OF_FLASHES)):
                 self._set_voltage(self.amplitude)
                 self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
                 time.sleep(self.experiment_config.FLASH_DURATION)
