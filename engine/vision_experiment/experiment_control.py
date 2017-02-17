@@ -13,8 +13,11 @@ import traceback
 import shutil
 import zmq
 
-import PyDAQmx
-import PyDAQmx.DAQmxConstants as DAQmxConstants
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+except ImportError:
+    pass
 
 import experiment
 import experiment_data

@@ -781,12 +781,25 @@ class MainPoller(Poller):
         self.process_status_timer.timeout.connect(self.update_process_status)
         self.process_status_timer.start(10000)
         self.first_mouse_file_created=False
+        self.timer=QtCore.QTimer()
+        self.timer.start(5000)#ms
+        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_preexp)
+        self.stim_connected=False
+        import visexpman
+	self.experiment_config_list=utils.fetch_classes('visexpman.users.' + self.config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
         if STAGE:
             self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
             #self.stage.reset()
             self.stage.setparams()
             if 0:
                 self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
+
+    def update_preexp(self):
+        if self.stim_connected:
+            stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
+            index=[i for i in range(len(self.experiment_config_list)) if self.experiment_config_list[i][1].__name__==stimname]
+            command='SOCselect_experimentEOC{0}EOP'.format(index[0])
+            self.queues['stim']['out'].put(command)
         
     def update_process_status(self):
         try:
@@ -2400,6 +2413,7 @@ class MainPoller(Poller):
             if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
                 connected += 'STIM  '
                 n_connected += 1
+                self.stim_connected=True
             if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                 connected += 'ANALYSIS  '
                 n_connected += 1

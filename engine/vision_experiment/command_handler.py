@@ -215,6 +215,11 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         self.selected_experiment_config_index = int(experiment_index)
         self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
+        if hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
+            self.clear_screen_to_background()
+            self.experiment_config.pre_runnable.run()
+            self.flip()
+
         return 'selected experiment: ' + str(experiment_index) + ' '
 
     def execute_experiment(self, **kwargs):
