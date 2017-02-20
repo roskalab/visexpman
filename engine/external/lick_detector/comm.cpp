@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "config.h"
 #if (PLATFORM==PC)
   #include <iostream>
   using namespace std;
@@ -10,6 +9,7 @@
 
 #if (PLATFORM==ARDUINO)
   #include "Arduino.h"
+  #include "config.h"
 #endif
 
 
