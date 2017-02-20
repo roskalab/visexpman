@@ -27,6 +27,7 @@ class HitMiss(BehavioralProtocol):
             self.laserintensity=numpy.random.choice(self.RANDOM_LASER_INTENSITIES)
         else:
             self.laserintensity=self.engine.parameters['Laser Intensity']
+        logging.info('Laser intensity {0} V'.format(self.laserintensity))
         if self.engine.parameters['Enable Lick Simulation']:
             import hdf5io,os,random
             datafolder='c:\\visexp\\data'
