@@ -23,6 +23,7 @@ if getpass.getuser()!='hd':
     for package in ['visexpman', 'visexpA']:
         print 'downloading', package
         fileop.download_folder('rldata.fmi.ch', 'mouse', '/data/software/rc-setup/{0}'.format(package), dst, password=pw)
+    sys.path.remove(path)
 #     if host=='rlvivo1':#Make sure that any user can delete this folder later
 #         subprocess.call('chmod -R 777 {0}'.format(dst), shell=True)
 

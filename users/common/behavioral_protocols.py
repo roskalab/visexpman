@@ -18,10 +18,16 @@ class HitMiss(BehavioralProtocol):
     REWARD_DELAY=0.5
     DRINK_TIME=2
     WAIT4LICK=True
+    ENABLE_RANDOM_LASER_INTENSITIES=False
     def prepare(self):
         self.PRETRIAL_DURATION=\
             numpy.round(numpy.random.random()*(self.PRETRIAL_DURATION_MAX-self.PRETRIAL_DURATION_MIN)+self.PRETRIAL_DURATION_MIN,0)
         logging.info('Pretrial duration {0} s'.format(self.PRETRIAL_DURATION))
+        if self.ENABLE_RANDOM_LASER_INTENSITIES and hasattr(self,'RANDOM_LASER_INTENSITIES'):
+            self.laserintensity=numpy.random.choice(self.RANDOM_LASER_INTENSITIES)
+        else:
+            self.laserintensity=self.engine.parameters['Laser Intensity']
+        logging.info('Laser intensity {0} V'.format(self.laserintensity))
         if self.engine.parameters['Enable Lick Simulation']:
             import hdf5io,os,random
             datafolder='c:\\visexp\\data'
@@ -47,7 +53,7 @@ class HitMiss(BehavioralProtocol):
     def run(self):
         logging.info('{0} started'.format(self.__class__.__name__))
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
-                    self.engine.parameters['Laser Intensity'],
+                    self.laserintensity,
                     self.PRETRIAL_DURATION,
                     self.REWARD_DELAY,
                     reponse_window_time=self.RESPONSE_WINDOW,
@@ -70,6 +76,11 @@ class Lick(HitMiss):
     WAIT4LICK=False
     RESPONSE_WINDOW=0.5
     REWARD_DELAY=0.0
+    
+class HitMissRandomLaser(HitMiss):
+    __doc__=HitMiss.__doc__
+    ENABLE_RANDOM_LASER_INTENSITIES=True
+    RANDOM_LASER_INTENSITIES=[0.1,0.5,0.7]
     
 class LickResponse(BehavioralProtocol):
     '''
