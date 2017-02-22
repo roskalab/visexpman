@@ -26,6 +26,8 @@
 #define VREF2 1.0
 #define VOLTAGE_ERROR 20e-3
 
+#define SERIAL_ENABLE 1
+
 class BncShieldTester {
   public:
     BncShieldTester(void);
@@ -37,12 +39,12 @@ class BncShieldTester {
     void set_dac(float v);
     void analog_loopback(int aichannel);
     bool result;
+    void flash(int n, int led);
 
 };
 
 BncShieldTester::BncShieldTester(void)
-{
-  Serial.begin(115200);
+{  
   pinMode(LED0, OUTPUT);
   pinMode(LED1, OUTPUT);
   pinMode(D0_AI0_SELECT, OUTPUT);
@@ -50,18 +52,30 @@ BncShieldTester::BncShieldTester(void)
   pinMode(D2_DAC_SELECT, OUTPUT);
   init_dac();
   analogReference(INTERNAL);//1.1V internal reference selected
-  Serial.println("Connections: 3->4, 0,1->2");
+  if (SERIAL_ENABLE)
+  {
+    Serial.begin(115200);
+    Serial.println("Connections: 3->4, 0,1->2");
+  }
 }
 
 void BncShieldTester::run(void)
 {
+  delay(5000);
   digitalWrite(LED0, LOW);
   result=true;
   led();
-  digital_loopback(1,2);
-  digital_loopback(2,1);
-  digital_loopback(0,2);
-  digital_loopback(2,0);
+  if (!SERIAL_ENABLE)
+  {
+    digital_loopback(1,2);
+    digital_loopback(2,1);
+    digital_loopback(0,2);
+    digital_loopback(2,0);
+    if (result)
+    {
+      flash(3,LED0);
+    }
+  }
   digital_loopback(3,4);
   digital_loopback(4,3);
   analog_loopback(0);
@@ -69,10 +83,26 @@ void BncShieldTester::run(void)
   analog_loopback(3);
   if (result)
   {
-    digitalWrite(LED0, HIGH);
-    Serial.println("All tests passed");
+    flash(2,LED1);
+    flash(2,LED0);
+    if (SERIAL_ENABLE)
+    {
+      Serial.println("All tests passed");
+    }
   }
-  delay(5000);
+}
+
+void BncShieldTester::flash(int n, int led)
+{
+  digitalWrite(led, LOW);
+  delay(1000);
+  for(int i=0;i<n;i++)
+  {
+    digitalWrite(led, HIGH);
+    delay(300);
+    digitalWrite(led, LOW);
+    delay(500);
+  }
 }
 
 void BncShieldTester::init_dac(void)
@@ -106,14 +136,20 @@ void BncShieldTester::set_dac(float v)
 
 void BncShieldTester::led(void)
 {
-  Serial.print("LED test "); 
+  if (SERIAL_ENABLE)
+  {
+    Serial.print("LED test "); 
+  }
   digitalWrite(LED0, HIGH);
   delay(100);
   digitalWrite(LED1, HIGH);
   digitalWrite(LED0, LOW);
   delay(100);
   digitalWrite(LED1, LOW);
-  Serial.println("OK");
+  if (SERIAL_ENABLE)
+  {
+    Serial.println("OK");
+  }
 }
 
 void BncShieldTester::digital_loopback(int out,int in)
@@ -131,11 +167,15 @@ void BncShieldTester::digital_loopback(int out,int in)
   {
     SELECT_D2;
   }
-  Serial.print("digital loopback test: ");
-  Serial.print(out);
-  Serial.print(" -> ");
-  Serial.print(in);
-  Serial.print(" ");
+  delay(10);
+  if (SERIAL_ENABLE)
+  {
+    Serial.print("digital loopback test: ");
+    Serial.print(out);
+    Serial.print(" -> ");
+    Serial.print(in);
+    Serial.print(" ");
+  }
   pinMode(out, OUTPUT);
   pinMode(in, INPUT);
   digitalWrite(out, HIGH);
@@ -146,15 +186,21 @@ void BncShieldTester::digital_loopback(int out,int in)
   val0=digitalRead(in);
   if ((val1==1) && (val0==0))
   {
-    Serial.println("OK");
+    if (SERIAL_ENABLE)
+    {
+      Serial.println("OK");
+    }
   }
   else
   {
     result=false;
-    Serial.print("Failed: expected 1, measured ");
-    Serial.print(val1,3);
-    Serial.print(" expected 0, measured ");
-    Serial.println(val0,3);
+    if (SERIAL_ENABLE)
+    {
+      Serial.print("Failed: expected 1, measured ");
+      Serial.print(val1,3);
+      Serial.print(" expected 0, measured ");
+      Serial.println(val0,3);
+    }
   }
 }
 
@@ -162,9 +208,12 @@ void BncShieldTester::analog_loopback(int aichannel)
 {
   int adc_val;
   float vread1,vread2;
-  Serial.print("Analog loopback test DAC->");
-  Serial.print(aichannel);
-  Serial.print(" channel ");
+  if (SERIAL_ENABLE)
+  {
+    Serial.print("Analog loopback test DAC->");
+    Serial.print(aichannel);
+    Serial.print(" channel ");
+  }
   SELECT_DAC;
   switch (aichannel)
   {
@@ -188,29 +237,32 @@ void BncShieldTester::analog_loopback(int aichannel)
   set_dac(0.0);
   if ((abs(vread1-VREF1)<VOLTAGE_ERROR)&&(abs(vread2-VREF2)<VOLTAGE_ERROR))
   {
-    Serial.println("OK");
+    if (SERIAL_ENABLE)
+      Serial.println("OK");
   }
   else
   {
     result=false;
-    Serial.print("Failed, vref1=");
-    Serial.print(VREF1);
-    Serial.print(" V, measured: ");
-    Serial.print(vread1);
-    Serial.print(", vref2=");
-    Serial.print(VREF2);
-    Serial.print(" V, measured: ");
-    Serial.println(vread2);
+    if (SERIAL_ENABLE)
+    {
+      Serial.print("Failed, vref1=");
+      Serial.print(VREF1);
+      Serial.print(" V, measured: ");
+      Serial.print(vread1);
+      Serial.print(", vref2=");
+      Serial.print(VREF2);
+      Serial.print(" V, measured: ");
+      Serial.println(vread2);
+    }
   }
 }
 
 BncShieldTester aot;
 
 void setup() {
-  aot=BncShieldTester();  
+  aot=BncShieldTester();
 }
 
 void loop() {
   aot.run();
-
 }
