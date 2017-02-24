@@ -335,6 +335,11 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 shutil.copy(self.daqdatafile.filename,fn)
+                if self.santiago_setup:
+                    #Make a local copy of sync file
+                    localfn=os.path.join('c:\\Data\\santiago-setup', os.path.basename(fn))
+                    shutil.copy(self.daqdatafile.filename, localfn)
+                    self.printc('Local copy saved to {0}'.format(localfn))
                 try:
                     os.remove(self.daqdatafile.filename)
                 except:
@@ -497,6 +502,8 @@ class Analysis(object):
                 del self.reference_roi_filename
 
     def open_datafile(self,filename):
+        if self.experiment_running:
+            return
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
