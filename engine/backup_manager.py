@@ -85,6 +85,8 @@ def is_file_closed(f):
 def copy_file(f):
     try:
 #        if f=='/mnt/databig/backup/fiona/20160414/F02514/fragment_xy_region2_30_-129_-8841.18_ReceptiveFieldExploreNewAngleFine_1460651588_0.hdf5': return
+#        if '1487328045_0_mat.mat' in target_path_m: return
+        if '1487327469_0.mat' in f: return
         copy2m= os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(f))))!='daniel'#Daniel's fiels are not copied to m drive only to tape
         path=f.replace(transient_backup_path+'/','')
         target_path_tape=os.path.join(tape_path,path)
