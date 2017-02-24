@@ -1,6 +1,7 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
 import scipy.io,multiprocessing,stat,subprocess,io
+print sys.path
 if len(sys.argv)==4 and 'jobhandler1' in sys.argv[0]:#only when jobhandler is run but not imported as a module
     visexpman_path=sys.argv[3]
     print 'loading visexpman path'
@@ -107,6 +108,11 @@ class Jobhandler(object):
             self.jr.join()
             print 'thread terminated'
         self.connections['gui'].wait()
+        if getpass.getuser()=='hd':
+            repository_path=os.path.join(os.path.dirname(os.path.abspath(visexpman.__file__)),'users', self.config.user)
+            message = 'Stimulus modifications automatically saved'
+            cmd='cd {0};git add .;git commit -m "{1}";git push origin {2}'.format(repository_path, message, visexpman.version)
+            #subprocess.call(cmd, shell=True)
         print 'done'
         
     def process_job(self,nextfunction, nextpars):

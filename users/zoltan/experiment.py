@@ -19,5 +19,5 @@ class ZoltanMovingGratingConfig(grating_base.MovingGratingNoMarchingConfig):
         self.PAUSE_BEFORE_AFTER = 0.0
         self.REPEATS = 1
         self.runnable = 'MovingGrating'
-        self.pre_runnable = 'MovingGratingPre'
+        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())   

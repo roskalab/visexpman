@@ -519,6 +519,7 @@ class ExperimentControl(object):
             self.digital_output.CreateDOChan(self.config.FRAME_TRIGGER_LINE,
                                                             'do',
                                                             DAQmxConstants.DAQmx_Val_ChanPerLine)
+            self.set_trigger(0)
         self.filterwheels = []
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             self.number_of_filterwheels = len(self.config.FILTERWHEEL_SERIAL_PORT)
