@@ -18,7 +18,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         GUI_REFRESH_PERIOD = 10.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
-        EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
+        EXPERIMENT_CONFIG = 'MovingGratingAdrian'
         
         MES_TIMEOUT = 15.0
         CELL_MERGE_DISTANCE = 3.0
@@ -129,6 +129,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        DIGITAL_OUTPUT='daq'
+        FRAME_TRIGGER_LINE='dev1/port0/line1'
         #=== stage ===
         motor_serial_port = {
                                     'port' :  'COM7',

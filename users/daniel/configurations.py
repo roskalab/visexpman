@@ -585,6 +585,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        DIGITAL_OUTPUT='daq'
+        FRAME_TRIGGER_LINE='dev1/port0/line1'
         #=== stage ===
         motor_serial_port = {
                                     'port' :  'COM7',
