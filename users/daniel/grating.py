@@ -6,7 +6,6 @@ import time
 import random
 import copy
 
-
 class CurtainConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        

@@ -46,6 +46,7 @@ class Jobhandler(object):
             self.connections['gui'] = network_interface.start_client(self.config, 'ANALYSIS', 'GUI_ANALYSIS', self.queues['gui']['in'], self.queues['gui']['out'])
         self.printl('Jobhandler started')
         import getpass
+        self.printl(os.path.abspath(visexpman.__file__))
         self.printl('Current user is {0}'.format(getpass.getuser()))
         logging.info(sys.argv)
         logging.info(utils.module_versions(utils.imported_modules()[0])[0])
