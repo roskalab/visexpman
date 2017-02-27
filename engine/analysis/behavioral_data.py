@@ -507,7 +507,7 @@ class HitmissAnalysis(object):
             self.analysis_type='all'
             self.all_animals()
         else:
-            raise RuntimeError('Unknown analysis')
+            raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}'.format(nfiles, nitems, nsubfolders))
         
     def day_analysis(self,folder=None):
         if isinstance(folder,str) and os.path.exists(folder):

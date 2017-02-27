@@ -356,7 +356,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t0=time.time()
         while self.ai.responseq.empty():
             time.sleep(0.1)
-            if time.time()-t0>10:
+            if time.time()-t0>20:
+                logging.info('Daq start timeout')
                 break
         time.sleep(1.5)#This value is experimental!!!
         self._start_protocol()
