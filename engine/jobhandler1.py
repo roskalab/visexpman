@@ -1,7 +1,7 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
 import scipy.io,multiprocessing,stat,subprocess,io,getpass
-if len(sys.argv)==4 and 'jobhandler1' in sys.argv[0]:#only when jobhandler is run but not imported as a module
+if len(sys.argv)>=4 and 'jobhandler1' in sys.argv[0]:#only when jobhandler is run but not imported as a module
     visexpman_path=sys.argv[3]
     sys.path.insert(0,visexpman_path)
     print 'loading visexpman path',visexpman_path,sys.path.index(visexpman_path)
@@ -34,8 +34,9 @@ class Jobhandler(object):
         self.user=user
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct=False)[0][1]()
         aconfigname = 'Config'
-        self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+        self.analysis_config = utils.fetch_classes('visexpA.users.'+'daniel', classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
         self.logfile = os.path.join(self.config.LOG_PATH, 'jobhandler_{0}.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
+        print self.logfile
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
