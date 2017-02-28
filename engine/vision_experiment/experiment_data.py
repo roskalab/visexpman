@@ -1378,6 +1378,13 @@ def hdf52mat(filename):
     h.close()
     matfile=filename.replace('.hdf5', '_mat.mat')
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+    
+def read_sync(filename):
+    h=hdf5io.Hdf5io(filename)
+    idnode=h.findvar('_'.join(os.path.basename(filename).split('.')[-2].split('_')[-3:]))
+    sd=idnode['sync_data']
+    h.close()
+    return sd
 
 try:
     import paramiko
