@@ -26,7 +26,7 @@
 #define VREF2 1.0
 #define VOLTAGE_ERROR 20e-3
 
-#define SERIAL_ENABLE 1
+#define SERIAL_ENABLE 0
 
 class BncShieldTester {
   public:
@@ -65,19 +65,20 @@ void BncShieldTester::run(void)
   digitalWrite(LED0, LOW);
   result=true;
   led();
-  if (!SERIAL_ENABLE)
-  {
-    digital_loopback(1,2);
-    digital_loopback(2,1);
-    digital_loopback(0,2);
-    digital_loopback(2,0);
-    if (result)
-    {
-      flash(3,LED0);
-    }
-  }
   digital_loopback(3,4);
   digital_loopback(4,3);
+  if (result)
+  {
+      flash(3,LED1);
+  }
+  digital_loopback(1,2);
+  digital_loopback(2,1);
+  digital_loopback(0,2);
+  digital_loopback(2,0);
+  if (result)
+  {
+      flash(3,LED0);
+  }
   analog_loopback(0);
   analog_loopback(1);
   analog_loopback(3);
@@ -85,6 +86,11 @@ void BncShieldTester::run(void)
   {
     flash(2,LED1);
     flash(2,LED0);
+    digitalWrite(LED0, HIGH);
+    digitalWrite(LED1, HIGH);
+    delay(2000);
+    digitalWrite(LED0, LOW);
+    digitalWrite(LED1, LOW);
     if (SERIAL_ENABLE)
     {
       Serial.println("All tests passed");

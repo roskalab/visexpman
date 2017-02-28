@@ -1169,7 +1169,13 @@ def sendmail(to, subject, txt):
     os.remove(fn)
     return res==0
     
-        
+def push2git(server, user, password, repository_path, message,branchname):
+    '''
+    automatically pushes changes in repository
+    '''
+    import subprocess
+    subprocess.call('cd {0};git add .;git commit -m "{1}";git push origin {2}'.format(repository_path, message, branchname), shell=True)
+    
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
@@ -1279,6 +1285,10 @@ class TestUtils(unittest.TestCase):
     def test_19_sendmail(self):
         self.assertTrue(sendmail('zoltan.raics@fmi.ch','test','c'))
         
+    def test_20_push(self):
+        import fileop
+        push2git('rlvivo1.fmi.ch', 'rz', 'ATxmega16A4', '/tmp/visexpman', 'commit msg', 'test')
+        
 def shuffle_positions_avoid_adjacent(positions,shape_distance):
     remaining=copy.deepcopy(positions)
     success=True
@@ -1386,6 +1396,7 @@ if __name__ == "__main__":
     mytest.addTest(TestUtils('test_15_rcd_pack'))
     mytest.addTest(TestUtils('test_18_shuffle_positions'))
     mytest.addTest(TestUtils('test_19_sendmail'))
+    mytest.addTest(TestUtils('test_20_push'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)
