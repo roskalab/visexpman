@@ -24,12 +24,12 @@ class HitMiss(BehavioralProtocol):
             numpy.round(numpy.random.random()*(self.PRETRIAL_DURATION_MAX-self.PRETRIAL_DURATION_MIN)+self.PRETRIAL_DURATION_MIN,0)
         logging.info('Pretrial duration {0} s'.format(self.PRETRIAL_DURATION))
         if self.ENABLE_RANDOM_LASER_INTENSITIES and hasattr(self,'RANDOM_LASER_INTENSITIES'):
-            self.laserintensity=numpy.random.choice(self.RANDOM_LASER_INTENSITIES)
+            self.LASER_INTENSITY=numpy.random.choice(self.RANDOM_LASER_INTENSITIES)
         else:
-            self.laserintensity=self.engine.parameters['Laser Intensity']
-        if self.laserintensity>3.0:
+            self.LASER_INTENSITY=self.engine.parameters['Laser Intensity']
+        if self.LASER_INTENSITY>3.0:
             raise RuntimeError('Max 3.0 V laser voltage is supported')
-        logging.info('Laser intensity {0} V'.format(self.laserintensity))
+        logging.info('Laser intensity {0} V'.format(self.LASER_INTENSITY))
         if self.engine.parameters['Enable Lick Simulation']:
             import hdf5io,os,random
             datafolder='c:\\visexp\\data'
@@ -55,7 +55,7 @@ class HitMiss(BehavioralProtocol):
     def run(self):
         logging.info('{0} started'.format(self.__class__.__name__))
         self.hmph=HitMissProtocolHandler(self.engine.serialport,
-                    self.laserintensity,
+                    self.LASER_INTENSITY,
                     self.PRETRIAL_DURATION,
                     self.REWARD_DELAY,
                     reponse_window_time=self.RESPONSE_WINDOW,

@@ -503,7 +503,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'])
+        if self.parameters['Protocol']=='HitMissRandomLaser':
+            filter={'voltage':self.parameters['Laser Intensity']}
+        else:
+            filter={}
+        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'],filter=filter)
         logging.info('Done')
         self.to_gui.put({'show_animal_statistics':self.analysis})
         
@@ -1091,7 +1095,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         gui.set_win_icon()
         self.machine_config=parent.machine_config
         self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
-        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder)+' '+analysis.protocol)
+        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder)+' '+analysis.protocol+ ' ' + str(analysis.filter))
         self.setTabPosition(self.North)
         pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}]
         days=numpy.array([utils.datestring2timestamp(d,format='%Y%m%d')/86400 for d in analysis.days])
