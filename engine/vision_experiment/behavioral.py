@@ -1,15 +1,13 @@
-'''
-OBSOLETE: based on run/no run behavior
-'''
-import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging
+import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging,datetime
 import numpy,visexpman, traceback,serial,re,subprocess,platform
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import hdf5io,unittest
-from visexpman.engine.generic import gui,utils,fileop,introspect
-from visexpman.engine.hardware_interface import daq_instrument,camera_interface
+from visexpman.engine.generic import gui,utils,fileop,introspect,colors
+from visexpman.engine.analysis import behavioral_data
+from visexpman.engine.hardware_interface import daq_instrument,camera_interface, lick_detector
 from visexpman.engine.vision_experiment import experiment,experiment_data
 DEBUG=False
 NREWARD_VOLUME=100
@@ -24,109 +22,11 @@ def object_parameters2dict(obj):
     return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
 
 def get_protocol_names():
-    pns = [m[1].__name__ for m in utils.fetch_classes('visexpman.users.common', required_ancestors = experiment.Protocol,direct = False)]
+    pns = [m[1].__name__ for m in utils.fetch_classes('visexpman.users.common', required_ancestors = experiment.BehavioralProtocol,direct = False)]
     if 0:
         objects=[getattr(sys.modules[__name__], c) for c in dir(sys.modules[__name__])]
         pns=[o.__name__ for o in objects if 'Protocol' in introspect.class_ancestors(o)]
     return pns
-    
-class TreadmillSpeedReader(multiprocessing.Process):
-    '''
-    
-    '''
-    def __init__(self,queue, machine_config, emulate_speed=False):
-        multiprocessing.Process.__init__(self)
-        self.queue=queue
-        self.speed_q=multiprocessing.Queue()
-        self.machine_config=machine_config
-        self.emulate_speed=emulate_speed
-        
-    def emulated_speed(self,t):
-        if t<10:
-            spd=5.0
-        elif t>=10 and t<30:
-            spd=20.0+t*1e-1
-        elif t>=30:
-            spd=2
-        else:
-            spd=10
-        spd = 0.06*int(int(t/21)%2==0)
-        spd+=0.01*(numpy.random.random()-0.5)
-        return spd
-        
-    def open_serial(self):
-        self.s=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT,115200,timeout=self.machine_config.TREADMILL_READ_TIMEOUT)
-        
-    def pulse(self,channel,command):
-        byte_command=0
-        channel&=3
-        byte_command = channel<<6
-        if command=='off':
-            byte_command|=0
-        elif command=='on':
-            byte_command|=63
-        else:
-            byte_command|=int(round(command/5e-3))&63
-        if DEBUG:
-            logging.debug(bin(byte_command))
-        self.s.write(chr(byte_command))
-        logging.info(byte_command)
-        
-    def run(self):
-        logging.basicConfig(filename= fileop.get_log_filename(self.machine_config).replace('.txt', '_speed_reader.txt'),
-                    format='%(asctime)s %(levelname)s\t%(message)s',
-                    level=logging.INFO)
-        self.last_run=time.time()
-        self.start_time=time.time()
-        try:
-            self.open_serial()
-        except:
-            msg=traceback.format_exc()
-            print msg
-            logging.error(msg)
-            return
-        logging.info('Speed reader started')
-        self.msg_counter=0
-        while True:
-            try:  
-                now=time.time()
-                if int(now*10)%100==0:
-                    logging.info(self.msg_counter)
-                if self.emulate_speed:
-                   if now-self.last_run>self.machine_config.TREADMILL_SPEED_UPDATE_RATE:
-                        self.last_run=copy.deepcopy(now)
-                        spd=self.emulated_speed(now-self.start_time)
-                        self.speed_q.put([now,spd])
-                else:
-                    dtstr=self.s.readlines(1)
-                    if len(dtstr)==1 and len(dtstr[0])>0:
-                        self.msg_counter+=1
-                        dt=float(''.join(re.findall(r'-?[0-9]',dtstr[0])))*1e-3
-                        ds=numpy.pi*self.machine_config.TREADMILL_DIAMETER/self.machine_config.TREADMILL_PULSE_PER_REV*1e-3
-                        if dt==0:
-                            dt=1e-10#Avoid zero division
-                        spd=ds/dt*self.machine_config.POSITIVE_DIRECTION
-                    else:
-                        spd=0.0
-                    self.speed_q.put([now,spd])
-                    self.prev_spd=spd
-                if not self.queue.empty():
-                    msg=self.queue.get()
-                    if msg=='terminate':
-                        break
-                    elif msg=='restart':
-                        self.s.close()
-                        time.sleep(0.2)
-                        self.open_serial()
-                        logging.info('Serial port restarted')
-                    elif msg.has_key('pulse'):
-                        channel, command=msg['pulse']
-                        self.pulse(channel,command)
-                time.sleep(0.01)
-            except:
-                logging.error(traceback.format_exc())
-        self.s.close()
-        logging.info('Speed reader finished')
 
 class CameraHandler(object):
     '''
@@ -193,8 +93,9 @@ class CameraHandler(object):
         return frame_color_corrected
 
 class BehavioralEngine(threading.Thread,CameraHandler):
-    def __init__(self,machine_config):
+    def __init__(self,machine_config,logfile_path=''):
         self.machine_config=machine_config
+        self.logfile_path=logfile_path
         threading.Thread.__init__(self)
         CameraHandler.__init__(self,machine_config)
         self.from_gui = Queue.Queue()
@@ -205,28 +106,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         free_space=round(fileop.free_space(self.datafolder)/1e9,1)
         if free_space<self.machine_config.MINIMUM_FREE_SPACE:
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
-        self.load_animal_file(switch2plot=True)
-        self.speed_reader_q=multiprocessing.Queue()
-        self.speed_reader=TreadmillSpeedReader(self.speed_reader_q,self.machine_config,emulate_speed=EMULATE_SPEED)
-        self.speed_reader.start()
-        self.session_ongoing=False
-        self.reset_data()
-        self.enable_speed_update=True
-        self.varnames=['speed_values','reward_values','airpuff_values','stimulus_values','forcerun_values', 'events','frame_times']
         logging.info('Pack source code')
         self.software_env = experiment_data.pack_software_environment()
         self.start_time=time.time()
         self.stim_number=0
-        
-    def reset_data(self):
-        self.speed_values=numpy.empty((0,2))
-        self.reward_values=numpy.empty((0,2))
-        self.airpuff_values=numpy.empty((0,2))
-        self.stimulus_values=numpy.empty((0,2))
-        self.forcerun_values=numpy.empty((0,2))
-        self.run_times=[]
-        self.events=[]
-        logging.info('Data traces cleared')
+        self.session_ongoing=False
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
         
     def load_context(self):
         if os.path.exists(self.context_filename):
@@ -266,7 +151,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.current_animal=current_animal
         self.load_animal_file(switch2plot=True)
         
-    def add_animal(self,name):
+    def new_animal(self,name):
         if self.session_ongoing:
             return
         foldername=os.path.join(self.datafolder,name)
@@ -326,7 +211,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def edit_protocol(self):
-        fn=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.Protocol,direct = False)[0][0].__file__
+        fn=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__file__
         if fn[-3:]=='pyc':
             fn=fn[:-1]
         lines=fileop.read_text_file(fn).split('\n')
@@ -334,26 +219,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info('Opening {0} at line {1}'.format(fn,line))
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
-    def forcerun(self,duration):
-        if not self.parameters['Enable Fan']: return
-        self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on']})
-        logging.info('Force run for {0} s'.format(duration))
-        now=time.time()
-        self.forcerun_values=numpy.concatenate((self.forcerun_values,numpy.array([[now, 1]])))
-        time.sleep(duration)
-        self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'off']})
-        
-    def set_fan(self,state):
-        self.speed_reader_q.put({'pulse': [self.machine_config.FAN_DO_CHANNEL,'on' if state else 'off']})
-            
     def reward(self):
-        if self.machine_config.__class__.__name__ == 'BehavioralSetup':
-            daq_instrument.set_digital_pulse('Dev1/port0/line0', self.parameters['Water Open Time'])
-        else:
-            self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,self.parameters['Water Open Time']]})
+        self.set_valve('water',True)
+        time.sleep(self.parameters['Water Open Time'])
+        self.set_valve('water',False)
         logging.info('Reward')
-        now=time.time()
-        self.reward_values=numpy.concatenate((self.reward_values,numpy.array([[now, 1]])))
         
     def rewardx100(self):
         for i in range(NREWARD_VOLUME):
@@ -367,175 +237,77 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         waveform[0,0]=0
         waveform[0,-1]=0
         daq_instrument.set_waveform('Dev1/ao1',waveform,sample_rate = 1000)
-        #daq_instrument.set_digital_pulse('Dev1/port0/line0', self.parameters['Air Puff Duration'])
-#        self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,self.parameters['Air Puff Duration']]})
         logging.info('Airpuff')
-        now=time.time()
-        self.airpuff_values=numpy.concatenate((self.airpuff_values,numpy.array([[now, 1]])))
         
     def set_valve(self,channel,state):
         if channel=='air':
-            self.speed_reader_q.put({'pulse': [self.machine_config.AIRPUFF_VALVE_DO_CHANNEL,'on' if state else 'off']})
+            logging.info('Not supported')
         elif channel=='water':
-            if self.machine_config.__class__.__name__ == 'BehavioralSetup':
-                daq_instrument.set_digital_line('Dev1/port0/line0', state)
-            else:
-                self.speed_reader_q.put({'pulse': [self.machine_config.WATER_VALVE_DO_CHANNEL,'on' if state else 'off']})
-        
+            logging.info('Set {0} valve to {1}'.format(channel, state))
+            self.serialport.write('reward,{0}\r\n'.format(float(state)))
+            logging.info(self.serialport.readline())
+            
     def stimulate(self,waveform=None):
         now=time.time()
-        fsample=self.machine_config.STIM_SAMPLE_RATE
-        if waveform is None:
-            self.stimulus_waveform=numpy.ones(int(self.parameters['Pulse Duration']*fsample))
-            self.stimulus_waveform[0]=0
-            self.stimulus_waveform[-1]=0
-            logging.info('Stimulate on {0} with {1} for {2} s'.format(self.parameters['Stimulus Channel'], self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
-        else:
-            self.stimulus_waveform=waveform
-            logging.info('Stimulating for {0} s'.format(waveform.shape[0]/fsample))
-        self.stimulus_waveform*=self.parameters['Laser Intensity']
-        stimulus_duration=self.stimulus_waveform.shape[0]/float(fsample)
-        self.stimulus_waveform = self.stimulus_waveform.reshape((1,self.stimulus_waveform.shape[0]))
-        self.stimulus_values=numpy.concatenate((self.stimulus_values,numpy.array([[now-1e-3, 0],[now, 1],[now+stimulus_duration, 1],[now+stimulus_duration+1e-3, 0]])))
-        return
-        if os.name=='nt':
-            if hasattr(self, 'stimulus_daq_handle'):
-                daq_instrument.set_waveform_finish(self.stimulus_daq_handle, self.stimulus_timeout)
-            aoch=getattr(self.machine_config, self.parameters['Stimulus Channel'].upper()+'_AO_CHANNEL')
-            self.stimulus_daq_handle, self.stimulus_timeout = daq_instrument.set_waveform_start(aoch,self.stimulus_waveform,fsample)
-
-#            aoch=getattr(self.machine_config, self.parameters['Stimulus Channel'].upper()+'_AO_CHANNEL')
-#            p=multiprocessing.Process(target=daq_instrument.set_waveform, args=(aoch,self.stimulus_waveform,fsample))
-#            p.start()
-#            self.processes.append(p)
-
-    def set_speed_update(self, state):
-        self.enable_speed_update=state
-        #Reset data buffer if no recording is ongoing and file was opened
-        if state and not self.session_ongoing:#and hasattr(self, 'datafile_opened') and time.time()-self.datafile_opened<30:
-            self.reset_data()
+        self.serialport.write('stim,{0},{1}\r\n'.format(self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
+        logging.info(self.serialport.readline())
         
-    def update_speed_values(self):
-        new_value=[]
-        if not self.speed_reader.speed_q.empty() and self.speed_reader.speed_q.qsize()>2:
-            while not self.speed_reader.speed_q.empty():
-                new_value.append(self.speed_reader.speed_q.get())
-        if len(new_value)>0:
-            self.speed_values=numpy.concatenate((self.speed_values,numpy.array(new_value)))
-            return True
-        else: return False
+    def convert_folder(self,folder):
+        files=fileop.find_files_and_folders(folder)[1]
+        hdf5files=[f for f in files if os.path.splitext(f)[1]=='.hdf5']
+        logging.info('Converting hdf5 files to mat')
+        for f in hdf5files:
+            experiment_data.hdf52mat(f)
+            logging.info(f)
     
     def update_plot(self):
-        if not self.speed_values.shape[0]>0:
-            return
-        xs,ys=self.values2trace(self.speed_values)
-        now=xs[-1]
-        t0=xs[0]
-        x=[xs]
-        y=[ys]
-        trace_names=['speed']
-        if sum([self.parameters[k] for k in ['Reward Trace', 'Airpuff Trace', 'Stimulus Trace', 'Run Events Trace', 'Stop Events Trace', 'Force Run Trace']])>3:
-            return
-        if self.reward_values.shape[0]>0 and self.parameters['Reward Trace']:
-            xr,yr=self.values2trace(self.reward_values, now)
-            if xr.shape[0]>0:
-                t0=min(t0, xr[0])
-                x.append(xr)
-                y.append(yr*ys.max())
-                trace_names.append('reward')
-        if self.airpuff_values.shape[0]>0 and self.parameters['Airpuff Trace']:
-            xa,ya=self.values2trace(self.airpuff_values, now)
-            if xa.shape[0]>0:
-                t0=min(t0, xa[0])
-                x.append(xa)
-                y.append(ya*ys.max())
-                trace_names.append('airpuff')
-        if self.stimulus_values.shape[0]>0 and self.parameters['Stimulus Trace']:
-            xst,yst=self.values2trace(self.stimulus_values, now)
-            if xst.shape[0]>0:
-                t0=min(t0, xst[0])
-                x.append(xst)
-                y.append(yst*(ys.max() if ys.max()!=0 else 0.1))
-                trace_names.append('stimulus')
-        if self.forcerun_values.shape[0]>0 and self.parameters['Force Run Trace']:
-            xf,yf=self.values2trace(self.forcerun_values, now)
-            if xf.shape[0]>0:
-                t0=min(t0, xf[0])
-                x.append(xf)
-                y.append(yf*ys.max())
-                trace_names.append('forcerun')
-        for event_type in ['run', 'stop']:
-            if self.parameters['{0} Events Trace'.format(event_type.capitalize())]:
-                xe=numpy.array([event['t'] for event in self.events if event['type']==event_type])
-                if xe.shape[0]>0:
-                    ye=numpy.ones_like(xe)*ys.max()*0.5
-                    xe,ye=self.values2trace(numpy.array([xe,ye]).T, now)
-                    if xe.shape[0]>0:
-                        x.append(xe)
-                        y.append(ye)
-                        trace_names.append(event_type)
-                        t0=min(t0,x[-1][0])
-        
-        t0=numpy.concatenate(x).min()
-        for xi in x:
-            xi-=t0
+        t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
+        x=(self.sync.shape[1])*[t]
+        y=[self.sync[:,i] for i in range(self.sync.shape[1])]
+        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug']
+        if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
+            x[4]=self.protocol_state_change_times
+            y[4]=numpy.ones_like(self.protocol_state_change_times)
+        else:
+            y=y[:-1]
+            x=x[:-1]
+            trace_names=trace_names[:-1]
+        if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
+            x[1]=self.lick_times
+            y[1]=numpy.ones_like(self.lick_times)*2
+        else:
+            del x[1]
+            del y[1]
+            del trace_names[1]
+        self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
-
-    def values2trace(self, values, now=None):
-        x=values[:,0].copy()
-        xl= x[-1] if now==None else now
-        indexes=numpy.nonzero(numpy.where(x>xl-self.parameters['Save Period'],1,0))[0]
-        x=x[indexes]
-        y=values[indexes,1]
-        return x,y
         
-    def run_stop_event_detector(self):
-        '''
-        Stop event: animal motion is below threshold for a certain amount of time. (Also a run event should happen right before that)
-        Run event: animal was running for a certain amount of time
-        Event time is when the condition is met
+    def _load_protocol(self):
+        logging.info('Loading protocol')
+        if str(self.parameters['Protocol']) == 'Random Selection Hitmiss Lick':
+            if not hasattr(self, 'protocol_history'):
+                self.protocol_history=[]
+            last_n=5
+            prob=numpy.random.random(1)
+            prob=(prob>0.5)[0]
+            self.current_protocol='Lick' if prob else 'HitMiss'
+            if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
+                self.current_protocol = 'HitMiss' if self.current_protocol=='Lick' else 'Lick'
+            logging.info('Random selection: {0}'.format(self.current_protocol))
+        else:
+            self.current_protocol = str(self.parameters['Protocol'])
+        modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__name__
+        __import__(modulename)
+        reload(sys.modules[modulename])
+        self.software_env['protocol_source']=fileop.read_text_file(sys.modules[modulename].__file__.replace('.pyc','.py'))
+        self.protocol= getattr(sys.modules[modulename], self.current_protocol)(self)
         
-        At stim stop protocol there should be some tolerance between the run and stop event times
-        Event structure:
-        name:
-        acknowledged:
-        time:
-        previous event: name, time
-        '''
-        #consider speed values since the last event        
-        t=self.speed_values[:,0]
-        spd=self.speed_values[:,1]
-        if len(self.events)>0:
-            indexes=numpy.nonzero(numpy.where(t>self.events[-1]['t'],1,0))[0]
-            t=t[indexes]
-            spd=spd[indexes]
-        if t.shape[0]==0:
-            return
-        ismoving=numpy.where(spd>self.parameters['Move Threshold'],True,False)
-        if hasattr(self, 'stop_time'):
-            stop_indexes=numpy.nonzero(numpy.where(t>t.max()-self.stop_time,1,0))[0]
-        else:
-            stop_indexes=numpy.empty(0)            
-        if hasattr(self, 'run_time'):
-            running_indexes=numpy.nonzero(numpy.where(t>t.max()-self.run_time,1,0))[0]
-        else:
-            running_indexes=numpy.empty(0)
-        last_event_time=self.events[-1]['t'] if len(self.events)>0 else 0#checking time elapsed since last event ensures that one event is counted once
-        if last_event_time<t[0]:#When new session is started, earlier events are ignored as last event time
-            last_event_time=t[0]
-        if stop_indexes.shape[0]>0 and not ismoving[stop_indexes].any() and t[-1] - last_event_time> self.stop_time:
-            event={}
-            event['type']='stop'
-            event['ack']=False
-            event['t']=t[-1]
-            self.events.append(event)
-        elif running_indexes.shape[0]>0 and ismoving[running_indexes].sum()>ismoving[running_indexes].shape[0]*1e-2*self.parameters['Run Threshold']\
-            and t[-1] - last_event_time> self.run_time:
-            event={}
-            event['type']='run'
-            event['ack']=False
-            event['t']=t[-1]
-            self.events.append(event)
+    def _start_protocol(self):
+        self._load_protocol()
+        param_str=str(object_parameters2dict(self.protocol)).replace(',',',\r\n')
+        self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+param_str})
+        self.protocol.start()
+        logging.info('Protocol started')
             
     def start_session(self):
         if self.session_ongoing:
@@ -543,7 +315,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not hasattr(self, 'current_animal'):
             self.notify('Warning', 'Create or select animal')
             return
-        self.reset_data()
         self.filecounter=0
         rootfolder=os.path.join(self.datafolder, self.current_animal)
         animal_file=os.path.join(rootfolder, 'animal_' + self.current_animal+'.hdf5')
@@ -554,70 +325,46 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.notify('Warning', 'Animal file does not exists')
             return
         today=utils.timestamp2ymd(time.time(),'')
-        last_entry_timestamp=utils.timestamp2ymd(self.weight[-1,0],'')
-        if last_entry_timestamp<today and not self.ask4confirmation('No animal weight was added today. Do you want to continue?'):
-            return
+        if not self.serialport.closed:
+            self.serialport.close()
+            time.sleep(1)
+        self.serialport=serial.Serial(self.machine_config.ARDUINO_SERIAL_PORT, 115200, timeout=1)
+        time.sleep(2)
+        if hasattr(self, 'weight'):
+            last_entry_timestamp=utils.timestamp2ymd(self.weight[-1,0],'')
+            if last_entry_timestamp<today and not self.ask4confirmation('No animal weight was added today. Do you want to continue?'):
+                return
         self.recording_folder=os.path.join(rootfolder, today)
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
-        self.show_day_success_rate(self.recording_folder)
-        logging.info('Loading protocol')
-        self.current_protocol = str(self.parameters['Protocol'])
-        modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.Protocol,direct = False)[0][0].__name__
-        __import__(modulename)
-        reload(sys.modules[modulename])
-        self.software_env['protocol_source']=fileop.read_text_file(sys.modules[modulename].__file__.replace('.pyc','.py'))
-        self.protocol= getattr(sys.modules[modulename], self.current_protocol)(self)
-        param_str=str(object_parameters2dict(self.protocol)).replace(',',',\r\n')
-        self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+param_str})
+        #self.show_day_success_rate(self.recording_folder)
+        analysis_protocol=str(self.parameters['Protocol'])
+        if analysis_protocol=='Lick':#TODO: protocol name specific!!!
+            analysis_protocol='HitMiss'#Always current protocol expect Lick selected
+        self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder,protocol=analysis_protocol)
         self.session_ongoing=True
+        self.session_start_time=time.time()
         self.start_recording()
         self.to_gui.put({'set_recording_state': 'recording'})
         self.to_gui.put({'switch2_event_plot': ''})
-        logging.info('Session started using {0} protocol'.format(self.current_protocol))
-        self.enable_speed_update=True
-        
-    def run_protocol(self):
-        if self.session_ongoing:
-            self.protocol.update()
-            now=time.time()
-            if int(now*10)%10==0:
-                stat=self.protocol.stat()
-                if hasattr(stat,'has_key'):
-                    stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
-                    uptime='Uptime {0} min'.format(int((now-self.start_time)/60))
-                    sc=self.stim_number + stat['stimulus counter'] if stat.has_key('stimulus counter') else 0
-                    self.to_gui.put({'statusbar':[stat,uptime,'Number of files: {0}, Number of Stimuli: {1}'.format(self.filecounter, sc)]})
-                    
+        logging.info('Session started with {0} protocol'.format(self.current_protocol))
+
     def start_recording(self):
         #logging.info(introspect.python_memory_usage())
-        self.recording_started_state={}
-        for vn in self.varnames:
-            if not hasattr(self, vn):
-                self.recording_started_state[vn]=0
-            else:
-                var=getattr(self, vn)
-                if isinstance(var,list):
-                    self.recording_started_state[vn]=len(var)
-                elif hasattr(var,'shape'):
-                    self.recording_started_state[vn]=var.shape[0]
-        if self.speed_values.shape[0]>SPEED_BUFFER_SIZE:
-            self.speed_values=self.speed_values[SPEED_BUFFER_SIZE:]
-            self.recording_started_state['speed_values']-=SPEED_BUFFER_SIZE
-            logging.info('Speed buffer is full, new size is {0}'.format(self.speed_values.shape))
-        if len(self.events)>EVENT_BUFFER_SIZE:
-            self.events=self.events[EVENT_BUFFER_SIZE:]
-            self.recording_started_state['events']-=EVENT_BUFFER_SIZE
-            logging.info('Event buffer is full, new size is {0}'.format(len(self.events)))
-        if hasattr(self, 'frame_times') and  len(self.frame_times)>FRAME_TIME_BUFFER_SIZE:
-            self.frame_times=self.frame_times[FRAME_TIME_BUFFER_SIZE:]
-            self.recording_started_state['frame_times']-=FRAME_TIME_BUFFER_SIZE
-            logging.info('Event buffer is full, new size is {0}'.format(len(self.frame_times)))
-        self.id=int(time.time())
+        self.ai=daq_instrument.AnalogRecorder(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE)
+        self.ai.start()
+        t0=time.time()
+        while self.ai.responseq.empty():
+            time.sleep(0.1)
+            if time.time()-t0>20:
+                logging.info('Daq start timeout')
+                break
+        time.sleep(1.5)#This value is experimental!!!
+        self._start_protocol()
+        self.id=experiment_data.get_id()
         self.filename=os.path.join(self.recording_folder, 'data_{0}_{1}'.format(self.current_protocol.replace(' ', '_'), self.id))
         videofilename=self.filename+'.avi'
         self.filename+='.hdf5'
-        self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera=camera_interface.ImagingSourceCameraSaver(self.filename)
         self.start_video_recording(videofilename)
@@ -626,29 +373,86 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.actual_recording_started=time.time()
     
     def finish_recording(self):
+        self.protocol.join()
+        logging.info('Protocol finished')
+        self.ai.commandq.put('stop')
+        time.sleep(0.5)
+        t0=time.time()
+        abort_session=False
+        while True:
+            self.sync=self.ai.read()
+            logging.info('ai data shape: '+str(self.sync.shape[0]))
+            if self.sync.shape[0]>0: 
+                #self.ai.read()
+                break
+            if time.time()-t0>10:
+                logging.error('Not enough AI samples?')
+                logging.info(self.ai.dataq.qsize())
+                abort_session=True
+                break
+            time.sleep(0.1)
+        logging.info('Recorded {0} s'.format(self.sync.shape[0]/float(self.machine_config.AI_SAMPLE_RATE)))
         self.stop_video_recording()
-        time.sleep(3*self.machine_config.TREADMILL_READ_TIMEOUT)#Make sure that no index error occurs
-        try:
-            logging.info('Recorded {0:.0f} s'.format(self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]))
-        except:
-            pass
         if hasattr(self, 'iscamera'):
             self.iscamera.stop()
             self.iscamera.close()
             del self.iscamera
-        self.save2file()
-        
-    def periodic_save(self):
-        if self.parameters['Enable Periodic Save'] and self.session_ongoing and self.speed_values.shape[0]>self.recording_started_state['speed_values'] and self.speed_values[-1,0]-self.speed_values[self.recording_started_state['speed_values'],0]>self.parameters['Save Period']:
-            self.save_during_session()
+        try:
+            self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+            self.update_plot()
+            self.save2file()
+            behavioral_data.check_hitmiss_files(self.filename)
+            self.day_analysis.add2day_analysis(self.filename)
+            self.stat2gui()
+        except:
+            self.dump()
+            logging.info(traceback.format_exc())
             
+        if abort_session:
+            self.session_ongoing=False
+            self.to_gui.put({'set_recording_state': 'idle'})
+            logging.info('Session ended')
+            
+    def dump(self):
+        variables = ['sync', 'filename']
+        dump_data = {}
+        for v in variables:
+            if hasattr(self, v):
+                dump_data[v] = getattr(self,v)
+        filename = os.path.join(self.machine_config.LOG_PATH, 'dump_{0}.{1}'.format(utils.timestamp2ymdhms(time.time()).replace(':','-').replace(' ', '-'),'npy'))
+        dump_stream=utils.object2array(dump_data)
+        numpy.save(filename,dump_stream)
+        logging.info('sync dumped to {0}'.format(filename))
+
+    def stat2gui(self):
+        if hasattr(self,'stat'):
+            stat_str='Result: {1}, lick numbers: {0}'.format(self.stat['lick_numbers'],  'HIT' if self.stat['result'] else 'MISS')
+            timingstr='Protocol timing: {0}'.format([(k, v) for k, v in self.stat.items() if k!='result' and k!='lick_numbers' and k!='lick_times'])
+            logging.info(stat_str)
+            logging.info(timingstr)
+        else:
+            stat_str=''
+        
+        if hasattr(self,'day_analysis'):
+            today_stat='Flashes: {0}, Hits: {1}, Success rate: {2} %, {3} %'.format(self.day_analysis.nflashes, self.day_analysis.nhits, int(100*self.day_analysis.success_rate), int(100*self.day_analysis.lick_success_rate))
+        else:
+            today_stat=''
+        logging.info(today_stat)
+        if self.session_ongoing:
+            session_time_str='Running for {0} minutes.'.format(int((self.last_run-self.session_start_time)/60))
+        else:
+            session_time_str=''
+        self.to_gui.put({'statusbar':stat_str+' '+today_stat+' '+session_time_str})
+
     def save_during_session(self):
-        self.finish_recording()
-        self.start_recording()
+        if self.session_ongoing and not self.protocol.is_alive():
+            self.finish_recording()
+            self.start_recording()
         
     def stop_session(self):
         if not self.session_ongoing:
             return
+        logging.info('Wait until protocol finishes')
         self.finish_recording()
         self.session_ongoing=False
         self.to_gui.put({'set_recording_state': 'idle'})
@@ -658,33 +462,26 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #print introspect.python_memory_usage()
         #logging.info(introspect.python_memory_usage())
         self.datafile=hdf5io.Hdf5io(self.filename)
-        self.datafile.stat=self.protocol.stat()
-        self.protocol.reset()
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
             setattr(self.datafile, nn, object_parameters2dict(var))
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
-        for vn in self.varnames:
-            values=copy.deepcopy(getattr(self, vn))[self.recording_started_state[vn]:]
-            setattr(self.datafile, vn, values)
-#            if hasattr(getattr(self, vn), 'shape'):
-#                logging.info(vn+'\t'+str(getattr(self, vn).shape))
-#            else:
-#                logging.info(vn+'\t'+str(len(getattr(self, vn))))    
+        self.datafile.sync=self.sync
+        if hasattr(self,'stat'):
+            self.datafile.stat=copy.deepcopy(self.stat)
+        self.datafile.frame_times=self.frame_times
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
-        self.datafile.run_times=self.run_times
         self.datafile.parameters=copy.deepcopy(self.parameters)
         self.datafile.software=self.software_env
         self.datafile.animal=self.current_animal
-        nodes=['animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'stat', 'run_times', 'parameters', 'software']
-        nodes.extend(self.varnames)
+        nodes=['stat','frame_times', 'sync', 'animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'parameters', 'software']
         self.datafile.save(nodes)
         self.datafile.close()
         del self.datafile
         logging.info('Data saved to {0}'.format(self.filename))
         self.filecounter+=1
-        self.show_day_success_rate(self.filename)
+        #self.show_day_success_rate(self.filename)
         
     def open_file(self, filename):
         if self.session_ongoing:
@@ -693,123 +490,40 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.filename=filename
         self.datafile_opened=time.time()
         self.datafile=hdf5io.Hdf5io(self.filename)
-        for vn in self.varnames:
-            self.datafile.load(vn)
-            setattr(self, vn, getattr(self.datafile, vn))
-        stat=self.datafile.findvar('stat')
-        stat['laser voltage']=numpy.round(self.datafile.findvar('parameters')['Laser Intensity'],1)
+        self.sync=self.datafile.findvar('sync')
+        self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+        self.stat2gui()
         self.datafile.close()
-        self.enable_speed_update=False
-        self.to_gui.put({'set_live_state': 0})
         self.to_gui.put({'set_events_title': os.path.basename(filename)})
-        if hasattr(stat,'has_key'):
-            stat['Success Rate']='{0:0.0f} %'.format(100*stat['Success Rate'])
-            self.to_gui.put({'statusbar':stat})
         logging.info('Opened {0}'.format(filename))
+        self.update_plot()
             
     def show_animal_statistics(self):
-        if self.session_ongoing: 
-            self.notify('Warning', 'Stat cannot be shown during recording')
+        if self.session_ongoing:
             return
-        logging.info('Generating plots, please wait')
+        logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
-        day_folders.sort()
-        self.animal_stat={}
-        self.best_success_rate={}
-        days=[os.path.basename(df) for df in day_folders]
-        days.sort()
-        dayts=numpy.array([utils.datestring2timestamp(d,'%Y%m%d') for d in days])
-        dayts-=dayts[0]
-        dayts/=86400
-        days=dict(zip(days,dayts.tolist()))
-        for d in day_folders:
-            dayd=[self.read_file_summary(f) for f in fileop.listdir_fullpath(d) if os.path.splitext(f)[1]=='.hdf5']
-            protocols=list(set([di['protocol'] for di in dayd if di.has_key('protocol')]))
-            day_item={}
-            for protocol in protocols:
-                day_item[protocol]=numpy.array([[di['t'], di['Success Rate']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']==protocol]).T                
-            self.animal_stat[os.path.basename(d)]=day_item
-            self.best_success_rate[days[os.path.basename(d)]]=numpy.array([[di['t'], di['Success Rate'], di['stimulus'], di['duration']] for di in dayd if di.has_key('t') and di.has_key('Success Rate') and di['protocol']=='StimStopReward'])
-        #group days
-        max_plots_per_page=6
-        npages=int(numpy.ceil(len(self.animal_stat.keys())/float(max_plots_per_page)))
-        days=self.animal_stat.keys()
-        days.sort()
-        pages=[days[pi*max_plots_per_page:(pi+1)*max_plots_per_page] for pi in range(npages)]
-        self.animal_stat_per_page=[]
-        for page in pages:
-            self.animal_stat_per_page.append(dict([(d, self.animal_stat[d]) for d in page]))
-        #Create stat where best n days are selected
-        n=self.parameters['Best Success Rate Over Number Of Stimulus']
-        self.best_success_rate_selected={'x':[],'y':[]}
-        for d,di in self.best_success_rate.items():
-            if di.shape[0]>0:
-                sorted=di[di.argsort(axis=0)[:,0]]
-                max_success_rate=0
-                max_success_rate_indexes=numpy.array([])
-                for index in range(sorted.shape[0]):
-                    nstim=0
-                    indexes=[]
-                    for i in range(index,sorted.shape[0]):
-                        nstim+=sorted[i,2]
-                        indexes.append(i)
-                        if nstim>=n:
-                            #calculate weighted success rate
-                            selected=sorted[indexes]
-                            sr=(selected[:,1]*selected[:,3]/selected[:,3].sum()).sum()
-                            if sr>max_success_rate:
-                                max_success_rate=sr
-                                max_success_rate_indexes=numpy.array(indexes)
-                            break
-                if max_success_rate_indexes.shape[0]>0:
-                    y=sorted[max_success_rate_indexes,1]
-                    x=numpy.ones_like(y)*d
-                    self.best_success_rate_selected['x'].extend(x)
-                    self.best_success_rate_selected['y'].extend(y)
-        self.best_success_rate_selected['x']=numpy.array(self.best_success_rate_selected['x'])
-        self.best_success_rate_selected['y']=numpy.array(self.best_success_rate_selected['y'])*100.0
-        self.best_success_rate_selected['n']=n
-        self.to_gui.put({'show_animal_statistics':[self.animal_stat_per_page, self.current_animal, self.best_success_rate_selected]})
+        if self.parameters['Protocol']=='HitMissRandomLaser':
+            filter={'voltage':self.parameters['Laser Intensity']}
+        else:
+            filter={}
+        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'],filter=filter)
         logging.info('Done')
+        self.to_gui.put({'show_animal_statistics':self.analysis})
+        
+    def show_global_analysis(self):
+        if self.session_ongoing:
+            return
+        logging.info('Generating success rate for all animals in {0}'.format(self.datafolder))
+        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder,protocol=self.parameters['Protocol'])
+        logging.info('Done')
+        self.to_gui.put({'show_global_statistics':self.global_analysis})
     
     def show_animal_success_rate(self):
-        '''
-        Aggregates success rate and reward volumes
-        '''
-        logging.info('Generating success rate and reward volume plots, please wait')
-        current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        day_folders=[d for d in fileop.listdir_fullpath(current_animal_folder) if os.path.isdir(d)]
-        day_folders.sort()
-        self.success_rate_summary={}
-        days=[os.path.basename(day_folder) for day_folder in day_folders]
-        days.sort()
-        self.reward_volume=[]
-        for day_folder in day_folders:
-            summaryd = [self.read_file_summary(f) for f in [os.path.join(day_folder,fn) for fn in os.listdir(day_folder) if os.path.splitext(fn)[1]=='.hdf5']]
-            protocol_names=list(set([s['protocol'] for s in summaryd if s.has_key('protocol')]))
-            daynum=int((utils.datestring2timestamp(os.path.basename(day_folder),'%Y%m%d')-utils.datestring2timestamp(days[0],'%Y%m%d'))/86400)
-            for pn in protocol_names:
-                if not self.success_rate_summary.has_key(pn):
-                    self.success_rate_summary[pn]=[]
-                self.success_rate_summary[pn].extend([[daynum, si['Success Rate']] for si in summaryd if si.has_key('protocol') and si['protocol']==pn])
-            self.reward_volume.append([daynum, sum([si['rewards'] for si in summaryd if si.has_key('rewards')])])
-        x=[]
-        y=[]
-        for p in self.success_rate_summary.keys():
-            d=numpy.array(self.success_rate_summary[p]).T
-            x.append(d[0])
-            y.append(d[1]*100)
-        self.x=x
-        self.y=y
-        self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': self.success_rate_summary.keys(), 'scatter':True}})
-        self.to_gui.put({'set_success_rate_title': self.current_animal})
-        if len(self.reward_volume)>0:
-            self.reward_volume=numpy.array(self.reward_volume)
-            x=self.reward_volume[:,0]
-            y=self.parameters['100 Reward Volume']*self.reward_volume[:,1]/NREWARD_VOLUME
-            self.to_gui.put({'update_reward_volume_plot':{'x':x, 'y':y}})
-        logging.info('Done')
+        return
+        #self.animal_analysis=behavioral_data.HitmissAnalysis(os.path.join(self.datafolder, self.current_animal))
+        
+        
         
     def day_summary(self, folder):
         summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
@@ -823,48 +537,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def show_day_success_rate(self,folder):
         '''
         
-        '''
-        logging.info('Generating today\'s success rate plot')
-        if os.path.isdir(folder):
-            if len(os.listdir(folder))>500:
-                logging.info('Too many recording, success rate plot is not updated')
-                return
-            self.summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
-        elif hasattr(self, 'summary'):
-            self.summary.append(self.read_file_summary(folder))
-        else:
-            return
-        #Sort
-        ts=[item['t'] for item in self.summary if item.has_key('t')]
-        ts.sort()
-        sorted=[]
-        for ti in ts:
-            sorted.append([item for item in self.summary if item.has_key('t') and ti==item['t']][0])
-        self.summary=sorted
-        xi=[]
-        yi=[]
-        for si in self.summary:
-            xi.append(si['t'])
-            yi.append(si['Success Rate'])
-        xp=[]
-        xp=numpy.array([self.summary[i]['t'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']])
-        protocol_order=[self.summary[i]['protocol'] for i in range(len(self.summary)) if i>0 and self.summary[i]['protocol']!=self.summary[i-1]['protocol']]
-        if len(self.summary)>0:
-            protocol_order.insert(0,self.summary[0]['protocol'])
-        if len(xi)>0:
-            if xp.shape[0]>0:
-                if xp.shape[0]%2==1:
-                    xp=numpy.append(xp, xi[-1])
-                #xp-=xi[0]
-            #xi-=xi[0]
-            xp=timestamp2hhmmfp(xp)
-            x=[timestamp2hhmmfp(numpy.array(xi))]
-            y=[numpy.array(yi)*100]
-            trace_names=['success_rate']
-            self.to_gui.put({'update_success_rate_plot':{'x':x, 'y':y, 'trace_names': trace_names, 'vertical_lines': xp}})
-            self.to_gui.put({'set_success_rate_title': os.path.basename(folder)})
-            logging.info('Protocol order: {0}'.format(', '.join(protocol_order)))
-        self.stim_number=sum([s['stimulus counter'] for s in self.summary if s.has_key('stimulus counter')])
+        '''  
+        logging.info('Analysing {0}'.format(folder))
+        self.day_analysis=behavioral_data.HitmissAnalysis(folder)
+        self.stat2gui()
+        logging.info('Done')
+        
             
     def read_file_summary(self,filename):
         '''
@@ -885,6 +563,28 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return data_item
         except:
             return {}
+            
+    def backup(self,confirmation=True):
+        if self.session_ongoing:
+            logging.warning('No backup during recording')
+            return
+        if confirmation:
+            if not self.ask4confirmation('Backing up datafiles to {0} might take long. Do you want to continue?'.format(self.machine_config.BACKUP_PATH)):
+                return
+        logging.info('Backing up logfiles')
+        from visexpman.engine import backup_manager
+        logbuconf=backup_manager.Config()
+        logbuconf.last_file_access_timeout=1
+        logbuconf.COPY= [{'src':os.path.dirname(self.logfile_path), 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.txt']},]
+        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+        self.logfilebackup.run()
+        logging.info('Backing up data files')
+        databuconf=backup_manager.Config()
+        databuconf.last_file_access_timeout=1
+        databuconf.COPY= [{'src':self.datafolder, 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.hdf5','.avi']},]
+        self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+        self.datafilebackup.run()
+        logging.info('Done')
         
     def run(self):
         logging.info('Engine started')
@@ -905,17 +605,19 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                             logging.debug(msg)
                         getattr(self, msg['function'])(*msg['args'])
                 self.update_video_recorder()
+                self.save_during_session()
                 if hasattr(self, 'iscamera') and self.iscamera.isrunning:
                     self.iscamera.save()
                     if len(self.iscamera.frames)>0 and len(self.iscamera.frames)%4==0:
                         self.to_gui.put({'update_closeup_image' :self.iscamera.frames[-1][::3,::3]})
-                if hasattr(self, 'parameters'):#At startup parameters may not be immediately available
-                    if self.enable_speed_update:
-                        self.run_stop_event_detector()
-                        self.update_speed_values()
-                    self.update_plot()
-                    self.periodic_save()
-                    self.run_protocol()
+                #Run backup
+                t=datetime.datetime.fromtimestamp(self.last_run)
+                if not self.session_ongoing and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+                    if os.path.exists(self.logfile_path) and self.last_run-os.path.getmtime(self.logfile_path)>self.machine_config.BACKUP_LOG_TIMEOUT*60:
+                        self.backup(confirmation=False)
+                if self.session_ongoing and self.last_run-self.session_start_time>self.machine_config.SESSION_TIMEOUT*60:
+                    logging.info('Automatically stopping session after {0} minutes'.format(self.machine_config.SESSION_TIMEOUT))
+                    self.stop_session()
             except:
                 logging.error(traceback.format_exc())
                 self.save_context()
@@ -927,9 +629,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if self.session_ongoing:
             self.stop_session()
         self.close_video_recorder()
-        self.speed_reader_q.put('terminate')
-        self.speed_reader.join()
         self.save_context()
+        self.serialport.close()
         logging.info('Engine terminated')
         
     def recalculate_stat(self,folder):
@@ -973,7 +674,7 @@ class Behavioral(gui.SimpleAppWindow):
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
-        self.engine=BehavioralEngine(self.machine_config)
+        self.engine=BehavioralEngine(self.machine_config,logfile_path=self.logfile)
         self.engine.start()
         self.to_engine=self.engine.from_gui
         self.from_engine=self.engine.to_gui
@@ -991,34 +692,26 @@ class Behavioral(gui.SimpleAppWindow):
         self.setCentralWidget(self.cw)#Setting it as a central widget
         protocol_names=get_protocol_names()
         protocol_names_sorted=[pn for pn in self.machine_config.PROTOCOL_ORDER if pn in protocol_names]
+        protocol_names_sorted.insert(0,'Random Selection Hitmiss Lick')
         self.params_config=[
-                            {'name': 'General', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
-                                {'name': 'Save Period', 'type': 'float', 'value': 100.0,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Enable Periodic Save', 'type': 'bool', 'value': True},
-                                {'name': 'Move Threshold', 'type': 'float', 'value': 0.05,'suffix': 'm/s'},
-                                {'name': 'Run Threshold', 'type': 'float', 'value': 50.0, 'suffix': '%'},
-                                {'name': 'Best Success Rate Over Number Of Stimulus', 'type': 'int', 'value': 30},
-                            ]},
-                            {'name': 'Show...', 'type': 'group', 'expanded' : True, 'children': [
-                                {'name': 'Run Events Trace', 'type': 'bool', 'value': True},
-                                {'name': 'Stop Events Trace', 'type': 'bool', 'value': True},
-                                {'name': 'Reward Trace', 'type': 'bool', 'value': False},
-                                {'name': 'Airpuff Trace', 'type': 'bool', 'value': False},
-                                {'name': 'Stimulus Trace', 'type': 'bool', 'value': False},
-                                {'name': 'Force Run Trace', 'type': 'bool', 'value': False},
-                                ]},
-                            {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
-                                {'name': 'Pulse Duration', 'type': 'float', 'value': 0.1,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Stimulus Channel', 'type': 'list', 'values': ['led','laser']},
+                                {'name': 'Pulse Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 ]},
+#                            {'name': 'Lick Detection', 'type': 'group', 'expanded' : True, 'children': [
+#                                {'name': 'Voltage Threshold', 'type': 'float', 'value': 0.25,'siPrefix': True, 'suffix': 'V'},
+#                                {'name': 'Min Lick Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
+#                                {'name': 'Max Lick Duration', 'type': 'float', 'value': 100e-3,'siPrefix': True, 'suffix': 's'},
+#                                {'name': 'Mean Voltage Threshold', 'type': 'float', 'value': 0.07,'siPrefix': True, 'suffix': 'V'},
+#                                ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
+                                #{'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
-                                {'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
-                                {'name': 'Enable Fan', 'type': 'bool', 'value': False},
+                                #{'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
+                                {'name': 'Enable Lick Simulation', 'type': 'bool', 'value': False},
+                                {'name': 'Histogram bin size', 'type': 'float', 'value': 50e-3, 'siPrefix': True, 'suffix': 's'},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):
@@ -1034,22 +727,17 @@ class Behavioral(gui.SimpleAppWindow):
         self.parameter_changed()
         self.add_dockwidget(self.paramw, 'Parameters', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea)
         
-        self.plotnames=['events', 'success_rate', 'animal_weight',  'reward_volume']
+        self.plotnames=['events', 'animal_weight']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
-        self.plots.reward_volume.plot.setLabels(left='volume [l]')
         self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
-        self.plots.success_rate.setToolTip('''Displays success rate of days or a specific day depending on what is selected in Files tab.
-        A day summary is shown if a specific recording day is selected. If animal is selected, a summary for each day is plotted
-        ''')
-        self.plots.success_rate.plot.setLabels(left='%')
         self.plots.tab.setMinimumWidth(self.machine_config.PLOT_WIDGET_WIDTH)
         self.plots.tab.setFixedHeight(self.machine_config.BOTTOM_WIDGET_HEIGHT)
         for pn in self.plotnames:
             getattr(self.plots, pn).setMinimumWidth(self.plots.tab.width()-50)
         self.add_dockwidget(self.plots, 'Plots', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea)
         
-        toolbar_buttons = ['record', 'stop', 'select_data_folder','add_animal', 'add_animal_weight', 'remove_last_animal_weight', 'edit_protocol', 'show_animal_statistics', 'exit']
+        toolbar_buttons = ['record', 'stop', 'select_data_folder','new_animal', 'add_animal_weight', 'remove_last_animal_weight', 'edit_protocol', 'show_animal_statistics', 'show_global_analysis', 'convert_folder', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -1094,21 +782,19 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('update_events_plot'):
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
-                if tn =='speed':
-                    plotparams.append({'name': tn, 'pen':(0,0,0)})
+                if tn =='lick raw':
+                    plotparams.append({'name': tn, 'pen':(0, 255,0)})
                 elif tn=='reward':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (0,255,0,150)})
-                elif tn=='airpuff':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (255,0,0,150)})
-                elif tn=='stimulus':
                     plotparams.append({'name': tn, 'pen':(0,0,255)})
-                elif tn=='run':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (128,128,128,150)})
-                elif tn=='stop':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':10, 'symbolBrush': (0,128,0,150)})
-                elif tn=='forcerun':
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':12, 'symbolBrush': (128,0,0,150)})
+                elif tn=='licks':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0, 255,0,150)})
+                elif tn=='stimulus':
+                    plotparams.append({'name': tn, 'pen':(255,0,0)})
+                elif tn=='protocol/debug':
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0,0,0,150)})
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
+            tmax=max([x.max() for x in msg['update_events_plot']['x']])
+            self.plots.events.plot.setXRange(0,tmax)
         elif msg.has_key('ask4confirmation'):
             reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             self.to_engine.put(reply == QtGui.QMessageBox.Yes)
@@ -1116,8 +802,6 @@ class Behavioral(gui.SimpleAppWindow):
             self.cw.set_state(msg['set_recording_state'])
         elif msg.has_key('switch2_event_plot'):
             self.plots.tab.setCurrentIndex(0)
-        elif msg.has_key('set_live_state'):
-            self.cw.live_speed.input.setCheckState(msg['set_live_state'])
         elif msg.has_key('set_events_title'):
             self.plots.events.plot.setTitle(msg['set_events_title'])
         elif msg.has_key('update_protocol_description'):
@@ -1126,15 +810,20 @@ class Behavioral(gui.SimpleAppWindow):
             plotparams=[]
             if msg['update_success_rate_plot'].has_key('scatter') and msg['update_success_rate_plot']['scatter']:
                 alpha=100
-                colors=[(0,0,0,alpha), (255,0,0,alpha), (0,255,0,alpha),(0,0,255,alpha), (255,255,0,alpha), (0,255,255,alpha), (255,255,0,alpha),(128,255,255,alpha)]
+                colors_=[(0,0,0,alpha), (255,0,0,alpha), (0,255,0,alpha),(0,0,255,alpha), (255,255,0,alpha), (0,255,255,alpha), (255,255,0,alpha),(128,255,255,alpha)]
                 color_i=0
                 for tn in msg['update_success_rate_plot']['trace_names']:
-                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':7, 'symbolBrush': colors[color_i]})
+                    plotparams.append({'name': tn, 'pen':None, 'symbol':'o', 'symbolSize':7, 'symbolBrush': colors_[color_i]})
                     color_i+=1
             else:
                 for tn in msg['update_success_rate_plot']['trace_names']:
                     if tn =='success_rate':
-                        plotparams.append({'name': tn, 'pen':(0,0,0), 'symbol':'o', 'symbolSize':6, 'symbolBrush': (0,0,0)})
+                        plotparams.append({'name': tn, 'pen':(255,0,0), 'symbol':'o', 'symbolSize':3, 'symbolBrush': (200,0,0)})
+                    elif tn=='nlicks':
+                        plotparams.append({'name': tn, 'pen':(0,0,0)})
+                    elif tn=='successful_licks':
+                        plotparams.append({'name': tn, 'pen':(0,255,0)})
+                        
             self.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
             if msg['update_success_rate_plot'].has_key('vertical_lines') and msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
                 self.plots.success_rate.add_linear_region(msg['update_success_rate_plot']['vertical_lines'],color=(0,0,0,20))
@@ -1145,9 +834,39 @@ class Behavioral(gui.SimpleAppWindow):
         elif msg.has_key('show_animal_statistics'):
             if hasattr(self, 'asp'):
                 del self.asp
-            self.asp = AnimalStatisticsPlots(self, *msg['show_animal_statistics'])
+            self.asp = AnimalStatisticsPlots(self, msg['show_animal_statistics'])
         elif msg.has_key('update_reward_volume_plot'):
-            self.plots.reward_volume.update_curve(msg['update_reward_volume_plot']['x'], msg['update_reward_volume_plot']['y'])
+            pass
+        elif msg.has_key('show_global_statistics'):
+            gs=msg['show_global_statistics']
+            self.w=QtGui.QWidget()
+            self.w.setWindowIcon(gui.get_icon('behav'))
+            self.w.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],self.machine_config.SCREEN_SIZE[0],self.machine_config.SCREEN_SIZE[1])
+            self.w.setWindowTitle('Summary of '+gs.folder + ' '+gs.protocol)
+            self.w.p=gui.Plot(self.w)
+            pp={ 'symbol':'o', 'symbolSize':8, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}
+            pps=[]
+            ci=0
+            for ln in gs.animal_success_rate.keys():
+                pps.append(copy.deepcopy(pp))
+                color_=numpy.array(colors.get_color(ci))*255
+                ci+=1
+                pps[-1]['name']=ln
+                pps[-1]['pen']=(color_[0],color_[1],color_[2],128)
+                pps[-1]['symbolBrush']=(color_[0],color_[1],color_[2],128)
+            x=[tr[0] for tr in gs.animal_success_rate.values()]
+            xconverted=[]
+            for xi in x:
+                if len(xi)==0: continue
+                xconverted.append([utils.datestring2timestamp(xii,format='%Y%m%d')/86400 for xii in xi])
+                xconverted[-1]=numpy.array(xconverted[-1])-xconverted[-1][0]
+            y=[tr[1]*100 for tr in gs.animal_success_rate.values()]
+            self.w.p.update_curves(xconverted,y,plotparams=pps)
+            self.w.p.plot.setLabels(left='success rate [%]',bottom='day')
+            self.w.l = QtGui.QGridLayout()
+            self.w.l.addWidget(self.w.p, 0,0, 1, 1)
+            self.w.setLayout(self.w.l)
+            self.w.show()
         
     def update_statusbar(self,msg=''):
         '''
@@ -1178,11 +897,11 @@ class Behavioral(gui.SimpleAppWindow):
         self.cw.filebrowserw.set_root(self.engine.datafolder)
         self.update_statusbar()
         
-    def add_animal_action(self):
+    def new_animal_action(self):
         text, ok = QtGui.QInputDialog.getText(self, 'Add Animal', 
             'Enter animal name:')
         if ok:
-            self.to_engine.put({'function': 'add_animal','args':[str(text)]})
+            self.to_engine.put({'function': 'new_animal','args':[str(text)]})
             
     def add_animal_weight_action(self):
         self.aw=AddAnimalWeightDialog(self.to_engine)
@@ -1195,8 +914,16 @@ class Behavioral(gui.SimpleAppWindow):
     def show_animal_statistics_action(self):
         self.to_engine.put({'function': 'show_animal_statistics','args':[]})
         
+    def show_global_analysis_action(self):
+        self.to_engine.put({'function': 'show_global_analysis','args':[]})
+        
     def edit_protocol_action(self):
         self.to_engine.put({'function': 'edit_protocol','args':[]})
+        
+    def convert_folder_action(self):
+        folder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
+        self.to_engine.put({'function': 'convert_folder','args':[folder]})
+
         
     def exit_action(self):
         if hasattr(self,'asp'):
@@ -1228,9 +955,6 @@ class CWidget(QtGui.QWidget):
         self.main_tab.setTabPosition(self.main_tab.South)
         self.main_tab.setMinimumHeight(290)
         self.main_tab.setMinimumWidth(700)
-        self.live_speed=gui.LabeledCheckBox(self,'Live Speed')
-        self.live_speed.input.setCheckState(2)
-        self.connect(self.live_speed.input, QtCore.SIGNAL('stateChanged(int)'),  self.live_event_udpate_clicked)
         self.state=QtGui.QPushButton('Idle', parent=self)
         self.state.setMinimumWidth(100)
         self.state.setEnabled(False)
@@ -1238,7 +962,6 @@ class CWidget(QtGui.QWidget):
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.main_tab, 0, 0, 2, 4)
         self.l.addWidget(self.state, 2, 0, 1, 1)
-        self.l.addWidget(self.live_speed, 2, 1, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(3,20)
         self.l.setRowStretch(3,20)
@@ -1250,13 +973,9 @@ class CWidget(QtGui.QWidget):
         elif state=='idle':
             self.state.setStyleSheet('QPushButton {background-color: gray; color: black;}')
         
-        
-    def live_event_udpate_clicked(self,state):
-        self.parent().to_engine.put({'function':'set_speed_update','args':[state==2]})
-        
 class FileBrowserW(gui.FileTree):
     def __init__(self,parent):
-        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['mat','hdf5', 'avi'])
+        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['*.mat','*.hdf5', '*.avi'])
         self.doubleClicked.connect(self.open_file)
         self.clicked.connect(self.file_selected)
         
@@ -1285,42 +1004,29 @@ class LowLevelDebugW(QtGui.QWidget):
     def __init__(self,parent):
         QtGui.QWidget.__init__(self,parent)
         self.parent=parent
-        valve_names=['water', 'air']
+        valve_names=['water']
         self.valves={}
         for vn in valve_names:
             self.valves[vn]=gui.LabeledCheckBox(self,'Open {0} Valve'.format(vn.capitalize()))
             self.valves[vn].setToolTip('When checked, the valve is open')
-        self.fan=gui.LabeledCheckBox(self,'Fan on/off')
         self.connect(self.valves['water'].input, QtCore.SIGNAL('stateChanged(int)'),  self.water_valve_clicked)
-        self.connect(self.valves['air'].input, QtCore.SIGNAL('stateChanged(int)'),  self.air_valve_clicked)
-        self.connect(self.fan.input, QtCore.SIGNAL('stateChanged(int)'),  self.fan_clicked)
-        self.airpuff=QtGui.QPushButton('Air Puff', parent=self)
-        self.connect(self.airpuff, QtCore.SIGNAL('clicked()'), self.airpuff_clicked)
         self.reward=QtGui.QPushButton('Reward', parent=self)
         self.connect(self.reward, QtCore.SIGNAL('clicked()'), self.reward_clicked)
         self.stimulate=QtGui.QPushButton('Stimulate', parent=self)
         self.connect(self.stimulate, QtCore.SIGNAL('clicked()'), self.stimulate_clicked)
-        self.forcerun=QtGui.QPushButton('Force Run', parent=self)
-        self.connect(self.forcerun, QtCore.SIGNAL('clicked()'), self.forcerun_clicked)
         self.rewardx100=QtGui.QPushButton('100 x Reward', parent=self)
         self.connect(self.rewardx100, QtCore.SIGNAL('clicked()'), self.rewardx100_clicked)
+        self.backup=QtGui.QPushButton('Backup datafiles', parent=self)
+        self.connect(self.backup, QtCore.SIGNAL('clicked()'), self.backup_clicked)
         self.l = QtGui.QGridLayout()
         [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
-        self.l.addWidget(self.fan, 0, i+1, 1, 1)
         self.l.addWidget(self.reward, 1, 0, 1, 1)
-        self.l.addWidget(self.airpuff, 1, 1, 1, 1)
         self.l.addWidget(self.stimulate, 2, 0, 1, 1)
-        self.l.addWidget(self.forcerun, 2, 1, 1, 1)
         self.l.addWidget(self.rewardx100, 3, 0, 1, 1)
+        self.l.addWidget(self.backup, 4, 0, 1, 1)
         self.setLayout(self.l)
         self.l.setColumnStretch(2,20)
         self.l.setRowStretch(3,20)
-        
-    def forcerun_clicked(self):
-        self.parent.parent().to_engine.put({'function':'forcerun','args':[1]})
-    
-    def airpuff_clicked(self):
-        self.parent.parent().to_engine.put({'function':'airpuff','args':[]})
         
     def reward_clicked(self):
         self.parent.parent().to_engine.put({'function':'reward','args':[]})
@@ -1328,18 +1034,14 @@ class LowLevelDebugW(QtGui.QWidget):
     def rewardx100_clicked(self):
         self.parent.parent().to_engine.put({'function':'rewardx100','args':[]})
             
-    
     def stimulate_clicked(self):
         self.parent.parent().to_engine.put({'function':'stimulate','args':[]})
     
-    def air_valve_clicked(self,state):
-        self.parent.parent().to_engine.put({'function':'set_valve','args':['air', state==2]})
-        
     def water_valve_clicked(self,state):
         self.parent.parent().to_engine.put({'function':'set_valve','args':['water', state==2]})
         
-    def fan_clicked(self,state):
-        self.parent.parent().to_engine.put({'function':'set_fan','args':[state==2]})
+    def backup_clicked(self):
+        self.parent.parent().to_engine.put({'function':'backup','args':[]})
         
 class AddAnimalWeightDialog(QtGui.QWidget):
     '''
@@ -1385,28 +1087,62 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         
     def cancel_clicked(self):
         self.close()
-        
+
 class AnimalStatisticsPlots(QtGui.QTabWidget):
-    def __init__(self, parent, data, animal_name, best):
+    def __init__(self, parent, analysis):
         QtGui.QTabWidget.__init__(self)
         self.setWindowIcon(gui.get_icon('behav'))
         gui.set_win_icon()
         self.machine_config=parent.machine_config
         self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
-        self.setWindowTitle('Summary of '+animal_name)
+        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder)+' '+analysis.protocol+ ' ' + str(analysis.filter))
         self.setTabPosition(self.North)
-        self.pages=[]
-        for i in range(len(data)):
-            self.pages.append(PlotPage(data[i],self))
-            self.addTab(self.pages[-1],str(i))
-        if best['x'].shape[0]>0:
-            self.best=gui.Plot(self)
-            pp=[{'pen':None, 'symbol':'o', 'symbolSize':12, 'symbolBrush': (128,255,0,128)}]
-            self.best.update_curves([best['x']],[best['y']], plotparams=pp)
-            self.best.plot.setLabels(left='success rate [%]', bottom='time [days]')
-            self.best.plot.setTitle('StimStopReward')
-            self.addTab(self.best,'Best success rate over {0} stimulus'.format(best['n']))
+        pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}]
+        days=numpy.array([utils.datestring2timestamp(d,format='%Y%m%d')/86400 for d in analysis.days])
+        days-=days[0]
+        axis=gui.TimeAxisItemYYMMDD(orientation='bottom')
+        axis.year=int(analysis.days[0][:4])
+        axis.month=int(analysis.days[0][4:6])
+        axis.day=int(analysis.days[0][6:])
+        success_rate_plot=gui.Plot(self,axisItems={'bottom': axis})
+        pps=[copy.deepcopy(pp[0]),copy.deepcopy(pp[0])]
+        pps[0]['name']='Success rate'
+        pps[1]['name']='Lick success rate'
+        pps[1]['symbolBrush']=(255,50,0,128)
+        pps[1]['pen']=(255,50,0,128)
+        success_rate_plot.update_curves(2*[days],[analysis.success_rates*100,analysis.lick_success_rates *100],plotparams=pps)
+        success_rate_plot.plot.setLabels(left='success rate [%]')
+        self.addTab(success_rate_plot,'Success rate')
+        lick_latency_histogram_plot=self.histograms(analysis.lick_latency_histogram)
+        reward_latency_histogram_plot=self.histograms(analysis.reward_latency_histogram)
+        lick_times_histogram_plot=self.histograms(analysis.lick_times_histogram)
+        self.addTab(lick_latency_histogram_plot,'Lick latencies')
+        self.addTab(reward_latency_histogram_plot,'Reward latencies')
+        self.addTab(lick_times_histogram_plot,'Lick times')
         self.show()
+        
+    def histograms(self,hist):
+        histw=QtGui.QWidget()
+        histw.plots=[]
+        histw.l = QtGui.QGridLayout()
+        bins=hist[0]
+        if bins is None or bins.shape[0]==0:
+            return histw
+        days=hist[1].keys()
+        days.sort()
+        ct=0
+        ymax=max(map(max,hist[1].values()))
+        for d in days:
+            histw.plots.append(gui.Plot(histw))
+            histw.plots[-1].plot.setTitle(d)
+            histw.plots[-1].update_curve(bins,hist[1][d], plotparams={'fillLevel':-0.3, 'brush': (50,50,128,100)})
+            histw.plots[-1].plot.setLabels(left='occurence', bottom='dt [ms]')
+            histw.plots[-1].plot.setYRange(0, ymax)
+            histw.l.addWidget(histw.plots[-1], ct/2, ct%2, 1, 1)
+            ct+=1
+        histw.setLayout(histw.l)
+        return histw
+        
         
 class PlotPage(QtGui.QWidget):
     '''
@@ -1543,7 +1279,7 @@ class TestBehavEngine(unittest.TestCase):
 
 if __name__ == '__main__':
     if len(sys.argv)>1:
-        if not ('BehavioralSetup' in sys.argv):
+        if ('BehavioralSetup' in sys.argv[1]):
             introspect.kill_other_python_processes()
             #Check number of python processes
             if len(introspect.get_python_processes())>1:

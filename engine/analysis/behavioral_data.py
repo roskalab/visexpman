@@ -489,9 +489,10 @@ class HitmissAnalysis(object):
         Multiple animals:
             aggregate success rate at each day to a single plot, different curve for each animal
     '''
-    def __init__(self,folder,histogram_bin_time=20e-3, protocol='HitMiss'):
+    def __init__(self,folder,histogram_bin_time=20e-3, protocol='HitMiss', filter={}):
         self.protocol=protocol
         self.folder=folder
+        self.filter=filter
         self.histogram_bin_time=histogram_bin_time*1e3
         items_in_folder=fileop.listdir_fullpath(folder)
         nsubfolders=len([f for f in items_in_folder if os.path.isdir(f)])
@@ -507,7 +508,7 @@ class HitmissAnalysis(object):
             self.analysis_type='all'
             self.all_animals()
         else:
-            raise RuntimeError('Unknown analysis')
+            raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}'.format(nfiles, nitems, nsubfolders))
         
     def day_analysis(self,folder=None):
         if isinstance(folder,str) and os.path.exists(folder):
@@ -536,6 +537,9 @@ class HitmissAnalysis(object):
                     stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
                     h.stat=stat
                     h.save('stat')
+                if self.filter.has_key('voltage') and h.findvar('protocol')['LASER_INTENSITY'] != self.filter['voltage']:
+                    h.close()
+                    continue
                 h.close()
                 self.nhits+=stat['result']
                 self.nsuccesfullicks+=stat['lick_result']
