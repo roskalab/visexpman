@@ -15,7 +15,7 @@ import time,datetime
 import StringIO
 from PIL import Image,ImageDraw
 
-from pylab import show,plot,imshow,figure,title,subplot
+from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,gca,Rectangle
 
 from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
 from visexpman.engine import generic
@@ -26,8 +26,6 @@ except ImportError:
     print 'hdf5io not installed'
     hdf5io_available=False
     
-
-import unittest
 
 #### Recording filename handling ####
 
@@ -238,11 +236,60 @@ if hdf5io_available:
                 if not hasattr(self, 'raw_data'):
                     self.load('raw_data')
                 if not hasattr(self, 'image_scale'):
-                    self.meanimage, self.image_scale = get_imagedata(self)
+                    self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
                 #um/pixel to dpi
                 dpi = 1.0/self.image_scale*25.4e3
                 self.outfile = fileop.get_convert_filename(self.filename, 'tif')
                 tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+            elif format == 'rois':
+                output_folder=os.path.join(os.path.dirname(self.filename), 'output', os.path.basename(self.filename))
+                if not os.path.exists(output_folder):
+                    os.makedirs(output_folder)
+                if not hasattr(self, 'raw_data'):
+                    self.load('raw_data')
+                if not hasattr(self, 'image_scale'):
+                    self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
+                #um/pixel to dpi
+                dpi = 1.0/self.image_scale*25.4e3
+                #mip
+                mip2image=numpy.zeros((self.meanimage.shape[0],self.meanimage.shape[1],3), self.raw_data.dtype)
+                mip2image[:,:,1]=numpy.cast[self.raw_data.dtype.name](self.meanimage)
+                import tifffile
+                tifffile.imsave(os.path.join(output_folder, 'mip.tif'), mip2image,resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+                #mip with rois, roi curves
+                self.load('rois')
+                if hasattr(self, 'rois'):
+                    from PIL import ImageFont
+                    font = ImageFont.truetype("arial.ttf", 15)
+                    rescale_factor=5/max(mip2image.shape)+1
+                    new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
+                    mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
+                    mip2image_with_rectanglesd=ImageDraw.Draw(mip2image_with_rectangles)
+                    mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
+                    mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
+                    for i in range(len(self.rois)):
+                        roi =self.rois[i]
+                        rect=numpy.cast['int'](numpy.array(roi['rectangle'])*rescale_factor)
+                        p1=(rect[1]-rect[3], rect[0]-rect[2])
+                        p2=(rect[1]+rect[3], rect[0]+rect[2])
+                        mip2image_with_rectanglesd.rectangle([p1,p2], outline=(0,0,255))
+                        mip2image_with_rectangles_and_indexesd.rectangle([p1,p2], outline=(0,0,255))
+                        mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
+                        cla()
+                        clf()
+                        title('{0}/{1}'.format(os.path.basename(self.filename), i))
+                        plot(roi['timg'], roi['raw'])
+                        xlabel('time [s]')
+                        for rect in range(roi['tsync'].shape[0]/2):
+                            w=roi['tsync'][2*rect+1]-roi['tsync'][2*rect]
+                            h=roi['raw'].max()-roi['raw'].min()
+                            gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.1, color=(0.9, 0.9, 0.9)))
+                            #TODO: Continue here: save traces to csv
+                        savefig(os.path.join(output_folder, '{0}.eps'.format(i)))
+                    mip2image_with_rectangles_and_indexes.save(os.path.join(output_folder, 'rois_and_indexes.png'))
+                    mip2image_with_rectangles.save(os.path.join(output_folder, 'rois.png'))
+                    pass
+                    
             elif format == 'mp4':
                 imgarray = self.rawdata2images()
                 framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
@@ -428,7 +475,8 @@ def get_imagedata(h, image_function='mean'):
 #            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
 #        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
 #            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
-        
+    if not hasattr(h, 'configs_stim'):
+        h.load('configs_stim')
     if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical' and 0:
         meanimage=meanimage[:2*meanimage.shape[0]/int(h.parameters['nrois']),:]
     if h_opened:
@@ -1112,6 +1160,7 @@ class TestExperimentData(unittest.TestCase):
     def test_00_pack_swe(self):
         pack_software_environment()
     
+    @unittest.skip("")
     def test_00_rlvivobackup(self):
         from visexpman.engine.generic import introspect
         user='default_user'
@@ -1215,7 +1264,7 @@ class TestExperimentData(unittest.TestCase):
         fn='/home/rz/codes/data/recfield/fragment_xy_tr_0_0_0.0_ReceptiveFieldExploreNew_1424256866_0.hdf5'
         get_data_timing(fn)
         
-    
+    @unittest.skip("")
     def test_08_cell_detection(self):
         files = fileop.find_files_and_folders('/mnt/rzws/dataslow/rei_data_c')[1]
         from skimage import filter
@@ -1267,16 +1316,19 @@ class TestExperimentData(unittest.TestCase):
         h.prepare4analysis()
         h.close()
         
+    #@unittest.skip("")
     def test_11_caimgfile_convert(self):
-        h=CaImagingData('/tmp/20150401/data_C195_spot_131112760_0.hdf5',filelocking=False)
+        h=CaImagingData('/home/rz/mysoftware/data/mipexport/data_707-18daypostinfect-animal1-slice1-region8_rep3_1sStim_LedConfig_201702241318216.hdf5')
         h.convert('png')
-        h.convert('tif')
-        h.convert('mp4')
+        h.convert('rois')
+        #h.convert('mp4')
         h.close()
         
+    @unittest.skip("")
     def test_12_gamma(self):
         gammatext2hdf5('/tmp/g.txt')
         
+    @unittest.skip("")
     def test_13_y(self):
         from visexpman.users.test import unittest_aggregator
         f =  fileop.listdir_fullpath(unittest_aggregator.prepare_test_data('yscanner', '/tmp/wf'))[0]
