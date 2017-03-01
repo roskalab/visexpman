@@ -1113,6 +1113,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         success_rate_plot.update_curves(2*[days],[analysis.success_rates*100,analysis.lick_success_rates *100],plotparams=pps)
         success_rate_plot.plot.setLabels(left='success rate [%]')
         self.addTab(success_rate_plot,'Success rate')
+        self.analysis=analysis
         lick_latency_histogram_plot=self.histograms(analysis.lick_latency_histogram)
         reward_latency_histogram_plot=self.histograms(analysis.reward_latency_histogram)
         lick_times_histogram_plot=self.histograms(analysis.lick_times_histogram)
@@ -1135,7 +1136,11 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         for d in days:
             histw.plots.append(gui.Plot(histw))
             histw.plots[-1].plot.setTitle(d)
-            histw.plots[-1].update_curve(bins,hist[1][d], plotparams={'fillLevel':-0.3, 'brush': (50,50,128,100)})
+            if bins.shape[0]==1 or hist[1][d].sum()==0:
+                pp={'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,50,128,100)}
+            else:
+                pp={'fillLevel':-0.01, 'brush': (50,50,128,100)}
+            histw.plots[-1].update_curve(bins,hist[1][d], plotparams=pp)
             histw.plots[-1].plot.setLabels(left='occurence', bottom='dt [ms]')
             histw.plots[-1].plot.setYRange(0, ymax)
             histw.l.addWidget(histw.plots[-1], ct/2, ct%2, 1, 1)

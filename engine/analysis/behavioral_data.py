@@ -619,9 +619,9 @@ class HitmissAnalysis(object):
         hist={}
         for k,v in data.items():
             if bins.shape[0]==1:
-                hist[k]=v.shape[0]
+                hist[k]=numpy.array([v.shape[0]])
             elif bins.shape[0]==0:
-                hist[k]=0
+                hist[k]=numpy.array([0])
             else:
                 hist[k]=numpy.histogram(v,bins)[0]
         if bins.shape[0]>1:
