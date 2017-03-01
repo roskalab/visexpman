@@ -15,7 +15,7 @@ import time,datetime
 import StringIO
 from PIL import Image,ImageDraw
 
-from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,gca,Rectangle
+from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 
 from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
 from visexpman.engine import generic
@@ -267,6 +267,9 @@ if hdf5io_available:
                     mip2image_with_rectanglesd=ImageDraw.Draw(mip2image_with_rectangles)
                     mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
                     mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
+                    csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '.csv'))
+                    txtlines=['tstim,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['tsync'],2))))]
+                    txtlines.append('timg,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['timg'],2)))))
                     for i in range(len(self.rois)):
                         roi =self.rois[i]
                         rect=numpy.cast['int'](numpy.array(roi['rectangle'])*rescale_factor)
@@ -277,15 +280,19 @@ if hdf5io_available:
                         mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
                         cla()
                         clf()
-                        title('{0}/{1}'.format(os.path.basename(self.filename), i))
+                        name=os.path.basename(self.filename).split('_')[1]
+                        stimname=os.path.basename(self.filename).split('_')[-2]
+                        title('{0}\n{1}'.format(name, stimname))
                         plot(roi['timg'], roi['raw'])
                         xlabel('time [s]')
+                        ylabel('raw pixel')
                         for rect in range(roi['tsync'].shape[0]/2):
                             w=roi['tsync'][2*rect+1]-roi['tsync'][2*rect]
                             h=roi['raw'].max()-roi['raw'].min()
-                            gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.1, color=(0.9, 0.9, 0.9)))
-                            #TODO: Continue here: save traces to csv
+                            gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
                         savefig(os.path.join(output_folder, '{0}.eps'.format(i)))
+                        txtlines.append('roi{0},{1}'.format(i,','.join(map(str, numpy.round(roi['raw'],2)))))
+                    fileop.write_text_file(csvfn, '\r\n'.join(txtlines))
                     mip2image_with_rectangles_and_indexes.save(os.path.join(output_folder, 'rois_and_indexes.png'))
                     mip2image_with_rectangles.save(os.path.join(output_folder, 'rois.png'))
                     pass
