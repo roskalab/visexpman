@@ -785,7 +785,8 @@ def download_folder(server, user, src,dst,port=22,password=None):
     zip_ref.close()
     sftp.close()
     ssh.close()
-    #os.remove(localzip)
+    os.remove(localzip)
+    
     
 ################# End of functions ####################  
 
