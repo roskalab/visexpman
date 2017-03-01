@@ -509,7 +509,7 @@ class HitmissAnalysis(object):
         else:
             raise RuntimeError('Unknown analysis')
         
-    def day_analysis(self,folder=None):
+    def day_analysis(self,folder=None, filter=None):
         if isinstance(folder,str) and os.path.exists(folder):
             self.alldatafiles=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
         else:
