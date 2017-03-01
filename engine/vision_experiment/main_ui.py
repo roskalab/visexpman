@@ -438,7 +438,7 @@ class MainUI(gui.VisexpmanMainWindow):
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
-            self.image = Image(self)
+            self.image = Image(self,roi_diameter=self.machine_config.DEFAULT_ROI_SIZE_ON_GUI)
             #self.image.setFixedHeight(480)
             #self.image.setFixedWidth(480)
             self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
@@ -529,6 +529,9 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.printc('Displaying {0} rois'.format(len(msg['display_roi_rectangles'])))
             elif msg.has_key('display_roi_curve'):
                 timg, curve, index, tsync,options = msg['display_roi_curve']
+                self.timg=timg
+                self.curve=curve
+                self.tsync=tsync
                 #Highlight roi
                 self.image.highlight_roi(index)
                 if isinstance(timg, list) and isinstance(curve, list):

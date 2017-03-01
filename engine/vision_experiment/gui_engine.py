@@ -335,6 +335,11 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 shutil.copy(self.daqdatafile.filename,fn)
+                if self.santiago_setup:
+                    #Make a local copy of sync file
+                    localfn=os.path.join('c:\\Data\\santiago-setup', os.path.basename(fn))
+                    shutil.copy(self.daqdatafile.filename, localfn)
+                    self.printc('Local copy saved to {0}'.format(localfn))
                 try:
                     os.remove(self.daqdatafile.filename)
                 except:
@@ -351,11 +356,11 @@ class ExperimentHandler(object):
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
-                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if os.path.isdir(os.path.join(current_folder, fi))]
+                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if fi != 'output' and os.path.isdir(os.path.join(current_folder, fi))]
                 try:
                     [shutil.rmtree(f) for f in folders]
                 except:
-                    pass    
+                    pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 return
@@ -497,6 +502,8 @@ class Analysis(object):
                 del self.reference_roi_filename
 
     def open_datafile(self,filename):
+        if self.experiment_running:
+            return
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
@@ -865,6 +872,17 @@ class Analysis(object):
         else:
             self.datafile.save(['rois'], overwrite=True)
         self.datafile.convert(self.guidata.read('Save File Format'))
+        if self.santiago_setup and 0:
+            outdir=os.path.join(os.path.dirname(self.datafile.filename),'output')
+            if not os.path.exists(outdir):
+                os.mkdir(outdir)
+            #export images
+            import tifffile
+            self.datafile.load('raw_data')
+            
+            #TODO: continue here with http://www.pyqtgraph.org/documentation/exporting.html
+            #After exporting plot to png, open it with PIL Image, remove A component from RGBA and save it as eps
+            #use LabelItem  for displaying roi indexes
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
@@ -946,7 +964,8 @@ class Analysis(object):
         mean_of_repetitions = self.guidata.mean_of_repetitions.v if hasattr(self.guidata, 'mean_of_repetitions') else False
         baseline_length = self.guidata.read('Baseline lenght')
         x=[self.timg]
-        y=[roi['normalized']]
+        key='raw' if self.santiago_setup else 'normalized'
+        y=[roi[key]]
         parameters = []
         if roi.has_key('matches'):
             for fn in roi['matches'].keys():

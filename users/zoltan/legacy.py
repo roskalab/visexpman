@@ -443,10 +443,10 @@ def merge_ca_data(folder,**kwargs):
     keep_keys=['experiment_config_name', 'stimulus_frame_info', 'generated_data', 'experiment_name', 'experiment_source', 'config', 'software_environment']
     stimulus=dict([(k, stimulus[k]) for k in keep_keys])#!!!!
     #Imaging data
-    #try:
-    imaging_folder=[os.path.join(folder,f) for f in files if os.path.isdir(os.path.join(folder,f))][0]
-    #except:
-    #    raise RuntimeError('Imaging datafiles are missing')
+    try:
+        imaging_folder=[os.path.join(folder,f) for f in files if os.path.isdir(os.path.join(folder,f))][0]
+    except:
+        raise RuntimeError('Imaging datafiles are missing')
     recording_name=os.path.basename(imaging_folder)
     frames=[]
     while True:#Wait until all files are copied
@@ -465,6 +465,8 @@ def merge_ca_data(folder,**kwargs):
         chframes=[f for f in frames if os.path.basename(f).split('_')[-2]==channel]
         chframes.sort()
         rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
+    if (len(rawdata[0])==0 or len(rawdata[1])==0):
+        raise RuntimeError('Both channels must be recorded')
     raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))    
     raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
     #raw_data = raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)

@@ -338,7 +338,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         
         DATAFILE_COMPRESSION_LEVEL = [4, [0,9]]
         SYNC_SAMPLE_SIZE = [3, [1, 100]]
-        
+        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,40]]
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
