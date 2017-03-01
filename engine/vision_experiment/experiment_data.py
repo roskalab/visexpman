@@ -1,4 +1,4 @@
-import zipfile
+import zipfile,multiprocessing
 import io
 import os
 import os.path
@@ -17,7 +17,7 @@ from PIL import Image,ImageDraw
 
 from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 
-from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
+from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal,introspect
 from visexpman.engine import generic
 try:
     import hdf5io
@@ -255,12 +255,13 @@ if hdf5io_available:
                 mip2image=numpy.zeros((self.meanimage.shape[0],self.meanimage.shape[1],3), self.raw_data.dtype)
                 mip2image[:,:,1]=numpy.cast[self.raw_data.dtype.name](self.meanimage)
                 import tifffile
-                tifffile.imsave(os.path.join(output_folder, 'mip.tif'), mip2image,resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+                tifffile.imsave(os.path.join(output_folder, 'mip.tif'), numpy.rot90(mip2image),resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
                 #mip with rois, roi curves
                 self.load('rois')
                 if hasattr(self, 'rois'):
                     from PIL import ImageFont
-                    font = ImageFont.truetype("arial.ttf", 15)
+                    fontsize=15
+                    font = ImageFont.truetype("arial.ttf", fontsize)
                     rescale_factor=5/max(mip2image.shape)+1
                     new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
                     mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
@@ -270,6 +271,7 @@ if hdf5io_available:
                     csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '.csv'))
                     txtlines=['tstim,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['tsync'],2))))]
                     txtlines.append('timg,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['timg'],2)))))
+                    plotpars=[]
                     for i in range(len(self.rois)):
                         roi =self.rois[i]
                         rect=numpy.cast['int'](numpy.array(roi['rectangle'])*rescale_factor)
@@ -277,24 +279,19 @@ if hdf5io_available:
                         p2=(rect[1]+rect[3], rect[0]+rect[2])
                         mip2image_with_rectanglesd.rectangle([p1,p2], outline=(0,0,255))
                         mip2image_with_rectangles_and_indexesd.rectangle([p1,p2], outline=(0,0,255))
-                        mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
-                        cla()
-                        clf()
-                        name=os.path.basename(self.filename).split('_')[1]
-                        stimname=os.path.basename(self.filename).split('_')[-2]
-                        title('{0}\n{1}'.format(name, stimname))
-                        plot(roi['timg'], roi['raw'])
-                        xlabel('time [s]')
-                        ylabel('raw pixel')
-                        for rect in range(roi['tsync'].shape[0]/2):
-                            w=roi['tsync'][2*rect+1]-roi['tsync'][2*rect]
-                            h=roi['raw'].max()-roi['raw'].min()
-                            gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
-                        savefig(os.path.join(output_folder, '{0}.eps'.format(i)))
+                        txt=Image.new('L', (fontsize,fontsize))
+                        txtd=ImageDraw.Draw(txt)
+                        txtd.text((0,0),str(i), font=font, fill=255)
+                        txt=txt.rotate(-90)
+                        mip2image_with_rectangles_and_indexes.paste(txt,p1,txt)
+                        #mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
+                        plotpars.append([self.filename, os.path.join(output_folder, '{0}.eps'.format(i)), roi])
                         txtlines.append('roi{0},{1}'.format(i,','.join(map(str, numpy.round(roi['raw'],2)))))
+                    p=multiprocessing.Pool(introspect.get_available_process_cores())
+                    p.map(roi_plot, plotpars)
                     fileop.write_text_file(csvfn, '\r\n'.join(txtlines))
-                    mip2image_with_rectangles_and_indexes.save(os.path.join(output_folder, 'rois_and_indexes.png'))
-                    mip2image_with_rectangles.save(os.path.join(output_folder, 'rois.png'))
+                    mip2image_with_rectangles_and_indexes.rotate(90).save(os.path.join(output_folder, 'rois_and_indexes.png'))
+                    mip2image_with_rectangles.rotate(90).save(os.path.join(output_folder, 'rois.png'))
                     pass
                     
             elif format == 'mp4':
@@ -1444,6 +1441,22 @@ def read_sync(filename):
     sd=idnode['sync_data']
     h.close()
     return sd
+    
+def roi_plot(pars):
+    filename, outfile, roi=pars
+    cla()
+    clf()
+    name=os.path.basename(filename).split('_')[1]
+    stimname=os.path.basename(filename).split('_')[-2]
+    title('{0}\n{1}'.format(name, stimname))
+    plot(roi['timg'], roi['raw'])
+    xlabel('time [s]')
+    ylabel('raw pixel')
+    for rect in range(roi['tsync'].shape[0]/2):
+        w=roi['tsync'][2*rect+1]-roi['tsync'][2*rect]
+        h=roi['raw'].max()-roi['raw'].min()
+        gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
+    savefig(outfile)
 
 try:
     import paramiko

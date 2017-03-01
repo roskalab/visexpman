@@ -321,7 +321,6 @@ def lick_detection_folder(folder,fsample,lick_wait_time,threshold=0.25,max_width
             pass
     ids=[experiment_data.id2timestamp(experiment_data.parse_recording_filename(f)['id']) for f in fns]
     p=multiprocessing.Pool(introspect.get_available_process_cores())
-    
     res=map(lick_detection_wrapper,pars)
     output=[[ids[i], res[i][0],res[i][1], res[i][2]] for i in range(len(res))]
     return output
