@@ -243,6 +243,7 @@ if hdf5io_available:
                 tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
             elif format == 'rois':
                 output_folder=os.path.join(os.path.dirname(self.filename), 'output', os.path.basename(self.filename))
+                self.rois_output_folder=output_folder
                 if not os.path.exists(output_folder):
                     os.makedirs(output_folder)
                 if not hasattr(self, 'raw_data'):

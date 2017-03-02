@@ -500,7 +500,7 @@ def merge_ca_data(folder,**kwargs):
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
     h=hdf5io.Hdf5io(filename)
     h.recording_parameters=recording_parameters
-    h.sync_and_elphys_data = sync_and_elphys
+    h.sync= sync_and_elphys
     h.fsync=syncfile
     h.fimg=imaging_folder
     h.fstim=stimdatafile
@@ -511,7 +511,7 @@ def merge_ca_data(folder,**kwargs):
     h.configs_stim['machine_config']=machine_config['machine_config']
     h.machine_config=machine_config
     h.datatype='ca'
-    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype'])
+    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype'])
     h.close()
     return filename
     

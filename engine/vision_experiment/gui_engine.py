@@ -872,17 +872,9 @@ class Analysis(object):
         else:
             self.datafile.save(['rois'], overwrite=True)
         self.datafile.convert(self.guidata.read('Save File Format'))
-        if self.santiago_setup and 0:
-            outdir=os.path.join(os.path.dirname(self.datafile.filename),'output')
-            if not os.path.exists(outdir):
-                os.mkdir(outdir)
-            #export images
-            import tifffile
-            self.datafile.load('raw_data')
-            
-            #TODO: continue here with http://www.pyqtgraph.org/documentation/exporting.html
-            #After exporting plot to png, open it with PIL Image, remove A component from RGBA and save it as eps
-            #use LabelItem  for displaying roi indexes
+        if self.santiago_setup:
+            self.datafile.convert('rois')
+            self.printc('Roi plots are exported to {0}'.format(self.datafile.rois_output_folder))
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
