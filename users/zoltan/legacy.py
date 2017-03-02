@@ -519,7 +519,7 @@ def yscanner2sync(sig,fsample,nframes):
     indexes=numpy.where(abs(numpy.diff(sig))>0.05)[0]
     start=indexes[0]
     end=indexes[-1]
-    fft=numpy.fft.fft(sig[start:start+fsample*10 if start+fsample*10<end else end])
+    fft=numpy.fft.fft(sig[start:start+fsample*30 if start+fsample*10<end else end])
     frqs=numpy.fft.fftfreq(fft.shape[0],1.0/fsample)
     frame_rate=find_peak(frqs,abs(fft))#First peak after dc is considered as frame rate
     if 0:
@@ -555,7 +555,13 @@ def rewrite_hdf5(folder):
 
 def find_peak(frqs,fft):
     indexes=numpy.where(numpy.logical_and(frqs>0.2,frqs<30))[0]
-    return frqs[indexes][fft[indexes].argmax()]
+    selection=fft[indexes]
+    frq_selection=frqs[indexes]
+    peak_index=selection.argmax()
+    window=10
+    weight=selection[peak_index-window:peak_index+window+1]/selection[peak_index]
+    return (frq_selection[peak_index-window:peak_index+window+1]*weight).sum()/weight.sum()
+    #return frqs[indexes][fft[indexes].argmax()]
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')
@@ -573,6 +579,7 @@ class TestConverter(unittest.TestCase):
     def test_02_merge_ca_data(self):
         folder='/data/data/user/Zoltan/20160817/not enough frames'
         folder='x:\\data\\user\\Zoltan\\1'
+        folder='e:\\Zoltan\\1\\zip'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
     @unittest.skip('')  
     def test_03_yscanner_sig(self):
