@@ -1,4 +1,4 @@
-import time,tempfile
+import time,tempfile,datetime
 import scipy.io
 import copy
 import cPickle as pickle
@@ -397,7 +397,7 @@ class ExperimentHandler(object):
             self.daqdatafile.hdf5.save('machine_config')
             self.daqdatafile.close()
             
-    def run_all_iterations(self):
+    def run_always_experiment_handler(self):
         self.check_batch()
         self.eyecamera2screen()
         if self.sync_recording_started:
@@ -883,7 +883,32 @@ class Analysis(object):
             #Copy to BACKUP_PATH/user/date/filename
             dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
             self.printc('Data backed up to  {0}'.format(dst))
-            
+        
+    def backup(self):
+        if self.experiment_running:
+            self.printc('No backup during recording')
+            return
+        self.printc('Backing up logfiles')
+        from visexpman.engine import backup_manager
+        logbuconf=backup_manager.Config()
+        logbuconf.last_file_access_timeout=1
+        logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
+        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+        self.logfilebackup.run()
+        self.printc('Backing up data files')
+        for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
+            databuconf=backup_manager.Config()
+            databuconf.last_file_access_timeout=1
+            databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
+            self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+            self.datafilebackup.run()
+        self.printc('Done')
+        
+    def run_always_analysis(self):
+        t=datetime.datetime.fromtimestamp(self.last_run)
+        if not self.experiment_running and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+            if self.last_run-self.experiment_finish_time>self.machine_config.BACKUP_NO_EXPERIMENT_TIMEOUT*60:
+                self.backup()
         
     def roi_shift(self, h, v):
         if not hasattr(self, 'rois'):
@@ -1237,11 +1262,14 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     self.notify(msg['notify'][0],msg['notify'][1])
         
     def run(self):
+        run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                if hasattr(self,'run_all_iterations'):
-                    self.run_all_iterations()
+#                if hasattr(self,'run_all_iterations'):
+#                    self.run_all_iterations()
+                for fn in run_always:
+                    getattr(self, fn)()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:

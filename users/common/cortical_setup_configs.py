@@ -128,7 +128,7 @@ class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):#OBSOLETE
         ENABLE_UDP = True
         self._create_parameters_from_locals(locals())
 
-class DebugSantiagoSetupConfig(SantiagoSetupConfig):
+class DebugSantiagoSetupConfig(SantiagoSetupConfig):#OBSOLETE
     def _set_user_parameters(self):
         SantiagoSetupConfig._set_user_parameters(self)
 #        SCREEN_UM_TO_PIXEL_SCALE = 1.0
@@ -142,7 +142,10 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         FULLSCREEN = not True
-        self.root_folder = 'b:\\'#'x:\\santiago-setup'
+        self.root_folder = 'b:\\'
+        BACKUP_PATH='x:\\santiago-setup'
+        self.BACKUPTIME=3#3am
+        self.BACKUP_NO_EXPERIMENT_TIMEOUT=60#minutes
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'processed')
