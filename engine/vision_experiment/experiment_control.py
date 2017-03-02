@@ -16,6 +16,12 @@ import shutil
 import copy
 import zmq
 
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+except ImportError:
+    pass
+
 import experiment
 import experiment_data
 import visexpman.engine.generic.log as log
@@ -510,7 +516,14 @@ class ExperimentControl(object):
         '''
         All the devices are initialized here, that allow rerun like operations
         '''
-        self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
+        if self.config.DIGITAL_OUTPUT=='parallel_port':
+            self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
+        elif self.config.DIGITAL_OUTPUT=='daq':
+            self.digital_output = PyDAQmx.Task()
+            self.digital_output.CreateDOChan(self.config.FRAME_TRIGGER_LINE,
+                                                            'do',
+                                                            DAQmxConstants.DAQmx_Val_ChanPerLine)
+            self.set_trigger(0)
         self.filterwheels = []
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             self.number_of_filterwheels = len(self.config.FILTERWHEEL_SERIAL_PORT)
@@ -526,13 +539,25 @@ class ExperimentControl(object):
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
-        self.parallel_port.release_instrument()
+        if hasattr(self, 'parallel_port'):
+            self.parallel_port.release_instrument()
         if self.config.OS == 'win':
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
         self.led_controller.release_instrument()
+        if hasattr(self, 'digital_output'):
+            self.digital_output.ClearTask()
         #self.stage.release_instrument()
 
+    def set_trigger(self,state):
+        digital_values = numpy.array([int(state)], dtype=numpy.uint8)
+        self.digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    digital_values,
+                                    None,
+                                    None)
 
     ############### File handling ##################
     def _prepare_files(self):
