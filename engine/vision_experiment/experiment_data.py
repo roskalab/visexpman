@@ -248,8 +248,7 @@ if hdf5io_available:
                     os.makedirs(output_folder)
                 if not hasattr(self, 'raw_data'):
                     self.load('raw_data')
-                if not hasattr(self, 'image_scale'):
-                    self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
+                self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
                 #um/pixel to dpi
                 dpi = 1.0/self.image_scale*25.4e3
                 #mip
@@ -263,7 +262,7 @@ if hdf5io_available:
                     from PIL import ImageFont
                     fontsize=15
                     font = ImageFont.truetype("arial.ttf", fontsize)
-                    rescale_factor=5/max(mip2image.shape)+1
+                    rescale_factor=500/max(mip2image.shape)+1
                     new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
                     mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
                     mip2image_with_rectanglesd=ImageDraw.Draw(mip2image_with_rectangles)
@@ -464,7 +463,14 @@ def get_imagedata(h, image_function='mean'):
         if image_function=='mean':
             meanimage = h.raw_data.mean(axis=0)[0]
         elif image_function=='mip': 
-            meanimage = h.raw_data.max(axis=0)[0]
+            #Remove saturated frames
+            saturation_value=255 if h.raw_data.dtype.name=='uint8' else 2**16-1
+            row_means=h.raw_data.mean(axis=2)
+            indexes=[i for i in range(row_means.shape[0]) if saturation_value in row_means[i]]
+            col_means=h.raw_data.mean(axis=3)
+            indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
+            keep_frame_indexes=[i for i in range(h.raw_data.shape[0]) if i not in indexes]
+            meanimage = h.raw_data[keep_frame_indexes].max(axis=0)[0]
         h.load('recording_parameters')
         if not hasattr(h, 'recording_parameters'):
             h.load('parameters')
@@ -1323,7 +1329,9 @@ class TestExperimentData(unittest.TestCase):
         
     #@unittest.skip("")
     def test_11_caimgfile_convert(self):
-        h=CaImagingData('/home/rz/mysoftware/data/mipexport/data_707-18daypostinfect-animal1-slice1-region8_rep3_1sStim_LedConfig_201702241318216.hdf5')
+        fn='/home/rz/mysoftware/data/mipexport/data_707-18daypostinfect-animal1-slice1-region8_rep3_1sStim_LedConfig_201702241318216.hdf5'
+        fn='e:\\Zoltan\\1\\data_706-mouse1-slice1-reg1-rep1-500ms-1000mA_LedConfig_201703020938240.hdf5'
+        h=CaImagingData(fn)
         h.convert('png')
         h.convert('rois')
         #h.convert('mp4')
