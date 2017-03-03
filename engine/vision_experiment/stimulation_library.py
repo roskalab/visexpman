@@ -1364,7 +1364,7 @@ class AdvancedStimulation(StimulationHelpers):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'], kwargs['overlap'])
         return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
-    def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False):
+    def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False, random_speeds=False, random_directions=True):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
@@ -1381,7 +1381,15 @@ class AdvancedStimulation(StimulationHelpers):
         trajectory_directions = []
         trajectories = []
         nframes = 0
+
+        np.random.seed(1)
+        if random_speeds:
+            speeds = numpy.random.permutation(speeds)
+
         for spd in speeds:
+            if random_directions:
+                direction = numpy.random.permutation(direction)
+
             for direction in directions:
                 end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
                 start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
