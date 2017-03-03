@@ -42,7 +42,9 @@ class MovingShapeStimulus(experiment.Experiment):
         'SHAPE': 'rect', 
         'SHAPE_CONTRAST' : 1.0, 
         'SHAPE_BACKGROUND': 0.5, 
-        'PAUSE_BETWEEN_DIRECTIONS' : 0.0, 
+        'PAUSE_BETWEEN_DIRECTIONS' : 0.0,
+        'RANDOM_SPEEDS': False,
+        'RANDOM_DIRECTIONS': True,
         }
         self.set_default_experiment_parameter_values(parameter_default_values)
         #Calculate duration
@@ -52,7 +54,9 @@ class MovingShapeStimulus(experiment.Experiment):
                                     directions = self.experiment_config.DIRECTIONS,
                                     pause = self.pause_between_directions,
                                     repetition = self.experiment_config.REPETITIONS,
-                                    shape_starts_from_edge = True)
+                                    shape_starts_from_edge = True,
+                                    random_directions=self.experiment_config.RANDOM_DIRECTIONS,
+                                    random_speeds=self.experiment_config.RANDOM_SPEEDS)
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
     
