@@ -409,7 +409,7 @@ class ExperimentControl(object):
                     self.recording_start_time=time.time()
                     time.sleep(1.0)
                 else:
-                    self.printl('Scan start ERROR, check network connection to MES, restart experiment or rename scan region')
+                    self.printl('Scan start ERROR, make sure that MES is not recording, check network connection to MES, restart experiment or rename scan region')
             return scan_start_success
         elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high

@@ -96,7 +96,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_PIXEL_WIDTH = [477.0/1280., [0, 0.99]] # mm, screen
             gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         IMAGE_PROJECTED_ON_RETINA = False
-        FULLSCREEN =  False
+        FULLSCREEN = not False
         ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led']
     
 

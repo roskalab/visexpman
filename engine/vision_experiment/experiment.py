@@ -28,8 +28,10 @@ class ExperimentConfig(Config):
             if experiment_class == None and source_code == None:
                 expconfigs=[]
                 for u in ['common',self.machine_config.user]:
-                    expconfigs.append(utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
-                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False))
+                    expcs=utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
+                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)
+                    if len(expcs)>0:
+                        expconfigs.append(expcs)
                 self.runnable = expconfigs[0][0][1]\
                     (self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the actual stimulation
             else:
