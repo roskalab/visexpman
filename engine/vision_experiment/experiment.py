@@ -344,6 +344,13 @@ def get_experiment_duration(experiment_config_class, config, source=None):
     else:
         from visexpman.engine import ExperimentConfigError
         raise ExperimentConfigError('Stimulus duration is unknown')
+        
+def read_stimulus_parameters(stimname, filename,config):
+    source_code=fileop.read_text_file(filename)
+    introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
+    em=__import__('experiment_module')
+    ec=getattr(em,stimname)(config,create_runnable=False)
+    return introspect.cap_attributes2dict(ec)
 
 def parse_stimulation_file(filename):
     '''
@@ -429,6 +436,11 @@ class testExperimentHelpers(unittest.TestCase):
         from visexpman.users.test.test_configurations import GUITestConfig
         conf = GUITestConfig()
         get_experiment_duration('ReceptiveFieldExploreNewAngleAdrian', conf, source=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(),'users','adrian','receptive_field.py')))
+        
+    def test_08_read_experiment_parameters(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        read_stimulus_parameters('MovingBarTemplate', os.path.join(os.path.dirname(visexpman.__file__),'users','common','stimuli.py'),conf)
         
         
     
