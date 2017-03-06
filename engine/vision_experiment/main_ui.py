@@ -120,6 +120,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
     def stimulus_info_action(self):
         duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
         self.parent.printc('{0} stimulus takes {1} seconds'.format(self.classname, duration))
+        self.parent.printc('TODO: extract exp parameters, add menu!!!')
         
     def populate(self):
         subdirs=map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)

@@ -9,7 +9,6 @@ from visexpman.engine import ExperimentConfigError
 import stimulation_library
 
 import inspect
-from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 
 import unittest
