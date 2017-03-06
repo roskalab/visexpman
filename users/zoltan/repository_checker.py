@@ -121,7 +121,7 @@ if __name__ == "__main__":
         elif sys.argv[1]=='ao':
             r=RepositoryChecker('/home/rz/repocheck/ao', '/mnt/datafast/codes/ao-cortical',vip_files=[],ignore_folder=['visexpman/users/adrian'])
             r.run()
-       elif sys.argv[1]=='rc_rldata':
+        elif sys.argv[1]=='rc_rldata':
             r=RepositoryChecker('/home/rz/repocheck/rc_rldata', '/data/software/rc-setup',
                                    ignore_folder=[])
             r.run()
