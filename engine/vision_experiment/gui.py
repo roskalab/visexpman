@@ -2199,7 +2199,7 @@ class MainPoller(Poller):
         self.experiment_parameters = {}
         self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
         self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
-        self.read_stage()
+        #self.read_stage()
         self.experiment_parameters['stage_position']=self.stage_position
         if not self.experiment_parameters['intrinsic']:
             self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
