@@ -2320,6 +2320,7 @@ class MainPoller(Poller):
         self.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         time.sleep(0.5)
+        self.queues['stim']['out'].put('SOCpingEOCEOP')
         self.queues['stim']['out'].put(command)
         
     def previous_experiment(self):
