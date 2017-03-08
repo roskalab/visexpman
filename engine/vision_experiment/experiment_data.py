@@ -5,10 +5,7 @@ import os.path
 import copy
 import numpy
 import scipy.io
-import cPickle as pickle
 import unittest
-import hashlib
-import string
 import shutil
 import tempfile
 import time,datetime
@@ -16,9 +13,7 @@ import StringIO
 from PIL import Image,ImageDraw
 
 from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
-
-from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal,introspect
-from visexpman.engine import generic
+from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
 try:
     import hdf5io
     hdf5io_available=True
@@ -60,7 +55,7 @@ def find_recording_filename(id, config_or_path):
         foldername = config_or_path
     else:
         foldername = get_user_experiment_data_folder(config_or_path)
-    res = [fn for fn in listdir_fullpath(foldername) if id in fn]
+    res = [fn for fn in fileop.listdir_fullpath(foldername) if id in fn]
     if len(res)==1:
         return res[0]
     
@@ -404,6 +399,8 @@ def get_sync_events(h):
     #calculate time of sync events
     h.tsync = tsync[signal.trigger_indexes(stim_sync)]
     h.timg = tsync[signal.trigger_indexes(img_sync)[0::2]]
+    h.tsync-=h.timg[0]
+    h.timg-=h.timg[0]
     if h.findvar('datatype')=='ao' and 0:
         h.timg=h.timg[int(h.findvar('sync_pulses_to_skip')):]
     return h.tsync,h.timg
