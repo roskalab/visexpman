@@ -47,7 +47,11 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.config.user = user
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
-            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
+            self.experiment_config_list=[]
+            for u in [self.config.user, 'common']:
+                experiment_config_list = utils.fetch_classes('visexpman.users.' + u,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
+                if len(experiment_config_list)>0:
+                    self.experiment_config_list.extend(experiment_config_list)
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig

@@ -165,7 +165,11 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.queues['mes']['out'].put('SOCechoEOCvisexpman_{0}EOP'.format(int(random.random()*10e5)))
         result = network_interface.wait_for_response(self.queues['mes']['in'], ['SOCechoEOCvisexpmanEOP'], timeout = self.config.MES_TIMEOUT)
         return 'echo ' + str(result)
-        
+
+    def ping(self):
+        self.queues['gui']['out'].put('pong')
+        return 'pong'
+
     def filterwheel(self, filterwheel_id = 1, filter_position = 1):
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):            
             filterwheel = instrument.Filterwheel(self.config, id = filterwheel_id)

@@ -786,7 +786,9 @@ class MainPoller(Poller):
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_preexp)
         self.stim_connected=False
         import visexpman
-	self.experiment_config_list=utils.fetch_classes('visexpman.users.' + self.config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
+        self.experiment_config_list=[]
+        for u in [self.config.user, 'common']:
+            self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
         if STAGE:
             self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
             #self.stage.reset()
@@ -2212,7 +2214,7 @@ class MainPoller(Poller):
         self.experiment_parameters = {}
         self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
         self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
-        self.read_stage()
+#        self.read_stage()
         self.experiment_parameters['stage_position']=self.stage_position
         if not self.experiment_parameters['intrinsic']:
             self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
@@ -2333,6 +2335,7 @@ class MainPoller(Poller):
         self.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         time.sleep(0.5)
+        self.queues['stim']['out'].put('SOCpingEOCEOP')
         self.queues['stim']['out'].put(command)
         
     def previous_experiment(self):
