@@ -50,29 +50,7 @@ class MovingGratingNoMarchingConfig(MovingGratingConfig):
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
 #        self.pre_runnable = 'BlackPre'
-        self._create_parameters_from_locals(locals())
-        
-class MovingGratingNoMarching6xConfig(MovingGratingConfig):
-    def _create_parameters(self):
-        #Timing
-        self.NUMBER_OF_MARCHING_PHASES = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
-        self.MARCH_TIME = 4.0
-        self.GRATING_STAND_TIME = 3.5
-        #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
-        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
-        self.COLOR_CONTRAST = 1.0
-        self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1200.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 6
-        self.PAUSE_BEFORE_AFTER = 3.0
-        self.runnable = 'MovingGrating'
-        self.pre_runnable = 'MovingGratingPre'
-#        self.pre_runnable = 'BlackPre'
-        self._create_parameters_from_locals(locals())
-        
+        self._create_parameters_from_locals(locals())       
 
 class BlackPre(experiment.PreExperiment):    
     def run(self):

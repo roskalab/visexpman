@@ -217,8 +217,14 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         Selects experiment config based on keyboard command and instantiates the experiment config class
         '''
-        self.selected_experiment_config_index = int(experiment_index)
-        self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
+        if isinstance(experiment_index, int):
+            self.selected_experiment_config_index = int(experiment_index)
+        else:
+            self.selected_experiment_config_index = [i for i in range(len(self.experiment_config_list)) if self.experiment_config_list[i][1].__name__==experiment_index][0]
+        try:
+            self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
+        except:
+            print 'preexp error'
         if hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
             self.clear_screen_to_background()
             self.experiment_config.pre_runnable.run()
