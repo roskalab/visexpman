@@ -11,8 +11,8 @@ import time
 class LedConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
 #### EDIT FROM HERE
-        self.PAUSE_BETWEEN_FLASHES = 30.0
-        self.NUMBER_OF_FLASHES = 1.0
+        self.PAUSE_BETWEEN_FLASHES = 15.0
+        self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 0.5
         self.LED_CURRENT = 950#mA
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
