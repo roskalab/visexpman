@@ -1,5 +1,5 @@
 import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging,datetime
-import numpy,visexpman, traceback,serial,re,subprocess,platform
+import numpy,visexpman, traceback,serial,subprocess,platform
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -17,9 +17,6 @@ FRAME_TIME_BUFFER_SIZE=10000
 EMULATE_SPEED= False
 
 #from memory_profiler import profile
-
-def object_parameters2dict(obj):
-    return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
 
 def get_protocol_names():
     pns = [m[1].__name__ for m in utils.fetch_classes('visexpman.users.common', required_ancestors = experiment.BehavioralProtocol,direct = False)]
@@ -304,7 +301,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def _start_protocol(self):
         self._load_protocol()
-        param_str=str(object_parameters2dict(self.protocol)).replace(',',',\r\n')
+        param_str=str(introspect.cap_attributes2dict(self.protocol)).replace(',',',\r\n')
         self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+param_str})
         self.protocol.start()
         logging.info('Protocol started')
@@ -466,7 +463,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile=hdf5io.Hdf5io(self.filename)
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
-            setattr(self.datafile, nn, object_parameters2dict(var))
+            setattr(self.datafile, nn, introspect.cap_attributes2dict(var))
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         self.datafile.sync=self.sync
         if hasattr(self,'stat'):

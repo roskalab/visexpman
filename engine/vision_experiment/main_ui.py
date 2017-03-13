@@ -112,14 +112,23 @@ class StimulusTree(pyqtgraph.TreeWidget):
 
     def open_menu(self, position):
         self.menu = QtGui.QMenu(self)
-        stimulus_info_action = QtGui.QAction('Stimulus info', self)
+        stimulus_info_action = QtGui.QAction('Stimulus duration', self)
         stimulus_info_action.triggered.connect(self.stimulus_info_action)
         self.menu.addAction(stimulus_info_action)
+        stimulus_par_action = QtGui.QAction('Stimulus parameters', self)
+        stimulus_par_action.triggered.connect(self.stimulus_par_action)
+        self.menu.addAction(stimulus_par_action)
         self.menu.exec_(self.viewport().mapToGlobal(position))
         
     def stimulus_info_action(self):
         duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
         self.parent.printc('{0} stimulus takes {1} seconds'.format(self.classname, duration))
+
+    def stimulus_par_action(self):
+        parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
+        self.parent.printc('{0} parameters'.format(self.classname))
+        for k, v in parameters.items():
+            self.parent.printc('{0} = {1}'.format(k,v))
         
     def populate(self):
         subdirs=map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)
@@ -438,7 +447,7 @@ class MainUI(gui.VisexpmanMainWindow):
         
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
-            self.image = Image(self)
+            self.image = Image(self,roi_diameter=self.machine_config.DEFAULT_ROI_SIZE_ON_GUI)
             #self.image.setFixedHeight(480)
             #self.image.setFixedWidth(480)
             self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
@@ -529,6 +538,9 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.printc('Displaying {0} rois'.format(len(msg['display_roi_rectangles'])))
             elif msg.has_key('display_roi_curve'):
                 timg, curve, index, tsync,options = msg['display_roi_curve']
+                self.timg=timg
+                self.curve=curve
+                self.tsync=tsync
                 #Highlight roi
                 self.image.highlight_roi(index)
                 if isinstance(timg, list) and isinstance(curve, list):

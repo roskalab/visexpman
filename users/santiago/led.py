@@ -10,11 +10,13 @@ import time
         
 class LedConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 5.0
-        self.NUMBER_OF_FLASHES = 4.0
-        self.FLASH_DURATION = 1.0
-        self.LED_CURRENT = 5#mA
-        self.DELAY_BEFORE_FIRST_FLASH = 2.0
+#### EDIT FROM HERE
+        self.PAUSE_BETWEEN_FLASHES = 15.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 0.5
+        self.LED_CURRENT = 950#mA
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+#### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
         self.OUTPATH='#OUTPATH'
         self.runnable = 'LedStimulation'
@@ -63,13 +65,13 @@ class LedStimulation(experiment.Experiment):
             self._set_voltage(0)
             time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
             for i in range(int(self.experiment_config.NUMBER_OF_FLASHES)):
-                self._set_voltage(self.amplitude)
                 self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self._set_voltage(self.amplitude)
                 time.sleep(self.experiment_config.FLASH_DURATION)
                 if self.abort:
                     break
-                self._set_voltage(0)
                 self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self._set_voltage(0)
                 time.sleep(self.experiment_config.PAUSE_BETWEEN_FLASHES)
                 if self.abort:
                     break

@@ -91,7 +91,7 @@ class UltrasoundSetupConfigDevOffline(UltrasoundSetupConfig):
         self.EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
         self.CONTEXT_PATH = os.path.join(self.root_folder,'context')
         
-class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):
+class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):#OBSOLETE
     '''
     '''
     def _set_user_parameters(self):
@@ -128,7 +128,7 @@ class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):
         ENABLE_UDP = True
         self._create_parameters_from_locals(locals())
 
-class DebugSantiagoSetupConfig(SantiagoSetupConfig):
+class DebugSantiagoSetupConfig(SantiagoSetupConfig):#OBSOLETE
     def _set_user_parameters(self):
         SantiagoSetupConfig._set_user_parameters(self)
 #        SCREEN_UM_TO_PIXEL_SCALE = 1.0
@@ -142,7 +142,10 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         FULLSCREEN = not True
-        self.root_folder = 'x:\\santiago-setup'
+        self.root_folder = 'b:\\'
+        BACKUP_PATH='x:\\santiago-setup'
+        self.BACKUPTIME=3#3am
+        self.BACKUP_NO_EXPERIMENT_TIMEOUT=60#minutes
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'processed')
@@ -180,7 +183,7 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
 
 
         DATAFILE_COMPRESSION_LEVEL = 5
-        
+        self.DEFAULT_ROI_SIZE_ON_GUI=5
         self.DIGITAL_IO_PORT = 'parallel port'
         self.BLOCK_TRIGGER_PIN = 0
         self.ENABLE_PARALLEL_PORT = True

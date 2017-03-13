@@ -1,4 +1,4 @@
-import time,tempfile
+import time,tempfile,datetime
 import scipy.io
 import copy
 import cPickle as pickle
@@ -335,6 +335,11 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 shutil.copy(self.daqdatafile.filename,fn)
+                if self.santiago_setup:
+                    #Make a local copy of sync file
+                    localfn=os.path.join('c:\\Data\\santiago-setup', os.path.basename(fn))
+                    shutil.copy(self.daqdatafile.filename, localfn)
+                    self.printc('Local copy saved to {0}'.format(localfn))
                 try:
                     os.remove(self.daqdatafile.filename)
                 except:
@@ -351,11 +356,11 @@ class ExperimentHandler(object):
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
-                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if os.path.isdir(os.path.join(current_folder, fi))]
+                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if fi != 'output' and os.path.isdir(os.path.join(current_folder, fi))]
                 try:
                     [shutil.rmtree(f) for f in folders]
                 except:
-                    pass    
+                    pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 return
@@ -392,7 +397,7 @@ class ExperimentHandler(object):
             self.daqdatafile.hdf5.save('machine_config')
             self.daqdatafile.close()
             
-    def run_all_iterations(self):
+    def run_always_experiment_handler(self):
         self.check_batch()
         self.eyecamera2screen()
         if self.sync_recording_started:
@@ -497,6 +502,8 @@ class Analysis(object):
                 del self.reference_roi_filename
 
     def open_datafile(self,filename):
+        if self.experiment_running:
+            return
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
@@ -865,6 +872,9 @@ class Analysis(object):
         else:
             self.datafile.save(['rois'], overwrite=True)
         self.datafile.convert(self.guidata.read('Save File Format'))
+        if self.santiago_setup:
+            self.datafile.convert('rois')
+            self.printc('Roi plots are exported to {0}'.format(self.datafile.rois_output_folder))
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
@@ -873,7 +883,32 @@ class Analysis(object):
             #Copy to BACKUP_PATH/user/date/filename
             dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
             self.printc('Data backed up to  {0}'.format(dst))
-            
+        
+    def backup(self):
+        if self.experiment_running:
+            self.printc('No backup during recording')
+            return
+        self.printc('Backing up logfiles')
+        from visexpman.engine import backup_manager
+        logbuconf=backup_manager.Config()
+        logbuconf.last_file_access_timeout=1
+        logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
+        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+        self.logfilebackup.run()
+        self.printc('Backing up data files')
+        for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
+            databuconf=backup_manager.Config()
+            databuconf.last_file_access_timeout=1
+            databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
+            self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+            self.datafilebackup.run()
+        self.printc('Done')
+        
+    def run_always_analysis(self):
+        t=datetime.datetime.fromtimestamp(self.last_run)
+        if not self.experiment_running and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+            if self.last_run-self.experiment_finish_time>self.machine_config.BACKUP_NO_EXPERIMENT_TIMEOUT*60:
+                self.backup()
         
     def roi_shift(self, h, v):
         if not hasattr(self, 'rois'):
@@ -946,7 +981,8 @@ class Analysis(object):
         mean_of_repetitions = self.guidata.mean_of_repetitions.v if hasattr(self.guidata, 'mean_of_repetitions') else False
         baseline_length = self.guidata.read('Baseline lenght')
         x=[self.timg]
-        y=[roi['normalized']]
+        key='raw' if self.santiago_setup else 'normalized'
+        y=[roi[key]]
         parameters = []
         if roi.has_key('matches'):
             for fn in roi['matches'].keys():
@@ -1226,11 +1262,14 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     self.notify(msg['notify'][0],msg['notify'][1])
         
     def run(self):
+        run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                if hasattr(self,'run_all_iterations'):
-                    self.run_all_iterations()
+#                if hasattr(self,'run_all_iterations'):
+#                    self.run_all_iterations()
+                for fn in run_always:
+                    getattr(self, fn)()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:

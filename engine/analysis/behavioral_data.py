@@ -321,7 +321,6 @@ def lick_detection_folder(folder,fsample,lick_wait_time,threshold=0.25,max_width
             pass
     ids=[experiment_data.id2timestamp(experiment_data.parse_recording_filename(f)['id']) for f in fns]
     p=multiprocessing.Pool(introspect.get_available_process_cores())
-    
     res=map(lick_detection_wrapper,pars)
     output=[[ids[i], res[i][0],res[i][1], res[i][2]] for i in range(len(res))]
     return output
@@ -510,7 +509,7 @@ class HitmissAnalysis(object):
         else:
             raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}'.format(nfiles, nitems, nsubfolders))
         
-    def day_analysis(self,folder=None):
+    def day_analysis(self,folder=None, filter=None):
         if isinstance(folder,str) and os.path.exists(folder):
             self.alldatafiles=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
         else:

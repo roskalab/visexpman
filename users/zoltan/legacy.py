@@ -443,10 +443,10 @@ def merge_ca_data(folder,**kwargs):
     keep_keys=['experiment_config_name', 'stimulus_frame_info', 'generated_data', 'experiment_name', 'experiment_source', 'config', 'software_environment']
     stimulus=dict([(k, stimulus[k]) for k in keep_keys])#!!!!
     #Imaging data
-    #try:
-    imaging_folder=[os.path.join(folder,f) for f in files if os.path.isdir(os.path.join(folder,f))][0]
-    #except:
-    #    raise RuntimeError('Imaging datafiles are missing')
+    try:
+        imaging_folder=[os.path.join(folder,f) for f in files if os.path.isdir(os.path.join(folder,f))][0]
+    except:
+        raise RuntimeError('Imaging datafiles are missing')
     recording_name=os.path.basename(imaging_folder)
     frames=[]
     while True:#Wait until all files are copied
@@ -465,6 +465,8 @@ def merge_ca_data(folder,**kwargs):
         chframes=[f for f in frames if os.path.basename(f).split('_')[-2]==channel]
         chframes.sort()
         rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
+    if (len(rawdata[0])==0 or len(rawdata[1])==0):
+        raise RuntimeError('Both channels must be recorded')
     raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))    
     raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
     #raw_data = raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
@@ -498,7 +500,7 @@ def merge_ca_data(folder,**kwargs):
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
     h=hdf5io.Hdf5io(filename)
     h.recording_parameters=recording_parameters
-    h.sync_and_elphys_data = sync_and_elphys
+    h.sync= sync_and_elphys
     h.fsync=syncfile
     h.fimg=imaging_folder
     h.fstim=stimdatafile
@@ -509,7 +511,7 @@ def merge_ca_data(folder,**kwargs):
     h.configs_stim['machine_config']=machine_config['machine_config']
     h.machine_config=machine_config
     h.datatype='ca'
-    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync_and_elphys_data', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype'])
+    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype'])
     h.close()
     return filename
     
@@ -517,7 +519,7 @@ def yscanner2sync(sig,fsample,nframes):
     indexes=numpy.where(abs(numpy.diff(sig))>0.05)[0]
     start=indexes[0]
     end=indexes[-1]
-    fft=numpy.fft.fft(sig[start:start+fsample*10 if start+fsample*10<end else end])
+    fft=numpy.fft.fft(sig[start:start+fsample*30 if start+fsample*10<end else end])
     frqs=numpy.fft.fftfreq(fft.shape[0],1.0/fsample)
     frame_rate=find_peak(frqs,abs(fft))#First peak after dc is considered as frame rate
     if 0:
@@ -553,7 +555,13 @@ def rewrite_hdf5(folder):
 
 def find_peak(frqs,fft):
     indexes=numpy.where(numpy.logical_and(frqs>0.2,frqs<30))[0]
-    return frqs[indexes][fft[indexes].argmax()]
+    selection=fft[indexes]
+    frq_selection=frqs[indexes]
+    peak_index=selection.argmax()
+    window=10
+    weight=selection[peak_index-window:peak_index+window+1]/selection[peak_index]
+    return (frq_selection[peak_index-window:peak_index+window+1]*weight).sum()/weight.sum()
+    #return frqs[indexes][fft[indexes].argmax()]
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')
@@ -571,6 +579,7 @@ class TestConverter(unittest.TestCase):
     def test_02_merge_ca_data(self):
         folder='/data/data/user/Zoltan/20160817/not enough frames'
         folder='x:\\data\\user\\Zoltan\\1'
+        folder='e:\\Zoltan\\1\\zip'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
     @unittest.skip('')  
     def test_03_yscanner_sig(self):

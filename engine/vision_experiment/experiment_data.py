@@ -1,24 +1,19 @@
-import zipfile
+import zipfile,multiprocessing
 import io
 import os
 import os.path
 import copy
 import numpy
 import scipy.io
-import cPickle as pickle
 import unittest
-import hashlib
-import string
 import shutil
 import tempfile
 import time,datetime
 import StringIO
 from PIL import Image,ImageDraw
 
-from pylab import show,plot,imshow,figure,title,subplot
-
-from visexpman.engine.generic import utils,fileop,signal,videofile,geometry,signal
-from visexpman.engine import generic
+from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
+from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
 try:
     import hdf5io
     hdf5io_available=True
@@ -26,8 +21,6 @@ except ImportError:
     print 'hdf5io not installed'
     hdf5io_available=False
     
-
-import unittest
 
 #### Recording filename handling ####
 
@@ -62,7 +55,7 @@ def find_recording_filename(id, config_or_path):
         foldername = config_or_path
     else:
         foldername = get_user_experiment_data_folder(config_or_path)
-    res = [fn for fn in listdir_fullpath(foldername) if id in fn]
+    res = [fn for fn in fileop.listdir_fullpath(foldername) if id in fn]
     if len(res)==1:
         return res[0]
     
@@ -238,11 +231,64 @@ if hdf5io_available:
                 if not hasattr(self, 'raw_data'):
                     self.load('raw_data')
                 if not hasattr(self, 'image_scale'):
-                    self.meanimage, self.image_scale = get_imagedata(self)
+                    self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
                 #um/pixel to dpi
                 dpi = 1.0/self.image_scale*25.4e3
                 self.outfile = fileop.get_convert_filename(self.filename, 'tif')
                 tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+            elif format == 'rois':
+                output_folder=os.path.join(os.path.dirname(self.filename), 'output', os.path.basename(self.filename))
+                self.rois_output_folder=output_folder
+                if not os.path.exists(output_folder):
+                    os.makedirs(output_folder)
+                if not hasattr(self, 'raw_data'):
+                    self.load('raw_data')
+                self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
+                #um/pixel to dpi
+                dpi = 1.0/self.image_scale*25.4e3
+                #mip
+                mip2image=numpy.zeros((self.meanimage.shape[0],self.meanimage.shape[1],3), self.raw_data.dtype)
+                mip2image[:,:,1]=numpy.cast[self.raw_data.dtype.name](self.meanimage)
+                import tifffile
+                tifffile.imsave(os.path.join(output_folder, 'mip.tif'), numpy.rot90(mip2image),resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+                #mip with rois, roi curves
+                self.load('rois')
+                if hasattr(self, 'rois'):
+                    from PIL import ImageFont
+                    fontsize=15
+                    font = ImageFont.truetype("arial.ttf", fontsize)
+                    rescale_factor=500/max(mip2image.shape)+1
+                    new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
+                    mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
+                    mip2image_with_rectanglesd=ImageDraw.Draw(mip2image_with_rectangles)
+                    mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
+                    mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
+                    csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '.csv'))
+                    txtlines=['tstim,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['tsync'],2))))]
+                    txtlines.append('timg,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['timg'],2)))))
+                    plotpars=[]
+                    for i in range(len(self.rois)):
+                        roi =self.rois[i]
+                        rect=numpy.cast['int'](numpy.array(roi['rectangle'])*rescale_factor)
+                        p1=(rect[1]-rect[3], rect[0]-rect[2])
+                        p2=(rect[1]+rect[3], rect[0]+rect[2])
+                        mip2image_with_rectanglesd.rectangle([p1,p2], outline=(0,0,255))
+                        mip2image_with_rectangles_and_indexesd.rectangle([p1,p2], outline=(0,0,255))
+                        txt=Image.new('L', (fontsize,fontsize))
+                        txtd=ImageDraw.Draw(txt)
+                        txtd.text((0,0),str(i), font=font, fill=255)
+                        txt=txt.rotate(-90)
+                        mip2image_with_rectangles_and_indexes.paste(txt,p1,txt)
+                        #mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
+                        plotpars.append([self.filename, os.path.join(output_folder, '{0}.eps'.format(i)), roi])
+                        txtlines.append('roi{0},{1}'.format(i,','.join(map(str, numpy.round(roi['raw'],2)))))
+                    p=multiprocessing.Pool(introspect.get_available_process_cores())
+                    p.map(roi_plot, plotpars)
+                    fileop.write_text_file(csvfn, '\r\n'.join(txtlines))
+                    mip2image_with_rectangles_and_indexes.rotate(90).save(os.path.join(output_folder, 'rois_and_indexes.png'))
+                    mip2image_with_rectangles.rotate(90).save(os.path.join(output_folder, 'rois.png'))
+                    pass
+                    
             elif format == 'mp4':
                 imgarray = self.rawdata2images()
                 framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
@@ -353,6 +399,8 @@ def get_sync_events(h):
     #calculate time of sync events
     h.tsync = tsync[signal.trigger_indexes(stim_sync)]
     h.timg = tsync[signal.trigger_indexes(img_sync)[0::2]]
+    h.tsync-=h.timg[0]
+    h.timg-=h.timg[0]
     if h.findvar('datatype')=='ao' and 0:
         h.timg=h.timg[int(h.findvar('sync_pulses_to_skip')):]
     return h.tsync,h.timg
@@ -412,7 +460,14 @@ def get_imagedata(h, image_function='mean'):
         if image_function=='mean':
             meanimage = h.raw_data.mean(axis=0)[0]
         elif image_function=='mip': 
-            meanimage = h.raw_data.max(axis=0)[0]
+            #Remove saturated frames
+            saturation_value=255 if h.raw_data.dtype.name=='uint8' else 2**16-1
+            row_means=h.raw_data.mean(axis=2)
+            indexes=[i for i in range(row_means.shape[0]) if saturation_value in row_means[i]]
+            col_means=h.raw_data.mean(axis=3)
+            indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
+            keep_frame_indexes=[i for i in range(h.raw_data.shape[0]) if i not in indexes]
+            meanimage = h.raw_data[keep_frame_indexes].max(axis=0)[0]
         h.load('recording_parameters')
         if not hasattr(h, 'recording_parameters'):
             h.load('parameters')
@@ -428,7 +483,8 @@ def get_imagedata(h, image_function='mean'):
 #            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
 #        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
 #            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
-        
+    if not hasattr(h, 'configs_stim'):
+        h.load('configs_stim')
     if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical' and 0:
         meanimage=meanimage[:2*meanimage.shape[0]/int(h.parameters['nrois']),:]
     if h_opened:
@@ -1112,6 +1168,7 @@ class TestExperimentData(unittest.TestCase):
     def test_00_pack_swe(self):
         pack_software_environment()
     
+    @unittest.skip("")
     def test_00_rlvivobackup(self):
         from visexpman.engine.generic import introspect
         user='default_user'
@@ -1215,7 +1272,7 @@ class TestExperimentData(unittest.TestCase):
         fn='/home/rz/codes/data/recfield/fragment_xy_tr_0_0_0.0_ReceptiveFieldExploreNew_1424256866_0.hdf5'
         get_data_timing(fn)
         
-    
+    @unittest.skip("")
     def test_08_cell_detection(self):
         files = fileop.find_files_and_folders('/mnt/rzws/dataslow/rei_data_c')[1]
         from skimage import filter
@@ -1267,16 +1324,21 @@ class TestExperimentData(unittest.TestCase):
         h.prepare4analysis()
         h.close()
         
+    #@unittest.skip("")
     def test_11_caimgfile_convert(self):
-        h=CaImagingData('/tmp/20150401/data_C195_spot_131112760_0.hdf5',filelocking=False)
+        fn='/home/rz/mysoftware/data/mipexport/data_707-18daypostinfect-animal1-slice1-region8_rep3_1sStim_LedConfig_201702241318216.hdf5'
+        fn='e:\\Zoltan\\1\\data_706-mouse1-slice1-reg1-rep1-500ms-1000mA_LedConfig_201703020938240.hdf5'
+        h=CaImagingData(fn)
         h.convert('png')
-        h.convert('tif')
-        h.convert('mp4')
+        h.convert('rois')
+        #h.convert('mp4')
         h.close()
         
+    @unittest.skip("")
     def test_12_gamma(self):
         gammatext2hdf5('/tmp/g.txt')
         
+    @unittest.skip("")
     def test_13_y(self):
         from visexpman.users.test import unittest_aggregator
         f =  fileop.listdir_fullpath(unittest_aggregator.prepare_test_data('yscanner', '/tmp/wf'))[0]
@@ -1385,6 +1447,22 @@ def read_sync(filename):
     sd=idnode['sync_data']
     h.close()
     return sd
+    
+def roi_plot(pars):
+    filename, outfile, roi=pars
+    cla()
+    clf()
+    name=os.path.basename(filename).split('_')[1]
+    stimname=os.path.basename(filename).split('_')[-2]
+    title('{0}\n{1}'.format(name, stimname))
+    plot(roi['timg'], roi['raw'])
+    xlabel('time [s]')
+    ylabel('raw pixel')
+    for rect in range(roi['tsync'].shape[0]/2):
+        w=roi['tsync'][2*rect+1]-roi['tsync'][2*rect]
+        h=roi['raw'].max()-roi['raw'].min()
+        gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
+    savefig(outfile)
 
 try:
     import paramiko
