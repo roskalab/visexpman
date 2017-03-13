@@ -1,7 +1,7 @@
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 import numpy
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils,geometry
 from visexpman.engine.vision_experiment import experiment
 
 class NaturalBarsExperiment1(experiment.Stimulus):
@@ -46,29 +46,46 @@ class Gr(experiment.Stimulus):
         self.duration=self.DURATION*3
         
     def run(self):
-#        texture=numpy.zeros((2,7,3))
-#        texture[0,0,:]=1.0
-#        texture[1,1,:]=1.0
-#        cut_off_ratio=1
-#        texture_coordinates = numpy.array(
-#                             [
-#                             [1.0, cut_off_ratio],
-#                             [0.0, cut_off_ratio],
-#                             [0.0, 0.0],
-#                             [1.0, 0.0],
-#                             ])
-#        self._init_texture(utils.rc((100,400)),0,texture_coordinates)
-#        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
-#        phase=0
-#        for i in range(120):
-#            phase+=-0.01
-#            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
-#            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-#            glColor3fv((1.0,1.0,1.0))
-#            glDrawArrays(GL_POLYGON,  0, 4)
-#            self._flip(False)
-#        self._deinit_texture()
+        from PIL import Image
+        pixel_size=10.0#um/pixel
+        #screen width [um]/pixel_size-> number of displayed pixels on screen (horizontal). The loaded texture shall be a much bigger object:
+        #image pixel width*pixel_size -> texture width in um CONTINUE HERE!!!!
+        fn='/tmp/Pebbleswithquarzite_grey.png'
+        fn='/tmp/1.JPG'
+        texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
+        #Image size in um:
+        screen_window_width_n_pixel=int(self.config.SCREEN_SIZE_UM['col']/pixel_size)
+        screen_window_height_n_pixel=int(self.config.SCREEN_SIZE_UM['row']/pixel_size)
+        self.config.SCREEN_RESOLUTION['col']
+        Continue HERE!!!
+        Image size: texture.shape*pixel_size*screen um2 pixel ratio
+        texture_coordinates = numpy.array(
+                             [
+                             [1, 1],
+                             [0.0, 1],
+                             [0.0, 0.0],
+                             [1, 0.0],
+                             ])
+        self._init_texture(utils.rc((100,100)),0)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+        phase=0
         import time
+        t0=time.time()
+        size=utils.cr((5*1024,5*768))
+        for i in range(120):
+            vertices = geometry.rectangle_vertices(size, orientation = 0)
+            vertices[:,0]+=phase
+            phase+=1
+            glEnableClientState(GL_VERTEX_ARRAY)
+            glVertexPointerf(vertices)
+            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip(False)
+        print time.time()-t0
+        self._deinit_texture()
+        return
         t0=time.time()
         self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION,display_area=utils.rc((400,600)),
                 flicker={'frequency':5, 'modulation_size':50})

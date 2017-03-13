@@ -1146,6 +1146,7 @@ class StimulationHelpers(Stimulations):
                              [1.0, 0.0],
                              ])
         glTexCoordPointerf(texture_coordinates)
+        return texture_coordinates
         
     def _deinit_texture(self):
         glDisable(GL_TEXTURE_2D)
