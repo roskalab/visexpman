@@ -353,12 +353,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #logging.info(introspect.python_memory_usage())
         self.ai=daq_instrument.AnalogRecorder(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE)
         self.ai.start()
+        logging.info('AI started')
         t0=time.time()
         while self.ai.responseq.empty():
             time.sleep(0.1)
             if time.time()-t0>20:
                 logging.info('Daq start timeout')
                 break
+        logging.info(self.ai.responseq.get())
         time.sleep(1.5)#This value is experimental!!!
         self._start_protocol()
         self.id=experiment_data.get_id()
@@ -385,7 +387,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if self.sync.shape[0]>0: 
                 #self.ai.read()
                 break
-            if time.time()-t0>10:
+            if time.time()-t0>20:
                 logging.error('Not enough AI samples?')
                 logging.info(self.ai.dataq.qsize())
                 abort_session=True
@@ -599,7 +601,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     msg = self.from_gui.get()
                     if msg == 'terminate':
                         return True#break
-                    if msg.has_key('function'):#Functions are simply forwarded
+                    if hasattr(msg, 'has_key') and msg.has_key('function'):#Functions are simply forwarded
                         #Format: {'function: function name, 'args': [], 'kwargs': {}}
                         if DEBUG:
                             logging.debug(msg)
