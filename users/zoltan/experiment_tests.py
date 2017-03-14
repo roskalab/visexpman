@@ -51,8 +51,10 @@ class Gr(experiment.Stimulus):
         shift=400.0#um
         speed=1200*6
         fn='/tmp/Pebbleswithquarzite_grey.png'
-        fn='/tmp/1.JPG'
+        #fn='/tmp/1.JPG'
         texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
+        if len(texture.shape)<3:
+            texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
         shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
         dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
         #Image size: texture.shape*pixel_size*screen um2 pixel ratio
