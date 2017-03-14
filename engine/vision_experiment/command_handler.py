@@ -170,6 +170,16 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.queues['gui']['out'].put('pong')
         return 'pong'
         
+    def sleep(self,  duration):
+        t0=time.time()
+        while True:
+            if time.time()-t0>duration:
+                break
+            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+                break
+            time.sleep(0.1)
+        return 'sleep'
+        
     def filterwheel(self, filterwheel_id = 1, filter_position = 1):
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):            
             filterwheel = instrument.Filterwheel(self.config, id = filterwheel_id)

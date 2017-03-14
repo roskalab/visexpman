@@ -802,6 +802,11 @@ class MainPoller(Poller):
             stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
             command='SOCselect_experimentEOC{0}EOP'.format(stimname)
             self.queues['stim']['out'].put(command)
+            
+    def start_metastim(self, classname):
+        import visexpman
+        self.metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)
+        self.metastimclass.run()
         
     def update_process_status(self):
         try:

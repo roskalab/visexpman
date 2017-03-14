@@ -168,3 +168,72 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     return experiment_config
     a = experiment_module.MovingDot(machine_config, None, experiment_config)
         
+
+class MetaStimulus(object):
+    '''
+    Multiple stimuli can be called in a user defined order
+    '''
+    def __init__(self, poller,  config):
+        self.config=config
+        self.poller=poller
+        self.n_issued_commands=0
+        
+    def sleep(self, duration):
+        self.poller.queues['stim']['out'].put('SOCsleepEOC{0}EOP'.format(duration))
+        self.n_issued_commands+=1
+        self.poller.printc('sleep for {0} s'.format(duration))
+        
+    def start_experiment(self,  stimulus_name,  depth,  laser):
+        import time, copy
+        self.experiment_parameters = {}
+        self.experiment_parameters['user']=self.poller.animal_parameters['user']
+        self.experiment_parameters['intrinsic'] = False
+        self.experiment_parameters['stage_position']=self.poller.stage_position
+        self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
+        region_name = self.poller.parent.get_current_region_name()
+        if len(region_name)>0:
+            self.experiment_parameters['region_name'] = region_name
+        self.experiment_parameters['experiment_config'] = stimulus_name
+        self.experiment_parameters['scan_mode'] = 'xy'
+        self.experiment_parameters['id'] = str(int(time.time()))
+        self.poller.issued_ids.append(self.experiment_parameters['id'])
+        self.experiment_parameters['objective_position'] = depth
+        self.experiment_parameters['laser_intensity']=laser
+        #generate parameter file
+        parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
+        if os.path.exists(parameter_file):
+            time.sleep(1.1)
+            self.experiment_parameters['id'] = str(int(time.time()))
+            self.issued_ids[-1]=self.experiment_parameters['id']
+            parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
+        h = hdf5io.Hdf5io(parameter_file,filelocking=False)
+        h.parameters = copy.deepcopy(self.experiment_parameters)
+        h.scan_regions = copy.deepcopy(self.poller.scan_regions)
+        h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
+        h.animal_parameters = copy.deepcopy(self.poller.animal_parameters)
+        h.anesthesia_history = copy.deepcopy(self.poller.anesthesia_history)
+        if self.poller.parent.main_widget.override_imaging_channels_checkbox.checkState()==2:
+            h.animal_parameters['overridden']={'both_channels': h.animal_parameters['both_channels'], 'red_labeling': self.poller.animal_parameters['red_labeling']}
+            h.animal_parameters['both_channels']=self.poller.parent.main_widget.record_red_channel_checkbox.checkState()==2
+            h.animal_parameters['red_labeling']='yes' if self.poller.parent.main_widget.enable_prepost_scan_checkbox.checkState()==2 else 'no'
+        fields_to_save = ['parameters']
+        fields_to_save.extend(['scan_regions', 'animal_parameters', 'anesthesia_history'])
+        h.save(fields_to_save)
+        h.close()
+        file.wait4file_ready(parameter_file)
+        self.poller.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
+        command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
+        time.sleep(0.5)
+        self.poller.queues['stim']['out'].put('SOCpingEOCEOP')
+        self.poller.queues['stim']['out'].put(command)
+        
+    def stop(self):
+        self.poller.stop_experiment()
+        for i in range(self.n_issued_commands):#Abort sleeps
+            command = 'SOCabort_experimentEOCguiEOP'
+            self.queues['stim']['out'].put(command)
+        
+    def run(self):
+        '''
+        Here comes the user sequence
+        '''
