@@ -781,12 +781,27 @@ class MainPoller(Poller):
         self.process_status_timer.timeout.connect(self.update_process_status)
         self.process_status_timer.start(10000)
         self.first_mouse_file_created=False
+        self.timer=QtCore.QTimer()
+        self.timer.start(5000)#ms
+        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_preexp)
+        self.stim_connected=False
+        import visexpman
+        self.experiment_config_list=[]
+        for u in [self.config.user, 'common']:
+            self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
+        self.experiment_config_list.sort()
         if STAGE:
             self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
             #self.stage.reset()
             self.stage.setparams()
             if 0:
                 self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
+
+    def update_preexp(self):
+        if self.stim_connected and self.user=='daniel':
+            stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
+            command='SOCselect_experimentEOC{0}EOP'.format(stimname)
+            self.queues['stim']['out'].put(command)
         
     def update_process_status(self):
         try:
