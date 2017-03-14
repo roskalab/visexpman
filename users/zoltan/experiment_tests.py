@@ -47,14 +47,16 @@ class Gr(experiment.Stimulus):
         
     def run(self):
         from PIL import Image
-        pixel_size=3.0#um/pixel
+        pixel_size=10.0#um/pixel
         shift=400.0#um
-        speed=1200*6
+        speed=1200
+        yrange=[0,100]
         fn='/tmp/Pebbleswithquarzite_grey.png'
         #fn='/tmp/1.JPG'
         texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
         if len(texture.shape)<3:
             texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
+        texture=texture[yrange[0]:yrange[1],:,:]
         shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
         dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
         #Image size: texture.shape*pixel_size*screen um2 pixel ratio
@@ -89,7 +91,9 @@ class Gr(experiment.Stimulus):
         import time
         t0=time.time()
         for i in range(offset.shape[0]):
-            vertices = geometry.rectangle_vertices(size, orientation = 0)-offset[i]
+            now=time.time()
+            index=int((now-t0)*self.config.SCREEN_EXPECTED_FRAME_RATE)
+            vertices = geometry.rectangle_vertices(size, orientation = 0)-offset[index]
             glEnableClientState(GL_VERTEX_ARRAY)
             glVertexPointerf(vertices)
             glTexCoordPointerf(texture_coordinates)
@@ -99,7 +103,7 @@ class Gr(experiment.Stimulus):
             self._flip(False)
             if self.abort:
                 break
-        print (time.time()-t0)/offset.shape[0]
+        print i/(time.time()-t0)
         self._deinit_texture()
         return
         t0=time.time()
