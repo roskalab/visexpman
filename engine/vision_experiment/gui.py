@@ -781,9 +781,9 @@ class MainPoller(Poller):
         self.process_status_timer.timeout.connect(self.update_process_status)
         self.process_status_timer.start(10000)
         self.first_mouse_file_created=False
-        self.timer=QtCore.QTimer()
-        self.timer.start(5000)#ms
-        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_preexp)
+#        self.timer=QtCore.QTimer()
+#        self.timer.start(5000)#ms
+#        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_preexp)
         self.stim_connected=False
         import visexpman
         self.experiment_config_list=[]
