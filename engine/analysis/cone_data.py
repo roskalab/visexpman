@@ -262,7 +262,7 @@ def compare_signatures(sig1, sig2):
         number_of_matches += 1 if numpy.where(abs(numpy.array(sig2)-sig1i).sum(axis=1)<1e-9)[0].shape[0] > 0 else 0
     return number_of_matches
     
-def aggregate_cells(folder):
+def aggregate_cells(folder,ignore_repetitions=False):
     '''
     Aggregates cell data from daatafiles in a folder including different stimuli and repetitions
     
@@ -272,6 +272,13 @@ def aggregate_cells(folder):
     skip_ids = []
     aggregated_cells = []
     allhdf5files.sort()
+    if ignore_repetitions:
+        rois=[]
+        for f in allhdf5files:
+            r=hdf5io.read_item(f, 'rois', filelocking=False)
+            if isinstance(r,list):
+                rois.extend(r)
+        return rois
     for hdf5file in allhdf5files:
         print allhdf5files.index(hdf5file)+1,len(allhdf5files)
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions

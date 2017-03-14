@@ -390,6 +390,8 @@ class AnalysisHelper(QtGui.QWidget):
         self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
         self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
         self.show_repetitions.input.setCheckState(0)
+        self.ignore_repetitions = gui.LabeledCheckBox(self, 'Ignore Repetitions')
+        self.ignore_repetitions.input.setCheckState(0)
         self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
         self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
         self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
@@ -404,6 +406,7 @@ class AnalysisHelper(QtGui.QWidget):
 #        self.layout.addWidget(self.trace_parameters,0,2,2,1)
         self.layout.addWidget(self.show_repetitions,0,3,1,1)
         self.layout.addWidget(self.find_repetitions,1,3,1,1)
+        self.layout.addWidget(self.ignore_repetitions,2,4,1,1)
         self.layout.addWidget(self.aggregate,2,3,1,1)
         self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
         self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
@@ -422,8 +425,9 @@ class AnalysisHelper(QtGui.QWidget):
         
     def aggregate_clicked(self):
         folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.parent.machine_config.EXPERIMENT_DATA_PATH))
+        ignore=self.ignore_repetitions.input.checkState()==2
         if os.path.exists(folder):
-            self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder]})
+            self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder,ignore]})
 
 class MainUI(gui.VisexpmanMainWindow):
     def __init__(self, context):        

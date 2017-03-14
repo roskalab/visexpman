@@ -12,13 +12,13 @@ except:
 class ReiBaseConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
-        self.BACKUP_PATH='x:\\rei-setup\\processed'
+        self.BACKUP_PATH='x:\\rei-setup'
         FULLSCREEN = not True
         self.root_folder = 'r:\\production\\rei-setup'
         self.root_folder = 'd:\\Data\\cone'
         self.root_folder = 'x:\\rei-setup\\processed'
         LOG_PATH = 'x:\\rei-setup'
-        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = self.root_folder
 #        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'datastorage')
         CONTEXT_PATH = 'x:\\rei-setup'
@@ -59,7 +59,7 @@ class ReiBaseConfig(ElphysRetinalCaImagingConfig):
         self.SCANNER_CHARACTERISTICS['PHASE'] = \
                     [9.50324884e-08,  -1.43226725e-07, 1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]#(p1*a+p2)*f**2+(p3*a**2+p4*a+p5)*f+(p6*a+p7), in radians
         DATAFILE_COMPRESSION_LEVEL = 5
-        
+        BACKUPTIME = [3,[0,23]]
         FILTERWHEEL = [{
                         'connected to': 'main_ui',
                         'port' :  'COM8',

@@ -1,4 +1,4 @@
-import time
+import time,datetime
 import scipy.io
 import copy
 import cPickle as pickle
@@ -624,10 +624,29 @@ class Analysis(object):
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
         self.printc('Data exported to  {0}'.format(self.datafile.outfile))
-        #Copy to BACKUP_PATH/user/date/filename
-        dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
-        self.printc('Data backed up to  {0}'.format(dst))
-            
+        
+    def backup(self):
+        self.printc('Backing up logfiles')
+        from visexpman.engine import backup_manager
+        logbuconf=backup_manager.Config()
+        logbuconf.last_file_access_timeout=1
+        logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
+        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+        self.logfilebackup.run()
+        return
+        self.printc('Backing up data files')
+        for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
+            databuconf=backup_manager.Config()
+            databuconf.last_file_access_timeout=1
+            databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
+            self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+            self.datafilebackup.run()
+        self.printc('Done')
+        
+    def run_always_analysis(self):
+        t=datetime.datetime.fromtimestamp(self.last_run)
+        if (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+            self.backup()
         
     def roi_shift(self, h, v):
         if not hasattr(self, 'rois'):
@@ -663,11 +682,12 @@ class Analysis(object):
         self._normalize_roi_curves()
         self.display_roi_curve()
         
-    def aggregate(self, folder):
+    def aggregate(self, folder,ignore):
         self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
-        self.cells = cone_data.aggregate_cells(folder)
-        self.printc('Calculating parameter distributions')
-        self.parameter_distributions = cone_data.quantify_cells(self.cells)
+        self.cells = cone_data.aggregate_cells(folder,ignore)
+        if not ignore:
+            self.printc('Calculating parameter distributions')
+            self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
         if len(self.cells)==0:
             self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
@@ -677,13 +697,19 @@ class Analysis(object):
         h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
         h.cells=self.cells
         h.stage_coordinates=self.stage_coordinates
-        h.parameter_distributions=self.parameter_distributions
-        h.save(['stage_coordinates','cells', 'parameter_distributions'])
+        h.save(['stage_coordinates','cells'])
+        if not ignore:
+            h.parameter_distributions=self.parameter_distributions
+            h.save(['parameter_distributions'])
         h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
+        d={'cells':self.cells, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}
+        if not ignore:
+            d['parameter_distributions']=self.parameter_distributions
+        scipy.io.savemat(aggregate_filename+'mat', d, oned_as = 'row', long_field_names=True,do_compression=True)
         self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
-        self.to_gui.put({'display_cell_tree':self.cells})
-        self.display_trace_parameter_distribution()
+        if not ignore:
+            self.to_gui.put({'display_cell_tree':self.cells})
+            self.display_trace_parameter_distribution()
         
     def display_trace_parameter_distribution(self):
         if not hasattr(self, 'parameter_distributions'):
@@ -1044,10 +1070,13 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                         self.trigger_handler(msg['trigger'])
         
     def run(self):
+        run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
         while True:
             try:
                 self.last_run = time.time()#helps determining whether the engine still runs
                 self.run_all_iterations()
+                for fn in run_always:
+                    getattr(self, fn)()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:
