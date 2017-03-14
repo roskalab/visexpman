@@ -47,18 +47,16 @@ class Gr(experiment.Stimulus):
         
     def run(self):
         from PIL import Image
-        pixel_size=10.0#um/pixel
-        #screen width [um]/pixel_size-> number of displayed pixels on screen (horizontal). The loaded texture shall be a much bigger object:
-        #image pixel width*pixel_size -> texture width in um CONTINUE HERE!!!!
+        pixel_size=3.0#um/pixel
+        shift=400.0#um
+        speed=1200*6
         fn='/tmp/Pebbleswithquarzite_grey.png'
         fn='/tmp/1.JPG'
         texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
-        #Image size in um:
-        screen_window_width_n_pixel=int(self.config.SCREEN_SIZE_UM['col']/pixel_size)
-        screen_window_height_n_pixel=int(self.config.SCREEN_SIZE_UM['row']/pixel_size)
-        self.config.SCREEN_RESOLUTION['col']
-        Continue HERE!!!
-        Image size: texture.shape*pixel_size*screen um2 pixel ratio
+        shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
+        dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
+        #Image size: texture.shape*pixel_size*screen um2 pixel ratio
+        size=utils.rc(numpy.array(texture.shape[:2])*pixel_size/self.config.SCREEN_UM_TO_PIXEL_SCALE)
         texture_coordinates = numpy.array(
                              [
                              [1, 1],
@@ -66,24 +64,40 @@ class Gr(experiment.Stimulus):
                              [0.0, 0.0],
                              [1, 0.0],
                              ])
-        self._init_texture(utils.rc((100,100)),0)
+        self._init_texture(size,0)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
-        phase=0
+        #Calculate trajectory of image motion
+        p0=(utils.nd(size)/2-utils.nd(self.config.SCREEN_RESOLUTION)/2)[::-1]
+        p1=p0*numpy.array([-1,1])
+        nshifts=int(size['row']/shift_pixel)-1
+        vertical_offsets=numpy.arange(nshifts)*shift_pixel
+        vertical_offsets=numpy.repeat(vertical_offsets,3)
+        points=numpy.array([p0,p1,p0])
+        points=numpy.array(points.tolist()*nshifts)
+        points[:,1]-=vertical_offsets
+        #Interpolate between points
+        offset=numpy.empty((0,2))
+        for i in range(points.shape[0]-1):
+            start=points[i]
+            end=points[i+1]
+            nsteps=int(abs(((end-start)/dpixel)).max())
+            increment_vector=(end-start)/abs((end-start)).max()*dpixel
+            steps=numpy.repeat(numpy.arange(nsteps),2).reshape(nsteps,2)*increment_vector+start
+            offset=numpy.concatenate((offset,steps))
         import time
         t0=time.time()
-        size=utils.cr((5*1024,5*768))
-        for i in range(120):
-            vertices = geometry.rectangle_vertices(size, orientation = 0)
-            vertices[:,0]+=phase
-            phase+=1
+        for i in range(offset.shape[0]):
+            vertices = geometry.rectangle_vertices(size, orientation = 0)-offset[i]
             glEnableClientState(GL_VERTEX_ARRAY)
             glVertexPointerf(vertices)
-            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
+            glTexCoordPointerf(texture_coordinates)
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
             self._flip(False)
-        print time.time()-t0
+            if self.abort:
+                break
+        print (time.time()-t0)/offset.shape[0]
         self._deinit_texture()
         return
         t0=time.time()
