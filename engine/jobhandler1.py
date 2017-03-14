@@ -686,6 +686,41 @@ def extract_prepost_scan(h):
             logging.info(nodes2save[-1]+' extracted')
         h.save(nodes2save)
         
+def jobhandler_process_single_file(filename, user):
+    '''
+    Mesextractor, analysis and conversion
+    '''
+    aconfigname = 'Config'
+    auser='daniel'
+    analysis_config = utils.fetch_classes('visexpA.users.'+auser, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+    if not os.path.isdir(filename):
+        filenames=[filename]
+    else:
+        filenames=[f for f in fileop.listdir_fullpath(filename) if os.path.splitext(f)[1]=='.hdf5']
+    for fn in filenames:
+        print fn
+        try:
+            mes_extractor = importers.MESExtractor(fn, config = analysis_config, close_file=False)
+            data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
+            extract_prepost_scan(mes_extractor.hdfhandler)
+            print 'mesextractor done'
+            mes_extractor.hdfhandler.close()
+            create = ['roi_curves','soma_rois_manual_info']
+            export = ['roi_curves'] 
+            analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
+            h = hdf5io.iopen(fn,analysis_config)
+            if h is not None:
+                for c in create:
+                    h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
+                for e in export:
+                    getattr(h,'export_'+e)()
+                h.close()
+            print 'analysis done'
+            hdf52mat(fn, analysis_config)
+        except:
+            print 'error'
+    print 'all done'
+        
 if __name__=='__main__':
     if len(sys.argv)==1:
         unittest.main()
