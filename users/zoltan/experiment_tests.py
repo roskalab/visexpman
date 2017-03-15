@@ -49,10 +49,12 @@ class Gr(experiment.Stimulus):
         from PIL import Image
         pixel_size=10.0#um/pixel
         shift=400.0#um
-        speed=1200
+        speed=1200*3
         yrange=[0,100]
         fn='/tmp/Pebbleswithquarzite_grey.png'
-        #fn='/tmp/1.JPG'
+        fn='/tmp/1.JPG'
+        self.show_rolling_image(fn,pixel_size,speed,shift,yrange)
+        return
         texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
         if len(texture.shape)<3:
             texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
