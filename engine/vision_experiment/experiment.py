@@ -5,7 +5,6 @@ import visexpman
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils, file
 import stimulation_library
-
 import inspect
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 from visexpman.engine.generic import introspect
@@ -185,15 +184,29 @@ class MetaStimulus(object):
         self.config=config
         self.poller=poller
         self.n_issued_commands=0
+        self.id=str(int(time.time()))
+
+    def read_depth(self):
+        depthstr=str(self.poller.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
+        depthparams=map(int,depthstr.split(','))
+        depths=range(depthparams[0],depthparams[1],-depthparams[2])
+        return depths
+
+    def read_laser(self,depths):
+        laserstr=str(self.poller.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
+        laserpars=map(int, laserstr.split(','))
+        return numpy.linspace(laserpars[0], laserpars[1], len(depth))
         
     def sleep(self, duration):
         self.poller.queues['stim']['out'].put('SOCsleepEOC{0}EOP'.format(duration))
         self.n_issued_commands+=1
         self.poller.printc('sleep for {0} s'.format(duration))
-        
+       
     def start_experiment(self,  stimulus_name,  depth,  laser):
         import time, copy
         self.experiment_parameters = {}
+        self.experiment_parameters['metastim']=self.__class__.__name__
+        self.experiment_parameters['metastim_id']=self.id
         self.experiment_parameters['user']=self.poller.animal_parameters['user']
         self.experiment_parameters['intrinsic'] = False
         self.experiment_parameters['stage_position']=self.poller.stage_position
@@ -244,6 +257,8 @@ class MetaStimulus(object):
     def show_pre(self, classname):
         command='SOCselect_experimentEOC{0}EOP'.format(classname)
         self.poller.queues['stim']['out'].put(command)
+
+    def 
         
     def run(self):
         '''
