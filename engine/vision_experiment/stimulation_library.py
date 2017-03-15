@@ -1382,13 +1382,13 @@ class AdvancedStimulation(StimulationHelpers):
         trajectories = []
         nframes = 0
 
-        np.random.seed(1)
+        numpy.random.seed(1)
         if random_speeds:
             speeds = numpy.random.permutation(speeds)
 
         for spd in speeds:
             if random_directions:
-                direction = numpy.random.permutation(direction)
+                directions = numpy.random.permutation(directions)
 
             for direction in directions:
                 end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')

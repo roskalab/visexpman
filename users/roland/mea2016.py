@@ -32,7 +32,7 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         self.VARS['FingerPrinting']['SPEEDS'] = [300.0]    
         self.VARS['FingerPrinting']['DURATION'] = 15.0
         self.VARS['FingerPrinting']['INTENSITY_LEVELS'] = 255
-        self.VARS['FingerPrinting']['REPEATS'] = 5
+        self.VARS['FingerPrinting']['REPEATS'] = 15
         
         #
         self.STIM_TYPE_CLASS['WhiteNoise'] = 'WhiteNoiseStimulus'
@@ -58,8 +58,8 @@ class Mea2016BatchConfig(experiment.ExperimentConfig):
         #
         self.STIM_TYPE_CLASS['Gratings'] = 'MovingGratingStimulus'
         self.VARS['Gratings'] = {}   
-        self.VARS['Gratings']['REPEATS'] = 3
-        self.VARS['Gratings']['N_BAR_ADVANCES_OVER_POINT'] = 10
+        self.VARS['Gratings']['REPEATS'] = 1
+        self.VARS['Gratings']['N_BAR_ADVANCES_OVER_POINT'] = 20
         self.VARS['Gratings']['MARCH_TIME'] = 0.0
         self.VARS['Gratings']['GREY_INSTEAD_OF_MARCHING'] = False
         self.VARS['Gratings']['NUMBER_OF_MARCHING_PHASES'] = 1.0

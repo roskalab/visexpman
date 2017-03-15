@@ -42,9 +42,12 @@ class MovingShapeStimulus(experiment.Experiment):
         'SHAPE': 'rect', 
         'SHAPE_CONTRAST' : 1.0, 
         'SHAPE_BACKGROUND': 0.5, 
+        'SHAPE_SIZE': 10,
         'PAUSE_BETWEEN_DIRECTIONS' : 0.0,
         'RANDOM_SPEEDS': False,
         'RANDOM_DIRECTIONS': True,
+        'SPEEDS': [160],
+        'DIRECTIONS' : range(0, 360, 45),
         }
         self.set_default_experiment_parameter_values(parameter_default_values)
         #Calculate duration

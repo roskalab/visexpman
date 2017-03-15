@@ -1,14 +1,7 @@
-import numpy
-import copy
-import time
-import random
-from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
-from stimuli import *
-
-# ------------------------------------------------------------------------------
-class StimScanMarchingSquaresSmall(experiment.ExperimentConfig):
+# -----------------------------------------------------------------------------
+class StimScan01MarchingSquaresSmall(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable='ReceptiveFieldExplore'
         self.SHAPE = 'rect'
@@ -23,7 +16,24 @@ class StimScanMarchingSquaresSmall(experiment.ExperimentConfig):
         self.ENABLE_RANDOM_ORDER = True
         self._create_parameters_from_locals(locals())
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+class StimScan01MovingDots(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable='MovingShapeStimulus'
+    
+        self.REPETITIONS = 1 
+        self.SHAPE = 'circle'
+        self.SHAPE_CONTRAST = 1.0 
+        self.SHAPE_BACKGROUND = 0.5
+        self.SHAPE_SIZE = 10
+        self.PAUSE_BETWEEN_DIRECTIONS = 0.0
+        self.RANDOM_SPEEDS = False
+        self.RANDOM_DIRECTIONS = True
+        self.SPEEDS  = [160]
+        self.DIRECTIONS = range(0, 360, 5)
+        self._create_parameters_from_locals(locals())
+
+# -----------------------------------------------------------------------------
 class StimScan01WhiteNoise(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
