@@ -169,7 +169,19 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     def ping(self):
         self.queues['gui']['out'].put('pong')
         return 'pong'
-
+        
+    def sleep(self,  duration):
+        t0=time.time()
+        self.queues['gui']['out'].put('sleeping {0} s'.format(duration))
+        while True:
+            now=time.time()
+            if now-t0>float(duration):
+                break
+            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+                break
+            time.sleep(0.1)
+        return 'sleep'
+        
     def filterwheel(self, filterwheel_id = 1, filter_position = 1):
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):            
             filterwheel = instrument.Filterwheel(self.config, id = filterwheel_id)
@@ -223,8 +235,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             self.selected_experiment_config_index = [i for i in range(len(self.experiment_config_list)) if self.experiment_config_list[i][1].__name__==experiment_index][0]
         try:
             self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
+            self.queues['gui']['out'].put(str(experiment_index)+  ' selected')
         except:
-            print 'preexp error'
+            self.queues['gui']['out'].put(traceback.format_exc())
         if hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
             self.clear_screen_to_background()
             self.experiment_config.pre_runnable.run()
