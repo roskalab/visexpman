@@ -813,6 +813,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if are_same_shapes_over_frames:
             frames_vertices = numpy.zeros(( nshapes * n_vertices,  2))         
         else:
+            print n_frames
+            print nshapes
+            
+            nshapes = int(nshapes)
+            print n_vertices
+            
+            
+            
             frames_vertices = numpy.zeros((n_frames * nshapes * n_vertices,  2))         
         index = 0
         for frame_i in range(n_frames):
@@ -1434,6 +1442,58 @@ class AdvancedStimulation(StimulationHelpers):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
+    
+    def random_dots(self, duration, 
+                    dotSize = 10, 
+                    appearanceDuration = 2.0, 
+                    sparsityFactor = 0.01, 
+                    directions = range(0, 360, 5),
+                    speeds = 500):
+        
+        #nPixels = utils.rc((int(self.config.SCREEN_SIZE_UM['row']/pixel_size['row']), int(self.config.SCREEN_SIZE_UM['col']/pixel_size['col'])))
+        
+        maxTravelDistance_um = max(speeds) * appearanceDuration
+        xRange =  [-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['row'] + maxTravelDistance_um]
+        yRange =  [-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['col'] + maxTravelDistance_um]
+        
+        pixel_size = self.config.SCREEN_UM_TO_PIXEL_SCALE
+        #xRange = xRange_um / pixel_size['row']
+        #yRange =  yRange_um / pixel_size['col']       
+        
+        area = (xRange[1]-xRange[0]) * (yRange[1]-yRange[0])
+        nStim0 = area / pow(dotSize, 2) * sparsityFactor
+        print area
+        
+        print nStim0
+        
+        nStim = nStim0 * duration / appearanceDuration   
+        print nStim        
+        
+        timePoints = range(0, int(appearanceDuration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
+        
+        nGridPositions = 100
+        grid_positions = numpy.array(numpy.meshgrid(
+                                        numpy.linspace(xRange[0], xRange[1], nGridPositions),
+                                        numpy.linspace(yRange[0], yRange[1], nGridPositions) ), dtype=numpy.float).T
+        
+        appearance_positions = utils.rc(numpy.array([numpy.array(grid_positions[:,:,0].flatten().tolist()),  numpy.array(grid_positions[:,:,1].flatten().tolist()) ]))
+        
+        
+        numpy.random.seed(0)
+        self.ramdomDots = {'speeds': numpy.random.choice(speeds, nStim), 
+                           'directions': numpy.random.choice(directions, nStim),
+                           'appearanceTimes': numpy.random.choice(timePoints, nStim)
+                            }
+        
+        self.show_shapes(shape = 'circle', 
+                         shape_size = dotSize,
+                         shape_positions = appearance_positions,
+                         nshapes = nStim, 
+                         duration = appearanceDuration,
+                         are_same_shapes_over_frames = False
+                         )        
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+
         
     def white_noise_old(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
         '''

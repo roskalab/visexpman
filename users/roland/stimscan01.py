@@ -16,22 +16,40 @@ class StimScan01MarchingSquaresSmall(experiment.ExperimentConfig):
         self.ENABLE_RANDOM_ORDER = True
         self._create_parameters_from_locals(locals())
 
-# -----------------------------------------------------------------------------
-class StimScan01MovingDots(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable='MovingShapeStimulus'
-    
-        self.REPETITIONS = 1 
-        self.SHAPE = 'circle'
-        self.SHAPE_CONTRAST = 1.0 
-        self.SHAPE_BACKGROUND = 0.5
-        self.SHAPE_SIZE = 10
-        self.PAUSE_BETWEEN_DIRECTIONS = 0.0
-        self.RANDOM_SPEEDS = False
-        self.RANDOM_DIRECTIONS = True
-        self.SPEEDS  = [160]
-        self.DIRECTIONS = range(0, 360, 5)
-        self._create_parameters_from_locals(locals())
+## -----------------------------------------------------------------------------
+#class StimScan01MovingDot(experiment.ExperimentConfig):
+#    def _create_parameters(self):
+#        self.runnable='MovingShapeStimulus'
+#    
+#        self.REPETITIONS = 1 
+#        self.SHAPE = 'circle'
+#        self.SHAPE_CONTRAST = 1.0 
+#        self.SHAPE_BACKGROUND = 0.5
+#        self.SHAPE_SIZE = 10
+#        self.PAUSE_BETWEEN_DIRECTIONS = 0.0
+#        self.RANDOM_SPEEDS = False
+#        self.RANDOM_DIRECTIONS = True
+#        self.SPEEDS  = [160]
+#        self.DIRECTIONS = range(0, 360, 5)
+#        self._create_parameters_from_locals(locals())
+#
+## -----------------------------------------------------------------------------
+#class StimScan01RamdomDots(experiment.ExperimentConfig):
+#    def _create_parameters(self):
+#        self.runnable='RandomDots'
+#    
+#        self.REPEATS = 1
+#        self.DURATION = 10
+#        '''self.SHAPE = 'circle'
+#        self.SHAPE_CONTRAST = 1.0 
+#        self.SHAPE_BACKGROUND = 0.5
+#        self.SHAPE_SIZE = 10
+#        self.PAUSE_BETWEEN_DIRECTIONS = 0.0
+#        self.RANDOM_SPEEDS = False
+#        self.RANDOM_DIRECTIONS = True
+#        self.SPEEDS  = [160]
+#        self.DIRECTIONS = range(0, 360, 5)'''
+#        self._create_parameters_from_locals(locals())
 
 # -----------------------------------------------------------------------------
 class StimScan01WhiteNoise(experiment.ExperimentConfig):
@@ -67,7 +85,7 @@ class StimScan01MovingGrating(experiment.ExperimentConfig):
     
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
-        self.REPEATS = 1
+        self.REPEATS = 2
         self.N_BAR_ADVANCES_OVER_POINT = 20
         self.MARCH_TIME = 0.0
         self.GREY_INSTEAD_OF_MARCHING = False
@@ -75,7 +93,7 @@ class StimScan01MovingGrating(experiment.ExperimentConfig):
         self.GRATING_STAND_TIME = 1.0
         self.ORIENTATIONS = range(0,360, 45)
         self.WHITE_BAR_WIDTHS = [100]
-        self.VELOCITIES = [300]
+        self.VELOCITIES = [300, 1500]
         self.DUTY_CYCLES = [1]
         self.PAUSE_BEFORE_AFTER = 1.0
         

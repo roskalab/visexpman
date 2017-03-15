@@ -757,6 +757,32 @@ class ChirpSweep(experiment.Experiment):
         #self.stimulus_frame_info.append({'super_block':'ChirpSweep', 'is_last':1, 'counter':self.frame_counter})
     # End of ChirpSweep
 
+
+class RandomDots(experiment.Experiment):
+    '''
+        Required:
+            DURATION: in seconds
+            REPEATS
+    '''
+    def prepare(self):
+        self.repeats = self.experiment_config.REPEATS
+        self.stimulus_duration = self.experiment_config.DURATION*self.experiment_config.REPEATS
+       
+    def run(self):
+        
+        self.stimulus_frame_info.append({'super_block':'RandomDots', 'is_last':0, 'counter':self.frame_counter})
+        
+        for rep in range(self.experiment_config.REPEATS):
+            self.random_dots(duration = self.experiment_config.DURATION, dotSize = 10, appearanceDuration = 2.0, 
+                    sparsityFactor = 0.01, 
+                    directions = range(0,360, 5),
+                    speeds = [160, 400])
+            self.show_fullscreen(color=0.5)
+        
+        self.stimulus_frame_info.append({'super_block':'RandomDots', 'is_last':1, 'counter':self.frame_counter})
+    # End of RandomDots
+
+
 class BatchStimulus(experiment.Experiment):
     '''
         Required parameters:
