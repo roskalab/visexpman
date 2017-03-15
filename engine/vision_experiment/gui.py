@@ -787,7 +787,7 @@ class MainPoller(Poller):
         self.stim_connected=False
         import visexpman
         self.experiment_config_list=[]
-        for u in [self.config.user, 'common']:
+        for u in [self.config.user]:
             self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
         self.experiment_config_list.sort()
         if STAGE:
@@ -801,11 +801,12 @@ class MainPoller(Poller):
         if self.stim_connected and self.user=='daniel':
             stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
             command='SOCselect_experimentEOC{0}EOP'.format(stimname)
+            self.printc(command)
             self.queues['stim']['out'].put(command)
             
     def start_metastim(self, classname):
         import visexpman
-        self.metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)
+        self.metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)[0][1](self,  self.config)
         self.metastimclass.run()
         
     def update_process_status(self):
@@ -2421,6 +2422,7 @@ class MainPoller(Poller):
             if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
                 connected += 'STIM  '
                 n_connected += 1
+                self.stim_connected=True
             if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                 connected += 'ANALYSIS  '
                 n_connected += 1

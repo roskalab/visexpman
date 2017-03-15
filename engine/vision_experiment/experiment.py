@@ -3,7 +3,7 @@ import logging
 import os
 import visexpman
 from visexpman.engine.generic.configuration import Config
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils, file
 import stimulation_library
 
 import inspect
@@ -189,7 +189,7 @@ class MetaStimulus(object):
         self.experiment_parameters['user']=self.poller.animal_parameters['user']
         self.experiment_parameters['intrinsic'] = False
         self.experiment_parameters['stage_position']=self.poller.stage_position
-        self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
+        self.experiment_parameters['mouse_file'] = os.path.split(self.poller.mouse_file)[1]
         region_name = self.poller.parent.get_current_region_name()
         if len(region_name)>0:
             self.experiment_parameters['region_name'] = region_name
@@ -204,7 +204,7 @@ class MetaStimulus(object):
         if os.path.exists(parameter_file):
             time.sleep(1.1)
             self.experiment_parameters['id'] = str(int(time.time()))
-            self.issued_ids[-1]=self.experiment_parameters['id']
+            self.poller.issued_ids[-1]=self.experiment_parameters['id']
             parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
         h = hdf5io.Hdf5io(parameter_file,filelocking=False)
         h.parameters = copy.deepcopy(self.experiment_parameters)
@@ -232,6 +232,10 @@ class MetaStimulus(object):
         for i in range(self.n_issued_commands):#Abort sleeps
             command = 'SOCabort_experimentEOCguiEOP'
             self.queues['stim']['out'].put(command)
+            
+    def show_pre(self, classname):
+        command='SOCselect_experimentEOC{0}EOP'.format(classname)
+        self.poller.queues['stim']['out'].put(command)
         
     def run(self):
         '''

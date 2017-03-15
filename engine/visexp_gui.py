@@ -188,7 +188,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.animal_parameters_widget.anesthesia_history_groupbox.remove_button, 'remove_last_from_anesthesia_history')
         #Experiment control
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
-        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.experiment_name, 'update_preexp', widget_signal_name='currentIndexChanged(int)')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.experiment_name, 'update_preexp', widget_signal_name='currentIndexChanged')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.graceful_stop_experiment_button, 'graceful_stop_experiment')
         #Data processing
         #ROI
