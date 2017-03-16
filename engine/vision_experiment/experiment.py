@@ -191,6 +191,7 @@ class MetaStimulus(object):
         depthstr=str(self.poller.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         depthparams=map(int,depthstr.split(','))
         depths=range(depthparams[0],depthparams[1],-depthparams[2])
+        depths.append(depthparams[1])
         return depths
 
     def read_laser(self,depths):
