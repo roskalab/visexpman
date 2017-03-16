@@ -1,4 +1,4 @@
-import sys
+import sys,time,numpy
 import logging
 import os
 import visexpman
@@ -185,6 +185,7 @@ class MetaStimulus(object):
         self.poller=poller
         self.n_issued_commands=0
         self.id=str(int(time.time()))
+        self.poller.printc('Starting {0}/{1} metastim'.format(self.__class__.__name__, self.id))
 
     def read_depth(self):
         depthstr=str(self.poller.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
@@ -195,7 +196,7 @@ class MetaStimulus(object):
     def read_laser(self,depths):
         laserstr=str(self.poller.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
         laserpars=map(int, laserstr.split(','))
-        return numpy.linspace(laserpars[0], laserpars[1], len(depth))
+        return numpy.linspace(laserpars[0], laserpars[1], len(depths))
         
     def sleep(self, duration):
         self.poller.queues['stim']['out'].put('SOCsleepEOC{0}EOP'.format(duration))
@@ -256,9 +257,8 @@ class MetaStimulus(object):
             
     def show_pre(self, classname):
         command='SOCselect_experimentEOC{0}EOP'.format(classname)
+        self.poller.printc('{0} pre exp selected'.format(classname))
         self.poller.queues['stim']['out'].put(command)
-
-    def 
         
     def run(self):
         '''
