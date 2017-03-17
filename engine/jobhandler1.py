@@ -1,7 +1,7 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
 import scipy.io,multiprocessing,stat,subprocess,io,getpass
-if len(sys.argv)>=4 and 'jobhandler1' in sys.argv[0]:#only when jobhandler is run but not imported as a module
+if len(sys.argv)>=4 and 'jobhandler1' in sys.argv[0] and sys.argv[3]!='--ignore_failed_files':#only when jobhandler is run but not imported as a module
     visexpman_path=sys.argv[3]
     sys.path.insert(0,visexpman_path)
     print 'loading visexpman path',visexpman_path,sys.path.index(visexpman_path)
@@ -73,9 +73,9 @@ class Jobhandler(object):
         #Check free space on databig and tape
         free_space_on_datafast = fileop.free_space(self.config.EXPERIMENT_DATA_PATH)/(1024**3)
         free_space_on_databig = fileop.free_space(self.config.DATABIG_PATH)/(1024**3)
-        free_space_on_m = fileop.free_space('/mnt/mdrive')/(1024**3)
+        free_space_on_m = 'unknown'#fileop.free_space('/mnt/mdrive')/(1024**3)
         try:
-            free_space_on_tape = fileop.free_space(self.config.TAPE_PATH)/(1024**3)
+            free_space_on_tape = 'unknown'# fileop.free_space(self.config.TAPE_PATH)/(1024**3)
         except:
             free_space_on_tape = 'Not available'
         if free_space_on_databig < 50:
