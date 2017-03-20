@@ -38,7 +38,7 @@ class LogChecker(object):
             logging.info(f)
             logging.info((self.logfiles.index(f), len(self.logfiles), f))
             self.error_report+=self.checkfile(f)
-	logging.info((msglen, len(self.error_report)))
+        logging.info((msglen, len(self.error_report)))
         if self.t0!=0 and len(self.error_report)>msglen:#Ignore errors at very first run
             utils.sendmail(to, 'errors in {0}'.format(logfile_folder), self.error_report)
             logging.error(self.error_report)
