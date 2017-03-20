@@ -1125,7 +1125,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self._append_to_stimulus_frame_info(params)
             
-    def show_rolling_image(self, filename,pixel_size,speed,shift,yrange):
+    def show_rolling_image(self, filename,pixel_size,speed,shift,yrange,save_frame_info=True):
+        if save_frame_info:
+            self.log.info('show_rolling_image(' + str(filename)+ ', ' + str(pixel_size) + ', ' + str(speed) + ', ' + str(shift)  + ', ' + str(yrange)  + ', ' + str(orientation) +')', source = 'stim')
+            self._save_stimulus_frame_info(inspect.currentframe())
         texture=numpy.asarray(Image.open(filename))/255.
         if len(texture.shape)<3:
             texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
@@ -1185,6 +1188,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 break
         print i/(time.time()-t0)
         self._deinit_texture()
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+
     
             
 class StimulationHelpers(Stimulations):
