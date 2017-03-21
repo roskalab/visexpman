@@ -1124,6 +1124,73 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self._append_to_stimulus_frame_info(params)
+            
+    def show_rolling_image(self, filename,pixel_size,speed,shift,yrange,save_frame_info=True):
+        if save_frame_info:
+            self.log.info('show_rolling_image(' + str(filename)+ ', ' + str(pixel_size) + ', ' + str(speed) + ', ' + str(shift)  + ', ' + str(yrange)  + ', ' + str(orientation) +')', source = 'stim')
+            self._save_stimulus_frame_info(inspect.currentframe())
+        texture=numpy.asarray(Image.open(filename))/255.
+        if len(texture.shape)<3:
+            texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
+        if yrange!=None:
+            texture=texture[yrange[0]:yrange[1],:,:]
+        shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
+        dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
+        #Image size: texture.shape*pixel_size*screen um2 pixel ratio
+        size=utils.rc(numpy.array(texture.shape[:2])*pixel_size/self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        texture_coordinates = numpy.array(
+                             [
+                             [1, 1],
+                             [0.0, 1],
+                             [0.0, 0.0],
+                             [1, 0.0],
+                             ])
+        self._init_texture(size,0)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+        #Calculate trajectory of image motion
+        ndsize=numpy.array([size['row'],size['col']])
+        ndres=numpy.array([self.config.SCREEN_RESOLUTION['row'],self.config.SCREEN_RESOLUTION['col']])
+        p0=(ndsize/2-ndres/2)[::-1]
+        p1=p0*numpy.array([-1,1])
+        p1=p1.flatten()
+        p0=p0.flatten()
+        nshifts=int(size['row']/shift_pixel)-1
+        vertical_offsets=numpy.arange(nshifts)*shift_pixel
+        vertical_offsets=numpy.repeat(vertical_offsets,3)
+        points=numpy.array([p0,p1,p0])
+        points=numpy.array(points.tolist()*nshifts)
+        points[:,1]-=vertical_offsets
+        #Interpolate between points
+        offset=numpy.empty((0,2))
+        for i in range(points.shape[0]-1):
+            start=points[i]
+            end=points[i+1]
+            nsteps=int(abs(((end-start)/dpixel)).max())
+            increment_vector=(end-start)/abs((end-start)).max()*dpixel
+            steps=numpy.repeat(numpy.arange(nsteps),2).reshape(nsteps,2)*increment_vector+start
+            offset=numpy.concatenate((offset,steps))
+        import time
+        t0=time.time()
+        for i in range(offset.shape[0]):
+            now=time.time()
+            index=int((now-t0)*self.config.SCREEN_EXPECTED_FRAME_RATE)
+            if index>=offset.shape[0]:
+                break
+            vertices = geometry.rectangle_vertices(size, orientation = 0)-offset[index]
+            glEnableClientState(GL_VERTEX_ARRAY)
+            glVertexPointerf(vertices)
+            glTexCoordPointerf(texture_coordinates)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip(False)
+            if self.abort:
+                break
+        print i/(time.time()-t0)
+        self._deinit_texture()
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+
     
             
 class StimulationHelpers(Stimulations):
@@ -1146,6 +1213,7 @@ class StimulationHelpers(Stimulations):
                              [1.0, 0.0],
                              ])
         glTexCoordPointerf(texture_coordinates)
+        return texture_coordinates
         
     def _deinit_texture(self):
         glDisable(GL_TEXTURE_2D)

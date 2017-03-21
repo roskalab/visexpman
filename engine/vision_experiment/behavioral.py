@@ -350,12 +350,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #logging.info(introspect.python_memory_usage())
         self.ai=daq_instrument.AnalogRecorder(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE)
         self.ai.start()
+        logging.info('AI started')
         t0=time.time()
         while self.ai.responseq.empty():
             time.sleep(0.1)
             if time.time()-t0>20:
                 logging.info('Daq start timeout')
                 break
+        logging.info(self.ai.responseq.get())
         time.sleep(1.5)#This value is experimental!!!
         self._start_protocol()
         self.id=experiment_data.get_id()
@@ -382,7 +384,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if self.sync.shape[0]>0: 
                 #self.ai.read()
                 break
-            if time.time()-t0>10:
+            if time.time()-t0>20:
                 logging.error('Not enough AI samples?')
                 logging.info(self.ai.dataq.qsize())
                 abort_session=True
@@ -596,7 +598,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     msg = self.from_gui.get()
                     if msg == 'terminate':
                         return True#break
-                    if msg.has_key('function'):#Functions are simply forwarded
+                    if hasattr(msg, 'has_key') and msg.has_key('function'):#Functions are simply forwarded
                         #Format: {'function: function name, 'args': [], 'kwargs': {}}
                         if DEBUG:
                             logging.debug(msg)
@@ -1110,6 +1112,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         success_rate_plot.update_curves(2*[days],[analysis.success_rates*100,analysis.lick_success_rates *100],plotparams=pps)
         success_rate_plot.plot.setLabels(left='success rate [%]')
         self.addTab(success_rate_plot,'Success rate')
+        self.analysis=analysis
         lick_latency_histogram_plot=self.histograms(analysis.lick_latency_histogram)
         reward_latency_histogram_plot=self.histograms(analysis.reward_latency_histogram)
         lick_times_histogram_plot=self.histograms(analysis.lick_times_histogram)
@@ -1132,7 +1135,11 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         for d in days:
             histw.plots.append(gui.Plot(histw))
             histw.plots[-1].plot.setTitle(d)
-            histw.plots[-1].update_curve(bins,hist[1][d], plotparams={'fillLevel':-0.3, 'brush': (50,50,128,100)})
+            if bins.shape[0]==1 or hist[1][d].sum()==0:
+                pp={'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,50,128,100)}
+            else:
+                pp={'fillLevel':-0.01, 'brush': (50,50,128,100)}
+            histw.plots[-1].update_curve(bins,hist[1][d], plotparams=pp)
             histw.plots[-1].plot.setLabels(left='occurence', bottom='dt [ms]')
             histw.plots[-1].plot.setYRange(0, ymax)
             histw.l.addWidget(histw.plots[-1], ct/2, ct%2, 1, 1)

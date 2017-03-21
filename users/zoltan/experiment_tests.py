@@ -1,7 +1,7 @@
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 import numpy
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils,geometry,colors
 from visexpman.engine.vision_experiment import experiment
 
 class NaturalBarsExperiment1(experiment.Stimulus):
@@ -46,29 +46,131 @@ class Gr(experiment.Stimulus):
         self.duration=self.DURATION*3
         
     def run(self):
-#        texture=numpy.zeros((2,7,3))
-#        texture[0,0,:]=1.0
-#        texture[1,1,:]=1.0
-#        cut_off_ratio=1
-#        texture_coordinates = numpy.array(
-#                             [
-#                             [1.0, cut_off_ratio],
-#                             [0.0, cut_off_ratio],
-#                             [0.0, 0.0],
-#                             [1.0, 0.0],
-#                             ])
-#        self._init_texture(utils.rc((100,400)),0,texture_coordinates)
-#        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
-#        phase=0
-#        for i in range(120):
-#            phase+=-0.01
-#            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
-#            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-#            glColor3fv((1.0,1.0,1.0))
-#            glDrawArrays(GL_POLYGON,  0, 4)
-#            self._flip(False)
-#        self._deinit_texture()
+        initial_wait=2.0
+        mask_size=400.
+        bar_width=60.
+        speed=80
+        color=1.0
+        motion=['expand','shrink','left','right'][2]
+        bar_width_pixel=bar_width*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        mask_size_pixel=mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        dpix=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
+        mask_vertices=geometry.circle_vertices([mask_size_pixel]*2,  resolution = 0.5)
+#        mask_vertices=numpy.append(mask_vertices,geometry.rectangle_vertices(utils.rc((self.config.SCREEN_RESOLUTION['row']/2,self.config.SCREEN_RESOLUTION['col'])))+numpy.array([[0,self.config.SCREEN_RESOLUTION['row']/2]]),axis=0)
+        #precalculate edge positions
+        start_pos=utils.rc((0,0))
+        start_size=bar_width_pixel
+        if motion=='expand':
+            end_pos=utils.rc((0,0))
+            end_size=mask_size_pixel
+        elif motion=='shrink':
+            end_pos=utils.rc((0,0))
+            end_size=0
+        elif motion=='left':
+            end_pos=utils.rc((0,-mask_size_pixel/2))
+            end_size=bar_width_pixel
+        elif motion=='right':
+            end_pos=utils.rc((0,mask_size_pixel/2))
+            end_size=bar_width_pixel
+        #interpolate positions and sizes
+        if start_pos['col']==end_pos['col']:
+            if start_size<end_size:
+                d=dpix
+            else:
+                d=-dpix
+            size=numpy.arange(start_size,end_size+dpix, d)
+            x=numpy.ones(size.shape[0])*start_pos['col']
+        elif start_size==end_size:
+            if start_pos['col']<end_pos['col']:
+                d=dpix
+            else:
+                d=-dpix
+            x=numpy.arange(start_pos['col'],end_pos['col']+dpix, d)
+            size=numpy.ones_like(x)*start_size
+        else:
+            raise NotImplementedError('')
+        y=numpy.ones_like(x)*start_pos['row']
+        #generate rectangle vertices
+        vertices=mask_vertices
+        for i in range(size.shape[0]):
+            vertices=numpy.append(vertices,geometry.rectangle_vertices(utils.rc((mask_size_pixel,size[i])))+numpy.array([[x[i],y[i]]]),axis=0)
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        n_vertices=4
+        #TODO: mask, use texture LUMINOSITY
+        for i in range(size.shape[0]):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            col=colors.convert_color(color, self.config)
+            glColor3fv(col)
+            glDrawArrays(GL_POLYGON,  i * n_vertices+mask_vertices.shape[0], n_vertices)
+            self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
+        glDisable(GL_BLEND)
+        return
+        from PIL import Image
+        pixel_size=10.0#um/pixel
+        shift=400.0#um
+        speed=1200*3
+        yrange=[0,100]
+        fn='/tmp/Pebbleswithquarzite_grey.png'
+        fn='/tmp/1.JPG'
+        self.show_rolling_image(fn,pixel_size,speed,shift,yrange)
+        return
+        texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
+        if len(texture.shape)<3:
+            texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
+        texture=texture[yrange[0]:yrange[1],:,:]
+        shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
+        dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
+        #Image size: texture.shape*pixel_size*screen um2 pixel ratio
+        size=utils.rc(numpy.array(texture.shape[:2])*pixel_size/self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        texture_coordinates = numpy.array(
+                             [
+                             [1, 1],
+                             [0.0, 1],
+                             [0.0, 0.0],
+                             [1, 0.0],
+                             ])
+        self._init_texture(size,0)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+        #Calculate trajectory of image motion
+        p0=(utils.nd(size)/2-utils.nd(self.config.SCREEN_RESOLUTION)/2)[::-1]
+        p1=p0*numpy.array([-1,1])
+        nshifts=int(size['row']/shift_pixel)-1
+        vertical_offsets=numpy.arange(nshifts)*shift_pixel
+        vertical_offsets=numpy.repeat(vertical_offsets,3)
+        points=numpy.array([p0,p1,p0])
+        points=numpy.array(points.tolist()*nshifts)
+        points[:,1]-=vertical_offsets
+        #Interpolate between points
+        offset=numpy.empty((0,2))
+        for i in range(points.shape[0]-1):
+            start=points[i]
+            end=points[i+1]
+            nsteps=int(abs(((end-start)/dpixel)).max())
+            increment_vector=(end-start)/abs((end-start)).max()*dpixel
+            steps=numpy.repeat(numpy.arange(nsteps),2).reshape(nsteps,2)*increment_vector+start
+            offset=numpy.concatenate((offset,steps))
         import time
+        t0=time.time()
+        for i in range(offset.shape[0]):
+            now=time.time()
+            index=int((now-t0)*self.config.SCREEN_EXPECTED_FRAME_RATE)
+            vertices = geometry.rectangle_vertices(size, orientation = 0)-offset[index]
+            glEnableClientState(GL_VERTEX_ARRAY)
+            glVertexPointerf(vertices)
+            glTexCoordPointerf(texture_coordinates)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip(False)
+            if self.abort:
+                break
+        print i/(time.time()-t0)
+        self._deinit_texture()
+        return
         t0=time.time()
         self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION,display_area=utils.rc((400,600)),
                 flicker={'frequency':5, 'modulation_size':50})
