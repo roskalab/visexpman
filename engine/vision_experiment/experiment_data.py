@@ -264,8 +264,8 @@ if hdf5io_available:
                     mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
                     mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
                     csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '.csv'))
-                    txtlines=['tstim,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['tsync'],2))))]
-                    txtlines.append('timg,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['timg'],2)))))
+                    txtlines=['tstim,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['tsync'],3))))]
+                    txtlines.append('timg,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['timg'],3)))))
                     plotpars=[]
                     for i in range(len(self.rois)):
                         roi =self.rois[i]
