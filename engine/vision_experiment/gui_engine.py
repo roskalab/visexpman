@@ -689,6 +689,15 @@ class Analysis(object):
             self.printc('Calculating parameter distributions')
             self.parameter_distributions = cone_data.quantify_cells(self.cells)
         self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
+        #Append stage coordinates to each cell
+        for i in range(len(self.cells)):
+            for k,v in self.cells[i].items():
+                if k=='scan_region':
+                    continue
+                for fn, v in self.cells[i][k].items():
+                    self.cells[i][k][fn]['stage_coordinate']=self.stage_coordinates[fn]
+                    
+                
         if len(self.cells)==0:
             self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
             return
