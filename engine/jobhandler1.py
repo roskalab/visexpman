@@ -54,6 +54,17 @@ class Jobhandler(object):
         self.printl('Jobhandler started')
         self.printl(os.path.abspath(visexpman.__file__))
         self.printl('Current user is {0}'.format(getpass.getuser()))
+        u=getpass.getuser()
+        if u=='hd':
+            self.current_user='daniel'
+        elif u=='fm':
+            self.current_user='fiona'
+        elif u=='st':
+            self.current_user='stuart'
+        elif u=='rz':
+            self.current_user='zoltan'
+        else:
+            raise RuntimeError('Unknown user')
         import visexpman
         logging.info('Current visexpman path {0}'.format(os.path.dirname(visexpman.__file__)))
         logging.info(sys.argv)
@@ -123,7 +134,7 @@ class Jobhandler(object):
         getattr(self,nextfunction)(*nextpars)
         
     def get_active_animal(self):
-        afiles= fileop.find_files_and_folders(self.config.ANIMAL_FOLDER)[1]
+        afiles= fileop.find_files_and_folders(os.path.join(self.config.ANIMAL_FOLDER, self.current_user))[1]
         now=time.time()
         #Exclude files which have not been modified in the last 30 days
         recent_files=[a for a in afiles if now-os.stat(a).st_mtime<DAYS_SINCE_NO_RECORDING*86400 and a[-5:]=='.hdf5']
