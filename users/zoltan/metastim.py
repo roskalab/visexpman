@@ -12,6 +12,6 @@ class SpeedWait(experiment.MetaStimulus):
                 self.start_experiment('ZoltanMovingGratingConfig', depth=d1, laser = las1)
                 self.show_pre('ZoltanMovingGratingConfig')
                 self.sleep(180/50)
-                self.start_experiment('ZoltanMovingGratingConfig', depth=d1, laser=las1)
+                self.start_experiment('ZoltanMovingGratingConfig1', depth=d1, laser=las1)
 
 

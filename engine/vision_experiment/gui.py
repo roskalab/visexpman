@@ -807,10 +807,10 @@ class MainPoller(Poller):
     def start_metastim(self, classname):
         import visexpman
         if '.' in classname:
-            filename=os.path.join(os.path.abspath(visexpman.__file__), 'users', self.config.user, classname.split('.')[0]+'.py')
+            filename=os.path.join(os.path.dirname(os.path.abspath(visexpman.__file__)), 'users', self.config.user, classname.split('.')[0]+'.py')
             source_code = file.read_text_file(filename)
             introspect.import_code(source_code,'metastim_module', add_to_sys_modules=1)
-            experiment_module = __import__('experiment_module')
+            experiment_module = __import__('metastim_module')
             metastimclass=getattr(experiment_module ,classname.split('.')[1])
         else:
             metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)[0][1]

@@ -21,3 +21,8 @@ class ZoltanMovingGratingConfig(grating_base.MovingGratingNoMarchingConfig):
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())   
+
+class ZoltanMovingGratingConfig1(ZoltanMovingGratingConfig):
+    def _create_parameters(self):
+        ZoltanMovingGratingConfig._create_parameters(self)
+        self.ORIENTATIONS = [0,45,90,135,180,225,270,315][1::2]

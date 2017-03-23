@@ -251,10 +251,11 @@ class MetaStimulus(object):
         self.poller.queues['stim']['out'].put(command)
         
     def stop(self):
+        self.poller.graceful_stop_experiment()
         self.poller.stop_experiment()
         for i in range(self.n_issued_commands):#Abort sleeps
             command = 'SOCabort_experimentEOCguiEOP'
-            self.queues['stim']['out'].put(command)
+            self.poller.queues['stim']['out'].put(command)
             
     def show_pre(self, classname):
         command='SOCselect_experimentEOC{0}EOP'.format(classname)
