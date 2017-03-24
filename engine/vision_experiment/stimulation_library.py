@@ -1190,7 +1190,103 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-
+            
+    def show_approach_stimulus(self, motion, bar_width, speed, color=1.0, initial_wait=2.0, mask_size=400.,save_frame_info=True):
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        bar_width_pixel=bar_width*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        mask_size_pixel=mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        dpix=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
+        circle_vertices=geometry.circle_vertices([mask_size_pixel]*2,  resolution = 0.5)+0*numpy.array([[100,0]])
+        #Convert circle to its complementer shape being composed of rectangles
+        rect_width=self.config.SCREEN_RESOLUTION['col']/2+circle_vertices[:,0].min()
+        x1=-self.config.SCREEN_RESOLUTION['col']/2+rect_width/2
+        x2=self.config.SCREEN_RESOLUTION['col']/2-rect_width/2
+        mask_vertices1=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x1,0]])
+        mask_vertices2=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x2,0]])
+        mask_vertices=mask_vertices1
+        mask_vertices=numpy.append(mask_vertices,mask_vertices2,axis=0)
+        for pi in range(circle_vertices.shape[0]):
+            p1=circle_vertices[pi]
+            if pi==circle_vertices.shape[0]-1:
+                p2=circle_vertices[0]
+            else:
+                p2=circle_vertices[pi+1]
+            if numpy.sign(p1[1])!=numpy.sign(p2[1]):
+                continue
+            if p1[1]>0:
+                coo=self.config.SCREEN_RESOLUTION['row']/2
+            else:
+                coo=-self.config.SCREEN_RESOLUTION['row']/2
+            rect=numpy.array([p1,p2, [p2[0],coo], [p1[0],coo]])
+            mask_vertices=numpy.append(mask_vertices,rect,axis=0)
+        #precalculate edge positions
+        start_pos=utils.rc((0,0))
+        start_size=bar_width_pixel
+        if motion=='expand':
+            end_pos=utils.rc((0,0))
+            end_size=mask_size_pixel
+        elif motion=='shrink':
+            end_pos=utils.rc((0,0))
+            end_size=0
+        elif motion=='left':
+            end_pos=utils.rc((0,-mask_size_pixel/2))
+            end_size=bar_width_pixel
+        elif motion=='right':
+            end_pos=utils.rc((0,mask_size_pixel/2))
+            end_size=bar_width_pixel
+        #interpolate positions and sizes
+        if start_pos['col']==end_pos['col']:
+            if start_size<end_size:
+                d=dpix
+            else:
+                d=-dpix
+            size=numpy.arange(start_size,end_size+dpix, d)
+            x=numpy.ones(size.shape[0])*start_pos['col']
+        elif start_size==end_size:
+            if start_pos['col']<end_pos['col']:
+                d=dpix
+            else:
+                d=-dpix
+            x=numpy.arange(start_pos['col'],end_pos['col']+dpix, d)
+            size=numpy.ones_like(x)*start_size
+        else:
+            raise NotImplementedError('')
+        y=numpy.ones_like(x)*start_pos['row']
+        #generate rectangle vertices
+        vertices=mask_vertices
+        for i in range(size.shape[0]):
+            vertices=numpy.append(vertices,geometry.rectangle_vertices(utils.rc((mask_size_pixel,size[i])))+numpy.array([[x[i],y[i]]]),axis=0)
+        #texture_coordinates=self._init_texture(self.config.SCREEN_RESOLUTION)
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        n_vertices=4
+        for i in range(size.shape[0]):
+            if i==1:
+                for w in range(int(self.config.SCREEN_EXPECTED_FRAME_RATE*initial_wait)):
+                    self._flip(frame_trigger = True)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
+            
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+            glEnable( GL_STENCIL_TEST )
+            glStencilFunc( GL_ALWAYS, 1, 1 )
+            glStencilOp( GL_REPLACE, GL_REPLACE, GL_REPLACE )
+            for shi in range(mask_vertices.shape[0]/4):
+                glDrawArrays(GL_POLYGON, shi*4, 4)
+            
+            glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE )
+            glStencilFunc( GL_EQUAL, 1, 1 )
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+            glColor3fv(colors.convert_color(color, self.config))
+            glDrawArrays(GL_POLYGON,  i * n_vertices+mask_vertices.shape[0], n_vertices)
+            
+            glDisable( GL_STENCIL_TEST )
+            self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
     
             
 class StimulationHelpers(Stimulations):

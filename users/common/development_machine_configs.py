@@ -40,6 +40,6 @@ class StimulusDevelopment(VisionExperimentConfig):
         
         SCREEN_RESOLUTION = utils.cr((1024, 768))#TMP febr 09
         SCREEN_UM_TO_PIXEL_SCALE = 0.5#1/2.47#TMP febr 09
-        BACKGROUND_COLOR = 3*[0.5]#TMP febr 09
+        BACKGROUND_COLOR = 3*[0.0]#TMP febr 09
         
         self._create_parameters_from_locals(locals())
