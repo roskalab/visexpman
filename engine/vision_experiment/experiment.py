@@ -251,9 +251,10 @@ class MetaStimulus(object):
         self.poller.queues['stim']['out'].put('SOCpingEOCEOP')
         self.poller.queues['stim']['out'].put(command)
         
-    def stop(self):
+    def stop(self,graceful=False):
         self.poller.graceful_stop_experiment()
-        self.poller.stop_experiment()
+        if not graceful:
+            self.poller.stop_experiment()
         file.write_text_file(self.abortfn, 'abort')
             
     def show_pre(self, classname):
