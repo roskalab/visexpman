@@ -17,7 +17,7 @@ class BehavioralSetup(BehavioralConfig):
         PLOT_WIDGET_WIDTH=700
         MINIMUM_FREE_SPACE=20#GByte
         ARDUINO_SERIAL_PORT='COM5'
-        PROTOCOL_ORDER=['HitMiss','HitMiss1secRewardDelay','Lick', 'HitMissRandomLaser']
+        PROTOCOL_ORDER=['HitMiss','HitMiss1secRewardDelay','Lick', 'HitMissRandomLaser', 'LickRandomLaser']
         AI_CHANNELS='Dev1/ai0:4'#water valve, lick signal, laser, lick detector output, debug (protocol state)
         AI_SAMPLE_RATE=5000
         BACKUPTIME=3#3am

@@ -83,6 +83,16 @@ class HitMissRandomLaser(HitMiss):
     __doc__=HitMiss.__doc__
     ENABLE_RANDOM_LASER_INTENSITIES=True
     RANDOM_LASER_INTENSITIES=[0.1,0.5,0.7]
+
+class LickRandomLaser(HitMiss):
+    __doc__=HitMiss.__doc__
+    WAIT4LICK=False
+    RESPONSE_WINDOW=0.5
+    REWARD_DELAY=0.0
+    ENABLE_RANDOM_LASER_INTENSITIES=True
+    RANDOM_LASER_INTENSITIES=[0.1,0.5,0.7]
+
+
     
 class LickResponse(BehavioralProtocol):
     '''
