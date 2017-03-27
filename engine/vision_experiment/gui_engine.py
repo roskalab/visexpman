@@ -694,8 +694,11 @@ class Analysis(object):
             for k,v in self.cells[i].items():
                 if k=='scan_region':
                     continue
-                for fn, v in self.cells[i][k].items():
-                    self.cells[i][k][fn]['stage_coordinate']=self.stage_coordinates[fn]
+                if ignore:
+                    self.cells[i]['stage_coordinate']=self.stage_coordinates[self.cells[i]['filename']]
+                else:
+                    for fn, v in self.cells[i][k].items():
+                        self.cells[i][k][fn]['stage_coordinate']=self.stage_coordinates[fn]
                     
                 
         if len(self.cells)==0:
