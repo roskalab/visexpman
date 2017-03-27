@@ -449,23 +449,16 @@ class JobReceiver(threading.Thread):
             return
         self.printl('{0} recevived {1} {2} {3}'.format(new_job['id'], new_job['region'],new_job['stimulus'],new_job['depth']))
         dbfilelock.acquire()
-        self.printl('Acquired')
         try:
             dbf=DatafileDatabase(self.config.ANIMAL_FOLDER,new_job['animal_id'],new_job['user'])
-            self.printl('Opened')
             dbf.add(**new_job)
-            self.printl('added')
             self.socket.send(new_job['id'],flags=zmq.NOBLOCK)
-            self.printl('Ack')
         except:
             self.printl(traceback.format_exc(),'error')
         finally:
             dbf.close()
-            self.printl('Close')
             backup_animal_file(dbf.filename,self.config)
-            self.printl('backup')
             dbfilelock.release()
-            self.printl('Released')
             
 def backup_animal_file(filename,config):
     dst_folder=os.path.join(config.BACKUP_PATH, 'animals', os.path.basename(os.path.dirname(filename)))

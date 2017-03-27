@@ -10,7 +10,7 @@ class ZoltanMovingGratingConfig(grating_base.MovingGratingNoMarchingConfig):
         self.ENABLE_FLASH = False
         #Timing
         self.NUMBER_OF_MARCHING_PHASES = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
         self.MARCH_TIME = 0.5
         self.GRATING_STAND_TIME = 0.5
         #Grating parameters        
@@ -25,4 +25,4 @@ class ZoltanMovingGratingConfig(grating_base.MovingGratingNoMarchingConfig):
 class ZoltanMovingGratingConfig1(ZoltanMovingGratingConfig):
     def _create_parameters(self):
         ZoltanMovingGratingConfig._create_parameters(self)
-        self.ORIENTATIONS = [0,45,90,135,180,225,270,315][1::2]
+        self.ORIENTATIONS = [0,45,90,135,180,225,270,315]
