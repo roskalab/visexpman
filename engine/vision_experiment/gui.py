@@ -808,6 +808,11 @@ class MainPoller(Poller):
         import visexpman
         if '.' in classname:
             filename=os.path.join(os.path.dirname(os.path.abspath(visexpman.__file__)), 'users', self.config.user, classname.split('.')[0]+'.py')
+            if self.config.user=='daniel':
+                root='v:\\codes\\ddev\\visexpman\\users'
+            elif self.config.user=='zoltan':
+                root='v:\\codes\\jobhandler\\visexpman\\users'
+            shutil.copy(os.path.join(root, self.config.user, classname.split('.')[0]+'.py'), filename)
             source_code = file.read_text_file(filename)
             introspect.import_code(source_code,'metastim_module', add_to_sys_modules=1)
             experiment_module = __import__('metastim_module')
