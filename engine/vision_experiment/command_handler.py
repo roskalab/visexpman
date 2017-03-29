@@ -49,6 +49,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.initzmq()
         self.last_send_time=time.time()
         self.job_resend_period=40#second
+        self.abortfn=os.path.join(self.config.CONTEXT_PATH,'abort.txt')
                 
     def initzmq(self):
         context=zmq.Context()
@@ -177,7 +178,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             now=time.time()
             if now-t0>float(duration):
                 break
-            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+            if os.path.exists(self.abortfn):
+                self.queues['gui']['out'].put('sleeping aborted')
                 break
             time.sleep(0.1)
         return 'sleep'
@@ -229,6 +231,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         Selects experiment config based on keyboard command and instantiates the experiment config class
         '''
+        if os.path.exists(self.abortfn):
+            return 'aborted'
         if isinstance(experiment_index, int):
             self.selected_experiment_config_index = int(experiment_index)
         else:

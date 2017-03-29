@@ -23,7 +23,7 @@ from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine import generic
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils,introspect
 from visexpman.engine.generic import file
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
@@ -806,8 +806,21 @@ class MainPoller(Poller):
             
     def start_metastim(self, classname):
         import visexpman
-        self.metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)[0][1](self,  self.config)
-        self.metastimclass.run()
+        if '.' in classname:
+            filename=os.path.join(os.path.dirname(os.path.abspath(visexpman.__file__)), 'users', self.config.user, classname.split('.')[0]+'.py')
+            if self.config.user=='daniel':
+                root='v:\\codes\\ddev\\visexpman\\users'
+            elif self.config.user=='zoltan':
+                root='v:\\codes\\jobhandler\\visexpman\\users'
+            shutil.copy(os.path.join(root, self.config.user, classname.split('.')[0]+'.py'), filename)
+            source_code = file.read_text_file(filename)
+            introspect.import_code(source_code,'metastim_module', add_to_sys_modules=1)
+            experiment_module = __import__('metastim_module')
+            metastimclass=getattr(experiment_module ,classname.split('.')[1])
+        else:
+            metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)[0][1]
+        self.metastim=metastimclass(self,  self.config)
+        self.metastim.run()
         
     def update_process_status(self):
         try:

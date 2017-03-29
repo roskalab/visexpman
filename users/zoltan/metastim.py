@@ -9,9 +9,9 @@ class SpeedWait(experiment.MetaStimulus):
         for rep, las1, d1 in zip(repeats, laser, depth):
             for r1 in range(int(rep)):
                 self.poller.printc((rep, las1, d1))
-                self.start_experiment('ZoltanMovingGratingConfig', depth=d1, laser = las1)
+                #self.start_experiment('ZoltanMovingGratingConfig', depth=d1, laser = las1)
                 self.show_pre('ZoltanMovingGratingConfig')
-                self.sleep(180/50)
-                self.start_experiment('ZoltanMovingGratingConfig', depth=d1, laser=las1)
+                self.sleep(180/20)
+                #self.start_experiment('ZoltanMovingGratingConfig', depth=d1, laser=las1)
 
 
