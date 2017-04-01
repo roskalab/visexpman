@@ -264,8 +264,9 @@ if hdf5io_available:
                     mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
                     mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
                     csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '.csv'))
-                    txtlines=['tstim,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['tsync'],3))))]
-                    txtlines.append('timg,{0}'.format(','.join(map(str,numpy.round(self.rois[0]['timg'],3)))))
+                    csvfn_stim=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_stim.csv'))
+                    txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tsync'],3)))
+                    txtlines=[','.join(map(str,numpy.round(self.rois[0]['timg'],3)))]
                     plotpars=[]
                     for i in range(len(self.rois)):
                         roi =self.rois[i]
@@ -281,10 +282,11 @@ if hdf5io_available:
                         mip2image_with_rectangles_and_indexes.paste(txt,p1,txt)
                         #mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
                         plotpars.append([self.filename, os.path.join(output_folder, '{0}.eps'.format(i)), roi])
-                        txtlines.append('roi{0},{1}'.format(i,','.join(map(str, numpy.round(roi['raw'],2)))))
+                        txtlines.append(','.join(map(str, numpy.round(roi['raw'],2))))
                     p=multiprocessing.Pool(introspect.get_available_process_cores())
                     p.map(roi_plot, plotpars)
                     fileop.write_text_file(csvfn, '\r\n'.join(txtlines))
+                    fileop.write_text_file(csvfn_stim, txtlines_stim)
                     mip2image_with_rectangles_and_indexes.rotate(90).save(os.path.join(output_folder, 'rois_and_indexes.png'))
                     mip2image_with_rectangles.rotate(90).save(os.path.join(output_folder, 'rois.png'))
                     pass

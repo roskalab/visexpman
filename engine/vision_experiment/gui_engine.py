@@ -383,14 +383,16 @@ class ExperimentHandler(object):
         h = experiment_data.CaImagingData(filename)
         tsync, timg, meanimage, image_scale, raw_data = h.prepare4analysis()
         h.close()
-        txtlines=['tstim,{0}'.format(','.join(map(str,numpy.round(tsync,3))))]
-        txtlines.append('timg,{0}'.format(','.join(map(str,numpy.round(timg,3)))))
+        txtlines1=','.join(map(str,numpy.round(tsync,3)))
+        txtlines2 =','.join(map(str,numpy.round(timg,3)))
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
-        csvfn=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '.csv'))
+        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '.csv'))
+        csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
-        fileop.write_text_file(csvfn, '\r\n'.join(txtlines))
-        self.printc('Timing information exported to {0}'.format(csvfn))
+        fileop.write_text_file(csvfn1, txtlines1)
+        fileop.write_text_file(csvfn2, txtlines2)
+        self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2))
         
         
     def read_sync_recorder(self):

@@ -466,7 +466,7 @@ def merge_ca_data(folder,**kwargs):
         chframes.sort()
         rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
     if (len(rawdata[0])==0 or len(rawdata[1])==0):
-        raise RuntimeError('Both channels must be recorded')
+        rawdata=[rawdata[numpy.nonzero(numpy.array([len(r)==0 for r in rawdata]))[0]]]
     raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))    
     raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
     #raw_data = raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
@@ -513,6 +513,12 @@ def merge_ca_data(folder,**kwargs):
     h.datatype='ca'
     h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype'])
     h.close()
+    #Copy raw pngs to output folder
+    output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    import shutil
+    [shutil.copy(f, output_folder) for f in frames]
     return filename
     
 def yscanner2sync(sig,fsample,nframes):
@@ -530,6 +536,12 @@ def yscanner2sync(sig,fsample,nframes):
         savefig('c:\\Data\\plot.png')
     if frame_rate<0.2 or frame_rate>15:
         raise RuntimeError('{0} Hz frame rate found,{1}'.format(frame_rate,peaks))
+    supported_frame_rates=numpy.array([4e5/115712,4e5/29312, 4e5/115712])
+    frame_rate_range=0.01#percent
+    for sfr in supported_frame_rates:
+        if abs((sfr-frame_rate)/sfr)<frame_rate_range:
+            frame_rate=sfr
+            break
     nperiods=nframes#numpy.floor((end-start)/float(fsample)*frame_rate)
     period=int(numpy.round(fsample/frame_rate,0))
     ontime=int(1/1.2*period)
