@@ -337,8 +337,8 @@ class TestGratingExp(experiment.Experiment):
         
     def run(self):
         from visexpman.engine.generic import colors
-        glEnable (GL_BLEND)
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        #glEnable (GL_BLEND)
+        #glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         display_area_adjusted=numpy.array([40,40])
         alpha = numpy.arctan(display_area_adjusted[1]/display_area_adjusted[0])
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
@@ -385,7 +385,7 @@ class TestGratingExp(experiment.Experiment):
             if self.abort:
                 break
         #self._deinit_texture()
-        glDisable (GL_BLEND)
+        #glDisable (GL_BLEND)
         
         
         #self.show_grating(duration = 10.0,  white_bar_width =1,velocity = 1.0,  color_contrast = 1.0,  color_offset = 0.5)
