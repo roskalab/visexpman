@@ -466,7 +466,7 @@ def merge_ca_data(folder,**kwargs):
         chframes.sort()
         rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
     if (len(rawdata[0])==0 or len(rawdata[1])==0):
-        raise RuntimeError('Both channels must be recorded')
+        rawdata=[rawdata[numpy.nonzero(numpy.array([len(r)>0 for r in rawdata]))[0][0]]]
     raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))    
     raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
     #raw_data = raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
@@ -513,10 +513,16 @@ def merge_ca_data(folder,**kwargs):
     h.datatype='ca'
     h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype'])
     h.close()
+    #Copy raw pngs to output folder
+    output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    import shutil
+    [shutil.copy(f, output_folder) for f in frames]
     return filename
     
 def yscanner2sync(sig,fsample,nframes):
-    indexes=numpy.where(abs(numpy.diff(sig))>0.05)[0]
+    indexes=numpy.where(abs(numpy.diff(sig))>0.01)[0]
     start=indexes[0]
     end=indexes[-1]
     fft=numpy.fft.fft(sig[start:start+fsample*30 if start+fsample*10<end else end])
@@ -529,18 +535,30 @@ def yscanner2sync(sig,fsample,nframes):
         plot(sig)
         savefig('c:\\Data\\plot.png')
     if frame_rate<0.2 or frame_rate>15:
-        raise RuntimeError('{0} Hz frame rate found,{1}'.format(frame_rate,peaks))
+        raise RuntimeError('{0} Hz frame rate found'.format(frame_rate))
+    supported_frame_rates=numpy.array([4e5/115712,4e5/29312, 4e5/115712])
+    frame_rate_range=0.01#percent
+    for sfr in supported_frame_rates:
+        if abs((sfr-frame_rate)/sfr)<frame_rate_range:
+            frame_rate=sfr
+            break
     nperiods=nframes#numpy.floor((end-start)/float(fsample)*frame_rate)
-    period=int(numpy.round(fsample/frame_rate,0))
-    ontime=int(1/1.2*period)
-    oneperiod=5*numpy.concatenate((numpy.ones(ontime),numpy.zeros(period-ontime)))
+    period=fsample/frame_rate
+    ontime=1/1.2*period
+    offtime=period-ontime+3.5*0
+    rising_edges=numpy.arange(nperiods)*(ontime+offtime)+start
+    falling_edges=numpy.arange(nperiods)*(ontime+offtime)+start+ontime
+    edges=numpy.round((numpy.sort(numpy.concatenate((rising_edges,falling_edges)))),3)
+    #oneperiod=5*numpy.concatenate((numpy.ones(ontime),numpy.zeros(period-ontime)))
     sigout=numpy.zeros_like(sig)
-    sigout[start:start+period*nperiods]=numpy.tile(oneperiod,nperiods)
+    for i in range(edges.shape[0]/2):
+        sigout[edges[2*i]:edges[2*i+1]]=5
+    #sigout[start:start+period*nperiods]=numpy.tile(oneperiod,nperiods)
     return sigout
     
 def rewrite_hdf5(folder):
     '''
-    Reads all nodes of hdf5 file and saves it back. 
+    Reads all nodes of hdf5 file and saves it back.
     Could be used for reconverting old files with arrays with lzo compression to zlib compression.
     '''
     files=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
@@ -580,7 +598,13 @@ class TestConverter(unittest.TestCase):
         folder='/data/data/user/Zoltan/20160817/not enough frames'
         folder='x:\\data\\user\\Zoltan\\1'
         folder='e:\\Zoltan\\1\\zip'
+        folder='/home/rz/mysoftware/data/santiago'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
+        h=experiment_data.CaImagingData(filename)
+        self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data=h.prepare4analysis()
+        plot(self.timg,self.raw_data.mean(axis=2).mean(axis=2)[:,0]);plot(self.tsync, 10*numpy.ones_like(self.tsync),'o');show()
+        h.close()
+        
     @unittest.skip('')  
     def test_03_yscanner_sig(self):
         for f in [os.path.join('/tmp/fre',f) for f in os.listdir('/tmp/fre')]:
