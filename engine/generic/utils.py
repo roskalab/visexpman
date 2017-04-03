@@ -278,7 +278,7 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     if raw.ndim > len(dim_names):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
     if raw.ndim == 2 and raw.shape[0] != len(dim_names): # required format (2,x)
-        raise RuntimeError('Input array provided to rc should be {0}, got {1}').format(raw.T.shape, raw.shape)
+        raise RuntimeError('Input array provided to rc should be {0}, got {1}'.format(raw.T.shape, raw.shape))
     raw = numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
     return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
