@@ -588,8 +588,13 @@ class HitmissAnalysis(object):
         reward_latency_histogram={}
         success_rates=[]
         lick_success_rates=[]
+        self.aggregated={}
         for d in self.days:
             lick_times,lick_latencies,reward_latencies,nflashes,nhits,success_rate,lick_success_rate = self.day_analysis(os.path.join(animal_folder,d))
+            self.aggregated[d]={}
+            self.aggregated[d]['lick_latencies']=lick_latencies
+            self.aggregated[d]['reward_latencies']=reward_latencies
+            self.aggregated[d]['lick_times']=lick_times
             lick_times_histogram[d]=lick_times
             lick_latency_histogram[d]=lick_latencies
             reward_latency_histogram[d]=reward_latencies
