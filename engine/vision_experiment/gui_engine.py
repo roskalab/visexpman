@@ -352,6 +352,8 @@ class ExperimentHandler(object):
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
+                #Export timing to csv file
+                self._timing2csv(filename)
                 self.printc('Data saved to {0}'.format(filename))
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
@@ -376,6 +378,22 @@ class ExperimentHandler(object):
                 a.tomat()
                 a.close()
                 self.printc('MES data merged to {0}'.format(fn))
+                
+    def _timing2csv(self,filename):
+        h = experiment_data.CaImagingData(filename)
+        tsync, timg, meanimage, image_scale, raw_data = h.prepare4analysis()
+        h.close()
+        txtlines1=','.join(map(str,numpy.round(tsync,3)))
+        txtlines2 =','.join(map(str,numpy.round(timg,3)))
+        output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '.csv'))
+        csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+        fileop.write_text_file(csvfn1, txtlines1)
+        fileop.write_text_file(csvfn2, txtlines2)
+        self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2))
+        
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
