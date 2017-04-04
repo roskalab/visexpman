@@ -8,7 +8,7 @@ class ApproachConfig(experiment.ExperimentConfig):
         self.MASK_SIZE=400.
         self.BAR_WIDTH=60.
         self.SPEED=80#um/s
-        self.COLOR=1.0
+        self.COLOR=0.0
         self.MOTION='expand' #'expand','shrink','left','right'
         self.REPEATS=1
         self.runnable = 'ApproachExp'

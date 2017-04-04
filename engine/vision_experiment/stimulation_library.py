@@ -1220,6 +1220,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 coo=-self.config.SCREEN_RESOLUTION['row']/2
             rect=numpy.array([p1,p2, [p2[0],coo], [p1[0],coo]])
             mask_vertices=numpy.append(mask_vertices,rect,axis=0)
+        intial_wait_frames=int(self.config.SCREEN_EXPECTED_FRAME_RATE*initial_wait)
         #precalculate edge positions
         start_pos=utils.rc((0,0))
         start_size=bar_width_pixel
@@ -1252,6 +1253,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             size=numpy.ones_like(x)*start_size
         else:
             raise NotImplementedError('')
+        #x=numpy.concatenate((numpy.ones(intial_wait_frames)*x[0],x))
+        #size=numpy.concatenate((numpy.ones(intial_wait_frames)*size[0],size))
         y=numpy.ones_like(x)*start_pos['row']
         #generate rectangle vertices
         vertices=mask_vertices
@@ -1262,11 +1265,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glVertexPointerf(vertices)
         n_vertices=4
         for i in range(size.shape[0]):
-            if i==1:
-                for w in range(int(self.config.SCREEN_EXPECTED_FRAME_RATE*initial_wait)):
-                    self._flip(frame_trigger = True)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
-            
             glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
             glEnable( GL_STENCIL_TEST )
             glStencilFunc( GL_ALWAYS, 1, 1 )
@@ -1279,9 +1278,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
             glColor3fv(colors.convert_color(color, self.config))
             glDrawArrays(GL_POLYGON,  i * n_vertices+mask_vertices.shape[0], n_vertices)
-            
             glDisable( GL_STENCIL_TEST )
-            self._flip(frame_trigger = True)
+            if i==1:
+                for w in range(intial_wait_frames-1):
+                    self._flip(frame_trigger = True)
+            else:
+                self._flip(frame_trigger = True)
             if self.abort:
                 break
         glDisableClientState(GL_VERTEX_ARRAY)
