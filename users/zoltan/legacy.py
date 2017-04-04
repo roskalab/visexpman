@@ -493,8 +493,11 @@ def merge_ca_data(folder,**kwargs):
     hsync.sync=numpy.cast['float'](hsync.sync)/sync_scaling['scale']-sync_scaling['offset']#Scale back to voltage range
     sync_and_elphys = numpy.zeros((hsync.sync.shape[0], 5))
     sync_and_elphys[:,2]=hsync.sync[:,2]#block trigger
-    #TODO: convert y scanner to binary
-    sync_and_elphys[:,4]=yscanner2sync(hsync.sync[:,0], machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],raw_data.shape[0])#frame trigger
+    if 0:
+        #convert y scanner to binary
+        sync_and_elphys[:,4]=yscanner2sync(hsync.sync[:,0], machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],raw_data.shape[0])#frame trigger\
+    else:
+        sync_and_elphys[:,4]=hsync.sync[:,3]
     hsync.close()
     #Save everything to final file
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
@@ -598,7 +601,7 @@ class TestConverter(unittest.TestCase):
         folder='/data/data/user/Zoltan/20160817/not enough frames'
         folder='x:\\data\\user\\Zoltan\\1'
         folder='e:\\Zoltan\\1\\zip'
-        folder='/home/rz/mysoftware/data/santiago'
+        folder='e:\\Zoltan\\0'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
         h=experiment_data.CaImagingData(filename)
         self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data=h.prepare4analysis()
