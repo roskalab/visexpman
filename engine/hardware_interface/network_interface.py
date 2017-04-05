@@ -32,7 +32,7 @@ from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
 
 import re
-timestamp_re = re.compile('.*(\d{10,10}).*')
+timestamp_re = re.compile('.*=(\d{10,10}).*')
 
 def zmq_device(in_port, out_port, monitor_port, in_type='PULL', out_type='PUSH',  in_prefix=b'in', out_prefix=b'out'):
     from zmq import devices
@@ -267,7 +267,8 @@ class SockServer(SocketServer.TCPServer):
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.shutdown_requested = False        
         self.keepalive = True#Client can request to stop keep alive check until the next message
-        self.ids=[]
+        self.idsin=[]
+        self.idsout=[]
         
     def shutdown_request(self):
         self.shutdown_requested = True
@@ -278,6 +279,15 @@ class SockServer(SocketServer.TCPServer):
             print debug_message
         if self.log_queue != None:
             self.log_queue.put([time.time(), debug_message], True)
+            
+    def debug(self, data, ids):
+        ids_=map(int,timestamp_re.findall(data))
+        ids.extend(ids_)
+        if any(numpy.diff(numpy.array(ids))<0):
+            self.printl('id mismatch!!!!!! {0}'.format(ids))
+            sys.stdout.write('id mismatch!!!!!! {0}'.format(ids))
+            import pdb
+            pdb.set_trace()
         
     def process_request(self, request, client_address):
         try:
@@ -329,13 +339,7 @@ class SockServer(SocketServer.TCPServer):
                                 self.keepalive = False
                                 self.queue_in.put(data.replace('SOCkeepaliveEOCoffEOP', ''))
                             elif len(timestamp_re.findall(data))>0:
-                                ids=map(int,timestamp_re.findall(data))
-                                self.ids.extend(ids)
-                                if any(numpy.diff(numpy.array(self.ids))<0):
-                                    self.printl('id mismatch!!!!!! {0}'.format(self.ids))
-                                    sys.stdout.write('id mismatch!!!!!! {0}'.format(self.ids))
-                                    import pdb
-                                    pdb.set_trace()
+                               debug(data, self.idsin)
                             else:
                                 self.queue_in.put(data)
                         if now - self.last_receive_time > self.connection_timeout and self.keepalive:
@@ -344,6 +348,8 @@ class SockServer(SocketServer.TCPServer):
                     else:
                         if not connection_close_request:
                             out = self.queue_out.get()
+                            if len(timestamp_re.findall(out))>0:
+                                debug(out, self.idsout)
                             try:
                                 request.send(out)
                             except:
