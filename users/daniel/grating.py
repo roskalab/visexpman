@@ -173,7 +173,7 @@ class MovingGrating3xCardinal180Config(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 3.5
         #Grating parameters
-        self.ORIENTATIONS = [0, 90, 180, 270]
+        self.ORIENTATIONS = [180, 90, 0, 270]
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.COLOR_CONTRAST = 1.0
         self.WHITE_BAR_WIDTHS = [300.0]#300

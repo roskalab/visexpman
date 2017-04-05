@@ -49,7 +49,9 @@ class WaitInDepthCardinal(experiment.MetaStimulus):
         nrepeats=1
         repeats = numpy.ones((len(depth),))*nrepeats
         # show a few flashes to make first repetition not habituated to long shown pre image during setup
-        [self.show_pre(st1) for st1 in stimnames]
+        for st1 in stimnames:
+            self.show_pre(st1)
+            self.sleep(2)
         self.show_pre(stimnames[0])
         for rep, las1, d1 in zip(repeats, laser, depth):
             for r1 in range(int(rep)):
