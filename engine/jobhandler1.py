@@ -593,7 +593,7 @@ class DatafileDatabase(object):
                 state= [row['is_measurement_ready'],row['is_mesextractor'],row['is_analyzed'],row['is_converted']]
                 state=''.join(['*' if s else ' ' for s in state ])
                 line='{0},{1},{5}%,{2} {3}{4}\r\n'.format(row['stimulus'],int(row['depth']),row['id'], state, 'e' if row['is_error'] else '',int(row['laser']))
-                lines[row['id']]=line
+                lines[row['recording_started']]=line
                 pass
             export_filename=self.filename.replace('.hdf5','_{0}.txt'.format(region))
             try:

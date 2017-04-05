@@ -3,6 +3,7 @@ import numpy
 
 class SpeedWait(experiment.MetaStimulus):
     def run(self):
+        #self.fault_inject=True
         stimnames = ['MovingGratingNoMarchingConfig','MovingGratingNoMarch180Config'][::-1]
         sleeptime = [180]
         depth = self.read_depth()

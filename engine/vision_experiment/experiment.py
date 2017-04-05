@@ -219,7 +219,10 @@ class MetaStimulus(object):
             self.experiment_parameters['region_name'] = region_name
         self.experiment_parameters['experiment_config'] = stimulus_name
         self.experiment_parameters['scan_mode'] = 'xy'
-        self.experiment_parameters['id'] = str(int(time.time()))
+        idn=int(time.time())
+        if hasattr(self, 'fault_inject'):
+            idn+=(numpy.random.random()*100)
+        self.experiment_parameters['id'] = str(idn)
         self.poller.issued_ids.append(self.experiment_parameters['id'])
         self.experiment_parameters['objective_position'] = depth
         self.experiment_parameters['laser_intensity']=laser
