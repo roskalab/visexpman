@@ -467,7 +467,8 @@ def merge_ca_data(folder,**kwargs):
         rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
     if (len(rawdata[0])==0 or len(rawdata[1])==0):
         rawdata=[rawdata[numpy.nonzero(numpy.array([len(r)>0 for r in rawdata]))[0][0]]]
-    raw_data=numpy.copy(numpy.array(rawdata).swapaxes(0,1))    
+    rd=numpy.array(rawdata).swapaxes(0,1)
+    raw_data=rd
     raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
     #raw_data = raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
     #Sync data

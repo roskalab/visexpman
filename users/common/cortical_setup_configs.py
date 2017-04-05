@@ -171,7 +171,7 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         COORDINATE_SYSTEM='center'
         ######################### Ca imaging specific ################################ 
-        self.CA_IMAGING_START_DELAY = 5.0#NEW
+        self.CA_IMAGING_START_DELAY = 10.0#NEW
         self.CA_IMAGING_START_TIMEOUT = 15.0
         PMTS = {'TOP': {'CHANNEL': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 0,'COLOR': 'RED', 'ENABLE': False}}

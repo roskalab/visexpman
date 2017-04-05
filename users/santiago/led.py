@@ -14,8 +14,9 @@ class LedConfig(experiment.ExperimentConfig):
         self.PAUSE_BETWEEN_FLASHES = 10.0
         self.NUMBER_OF_FLASHES = 6.0
         self.FLASH_DURATION = 0.5
-        self.LED_CURRENT = 500#mA
-        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.LED_CURRENT = 950#mA
+        self.DELAY_BEFORE_FIRST_FLASH = 12.0
+        self.SCREEN_COLOR=1.0#1.0=white, max intensity, 0.0=black
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
         self.OUTPATH='#OUTPATH'
@@ -51,7 +52,7 @@ class LedStimulation(experiment.Experiment):
     
     
     def run(self, fragment_id = 0):
-        self.show_fullscreen()
+        self.show_fullscreen(color=self.experiment_config.SCREEN_COLOR)
         if 0:
             daq_instrument.set_waveform('Dev1/ao0',numpy.array([self.waveform]),sample_rate = self.fsample)
         else:
@@ -78,6 +79,7 @@ class LedStimulation(experiment.Experiment):
             self.analog_output.WaitUntilTaskDone(1.0)
             self.analog_output.StopTask()
             self.analog_output.ClearTask()
+        self.show_fullscreen(color=self.experiment_config.SCREEN_COLOR)
             
     
 
