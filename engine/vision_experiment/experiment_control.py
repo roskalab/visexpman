@@ -130,6 +130,13 @@ class ExperimentControl(object):
                 if self.abort:
                     break
         self._finish_experiment()
+        if self.abort:
+            #empty queue
+            while not self.queues['gui']['in'].empty():
+                self.queues['gui']['in'].get()
+            self.abortfn=os.path.join(self.config.CONTEXT_PATH,'abort.txt')
+            if os.path.exists(self.abortfn):
+                os.remove(self.abortfn)
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
         self.application_log.flush()

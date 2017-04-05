@@ -13,7 +13,6 @@ except:
     pass
 import simplejson
 import os.path
-import sys
 import threading
 import SocketServer
 import random
@@ -31,6 +30,9 @@ import simplejson
 import multiprocessing
 from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
+
+import re
+timestamp_re = re.compile('.*(\d{10,10}).*')
 
 def zmq_device(in_port, out_port, monitor_port, in_type='PULL', out_type='PUSH',  in_prefix=b'in', out_prefix=b'out'):
     from zmq import devices
@@ -265,6 +267,7 @@ class SockServer(SocketServer.TCPServer):
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.shutdown_requested = False        
         self.keepalive = True#Client can request to stop keep alive check until the next message
+        self.ids=[]
         
     def shutdown_request(self):
         self.shutdown_requested = True
@@ -325,6 +328,14 @@ class SockServer(SocketServer.TCPServer):
                                 self.printl('Keepalive check off')
                                 self.keepalive = False
                                 self.queue_in.put(data.replace('SOCkeepaliveEOCoffEOP', ''))
+                            elif len(timestamp_re.findall(data))>0:
+                                ids=map(int,timestamp_re.findall(data))
+                                self.ids.extend(ids)
+                                if any(numpy.diff(numpy.array(self.ids))<0):
+                                    self.printl('id mismatch!!!!!! {0}'.format(self.ids))
+                                    sys.stdout.write('id mismatch!!!!!! {0}'.format(self.ids))
+                                    import pdb
+                                    pdb.set_trace()
                             else:
                                 self.queue_in.put(data)
                         if now - self.last_receive_time > self.connection_timeout and self.keepalive:

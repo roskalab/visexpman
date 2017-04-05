@@ -798,7 +798,7 @@ class MainPoller(Poller):
                 self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
 
     def update_preexp(self):
-        if self.stim_connected and self.user=='daniel':
+        if self.stim_connected and (self.user=='daniel' or self.user=='zoltan'):
             stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
             command='SOCselect_experimentEOC{0}EOP'.format(stimname)
             self.printc(command)
@@ -2209,6 +2209,8 @@ class MainPoller(Poller):
         self.printc('Done')
         
     def stop_experiment(self):
+        if hasattr(self,'metastim'):
+            self.metastim.stop(graceful=False)
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
@@ -2221,6 +2223,8 @@ class MainPoller(Poller):
     def graceful_stop_experiment(self):
 #        command = 'SOCgraceful_stop_experimentEOCguiEOP'
 #        self.queues['stim']['out'].put(command)
+        if hasattr(self,'metastim'):
+            self.metastim.stop(graceful=True)
         self.printc('Graceful stop requested, please wait')
         for id in self.issued_ids:
             p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
