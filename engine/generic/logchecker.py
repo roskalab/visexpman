@@ -120,26 +120,44 @@ class Usage(object):
         self.tbins=[]
         self.hist=[]
         legendtxt=[]
+        maxh=[]
         for d in range(int((self.t1-self.t0)/86400)):
             bins=numpy.linspace(self.t0+d*86400,self.t0+(d+1)*86400,24)
             h,b=numpy.histogram(ts,bins)
+            maxh.append(h.max())
             self.hist.append(h)
             self.tbins.append(bins)
             legendtxt.append(utils.timestamp2ymd(bins[0]))
-        from pylab import plot,savefig,show, gca,legend
+        from pylab import plot,savefig,show, gca,legend,subplot,title,tight_layout,ylim
         from matplotlib.dates import DateFormatter
         import datetime,matplotlib
         font = {'family' : 'normal',
                 'weight' : 'bold',
-                'size'   : 8}
+                'size'   : 6}
         matplotlib.rc('font', **font)
         gca().xaxis.set_major_formatter(DateFormatter('%H:%M'))
+        nplots=len(self.hist)
         for d in range(len(self.hist)):
+            subplot(nplots,1,d+1)
             x=[datetime.datetime.fromtimestamp(xi%86400) for xi in self.tbins[d]]
             plot(x[1:],self.hist[d])
-        legend(legendtxt)
+            title(legendtxt[d])
+            ylim((0,maxh[d]))
+        tight_layout()
         savefig(fn, dpi=300)
         
+def aggregate_usage():
+    folders=\
+        ['/mnt/datafast/log',
+            '/data/behavioral/log',
+            '/data/santiago-setup/log',
+            '/data/rei-setup/log']
+    now=time.time()
+    now-=int(now)%86400
+    for folder in folder:
+        u=Usage(folder,[now-7*86400,now], ['purger', 'backup', 'bu_'])
+        u.aggregate_timestamps()
+        u.plot(os.path.join('/home/rz/usage', os.path.basename(os.path.dirname(folder))+'.txt'))
     
 class TestLogChecker(unittest.TestCase):
     @unittest.skip('') 
