@@ -19,7 +19,7 @@ class MovingGratingFiona(grating_base.MovingGratingNoMarchingConfig):
         self.ORIENTATIONS = range(0, 360, 30)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
-        self.VELOCITIES = [1200.0]#1800
+        self.VELOCITIES = [1200.0]#1200#1800
         #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 5.0
