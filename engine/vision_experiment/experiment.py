@@ -190,6 +190,7 @@ class MetaStimulus(object):
             os.remove(self.abortfn)
         import Queue
         self.q=Queue.Queue()
+        self.region_name = self.poller.parent.get_current_region_name()
 
     def read_depth(self):
         depthstr=str(self.poller.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
@@ -216,7 +217,7 @@ class MetaStimulus(object):
         self.experiment_parameters['intrinsic'] = False
         self.experiment_parameters['stage_position']=self.poller.stage_position
         self.experiment_parameters['mouse_file'] = os.path.split(self.poller.mouse_file)[1]
-        region_name = self.poller.parent.get_current_region_name()
+        region_name=self.region_name
         if len(region_name)>0:
             self.experiment_parameters['region_name'] = region_name
         self.experiment_parameters['experiment_config'] = stimulus_name
