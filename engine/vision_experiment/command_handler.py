@@ -33,6 +33,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     def __init__(self):
         self.keyboard_command_queue = Queue.Queue()
         #Here the set of queues are defined from commands are parsed
+        self.metastim_queue=Queue.Queue()
         queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in']]
         #Set of queues where command parser output is relayed NOT YET IMPLEMENTED IN command_parser
         queue_out = self.queues['gui']['out']
@@ -61,7 +62,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.pusher.connect('tcp://{0}:{1}'.format(ip,port))
         
     def abort_metastim(self):
-        return False
+        return os.path.exists(self.abortfn)
+        
         
 ###### Commands ######    
 
@@ -253,6 +255,16 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             self.flip()
 
         return 'selected experiment: ' + str(experiment_index) + ' '
+        
+    def execute_metastim(self,id=None):
+        fn=os.path.join(self.config.EXPERIMENT_DATA_PATH, self.id+'.hdf5')
+        if os.path.exists(fn):
+            h=hdf5io.Hdf5io(fn)
+            h.load('commands')
+            for cmd in h.commands:
+                self.metastim_queue.put(cmd)
+            self.queues['gui']['out'].put('Metastim commands loaded')
+            os.remove(fn)
 
     def execute_experiment(self, **kwargs):
         '''
@@ -261,6 +273,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         starting method is called
         2. Only parameters of the experiment are sent and its run method is called. Such parameters can be provided: experiment config name, scan region name, scan mode, xz scan parameters ...
         '''
+        if self.abort_metastim():
+            return 'aborted'
         if kwargs.has_key('source_code'):
             source_code = kwargs['source_code']
         else:

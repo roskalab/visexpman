@@ -180,7 +180,7 @@ class MetaStimulus(object):
     '''
     Multiple stimuli can be called in a user defined order
     '''
-    def __init__(self, poller,  config):
+    def __init__(self, poller, config):
         self.config=config
         self.poller=poller
         self.id=str(int(time.time()))
@@ -260,6 +260,8 @@ class MetaStimulus(object):
         self.poller.graceful_stop_experiment()
         if not graceful:
             self.poller.stop_experiment()
+        if os.path.exists(self.command_file):
+            os.remove(self.command_file)
         file.write_text_file(self.abortfn, 'abort')
             
     def show_pre(self, classname):
@@ -272,10 +274,14 @@ class MetaStimulus(object):
         Here comes the user sequence
         '''
         
-    def send_commands(self, wait=0):
-        ct=0
+    def send_commands(self):
+        commands=[]
         while not self.q.empty():
-            self.poller.queues['stim']['out'].put(self.q.get())
-            ct+=1
-            time.sleep(wait)
-        self.poller.printc('{0} Commands sent out'.format(ct))
+            commands.append(self.q.get())
+        self.command_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.id+'.hdf5')
+        h=hdf5io.Hdf5io(self.command_file)
+        h.commands=commands
+        h.save('commands')
+        h.close()
+        self.poller.queues['stim']['out'].put('SOCexecute_metastimEOCid={0}EOP'.format(self.id))
+        self.poller.printc('Commands saved to {0}'.format(self.command_file))
