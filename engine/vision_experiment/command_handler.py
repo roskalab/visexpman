@@ -34,7 +34,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.keyboard_command_queue = Queue.Queue()
         #Here the set of queues are defined from commands are parsed
         self.metastim_queue=Queue.Queue()
-        queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in']]
+        queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in'], self.metastim_queue]
         #Set of queues where command parser output is relayed NOT YET IMPLEMENTED IN command_parser
         queue_out = self.queues['gui']['out']
         command_parser.CommandParser.__init__(self, queue_in, queue_out, log = self.log, failsafe = False)
@@ -173,6 +173,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         return 'echo ' + str(result)
 
     def ping(self):
+        if self.abort_metastim():
+            return 'aborted'
         self.queues['gui']['out'].put('pong')
         return 'pong'
         
@@ -257,14 +259,16 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         return 'selected experiment: ' + str(experiment_index) + ' '
         
     def execute_metastim(self,id=None):
-        fn=os.path.join(self.config.EXPERIMENT_DATA_PATH, self.id+'.hdf5')
+        fn=os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
         if os.path.exists(fn):
             h=hdf5io.Hdf5io(fn)
             h.load('commands')
             for cmd in h.commands:
                 self.metastim_queue.put(cmd)
+            h.close()
             self.queues['gui']['out'].put('Metastim commands loaded')
             os.remove(fn)
+        return 'done'
 
     def execute_experiment(self, **kwargs):
         '''

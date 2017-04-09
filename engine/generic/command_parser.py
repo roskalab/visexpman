@@ -71,12 +71,6 @@ class CommandParser(object):
                     self.function_call_results.append(getattr(self, function['method'])(*function['arguments'], **function['keyword_arguments']))
                 if hasattr(self.log, 'info'):
                     self.log.info(function)
-                if hasattr(self, 'abortfn') and os.path.exists(self.abortfn):
-                    for queue in self.queue_in:
-                        while not queue.empty():
-                            queue.get()
-                    self.log.info('Queues emptied')
-                    os.remove(self.abortfn)
         self.function_call_list = []
         if len(self.function_call_results) > 0:            
             return self.function_call_results

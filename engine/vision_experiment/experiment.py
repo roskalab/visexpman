@@ -231,7 +231,7 @@ class MetaStimulus(object):
         #generate parameter file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
         if os.path.exists(parameter_file):
-            time.sleep(1.1)
+            time.sleep(1.01)
             self.experiment_parameters['id'] = str(int(time.time()))
             self.poller.issued_ids[-1]=self.experiment_parameters['id']
             parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
@@ -252,7 +252,6 @@ class MetaStimulus(object):
         file.wait4file_ready(parameter_file)
         self.poller.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
-        time.sleep(0.5)
         self.q.put('SOCpingEOCEOP')
         self.q.put(command)
         
@@ -274,7 +273,7 @@ class MetaStimulus(object):
         Here comes the user sequence
         '''
         
-    def send_commands(self):
+    def save_commands(self):
         commands=[]
         while not self.q.empty():
             commands.append(self.q.get())
