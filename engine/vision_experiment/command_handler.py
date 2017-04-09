@@ -60,6 +60,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         #self.pusher.bind('tcp://{0}:{1}'.format(lip,port))
         self.pusher.connect('tcp://{0}:{1}'.format(ip,port))
         
+    def abort_metastim(self):
+        return False
+        
 ###### Commands ######    
 
     def printl(self,message):
@@ -172,6 +175,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         return 'pong'
         
     def sleep(self,  duration):
+        if self.abort_metastim():
+            return 'aborted'
         t0=time.time()
         self.queues['gui']['out'].put('sleeping {0} s'.format(duration))
         while True:
@@ -231,7 +236,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         Selects experiment config based on keyboard command and instantiates the experiment config class
         '''
-        if os.path.exists(self.abortfn):
+        if self.abort_metastim():
             return 'aborted'
         if isinstance(experiment_index, int):
             self.selected_experiment_config_index = int(experiment_index)

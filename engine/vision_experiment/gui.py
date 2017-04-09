@@ -821,6 +821,7 @@ class MainPoller(Poller):
             metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)[0][1]
         self.metastim=metastimclass(self,  self.config)
         self.metastim.run()
+        self.metastim.send_commands()
         
     def update_process_status(self):
         try:
@@ -835,7 +836,7 @@ class MainPoller(Poller):
             if os.path.exists(path):
                 sig=sum([i for i in os.stat(path)])
                 if not hasattr(self, 'lastmtime') or self.lastmtime!=sig or (hasattr(self, 'last_update') and time.time()-self.last_update>120):
-                    txt=file.read_text_file(path)
+                    #txt=file.read_text_file(path)
                     self.lastmtime=sig
                     self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
                     self.last_update=time.time()
@@ -843,7 +844,6 @@ class MainPoller(Poller):
                 self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('')
         except:
             self.printc(traceback.format_exc())
-            
             
     def processstatus2gui(self):
         animalid= os.path.basename(self.mouse_file).split('_')[1]
@@ -2209,8 +2209,6 @@ class MainPoller(Poller):
         self.printc('Done')
         
     def stop_experiment(self):
-        if hasattr(self,'metastim'):
-            self.metastim.stop(graceful=False)
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
@@ -2223,8 +2221,6 @@ class MainPoller(Poller):
     def graceful_stop_experiment(self):
 #        command = 'SOCgraceful_stop_experimentEOCguiEOP'
 #        self.queues['stim']['out'].put(command)
-        if hasattr(self,'metastim'):
-            self.metastim.stop(graceful=True)
         self.printc('Graceful stop requested, please wait')
         for id in self.issued_ids:
             p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')

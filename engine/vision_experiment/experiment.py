@@ -188,6 +188,8 @@ class MetaStimulus(object):
         self.abortfn=os.path.join(self.poller.config.CONTEXT_PATH,'abort.txt')
         if os.path.exists(self.abortfn):
             os.remove(self.abortfn)
+        import Queue
+        self.q=Queue.Queue()
 
     def read_depth(self):
         depthstr=str(self.poller.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
@@ -202,7 +204,7 @@ class MetaStimulus(object):
         return numpy.linspace(laserpars[0], laserpars[1], len(depths))
         
     def sleep(self, duration):
-        self.poller.queues['stim']['out'].put('SOCsleepEOC{0}EOP'.format(duration))
+        self.q.put('SOCsleepEOC{0}EOP'.format(duration))
         self.poller.printc('sleep for {0} s'.format(duration))
        
     def start_experiment(self,  stimulus_name,  depth,  laser):
@@ -221,7 +223,7 @@ class MetaStimulus(object):
         self.experiment_parameters['scan_mode'] = 'xy'
         idn=int(time.time())
         if hasattr(self, 'fault_inject'):
-            idn+=(numpy.random.random()*100)
+            idn+=int(numpy.random.random()*100)
         self.experiment_parameters['id'] = str(idn)
         self.poller.issued_ids.append(self.experiment_parameters['id'])
         self.experiment_parameters['objective_position'] = depth
@@ -251,8 +253,8 @@ class MetaStimulus(object):
         self.poller.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         time.sleep(0.5)
-        self.poller.queues['stim']['out'].put('SOCpingEOCEOP')
-        self.poller.queues['stim']['out'].put(command)
+        self.q.put('SOCpingEOCEOP')
+        self.q.put(command)
         
     def stop(self,graceful=False):
         self.poller.graceful_stop_experiment()
@@ -263,9 +265,17 @@ class MetaStimulus(object):
     def show_pre(self, classname):
         command='SOCselect_experimentEOC{0}EOP'.format(classname)
         self.poller.printc('{0} pre exp selected'.format(classname))
-        self.poller.queues['stim']['out'].put(command)
+        self.q.put(command)
         
     def run(self):
         '''
         Here comes the user sequence
         '''
+        
+    def send_commands(self, wait=0):
+        ct=0
+        while not self.q.empty():
+            self.poller.queues['stim']['out'].put(self.q.get())
+            ct+=1
+            time.sleep(wait)
+        self.poller.printc('{0} Commands sent out'.format(ct))

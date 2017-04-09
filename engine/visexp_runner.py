@@ -137,6 +137,12 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             time.sleep(3.0)
 #            self.log.queue(self.connections['mes'].log_queue, 'mes connection')
 #            self.log.queue(self.connections['gui'].log_queue, 'gui connection')
+#            l=''
+#            while not self.connections['gui'].log_queue.empty():
+#                msg=self.connections['gui'].log_queue.get()
+#                l+=utils.timestamp2ymdhms(msg[0])+'\t'+str(msg[1])+'\r\n'
+#            file.write_text_file('v:\\log\\stimnw.txt',l)
+
             self.log.info('Network connections terminated')
         
     def _init_network(self):

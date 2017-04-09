@@ -283,11 +283,11 @@ class SockServer(SocketServer.TCPServer):
     def debug(self, data, ids):
         ids_=map(int,timestamp_re.findall(data))
         ids.extend(ids_)
-        if any(numpy.diff(numpy.array(ids))<0):
+        if len(ids)>0 and any(numpy.diff(numpy.array(ids))<0):
             self.printl('id mismatch!!!!!! {0}'.format(ids))
-            sys.stdout.write('id mismatch!!!!!! {0}'.format(ids))
-            import pdb
-            pdb.set_trace()
+            #sys.stdout.write('id mismatch!!!!!! {0}'.format(ids))
+            #import pdb
+            #pdb.set_trace()
         
     def process_request(self, request, client_address):
         try:
@@ -328,6 +328,8 @@ class SockServer(SocketServer.TCPServer):
                             data = ''
                         data = data.replace(self.alive_message,'')
                         if len(data) > 0: #Non empty messages are processed                        
+                            if len(timestamp_re.findall(data))>0:
+                               self.debug(data, self.idsin)
                             if not self.alive_message in data: #Save message to debug queue except for keep alive messages
                                 self.printl(data)
                             if 'close_connection' in data or\
@@ -338,8 +340,6 @@ class SockServer(SocketServer.TCPServer):
                                 self.printl('Keepalive check off')
                                 self.keepalive = False
                                 self.queue_in.put(data.replace('SOCkeepaliveEOCoffEOP', ''))
-                            elif len(timestamp_re.findall(data))>0:
-                               debug(data, self.idsin)
                             else:
                                 self.queue_in.put(data)
                         if now - self.last_receive_time > self.connection_timeout and self.keepalive:
@@ -349,7 +349,7 @@ class SockServer(SocketServer.TCPServer):
                         if not connection_close_request:
                             out = self.queue_out.get()
                             if len(timestamp_re.findall(out))>0:
-                                debug(out, self.idsout)
+                                self.debug(out, self.idsout)
                             try:
                                 request.send(out)
                             except:
@@ -493,13 +493,22 @@ class QueuedClient(QtCore.QThread):
         self.no_message_timeout = timeout
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.endpoint_name = endpoint_name
-        self.log_queue = Queue.Queue()        
+        self.log_queue = Queue.Queue() 
+        self.idsin=[]
+        self.idsout=[]       
         
     def printl(self, message):
         debug_message = str(message)
         if DISPLAY_MESSAGE:
             print debug_message        
         self.log_queue.put([time.time(), debug_message], True)
+
+    def debug(self, data, ids):
+        ids_=map(int,timestamp_re.findall(data))
+        ids.extend(ids_)
+        if len(ids)>0 and any(numpy.diff(numpy.array(ids))<0):
+            self.printl('id mismatch!!!!!! {0}'.format(ids))
+
         
     def run(self):   
         self.setPriority(QtCore.QThread.HighPriority)
@@ -555,7 +564,8 @@ class QueuedClient(QtCore.QThread):
                                 if sys.exc_info()[0].__name__ == 'timeout':
                                     self.last_receive_timout = time.time()
                                 data = ''
-                            if len(data) > 0:                            
+                            if len(data) > 0:      
+                                self.debug(data, self.idsin)
                                 if self.alive_message in data and keepalive:
                                    #Send back keep alive message
                                     data = data.replace(self.alive_message,'')

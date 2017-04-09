@@ -39,7 +39,7 @@ class Jobhandler(object):
         print self.logfile
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
-                    level=logging.DEBUG)
+                    level=logging.INFO)
         self.jrq=Queue.Queue()
         self.jr=JobReceiver(self.config,self.jrq)
         if THREAD:
