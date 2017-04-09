@@ -821,7 +821,7 @@ class MainPoller(Poller):
             metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)[0][1]
         self.metastim=metastimclass(self,  self.config)
         self.metastim.run()
-        self.metastim.send_commands()
+        self.metastim.save_commands()
         
     def update_process_status(self):
         try:
