@@ -261,14 +261,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug']
+        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug', 'laser']
         if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
         else:
-            y=y[:-1]
-            x=x[:-1]
-            trace_names=trace_names[:-1]
+            y=y[:-2]
+            x=x[:-2]
+            trace_names=trace_names[:-2]
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
             x[1]=self.lick_times
             y[1]=numpy.ones_like(self.lick_times)*2
@@ -791,6 +791,8 @@ class Behavioral(gui.SimpleAppWindow):
                     plotparams.append({'name': tn, 'pen':(255,0,0)})
                 elif tn=='protocol/debug':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0,0,0,150)})
+                elif tn=='laser':
+                    plotparams.append({'name': tn, 'pen':(255,165,0)})
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
             self.plots.events.plot.setXRange(0,tmax)
