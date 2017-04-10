@@ -1,5 +1,7 @@
 import logging,unittest,os,time,numpy,sys
 from visexpman.engine.generic import utils,fileop,stringop
+ct=1
+
 
 def logline2timestamp(line):
     try:
@@ -128,11 +130,15 @@ class Usage(object):
             self.hist.append(h)
             self.tbins.append(bins)
             legendtxt.append(utils.timestamp2ymd(bins[0]))
-        from pylab import plot,savefig,show, gca,legend,subplot,title,tight_layout,ylim
+        from pylab import plot,savefig,show, gca,legend,subplot,title,tight_layout,ylim,cla,clf,figure
         from matplotlib.dates import DateFormatter
         import datetime,matplotlib
-        font = {'family' : 'normal',
-                'weight' : 'bold',
+        global ct
+        figure(ct)
+        ct+=1
+        cla()
+        clf()
+        font = {
                 'size'   : 6}
         matplotlib.rc('font', **font)
         gca().xaxis.set_major_formatter(DateFormatter('%H:%M'))
@@ -142,22 +148,22 @@ class Usage(object):
             x=[datetime.datetime.fromtimestamp(xi%86400) for xi in self.tbins[d]]
             plot(x[1:],self.hist[d])
             title(legendtxt[d])
-            ylim((0,maxh[d]))
+            #ylim((0,maxh[d]))
         tight_layout()
         savefig(fn, dpi=300)
         
 def aggregate_usage():
     folders=\
         ['/mnt/datafast/log',
-            '/data/behavioral/log',
+            '/data/behavioral',
             '/data/santiago-setup/log',
             '/data/rei-setup/log']
     now=time.time()
     now-=int(now)%86400
-    for folder in folder:
+    for folder in folders:
         u=Usage(folder,[now-7*86400,now], ['purger', 'backup', 'bu_'])
         u.aggregate_timestamps()
-        u.plot(os.path.join('/home/rz/usage', os.path.basename(os.path.dirname(folder))+'.txt'))
+        u.plot(os.path.join('/data/data/user/Zoltan', os.path.basename(os.path.dirname(folder))+'.png'))
     
 class TestLogChecker(unittest.TestCase):
     @unittest.skip('') 
