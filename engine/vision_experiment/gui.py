@@ -567,6 +567,7 @@ class MainWidget(QtGui.QWidget):
         self.resendjobs_button = QtGui.QPushButton('Resend Jobs', self)
         self.updatejobs_button = QtGui.QPushButton('Update Jobs', self)
         self.purge_button = QtGui.QPushButton('Purge User Folder', self)
+        self.stop_metastim_button = QtGui.QPushButton('Stop Metastim', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -589,6 +590,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.resendjobs_button, 9, 1, 1, 1)
         self.layout.addWidget(self.updatejobs_button, 9, 2, 1, 1)
         self.layout.addWidget(self.purge_button, 9, 3, 1, 1)
+        self.layout.addWidget(self.stop_metastim_button, 9, 4, 1, 1)
         
         self.layout.addWidget(self.override_imaging_channels_label, 10, 0, 1, 1)
         self.layout.addWidget(self.override_imaging_channels_checkbox, 10, 1, 1, 1)
@@ -822,6 +824,10 @@ class MainPoller(Poller):
         self.metastim=metastimclass(self,  self.config)
         self.metastim.run()
         self.metastim.save_commands()
+        
+    def stop_metastim(self):
+        if hasattr(self, 'metastim'):
+            self.metastim.stop()
         
     def update_process_status(self):
         try:
@@ -2229,6 +2235,10 @@ class MainPoller(Poller):
                 self.printc('{0} cancelled'.format(id))
 
     def start_experiment(self):
+        stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
+        if 'metastim/' in stimname:
+            self.start_metastim(stimname.split('/')[1])
+            return
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
         self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'

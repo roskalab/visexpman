@@ -107,11 +107,14 @@ class VisionExperimentGui(QtGui.QWidget):
         self.image_tab.addTab(self.overview_widget, 'Overview')
         self.standard_io_widget = gui.StandardIOWidget(self, self.config)
         experiment_config_list=[]
-	for u in [self.config.user, 'common']:
-            experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
+        metastims=[]
+        for u in [self.config.user, 'common']:
+                experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
+                metastims.extend(['metastim/'+ms[1].__module__.split('.')[-1] +'.'+ms[1].__name__ for ms in utils.fetch_classes('visexpman.users.' + u,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)])
         experiment_config_names = []
         for experiment_config in experiment_config_list:
             experiment_config_names.append(experiment_config[1].__name__)
+        experiment_config_names.extend(metastims)
         experiment_config_names.sort()
         if 0:
             for en in experiment_config_names:
@@ -252,6 +255,7 @@ class VisionExperimentGui(QtGui.QWidget):
 #        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
         
         self.connect_and_map_signal(self.main_widget.purge_button, 'purge')
+        self.connect_and_map_signal(self.main_widget.stop_metastim_button, 'stop_metastim')
         
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
