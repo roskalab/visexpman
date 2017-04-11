@@ -1,9 +1,11 @@
 import logging,unittest,os,time,numpy,sys
 from visexpman.engine.generic import utils,fileop,stringop
+ct=1
+
 
 def logline2timestamp(line):
     try:
-        return utils.datestring2timestamp(line.split('\t')[0].split(',')[0],format='%Y-%m-%d %H:%M:%S')
+        return utils.datestring2timestamp(line.split('\t')[0].split(',')[0].split('.')[0],format='%Y-%m-%d %H:%M:%S')
     except:
         return 0
 
@@ -78,20 +80,26 @@ class LogChecker(object):
         return error_report
         
 class Usage(object):
-    def __init__(self,folder,timerange=None):
+    def __init__(self,folder,timerange=None, exclude=[]):
         self.folder=folder
+        self.exclude=exclude
         if timerange is None:
             self.t1=time.time()
             self.t0=self.t1-86400
         else:
             self.t0=timerange[0]
             self.t1=timerange[1]
-        self.tstep=3600*3
+        self.tstep=3600
         self.tbins=numpy.arange(self.t0,self.t1,self.tstep)
         self.tbins=numpy.append(self.tbins,self.t1)
         
     def aggregate_timestamps(self):
         self.logfiles=[os.path.join(self.folder,f) for f in os.listdir(self.folder) if os.path.splitext(f)[1]=='.txt']
+        filtered_files=[]
+        for l in self.logfiles:
+            if len([True for kw in self.exclude if kw in l])==0:
+                filtered_files.append(l)
+        self.logfiles=filtered_files
         timestamps={}
         for f in self.logfiles:
             if os.path.getmtime(f)<self.t0: continue
@@ -100,19 +108,62 @@ class Usage(object):
             timestamps[f]=[]
             for l in lines:
                 try:
-                    timestamps[f].append(logline2timestamp(l))
+                    ts=logline2timestamp(l)
+                    if ts>0:
+                        timestamps[f].append(ts)
                 except:
                     pass
+            pass
         self.timestamps=timestamps
         return timestamps
         
-    def plot(self):
+    def plot(self, fn):
         ts=numpy.concatenate(map(numpy.array,self.timestamps.values()))
-        self.hist,b=numpy.histogram(ts,self.tbins)
-        from pylab import plot,savefig,show
-        x=(self.tbins[:-1]-self.tbins[-1])/3600.
-        plot(x,self.hist);show()#TODO: date time on x axis
+        self.tbins=[]
+        self.hist=[]
+        legendtxt=[]
+        maxh=[]
+        for d in range(int((self.t1-self.t0)/86400)):
+            bins=numpy.linspace(self.t0+d*86400,self.t0+(d+1)*86400,24)
+            h,b=numpy.histogram(ts,bins)
+            maxh.append(h.max())
+            self.hist.append(h)
+            self.tbins.append(bins)
+            legendtxt.append(utils.timestamp2ymd(bins[0]))
+        from pylab import plot,savefig,show, gca,legend,subplot,title,tight_layout,ylim,cla,clf,figure
+        from matplotlib.dates import DateFormatter
+        import datetime,matplotlib
+        global ct
+        figure(ct)
+        ct+=1
+        cla()
+        clf()
+        font = {
+                'size'   : 6}
+        matplotlib.rc('font', **font)
+        gca().xaxis.set_major_formatter(DateFormatter('%H:%M'))
+        nplots=len(self.hist)
+        for d in range(len(self.hist)):
+            subplot(nplots,1,d+1)
+            x=[datetime.datetime.fromtimestamp(xi%86400) for xi in self.tbins[d]]
+            plot(x[1:],self.hist[d])
+            title(legendtxt[d])
+            #ylim((0,maxh[d]))
+        tight_layout()
+        savefig(fn, dpi=300)
         
+def aggregate_usage():
+    folders=\
+        ['/mnt/datafast/log',
+            '/data/behavioral',
+            '/data/santiago-setup/log',
+            '/data/rei-setup/log']
+    now=time.time()
+    now-=int(now)%86400
+    for folder in folders:
+        u=Usage(folder,[now-7*86400,now], ['purger', 'backup', 'bu_'])
+        u.aggregate_timestamps()
+        u.plot(os.path.join('/data/data/user/Zoltan', os.path.basename(os.path.dirname(folder))+'.png'))
     
 class TestLogChecker(unittest.TestCase):
     @unittest.skip('') 
@@ -124,9 +175,10 @@ class TestLogChecker(unittest.TestCase):
         
     def test_02_usage_stat(self):
         now=time.time()
-        u=Usage('/tmp/log',[now-3*86400,now])
+        now-=int(now)%86400
+        u=Usage('/tmp/log',[now-7*86400,now], ['purger', 'backup', 'bu_'])
         u.aggregate_timestamps()
-        u.plot()
+        u.plot('/tmp/1.png')
     
 if __name__ == "__main__":
     if len(sys.argv)==1:
