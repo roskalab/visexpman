@@ -5,7 +5,7 @@ import random
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
-from stimuli import *
+#from stimuli import *
 
 # ------------------------------------------------------------------------------
 class MovingBar(experiment.ExperimentConfig):
@@ -16,10 +16,11 @@ class MovingBar(experiment.ExperimentConfig):
         self.REPETITIONS = 5
         self.SHAPE_BACKGROUND = 0.0
         self.SHAPE_CONTRAST = 1.0
-
+        
         self.SHAPE = 'rect'
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
         self.RANDOM_DIRECTIONS = True
+        self.RANDOM_SPEEDS = True        
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self._create_parameters_from_locals(locals())
 

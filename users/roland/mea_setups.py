@@ -33,6 +33,8 @@ class MEAConfig(HiMEAConfig):
         #recordingMachineName = 'bs-hpws18' # hungary setup
         recordingMachineName = 'bs-hpws19' # retina room
         folder = '/mnt/' + recordingMachineName + '/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
+        folder = '/home/rolandd/tmp/'        
+        
         
         if not os.path.isdir(folder):
             os.makedirs(folder)
@@ -84,7 +86,7 @@ class MEAConfigDebug(MEAConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         DIGITAL_IO_PORT = 'parallel port'
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT = not True
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = self.root_folder

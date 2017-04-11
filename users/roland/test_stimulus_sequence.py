@@ -5,7 +5,7 @@ import random
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
-from stimuli import *
+#from stimuli import *
 
 class RolandTestStimulusSequenceConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
