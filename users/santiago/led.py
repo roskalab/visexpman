@@ -16,7 +16,7 @@ class LedConfig(experiment.ExperimentConfig):
         self.FLASH_DURATION = 0.5
         self.LED_CURRENT = 950#mA
         self.DELAY_BEFORE_FIRST_FLASH = 12.0
-        self.SCREEN_COLOR=1.0#1.0=white, max intensity, 0.0=black
+        self.SCREEN_COLOR=0.0#1.0=white, max intensity, 0.0=black
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
         self.OUTPATH='#OUTPATH'

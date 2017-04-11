@@ -4,10 +4,10 @@ import numpy
 class FlashConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
 #### EDIT FROM HERE
-        self.PRE_TIME=5.0
+        self.PRE_TIME=10.0
         self.OFFTIME=5.0
         self.ONTIME=5.0
-        self.NFLASHES = 2
+        self.NFLASHES = 1
         self.REPETITIONS=6
         self.POLARITY=-1#-1
 #### EDIT UNTIL HERE
