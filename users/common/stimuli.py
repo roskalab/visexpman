@@ -66,15 +66,17 @@ class MovingShapeStimulus(experiment.Experiment):
     def run(self):
         self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':0, 'counter':self.frame_counter})
         self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
-                                  speeds = self.experiment_config.SPEEDS,
-                                  directions = self.experiment_config.DIRECTIONS,
-                                  shape = self.shape,
-                                  color = self.shape_contrast,
-                                  background_color = self.shape_background,
-                                  pause = self.pause_between_directions,
-                                  repetition = self.experiment_config.REPETITIONS,
-                                  block_trigger = True,
-                                  shape_starts_from_edge = True)
+                          speeds = self.experiment_config.SPEEDS,
+                          shape = self.shape,
+                          color = self.shape_contrast,
+                          background_color = self.shape_background,
+                          directions = self.experiment_config.DIRECTIONS,
+                          pause = self.pause_between_directions,
+                          repetition = self.experiment_config.REPETITIONS,
+                          shape_starts_from_edge = True,
+                          random_directions=self.experiment_config.RANDOM_DIRECTIONS,
+                          random_speeds=self.experiment_config.RANDOM_SPEEDS,
+                          block_trigger = True)
         self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':1, 'counter':self.frame_counter})
         
 class IncreasingSpotExperiment(experiment.Experiment):
@@ -552,8 +554,10 @@ class WhiteNoiseStimulus(experiment.Experiment):
             DURATION_MINS: in minutes (!)
             PIXEL_SIZE
             COLORS
+            N_WHITE_PIXELS
         Optional:
-            FLICKERING_FREQUENCY
+            FLICKERING_FREQUENCY: default
+            
     '''
     def prepare(self):
         self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
@@ -568,9 +572,18 @@ class WhiteNoiseStimulus(experiment.Experiment):
         
         self.colors = self.experiment_config.COLORS
         npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
+        print npatterns
+        print self.experiment_config.DURATION_MINS
+        print self.flickering_frequency
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
-        pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
+
+        pixel_size = self.experiment_config.PIXEL_SIZE
+        if not (isinstance(pixel_size, list) or hasattr(pixel_size,'dtype')):
+            pixel_size = [pixel_size]
+        
+        pixel_size = numpy.array(pixel_size)
+        
         if pixel_size.shape[0] == 1:
             pixel_size = [pixel_size[0], pixel_size[0]]
         
@@ -602,9 +615,9 @@ class ColoredNoiseStimulus(experiment.Experiment):
     '''
     def prepare(self):
         
-        self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
-        if not self.experiment_config.N_WHITE_PIXELS:
-            self.n_white_pixels = None;
+        #self.n_white_pixels = self.experiment_config.N_WHITE_PIXELS
+        #if not self.experiment_config.N_WHITE_PIXELS:
+        #    self.n_white_pixels = None;
         self.stimulus_duration = self.experiment_config.DURATION_MINS*60.0
         
         try:
@@ -619,7 +632,13 @@ class ColoredNoiseStimulus(experiment.Experiment):
         npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
-        pixel_size = numpy.array(self.experiment_config.PIXEL_SIZE)
+        
+        pixel_size = self.experiment_config.PIXEL_SIZE
+        if not (isinstance(pixel_size, list) or hasattr(pixel_size,'dtype')):
+            pixel_size = [pixel_size]
+        
+        pixel_size = numpy.array(pixel_size)
+        
         if pixel_size.shape[0] == 1:
             pixel_size = [pixel_size[0], pixel_size[0]]
         
