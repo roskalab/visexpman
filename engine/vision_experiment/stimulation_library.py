@@ -1372,7 +1372,11 @@ class AdvancedStimulation(StimulationHelpers):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'], kwargs['overlap'])
         return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
-    def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False, random_speeds=False, random_directions=True):
+    def moving_shape_trajectory(self, size, speeds, directions,repetition, \
+        pause=0.0,
+        shape_starts_from_edge=False, 
+        random_speeds=False, 
+        random_directions=True):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
@@ -1389,31 +1393,53 @@ class AdvancedStimulation(StimulationHelpers):
         trajectory_directions = []
         trajectories = []
         nframes = 0
+        
+        nSpeeds = len(speeds)
+        nDirections = len(directions)
+        speeds = numpy.repeat(speeds, nDirections)
+        directions = numpy.tile(directions, nSpeeds)        
 
+        #%% Randomize if necessary:        
         numpy.random.seed(1)
         if random_speeds:
             speeds = numpy.random.permutation(speeds)
-
-        for spd in speeds:
-            if random_directions:
-                directions = numpy.random.permutation(directions)
-
-            for direction in directions:
-                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
-                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
-                if spd == 0:
-                    raise RuntimeError('Zero speed is not supported')
-                spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                t=utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
-                for rep in range(repetition):
-                    trajectories.append(t)
-                    nframes += trajectories[-1].shape[0]
-                    trajectory_directions.append(direction)
+            
+        if random_directions:
+            directions = numpy.random.permutation(directions)
+        
+        assert len(speeds) == len(directions), 'There must be the same number of speeds as directions at this point!'
+        #%%
+        for spd, direction in zip(speeds, directions):
+            #print spd
+            #print direction            
+            
+            end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
+            start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
+            if spd == 0:
+                raise RuntimeError('Zero speed is not supported')
+            spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+            t=utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
+            for rep in range(repetition):
+                #print rep
+                trajectories.append(t)
+                nframes += trajectories[-1].shape[0]
+                trajectory_directions.append(direction)
+        
         duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
         return trajectories, trajectory_directions, duration
         
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, repetition = 1, block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', \
+        color = 1.0, 
+        background_color = 0.0,
+        moving_range=utils.rc((0.0,0.0)), 
+        pause=0.0, 
+        repetition = 1, 
+        random_directions = False,
+        random_speeds = False,
+        block_trigger = False, 
+        shape_starts_from_edge=False,
+        save_frame_info =True):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''
@@ -1424,10 +1450,17 @@ class AdvancedStimulation(StimulationHelpers):
 #        else:
 #            pos_with_offset = pos
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')', source='stim')
-        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,pause,shape_starts_from_edge)
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(\
+            size = size, speeds = speeds, directions=directions, repetition = repetition,
+            pause = pause,
+            shape_starts_from_edge = shape_starts_from_edge,
+            random_speeds=random_speeds, 
+            random_directions=random_directions)
+        
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
+        
         for block in range(len(trajectories)):
             self.show_shape(shape = shape,  pos = trajectories[block], 
                             color = color,  background_color = background_color, 
