@@ -3,21 +3,21 @@ import PyDAQmx.DAQmxConstants as DAQmxConstants
 import PyDAQmx.DAQmxTypes as DAQmxTypes
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import colors
-import numpy,time
+import numpy,time,inspect
         
 class FlashConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
 #### EDIT FROM HERE
-        self.PRE_TIME=10.0/5
-        self.OFFTIME=5.0/5
-        self.ONTIME=5.0/5
+        self.PRE_TIME=10.0
+        self.OFFTIME=5.0
+        self.ONTIME=5.0
         self.NFLASHES = 1
-        self.REPETITIONS=6/6
+        self.REPETITIONS=6
         self.POLARITY=-1#-1
         self.ENABLE_LED=True
-        self.LED_FLASH_DURATION=0.5
+        self.LED_FLASH_DURATION=2.5
         self.LED_CURRENT = 950#mA
-        self.LED_FLASH_DELAY=-0.25#if negative, led flashes earlier than screen
+        self.LED_FLASH_DELAY=-2.5#if negative, led flashes start earlier than screen
         self.LED_FLASH_RATE=1#1=led in all repetition, 2: led flash in every second repetition
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
@@ -41,6 +41,7 @@ class FlashStimulation(experiment.Experiment):
         self.amplitude=self.experiment_config.LED_CURRENT2VOLTAGE*self.experiment_config.LED_CURRENT
         
     def led_and_screen_flash(self,intensities, offtime,ontime,led_delay, led_flash_duration):
+        self._save_stimulus_frame_info(inspect.currentframe())
         led_delay_samples=int(led_delay*self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         offtime_samples=int(offtime*self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         ontime_samples=int(ontime*self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
@@ -53,7 +54,11 @@ class FlashStimulation(experiment.Experiment):
         self._set_voltage(0)
         led_state=False
         for frame_i in range(color_values.shape[0]):
-            self.screen.clear_screen(color = colors.convert_color(color_values[frame_i], self.config))
+            if color_values[frame_i]==0:
+                c=self.mid
+            else:
+                c=color_values[frame_i]
+            self.screen.clear_screen(color = colors.convert_color(c, self.config))
             self._flip(trigger = True)                  
             if led_start_indexes.shape[0]<=led_flash_index:
                 pass
@@ -83,6 +88,7 @@ class FlashStimulation(experiment.Experiment):
                     if  led_state:
                         time.sleep(self.trig_time)
                         self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def run(self, fragment_id = 0):
         if self.experiment_config.ENABLE_LED:
