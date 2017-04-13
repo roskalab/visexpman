@@ -1510,18 +1510,20 @@ class AdvancedStimulation(StimulationHelpers):
         maxTravelDistance_um = max_speed * max_dotdurations
         xRange =  numpy.array([-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['row'] + maxTravelDistance_um])
         yRange =  numpy.array([-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['col'] + maxTravelDistance_um])
+        xRange -= self.config.SCREEN_SIZE_UM['row'] * 0.5        
+        yRange -= self.config.SCREEN_SIZE_UM['col'] * 0.5
         
         ndots = int(sparsityFactor * (xRange[1]-xRange[0]) * (yRange[1]-yRange[0]) / (2*numpy.pi*max_dotsize))
         
         
-        print "maxTravelDist"
-        print maxTravelDistance_um
+        #print "maxTravelDist"
+        #print maxTravelDistance_um
         
-        print 'ndots'
-        print ndots        
+        #print 'ndots'
+        #print ndots        
         
-        print xRange
-        print yRange
+        #print xRange
+        #print yRange
         
         times = numpy.arange(0, int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
@@ -1542,21 +1544,19 @@ class AdvancedStimulation(StimulationHelpers):
         colors       = colors[numpy.random.choice(range(colors.shape[0]), size=ndots)]
         
         dotsizes = decideRange(dotsizes, dotsizes_min_max)
-        print dotsizes
+        #print dotsizes
         dotdurations = decideRange(dotdurations, dotdurations_min_max)
         
-        print 'dotdurations'
-        print float(self.config.SCREEN_EXPECTED_FRAME_RATE)        
+        #print 'dotdurations'
+        #print float(self.config.SCREEN_EXPECTED_FRAME_RATE)        
         dotdurations = numpy.ceil(dotdurations * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         
         speeds = decideRange(speeds, speeds_min_max)
-        
-        
-     
-        
+                
         # Then no directions are given, choose a smooth representation
         if len(directions) == 0:
             angles = numpy.random.uniform(low=0.0, high=360.0, size=ndots)
+            print angles
         else:
             angles = numpy.random.choice(directions, size=ndots)
         
@@ -1589,7 +1589,7 @@ class AdvancedStimulation(StimulationHelpers):
         radius = 1.0
         vertices = geometry.circle_vertices([radius,  radius],  1.0/1.0)
         #elif shape == 'rectangle':
-        vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
+        #vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
         #else:
         #    raise RuntimeError('Unknown shape: {0}'.format(shape))
         
@@ -1628,13 +1628,20 @@ class AdvancedStimulation(StimulationHelpers):
                 
                 
                 if frame_i < randomDots['appearanceT'][shape_i]:
-                    continue
+                    shape_position[shape_i][0] = float('nan')
+                    shape_position[shape_i][1] = float('nan')
+                    pass
+                elif frame_i == randomDots['appearanceT'][shape_i]:
+                    shape_position[shape_i][0] = randomDots['appearanceX'][shape_i]
+                    shape_position[shape_i][1] = randomDots['appearanceY'][shape_i]
+                elif frame_i > randomDots['appearanceT'][shape_i] + randomDots['dotdurations'][shape_i]:
+                    shape_position[shape_i][0] = float('nan')
+                    shape_position[shape_i][1] = float('nan')
+                    pass
                 
-                if frame_i > randomDots['appearanceT'][shape_i] + randomDots['dotdurations'][shape_i]:
-                    continue
-                
-                
-                shape_position[shape_i] += numpy.array([numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])), numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i]))]) * randomDots['speeds'][shape_i]
+                #shape_position[shape_i] += numpy.array([numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])), numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i]))]) * randomDots['speeds'][shape_i]
+                shape_position[shape_i][0] += numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
+                shape_position[shape_i][1] += numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
                 
                 shape_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * randomDots['dotsizes'][shape_i] + shape_position[shape_i])
                 
@@ -1688,6 +1695,8 @@ class AdvancedStimulation(StimulationHelpers):
                 
                 if self.abort:
                     break
+                
+            self._flip(frame_trigger = True, count = True)
             if self.abort:
                 break
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -1696,7 +1705,7 @@ class AdvancedStimulation(StimulationHelpers):
         #Restore original background color
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True, info = {'randomDots': randomDots})
        
         
     def white_noise_old(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):

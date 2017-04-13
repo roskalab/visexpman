@@ -7,19 +7,21 @@ from visexpman.engine.vision_experiment import experiment
 
 #from stimuli import *
 
-
-class RandomDots(experiment.Experiment):
-    '''
-        Required:
-            DURATION: in seconds
-            REPEATS
-    '''
 # ------------------------------------------------------------------------------
 class xRandomDots(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'RandomDotsStimulus'
         self.REPEATS = 1
-        self.DURATION = 1
+        self.DURATION = 10
+        self.DIRECTIONS = []
+        self.DOTSIZES = [100]
+        self.DOTSIZES_MIN_MAX = []
+        self.DOTDURATIONS = [1]
+        self.DOTDURATIONS_MIN_MAX = []
+        self.SPEEDS = [3]
+        self.SPEEDS_MIN_MAX = []
+        self.COLORS = [[1,1,1], [0,0,0]]
+        self.BGCOLOR = [0.5, 0.5, 0.5]
         
         self._create_parameters_from_locals(locals())
         

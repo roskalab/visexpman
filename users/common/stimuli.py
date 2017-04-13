@@ -791,15 +791,15 @@ class RandomDotsStimulus(experiment.Experiment):
         self.stimulus_duration = self.experiment_config.DURATION*self.experiment_config.REPEATS
         
         self.randomDots = self.random_dot_trajectories(duration = self.experiment_config.DURATION, 
-                    directions = [],
-                    dotsizes = [10],
-                    dotsizes_min_max = [],
-                    dotdurations = [1],
-                    dotdurations_min_max = [],
-                    speeds = [300],
-                    speeds_min_max = [],
-                    colors = [[1,1,1], [0,0,0]],
-                    bgcolor = [0.5, 0.5, 0.5],
+                    directions = self.experiment_config.DIRECTIONS,
+                    dotsizes = self.experiment_config.DOTSIZES,
+                    dotsizes_min_max = self.experiment_config.DOTSIZES_MIN_MAX,
+                    dotdurations = self.experiment_config.DOTDURATIONS,
+                    dotdurations_min_max = self.experiment_config.DOTDURATIONS_MIN_MAX,
+                    speeds = self.experiment_config.SPEEDS,
+                    speeds_min_max = self.experiment_config.SPEEDS_MIN_MAX,
+                    colors = self.experiment_config.COLORS,
+                    bgcolor = self.experiment_config.BGCOLOR,
                     sparsityFactor = 0.01)
        
        
