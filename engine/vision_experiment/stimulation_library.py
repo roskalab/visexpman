@@ -1513,8 +1513,10 @@ class AdvancedStimulation(StimulationHelpers):
         xRange -= self.config.SCREEN_SIZE_UM['row'] * 0.5        
         yRange -= self.config.SCREEN_SIZE_UM['col'] * 0.5
         
-        ndots = int(sparsityFactor * (xRange[1]-xRange[0]) * (yRange[1]-yRange[0]) / (2*numpy.pi*max_dotsize))
+        ndots = int(sparsityFactor * (xRange[1]-xRange[0]) * (yRange[1]-yRange[0]) * duration / (2*numpy.pi*max_dotsize*max_dotdurations))
         
+        print "Fix memory issue!"        
+        print ndots
         
         #print "maxTravelDist"
         #print maxTravelDistance_um
