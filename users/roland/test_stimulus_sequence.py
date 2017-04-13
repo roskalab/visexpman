@@ -7,6 +7,22 @@ from visexpman.engine.vision_experiment import experiment
 
 #from stimuli import *
 
+
+class RandomDots(experiment.Experiment):
+    '''
+        Required:
+            DURATION: in seconds
+            REPEATS
+    '''
+# ------------------------------------------------------------------------------
+class xRandomDots(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'RandomDotsStimulus'
+        self.REPEATS = 1
+        self.DURATION = 1
+        
+        self._create_parameters_from_locals(locals())
+        
 # ------------------------------------------------------------------------------
 class xMovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):

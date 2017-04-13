@@ -1476,57 +1476,228 @@ class AdvancedStimulation(StimulationHelpers):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
     
-    def random_dots(self, duration, 
-                    dotSize = 10, 
-                    appearanceDuration = 2.0, 
-                    sparsityFactor = 0.01, 
-                    directions = range(0, 360, 5),
-                    speeds = 500):
+    def random_dot_trajectories(self, duration, 
+                    directions = [],
+                    dotsizes = [],
+                    dotsizes_min_max = [],
+                    dotdurations = [],
+                    dotdurations_min_max = [],
+                    speeds = [],
+                    speeds_min_max = [],
+                    colors = [[1,1,1], [0,0,0]],
+                    bgcolor = [0.5, 0.5, 0.5],
+                    sparsityFactor = 0.01):
+        
+        directions = numpy.array(directions)
+        
+        dotsizes = numpy.array(dotsizes)
+        dotsizes_min_max = numpy.array(dotsizes_min_max)
+        
+        dotdurations = numpy.array(dotdurations)
+        dotdurations_min_max = numpy.array(dotdurations_min_max)
+        
+        speeds = numpy.array(speeds)        
+        speeds_min_max = numpy.array(speeds_min_max)
+        
+        colors = numpy.array(colors)        
+        
+        max_dotsize = max([max(numpy.append(dotsizes, 0)), max(numpy.append(dotsizes_min_max, 0))])
+        max_dotdurations = max([max(numpy.append(dotdurations, 0)), max(numpy.append(dotdurations_min_max, 0))])
+        max_speed = max([max(numpy.append(speeds, 0)), max(numpy.append(speeds_min_max, 0))])
         
         #nPixels = utils.rc((int(self.config.SCREEN_SIZE_UM['row']/pixel_size['row']), int(self.config.SCREEN_SIZE_UM['col']/pixel_size['col'])))
         
-        maxTravelDistance_um = max(speeds) * appearanceDuration
-        xRange =  [-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['row'] + maxTravelDistance_um]
-        yRange =  [-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['col'] + maxTravelDistance_um]
+        maxTravelDistance_um = max_speed * max_dotdurations
+        xRange =  numpy.array([-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['row'] + maxTravelDistance_um])
+        yRange =  numpy.array([-maxTravelDistance_um, self.config.SCREEN_SIZE_UM['col'] + maxTravelDistance_um])
         
-        pixel_size = self.config.SCREEN_UM_TO_PIXEL_SCALE
-        #xRange = xRange_um / pixel_size['row']
-        #yRange =  yRange_um / pixel_size['col']       
+        ndots = int(sparsityFactor * (xRange[1]-xRange[0]) * (yRange[1]-yRange[0]) / (2*numpy.pi*max_dotsize))
         
-        area = (xRange[1]-xRange[0]) * (yRange[1]-yRange[0])
-        nStim0 = area / pow(dotSize, 2) * sparsityFactor
-        print area
         
-        print nStim0
+        print "maxTravelDist"
+        print maxTravelDistance_um
         
-        nStim = nStim0 * duration / appearanceDuration   
-        print nStim        
+        print 'ndots'
+        print ndots        
         
-        timePoints = range(0, int(appearanceDuration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
+        print xRange
+        print yRange
         
-        nGridPositions = 100
-        grid_positions = numpy.array(numpy.meshgrid(
-                                        numpy.linspace(xRange[0], xRange[1], nGridPositions),
-                                        numpy.linspace(yRange[0], yRange[1], nGridPositions) ), dtype=numpy.float).T
+        times = numpy.arange(0, int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
-        appearance_positions = utils.rc(numpy.array([numpy.array(grid_positions[:,:,0].flatten().tolist()),  numpy.array(grid_positions[:,:,1].flatten().tolist()) ]))
-        
+        def decideRange(x, x_min_max):
+            if len(x_min_max) != 0:
+                assert len(x) == 0
+                return numpy.random.uniform(low=x_min_max[0], high=x_min_max[1], size=ndots)
+            elif len(x) != 0:
+                assert len(x_min_max) == 0
+                return numpy.random.choice(x, size=ndots)
+            else:
+                raise RuntimeError('Either x or x_min_max must be defined!')
         
         numpy.random.seed(0)
-        self.ramdomDots = {'speeds': numpy.random.choice(speeds, nStim), 
-                           'directions': numpy.random.choice(directions, nStim),
-                           'appearanceTimes': numpy.random.choice(timePoints, nStim)
-                            }
+        appearanceX  = numpy.random.uniform(low=xRange[0], high=xRange[1], size=ndots)
+        appearanceY  = numpy.random.uniform(low=yRange[0], high=yRange[1], size=ndots)
+        appearanceT  = numpy.random.choice(times, size=ndots)
+        colors       = colors[numpy.random.choice(range(colors.shape[0]), size=ndots)]
         
-        self.show_shapes(shape = 'circle', 
-                         shape_size = dotSize,
-                         shape_positions = appearance_positions,
-                         nshapes = nStim, 
-                         duration = appearanceDuration,
-                         are_same_shapes_over_frames = False
-                         )        
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        dotsizes = decideRange(dotsizes, dotsizes_min_max)
+        print dotsizes
+        dotdurations = decideRange(dotdurations, dotdurations_min_max)
+        
+        print 'dotdurations'
+        print float(self.config.SCREEN_EXPECTED_FRAME_RATE)        
+        dotdurations = numpy.ceil(dotdurations * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+        
+        speeds = decideRange(speeds, speeds_min_max)
+        
+        
+     
+        
+        # Then no directions are given, choose a smooth representation
+        if len(directions) == 0:
+            angles = numpy.random.uniform(low=0.0, high=360.0, size=ndots)
+        else:
+            angles = numpy.random.choice(directions, size=ndots)
+        
+        return {'ndots': ndots,
+                'times': times,
+                'speeds': speeds, 
+                'dotsizes': dotsizes,
+                'dotdurations': dotdurations,
+                'angles': angles,
+                'appearanceX': appearanceX,
+                'appearanceY': appearanceY,
+                'appearanceT': appearanceT,
+                'colors': colors,
+                'bgcolor': bgcolor,
+                }
+        
+    def random_dots(self, randomDots):
+        
+        # Actually start stimuli:
+        self.log_on_flip_message_initial = 'random_dots(' + str(randomDots) + ')' 
+        self.log_on_flip_message_continous = 'random_dots'
+        
+        
+        first_flip = False
+        
+        self._save_stimulus_frame_info(inspect.currentframe())
+        #shape = self._get_shape_string(shape)
+        
+        #if shape == 'circle':
+        radius = 1.0
+        vertices = geometry.circle_vertices([radius,  radius],  1.0/1.0)
+        #elif shape == 'rectangle':
+        vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
+        #else:
+        #    raise RuntimeError('Unknown shape: {0}'.format(shape))
+        
+        #if are_same_shapes_over_frames:
+        #    n_frames = color.shape[0]
+        #else:
+        #    n_frames = len(shape_positions) / nshapes
+        
+        #print randomDots       
+        
+        n_frames = len(randomDots['times'])
+        n_vertices = len(vertices)
+        n_shapes = randomDots['ndots']
+        
+        self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
+        
+        
+        
+        #print n_frames
+        #print n_shapes
+        #print 'vertices'
+        
+        #print vertices.shape
+        frames_vertices = numpy.zeros((n_frames * n_shapes * n_vertices,  2))         
+    
+        converted_color = []
+        for shape_i in range(n_shapes):
+            converted_color.append( colors.convert_color(randomDots['colors'][shape_i], self.config) )
+        converted_color = numpy.array(converted_color)
+        
+        shape_position = numpy.zeros([n_shapes, 2]);        
+        
+        index = 0
+        for frame_i in range(n_frames):        
+            for shape_i in range(n_shapes):
+                
+                
+                if frame_i < randomDots['appearanceT'][shape_i]:
+                    continue
+                
+                if frame_i > randomDots['appearanceT'][shape_i] + randomDots['dotdurations'][shape_i]:
+                    continue
+                
+                
+                shape_position[shape_i] += numpy.array([numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])), numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i]))]) * randomDots['speeds'][shape_i]
+                
+                shape_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * randomDots['dotsizes'][shape_i] + shape_position[shape_i])
+                
+                frames_vertices[index: index + n_vertices] = shape_to_screen
+                index = index + n_vertices
+        
+            
+        #if duration == 0:
+        #    n_frames_per_pattern = 1
+        #else:
+        #n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+#         if hasattr(color, 'dtype') and hasattr(self.config, 'GAMMA_CORRECTION'):
+#             color_corrected = self.config.GAMMA_CORRECTION(color)
+#         else:
+        #color_corrected = color
+        
+        background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+        converted_background_color = colors.convert_color(randomDots['bgcolor'], self.config)
+        glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        glEnableClientState(GL_VERTEX_ARRAY)
+        
+        shape_pointer = 0
+        for frame_i in range(n_frames):
+            
+            start_i = shape_pointer * n_vertices
+            end_i = (shape_pointer + n_shapes) * n_vertices
+            shape_pointer = shape_pointer + n_shapes
+            
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
 
+            glVertexPointerf(frames_vertices[start_i:end_i])
+            
+            #for i in range(n_frames_per_pattern):
+            for shape_i in range(n_shapes):
+                glColor3fv(converted_color[shape_i])
+                glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices)
+                
+                if self.abort:
+                    break
+                
+                #Make sure that at the first flip the parameters of the function call are logged
+                if not first_flip:
+                    self.log_on_flip_message = self.log_on_flip_message_initial
+                    first_flip = True
+                else:
+                    self.log_on_flip_message = self.log_on_flip_message_continous
+                #self._flip_and_block_trigger(i, n_frames_per_pattern, True, block_trigger)
+                
+                #if flip:
+                #    self._flip(frame_trigger = frame_trigger, count = count)
+                
+                if self.abort:
+                    break
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
+        
+
+        #Restore original background color
+        glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
+        
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+       
         
     def white_noise_old(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
         '''
