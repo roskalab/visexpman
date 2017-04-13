@@ -28,7 +28,7 @@ from visexpman.engine.generic import file
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
-from visexpA.engine.datadisplay.plot import Qt4Plot
+#from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
 USERS=['','arjun', 'adrian','daniel','fiona','stuart','zoltan']

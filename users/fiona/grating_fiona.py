@@ -61,8 +61,8 @@ class MovingGratingFiona3x(grating_base.MovingGratingNoMarchingConfig):
         self.machine_config.TEXT_COLOR=[0.0,0.0,0.0]
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
         self.MARCH_TIME=3.0#
-        self.GRATING_STAND_TIME = 3.0
-        self.GREY_INSTEAD_OF_MARCHING=False
+        self.GRATING_STAND_TIME = 0#3.0
+        self.GREY_INSTEAD_OF_MARCHING=True#False
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
