@@ -609,6 +609,7 @@ class VisionExperimentGui(QtGui.QWidget):
 
     def update_roi_curves_display(self):
         #setdata(blockplotpoints["full"], ylabel='Fluorescence', vlines = vlines, xlabel =tlabels, vlinelimits=vlinelimits, penwidth=w,  color=Qt.Qt.black,  axisscale=axislims )
+        return
         region_name = self.get_current_region_name()
         cell_id = self.get_current_cell_id()
         if cell_id != '' and utils.safe_has_key(self.poller.cells, region_name) and utils.safe_has_key(self.poller.cells[region_name], cell_id) and \

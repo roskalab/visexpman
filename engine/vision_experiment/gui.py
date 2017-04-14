@@ -465,8 +465,8 @@ class RoiWidget(QtGui.QWidget):
         self.roi_info_image_display = QtGui.QLabel()
 #        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
 #        self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
-        self.roi_plot = Qt4Plot()
-        self.roi_plot.setMinimumHeight(230)
+        #self.roi_plot = Qt4Plot()
+        #self.roi_plot.setMinimumHeight(230)
         self.select_cell_label = QtGui.QLabel('Select cell',  self)
         self.select_cell_combobox = QtGui.QComboBox(self)
         self.select_cell_combobox.setEditable(False)
@@ -514,7 +514,7 @@ class RoiWidget(QtGui.QWidget):
         
         self.layout.addWidget(self.scan_region_name_label, 0, 0, 1, 5)
 #        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
-        self.layout.addWidget(self.roi_plot, 1, 0, image_height_in_rows, 13)
+        #self.layout.addWidget(self.roi_plot, 1, 0, image_height_in_rows, 13)
         
         self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 2, 8)
         self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 2, 9)
@@ -787,11 +787,11 @@ class MainPoller(Poller):
 #        self.timer.start(5000)#ms
 #        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_preexp)
         self.stim_connected=False
-        import visexpman
-        self.experiment_config_list=[]
-        for u in [self.config.user]:
-            self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
-        self.experiment_config_list.sort()
+#        import visexpman
+#        self.experiment_config_list=[]
+#        for u in [self.config.user]:
+#            self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
+#        self.experiment_config_list.sort()
         if STAGE:
             self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
             #self.stage.reset()
@@ -803,8 +803,9 @@ class MainPoller(Poller):
         if self.stim_connected and (self.user=='daniel' or self.user=='zoltan'):
             stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
             command='SOCselect_experimentEOC{0}EOP'.format(stimname)
-            self.printc(command)
-            self.queues['stim']['out'].put(command)
+            if 'metastim' not in stimname:
+                self.printc(command)
+                self.queues['stim']['out'].put(command)
             
     def start_metastim(self, classname):
         import visexpman
