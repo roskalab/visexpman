@@ -19,7 +19,7 @@ class Spectra4Controller(object):
         
     def enable_channel(self,channel):
         channel_index=self.channels.index(channel)
-        self.spectra4serial.write('\x4F{0}\x50'.format(hex(255^(1<<channel_index))))
+        self.spectra4serial.write('\x4F{0}\x50'.format(chr(127^(1<<channel_index))))
     
     def set_intensity(self, channel, intensity):
         iic_address= '\x1a' if channel in ['Blue','Teal'] else '\x18'
@@ -30,7 +30,7 @@ class Spectra4Controller(object):
         intensity_word=intensity*16+0xF000
         w1=(intensity_word&0xFF00)>>8
         w2=intensity_word&255
-        self.spectra4serial.write('\x53{0}\x03{1}{2}{3}\x50'.format(iic_address, hex(channel_index),hex(w1),hex(w2)))
+        self.spectra4serial.write('\x53{0}\x03{1}{2}{3}\x50'.format(iic_address, chr(channel_index),chr(w1),hex(w2)))
         
     def read_digital_in(self):
         return self.digital_io.getCTS()

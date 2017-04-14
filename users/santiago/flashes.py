@@ -14,11 +14,11 @@ class FlashConfig(experiment.ExperimentConfig):
         self.NFLASHES = 1
         self.REPETITIONS=6
         self.POLARITY=-1#-1
-        self.ENABLE_LED=True
-        self.LED_FLASH_DURATION=2.5
+        self.ENABLE_LED=True#False = no LED stim during visual stimulation
+        self.LED_FLASH_DURATION=0.5
         self.LED_CURRENT = 950#mA
-        self.LED_FLASH_DELAY=-2.5#if negative, led flashes start earlier than screen
-        self.LED_FLASH_RATE=1#1=led in all repetition, 2: led flash in every second repetition
+        self.LED_FLASH_DELAY=-.1#if negative, led flashes start earlier than screen
+        self.LED_FLASH_RATE=2#1=led in all repetition, 2: led flash in every second repetition
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
         self.OUTPATH='#OUTPATH'
@@ -91,13 +91,12 @@ class FlashStimulation(experiment.Experiment):
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def run(self, fragment_id = 0):
-        if self.experiment_config.ENABLE_LED:
-            self._init_ao()
+        self._init_ao()
         self.show_fullscreen(color=self.mid, duration=self.experiment_config.PRE_TIME)
         for r in range(self.experiment_config.REPETITIONS):
             if self.experiment_config.ENABLE_LED:
                 flash_duration=self.experiment_config.LED_FLASH_DURATION
-                if r%self.experiment_config.LED_FLASH_RATE!=0:
+                if r%self.experiment_config.LED_FLASH_RATE!=1:
                     flash_duration=0
             else:
                 flash_duration=0
@@ -106,8 +105,7 @@ class FlashStimulation(experiment.Experiment):
                             self.experiment_config.OFFTIME,
                             self.experiment_config.LED_FLASH_DELAY,
                             flash_duration)
-        if self.experiment_config.ENABLE_LED:
-            self._close_ao()
+        self._close_ao()
             
     def _set_voltage(self,v):
         timeout=1
