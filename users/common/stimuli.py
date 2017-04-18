@@ -800,7 +800,7 @@ class RandomDotsStimulus(experiment.Experiment):
                     speeds_min_max = self.experiment_config.SPEEDS_MIN_MAX,
                     colors = self.experiment_config.COLORS,
                     bgcolor = self.experiment_config.BGCOLOR,
-                    sparsityFactor = 0.01)
+                    sparsityFactor = self.experiment_config.SPARSITY_FACTOR)
        
        
     def run(self):
