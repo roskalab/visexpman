@@ -12,6 +12,7 @@ import multiprocessing
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
+import OpenGL.arrays.vbo
 
 import command_handler
 import experiment_control
@@ -1615,8 +1616,14 @@ class AdvancedStimulation(StimulationHelpers):
         #print 'vertices'
         
         #print vertices.shape
-        frames_vertices = numpy.zeros((n_frames * n_shapes * n_vertices,  2))         
-    
+        print "frames_vertices"
+        print n_frames
+        print n_shapes
+        print n_vertices
+        #frames_vertices = numpy.zeros((n_frames * n_shapes * n_vertices,  2))         
+        frames_vertices = numpy.zeros((n_shapes * n_vertices,  2))         
+        print frames_vertices.shape        
+        
         converted_color = []
         for shape_i in range(n_shapes):
             converted_color.append( colors.convert_color(randomDots['colors'][shape_i], self.config) )
@@ -1624,86 +1631,63 @@ class AdvancedStimulation(StimulationHelpers):
         
         shape_position = numpy.zeros([n_shapes, 2]);        
         
-        index = 0
-        for frame_i in range(n_frames):        
-            for shape_i in range(n_shapes):
-                
-                
-                if frame_i < randomDots['appearanceT'][shape_i]:
-                    shape_position[shape_i][0] = float('nan')
-                    shape_position[shape_i][1] = float('nan')
-                    pass
-                elif frame_i == randomDots['appearanceT'][shape_i]:
-                    shape_position[shape_i][0] = randomDots['appearanceX'][shape_i]
-                    shape_position[shape_i][1] = randomDots['appearanceY'][shape_i]
-                elif frame_i > randomDots['appearanceT'][shape_i] + randomDots['dotdurations'][shape_i]:
-                    shape_position[shape_i][0] = float('nan')
-                    shape_position[shape_i][1] = float('nan')
-                    pass
-                
-                #shape_position[shape_i] += numpy.array([numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])), numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i]))]) * randomDots['speeds'][shape_i]
-                shape_position[shape_i][0] += numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
-                shape_position[shape_i][1] += numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
-                
-                shape_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * randomDots['dotsizes'][shape_i] + shape_position[shape_i])
-                
-                frames_vertices[index: index + n_vertices] = shape_to_screen
-                index = index + n_vertices
-        
-            
-        #if duration == 0:
-        #    n_frames_per_pattern = 1
-        #else:
-        #n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
-#         if hasattr(color, 'dtype') and hasattr(self.config, 'GAMMA_CORRECTION'):
-#             color_corrected = self.config.GAMMA_CORRECTION(color)
-#         else:
-        #color_corrected = color
-        
+        # Initialize all shapes:
+        for shape_i in range(n_shapes):
+            frames_vertices[ shape_i*n_vertices:(shape_i+1)*n_vertices] = self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * randomDots['dotsizes'][shape_i] + shape_position[shape_i])
+             
         background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
         converted_background_color = colors.convert_color(randomDots['bgcolor'], self.config)
+        
+        # Set background grey and then prepare the rest
         glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
         glEnableClientState(GL_VERTEX_ARRAY)
-        
-        shape_pointer = 0
+        glVertexPointerf(frames_vertices)
+         
         for frame_i in range(n_frames):
-            
-            start_i = shape_pointer * n_vertices
-            end_i = (shape_pointer + n_shapes) * n_vertices
-            shape_pointer = shape_pointer + n_shapes
-            
+            if frame_i%60 == 0:
+                print str(frame_i/60) + ' of ' + str(n_frames/60)
+                
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
-
-            glVertexPointerf(frames_vertices[start_i:end_i])
             
-            #for i in range(n_frames_per_pattern):
             for shape_i in range(n_shapes):
+                if self.abort:
+                    break
+                
+                if frame_i < randomDots['appearanceT'][shape_i] or frame_i > randomDots['appearanceT'][shape_i] + randomDots['dotdurations'][shape_i]:
+                    continue
+                
+                # Draw objects:
+                glPushMatrix()
+                
+                if frame_i == randomDots['appearanceT'][shape_i]:
+                    shape_position[shape_i] = [randomDots['appearanceX'][shape_i], randomDots['appearanceY'][shape_i]]                    
+                else:
+                    shape_position[shape_i][0] += numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
+                    shape_position[shape_i][1] += numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
+                
+                glTranslatef(shape_position[shape_i][0], shape_position[shape_i][1],0)        
                 glColor3fv(converted_color[shape_i])
                 glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices)
                 
-                if self.abort:
-                    break
+                glPopMatrix()
                 
-                #Make sure that at the first flip the parameters of the function call are logged
-                if not first_flip:
-                    self.log_on_flip_message = self.log_on_flip_message_initial
-                    first_flip = True
-                else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
+            #Make sure that at the first flip the parameters of the function call are logged
+            if not first_flip:
+                self.log_on_flip_message = self.log_on_flip_message_initial
+                first_flip = True
+            else:
+                self.log_on_flip_message = self.log_on_flip_message_continous
                 #self._flip_and_block_trigger(i, n_frames_per_pattern, True, block_trigger)
-                
-                #if flip:
-                #    self._flip(frame_trigger = frame_trigger, count = count)
-                
-                if self.abort:
-                    break
-                
+            
+            if self.abort:
+                break
+            
             self._flip(frame_trigger = True, count = True)
             if self.abort:
                 break
-        glDisableClientState(GL_VERTEX_ARRAY)
+            
         
-
+        glDisableClientState(GL_VERTEX_ARRAY)
         #Restore original background color
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         
