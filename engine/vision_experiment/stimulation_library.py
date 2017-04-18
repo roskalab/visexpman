@@ -1516,8 +1516,8 @@ class AdvancedStimulation(StimulationHelpers):
         
         ndots = int(sparsityFactor * (xRange[1]-xRange[0]) * (yRange[1]-yRange[0]) * duration / (2*numpy.pi*max_dotsize*max_dotdurations))
         
-        print "Fix memory issue!"        
-        print ndots
+        #print "Fix memory issue!"        
+        #print ndots
         
         #print "maxTravelDist"
         #print maxTravelDistance_um
@@ -1577,79 +1577,67 @@ class AdvancedStimulation(StimulationHelpers):
                 }
         
     def random_dots(self, randomDots):
-        
-        # Actually start stimuli:
-        self.log_on_flip_message_initial = 'random_dots(' + str(randomDots) + ')' 
-        self.log_on_flip_message_continous = 'random_dots'
-        
-        
-        first_flip = False
-        
-        self._save_stimulus_frame_info(inspect.currentframe())
-        #shape = self._get_shape_string(shape)
-        
-        #if shape == 'circle':
+
+        # Define the shape of the objects:
         radius = 1.0
-        vertices = geometry.circle_vertices([radius,  radius],  1.0/1.0)
-        #elif shape == 'rectangle':
-        #vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
-        #else:
-        #    raise RuntimeError('Unknown shape: {0}'.format(shape))
-        
-        #if are_same_shapes_over_frames:
-        #    n_frames = color.shape[0]
-        #else:
-        #    n_frames = len(shape_positions) / nshapes
-        
-        #print randomDots       
+        vertices = geometry.circle_vertices([2*radius,  2*radius],  1.0/1.0)
         
         n_frames = len(randomDots['times'])
         n_vertices = len(vertices)
         n_shapes = randomDots['ndots']
         
+        # Actually start stimuli:
+        self.log_on_flip_message_initial = 'random_dots(' + str(randomDots) + ')' 
+        self.log_on_flip_message_continous = 'random_dots'
+        
+        first_flip = False
+        self._save_stimulus_frame_info(inspect.currentframe())
         self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
         
-        
-        
-        #print n_frames
-        #print n_shapes
-        #print 'vertices'
-        
-        #print vertices.shape
-        print "frames_vertices"
-        print n_frames
-        print n_shapes
-        print n_vertices
-        #frames_vertices = numpy.zeros((n_frames * n_shapes * n_vertices,  2))         
         frames_vertices = numpy.zeros((n_shapes * n_vertices,  2))         
-        print frames_vertices.shape        
         
+        
+        # Initialize all shapes:
         converted_color = []
         for shape_i in range(n_shapes):
             converted_color.append( colors.convert_color(randomDots['colors'][shape_i], self.config) )
+            frames_vertices[ shape_i*n_vertices:(shape_i+1)*n_vertices] = self.config.SCREEN_UM_TO_PIXEL_SCALE * vertices * randomDots['dotsizes'][shape_i]
+        
+        shape_idx = list()
+        for frame_i in range(n_frames):
+            if frame_i%60 == 0:
+                print str(frame_i/60) + ' of ' + str(n_frames/60)          
+            shape_idx.append(list())
+            
+            
+        for shape_i in range(n_shapes):
+            start_frame = int(randomDots['appearanceT'][shape_i])
+            stop_frame = min(n_frames, int(randomDots['appearanceT'][shape_i]+randomDots['dotdurations'][shape_i]))
+            
+            for i in range(start_frame, stop_frame):
+                shape_idx[i].append(shape_i)
+        
+        print len(shape_idx)
+        #print shape_idx
+        
         converted_color = numpy.array(converted_color)
         
-        shape_position = numpy.zeros([n_shapes, 2]);        
-        
-        # Initialize all shapes:
-        for shape_i in range(n_shapes):
-            frames_vertices[ shape_i*n_vertices:(shape_i+1)*n_vertices] = self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * randomDots['dotsizes'][shape_i] + shape_position[shape_i])
-             
+        # Set background grey and then prepare the rest
         background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
         converted_background_color = colors.convert_color(randomDots['bgcolor'], self.config)
-        
-        # Set background grey and then prepare the rest
         glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(frames_vertices)
-         
+        
+        # Run the stimulus frame by frame:
+        shape_position = numpy.zeros([n_shapes, 2])
         for frame_i in range(n_frames):
             if frame_i%60 == 0:
                 print str(frame_i/60) + ' of ' + str(n_frames/60)
                 
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
             
-            for shape_i in range(n_shapes):
+            for shape_i in shape_idx[frame_i]: # range(n_shapes):
                 if self.abort:
                     break
                 
@@ -1692,7 +1680,7 @@ class AdvancedStimulation(StimulationHelpers):
         glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True, info = {'randomDots': randomDots})
-       
+        
         
     def white_noise_old(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
         '''
