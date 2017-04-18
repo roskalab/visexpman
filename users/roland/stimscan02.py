@@ -29,16 +29,17 @@ class Stimscan02RandomDots(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'RandomDotsStimulus'
         self.REPEATS = 1
-        self.DURATION = 3*60
+        self.DURATION = 20*60
         self.DIRECTIONS = []
-        self.DOTSIZES = [50]
+        self.DOTSIZES = [25]
         self.DOTSIZES_MIN_MAX = []
-        self.DOTDURATIONS = [1]
+        self.DOTDURATIONS = [2]
         self.DOTDURATIONS_MIN_MAX = []
         self.SPEEDS = [3]
         self.SPEEDS_MIN_MAX = []
         self.COLORS = [[1,1,1], [0,0,0]]
         self.BGCOLOR = [0.5, 0.5, 0.5]
+        self.SPARSITY_FACTOR = 0.05
         
         self._create_parameters_from_locals(locals())
 
