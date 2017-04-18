@@ -278,7 +278,10 @@ def to_16bit(data):
     return scaled, scale
     
 def from_16bit(scaled,scale):
-    return numpy.cast['float'](scaled)/scale['scale']+scale['offset']
+    s=numpy.cast['float'](scaled)
+    s/=scale['scale']
+    s+=scale['offset']
+    return s
     
 def measure_sin(sig,  fsample,  p0=[1, 1, 0, 0]):
     import scipy.optimize

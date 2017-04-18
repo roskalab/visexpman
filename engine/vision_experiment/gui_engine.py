@@ -145,8 +145,8 @@ class ExperimentHandler(object):
         stimulus_source_code = fileop.read_text_file(filename)
         #Find out duration
         experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
-        if self.santiago_setup and experiment_duration>150:
-            if not self.ask4confirmation('Longer recordings than 150 s may result memory error. Do you want to continue?'):
+        if self.santiago_setup and experiment_duration>240:
+            if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
         #Collect experiment parameters
         experiment_parameters = {}
@@ -386,7 +386,7 @@ class ExperimentHandler(object):
         txtlines1=','.join(map(str,numpy.round(tsync,3)))
         txtlines2 =','.join(map(str,numpy.round(timg,3)))
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
-        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '.csv'))
+        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_flash.csv'))
         csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
@@ -699,12 +699,13 @@ class Analysis(object):
             r['stimulus_name']=self.experiment_name
             r['meanimage']=self.meanimage
             r['image_scale']=self.image_scale
-            r['red']=copy.deepcopy(self.red_stat)
-            if self.red_stat!=0:
-                area=copy.deepcopy(r['area'])
-                area=numpy.array([area[i] for i in range(area.shape[0]) if area[i][0]<r['red']['roi_pixels']['nostim'].shape[1] and area[i][1]<r['red']['roi_pixels']['nostim'].shape[2]])
-                r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,area[:,0],area[:,1]].mean()
-                r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,area[:,0],area[:,1]].mean()
+            if not self.santiago_setup:
+                r['red']=copy.deepcopy(self.red_stat)
+                if self.red_stat!=0:
+                    area=copy.deepcopy(r['area'])
+                    area=numpy.array([area[i] for i in range(area.shape[0]) if area[i][0]<r['red']['roi_pixels']['nostim'].shape[1] and area[i][1]<r['red']['roi_pixels']['nostim'].shape[2]])
+                    r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,area[:,0],area[:,1]].mean()
+                    r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,area[:,0],area[:,1]].mean()
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']

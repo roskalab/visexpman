@@ -190,6 +190,8 @@ if hdf5io_available:
                 print 'Warning, figure out why number of sync pulses is more than data frames'
                 print 'ao frames: {0}, n pulses {1}'.format(nframes_original, self.timg.shape[0])
                 self.timg = self.timg[-self.raw_data.shape[0]:]
+            elif self.datatype=='ca':
+                self.timg=self.timg[1:self.raw_data.shape[0]+1]
             if self.raw_data.shape[0]<self.timg.shape[0]:
                 raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
             
@@ -263,7 +265,7 @@ if hdf5io_available:
                     mip2image_with_rectanglesd=ImageDraw.Draw(mip2image_with_rectangles)
                     mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
                     mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
-                    csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '.csv'))
+                    csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_flash.csv'))
                     csvfn_stim=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_stim.csv'))
                     txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tsync'],3)))
                     txtlines=[','.join(map(str,numpy.round(self.rois[0]['timg'],3)))]
