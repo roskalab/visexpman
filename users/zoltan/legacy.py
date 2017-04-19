@@ -514,8 +514,9 @@ def merge_ca_data(folder,**kwargs):
     h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
     h.configs_stim['machine_config']=machine_config['machine_config']
     h.machine_config=machine_config
+    h.generated_data=stimulus['generated_data']
     h.datatype='ca'
-    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype'])
+    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype', 'generated_data'])
     h.close()
     #Copy raw pngs to output folder
     output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))

@@ -1,5 +1,6 @@
 import random,logging,time,numpy
-from visexpman.engine.vision_experiment.experiment import Protocol,BehavioralProtocol
+from visexpman.engine.vision_experiment.experiment import BehavioralProtocol
+Protocol=object
 from visexpman.engine.hardware_interface.lick_detector import HitMissProtocolHandler
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.analysis import behavioral_data
