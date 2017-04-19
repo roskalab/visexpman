@@ -31,6 +31,8 @@ import simplejson
 import multiprocessing
 from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
+import re
+timestamp_re = re.compile('.*(\d{10,10}).*')
 
 def zmq_device(in_port, out_port, monitor_port, in_type='PULL', out_type='PUSH',  in_prefix=b'in', out_prefix=b'out'):
     from zmq import devices

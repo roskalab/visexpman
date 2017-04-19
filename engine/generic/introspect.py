@@ -589,9 +589,7 @@ def list_type(item):
             else:
                 response = 'list_of_recarrays'
         else:
-            import pdb
-            pdb.set_trace()
-            raise RuntimeError('Unhandled object type in the list provided')
+            response = 'inhomogenous_list'
     else:
         response=None
     return response
