@@ -33,7 +33,7 @@ class MEAConfig(HiMEAConfig):
         #recordingMachineName = 'bs-hpws18' # hungary setup
         recordingMachineName = 'bs-hpws19' # retina room
         folder = '/mnt/' + recordingMachineName + '/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
-        folder = '/home/rolandd/tmp/'        
+        #folder = '/home/rolandd/tmp/'        
         
         
         if not os.path.isdir(folder):
