@@ -261,14 +261,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug']
+        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug', 'laser']
         if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
         else:
-            y=y[:-1]
-            x=x[:-1]
-            trace_names=trace_names[:-1]
+            y=y[:-2]
+            x=x[:-2]
+            trace_names=trace_names[:-2]
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
             x[1]=self.lick_times
             y[1]=numpy.ones_like(self.lick_times)*2
@@ -290,6 +290,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.current_protocol='Lick' if prob else 'HitMiss'
             if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
                 self.current_protocol = 'HitMiss' if self.current_protocol=='Lick' else 'Lick'
+            logging.info('Random selection: {0}'.format(self.current_protocol))
+        elif str(self.parameters['Protocol']) == 'Lick and Hitmiss Random Laser':
+            if not hasattr(self, 'protocol_history'):
+                self.protocol_history=[]
+            last_n=5
+            prob=numpy.random.random(1)
+            prob=(prob>0.5)[0]
+            self.current_protocol='LickRandomLaser' if prob else 'HitMissRandomLaser'
+            if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
+                self.current_protocol = 'HitMissRandomLaser' if self.current_protocol=='LickRandomLaser' else 'LickRandomLaser'
             logging.info('Random selection: {0}'.format(self.current_protocol))
         else:
             self.current_protocol = str(self.parameters['Protocol'])
@@ -692,6 +702,7 @@ class Behavioral(gui.SimpleAppWindow):
         protocol_names=get_protocol_names()
         protocol_names_sorted=[pn for pn in self.machine_config.PROTOCOL_ORDER if pn in protocol_names]
         protocol_names_sorted.insert(0,'Random Selection Hitmiss Lick')
+        protocol_names_sorted.insert(0,'Lick and Hitmiss Random Laser')
         self.params_config=[
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
@@ -791,6 +802,8 @@ class Behavioral(gui.SimpleAppWindow):
                     plotparams.append({'name': tn, 'pen':(255,0,0)})
                 elif tn=='protocol/debug':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0,0,0,150)})
+                elif tn=='laser':
+                    plotparams.append({'name': tn, 'pen':(255,165,0)})
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
             self.plots.events.plot.setXRange(0,tmax)
