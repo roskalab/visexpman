@@ -28,7 +28,7 @@ from visexpman.engine.generic import file
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
-from visexpA.engine.datadisplay.plot import Qt4Plot
+#from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
 USERS=['','arjun', 'adrian','daniel','fiona','stuart','zoltan']
@@ -465,8 +465,8 @@ class RoiWidget(QtGui.QWidget):
         self.roi_info_image_display = QtGui.QLabel()
 #        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
 #        self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
-        self.roi_plot = Qt4Plot()
-        self.roi_plot.setMinimumHeight(230)
+        #self.roi_plot = Qt4Plot()
+        #self.roi_plot.setMinimumHeight(230)
         self.select_cell_label = QtGui.QLabel('Select cell',  self)
         self.select_cell_combobox = QtGui.QComboBox(self)
         self.select_cell_combobox.setEditable(False)
@@ -514,7 +514,7 @@ class RoiWidget(QtGui.QWidget):
         
         self.layout.addWidget(self.scan_region_name_label, 0, 0, 1, 5)
 #        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
-        self.layout.addWidget(self.roi_plot, 1, 0, image_height_in_rows, 13)
+        #self.layout.addWidget(self.roi_plot, 1, 0, image_height_in_rows, 13)
         
         self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 2, 8)
         self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 2, 9)
@@ -567,6 +567,7 @@ class MainWidget(QtGui.QWidget):
         self.resendjobs_button = QtGui.QPushButton('Resend Jobs', self)
         self.updatejobs_button = QtGui.QPushButton('Update Jobs', self)
         self.purge_button = QtGui.QPushButton('Purge User Folder', self)
+        self.stop_metastim_button = QtGui.QPushButton('Stop Metastim', self)
         #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -589,6 +590,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.resendjobs_button, 9, 1, 1, 1)
         self.layout.addWidget(self.updatejobs_button, 9, 2, 1, 1)
         self.layout.addWidget(self.purge_button, 9, 3, 1, 1)
+        self.layout.addWidget(self.stop_metastim_button, 9, 4, 1, 1)
         
         self.layout.addWidget(self.override_imaging_channels_label, 10, 0, 1, 1)
         self.layout.addWidget(self.override_imaging_channels_checkbox, 10, 1, 1, 1)
@@ -785,11 +787,11 @@ class MainPoller(Poller):
 #        self.timer.start(5000)#ms
 #        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.update_preexp)
         self.stim_connected=False
-        import visexpman
-        self.experiment_config_list=[]
-        for u in [self.config.user]:
-            self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
-        self.experiment_config_list.sort()
+#        import visexpman
+#        self.experiment_config_list=[]
+#        for u in [self.config.user]:
+#            self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False))
+#        self.experiment_config_list.sort()
         if STAGE:
             self.stage=stage_control.AllegraStage(self.config.STAGE[0]['SERIAL_PORT']['port'], timeout=1.0)
             #self.stage.reset()
@@ -798,11 +800,12 @@ class MainPoller(Poller):
                 self.notify('1) Please set joystick speed to middle\r\n2) Previous stage position is lost, please align sample to master position')
 
     def update_preexp(self):
-        if self.stim_connected and self.user=='daniel':
+        if self.stim_connected and (self.user=='daniel' or self.user=='zoltan'):
             stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
             command='SOCselect_experimentEOC{0}EOP'.format(stimname)
-            self.printc(command)
-            self.queues['stim']['out'].put(command)
+            if 'metastim' not in stimname:
+                self.printc(command)
+                self.queues['stim']['out'].put(command)
             
     def start_metastim(self, classname):
         import visexpman
@@ -821,6 +824,11 @@ class MainPoller(Poller):
             metastimclass=utils.fetch_classes('visexpman.users.' + self.config.user, classname=classname,  required_ancestors = visexpman.engine.vision_experiment.experiment.MetaStimulus, direct = False)[0][1]
         self.metastim=metastimclass(self,  self.config)
         self.metastim.run()
+        self.metastim.save_commands()
+        
+    def stop_metastim(self):
+        if hasattr(self, 'metastim'):
+            self.metastim.stop()
         
     def update_process_status(self):
         try:
@@ -835,7 +843,7 @@ class MainPoller(Poller):
             if os.path.exists(path):
                 sig=sum([i for i in os.stat(path)])
                 if not hasattr(self, 'lastmtime') or self.lastmtime!=sig or (hasattr(self, 'last_update') and time.time()-self.last_update>120):
-                    txt=file.read_text_file(path)
+                    #txt=file.read_text_file(path)
                     self.lastmtime=sig
                     self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
                     self.last_update=time.time()
@@ -843,7 +851,6 @@ class MainPoller(Poller):
                 self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('')
         except:
             self.printc(traceback.format_exc())
-            
             
     def processstatus2gui(self):
         animalid= os.path.basename(self.mouse_file).split('_')[1]
@@ -2229,6 +2236,10 @@ class MainPoller(Poller):
                 self.printc('{0} cancelled'.format(id))
 
     def start_experiment(self):
+        stimname=str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
+        if 'metastim/' in stimname:
+            self.start_metastim(stimname.split('/')[1])
+            return
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
         self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'

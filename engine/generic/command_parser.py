@@ -1,4 +1,4 @@
-import traceback
+import traceback,os
 import Queue
 import re
 import unittest
@@ -49,6 +49,7 @@ class CommandParser(object):
                     non_keyword_arguments = tuple(non_keyword_arguments)
                     function_call['arguments'] = non_keyword_arguments
                     function_call['keyword_arguments'] = keyword_arguments
+                    self.log.info('debug: {0}'.format(function_call))
                     self.function_call_list.append(function_call)
                 if len(self.function_call_list) == 1 and one:
                     break

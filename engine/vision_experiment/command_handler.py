@@ -33,7 +33,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     def __init__(self):
         self.keyboard_command_queue = Queue.Queue()
         #Here the set of queues are defined from commands are parsed
-        queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in']]
+        self.metastim_queue=Queue.Queue()
+        queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in'], self.metastim_queue]
         #Set of queues where command parser output is relayed NOT YET IMPLEMENTED IN command_parser
         queue_out = self.queues['gui']['out']
         command_parser.CommandParser.__init__(self, queue_in, queue_out, log = self.log, failsafe = False)
@@ -59,6 +60,10 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         lip=self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['GUI_STIM']['STIM']['LOCAL_IP']
         #self.pusher.bind('tcp://{0}:{1}'.format(lip,port))
         self.pusher.connect('tcp://{0}:{1}'.format(ip,port))
+        
+    def abort_metastim(self):
+        return os.path.exists(self.abortfn)
+        
         
 ###### Commands ######    
 
@@ -168,10 +173,14 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         return 'echo ' + str(result)
 
     def ping(self):
+        if self.abort_metastim():
+            return 'aborted'
         self.queues['gui']['out'].put('pong')
         return 'pong'
         
     def sleep(self,  duration):
+        if self.abort_metastim():
+            return 'aborted'
         t0=time.time()
         self.queues['gui']['out'].put('sleeping {0} s'.format(duration))
         while True:
@@ -231,7 +240,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         Selects experiment config based on keyboard command and instantiates the experiment config class
         '''
-        if os.path.exists(self.abortfn):
+        if self.abort_metastim():
             return 'aborted'
         if isinstance(experiment_index, int):
             self.selected_experiment_config_index = int(experiment_index)
@@ -248,6 +257,18 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             self.flip()
 
         return 'selected experiment: ' + str(experiment_index) + ' '
+        
+    def execute_metastim(self,id=None):
+        fn=os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
+        if os.path.exists(fn):
+            h=hdf5io.Hdf5io(fn)
+            h.load('commands')
+            for cmd in h.commands:
+                self.metastim_queue.put(cmd)
+            h.close()
+            self.queues['gui']['out'].put('Metastim commands loaded')
+            os.remove(fn)
+        return 'done'
 
     def execute_experiment(self, **kwargs):
         '''
@@ -256,6 +277,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         starting method is called
         2. Only parameters of the experiment are sent and its run method is called. Such parameters can be provided: experiment config name, scan region name, scan mode, xz scan parameters ...
         '''
+        if self.abort_metastim():
+            return 'aborted'
         if kwargs.has_key('source_code'):
             source_code = kwargs['source_code']
         else:

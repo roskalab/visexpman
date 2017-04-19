@@ -180,7 +180,7 @@ class MetaStimulus(object):
     '''
     Multiple stimuli can be called in a user defined order
     '''
-    def __init__(self, poller,  config):
+    def __init__(self, poller, config):
         self.config=config
         self.poller=poller
         self.id=str(int(time.time()))
@@ -188,6 +188,9 @@ class MetaStimulus(object):
         self.abortfn=os.path.join(self.poller.config.CONTEXT_PATH,'abort.txt')
         if os.path.exists(self.abortfn):
             os.remove(self.abortfn)
+        import Queue
+        self.q=Queue.Queue()
+        self.region_name = self.poller.parent.get_current_region_name()
 
     def read_depth(self):
         depthstr=str(self.poller.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
@@ -202,7 +205,7 @@ class MetaStimulus(object):
         return numpy.linspace(laserpars[0], laserpars[1], len(depths))
         
     def sleep(self, duration):
-        self.poller.queues['stim']['out'].put('SOCsleepEOC{0}EOP'.format(duration))
+        self.q.put('SOCsleepEOC{0}EOP'.format(duration))
         self.poller.printc('sleep for {0} s'.format(duration))
        
     def start_experiment(self,  stimulus_name,  depth,  laser):
@@ -214,19 +217,22 @@ class MetaStimulus(object):
         self.experiment_parameters['intrinsic'] = False
         self.experiment_parameters['stage_position']=self.poller.stage_position
         self.experiment_parameters['mouse_file'] = os.path.split(self.poller.mouse_file)[1]
-        region_name = self.poller.parent.get_current_region_name()
+        region_name=self.region_name
         if len(region_name)>0:
             self.experiment_parameters['region_name'] = region_name
         self.experiment_parameters['experiment_config'] = stimulus_name
         self.experiment_parameters['scan_mode'] = 'xy'
-        self.experiment_parameters['id'] = str(int(time.time()))
+        idn=int(time.time())
+        if hasattr(self, 'fault_inject'):
+            idn+=int(numpy.random.random()*100)
+        self.experiment_parameters['id'] = str(idn)
         self.poller.issued_ids.append(self.experiment_parameters['id'])
         self.experiment_parameters['objective_position'] = depth
         self.experiment_parameters['laser_intensity']=laser
         #generate parameter file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
         if os.path.exists(parameter_file):
-            time.sleep(1.1)
+            time.sleep(1.01)
             self.experiment_parameters['id'] = str(int(time.time()))
             self.poller.issued_ids[-1]=self.experiment_parameters['id']
             parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
@@ -247,22 +253,35 @@ class MetaStimulus(object):
         file.wait4file_ready(parameter_file)
         self.poller.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
-        time.sleep(0.5)
-        self.poller.queues['stim']['out'].put('SOCpingEOCEOP')
-        self.poller.queues['stim']['out'].put(command)
+        self.q.put('SOCpingEOCEOP')
+        self.q.put(command)
         
     def stop(self,graceful=False):
         self.poller.graceful_stop_experiment()
         if not graceful:
             self.poller.stop_experiment()
+        if os.path.exists(self.command_file):
+            os.remove(self.command_file)
         file.write_text_file(self.abortfn, 'abort')
             
     def show_pre(self, classname):
         command='SOCselect_experimentEOC{0}EOP'.format(classname)
         self.poller.printc('{0} pre exp selected'.format(classname))
-        self.poller.queues['stim']['out'].put(command)
+        self.q.put(command)
         
     def run(self):
         '''
         Here comes the user sequence
         '''
+        
+    def save_commands(self):
+        commands=[]
+        while not self.q.empty():
+            commands.append(self.q.get())
+        self.command_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.id+'.hdf5')
+        h=hdf5io.Hdf5io(self.command_file)
+        h.commands=commands
+        h.save('commands')
+        h.close()
+        self.poller.queues['stim']['out'].put('SOCexecute_metastimEOCid={0}EOP'.format(self.id))
+        self.poller.printc('Commands saved to {0}'.format(self.command_file))

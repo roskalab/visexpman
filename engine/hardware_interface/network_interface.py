@@ -13,7 +13,6 @@ except:
     pass
 import simplejson
 import os.path
-import sys
 import threading
 import SocketServer
 import random
@@ -33,6 +32,9 @@ from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
 import re
 timestamp_re = re.compile('.*(\d{10,10}).*')
+
+import re
+timestamp_re = re.compile('.*=(\d{10,10}).*')
 
 def zmq_device(in_port, out_port, monitor_port, in_type='PULL', out_type='PUSH',  in_prefix=b'in', out_prefix=b'out'):
     from zmq import devices
@@ -267,6 +269,8 @@ class SockServer(SocketServer.TCPServer):
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.shutdown_requested = False        
         self.keepalive = True#Client can request to stop keep alive check until the next message
+        self.idsin=[]
+        self.idsout=[]
         
     def shutdown_request(self):
         self.shutdown_requested = True
@@ -277,6 +281,15 @@ class SockServer(SocketServer.TCPServer):
             print debug_message
         if self.log_queue != None:
             self.log_queue.put([time.time(), debug_message], True)
+            
+    def debug(self, data, ids):
+        ids_=map(int,timestamp_re.findall(data))
+        ids.extend(ids_)
+        if len(ids)>0 and any(numpy.diff(numpy.array(ids))<0):
+            self.printl('id mismatch!!!!!! {0}'.format(ids))
+            #sys.stdout.write('id mismatch!!!!!! {0}'.format(ids))
+            #import pdb
+            #pdb.set_trace()
         
     def process_request(self, request, client_address):
         try:
@@ -317,6 +330,8 @@ class SockServer(SocketServer.TCPServer):
                             data = ''
                         data = data.replace(self.alive_message,'')
                         if len(data) > 0: #Non empty messages are processed                        
+                            if len(timestamp_re.findall(data))>0:
+                               self.debug(data, self.idsin)
                             if not self.alive_message in data: #Save message to debug queue except for keep alive messages
                                 self.printl(data)
                             if 'close_connection' in data or\
@@ -335,6 +350,8 @@ class SockServer(SocketServer.TCPServer):
                     else:
                         if not connection_close_request:
                             out = self.queue_out.get()
+                            if len(timestamp_re.findall(out))>0:
+                                self.debug(out, self.idsout)
                             try:
                                 request.send(out)
                             except:
@@ -478,13 +495,22 @@ class QueuedClient(QtCore.QThread):
         self.no_message_timeout = timeout
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.endpoint_name = endpoint_name
-        self.log_queue = Queue.Queue()        
+        self.log_queue = Queue.Queue() 
+        self.idsin=[]
+        self.idsout=[]       
         
     def printl(self, message):
         debug_message = str(message)
         if DISPLAY_MESSAGE:
             print debug_message        
         self.log_queue.put([time.time(), debug_message], True)
+
+    def debug(self, data, ids):
+        ids_=map(int,timestamp_re.findall(data))
+        ids.extend(ids_)
+        if len(ids)>0 and any(numpy.diff(numpy.array(ids))<0):
+            self.printl('id mismatch!!!!!! {0}'.format(ids))
+
         
     def run(self):   
         self.setPriority(QtCore.QThread.HighPriority)
@@ -540,7 +566,8 @@ class QueuedClient(QtCore.QThread):
                                 if sys.exc_info()[0].__name__ == 'timeout':
                                     self.last_receive_timout = time.time()
                                 data = ''
-                            if len(data) > 0:                            
+                            if len(data) > 0:      
+                                self.debug(data, self.idsin)
                                 if self.alive_message in data and keepalive:
                                    #Send back keep alive message
                                     data = data.replace(self.alive_message,'')

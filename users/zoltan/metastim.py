@@ -2,6 +2,7 @@ from visexpman.engine.vision_experiment import experiment
 import numpy
 class SpeedWait(experiment.MetaStimulus):
     def run(self):
+        #self.fault_inject=True
         depth = self.read_depth()
         laser = self.read_laser(depth)
         nrepeats=1
