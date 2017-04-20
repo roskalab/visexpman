@@ -18,7 +18,7 @@ class HitMiss(BehavioralProtocol):
     REWARD_DELAY=0.5
     DRINK_TIME=2
     WAIT4LICK=True
-    ENABLE_RANDOM_LASER_INTENSITIES=False
+    ENABLE_RANDOM_LASER_INTENSITIES=False#if true, one of the given values will be used, else: value from user interface
     def prepare(self):
         self.PRETRIAL_DURATION=\
             numpy.round(numpy.random.random()*(self.PRETRIAL_DURATION_MAX-self.PRETRIAL_DURATION_MIN)+self.PRETRIAL_DURATION_MIN,0)
@@ -58,6 +58,7 @@ class HitMiss(BehavioralProtocol):
                     self.LASER_INTENSITY,
                     self.PRETRIAL_DURATION,
                     self.REWARD_DELAY,
+                    laser_duration=self.FLASH_DURATION,
                     reponse_window_time=self.RESPONSE_WINDOW,
                     wait4lick=float(self.WAIT4LICK))
         self.hmph.start()

@@ -276,6 +276,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             del x[1]
             del y[1]
             del trace_names[1]
+        y[-1]*=0#TEMP!!!
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
         
@@ -707,7 +708,6 @@ class Behavioral(gui.SimpleAppWindow):
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
-                                {'name': 'Pulse Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 ]},
 #                            {'name': 'Lick Detection', 'type': 'group', 'expanded' : True, 'children': [
 #                                {'name': 'Voltage Threshold', 'type': 'float', 'value': 0.25,'siPrefix': True, 'suffix': 'V'},
@@ -716,6 +716,7 @@ class Behavioral(gui.SimpleAppWindow):
 #                                {'name': 'Mean Voltage Threshold', 'type': 'float', 'value': 0.07,'siPrefix': True, 'suffix': 'V'},
 #                                ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Pulse Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 #{'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
