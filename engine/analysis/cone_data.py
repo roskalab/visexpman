@@ -220,6 +220,8 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     for fn, rois in aggregated_rois.items():
         if len(rois)>0 and rois is not None:#Skip if link exists but rois do not
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
+    if aggregated_rois.has_key(filename) and len(aggregated_rois[filename])==1:
+        return aggregated_rois[filename]
     #Match rois from different repetitions
     if not aggregated_rectangles.has_key(filename):
         raise RuntimeError('{0} does not contain rois. Make sure that rois are saved'.format(filename))
@@ -481,6 +483,7 @@ class TestCA(unittest.TestCase):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
         wf='Q:\\Rei\\20170310 clarin P198-GCaMP6'
+        wf='/data/rei-setup/processed/Zoltan/20170412 Dasha construct1'
         if 0:
             fns = fileop.listdir_fullpath(prepare_test_data('aggregate',working_folder=wf))
             fns.sort()
