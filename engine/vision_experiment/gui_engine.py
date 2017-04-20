@@ -149,6 +149,8 @@ class ExperimentHandler(object):
             if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
         #Collect experiment parameters
+        self.stimulus_parameters=experiment.read_stimulus_parameters(classname, filename,self.machine_config)
+        
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
@@ -378,21 +380,41 @@ class ExperimentHandler(object):
                 a.tomat()
                 a.close()
                 self.printc('MES data merged to {0}'.format(fn))
+            #Save experiment/stimulus config
+            h = experiment_data.CaImagingData(filename)
+            h.stimulus_parameters=self.stimulus_parameters
+            h.save('stimulus_parameters')
+            h.close()
                 
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
         tsync, timg, meanimage, image_scale, raw_data = h.prepare4analysis()
+        if 'Led2' in filename:
+            h.load('generated_data')
+            channels = utils.array2object(h.generated_data)#,len(utils.array2object(h.generated_data))
+            real_events=tsync[numpy.where(numpy.diff(tsync)>2e-3)[0]]
+            real_events=numpy.append(real_events, tsync[-1])
+            tsync_sep={}
+            for ch in ['stim','led']:
+                tsync_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
         h.close()
-        txtlines1=','.join(map(str,numpy.round(tsync,3)))
-        txtlines2 =','.join(map(str,numpy.round(timg,3)))
+        if 'Led2' in filename:
+            txtlines1=','.join(map(str,numpy.round(tsync_sep['stim'],3)))
+            txtlines2=','.join(map(str,numpy.round(tsync_sep['led'],3)))
+        else:
+            txtlines2=','.join(map(str,numpy.round(tsync,3)))
+        txtlines3 =','.join(map(str,numpy.round(timg,3)))
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
-        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_flash.csv'))
+        csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
+        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
         csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
-        fileop.write_text_file(csvfn1, txtlines1)
+        if 'Led2' in filename:
+            fileop.write_text_file(csvfn1, txtlines1)
         fileop.write_text_file(csvfn2, txtlines2)
-        self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2))
+        fileop.write_text_file(csvfn3, txtlines3)
+        self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))
         
         
     def read_sync_recorder(self):
