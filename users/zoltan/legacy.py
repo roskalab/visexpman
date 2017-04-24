@@ -503,7 +503,7 @@ def merge_ca_data(folder,**kwargs):
     #Save everything to final file
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
     h=hdf5io.Hdf5io(filename)
-    h.recording_parameters=recording_parameters
+    h.parameters=recording_parameters
     h.sync= sync_and_elphys
     h.fsync=syncfile
     h.fimg=imaging_folder
@@ -511,12 +511,10 @@ def merge_ca_data(folder,**kwargs):
     h.elphys_sync_conversion_factor=1
     h.raw_data=raw_data
     h.sync_scaling=sync_scaling
-    h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
-    h.configs_stim['machine_config']=machine_config['machine_config']
     h.machine_config=machine_config
     h.generated_data=stimulus['generated_data']
     h.datatype='ca'
-    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype', 'generated_data'])
+    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling',  'machine_config', 'datatype', 'generated_data'])
     h.close()
     #Copy raw pngs to output folder
     output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))

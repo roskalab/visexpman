@@ -162,188 +162,249 @@ def id2timestamp(id_str):
     
 
 ############### Preprocess measurement data ####################
-if hdf5io_available:
-    class CaImagingData(hdf5io.Hdf5io):
-        '''
-        datatypes:
-            ao: 2d array
-            ca: time, channel, (roi), height, width
+
+class CaImagingData(hdf5io.Hdf5io):
+    '''
+    datatypes:
+        ao: time,channel, roi, height, width
+        ca: time, channel, (roi), height, width
         
+    Platforms supported:
+        Legacy (Rei/Santiago) ca imaging
+        AOD
+        
+    External/legacy converters create the original file from raw datafiles resulting a file with raw image data and raw synchron data.
+    Then this class can be used to:
+        calculate sync timestamps
+        meanimage/mip
+        
+    In some cases the timg and number of frames do not match:
+        legacy ca imaging: y scanner signal is not immediately stopped so more timg pulses are detected than image frames recorded
+        AOD: some frames from the beginning should be thrown away but not sure
+        
+    Consequently sync2time function should make sure that the number of timg values is correct
+        
+    
+    '''
+    def __init__(self,filename,filelocking=False, **kwargs):
+        self.image_function=kwargs.get('image_function', 'mean')
+        self.file_info = os.stat(filename)
+        hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
+        
+    def sync2time(self, recreate=False):
         '''
-        def __init__(self,filename,filelocking=False, **kwargs):
-            self.image_function=kwargs.get('image_function', 'mean')
-            self.file_info = os.stat(filename)
-            hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
+        Reads raw sync traces and converts them to timestamps. If not found in datafile, it is saved
+        Channel id is read from saved machine config
+        '''
+        for vn in ['timg', 'tsync']:
+            self.load(vn)
+        if not recreate:
+            if not hasattr(self, 'timg') or hasattr(self , 'tsync'):
+                return
+        for vn in ['sync', 'machine_config', 'sync_scaling']:
+            self.load(vn)
+        if 'float' not in self.sync.dtype.name:
+            raise NotImplementedError()
+        fsample=float(self.machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
+        self.timg=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TIMG_SYNC_INDEX']])/fsample
+        self.tstim=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TSTIM_SYNC_INDEX']])/fsample
+        self.save(['timg', 'tstim'])
+        
+        
+    def get_image(self, image_type='mip'):
+        '''
+        loads 2d representation of ca imaging data with scaling information
+        self.image and self.image_scale
+        '''
+        self.load('raw_data')
+        if image_type=='mean':
+            self.image = self.raw_data.mean(axis=0)[0]
+        elif image_type=='mip': 
+            #Remove saturated frames
+            saturation_value=255 if self.raw_data.dtype.name=='uint8' else 2**16-1
+            row_means=self.raw_data.mean(axis=2)
+            indexes=[i for i in range(row_means.shape[0]) if saturation_value in row_means[i]]
+            col_means=self.raw_data.mean(axis=3)
+            indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
+            keep_frame_indexes=[i for i in range(self.raw_data.shape[0]) if i not in indexes]
+            self.image= self.raw_data[keep_frame_indexes].max(axis=0)[0]
+        self.load('parameters')
+        if self.parameters['resolution_unit']=='pixel/um':
+            self.image_scale = 1.0/self.parameters['pixel_size']
+        else:
+            raise NotImplementedError('')
+
+        
+        
+    def load_sync(self,recalculate=False):#OBSOLETE?
+        varnames=['tsync','timg']
+        for vn in varnames:
+            self.load(vn)
+        if len([1 for vn in varnames if hasattr(self,vn)])==0 or recalculate:
+            self.prepare4analysis()
+            self.save(varnames)
             
-        def load_sync(self,recalculate=False):
-            varnames=['tsync','timg']
-            for vn in varnames:
-                self.load(vn)
-            if len([1 for vn in varnames if hasattr(self,vn)])==0 or recalculate:
+    def crop_rawdata(self):
+        nframes_original=self.raw_data.shape[0]
+        self.raw_data = self.raw_data[:self.timg.shape[0]]
+        if self.datatype=='ao':
+            print 'Warning, figure out why number of sync pulses is more than data frames'
+            print 'ao frames: {0}, n pulses {1}'.format(nframes_original, self.timg.shape[0])
+            self.timg = self.timg[-self.raw_data.shape[0]:]
+        elif self.datatype=='ca':
+            self.timg=self.timg[1:self.raw_data.shape[0]+1]
+        if self.raw_data.shape[0]<self.timg.shape[0]:
+            raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
+        
+        
+    def prepare4analysis(self):
+        self.tsync,self.timg = get_sync_events(self)
+        self.meanimage, self.image_scale = get_imagedata(self, self.image_function)
+        self.crop_rawdata()
+        self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
+        return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
+        
+    def convert(self,format):
+        '''
+        Supported formats: mat, tiff
+        '''
+        if format == 'mat':
+            if not hasattr(self, 'timg'):
                 self.prepare4analysis()
-                self.save(varnames)
-                
-        def crop_rawdata(self):
-            nframes_original=self.raw_data.shape[0]
-            self.raw_data = self.raw_data[:self.timg.shape[0]]
-            if self.datatype=='ao':
-                print 'Warning, figure out why number of sync pulses is more than data frames'
-                print 'ao frames: {0}, n pulses {1}'.format(nframes_original, self.timg.shape[0])
-                self.timg = self.timg[-self.raw_data.shape[0]:]
-            elif self.datatype=='ca':
-                self.timg=self.timg[1:self.raw_data.shape[0]+1]
-            if self.raw_data.shape[0]<self.timg.shape[0]:
-                raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
-            
-            
-        def prepare4analysis(self):
-            self.tsync,self.timg = get_sync_events(self)
-            self.meanimage, self.image_scale = get_imagedata(self, self.image_function)
-            self.crop_rawdata()
-            self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
-            return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
-            
-        def convert(self,format):
-            '''
-            Supported formats: mat, tiff
-            '''
-            if format == 'mat':
-                if not hasattr(self, 'timg'):
-                    self.prepare4analysis()
-                items = [r._v_name for r in self.h5f.list_nodes('/')]
-                data={}
-                for item in items:
-                    self.load(item)
-                    data[item]=getattr(self,item)
-                data['timg']=self.timg
-                data['tsync']=self.tsync
-                #Make sure that rois field does not contain None:
-                if data.has_key('rois'):
-                    for r in data['rois']:
-                        if r.has_key('area') and r['area'] is None:
-                            del r['area']
-                self.outfile = fileop.get_convert_filename(self.filename, 'mat')
-                #Write to mat file
-                scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
-                fileop.set_file_dates(self.outfile, self.file_info)
-            elif format == 'png':
-                self._save_meanimage()
-            elif format == 'tif':
-                import tifffile
-                if not hasattr(self, 'raw_data'):
-                    self.load('raw_data')
-                if not hasattr(self, 'image_scale'):
-                    self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
-                #um/pixel to dpi
-                dpi = 1.0/self.image_scale*25.4e3
-                self.outfile = fileop.get_convert_filename(self.filename, 'tif')
-                tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
-            elif format == 'rois':
-                output_folder=os.path.join(os.path.dirname(self.filename), 'output', os.path.basename(self.filename))
-                self.rois_output_folder=output_folder
-                if not os.path.exists(output_folder):
-                    os.makedirs(output_folder)
-                if not hasattr(self, 'raw_data'):
-                    self.load('raw_data')
-                self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
-                #um/pixel to dpi
-                dpi = 1.0/self.image_scale*25.4e3
-                #mip
-                mip2image=numpy.zeros((self.meanimage.shape[0],self.meanimage.shape[1],3), self.raw_data.dtype)
-                mip2image[:,:,1]=numpy.cast[self.raw_data.dtype.name](self.meanimage)
-                import tifffile
-                tifffile.imsave(os.path.join(output_folder, 'mip.tif'), numpy.rot90(mip2image),resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
-                #mip with rois, roi curves
-                self.load('rois')
-                if hasattr(self, 'rois'):
-                    from PIL import ImageFont
-                    fontsize=15
-                    font = ImageFont.truetype("arial.ttf", fontsize)
-                    rescale_factor=500/max(mip2image.shape)+1
-                    new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
-                    mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
-                    mip2image_with_rectanglesd=ImageDraw.Draw(mip2image_with_rectangles)
-                    mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
-                    mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
-                    csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_flash.csv'))
-                    csvfn_stim=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_stim.csv'))
-                    txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tsync'],3)))
-                    txtlines=[','.join(map(str,numpy.round(self.rois[0]['timg'],3)))]
-                    plotpars=[]
-                    for i in range(len(self.rois)):
-                        roi =self.rois[i]
-                        rect=numpy.cast['int'](numpy.array(roi['rectangle'])*rescale_factor)
-                        p1=(rect[1]-rect[3], rect[0]-rect[2])
-                        p2=(rect[1]+rect[3], rect[0]+rect[2])
-                        mip2image_with_rectanglesd.rectangle([p1,p2], outline=(0,0,255))
-                        mip2image_with_rectangles_and_indexesd.rectangle([p1,p2], outline=(0,0,255))
-                        txt=Image.new('L', (fontsize,fontsize))
-                        txtd=ImageDraw.Draw(txt)
-                        txtd.text((0,0),str(i), font=font, fill=255)
-                        txt=txt.rotate(-90)
-                        mip2image_with_rectangles_and_indexes.paste(txt,p1,txt)
-                        #mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
-                        plotpars.append([self.filename, os.path.join(output_folder, '{0}.eps'.format(i)), roi])
-                        txtlines.append(','.join(map(str, numpy.round(roi['raw'],2))))
-                    p=multiprocessing.Pool(introspect.get_available_process_cores())
-                    p.map(roi_plot, plotpars)
-                    fileop.write_text_file(csvfn, '\r\n'.join(txtlines))
-                    fileop.write_text_file(csvfn_stim, txtlines_stim)
-                    mip2image_with_rectangles_and_indexes.rotate(90).save(os.path.join(output_folder, 'rois_and_indexes.png'))
-                    mip2image_with_rectangles.rotate(90).save(os.path.join(output_folder, 'rois.png'))
-                    pass
-                    
-            elif format == 'mp4':
-                imgarray = self.rawdata2images()
-                framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
-                fileop.mkdir_notexists(framefolder, remove_if_exists=True)
-                ct=0
-                resize_factor = 400.0/min(imgarray.shape[1:3]) if min(imgarray.shape[1:3])<400 else 1.0
-                for frame in imgarray:
-                    fn=os.path.join(framefolder, 'f{0:0=5}.png'.format(ct))
-                    Image.fromarray(frame).resize((int(frame.shape[1]*resize_factor),int(frame.shape[0]*resize_factor))).save(fn)
-                    ct+=1
-                fps = int(numpy.ceil(1.0/numpy.diff(get_sync_events(self)[1]).mean()))
-                self.outfile = fileop.get_convert_filename(self.filename, 'mp4')
-                videofile.images2mpeg4(framefolder, self.outfile, fps)
-                shutil.rmtree(framefolder)
-            
-        def _save_meanimage(self):
-            '''
-            Meanimage is calculated from imaging data and saved to file
-            '''
-            if not hasattr(self, 'meanimage'):
-                self.meanimage, self.image_scale = get_imagedata(self)
-            colored_image = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1],3),dtype=numpy.uint8)
-            colored_image[:,:,1] = numpy.cast['uint8'](signal.scale(self.meanimage)*255)
-            Image.fromarray(colored_image).save(fileop.get_convert_filename(self.filename, 'png'))
-            
-        def rawdata2images(self, nbits = 8):
-            '''
-            One channel is supported, saved to green
-            '''
+            items = [r._v_name for r in self.h5f.list_nodes('/')]
+            data={}
+            for item in items:
+                self.load(item)
+                data[item]=getattr(self,item)
+            data['timg']=self.timg
+            data['tsync']=self.tsync
+            #Make sure that rois field does not contain None:
+            if data.has_key('rois'):
+                for r in data['rois']:
+                    if r.has_key('area') and r['area'] is None:
+                        del r['area']
+            self.outfile = fileop.get_convert_filename(self.filename, 'mat')
+            #Write to mat file
+            scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
+            fileop.set_file_dates(self.outfile, self.file_info)
+        elif format == 'png':
+            self._save_meanimage()
+        elif format == 'tif':
+            import tifffile
             if not hasattr(self, 'raw_data'):
                 self.load('raw_data')
-            if self.raw_data.shape[1]!=1:
-                raise NotImplementedError('Only one channel is supported')
-            imagearray = numpy.zeros((self.raw_data.shape[0], self.raw_data.shape[2], self.raw_data.shape[3], 3),dtype = numpy.uint16 if nbits == 16 else numpy.uint8)
-            if nbits == 16:
-                imagearray[:,:,:,1] = self.raw_data[:,0,:,:]
-            elif nbits == 8:
-                imagearray[:,:,:,1] = numpy.cast['uint8'](numpy.cast['float'](self.raw_data[:,0,:,:])/256)
-            else:
-                raise NotImplementedError('')
-            return imagearray
+            if not hasattr(self, 'image_scale'):
+                self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
+            #um/pixel to dpi
+            dpi = 1.0/self.image_scale*25.4e3
+            self.outfile = fileop.get_convert_filename(self.filename, 'tif')
+            tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+        elif format == 'rois':
+            output_folder=os.path.join(os.path.dirname(self.filename), 'output', os.path.basename(self.filename))
+            self.rois_output_folder=output_folder
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+            if not hasattr(self, 'raw_data'):
+                self.load('raw_data')
+            self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
+            #um/pixel to dpi
+            dpi = 1.0/self.image_scale*25.4e3
+            #mip
+            mip2image=numpy.zeros((self.meanimage.shape[0],self.meanimage.shape[1],3), self.raw_data.dtype)
+            mip2image[:,:,1]=numpy.cast[self.raw_data.dtype.name](self.meanimage)
+            import tifffile
+            tifffile.imsave(os.path.join(output_folder, 'mip.tif'), numpy.rot90(mip2image),resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
+            #mip with rois, roi curves
+            self.load('rois')
+            if hasattr(self, 'rois'):
+                from PIL import ImageFont
+                fontsize=15
+                font = ImageFont.truetype("arial.ttf", fontsize)
+                rescale_factor=500/max(mip2image.shape)+1
+                new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
+                mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
+                mip2image_with_rectanglesd=ImageDraw.Draw(mip2image_with_rectangles)
+                mip2image_with_rectangles_and_indexes=Image.fromarray(mip2image).resize(new_size)
+                mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
+                csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_flash.csv'))
+                csvfn_stim=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_stim.csv'))
+                txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tsync'],3)))
+                txtlines=[','.join(map(str,numpy.round(self.rois[0]['timg'],3)))]
+                plotpars=[]
+                for i in range(len(self.rois)):
+                    roi =self.rois[i]
+                    rect=numpy.cast['int'](numpy.array(roi['rectangle'])*rescale_factor)
+                    p1=(rect[1]-rect[3], rect[0]-rect[2])
+                    p2=(rect[1]+rect[3], rect[0]+rect[2])
+                    mip2image_with_rectanglesd.rectangle([p1,p2], outline=(0,0,255))
+                    mip2image_with_rectangles_and_indexesd.rectangle([p1,p2], outline=(0,0,255))
+                    txt=Image.new('L', (fontsize,fontsize))
+                    txtd=ImageDraw.Draw(txt)
+                    txtd.text((0,0),str(i), font=font, fill=255)
+                    txt=txt.rotate(-90)
+                    mip2image_with_rectangles_and_indexes.paste(txt,p1,txt)
+                    #mip2image_with_rectangles_and_indexesd.text(p1,str(i), font=font, fill=(0,0,255))
+                    plotpars.append([self.filename, os.path.join(output_folder, '{0}.eps'.format(i)), roi])
+                    txtlines.append(','.join(map(str, numpy.round(roi['raw'],2))))
+                p=multiprocessing.Pool(introspect.get_available_process_cores())
+                p.map(roi_plot, plotpars)
+                fileop.write_text_file(csvfn, '\r\n'.join(txtlines))
+                fileop.write_text_file(csvfn_stim, txtlines_stim)
+                mip2image_with_rectangles_and_indexes.rotate(90).save(os.path.join(output_folder, 'rois_and_indexes.png'))
+                mip2image_with_rectangles.rotate(90).save(os.path.join(output_folder, 'rois.png'))
+                pass
+                
+        elif format == 'mp4':
+            imgarray = self.rawdata2images()
+            framefolder=os.path.join(tempfile.gettempdir(), 'frames_tmp')
+            fileop.mkdir_notexists(framefolder, remove_if_exists=True)
+            ct=0
+            resize_factor = 400.0/min(imgarray.shape[1:3]) if min(imgarray.shape[1:3])<400 else 1.0
+            for frame in imgarray:
+                fn=os.path.join(framefolder, 'f{0:0=5}.png'.format(ct))
+                Image.fromarray(frame).resize((int(frame.shape[1]*resize_factor),int(frame.shape[0]*resize_factor))).save(fn)
+                ct+=1
+            fps = int(numpy.ceil(1.0/numpy.diff(get_sync_events(self)[1]).mean()))
+            self.outfile = fileop.get_convert_filename(self.filename, 'mp4')
+            videofile.images2mpeg4(framefolder, self.outfile, fps)
+            shutil.rmtree(framefolder)
         
-        def backup(self,dst_root, nsubfolders):
-            '''
-            Backs up file to dst root considering nsubfolders
-            '''
-            dst=os.path.join(dst_root,*self.filename.split(os.sep)[-(1+nsubfolders):])
-            if not os.path.exists(os.path.dirname(dst)):
-                os.makedirs(os.path.dirname(dst))
-            shutil.copy2(self.filename,dst)
-            return dst
+    def _save_meanimage(self):
+        '''
+        Meanimage is calculated from imaging data and saved to file
+        '''
+        if not hasattr(self, 'meanimage'):
+            self.meanimage, self.image_scale = get_imagedata(self)
+        colored_image = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1],3),dtype=numpy.uint8)
+        colored_image[:,:,1] = numpy.cast['uint8'](signal.scale(self.meanimage)*255)
+        Image.fromarray(colored_image).save(fileop.get_convert_filename(self.filename, 'png'))
+        
+    def rawdata2images(self, nbits = 8):
+        '''
+        One channel is supported, saved to green
+        '''
+        if not hasattr(self, 'raw_data'):
+            self.load('raw_data')
+        if self.raw_data.shape[1]!=1:
+            raise NotImplementedError('Only one channel is supported')
+        imagearray = numpy.zeros((self.raw_data.shape[0], self.raw_data.shape[2], self.raw_data.shape[3], 3),dtype = numpy.uint16 if nbits == 16 else numpy.uint8)
+        if nbits == 16:
+            imagearray[:,:,:,1] = self.raw_data[:,0,:,:]
+        elif nbits == 8:
+            imagearray[:,:,:,1] = numpy.cast['uint8'](numpy.cast['float'](self.raw_data[:,0,:,:])/256)
+        else:
+            raise NotImplementedError('')
+        return imagearray
+    
+    def backup(self,dst_root, nsubfolders):
+        '''
+        Backs up file to dst root considering nsubfolders
+        '''
+        dst=os.path.join(dst_root,*self.filename.split(os.sep)[-(1+nsubfolders):])
+        if not os.path.exists(os.path.dirname(dst)):
+            os.makedirs(os.path.dirname(dst))
+        shutil.copy2(self.filename,dst)
+        return dst
         
 def timing_from_file(filename):
     '''
@@ -423,21 +484,6 @@ def get_ca_activity(h, mask = None):
         raise RuntimeError('Invalid mask size: {0}, expected: {1}'.format(mask.shape, h.raw_data.shape[2:]))
     masked_data = h.raw_data * mask
     return masked_data.mean(axis=2).mean(axis=2).flatten()
-    
-def get_activity_plotdata(h):#TODO rename
-    '''
-    Gets overall activity and timing information
-    '''
-    h_opened = False
-    if not hasattr(h, 'filename'):
-        h = hdf5io.Hdf5io(h, filelocking=False)
-        h_opened = True
-    tsync,timg = get_sync_events(h)
-    a=get_ca_activity(h)
-    l=min(timg.shape[0],a.shape[0])
-    if h_opened:
-        h.close()
-    return tsync, timg[:l], a[:l]
     
 def get_imagedata(h, image_function='mean'):
     '''
@@ -1332,7 +1378,10 @@ class TestExperimentData(unittest.TestCase):
     def test_11_caimgfile_convert(self):
         fn='/home/rz/mysoftware/data/mipexport/data_707-18daypostinfect-animal1-slice1-region8_rep3_1sStim_LedConfig_201702241318216.hdf5'
         fn='e:\\Zoltan\\1\\data_706-mouse1-slice1-reg1-rep1-500ms-1000mA_LedConfig_201703020938240.hdf5'
+        fn='/data/data/user/Zoltan/ao/data_719-m2-reg4-rep1-LEDeye-5mA-wLGN-500ms-p50ms_Led2Config_201704202056329.hdf5'
         h=CaImagingData(fn)
+        h.sync2time()
+        h.get_image()
         h.convert('png')
         h.convert('rois')
         #h.convert('mp4')
