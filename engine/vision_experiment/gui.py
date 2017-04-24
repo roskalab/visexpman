@@ -829,6 +829,7 @@ class MainPoller(Poller):
     def stop_metastim(self):
         if hasattr(self, 'metastim'):
             self.metastim.stop()
+            self.printc('Stopping metastim, please wait')
         
     def update_process_status(self):
         try:
