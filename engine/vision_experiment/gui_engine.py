@@ -162,7 +162,7 @@ class ExperimentHandler(object):
         experiment_parameters['id']=experiment_data.get_id()
         #Outfolder is date+id. Later all the files will be merged from id this folder
         if self.machine_config.PLATFORM=='ao_cortical':
-            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
         else:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
         if not os.path.exists(experiment_parameters['outfolder']):
@@ -279,7 +279,7 @@ class ExperimentHandler(object):
         else:
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
-        self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_parameters['duration']))
+        self.printc('{1} experiment is starting, expected duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass']))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
@@ -354,8 +354,6 @@ class ExperimentHandler(object):
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
-                #Export timing to csv file
-                self._timing2csv(filename)
                 self.printc('Data saved to {0}'.format(filename))
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
@@ -367,6 +365,7 @@ class ExperimentHandler(object):
                     pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
+                self.printc('TODO: send job to jobhandler')
                 return
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
                 #if self.current_experiment_parameters['duration']>5*60: return
@@ -382,28 +381,34 @@ class ExperimentHandler(object):
                 self.printc('MES data merged to {0}'.format(fn))
             #Save experiment/stimulus config
             h = experiment_data.CaImagingData(filename)
+            h.sync2time()
+            h.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
             h.stimulus_parameters=self.stimulus_parameters
             h.save('stimulus_parameters')
             h.close()
+            if self.santiago_setup:
+                #Export timing to csv file
+                self._timing2csv(filename)
                 
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
-        tsync, timg, meanimage, image_scale, raw_data = h.prepare4analysis()
+        h.load('tstim')
+        h.load('timg')
         if 'Led2' in filename:
             h.load('generated_data')
             channels = utils.array2object(h.generated_data)#,len(utils.array2object(h.generated_data))
-            real_events=tsync[numpy.where(numpy.diff(tsync)>2e-3)[0]]
-            real_events=numpy.append(real_events, tsync[-1])
-            tsync_sep={}
+            real_events=h.tstim[numpy.where(numpy.diff(h.tstim)>2e-3)[0]]
+            real_events=numpy.append(real_events, h.tstim[-1])
+            tstim_sep={}
             for ch in ['stim','led']:
-                tsync_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
+                tstim_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
         h.close()
         if 'Led2' in filename:
-            txtlines1=','.join(map(str,numpy.round(tsync_sep['stim'],3)))
-            txtlines2=','.join(map(str,numpy.round(tsync_sep['led'],3)))
+            txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
+            txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
         else:
-            txtlines2=','.join(map(str,numpy.round(tsync,3)))
-        txtlines3 =','.join(map(str,numpy.round(timg,3)))
+            txtlines2=','.join(map(str,numpy.round(h.tstim,3)))
+        txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
         csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
         csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
@@ -555,13 +560,19 @@ class Analysis(object):
         self.filename = filename
         self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         self.printc('Opening {0}'.format(filename))
-        self.datafile = experiment_data.CaImagingData(filename, image_function=self.guidata.read('3d to 2d Image Function'))
-        self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
-        if self.tsync.shape[0]==0 or  self.timg.shape[0]==0:
+        self.datafile = experiment_data.CaImagingData(filename)
+        self.datafile.sync2time()
+        self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+        self.tstim=self.datafile.tstim
+        self.timg=self.datafile.timg
+        self.image_scale=self.datafile.image_scale
+        self.meanimage=self.datafile.image
+        self.raw_data=self.datafile.raw_data
+        if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
             msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
             self.notify('Error', msg)
             raise RuntimeError(msg)
-        self.experiment_name= self.datafile.findvar('parameters')['stimclass'] if self.machine_config.PLATFORM=='ao_cortical' else self.datafile.findvar('recording_parameters')['experiment_name']
+        self.experiment_name= self.datafile.findvar('parameters')['stimclass']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
         self._recalculate_background()
         try:
@@ -692,9 +703,9 @@ class Analysis(object):
         x,y = cone_data.pixels_below_threshold(red,self.guidata.read('Background threshold')*1e-2)
         lowest_pixels=red[:,x,y]
         nostim_indexes=[]
-        for i in range(self.tsync.shape[0]/2):
-            start=self.tsync[2*i]
-            end=self.tsync[2*i+1]
+        for i in range(self.tstim.shape[0]/2):
+            start=self.tstim[2*i]
+            end=self.tstim[2*i+1]
             nostim_indexes.extend(list(numpy.where(self.timg<start)[0]))
             nostim_indexes.extend(list(numpy.where(self.timg>end)[0]))
         self.red_stat['roi_pixels']={}
@@ -712,12 +723,12 @@ class Analysis(object):
             if any(numpy.isnan(self.background)):
                 r['normalized'] = numpy.copy(r['raw'])
             else:
-                r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tsync[0], baseline_length)
+                r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tstim[0], baseline_length)
             r['baseline_length'] = baseline_length
             r['background'] = self.background
             r['background_threshold']=self.background_threshold
             r['timg']=self.timg
-            r['tsync']=self.tsync
+            r['tstim']=self.tstim
             r['stimulus_name']=self.experiment_name
             r['meanimage']=self.meanimage
             r['image_scale']=self.image_scale
@@ -732,7 +743,7 @@ class Analysis(object):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
                     timg = r['matches'][fn]['timg']
-                    t0=r['matches'][fn]['tsync'][0]
+                    t0=r['matches'][fn]['tstim'][0]
                     r['matches'][fn]['normalized'] = signal.df_over_f(timg, raw, t0, baseline_length)
         
     def display_roi_rectangles(self):
@@ -745,7 +756,7 @@ class Analysis(object):
             if not show_repetitions or len(x) == 1:
                 x=x[0]
                 y=y[0]
-            self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync, {}]})
+            self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tstim, {}]})
 #            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
@@ -1028,12 +1039,12 @@ class Analysis(object):
         if roi.has_key('matches'):
             for fn in roi['matches'].keys():
                 #collect matches, shift matched curve's timing such that sync events fall into the same time
-                tdiff = self.tsync[0]-self.rois[self.current_roi_index]['matches'][fn]['tsync'][0]
+                tdiff = self.tstim[0]-self.rois[self.current_roi_index]['matches'][fn]['tstim'][0]
                 x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
                 y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
         try:
             for i in range(len(x)):
-                baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
+                baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tstim, x[i], baseline_length)
                 parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
         except:
                 self.printc('Trace parameters cannot be calculated')
@@ -1062,22 +1073,22 @@ class Analysis(object):
             colors = []
             for i in range(len(stimnames)):
                 colors.extend(len(roi[stimnames[i]].keys())*[possible_colors[i]])
-            timgs, tsync, normalized = self._align_curves(rois)
+            timgs, tstim, normalized = self._align_curves(rois)
             options = {'plot_average':False, 'colors' : colors}
-            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tsync, options]})
+            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tstim, options]})
         elif len(path)==2:
             roi=self.cells[index][path[1]].values()
             first_roi = roi[0]
             self._display_single_roi(first_roi)
-            timgs, tsync, normalized = self._align_curves(roi)
-            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tsync, {}]})
+            timgs, tstim, normalized = self._align_curves(roi)
+            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tstim, {}]})
         elif len(path)==3:
             roi=self.cells[index][path[1]][path[2]]
             self._display_single_roi(roi)
-            self.to_gui.put({'display_roi_curve': [roi['timg'], roi['normalized'], 0, roi['tsync'], {}]})
+            self.to_gui.put({'display_roi_curve': [roi['timg'], roi['normalized'], 0, roi['tstim'], {}]})
             
     def _align_curves(self, rois):
-        tdiffs = numpy.array([r['tsync'][0] for r in rois])
+        tdiffs = numpy.array([r['tstim'][0] for r in rois])
         tdiffs -= tdiffs.min()
         timgs=numpy.array([r['timg'] for r in rois])
         transposed=False
@@ -1088,8 +1099,8 @@ class Analysis(object):
         if transposed:
             timgs = list(numpy.array(timgs).T)
         normalized=[r['normalized'] for r in rois]
-        tsync = rois[tdiffs.argmin()]['tsync']
-        return timgs, tsync, normalized
+        tstim = rois[tdiffs.argmin()]['tstim']
+        return timgs, tstim, normalized
             
     def _display_single_roi(self,roi):
         self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
@@ -1167,7 +1178,7 @@ class Analysis(object):
             if 'hdf5' not in f: continue
             try:
                 self.open_datafile(f)
-                if self.tsync[0]>11:
+                if self.tstim[0]>11:
                     problematic_files.append(f)
             except:
                 import traceback
@@ -1225,7 +1236,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
 
     def dump(self, filename=None):
         #TODO: include logfile and context file content
-        variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
+        variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tstim', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
                     'aggregated_rois', 'context_filename', 'cells']
         dump_data = {}

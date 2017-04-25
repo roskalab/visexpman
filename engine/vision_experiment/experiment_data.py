@@ -186,8 +186,7 @@ class CaImagingData(hdf5io.Hdf5io):
         
     
     '''
-    def __init__(self,filename,filelocking=False, **kwargs):
-        self.image_function=kwargs.get('image_function', 'mean')
+    def __init__(self,filename, **kwargs):
         self.file_info = os.stat(filename)
         hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
         
@@ -196,18 +195,24 @@ class CaImagingData(hdf5io.Hdf5io):
         Reads raw sync traces and converts them to timestamps. If not found in datafile, it is saved
         Channel id is read from saved machine config
         '''
-        for vn in ['timg', 'tsync']:
+        for vn in ['timg', 'tstim']:
             self.load(vn)
         if not recreate:
-            if not hasattr(self, 'timg') or hasattr(self , 'tsync'):
+            if hasattr(self, 'timg') and hasattr(self , 'tstim'):
                 return
         for vn in ['sync', 'machine_config', 'sync_scaling']:
             self.load(vn)
         if 'float' not in self.sync.dtype.name:
             raise NotImplementedError()
         fsample=float(self.machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
-        self.timg=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TIMG_SYNC_INDEX']])/fsample
+        self.timg=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
         self.tstim=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TSTIM_SYNC_INDEX']])/fsample
+        self.load('raw_data')
+        #Crop timg
+        if self.machine_config['machine_config']['PLATFORM']=='elphys_retinal_ca':
+            self.timg=self.timg[:self.raw_data.shape[0]]
+        if self.timg.shape[0]!=self.raw_data.shape[0]:
+            raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
         self.save(['timg', 'tstim'])
         
         
