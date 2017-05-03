@@ -91,6 +91,16 @@ class MovingGratingLongSpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
         
+class MovingGratingQuickSpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
+        self.VELOCITIES = [1200, 300, 1200, 300]
+        self.REPEATS = 1
+        self.ORIENTATIONS = range(0,360,45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
+        
         
 class MovingGratingLongSpeedTuning180Config(MovingGratingNoMarchHor35812umsConfig):
     def _create_parameters(self):
