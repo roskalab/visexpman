@@ -183,7 +183,7 @@ class MetaStimulus(object):
     def __init__(self, poller, config):
         self.config=config
         self.poller=poller
-        self.id=str(int(time.time()))
+        self.id=str(int(time.time()-1))
         self.poller.printc('Starting {0}/{1} metastim'.format(self.__class__.__name__, self.id))
         self.abortfn=os.path.join(self.poller.config.CONTEXT_PATH,'abort.txt')
         if os.path.exists(self.abortfn):
