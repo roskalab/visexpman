@@ -154,4 +154,4 @@ class AngleStimulus(experiment.Experiment):
 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
-    stimulation_tester('adrian', 'StimulusDevelopment', 'AngleTest', ENABLE_FRAME_CAPTURE=True)
+    stimulation_tester('adrian', 'StimulusDevelopment', 'AngleTest', ENABLE_FRAME_CAPTURE=False)
