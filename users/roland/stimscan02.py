@@ -29,7 +29,7 @@ class Stimscan02RandomDots(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'RandomDotsStimulus'
         self.REPEATS = 1
-        self.DURATION = 20*60
+        self.DURATION = 10*60 # time scale wrong at this point!
         self.DIRECTIONS = []
         self.DOTSIZES = [25]
         self.DOTSIZES_MIN_MAX = []
