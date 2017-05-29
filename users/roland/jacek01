@@ -1,8 +1,8 @@
-import numpy
-import copy
-import time
-import random
-from visexpman.engine.generic import utils
+"""
+Created on Mon May 29 18:30:00 2017
+@author: rolandd
+"""
+
 from visexpman.engine.vision_experiment import experiment
 
 # ------------------------------------------------------------------------------
