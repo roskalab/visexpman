@@ -9,9 +9,9 @@ import time
 class Led2Config(experiment.ExperimentConfig):
     def _create_parameters(self):
 #### EDIT FROM HERE
-        self.REPEATS=6/2 # how many repetitions of stim
+        self.REPEATS=6+10 # how many repetitions of stim
         self.SCREEN_COLOR=0.0
-        self.MAIN_LED_CURRENT_RANGE=[0, 500]#Change this to limit max led current
+        self.MAIN_LED_CURRENT_RANGE=[0, 5]#Change this to limit max led current
         self.PRE_TIME=10.0
         self.OFFTIME=5.0 #visual LED off time
         self.ONTIME=5	#visual LED on time

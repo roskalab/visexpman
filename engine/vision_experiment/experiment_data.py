@@ -202,7 +202,7 @@ class CaImagingData(hdf5io.Hdf5io):
                 return
         for vn in ['sync', 'machine_config', 'sync_scaling']:
             self.load(vn)
-        if 'float' not in self.sync.dtype.name:
+        if self.sync.dtype.name not in ['float', 'uint8', 'uint16']:
             raise NotImplementedError()
         fsample=float(self.machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         self.timg=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample

@@ -392,6 +392,19 @@ class ExperimentHandler(object):
                 
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
+        output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+        from PIL import Image
+        h.load('raw_data')
+        h.load('parameters')
+        self.printc(h.parameters['imaging_filename'])
+        self.printc('Export rawdata to pngs')
+        #Fn: 1_0__rect_64.00_64.00_0.00_0.00_2.00_top_0000000.png
+        for framei in range(h.raw_data.shape[0]):
+            for chi in range(h.raw_data.shape[1]):
+                base=os.path.splitext(os.path.basename(h.parameters['imaging_filename']))[0]
+                base='_'.join(base.split('_')[:-1])+'_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
+                fn=os.path.join(output_folder, base+'.png')
+                Image.fromarray(numpy.cast['uint8'](h.raw_data[framei,chi]/256)).save(fn)
         h.load('tstim')
         h.load('timg')
         if 'Led2' in filename:
@@ -409,7 +422,6 @@ class ExperimentHandler(object):
         else:
             txtlines2=','.join(map(str,numpy.round(h.tstim,3)))
         txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
-        output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
         csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
         csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
         csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
