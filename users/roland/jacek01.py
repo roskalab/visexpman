@@ -2,7 +2,7 @@
 Created on Mon May 29 18:30:00 2017
 @author: rolandd
 """
-
+from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
 # ------------------------------------------------------------------------------
