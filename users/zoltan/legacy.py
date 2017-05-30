@@ -484,7 +484,10 @@ def merge_ca_data(folder,**kwargs):
 #        rawdata*=(2**16-1)
 #        #rawdata=signal.scale(rawdata[:,::-1,:,:],0,2**16-1)
 #        raw_data = numpy.cast['uint16'](rawdata)
-        raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+        #raw_data = numpy.fliplr(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+        raw_data=raw_data.swapaxes(2,3)
+        raw_data = numpy.fliplr(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+        pass
     else:
         frames=[]
         while True:#Wait until all files are copied
@@ -516,6 +519,7 @@ def merge_ca_data(folder,**kwargs):
     machine_config=hsync.findvar('machine_config')
     sync_scaling=hsync.findvar('sync_scaling')
     recording_parameters = {}
+    recording_parameters['stimclass']='TEST'
     recording_parameters['channels']=channels
     recording_parameters['imaging_filename']=frame_fn
     recording_parameters['resolution_unit'] = 'pixel/um'
@@ -654,8 +658,7 @@ class TestConverter(unittest.TestCase):
         folder='x:\\santiago-setup\\debug\\bin1'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
         h=experiment_data.CaImagingData(filename)
-        self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data=h.prepare4analysis()
-        plot(self.timg,self.raw_data.mean(axis=2).mean(axis=2)[:,0]);plot(self.tsync, 10*numpy.ones_like(self.tsync),'o');show()
+        h.sync2time()
         h.close()
         
     @unittest.skip('')  

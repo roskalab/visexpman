@@ -404,7 +404,7 @@ class ExperimentHandler(object):
                 base=os.path.splitext(os.path.basename(h.parameters['imaging_filename']))[0]
                 base='_'.join(base.split('_')[:-1])+'_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
                 fn=os.path.join(output_folder, base+'.png')
-                Image.fromarray(numpy.cast['uint8'](h.raw_data[framei,chi]/256)).save(fn)
+                Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
         h.load('timg')
         if 'Led2' in filename:
