@@ -91,6 +91,10 @@ class MovingGrating(experiment.Experiment):
             #round it to the multiple of frame rate
             stimulus_unit['move_time'] = \
                         numpy.round(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE) / self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+            
+            if hasattr(self.experiment_config, 'PHASES'):
+                stimulus_unit['phases']=self.experiment_config.PHASES[orientation]
+                stimulus_unit['move_time']=float(stimulus_unit['phases'].shape[0])/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
             self.overall_duration += stimulus_unit['move_time'] + self.experiment_config.NUMBER_OF_MARCHING_PHASES * \
                                                                   self.experiment_config.MARCH_TIME + self.experiment_config.GRATING_STAND_TIME
             self.stimulus_units.append(stimulus_unit)
@@ -156,7 +160,16 @@ class MovingGrating(experiment.Experiment):
                                     starting_phase = phase+stimulus_unit['starting_phase'],
                                     color_contrast = stimulus_unit['color_contrast'])
                 #Show moving grating
-                self.show_grating(duration = stimulus_unit['move_time'], 
+                if stimulus_unit.has_key('phases'):
+                    self.show_grating(
+                            profile = profile, 
+                            orientation = orientation, 
+                            duty_cycle = stimulus_unit['duty_cycle'],
+                            starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
+                            color_contrast = stimulus_unit['color_contrast'],
+                            phases=stimulus_unit['phases'])
+                else:
+                    self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
                             orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],

@@ -774,7 +774,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #                
 #        self._show_stimulus(duration,  self.ring,  flip)
                     
-    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  background_color = None,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False):
+    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
+                        velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  background_color = None,  
+                        pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, phases=None,
+                        part_of_drawing_sequence = False):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -795,6 +798,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             - pos: position of stimuli
             - duty_cycle: duty cycle of grating stimulus with sqr profile. Its interpretation is different from the usual: duty cycle tells how many times the spatial frequency is the width of the black stripe
             - noise_intensity: Maximum contrast of random noise mixed to the stimulus.
+            -phases: array of phases in um. Overrides speed and duration parameters
         
         Usage examples:
         1) Show a simple, fullscreen, grating stimuli for 3 seconds with 45 degree orientation
@@ -920,19 +924,25 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                              [0.0, 0.0],
                              [0.0, 1.0],
                              ])
-                                     
         glTexCoordPointerf(texture_coordinates)
-        
         #== Send opengl commands ==
         if duration == 0.0:
             number_of_frames = 1
         else:
             number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+        if hasattr(phases,'shape'):
+            phases_pixel=numpy.array(phases)*self.config.SCREEN_UM_TO_PIXEL_SCALE / float(stimulus_profile.shape[0])
+            number_of_frames=phases_pixel.shape[0]
+        else:
+            phases_pixel=None            
         start_time = time.time()
 #         pixel_velocity= -1.5/stimulus_profile.shape[0]
 #         number_of_frames = int(numpy.sqrt(800**2+600**2)/1.5)
         for i in range(number_of_frames):
-            phase = pixel_velocity * i            
+            if not hasattr(phases_pixel,'shape'):
+                phase = pixel_velocity * i
+            else:
+                phase=phases_pixel[i]
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)

@@ -59,7 +59,7 @@ class Jobhandler(object):
             self.current_user='daniel'
         elif u=='fm':
             self.current_user='fiona'
-        elif u=='st':
+        elif u in ['st', 'aw']:
             self.current_user='stuart'
         elif u=='rz':
             self.current_user='zoltan'
