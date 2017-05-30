@@ -51,8 +51,8 @@ class ReceptiveFieldFionaEquiFine(ReceptiveFieldFionaBasic):
         #self.DISPLAY_SIZE = utils.rc((51.0,90.0))#degrees
         #self.DISPLAY_CENTER = utils.rc((44.4,45.0))#degrees
 #        self.SHAPE_SIZE = 10
-        self.ON_TIME = 0.8
-        self.OFF_TIME = 0.8
+        self.ON_TIME = 0.6
+        self.OFF_TIME = 0.6
         self.REPEATS = 1
         
 class ReceptiveFieldFionaFine(ReceptiveFieldFionaBasic):
