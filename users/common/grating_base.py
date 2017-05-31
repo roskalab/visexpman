@@ -67,7 +67,11 @@ class MovingGrating(experiment.Experiment):
         if not hasattr(self.experiment_config,'PARAMETER_SEQUENCE'):
             parameter_sequence = []
             for repeat in range(self.experiment_config.REPEATS):
-                for velocity in self.experiment_config.VELOCITIES:
+                if not hasattr(self.experiment_config, 'VELOCITIES'):
+                    v=[0]
+                else:
+                    v=self.experiment_config.VELOCITIES
+                for velocity in v:
                     for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
                         #if repeat > 0:
     #                            random.shuffle(orientations)
@@ -95,6 +99,7 @@ class MovingGrating(experiment.Experiment):
             if hasattr(self.experiment_config, 'PHASES'):
                 stimulus_unit['phases']=self.experiment_config.PHASES[orientation]
                 stimulus_unit['move_time']=float(stimulus_unit['phases'].shape[0])/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                stimulus_unit['velocity']=0
             self.overall_duration += stimulus_unit['move_time'] + self.experiment_config.NUMBER_OF_MARCHING_PHASES * \
                                                                   self.experiment_config.MARCH_TIME + self.experiment_config.GRATING_STAND_TIME
             self.stimulus_units.append(stimulus_unit)
@@ -164,6 +169,7 @@ class MovingGrating(experiment.Experiment):
                     self.show_grating(
                             profile = profile, 
                             orientation = orientation, 
+                            velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
                             color_contrast = stimulus_unit['color_contrast'],

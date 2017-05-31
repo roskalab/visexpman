@@ -9,6 +9,7 @@ import copy
 
 class PhasesGratingConfig(grating_base.MovingGratingConfig):
     def _create_parameters(self):
+        grating_base.MovingGratingConfig._create_parameters(self)
         #Timing
         self.NUMBER_OF_MARCHING_PHASES = 1
         self.MARCH_TIME = 4.0
