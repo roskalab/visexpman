@@ -582,8 +582,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, part_of_drawing_sequence = False,
-                    is_block = False, save_frame_info = True):
+                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, phases=None,
+                    part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -732,7 +732,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=numpy.tile(texture,(modulation_pixels,1,1))
             flicker_state=False
             switch_count=int(self.config.SCREEN_EXPECTED_FRAME_RATE/float(flicker['frequency']))
-
+        if len(phases)>0:
+            phases_pixel=numpy.array(phases)*self.config.SCREEN_UM_TO_PIXEL_SCALE / float(stimulus_profile.shape[0])
+            n_frames=phases_pixel.shape[0]
+        else:
+            phases_pixel=None
+        
         texture_coordinates = numpy.array(
                              [
                              [cut_off_ratio, 1.0],
@@ -745,7 +750,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         start_time = time.time()
         phase = 0
         for i in range(n_frames):
-            phase += pixel_velocities[i]
+            if not hasattr(phases_pixel,'shape'):
+                phase += pixel_velocities[i]
+            else:
+                phase=phases_pixel[i]
             if flicker.has_key('frequency') and flicker.has_key('modulation_size'):
                 if i%switch_count==0:
                     flicker_state=not flicker_state
@@ -1125,15 +1133,18 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self._append_to_stimulus_frame_info(params)
             
-    def show_rolling_image(self, filename,pixel_size,speed,shift,yrange,save_frame_info=True):
+    def show_rolling_image(self, filename,pixel_size,speed,shift,yrange,axis='horizontal', save_frame_info=True):
         if save_frame_info:
-            self.log.info('show_rolling_image(' + str(filename)+ ', ' + str(pixel_size) + ', ' + str(speed) + ', ' + str(shift)  + ', ' + str(yrange)  + ', ' + str(orientation) +')', source = 'stim')
+            self.log.info('show_rolling_image(' + str(filename)+ ', ' + str(pixel_size) + ', ' + str(speed) + ', ' + str(shift)  + ', ' + str(yrange)  + ')', source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe())
-        texture=numpy.asarray(Image.open(filename))/255.
+        texture=numpy.flipud(numpy.asarray(Image.open(filename))/255.)
         if len(texture.shape)<3:
             texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
         if yrange!=None:
-            texture=texture[yrange[0]:yrange[1],:,:]
+            if axis=='horizontal':
+                texture=texture[yrange[0]:yrange[1],:,:]
+            elif axis=='vertical':
+                texture=texture[:, yrange[0]:yrange[1],:]
         shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
         dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
         #Image size: texture.shape*pixel_size*screen um2 pixel ratio
@@ -1150,16 +1161,28 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #Calculate trajectory of image motion
         ndsize=numpy.array([size['row'],size['col']])
         ndres=numpy.array([self.config.SCREEN_RESOLUTION['row'],self.config.SCREEN_RESOLUTION['col']])
-        p0=(ndsize/2-ndres/2)[::-1]
-        p1=p0*numpy.array([-1,1])
-        p1=p1.flatten()
-        p0=p0.flatten()
-        nshifts=int(size['row']/shift_pixel)-1
-        vertical_offsets=numpy.arange(nshifts)*shift_pixel
-        vertical_offsets=numpy.repeat(vertical_offsets,3)
-        points=numpy.array([p0,p1,p0])
-        points=numpy.array(points.tolist()*nshifts)
-        points[:,1]-=vertical_offsets
+        if axis=='horizontal':
+            p0=(ndsize/2-ndres/2)[::-1]
+            p1=p0*numpy.array([-1,1])
+            p1=p1.flatten()
+            p0=p0.flatten()
+            nshifts=int(size['row']/shift_pixel)-1
+            vertical_offsets=numpy.arange(nshifts)*shift_pixel
+            vertical_offsets=numpy.repeat(vertical_offsets,3)
+            points=numpy.array([p0,p1,p0])
+            points=numpy.array(points.tolist()*nshifts)
+            points[:,1]-=vertical_offsets
+        elif axis=='vertical':
+            p0=(ndsize/2-ndres/2)[::-1]
+            p1=p0*numpy.array([1,-1])
+            p1=p1.flatten()
+            p0=p0.flatten()
+            nshifts=int(size['col']/shift_pixel)-1
+            vertical_offsets=numpy.arange(nshifts)*shift_pixel
+            vertical_offsets=numpy.repeat(vertical_offsets,3)
+            points=numpy.array([p0,p1,p0])
+            points=numpy.array(points.tolist()*nshifts)
+            points[:,1]-=vertical_offsets
         #Interpolate between points
         offset=numpy.empty((0,2))
         for i in range(points.shape[0]-1):

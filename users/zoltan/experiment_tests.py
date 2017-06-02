@@ -46,22 +46,28 @@ class Gr(experiment.Stimulus):
         self.duration=self.DURATION*3
         
     def run(self):
-        initial_wait=2.0
-        mask_size=400.
-        bar_width=60.
-        speed=80
-        color=1.0
-        motion=['expand','shrink','left','right']
-        for m in motion:
-            self.show_approach_stimulus(m, bar_width, speed)
-        return
+        if 0:
+            ph=numpy.tile(numpy.sin(numpy.arange(100)/100.*2*3.14)*300,10)
+            
+            self.show_grating(white_bar_width =100,  phases=ph, duty_cycle=3)
+            return
+            
+            initial_wait=2.0
+            mask_size=400.
+            bar_width=60.
+            speed=80
+            color=1.0
+            motion=['expand','shrink','left','right']
+            for m in motion:
+                self.show_approach_stimulus(m, bar_width, speed)
+            return
         from PIL import Image
-        pixel_size=10.0#um/pixel
+        pixel_size=10.0/3#um/pixel
         shift=400.0#um
-        speed=1200*3
-        yrange=[0,100]
+        speed=1200*1
+        yrange=[1000,2000]
         fn='/tmp/Pebbleswithquarzite_grey.png'
-        fn='/tmp/1.JPG'
+        fn='/tmp/1.jpg'
         self.show_rolling_image(fn,pixel_size,speed,shift,yrange)
         return
         texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
