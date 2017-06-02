@@ -24,7 +24,7 @@ class PhasesGratingConfig(grating_base.MovingGratingConfig):
         self.PHASES={}
         for o in self.ORIENTATIONS:
             duration=5.0#sec
-            f=1
+            f=10
             self.PHASES[o]=100*numpy.sin(f*numpy.linspace(0,1,int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))*numpy.pi*2)
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
