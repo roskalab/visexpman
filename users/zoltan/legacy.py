@@ -477,7 +477,12 @@ def merge_ca_data(folder,**kwargs):
             out[i]=numpy.cast['uint8'](rawdata[i]/10.0*(2**8-1))
         rawdata=out
         #rawdata = numpy.array(rawdata)
-        rawdata = rawdata.reshape((nframes,nchannels, int(sizex*res-1), int(sizey*res)))
+        rawdata = rawdata.reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
+        if nchannels==1:
+            if channels[0]=='top':
+                rawdata=rawdata[:,1:,:,:]
+            elif channels[0]=='side':
+                rawdata=rawdata[:,:1,:,:]
         raw_data=rawdata[:,::-1,:,:]
         
 #        rawdata/=10.0
@@ -519,7 +524,6 @@ def merge_ca_data(folder,**kwargs):
     machine_config=hsync.findvar('machine_config')
     sync_scaling=hsync.findvar('sync_scaling')
     recording_parameters = {}
-    recording_parameters['stimclass']='TEST'
     recording_parameters['channels']=channels
     recording_parameters['imaging_filename']=frame_fn
     recording_parameters['resolution_unit'] = 'pixel/um'
