@@ -10,6 +10,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         # Files
         self.EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.LOG_PATH = 'v:\\log'
+        print self.LOG_PATH
         self.EXPERIMENT_DATA_PATH = 'v:\\experiment_data_ao'
         self.CONTEXT_PATH='v:\\context'
         #Stimulus screen
@@ -23,7 +24,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.ENABLE_FRAME_CAPTURE = False
         self.GUI['SIZE'] =  utils.cr((1024,768)) 
         #Network
-        stim_computer_ip = '172.27.26.69'
+        stim_computer_ip = '172.27.26.46'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         #Command relay server is used for conencting to MES because no zmq is supported and mes works only in client mode
@@ -60,6 +61,20 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
         if '--nofullscreen' in sys.argv:
             self.FULLSCREEN=False
+        
+        
+class CameronAoSetup(AOSetup):
+    def _set_user_parameters(self):
+        AOSetup._set_user_parameters(self)
+        SCREEN_UM_TO_PIXEL_SCALE=1.0
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=True
+        SCREEN_RESOLUTION = utils.cr([1280, 800])
+        COORDINATE_SYSTEM='center'
+        TRIGGER_MES=True
+        self.MES_RECORD_OVERHEAD=10#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
+        self.MES_RECORD_OVERHEAD2=10#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
+        self.SCREEN_EXPECTED_FRAME_RATE = 119.0
+        self._create_parameters_from_locals(locals())
         
         
 class CameronBpSetup(AoCorticalCaImagingConfig):

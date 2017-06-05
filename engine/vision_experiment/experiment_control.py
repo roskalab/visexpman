@@ -504,6 +504,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.abort=not self.analog_input.start_daq_activity()
         
     def start_ao(self):
+        if hasattr(self.machine_config,'TRIGGER_MES') and not self.machine_config.TRIGGER_MES:
+            return
         mesfn=self.outputfilename.replace('.hdf5','.mat')
         fp=open(mesfn,'wt')
         fp.write(str(self.parameters['mes_record_time']))
@@ -665,6 +667,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if hasattr(self, 'analog_input'):
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
+            if self.machine_config.PLATFORM == 'ao_cortical':
+                try:
+                    from pylab import plot,savefig
+                    t=numpy.arange(self.datafile.sync.shape[0])/40e3
+                    for i in range(self.datafile.sync.shape[1]):
+                        plot(t,self.datafile.sync[:,i])
+                    savefig(self.datafile.filename.replace('.hdf5', '.png'), dpi=200)
+                except:
+                    pass
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
