@@ -612,7 +612,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, phases=None,
+                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, phases=[],
                     part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.

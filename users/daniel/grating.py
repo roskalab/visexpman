@@ -69,7 +69,6 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0
-        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
@@ -183,7 +182,18 @@ class MovingGratingConfig16Directions(MovingGratingNoMarchingConfig):
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
 
-               
+class ATestStim(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION=10
+        self.runnable = 'ATestStimE'
+        self._create_parameters_from_locals(locals())
+
+class ATestStimE(experiment.Experiment):
+    def run(self):
+        self.show_grating(orientation=45, duty_cycle=4, white_bar_width=200, velocity=200.0,duration=self.experiment_config.DURATION,display_area=utils.rc((400,600)),
+                flicker={'frequency':5, 'modulation_size':50})
+
+    
 
 #Support for old config classes
 #class GratingConfig(MovingGratingConfig):
@@ -194,7 +204,7 @@ if __name__ == "__main__":
     import traceback,pdb
     from visexpman.engine.generic.introspect import full_exc_info
     try:
-        stimulation_tester('daniel', 'IntrinsicDevelopment', 'ShortMovingGratingConfig')
+        stimulation_tester('daniel', 'IntrinsicDevelopment', 'TestStim')#'''ShortMovingGratingConfig')
     except:
         traceback.print_exc()
         pdb.post_mortem(full_exc_info()[2])

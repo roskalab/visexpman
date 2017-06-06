@@ -108,8 +108,8 @@ class MovingGrating(experiment.Experiment):
             stimulus_unit['velocity'] = velocity
             stimulus_unit['duty_cycle'] = duty_cycle
             stimulus_unit['orientation'] = orientation
-            stimulus_unit['starting_phase']=self.experiment_config.STARTING_PHASES[o1]
-            stimulus_unit['color_contrast']=self.experiment_config.COLOR_CONTRAST
+            stimulus_unit['starting_phase']=self.experiment_config.STARTING_PHASES[o1] if hasattr(self.experiment_config, 'STARTING_PHASES') else 0.0
+            stimulus_unit['color_contrast']=self.experiment_config.COLOR_CONTRAST if hasattr(self.experiment_config, 'COLOR_CONTRAST') else 1.0
             period_length = (duty_cycle + 1) * white_bar_width
             required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
             stimulus_unit['move_time'] = float(required_movement) / velocity
@@ -208,7 +208,7 @@ class MovingGrating(experiment.Experiment):
             segment_info['white_bar_width'] = stimulus_unit['white_bar_width']
             segment_info['duty_cycle'] = stimulus_unit['duty_cycle']
             segment_info['marching_phases'] = self.marching_phases
-            segment_info['starting_phases'] = self.experiment_config.STARTING_PHASES
+            segment_info['starting_phases'] = self.experiment_config.STARTING_PHASES[o1] if hasattr(self.experiment_config, 'STARTING_PHASES') else 0.0
             segment_info['marching_start_frame'] = frame_counter
             frame_counter += int(self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
             segment_info['moving_start_frame'] = frame_counter
