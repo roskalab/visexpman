@@ -21,6 +21,9 @@ ElectroporationConfig:
 BehavioralConfig:
         inherits VisionExperimentConfig and expands it with behavioral setup specific parameters that are not used on other platforms
         Platfrom name: behav
+IntrinsicConfig:
+    Intrinsic imaging platform.
+    Platform name: intrinsic
 '''
 import os
 import sys
