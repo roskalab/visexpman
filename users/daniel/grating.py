@@ -182,39 +182,21 @@ class MovingGratingConfig16Directions(MovingGratingNoMarchingConfig):
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
 
-        
-class KamillMovingGratingNoMarchingConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        #Timing
-        self.NUMBER_OF_MARCHING_PHASES = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
-        self.MARCH_TIME = 4.0
-        self.GRATING_STAND_TIME = 4.0
-        #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
-        self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1200.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 2
-        self.PAUSE_BEFORE_AFTER = 5.0
-        self.runnable = 'MovingGrating'
-        self.pre_runnable = 'BlackPre'
-        self._create_parameters_from_locals(locals())
-
                
-class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
-    def _create_parameters(self):
-        KamillMovingGratingNoMarchingConfig._create_parameters(self)
-        #Flash config
-        self.ENABLE_FLASH = True
-        self.FLASH_DURATION = 2.0
-        self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
-        self.FLASH_REPEATS = 1
-        self.BLACK = 0.0
-        self.WHITE = 1.0
-        self.PAUSE_BEFORE_AFTER = 1.0        
 
 #Support for old config classes
 class GratingConfig(MovingGratingConfig):
     pass
-    
+
+if __name__ == "__main__":
+    from visexpman.engine.visexp_app import stimulation_tester
+    import traceback,pdb
+    from visexpman.engine.generic.introspect import full_exc_info
+    try:
+        stimulation_tester('daniel', 'IntrinsicDevelopment', 'ShortMovingGratingConfig')
+    except:
+        traceback.print_exc()
+        pdb.post_mortem(full_exc_info()[2])
+        raise
+    finally:
+        pass
