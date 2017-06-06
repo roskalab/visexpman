@@ -548,7 +548,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         try:
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
-            if self.machine_config.PLATFORM=='standalone':#TODO: this is just a hack. Standalone platform has to be designed
+            if self.machine_config.PLATFORM in ['standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
             

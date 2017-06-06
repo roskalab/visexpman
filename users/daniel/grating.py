@@ -69,6 +69,7 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
@@ -185,8 +186,8 @@ class MovingGratingConfig16Directions(MovingGratingNoMarchingConfig):
                
 
 #Support for old config classes
-class GratingConfig(MovingGratingConfig):
-    pass
+#class GratingConfig(MovingGratingConfig):
+#    pass
 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
