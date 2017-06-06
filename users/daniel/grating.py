@@ -15,17 +15,41 @@ class PhasesGratingConfig(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 4.0
         #Grating parameters
-        self.ORIENTATIONS = [0, 180]
+        self.ORIENTATIONS = range(0, 360, 45)
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.DUTY_CYCLES = [6.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 2.0
+        self.PHASES={}
+        for o in self.ORIENTATIONS:
+            duration=5.0#sec
+            f=5
+            self.PHASES[o]=1500*numpy.sin(f*numpy.linspace(0,1,int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))*numpy.pi*2)
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+        
+class MovingGratingExpAccConfig(grating_base.MovingGratingConfig):
+    def _create_parameters(self):
+        grating_base.MovingGratingConfig._create_parameters(self)
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.MARCH_TIME = 3.0
+        self.GRATING_STAND_TIME = 3.0
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.DUTY_CYCLES = [6.0] #put 1.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 3.0
         self.PHASES={}
         for o in self.ORIENTATIONS:
             duration=5.0#sec
-            f=10
-            self.PHASES[o]=100*numpy.sin(f*numpy.linspace(0,1,int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))*numpy.pi*2)
+            f=1.
+            self.PHASES[o]=6000*1./(1.+numpy.exp(-f*numpy.linspace(-3,3,int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))*numpy.pi*2))
+            
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
