@@ -73,7 +73,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
