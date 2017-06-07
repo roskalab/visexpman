@@ -548,7 +548,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         try:
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
-            if self.machine_config.PLATFORM=='standalone':#TODO: this is just a hack. Standalone platform has to be designed
+            if self.machine_config.PLATFORM in ['standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
             
@@ -569,10 +569,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 pass
             elif self.machine_config.PLATFORM=='us_cortical' and self.machine_config.ENABLE_ULTRASOUND_TRIGGERING:
                 import serial
-                s=serial.Serial(port='COM1',baudrate=9600)
-                s.write('e')
-                s.close()
+                from contextlib import closing
+                with closing(serial.Serial(port='COM1',baudrate=9600)) as s:
+                    s.write('e')
                 self.send({'trigger':'stim started'})
+            elif self.machine_config.PLATFORM=='intrinsic':
+                from visexpA.engine.datahandlers.ximea_camera import XimeaCamera
+                self.camera = XimeaCamera(config=self.machine_config)
+                self.camera.start()
+                self.camera.trigger.set()  # starts acquisition
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
@@ -590,6 +595,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            elif self.machine_config.PLATFORM=='intrinsic':
+                self.camera.trigger.clear()
+                self.camera.join()
             if self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
                 self.analog_input.finish_daq_activity(abort = self.abort)
@@ -651,12 +659,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i-1)
         for i in block_end_indexes:
             self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i+1)
+        self.datafile.frame_times=self.screen.frame_times
         
     def _save2file(self):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name', 'frame_times']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = hdf5io.Hdf5io(self.outputfilename,filelocking=False)
             self._prepare_data2save()

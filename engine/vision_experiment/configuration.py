@@ -21,6 +21,9 @@ ElectroporationConfig:
 BehavioralConfig:
         inherits VisionExperimentConfig and expands it with behavioral setup specific parameters that are not used on other platforms
         Platfrom name: behav
+IntrinsicConfig:
+    Intrinsic imaging platform.
+    Platform name: intrinsic
 '''
 import os
 import sys
@@ -73,7 +76,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -449,6 +452,15 @@ class ElectroporationConfig(VisionExperimentConfig):
         PLATFORM = 'epos'
         EXPERIMENT_FILE_FORMAT = 'mat'
         EXPERIMENT_START_TRIGGER = [10, [10, 15]]
+        STIM_RECORDS_ANALOG_SIGNALS = False
+        self._create_parameters_from_locals(locals())
+        
+class IntrinsicConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'intrinsic'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.KEYS['start stimulus'] = 'e'
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 

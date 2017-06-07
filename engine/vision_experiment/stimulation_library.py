@@ -15,6 +15,8 @@ try:
 except ImportError:
     default_text=None
     print 'opengl not installed'
+from contextlib import closing
+import tables
 
 import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
@@ -272,13 +274,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, 
             flip = True, is_block = False):
         '''        
-        Two use cases are handled here:
+        Three use cases are handled here:
             - showing individual image files
                 duration: duration of showing individual image file
                 path: path of image file
             - showing the content of a folder
                 duration: duration of showing each image file in folder
                 path: path of folder containing images
+            - path is a hdf5 file containing a 3d numpy array which is loaded frame by frame
         Image is shown for one frame time if duration is 0.
         Further parameters:
             position: position of image on screen in pixels.
@@ -307,6 +310,29 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._flip(frame_trigger = True)
             if is_block:
                 self.block_end()
+        elif os.path.isfile(path) and os.path.splitext(path)=='.hdf5': # a hdf5 file with stimulus_frames variable having nframes * x * y dimensions
+            with closing(tables.open_file(path,'r')) as handler:
+                full_chunk = 0
+                if full_chunk: # read big chunk
+                    allframedata = handler.root.stimulus_frames[:5000].astype(float)/255
+                if is_block:
+                    self.block_start()
+                for f1i in range(handler.root.stimulus_frames.shape[0]):
+                    mytime = time.time()
+                    if full_chunk:
+                        framedata = allframedata[f1i]
+                    else:
+                        framedata = handler.root.stimulus_frames[f1i].astype(float)/255  # put actual image frames into the list of paths
+                    if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
+                        framedata = framedata[::-1]  # flip row order = flip image TOP to Bottom
+                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip, is_block=False)
+                    print(1./(time.time() - mytime))
+                    if self.abort:
+                        break
+                self.screen.clear_screen()
+                self._flip(frame_trigger=True)
+                if is_block:
+                    self.block_end()
         else:
             self._show_image(path,duration,position,stretch,flip,is_block)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
@@ -318,7 +344,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         for i in range(nframes):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+            if hasattr(path,'shape'):  # show image already loaded
+                self.screen.render_image(path, position=utils.rc_add(position, self.machine_config.SCREEN_CENTER),
+                                             stretch=stretch)
+            else:  # load image file given its path as a string
+                self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._add_block_start(is_block, i, nframes)
                 self._flip(frame_trigger = True)
@@ -582,7 +612,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, phases=None,
+                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, phases=[],
                     part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
