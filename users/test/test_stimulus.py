@@ -403,6 +403,40 @@ class TestStim(experiment.Stimulus):
 class TestStim1(TestStim):
     def stimulus_configuration(self):
         self.DURATION=0.3
+        
+class TestTimeIndexing(experiment.Stimulus):
+    def run(self):
+        size=100
+        speeds=[1000]
+        directions=[0,180]
+        duration=1
+        moving_duration=self.moving_shape_trajectory(size, speeds, directions,1,shape_starts_from_edge=True)[2]
+        naturalbar_duration=self.show_natural_bars(speed = speeds[0], duration=duration, 
+                                direction = directions[0], duration_calc_only=True)
+        nframes=(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+        from PIL import Image
+        import os,shutil
+        framesfolder='/tmp/frames'
+        if not os.path.exists(framesfolder):
+            #shutil.rmtree(framesfolder)
+            os.mkdir(framesfolder)
+            for i in range(int(nframes)):
+                frame=numpy.cast['uint8'](numpy.random.random((100,100,3))*255)
+                frame[:,:,1]=frame[:,:,0]
+                frame[:,:,2]=frame[:,:,0]
+                frame[:,:,:]=100
+                Image.fromarray(frame).save(os.path.join(framesfolder, 'f{0:0=4}.png'.format(i)))
+        t0=time.time()
+        self.moving_shape(size, speeds,directions,shape_starts_from_edge=True)
+        t1=time.time()
+        self.show_grating(duration,velocity=100, white_bar_width=200, duty_cycle=3)
+        t2=time.time()
+        self.show_natural_bars(speed = speeds[0], duration=duration, direction = directions[0])
+        t3=time.time()
+        self.show_white_noise(duration, 100)
+        t4=time.time()
+        self.show_image(framesfolder)
+        t5=time.time()
 
 if __name__ == "__main__":
     pass

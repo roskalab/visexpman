@@ -98,6 +98,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_RESOLUTION = utils.rc([600, 800])
         SCREEN_POSITION = utils.rc([0, 0])
         FULLSCREEN = False
+        ENABLE_TIME_INDEXING=False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_RATE_TOLERANCE = [4.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]

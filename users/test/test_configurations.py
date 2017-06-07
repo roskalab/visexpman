@@ -515,8 +515,8 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
 #            time.sleep(1)
 #            if all(map(os.path.exists,folders)):
 #                break
-        COORDINATE_SYSTEM='ulcorner'
-        #COORDINATE_SYSTEM='center'
+        #COORDINATE_SYSTEM='ulcorner'
+        COORDINATE_SYSTEM='center'
         self.GUI['SIZE'] =  utils.cr((1280,1024))
         self.GUI['EXPERIMENT_LOG_UPDATE_PERIOD']=10.0
         self.CONNECTIONS['stim']['ip']['stim'] = '127.0.0.1'
