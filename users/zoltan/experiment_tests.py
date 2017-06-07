@@ -62,13 +62,13 @@ class Gr(experiment.Stimulus):
                 self.show_approach_stimulus(m, bar_width, speed)
             return
         from PIL import Image
-        pixel_size=10.0/3#um/pixel
+        pixel_size=10.0/5#um/pixel
         shift=400.0#um
         speed=1200*1
         yrange=[1000,2000]
         fn='/tmp/Pebbleswithquarzite_grey.png'
-        fn='/tmp/1.jpg'
-        self.show_rolling_image(fn,pixel_size,speed,shift,yrange)
+        fn='/home/rz/1.jpg'
+        self.show_rolling_image(fn,pixel_size,speed,shift,yrange,axis='vertical')
         return
         texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
         if len(texture.shape)<3:

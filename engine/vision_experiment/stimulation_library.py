@@ -1178,11 +1178,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             p1=p1.flatten()
             p0=p0.flatten()
             nshifts=int(size['col']/shift_pixel)-1
-            vertical_offsets=numpy.arange(nshifts)*shift_pixel
-            vertical_offsets=numpy.repeat(vertical_offsets,3)
+            horizontal_offsets=numpy.arange(nshifts)*shift_pixel
+            horizontal_offsets=numpy.repeat(horizontal_offsets,3)
             points=numpy.array([p0,p1,p0])
             points=numpy.array(points.tolist()*nshifts)
-            points[:,1]-=vertical_offsets
+            points[:,0]-=horizontal_offsets
         #Interpolate between points
         offset=numpy.empty((0,2))
         for i in range(points.shape[0]-1):
