@@ -1559,7 +1559,6 @@ class AdvancedStimulation(StimulationHelpers):
         # Then no directions are given, choose a smooth representation
         if len(directions) == 0:
             angles = numpy.random.uniform(low=0.0, high=360.0, size=ndots)
-            print angles
         else:
             angles = numpy.random.choice(directions, size=ndots)
         
@@ -1617,7 +1616,7 @@ class AdvancedStimulation(StimulationHelpers):
             for i in range(start_frame, stop_frame):
                 shape_idx[i].append(shape_i)
         
-        print len(shape_idx)
+        #print len(shape_idx)
         #print shape_idx
         
         converted_color = numpy.array(converted_color)
@@ -1632,17 +1631,12 @@ class AdvancedStimulation(StimulationHelpers):
         # Run the stimulus frame by frame:
         shape_position = numpy.zeros([n_shapes, 2])
         for frame_i in range(n_frames):
-            if frame_i%60 == 0:
-                print str(frame_i/60) + ' of ' + str(n_frames/60)
+            #if frame_i%60 == 0:
+            #    print str(frame_i/60) + ' of ' + str(n_frames/60)
                 
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
             
             for shape_i in shape_idx[frame_i]: # range(n_shapes):
-                if self.abort:
-                    break
-                
-                if frame_i < randomDots['appearanceT'][shape_i] or frame_i > randomDots['appearanceT'][shape_i] + randomDots['dotdurations'][shape_i]:
-                    continue
                 
                 # Draw objects:
                 glPushMatrix()
@@ -1667,10 +1661,11 @@ class AdvancedStimulation(StimulationHelpers):
                 self.log_on_flip_message = self.log_on_flip_message_continous
                 #self._flip_and_block_trigger(i, n_frames_per_pattern, True, block_trigger)
             
-            if self.abort:
-                break
+            #if self.abort:
+            #    break
             
             self._flip(frame_trigger = True, count = True)
+            
             if self.abort:
                 break
             
