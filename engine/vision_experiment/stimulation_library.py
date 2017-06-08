@@ -91,7 +91,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if not hasattr(self, 't0'):
             return
         dt=time.time()-self.t0
-        return int(round(dt/self.config.SCREEN_EXPECTED_FRAME_RATE))
+        return int(round(dt*self.config.SCREEN_EXPECTED_FRAME_RATE))
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False,parameters=None):
         '''
