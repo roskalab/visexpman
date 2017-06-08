@@ -40,21 +40,19 @@ class ReceptiveFieldExploreNewAngle(ReceptiveFieldExploreNew):#This is the origi
         self.NROWS = 6
         self.NCOLUMNS = 9
         self.SIZE_DIMENSION='angle'
-        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees Overall size of display in angles
-        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees Center
+        self.DISPLAY_SIZE = utils.rc((50.5,87.25))#degrees Overall size of display in angles
+        self.DISPLAY_CENTER = utils.rc((50.5-3.45,87.25-33.35))#degrees Center
 #        self.SHAPE_SIZE = 10
        # self.OFF_TIME = 0
         #self.ON_TIME = 2.0
         
        
-class ReceptiveFieldExploreNewAngleAdrian(ReceptiveFieldExploreNew):#This is the original one!!!!!!!!!!!!
+class ReceptiveFieldExploreNewAngleAdrian(ReceptiveFieldExploreNewAngle):#This is the original one!!!!!!!!!!!!
     def _create_parameters(self):
-        ReceptiveFieldExploreNew._create_parameters(self)
+        ReceptiveFieldExploreNewAngle._create_parameters(self)
         self.NROWS = 6
         self.NCOLUMNS = 9
         self.SIZE_DIMENSION='angle'
-        self.DISPLAY_SIZE = utils.rc((57.0,90.0))#degrees Overall size of display in angles
-        self.DISPLAY_CENTER = utils.rc((41.5,45.0))#degrees Center
 #        self.SHAPE_SIZE = 10
         self.OFF_TIME = 2.0
         self.ON_TIME = 1.0

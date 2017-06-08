@@ -252,23 +252,46 @@ class ReceptiveFieldExplore(experiment.Experiment):
 class LaserPulse(experiment.Stimulus):
     def stimulus_configuration(self):
         self.INITIAL_DELAY=10.0
-        self.PULSE_DURATION=20e-3
-        self.PERIOD_TIME=10.0
+        self.PULSE_DURATION=[20e-3]
+        self.PERIOD_TIME=[10.0]
         self.NPULSES=1
-        self.LASER_AMPLITUDE=1.0
+        self.LASER_AMPLITUDE=[1.0]
         self.SAMPLE_RATE=1000
+        self.ZERO_VOLTAGE=0.0
         
     def calculate_waveform(self):
         init=numpy.zeros(int(self.SAMPLE_RATE*self.INITIAL_DELAY))
-        pulse=numpy.concatenate((numpy.ones(int(self.SAMPLE_RATE*self.PULSE_DURATION)), numpy.zeros(int(self.SAMPLE_RATE*(self.PERIOD_TIME-self.PULSE_DURATION)))))
-        self.waveform=numpy.concatenate((init,numpy.tile(pulse,self.NPULSES)))*self.LASER_AMPLITUDE
-        self.waveform=self.waveform.reshape(1,self.waveform.shape[0])
+        pulses=[]
+        if len(self.PULSE_DURATION)!=len(self.PERIOD_TIME):
+            raise RuntimeError('Invalid timing configuration')
+        for v in self.LASER_AMPLITUDE:
+            for i in range(len(self.PULSE_DURATION)):
+                pulse_duration=self.PULSE_DURATION[i]
+                period_time=self.PERIOD_TIME[i]
+                pulse=numpy.concatenate((numpy.ones(int(self.SAMPLE_RATE*pulse_duration)), numpy.zeros(int(self.SAMPLE_RATE*(period_time-pulse_duration)))))*v
+                pulses.append(numpy.tile(pulse,self.NPULSES))
+        self.waveform=numpy.concatenate(pulses)
+        self.waveform=numpy.concatenate((init, self.waveform))
+        self.waveform=numpy.where(self.waveform==0.0,self.ZERO_VOLTAGE,self.waveform)
+        if 0:
+                from pylab import plot,savefig,cla,clf
+                clf()
+                cla()
+                plot(self.waveform);savefig('c:\\temp\\fig.png')
+        timing_waveform=numpy.where(self.waveform==0,0,5)#.reshape(1,self.waveform.shape[0])
+#        self.waveform=self.waveform.reshape(1,self.waveform.shape[0])
+        self.combined_waveform=numpy.zeros((2,self.waveform.shape[0]))
+        self.combined_waveform[0]=self.waveform
+        self.combined_waveform[1]=timing_waveform
+
+        
+        
 
     def calculate_stimulus_duration(self):
         self.calculate_waveform()
-        self.duration = self.waveform.shape[1]/float(self.SAMPLE_RATE)
+        self.duration = self.combined_waveform.shape[1]/float(self.SAMPLE_RATE)
         
     def run(self):
         from visexpman.engine.hardware_interface import daq_instrument
         self.show_fullscreen(color=0.0,duration=0)
-        daq_instrument.set_waveform('Dev1/ao0',self.waveform,sample_rate = self.SAMPLE_RATE)
+        daq_instrument.set_waveform('Dev1/ao0:1',self.combined_waveform,sample_rate = self.SAMPLE_RATE)

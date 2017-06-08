@@ -363,6 +363,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         ROI_PATTERN_SIZE = [2, [1, 10]]
         ROI_PATTERN_RADIUS = [1, [0, 50]]
         ########### Vision experiment manager GUI #################
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
         screen_size = utils.cr((800, 600))
         if len(sys.argv) > 0:
             if 'gui' in sys.argv[0]: #if gui is the main module

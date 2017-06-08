@@ -504,6 +504,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.abort=not self.analog_input.start_daq_activity()
         
     def start_ao(self):
+        if hasattr(self.machine_config,'TRIGGER_MES') and not self.machine_config.TRIGGER_MES:
+            return
         mesfn=self.outputfilename.replace('.hdf5','.mat')
         fp=open(mesfn,'wt')
         fp.write(str(self.parameters['mes_record_time']))
