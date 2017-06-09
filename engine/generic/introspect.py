@@ -16,6 +16,12 @@ import subprocess, os, signal
 import copy
 import psutil
 
+def cap_attributes2dict(obj):
+    '''
+    All attributes which are capitalized are returned as a dict
+    '''
+    return dict([(vn, getattr(obj, vn)) for vn in dir(obj) if vn.isupper()])
+
 def get_available_process_cores():
     '''
     Returns the number of available processor cores. It is the 75% of all the cores but at least 1

@@ -9,7 +9,6 @@ from visexpman.engine import ExperimentConfigError
 import stimulation_library
 
 import inspect
-from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 
 import unittest
@@ -249,64 +248,6 @@ class BehavioralProtocol(threading.Thread):
         
     def isfinished(self):
         return time.time()-self.starttime>=self.duration
-
-class Protocol(object):
-    ENABLE_IMAGING_SOURCE_CAMERA=False
-    def __init__(self,engine):
-        self.engine=engine
-        self.reset()
-        
-    def update(self):
-        '''
-        In subclass this method calculates if reward/punishment has to be given
-        '''
-        
-    def stat(self):
-        '''
-        In a subclass this method calculates the actual success rate
-        '''
-        return {'Success Rate': 0.0}
-        
-    def reset(self):
-        '''
-        Resets state variables
-        '''
-        
-    def on_each_file(self):
-        '''
-        OBSOLETE
-        '''
-
-######################### Restore experiment config from measurement data #########################
-
-#OBSOLETE
-class MachineConfig(configuration.VisionExperimentConfig):
-    def __init__(self, machine_config_dict, default_user = None):
-        self.machine_config_dict = machine_config_dict
-        self.default_user = default_user
-        configuration.VisionExperimentConfig.__init__(self)
-        
-    def _set_user_parameters(self):
-        copy_parameters = ['COORDINATE_SYSTEM']
-        for k, v in self.machine_config_dict.items():
-            if k in copy_parameters:
-                setattr(self, k, v)
-        if not hasattr(self, 'user'):
-            self.user = self.default_user
-        self._create_parameters_from_locals(locals())
-        pass
-    
-#OBSOLETE
-def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = None,  experiment_source = None,  machine_config_dict = None, user = None):
-    if fragment_hdf5_handler != None and experiment_source == None and machine_config_dict == None:
-        experiment_source = fragment_hdf5_handler.findvar('experiment_source').tostring()
-        machine_config_dict = fragment_hdf5_handler.findvar('machine_config')
-    machine_config = MachineConfig(machine_config_dict, default_user = user)
-    introspect.import_code(experiment_source,'experiment_module',add_to_sys_modules=1)
-    experiment_module = __import__('experiment_module')
-    experiment_config = getattr(experiment_module, experiment_config_name)(machine_config = machine_config, caller = None)
-    return experiment_config
-    a = experiment_module.MovingDot(machine_config, None, experiment_config)
     
 def get_experiment_duration(experiment_config_class, config, source=None):
     if '_'in experiment_config_class:
@@ -345,6 +286,13 @@ def get_experiment_duration(experiment_config_class, config, source=None):
     else:
         from visexpman.engine import ExperimentConfigError
         raise ExperimentConfigError('Stimulus duration is unknown')
+        
+def read_stimulus_parameters(stimname, filename,config):
+    source_code=fileop.read_text_file(filename)
+    introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
+    em=__import__('experiment_module')
+    ec=getattr(em,stimname)(config,create_runnable=False)
+    return introspect.cap_attributes2dict(ec)
 
 def parse_stimulation_file(filename):
     '''
@@ -430,6 +378,11 @@ class testExperimentHelpers(unittest.TestCase):
         from visexpman.users.test.test_configurations import GUITestConfig
         conf = GUITestConfig()
         get_experiment_duration('ReceptiveFieldExploreNewAngleAdrian', conf, source=fileop.read_text_file(os.path.join(fileop.visexpman_package_path(),'users','adrian','receptive_field.py')))
+        
+    def test_08_read_experiment_parameters(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        read_stimulus_parameters('MovingBarTemplate', os.path.join(os.path.dirname(visexpman.__file__),'users','common','stimuli.py'),conf)
         
         
     

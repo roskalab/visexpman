@@ -114,13 +114,18 @@ if __name__ == "__main__":
     if len(sys.argv)>1:
         if sys.argv[1]=='rc':
             r=RepositoryChecker('/home/rz/repocheck/rc', '/mnt/datafast/codes/jobhandler',
-                                   vip_files=['visexpman/users/daniel/configurations.py','visexpman/users/daniel/flashes.py','visexpman/users/daniel/moving_bar.py',
-                                               'visexpman/users/daniel/receptive_field_fiona.py', 'visexpman/users/daniel/grating_fiona.py', 'visexpman/users/daniel/grating_base.py'],
+                                   vip_files=['visexpman/users/daniel/configurations.py','visexpman/users/fiona/flashes.py','visexpman/users/fiona/moving_bar.py',
+                                               'visexpman/users/fiona/receptive_field_fiona.py', 'visexpman/users/fiona/grating_fiona.py', 'visexpman/users/common/grating_base.py'],
                                    ignore_folder=['visexpman/users/daniel'])
             r.run()
         elif sys.argv[1]=='ao':
             r=RepositoryChecker('/home/rz/repocheck/ao', '/mnt/datafast/codes/ao-cortical',vip_files=[],ignore_folder=['visexpman/users/adrian'])
             r.run()
+        elif sys.argv[1]=='rc_rldata':
+            r=RepositoryChecker('/home/rz/repocheck/rc_rldata', '/data/software/rc-setup',
+                                   ignore_folder=[])
+            r.run()
+
 
     else:
         unittest.main()

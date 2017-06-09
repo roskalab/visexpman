@@ -337,8 +337,8 @@ class TestGratingExp(experiment.Experiment):
         
     def run(self):
         from visexpman.engine.generic import colors
-        glEnable (GL_BLEND)
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        #glEnable (GL_BLEND)
+        #glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         display_area_adjusted=numpy.array([40,40])
         alpha = numpy.arctan(display_area_adjusted[1]/display_area_adjusted[0])
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
@@ -385,7 +385,7 @@ class TestGratingExp(experiment.Experiment):
             if self.abort:
                 break
         #self._deinit_texture()
-        glDisable (GL_BLEND)
+        #glDisable (GL_BLEND)
         
         
         #self.show_grating(duration = 10.0,  white_bar_width =1,velocity = 1.0,  color_contrast = 1.0,  color_offset = 0.5)
@@ -403,6 +403,44 @@ class TestStim(experiment.Stimulus):
 class TestStim1(TestStim):
     def stimulus_configuration(self):
         self.DURATION=0.3
+        
+class TestTimeIndexing(experiment.Stimulus):
+    def run(self):
+        size=100
+        speeds=[1000]
+        directions=[0,180]
+        duration=1
+        moving_duration=self.moving_shape_trajectory(size, speeds, directions,1,shape_starts_from_edge=True)[2]
+        naturalbar_duration=self.show_natural_bars(speed = speeds[0], duration=duration, 
+                                direction = directions[0], duration_calc_only=True)
+        nframes=(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+        from PIL import Image
+        import os,shutil
+        framesfolder='/tmp/frames'
+        if not os.path.exists(framesfolder):
+            #shutil.rmtree(framesfolder)
+            os.mkdir(framesfolder)
+            for i in range(int(nframes)):
+                frame=numpy.cast['uint8'](numpy.random.random((100,100,3))*255)
+                frame[:,:,1]=frame[:,:,0]
+                frame[:,:,2]=frame[:,:,0]
+                frame[:,:,:]=100
+                Image.fromarray(frame).save(os.path.join(framesfolder, 'f{0:0=4}.png'.format(i)))
+        t0=time.time()
+        self.moving_shape(size, speeds,directions,shape_starts_from_edge=True)
+        t1=time.time()
+        self.show_grating(duration,velocity=100, white_bar_width=200, duty_cycle=3)
+        t2=time.time()
+        self.show_natural_bars(speed = speeds[0], duration=duration, direction = directions[0])
+        t3=time.time()
+        self.show_white_noise(duration, 100)
+        t4=time.time()
+        dts=numpy.array([moving_duration-(t1-t0),duration-(t2-t1),duration-(t4-t3),naturalbar_duration-(t3-t2)])
+        print dts*1000
+
+        if 0:
+            self.show_image(framesfolder)
+            t5=time.time()
 
 if __name__ == "__main__":
     pass

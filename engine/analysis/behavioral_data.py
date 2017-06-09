@@ -321,7 +321,6 @@ def lick_detection_folder(folder,fsample,lick_wait_time,threshold=0.25,max_width
             pass
     ids=[experiment_data.id2timestamp(experiment_data.parse_recording_filename(f)['id']) for f in fns]
     p=multiprocessing.Pool(introspect.get_available_process_cores())
-    
     res=map(lick_detection_wrapper,pars)
     output=[[ids[i], res[i][0],res[i][1], res[i][2]] for i in range(len(res))]
     return output
@@ -489,9 +488,10 @@ class HitmissAnalysis(object):
         Multiple animals:
             aggregate success rate at each day to a single plot, different curve for each animal
     '''
-    def __init__(self,folder,histogram_bin_time=20e-3, protocol='HitMiss'):
+    def __init__(self,folder,histogram_bin_time=20e-3, protocol='HitMiss', filter={}):
         self.protocol=protocol
         self.folder=folder
+        self.filter=filter
         self.histogram_bin_time=histogram_bin_time*1e3
         items_in_folder=fileop.listdir_fullpath(folder)
         nsubfolders=len([f for f in items_in_folder if os.path.isdir(f)])
@@ -507,9 +507,9 @@ class HitmissAnalysis(object):
             self.analysis_type='all'
             self.all_animals()
         else:
-            raise RuntimeError('Unknown analysis')
+            raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}'.format(nfiles, nitems, nsubfolders))
         
-    def day_analysis(self,folder=None):
+    def day_analysis(self,folder=None, filter=None):
         if isinstance(folder,str) and os.path.exists(folder):
             self.alldatafiles=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
         else:
@@ -536,6 +536,9 @@ class HitmissAnalysis(object):
                     stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
                     h.stat=stat
                     h.save('stat')
+                if self.filter.has_key('voltage') and h.findvar('protocol')['LASER_INTENSITY'] != self.filter['voltage']:
+                    h.close()
+                    continue
                 h.close()
                 self.nhits+=stat['result']
                 self.nsuccesfullicks+=stat['lick_result']
@@ -585,8 +588,13 @@ class HitmissAnalysis(object):
         reward_latency_histogram={}
         success_rates=[]
         lick_success_rates=[]
+        self.aggregated={}
         for d in self.days:
             lick_times,lick_latencies,reward_latencies,nflashes,nhits,success_rate,lick_success_rate = self.day_analysis(os.path.join(animal_folder,d))
+            self.aggregated[d]={}
+            self.aggregated[d]['lick_latencies']=lick_latencies
+            self.aggregated[d]['reward_latencies']=reward_latencies
+            self.aggregated[d]['lick_times']=lick_times
             lick_times_histogram[d]=lick_times
             lick_latency_histogram[d]=lick_latencies
             reward_latency_histogram[d]=reward_latencies
@@ -615,9 +623,9 @@ class HitmissAnalysis(object):
         hist={}
         for k,v in data.items():
             if bins.shape[0]==1:
-                hist[k]=v.shape[0]
+                hist[k]=numpy.array([v.shape[0]])
             elif bins.shape[0]==0:
-                hist[k]=0
+                hist[k]=numpy.array([0])
             else:
                 hist[k]=numpy.histogram(v,bins)[0]
         if bins.shape[0]>1:

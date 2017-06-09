@@ -115,11 +115,14 @@ def detect_events(sync, fsample):
     threshold=2.5
     lick=sync[:,1]
     stimulus=sync[:, 2]
+    stimulusf=numpy.array([float(stimulus[i:i+5].mean()) for i in range(stimulus.shape[0]-5)])
     reward=sync[:, 3]
     protocol_state=sync[:, 4]
     reward_t=signal.trigger_indexes(reward, abs_threshold=threshold)*ts
-    threshold_stim=stimulus.min()+0.5*(stimulus.max()-stimulus.min())
-    stimulus_t=signal.trigger_indexes(stimulus, abs_threshold=threshold_stim)*ts
+    threshold_stim=stimulusf.min()+0.5*(stimulusf.max()-stimulusf.min())
+    stimulus_t=signal.trigger_indexes(stimulusf, abs_threshold=threshold_stim)*ts
+    if stimulus_t.shape[0]!=2:
+        raise RuntimeError('Stim signal is noisy or corrupted. Using the laser may not be safe!!!')
     lick_t=(signal.trigger_indexes(lick, abs_threshold=threshold)*ts)[::2]
     post_stim_lick_happened=lick_t.shape[0]>0 and numpy.nonzero(lick_t>stimulus_t[0])[0].shape[0]>0
     protocol_state_t=(signal.trigger_indexes(protocol_state, abs_threshold=threshold)*ts)[::2]

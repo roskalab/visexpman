@@ -1,4 +1,4 @@
-import time,tempfile
+import time,tempfile,datetime
 import scipy.io
 import copy
 import cPickle as pickle
@@ -145,10 +145,12 @@ class ExperimentHandler(object):
         stimulus_source_code = fileop.read_text_file(filename)
         #Find out duration
         experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
-        if self.santiago_setup and experiment_duration>150:
-            if not self.ask4confirmation('Longer recordings than 150 s may result memory error. Do you want to continue?'):
+        if self.santiago_setup and experiment_duration>240:
+            if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
         #Collect experiment parameters
+        self.stimulus_parameters=experiment.read_stimulus_parameters(classname, filename,self.machine_config)
+        
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
@@ -160,7 +162,7 @@ class ExperimentHandler(object):
         experiment_parameters['id']=experiment_data.get_id()
         #Outfolder is date+id. Later all the files will be merged from id this folder
         if self.machine_config.PLATFORM=='ao_cortical':
-            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
         else:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
         if not os.path.exists(experiment_parameters['outfolder']):
@@ -277,7 +279,7 @@ class ExperimentHandler(object):
         else:
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
-        self.printc('Experiment is starting, expected duration is {0:.0f} s'.format(experiment_parameters['duration']))
+        self.printc('{1} experiment is starting, expected duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass']))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
@@ -335,6 +337,11 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 shutil.copy(self.daqdatafile.filename,fn)
+                if self.santiago_setup:
+                    #Make a local copy of sync file
+                    localfn=os.path.join('c:\\Data\\santiago-setup', os.path.basename(fn))
+                    shutil.copy(self.daqdatafile.filename, localfn)
+                    self.printc('Local copy saved to {0}'.format(localfn))
                 try:
                     os.remove(self.daqdatafile.filename)
                 except:
@@ -351,13 +358,14 @@ class ExperimentHandler(object):
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
-                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if os.path.isdir(os.path.join(current_folder, fi))]
+                folders=[os.path.join(current_folder, fi) for fi in os.listdir(current_folder) if fi != 'output' and os.path.isdir(os.path.join(current_folder, fi))]
                 try:
                     [shutil.rmtree(f) for f in folders]
                 except:
-                    pass    
+                    pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
+                self.printc('TODO: send job to jobhandler')
                 return
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
                 #if self.current_experiment_parameters['duration']>5*60: return
@@ -371,6 +379,60 @@ class ExperimentHandler(object):
                 a.tomat()
                 a.close()
                 self.printc('MES data merged to {0}'.format(fn))
+            #Save experiment/stimulus config
+            h = experiment_data.CaImagingData(filename)
+            h.sync2time()
+            h.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+            h.stimulus_parameters=self.stimulus_parameters
+            h.save('stimulus_parameters')
+            h.close()
+            if self.santiago_setup:
+                #Export timing to csv file
+                self._timing2csv(filename)
+                
+    def _timing2csv(self,filename):
+        h = experiment_data.CaImagingData(filename)
+        output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+        from PIL import Image
+        h.load('raw_data')
+        h.load('parameters')
+        self.printc(h.parameters['imaging_filename'])
+        self.printc('Export rawdata to pngs')
+        #Fn: 1_0__rect_64.00_64.00_0.00_0.00_2.00_top_0000000.png
+        for framei in range(h.raw_data.shape[0]):
+            for chi in range(h.raw_data.shape[1]):
+                base=os.path.splitext(os.path.basename(h.parameters['imaging_filename']))[0]
+                base='_'.join(base.split('_')[:-1])+'_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
+                fn=os.path.join(output_folder, base+'.png')
+                Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
+        h.load('tstim')
+        h.load('timg')
+        if 'Led2' in filename:
+            h.load('generated_data')
+            channels = utils.array2object(h.generated_data)#,len(utils.array2object(h.generated_data))
+            real_events=h.tstim[numpy.where(numpy.diff(h.tstim)>2e-3)[0]]
+            real_events=numpy.append(real_events, h.tstim[-1])
+            tstim_sep={}
+            for ch in ['stim','led']:
+                tstim_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
+        h.close()
+        if 'Led2' in filename:
+            txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
+            txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
+        else:
+            txtlines2=','.join(map(str,numpy.round(h.tstim,3)))
+        txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
+        csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
+        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
+        csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+        if 'Led2' in filename:
+            fileop.write_text_file(csvfn1, txtlines1)
+        fileop.write_text_file(csvfn2, txtlines2)
+        fileop.write_text_file(csvfn3, txtlines3)
+        self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))
+        
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
@@ -392,7 +454,7 @@ class ExperimentHandler(object):
             self.daqdatafile.hdf5.save('machine_config')
             self.daqdatafile.close()
             
-    def run_all_iterations(self):
+    def run_always_experiment_handler(self):
         self.check_batch()
         self.eyecamera2screen()
         if self.sync_recording_started:
@@ -497,6 +559,8 @@ class Analysis(object):
                 del self.reference_roi_filename
 
     def open_datafile(self,filename):
+        if self.experiment_running:
+            return
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
@@ -508,13 +572,19 @@ class Analysis(object):
         self.filename = filename
         self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         self.printc('Opening {0}'.format(filename))
-        self.datafile = experiment_data.CaImagingData(filename, image_function=self.guidata.read('3d to 2d Image Function'))
-        self.tsync, self.timg, self.meanimage, self.image_scale, self.raw_data = self.datafile.prepare4analysis()
-        if self.tsync.shape[0]==0 or  self.timg.shape[0]==0:
+        self.datafile = experiment_data.CaImagingData(filename)
+        self.datafile.sync2time()
+        self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+        self.tstim=self.datafile.tstim
+        self.timg=self.datafile.timg
+        self.image_scale=self.datafile.image_scale
+        self.meanimage=self.datafile.image
+        self.raw_data=self.datafile.raw_data
+        if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
             msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
             self.notify('Error', msg)
             raise RuntimeError(msg)
-        self.experiment_name= self.datafile.findvar('parameters')['stimclass'] if self.machine_config.PLATFORM=='ao_cortical' else self.datafile.findvar('recording_parameters')['experiment_name']
+        self.experiment_name= self.datafile.findvar('parameters')['stimclass']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
         self._recalculate_background()
         try:
@@ -645,9 +715,9 @@ class Analysis(object):
         x,y = cone_data.pixels_below_threshold(red,self.guidata.read('Background threshold')*1e-2)
         lowest_pixels=red[:,x,y]
         nostim_indexes=[]
-        for i in range(self.tsync.shape[0]/2):
-            start=self.tsync[2*i]
-            end=self.tsync[2*i+1]
+        for i in range(self.tstim.shape[0]/2):
+            start=self.tstim[2*i]
+            end=self.tstim[2*i+1]
             nostim_indexes.extend(list(numpy.where(self.timg<start)[0]))
             nostim_indexes.extend(list(numpy.where(self.timg>end)[0]))
         self.red_stat['roi_pixels']={}
@@ -665,26 +735,27 @@ class Analysis(object):
             if any(numpy.isnan(self.background)):
                 r['normalized'] = numpy.copy(r['raw'])
             else:
-                r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tsync[0], baseline_length)
+                r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tstim[0], baseline_length)
             r['baseline_length'] = baseline_length
             r['background'] = self.background
             r['background_threshold']=self.background_threshold
             r['timg']=self.timg
-            r['tsync']=self.tsync
+            r['tstim']=self.tstim
             r['stimulus_name']=self.experiment_name
             r['meanimage']=self.meanimage
             r['image_scale']=self.image_scale
-            r['red']=copy.deepcopy(self.red_stat)
-            if self.red_stat!=0:
-                area=copy.deepcopy(r['area'])
-                area=numpy.array([area[i] for i in range(area.shape[0]) if area[i][0]<r['red']['roi_pixels']['nostim'].shape[1] and area[i][1]<r['red']['roi_pixels']['nostim'].shape[2]])
-                r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,area[:,0],area[:,1]].mean()
-                r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,area[:,0],area[:,1]].mean()
+            if not self.santiago_setup:
+                r['red']=copy.deepcopy(self.red_stat)
+                if self.red_stat!=0:
+                    area=copy.deepcopy(r['area'])
+                    area=numpy.array([area[i] for i in range(area.shape[0]) if area[i][0]<r['red']['roi_pixels']['nostim'].shape[1] and area[i][1]<r['red']['roi_pixels']['nostim'].shape[2]])
+                    r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,area[:,0],area[:,1]].mean()
+                    r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,area[:,0],area[:,1]].mean()
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
                     timg = r['matches'][fn]['timg']
-                    t0=r['matches'][fn]['tsync'][0]
+                    t0=r['matches'][fn]['tstim'][0]
                     r['matches'][fn]['normalized'] = signal.df_over_f(timg, raw, t0, baseline_length)
         
     def display_roi_rectangles(self):
@@ -697,7 +768,7 @@ class Analysis(object):
             if not show_repetitions or len(x) == 1:
                 x=x[0]
                 y=y[0]
-            self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tsync, {}]})
+            self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tstim, {}]})
 #            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
@@ -865,6 +936,9 @@ class Analysis(object):
         else:
             self.datafile.save(['rois'], overwrite=True)
         self.datafile.convert(self.guidata.read('Save File Format'))
+        if self.santiago_setup:
+            self.datafile.convert('rois')
+            self.printc('Roi plots are exported to {0}'.format(self.datafile.rois_output_folder))
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
@@ -873,7 +947,32 @@ class Analysis(object):
             #Copy to BACKUP_PATH/user/date/filename
             dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
             self.printc('Data backed up to  {0}'.format(dst))
-            
+        
+    def backup(self):
+        if self.experiment_running:
+            self.printc('No backup during recording')
+            return
+        self.printc('Backing up logfiles')
+        from visexpman.engine import backup_manager
+        logbuconf=backup_manager.Config()
+        logbuconf.last_file_access_timeout=1
+        logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
+        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+        self.logfilebackup.run()
+        self.printc('Backing up data files')
+        for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
+            databuconf=backup_manager.Config()
+            databuconf.last_file_access_timeout=1
+            databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
+            self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+            self.datafilebackup.run()
+        self.printc('Done')
+        
+    def run_always_analysis(self):
+        t=datetime.datetime.fromtimestamp(self.last_run)
+        if not self.experiment_running and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+            if self.last_run-self.experiment_finish_time>self.machine_config.BACKUP_NO_EXPERIMENT_TIMEOUT*60:
+                self.backup()
         
     def roi_shift(self, h, v):
         if not hasattr(self, 'rois'):
@@ -946,17 +1045,18 @@ class Analysis(object):
         mean_of_repetitions = self.guidata.mean_of_repetitions.v if hasattr(self.guidata, 'mean_of_repetitions') else False
         baseline_length = self.guidata.read('Baseline lenght')
         x=[self.timg]
-        y=[roi['normalized']]
+        key='raw' if self.santiago_setup else 'normalized'
+        y=[roi[key]]
         parameters = []
         if roi.has_key('matches'):
             for fn in roi['matches'].keys():
                 #collect matches, shift matched curve's timing such that sync events fall into the same time
-                tdiff = self.tsync[0]-self.rois[self.current_roi_index]['matches'][fn]['tsync'][0]
+                tdiff = self.tstim[0]-self.rois[self.current_roi_index]['matches'][fn]['tstim'][0]
                 x.append(self.rois[self.current_roi_index]['matches'][fn]['timg']+tdiff)
                 y.append(self.rois[self.current_roi_index]['matches'][fn]['normalized'])
         try:
             for i in range(len(x)):
-                baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tsync, x[i], baseline_length)
+                baseline_mean, amplitude, rise, fall, drop, fitted  = cone_data.calculate_trace_parameters(y[i], self.tstim, x[i], baseline_length)
                 parameters.append({'amplitude':amplitude, 'rise': rise, 'fall': fall, 'drop':drop})
         except:
                 self.printc('Trace parameters cannot be calculated')
@@ -985,22 +1085,22 @@ class Analysis(object):
             colors = []
             for i in range(len(stimnames)):
                 colors.extend(len(roi[stimnames[i]].keys())*[possible_colors[i]])
-            timgs, tsync, normalized = self._align_curves(rois)
+            timgs, tstim, normalized = self._align_curves(rois)
             options = {'plot_average':False, 'colors' : colors}
-            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tsync, options]})
+            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tstim, options]})
         elif len(path)==2:
             roi=self.cells[index][path[1]].values()
             first_roi = roi[0]
             self._display_single_roi(first_roi)
-            timgs, tsync, normalized = self._align_curves(roi)
-            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tsync, {}]})
+            timgs, tstim, normalized = self._align_curves(roi)
+            self.to_gui.put({'display_roi_curve': [timgs, normalized, 0, tstim, {}]})
         elif len(path)==3:
             roi=self.cells[index][path[1]][path[2]]
             self._display_single_roi(roi)
-            self.to_gui.put({'display_roi_curve': [roi['timg'], roi['normalized'], 0, roi['tsync'], {}]})
+            self.to_gui.put({'display_roi_curve': [roi['timg'], roi['normalized'], 0, roi['tstim'], {}]})
             
     def _align_curves(self, rois):
-        tdiffs = numpy.array([r['tsync'][0] for r in rois])
+        tdiffs = numpy.array([r['tstim'][0] for r in rois])
         tdiffs -= tdiffs.min()
         timgs=numpy.array([r['timg'] for r in rois])
         transposed=False
@@ -1011,8 +1111,8 @@ class Analysis(object):
         if transposed:
             timgs = list(numpy.array(timgs).T)
         normalized=[r['normalized'] for r in rois]
-        tsync = rois[tdiffs.argmin()]['tsync']
-        return timgs, tsync, normalized
+        tstim = rois[tdiffs.argmin()]['tstim']
+        return timgs, tstim, normalized
             
     def _display_single_roi(self,roi):
         self.to_gui.put({'send_image_data' :[roi['meanimage'], roi['image_scale']]})
@@ -1090,7 +1190,7 @@ class Analysis(object):
             if 'hdf5' not in f: continue
             try:
                 self.open_datafile(f)
-                if self.tsync[0]>11:
+                if self.tstim[0]>11:
                     problematic_files.append(f)
             except:
                 import traceback
@@ -1148,7 +1248,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
 
     def dump(self, filename=None):
         #TODO: include logfile and context file content
-        variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tsync', 'timg', 'meanimage', 'image_scale'
+        variables = ['rois', 'reference_rois', 'reference_roi_filename', 'filename', 'tstim', 'timg', 'meanimage', 'image_scale'
                     'raw_data', 'background', 'current_roi_index', 'suggested_rois', 'roi_bounding_boxes', 'roi_rectangles', 'image_w_rois',
                     'aggregated_rois', 'context_filename', 'cells']
         dump_data = {}
@@ -1226,11 +1326,14 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     self.notify(msg['notify'][0],msg['notify'][1])
         
     def run(self):
+        run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-                if hasattr(self,'run_all_iterations'):
-                    self.run_all_iterations()
+#                if hasattr(self,'run_all_iterations'):
+#                    self.run_all_iterations()
+                for fn in run_always:
+                    getattr(self, fn)()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:

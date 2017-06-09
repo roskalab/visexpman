@@ -561,7 +561,7 @@ class AnalogRecorder(multiprocessing.Process):
         
 #            except PyDAQmx.DAQError:
 #                pass
-            time.sleep(0.1)
+            time.sleep(0.15)
         
         self.analog_input.ClearTask()
         
@@ -570,8 +570,7 @@ class AnalogRecorder(multiprocessing.Process):
         while not self.dataq.empty():
             r=self.dataq.get()
             data=numpy.concatenate((data, r))
-            time.sleep(0.02)
-            
+            time.sleep(0.03)
         return data
         
         

@@ -15,6 +15,8 @@ try:
 except ImportError:
     default_text=None
     print 'opengl not installed'
+from contextlib import closing
+import tables
 
 import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
@@ -84,6 +86,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             self.frame_rates.append(self.screen.frame_rate)
         self.check_abort()
+        
+    def _get_frame_index(self):
+        if not hasattr(self, 't0'):
+            return
+        dt=time.time()-self.t0
+        return int(round(dt*self.config.SCREEN_EXPECTED_FRAME_RATE))
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False,parameters=None):
         '''
@@ -272,13 +280,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, 
             flip = True, is_block = False):
         '''        
-        Two use cases are handled here:
+        Three use cases are handled here:
             - showing individual image files
                 duration: duration of showing individual image file
                 path: path of image file
             - showing the content of a folder
                 duration: duration of showing each image file in folder
                 path: path of folder containing images
+            - path is a hdf5 file containing a 3d numpy array which is loaded frame by frame
         Image is shown for one frame time if duration is 0.
         Further parameters:
             position: position of image on screen in pixels.
@@ -301,12 +310,43 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             fns.sort()
             if is_block:
                 self.block_start()
-            for fn in fns:
+            self.t0=time.time()
+            for i in range(len(fns)):
+                if self.machine_config.ENABLE_TIME_INDEXING:
+                    index=self._get_frame_index()
+                else:
+                    index=i
+                fn=fns[index]
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
             self.screen.clear_screen()
             self._flip(frame_trigger = True)
             if is_block:
                 self.block_end()
+        elif os.path.isfile(path) and os.path.splitext(path)=='.hdf5': # a hdf5 file with stimulus_frames variable having nframes * x * y dimensions
+            if self.machine_config.ENABLE_TIME_INDEXING:
+                raise NotImplementedError()
+            with closing(tables.open_file(path,'r')) as handler:
+                full_chunk = 0
+                if full_chunk: # read big chunk
+                    allframedata = handler.root.stimulus_frames[:5000].astype(float)/255
+                if is_block:
+                    self.block_start()
+                for f1i in range(handler.root.stimulus_frames.shape[0]):
+                    mytime = time.time()
+                    if full_chunk:
+                        framedata = allframedata[f1i]
+                    else:
+                        framedata = handler.root.stimulus_frames[f1i].astype(float)/255  # put actual image frames into the list of paths
+                    if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
+                        framedata = framedata[::-1]  # flip row order = flip image TOP to Bottom
+                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip, is_block=False)
+                    print(1./(time.time() - mytime))
+                    if self.abort:
+                        break
+                self.screen.clear_screen()
+                self._flip(frame_trigger=True)
+                if is_block:
+                    self.block_end()
         else:
             self._show_image(path,duration,position,stretch,flip,is_block)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
@@ -318,7 +358,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         for i in range(nframes):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+            if hasattr(path,'shape'):  # show image already loaded
+                self.screen.render_image(path, position=utils.rc_add(position, self.machine_config.SCREEN_CENTER),
+                                             stretch=stretch)
+            else:  # load image file given its path as a string
+                self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._add_block_start(is_block, i, nframes)
                 self._flip(frame_trigger = True)
@@ -492,6 +536,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         frame_i = 0
+        self.t0=time.time()
         while True:
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -531,7 +576,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self._add_block_end(is_block, frame_i, n_frames)
             if self.abort:
                 break
-            frame_i += 1
+            if self.machine_config.ENABLE_TIME_INDEXING:
+                frame_i=self._get_frame_index()
+            else:
+                frame_i += 1
             if duration != -1 and frame_i == n_frames:
                 break
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -582,8 +630,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, part_of_drawing_sequence = False,
-                    is_block = False, save_frame_info = True):
+                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, phases=[],
+                    part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -732,7 +780,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=numpy.tile(texture,(modulation_pixels,1,1))
             flicker_state=False
             switch_count=int(self.config.SCREEN_EXPECTED_FRAME_RATE/float(flicker['frequency']))
-
+        if len(phases)>0:
+            phases_pixel=numpy.array(phases)*self.config.SCREEN_UM_TO_PIXEL_SCALE / float(stimulus_profile.shape[0])
+            n_frames=phases_pixel.shape[0]
+        else:
+            phases_pixel=None
         texture_coordinates = numpy.array(
                              [
                              [cut_off_ratio, 1.0],
@@ -744,15 +796,23 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         start_time = time.time()
         phase = 0
+        self.t0=time.time()
+        phases=pixel_velocities.cumsum()
         for i in range(n_frames):
-            phase += pixel_velocities[i]
+            if self.machine_config.ENABLE_TIME_INDEXING:
+                index=self._get_frame_index()
+            else:
+                index=i
+            if not hasattr(phases_pixel,'shape'):
+                phase = phases[index]
+            else:
+                phase=phases_pixel[index]
             if flicker.has_key('frequency') and flicker.has_key('modulation_size'):
                 if i%switch_count==0:
                     flicker_state=not flicker_state
                     texture1=numpy.copy(texture)
                     texture1[int(flicker_state)::2]=0.0
                     glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture1)
-            
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -888,81 +948,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_grating_non_texture(self,duration,width,speed,orientation,duty_cycle,contrast=1.0,background_color=0.0):
-        raise NotImplementedError('block handling and trigger generation is not implemented')
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-        swap_row_col=False
-        reverse_phases = False
-        if orientation == 90:
-            orientation = 0
-            swap_row_col=True
-        elif orientation > 90 and orientation < 270:
-            reverse_phases = True
-        elif orientation == 270:
-            reverse_phases = True
-            swap_row_col=True
-            orientation = 0
-        background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
-        converted_background_color = colors.convert_color(background_color, self.config)
-        glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
-        width_pix = width*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE/numpy.cos(numpy.radians(orientation%90))
-        speed_pixel=speed*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
-        #Calculate display area
-        da_height = 2*self.config.SCREEN_RESOLUTION['col']*numpy.cos(numpy.arctan2(self.config.SCREEN_RESOLUTION['col'],self.config.SCREEN_RESOLUTION['row']))
-        da_width = numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2+self.config.SCREEN_RESOLUTION['col']**2)
-        period_length = numpy.round(width_pix*(1+duty_cycle))
-        if reverse_phases:
-            phase_range = numpy.arange(period_length,0,-1)
-        else:
-            phase_range = numpy.arange(period_length)
-        nperiods_s = int(numpy.ceil(da_width/period_length))*2
-        da_width = nperiods_s*period_length
-        #calculate vertices
-        edges_col = numpy.repeat(numpy.arange(-0.5*nperiods_s,0.5*nperiods_s)*period_length,2)
-        edges_col[1::2]+=width_pix
-        edges_row  = numpy.zeros_like(edges_col)
-        up_row = da_height/2*numpy.cos(numpy.radians(orientation))
-        up_col = -da_height/2*numpy.sin(numpy.radians(orientation))
-        down_row = -da_height/2*numpy.cos(numpy.radians(orientation))
-        down_col = da_height/2*numpy.sin(numpy.radians(orientation))
-        cols = numpy.array([edges_col + up_col,edges_col + down_col]).T.flatten()
-        rows = numpy.array([edges_row + up_row,edges_row + down_row]).T.flatten()
-        cols_with_phases=numpy.tile(cols,phase_range.shape[0])+numpy.repeat(phase_range,cols.shape[0])
-        rows_with_phases=numpy.tile(rows,phase_range.shape[0])+numpy.repeat(0*phase_range,rows.shape[0])
-        if swap_row_col:
-            vertices = numpy.array([rows_with_phases,cols_with_phases]).T
-        else:
-            vertices = numpy.array([cols_with_phases,rows_with_phases]).T
-        #Modify order of vertices
-        import copy
-        part1=copy.deepcopy(vertices[3::4])
-        part2=copy.deepcopy(vertices[2::4])
-        vertices[2::4] = part1
-        vertices[3::4] = part2
-#        pdb.set_trace()
-        nvertices_per_frame = cols.shape[0]
-        glEnableClientState(GL_VERTEX_ARRAY)
-        phase = 0
-        nframes=int(duration*self.config.SCREEN_EXPECTED_FRAME_RATE)
-        color_converted = colors.convert_color(contrast, self.config)
-        for frame_i in range(nframes):
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
-            phase_int = int(phase)
-#            pdb.set_trace()
-            glVertexPointerf(vertices[phase_int*nvertices_per_frame:(phase_int+1)*nvertices_per_frame])
-            phase += speed_pixel
-            if phase >= period_length:
-                phase -= period_length
-            glColor3fv(color_converted)
-            for stripe_i in range(nperiods_s):
-                glDrawArrays(GL_POLYGON, stripe_i * 4, 4)
-            self.log_on_flip_message = ''
-            self._flip_and_block_trigger(frame_i, nframes, True, False)
-            if self.abort:
-                break
-        glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
     def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, 
                             spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,
                             offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,
@@ -1004,7 +989,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
         intensity_profile_length = self.intensity_profile.shape[0]
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
-            self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
+            self.intensity_profile = numpy.tile(self.intensity_profile, int(numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0])))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
         bg=colors.convert_color(self.config.BACKGROUND_COLOR[0] if background is None else background, self.config)
         fly_in_out = bg[0] * numpy.ones((self.config.SCREEN_RESOLUTION['col'],1,3))
@@ -1042,7 +1027,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              [1.0, 0.0],
                              ])
         glTexCoordPointerf(texture_coordinates)
-        t0=time.time()
+        self.t0=time.time()
         texture_pointer = 0
         frame_counter = 0
         self._add_block_start(is_block, 0, 0)
@@ -1064,8 +1049,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         break
                 else:
                     break
-            texture_pointer += ds
-            frame_counter += 1
+            if self.machine_config.ENABLE_TIME_INDEXING:
+                frame_counter=self._get_frame_index()
+            else:
+                frame_counter += 1
+            texture_pointer = ds*frame_counter
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
@@ -1074,7 +1062,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
         self._add_block_end(is_block, 0, 1)
-        dt=(time.time()-t0)
+        dt=(time.time()-self.t0)
         #print 'frame rate', frame_counter/dt,'dt', dt,'frame counter', frame_counter,'text pointer', texture_pointer,'all texture size', alltexture.shape[0], 'self.intensity_profile', self.intensity_profile.shape, 'ds', ds
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
@@ -1099,7 +1087,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         ncheckers = utils.rc_x_const(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
         numpy.random.seed(0)
-        checker_colors = numpy.where(numpy.random.random((nframes,ncheckers['row'],ncheckers['col']))<0.5, False,True)
+        checker_colors = numpy.where(numpy.random.random((nframes,int(ncheckers['row']),int(ncheckers['col'])))<0.5, False,True)
         row_coords = numpy.arange(ncheckers['row'])-0.5*(ncheckers['row'] - 1)
         col_coords = numpy.arange(ncheckers['col'])-0.5*(ncheckers['col'] -1)
         rc, cc = numpy.meshgrid(row_coords, col_coords)
@@ -1109,8 +1097,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._append_to_stimulus_frame_info(params)
         size = utils.rc_x_const(ncheckers, square_size_pixel)
         self._init_texture(size)
+        self.t0=time.time()
         for frame_i in range(nframes):
-            texture = checker_colors[frame_i]
+            if self.machine_config.ENABLE_TIME_INDEXING:
+                index=self._get_frame_index()
+            else:
+                index=frame_i
+            texture = checker_colors[index]
             texture = numpy.rollaxis(numpy.array(3*[numpy.cast['float'](texture)]), 0,3)
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -1124,6 +1117,186 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self._append_to_stimulus_frame_info(params)
+            
+    def show_rolling_image(self, filename,pixel_size,speed,shift,yrange,axis='horizontal', save_frame_info=True):
+        if save_frame_info:
+            self.log.info('show_rolling_image(' + str(filename)+ ', ' + str(pixel_size) + ', ' + str(speed) + ', ' + str(shift)  + ', ' + str(yrange)  + ')', source = 'stim')
+            self._save_stimulus_frame_info(inspect.currentframe())
+        texture=numpy.flipud(numpy.asarray(Image.open(filename))/255.)
+        if len(texture.shape)<3:
+            texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
+        if yrange!=None:
+            if axis=='horizontal':
+                texture=texture[yrange[0]:yrange[1],:,:]
+            elif axis=='vertical':
+                texture=texture[:, yrange[0]:yrange[1],:]
+        shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
+        dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
+        #Image size: texture.shape*pixel_size*screen um2 pixel ratio
+        size=utils.rc(numpy.array(texture.shape[:2])*pixel_size/self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        texture_coordinates = numpy.array(
+                             [
+                             [1, 1],
+                             [0.0, 1],
+                             [0.0, 0.0],
+                             [1, 0.0],
+                             ])
+        self._init_texture(size,0)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+        #Calculate trajectory of image motion
+        ndsize=numpy.array([size['row'],size['col']])
+        ndres=numpy.array([self.config.SCREEN_RESOLUTION['row'],self.config.SCREEN_RESOLUTION['col']])
+        if axis=='horizontal':
+            p0=(ndsize/2-ndres/2)[::-1]
+            p1=p0*numpy.array([-1,1])
+            p1=p1.flatten()
+            p0=p0.flatten()
+            nshifts=int(size['row']/shift_pixel)-1
+            vertical_offsets=numpy.arange(nshifts)*shift_pixel
+            vertical_offsets=numpy.repeat(vertical_offsets,3)
+            points=numpy.array([p0,p1,p0])
+            points=numpy.array(points.tolist()*nshifts)
+            points[:,1]-=vertical_offsets
+        elif axis=='vertical':
+            p0=(ndsize/2-ndres/2)[::-1]
+            p1=p0*numpy.array([1,-1])
+            p1=p1.flatten()
+            p0=p0.flatten()
+            nshifts=int(size['col']/shift_pixel)-1
+            horizontal_offsets=numpy.arange(nshifts)*shift_pixel
+            horizontal_offsets=numpy.repeat(horizontal_offsets,3)
+            points=numpy.array([p0,p1,p0])
+            points=numpy.array(points.tolist()*nshifts)
+            points[:,0]-=horizontal_offsets
+        #Interpolate between points
+        offset=numpy.empty((0,2))
+        for i in range(points.shape[0]-1):
+            start=points[i]
+            end=points[i+1]
+            nsteps=int(abs(((end-start)/dpixel)).max())
+            increment_vector=(end-start)/abs((end-start)).max()*dpixel
+            steps=numpy.repeat(numpy.arange(nsteps),2).reshape(nsteps,2)*increment_vector+start
+            offset=numpy.concatenate((offset,steps))
+        import time
+        t0=time.time()
+        for i in range(offset.shape[0]):
+            now=time.time()
+            index=int((now-t0)*self.config.SCREEN_EXPECTED_FRAME_RATE)
+            if index>=offset.shape[0]:
+                break
+            vertices = geometry.rectangle_vertices(size, orientation = 0)-offset[index]
+            glEnableClientState(GL_VERTEX_ARRAY)
+            glVertexPointerf(vertices)
+            glTexCoordPointerf(texture_coordinates)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip(False)
+            if self.abort:
+                break
+        print i/(time.time()-t0)
+        self._deinit_texture()
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
+    def show_approach_stimulus(self, motion, bar_width, speed, color=1.0, initial_wait=2.0, mask_size=400.,save_frame_info=True):
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        bar_width_pixel=bar_width*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        mask_size_pixel=mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        dpix=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
+        circle_vertices=geometry.circle_vertices([mask_size_pixel]*2,  resolution = 0.5)+0*numpy.array([[100,0]])
+        #Convert circle to its complementer shape being composed of rectangles
+        rect_width=self.config.SCREEN_RESOLUTION['col']/2+circle_vertices[:,0].min()
+        x1=-self.config.SCREEN_RESOLUTION['col']/2+rect_width/2
+        x2=self.config.SCREEN_RESOLUTION['col']/2-rect_width/2
+        mask_vertices1=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x1,0]])
+        mask_vertices2=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x2,0]])
+        mask_vertices=mask_vertices1
+        mask_vertices=numpy.append(mask_vertices,mask_vertices2,axis=0)
+        for pi in range(circle_vertices.shape[0]):
+            p1=circle_vertices[pi]
+            if pi==circle_vertices.shape[0]-1:
+                p2=circle_vertices[0]
+            else:
+                p2=circle_vertices[pi+1]
+            if numpy.sign(p1[1])!=numpy.sign(p2[1]):
+                continue
+            if p1[1]>0:
+                coo=self.config.SCREEN_RESOLUTION['row']/2
+            else:
+                coo=-self.config.SCREEN_RESOLUTION['row']/2
+            rect=numpy.array([p1,p2, [p2[0],coo], [p1[0],coo]])
+            mask_vertices=numpy.append(mask_vertices,rect,axis=0)
+        intial_wait_frames=int(self.config.SCREEN_EXPECTED_FRAME_RATE*initial_wait)
+        #precalculate edge positions
+        start_pos=utils.rc((0,0))
+        start_size=bar_width_pixel
+        if motion=='expand':
+            end_pos=utils.rc((0,0))
+            end_size=mask_size_pixel
+        elif motion=='shrink':
+            end_pos=utils.rc((0,0))
+            end_size=0
+        elif motion=='left':
+            end_pos=utils.rc((0,-mask_size_pixel/2))
+            end_size=bar_width_pixel
+        elif motion=='right':
+            end_pos=utils.rc((0,mask_size_pixel/2))
+            end_size=bar_width_pixel
+        #interpolate positions and sizes
+        if start_pos['col']==end_pos['col']:
+            if start_size<end_size:
+                d=dpix
+            else:
+                d=-dpix
+            size=numpy.arange(start_size,end_size+dpix, d)
+            x=numpy.ones(size.shape[0])*start_pos['col']
+        elif start_size==end_size:
+            if start_pos['col']<end_pos['col']:
+                d=dpix
+            else:
+                d=-dpix
+            x=numpy.arange(start_pos['col'],end_pos['col']+dpix, d)
+            size=numpy.ones_like(x)*start_size
+        else:
+            raise NotImplementedError('')
+        #x=numpy.concatenate((numpy.ones(intial_wait_frames)*x[0],x))
+        #size=numpy.concatenate((numpy.ones(intial_wait_frames)*size[0],size))
+        y=numpy.ones_like(x)*start_pos['row']
+        #generate rectangle vertices
+        vertices=mask_vertices
+        for i in range(size.shape[0]):
+            vertices=numpy.append(vertices,geometry.rectangle_vertices(utils.rc((mask_size_pixel,size[i])))+numpy.array([[x[i],y[i]]]),axis=0)
+        #texture_coordinates=self._init_texture(self.config.SCREEN_RESOLUTION)
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        n_vertices=4
+        for i in range(size.shape[0]):
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+            glEnable( GL_STENCIL_TEST )
+            glStencilFunc( GL_ALWAYS, 1, 1 )
+            glStencilOp( GL_REPLACE, GL_REPLACE, GL_REPLACE )
+            for shi in range(mask_vertices.shape[0]/4):
+                glDrawArrays(GL_POLYGON, shi*4, 4)
+            
+            glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE )
+            glStencilFunc( GL_EQUAL, 1, 1 )
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+            glColor3fv(colors.convert_color(color, self.config))
+            glDrawArrays(GL_POLYGON,  i * n_vertices+mask_vertices.shape[0], n_vertices)
+            glDisable( GL_STENCIL_TEST )
+            if i==1:
+                for w in range(intial_wait_frames-1):
+                    self._flip(frame_trigger = True)
+            else:
+                self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
     
             
 class StimulationHelpers(Stimulations):
@@ -1146,6 +1319,7 @@ class StimulationHelpers(Stimulations):
                              [1.0, 0.0],
                              ])
         glTexCoordPointerf(texture_coordinates)
+        return texture_coordinates
         
     def _deinit_texture(self):
         glDisable(GL_TEXTURE_2D)
@@ -1688,7 +1862,7 @@ if test_mode:
             #TODO: check captured files: shape size, speed
             numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
     
-        #@unittest.skip('')
+        @unittest.skip('')
         def test_03_natural_stim_spectrum(self):
             from visexpman.engine.visexp_app import stimulation_tester
             from PIL import Image
@@ -1795,7 +1969,11 @@ if test_mode:
         def test_13_receptive_field(self):
             from visexpman.engine.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNewAngle', ENABLE_FRAME_CAPTURE = False)
-        
+            
+        def test_14_time_indexing(self):
+            from visexpman.engine.visexp_app import stimulation_tester
+            context = stimulation_tester('test', 'GUITestConfig', 'TestTimeIndexing', ENABLE_TIME_INDEXING = False)
+            context = stimulation_tester('test', 'GUITestConfig', 'TestTimeIndexing', ENABLE_TIME_INDEXING = True)
     
 
 if __name__ == "__main__":

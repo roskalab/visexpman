@@ -146,7 +146,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
         DATA_STORAGE_PATH = fileop.select_folder_exists([ '/mnt/rzws/dataslow', '/tmp', 'C:\\temp'])
-        DELETED_FILES_PATH = fileop.select_folder_exists(['d:\\deleted_files', '/tmp/deleted_files', 'c:\\temp'])
+        DELETED_FILES_PATH = fileop.select_folder_exists(['d:\\deleted_files', '/tmp', 'c:\\temp'])
         CONTEXT_PATH = self.root_folder
         ENABLE_FRAME_CAPTURE = not True
         if ENABLE_FRAME_CAPTURE:

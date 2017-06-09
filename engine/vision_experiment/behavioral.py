@@ -1,5 +1,5 @@
 import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging,datetime
-import numpy,visexpman, traceback,serial,re,subprocess,platform
+import numpy,visexpman, traceback,serial,subprocess,platform
 import cv2
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -17,9 +17,6 @@ FRAME_TIME_BUFFER_SIZE=10000
 EMULATE_SPEED= False
 
 #from memory_profiler import profile
-
-def object_parameters2dict(obj):
-    return dict([(vn,getattr(obj, vn)) for vn in dir(obj) if vn.isupper()] )
 
 def get_protocol_names():
     pns = [m[1].__name__ for m in utils.fetch_classes('visexpman.users.common', required_ancestors = experiment.BehavioralProtocol,direct = False)]
@@ -264,14 +261,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug']
+        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug', 'laser']
         if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
         else:
-            y=y[:-1]
-            x=x[:-1]
-            trace_names=trace_names[:-1]
+            y=y[:-2]
+            x=x[:-2]
+            trace_names=trace_names[:-2]
         if hasattr(self,'lick_times') and self.lick_times.shape[0]>0:
             x[1]=self.lick_times
             y[1]=numpy.ones_like(self.lick_times)*2
@@ -279,6 +276,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             del x[1]
             del y[1]
             del trace_names[1]
+        y[-1]*=0#TEMP!!!
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
         
@@ -294,6 +292,16 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
                 self.current_protocol = 'HitMiss' if self.current_protocol=='Lick' else 'Lick'
             logging.info('Random selection: {0}'.format(self.current_protocol))
+        elif str(self.parameters['Protocol']) == 'Lick and Hitmiss Random Laser':
+            if not hasattr(self, 'protocol_history'):
+                self.protocol_history=[]
+            last_n=5
+            prob=numpy.random.random(1)
+            prob=(prob>0.5)[0]
+            self.current_protocol='LickRandomLaser' if prob else 'HitMissRandomLaser'
+            if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
+                self.current_protocol = 'HitMissRandomLaser' if self.current_protocol=='LickRandomLaser' else 'LickRandomLaser'
+            logging.info('Random selection: {0}'.format(self.current_protocol))
         else:
             self.current_protocol = str(self.parameters['Protocol'])
         modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__name__
@@ -304,7 +312,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def _start_protocol(self):
         self._load_protocol()
-        param_str=str(object_parameters2dict(self.protocol)).replace(',',',\r\n')
+        param_str=str(introspect.cap_attributes2dict(self.protocol)).replace(',',',\r\n')
         self.to_gui.put({'update_protocol_description':'Current protocol: '+ self.current_protocol+'\r\n'+self.protocol.__doc__+'\r\n'+param_str})
         self.protocol.start()
         logging.info('Protocol started')
@@ -353,11 +361,14 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         #logging.info(introspect.python_memory_usage())
         self.ai=daq_instrument.AnalogRecorder(self.machine_config.AI_CHANNELS, self.machine_config.AI_SAMPLE_RATE)
         self.ai.start()
+        logging.info('AI started')
         t0=time.time()
         while self.ai.responseq.empty():
             time.sleep(0.1)
-            if time.time()-t0>10:
+            if time.time()-t0>20:
+                logging.info('Daq start timeout')
                 break
+        logging.info(self.ai.responseq.get())
         time.sleep(1.5)#This value is experimental!!!
         self._start_protocol()
         self.id=experiment_data.get_id()
@@ -384,7 +395,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if self.sync.shape[0]>0: 
                 #self.ai.read()
                 break
-            if time.time()-t0>10:
+            if time.time()-t0>20:
                 logging.error('Not enough AI samples?')
                 logging.info(self.ai.dataq.qsize())
                 abort_session=True
@@ -463,7 +474,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile=hdf5io.Hdf5io(self.filename)
         for nn in ['machine_config', 'protocol']:
             var=getattr(self, nn)
-            setattr(self.datafile, nn, object_parameters2dict(var))
+            setattr(self.datafile, nn, introspect.cap_attributes2dict(var))
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         self.datafile.sync=self.sync
         if hasattr(self,'stat'):
@@ -502,7 +513,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'])
+        if self.parameters['Protocol']=='HitMissRandomLaser':
+            filter={'voltage':self.parameters['Laser Intensity']}
+        else:
+            filter={}
+        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'],filter=filter)
         logging.info('Done')
         self.to_gui.put({'show_animal_statistics':self.analysis})
         
@@ -594,7 +609,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     msg = self.from_gui.get()
                     if msg == 'terminate':
                         return True#break
-                    if msg.has_key('function'):#Functions are simply forwarded
+                    if hasattr(msg, 'has_key') and msg.has_key('function'):#Functions are simply forwarded
                         #Format: {'function: function name, 'args': [], 'kwargs': {}}
                         if DEBUG:
                             logging.debug(msg)
@@ -688,11 +703,11 @@ class Behavioral(gui.SimpleAppWindow):
         protocol_names=get_protocol_names()
         protocol_names_sorted=[pn for pn in self.machine_config.PROTOCOL_ORDER if pn in protocol_names]
         protocol_names_sorted.insert(0,'Random Selection Hitmiss Lick')
+        protocol_names_sorted.insert(0,'Lick and Hitmiss Random Laser')
         self.params_config=[
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
-                                {'name': 'Pulse Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 ]},
 #                            {'name': 'Lick Detection', 'type': 'group', 'expanded' : True, 'children': [
 #                                {'name': 'Voltage Threshold', 'type': 'float', 'value': 0.25,'siPrefix': True, 'suffix': 'V'},
@@ -701,6 +716,7 @@ class Behavioral(gui.SimpleAppWindow):
 #                                {'name': 'Mean Voltage Threshold', 'type': 'float', 'value': 0.07,'siPrefix': True, 'suffix': 'V'},
 #                                ]},
                             {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Pulse Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': 'Water Open Time', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 #{'name': 'Air Puff Duration', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 's'},
                                 {'name': '100 Reward Volume', 'type': 'float', 'value': 10e-3,'siPrefix': True, 'suffix': 'l'},
@@ -787,6 +803,8 @@ class Behavioral(gui.SimpleAppWindow):
                     plotparams.append({'name': tn, 'pen':(255,0,0)})
                 elif tn=='protocol/debug':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0,0,0,150)})
+                elif tn=='laser':
+                    plotparams.append({'name': tn, 'pen':(255,165,0)})
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
             self.plots.events.plot.setXRange(0,tmax)
@@ -1090,7 +1108,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         gui.set_win_icon()
         self.machine_config=parent.machine_config
         self.setGeometry(self.machine_config.SCREEN_OFFSET[0],self.machine_config.SCREEN_OFFSET[1],parent.machine_config.SCREEN_SIZE[0],parent.machine_config.SCREEN_SIZE[1])
-        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder)+' '+analysis.protocol)
+        self.setWindowTitle('Summary of '+os.path.basename(analysis.folder)+' '+analysis.protocol+ ' ' + str(analysis.filter))
         self.setTabPosition(self.North)
         pp=[{'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,255,0,128), 'pen': (50,255,0,128)}]
         days=numpy.array([utils.datestring2timestamp(d,format='%Y%m%d')/86400 for d in analysis.days])
@@ -1108,6 +1126,7 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         success_rate_plot.update_curves(2*[days],[analysis.success_rates*100,analysis.lick_success_rates *100],plotparams=pps)
         success_rate_plot.plot.setLabels(left='success rate [%]')
         self.addTab(success_rate_plot,'Success rate')
+        self.analysis=analysis
         lick_latency_histogram_plot=self.histograms(analysis.lick_latency_histogram)
         reward_latency_histogram_plot=self.histograms(analysis.reward_latency_histogram)
         lick_times_histogram_plot=self.histograms(analysis.lick_times_histogram)
@@ -1130,7 +1149,11 @@ class AnimalStatisticsPlots(QtGui.QTabWidget):
         for d in days:
             histw.plots.append(gui.Plot(histw))
             histw.plots[-1].plot.setTitle(d)
-            histw.plots[-1].update_curve(bins,hist[1][d], plotparams={'fillLevel':-0.3, 'brush': (50,50,128,100)})
+            if bins.shape[0]==1 or hist[1][d].sum()==0:
+                pp={'symbol':'o', 'symbolSize':12, 'symbolBrush': (50,50,128,100)}
+            else:
+                pp={'fillLevel':-0.01, 'brush': (50,50,128,100)}
+            histw.plots[-1].update_curve(bins,hist[1][d], plotparams=pp)
             histw.plots[-1].plot.setLabels(left='occurence', bottom='dt [ms]')
             histw.plots[-1].plot.setYRange(0, ymax)
             histw.l.addWidget(histw.plots[-1], ct/2, ct%2, 1, 1)
