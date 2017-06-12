@@ -519,7 +519,7 @@ class CommandInterface(command_parser.CommandParser):
                         converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal', 'image_scale', 'quick_analysis'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
                     elif self.kwargs['export'] == 'EXPORT_DATA_TO_VIDEO':
                         nodes = ['idnode','rawdata', 'sync_signal', 'image_scale']
-                        if 'movinggrating' in full_fragment_path.lower():
+                        if 'grating' in full_fragment_path.lower():
                             nodes.extend(['soma_rois', 'roi_curves'])
                         self.printl('Saving the followings to mat file: {0}' .format(', '.join(nodes)))
                         from visexpA.users.zoltan import converters
@@ -611,7 +611,7 @@ def fragment_name_to_short_string(filename):
 def hdf52mat(full_fragment_path):
     from visexpA.users.zoltan import converters
     nodes = ['idnode','blockpar', 'call_parameters', 'rawdata', 'sync_signal', 'stimpar', 'position', 'image_origin', 'image_scale','quick_analysis','experiment_name','experiment_config_name', 'stimulus_class', 'pmt_percent', 'laser_percent', 'objective_origin', 'exptype', 'data_class']
-    if 'movinggrating' in full_fragment_path.lower():
+    if 'rating' in full_fragment_path.lower():
         nodes.extend(['soma_rois', 'roi_curves'])
     converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
     
@@ -759,7 +759,7 @@ def offline(folder,output_folder=None,video=False):
             mes_extractor.hdfhandler.close()
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
-            ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led']
+            ONLINE_ANALYSIS_STIMS=['grating','movingdot','led']
             stimulus=os.path.basename(f).split('_')[-3]
             if len([sn for sn in ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.lower()])>0 and 1:
                 h = hdf5io.iopen(f,analysis_config)

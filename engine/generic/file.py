@@ -256,7 +256,7 @@ def recreate_dir(folder):
 
 def copy(src, dst, update=1):
     if not os.path.exists(src):
-        raise OSError('File or directory to be copied does not exist')
+        raise OSError('File or directory {0} does not exist'.format(src))
     if os.path.isfile(src): 
         dir_util.mkpath(os.path.split(dst)[0])
         return file_util.copy_file(src, dst, update=1)

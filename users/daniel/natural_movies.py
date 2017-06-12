@@ -8,37 +8,37 @@ import time
 
 class NaturalMovieWithGrayBackgnd(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.MOVIE_REPEATS=1
-        self.FILENAME = 'c:\\Data\\catcam17'
+        self.MOVIE_REPEATS=3
+        self.FILENAME = 'c:\\Data\\Movies\\catcam17'
         self.FRAME_RATE=30.0 # Change frame rate back to 25 fps when possible (by adding images). 
         self.STRETCH = 2.75 # Covers 661 pixels vertical / 51 angular degrees. 
         self.runnable = 'NaturalMovieExperimentWithGray'
         
         #Grating parameters
         self.NUMBER_OF_MARCHING_PHASES = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
-        self.MARCH_TIME = 4.0
-        self.GRATING_STAND_TIME = 4.0
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 2
+        self.MARCH_TIME = 3.0
+        self.GRATING_STAND_TIME = 3.0
         
         self.ORIENTATIONS = range(0, 360, 90)
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [800.0]#1800
+        self.VELOCITIES = [1200.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 2
-        self.PAUSE_BEFORE_AFTER = 5.0
+        self.PAUSE_BEFORE_AFTER = 3.0
         self.COLOR_CONTRAST = 1.0
         
         self.GRATING_REPEATS = 1
 
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 2
 
         self.ENABLE_RANDOM_ORDER = False #True
         if self.ENABLE_RANDOM_ORDER:
             import random
             random.shuffle(self.ORIENTATIONS)
         
-        self.FULLSCREEN_TIME = 180.0; # 5 Minutes
+        self.FULLSCREEN_TIME = 0; # 5 Minutes
         self.FULLSCREEN_COLOR = 0.25; # Medium gray contrast
         
         self._create_parameters_from_locals(locals())
