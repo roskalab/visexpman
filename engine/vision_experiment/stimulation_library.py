@@ -299,7 +299,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self._save_stimulus_frame_info(inspect.currentframe())
         print self.frame_counter
         if os.path.isdir(path):
-            for fn in os.listdir(path):
+            files=os.listdir(path)
+            if len([f for f in files if os.path.splitext(f)[1] not in ['.png', '.bmp', '.jpg']])>0:
+                 raise RuntimeError('{0} folder contains non image files, please remove them!'.format(path))
+            for fn in files:
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
                 if self.abort:
                     break
@@ -1370,7 +1373,7 @@ class StimulationSequences(Stimulations):
             screen_center_um=self.machine_config.SCREEN_CENTER
             positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
             #Correct for display center
-            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
+            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')#!!!!!ERROR COMES HERE
             positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
             #Convert angles to positions
             positions_and_colors = [[p,self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]

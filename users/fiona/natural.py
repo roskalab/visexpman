@@ -7,9 +7,9 @@ import time
 
 class NaturalMovieSv1(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.REPEATS=5
+        self.REPEATS=1
 	self.DURATION = 30.0
-        self.FILENAME = 'c:\\Data\\movieincage_fiona'
+        self.FILENAME = 'c:\\Data\\Movies\\catcam17'#movieincage_fiona'
         self.FRAME_RATE=60.0
         self.STRETCH = 1.7
         self.runnable = 'NaturalMovieExperiment'
@@ -131,7 +131,7 @@ class LedMorseStimulation(experiment.Experiment):
         
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]
+        self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]*self.experiment_config.REPEATS
         
     def run(self):
 #        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
