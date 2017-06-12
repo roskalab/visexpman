@@ -308,6 +308,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if os.path.isdir(path):
             fns = os.listdir(path)
             fns.sort()
+            if len([f for f in fns if os.path.splitext(f)[1] not in ['.png', '.bmp', '.jpg']])>0:
+                 raise RuntimeError('{0} folder contains non image files, please remove them!'.format(path))
             if is_block:
                 self.block_start()
             self.t0=time.time()
