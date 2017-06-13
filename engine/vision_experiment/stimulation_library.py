@@ -1566,8 +1566,9 @@ class AdvancedStimulation(StimulationHelpers):
         if self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE==0:
             raise RuntimeError('SCREEN_DISTANCE_FROM_MOUSE_EYE parameter has invalid (0) value')
         distance_from_center = self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*numpy.tan(numpy.radians(angle))
-#        if axis!=None:
-#            distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
+        if axis!=None:
+            distance_from_center+=self.machine_config.SCREEN_CENTER[axis]
+        self.machine_config.SCREEN_PIXEL_WIDTH#mm
         return (distance_from_center/self.machine_config.SCREEN_PIXEL_WIDTH)/self.machine_config.SCREEN_UM_TO_PIXEL_SCALE#um coordinate
         
     def angle2size(self,size_deg, pos_deg):
@@ -1578,9 +1579,7 @@ class AdvancedStimulation(StimulationHelpers):
         maxangle=utils.rc_add(pos_deg,utils.rc_multiply_with_constant(size_deg,0.5),'+')
         size_row=self.angle2screen_pos(maxangle['row'],'row')-self.angle2screen_pos(minangle['row'],'row')
         size_col=self.angle2screen_pos(maxangle['col'],'col')-self.angle2screen_pos(minangle['col'],'col')
-        pos_row=self.angle2screen_pos(minangle['row'],'row')+0.5*size_row
-        pos_col=self.angle2screen_pos(minangle['col'],'col')+0.5*size_col
-        return utils.rc((pos_row,pos_col)), utils.rc((size_row,size_col))
+        return utils.rc((size_row,size_col))
 
     def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, 
                                 display_size = None, flash_repeat = 1, sequence_repeat = 1, 
@@ -1630,51 +1629,18 @@ class AdvancedStimulation(StimulationHelpers):
         if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
             positions_and_colors_angle=positions_and_colors
             #Consider positions in degree units and convert them to real screen positions
-            #calculate screen center from self.experiment_config.DISPLAY_CENTER and self.machine_config.SCREEN_SIZE_UM
-#            screen_center_um_row=((self.display_size['row']/2-self.experiment_config.DISPLAY_CENTER['row'])/self.display_size['row'])*self.machine_config.SCREEN_SIZE_UM['row']
-#            screen_center_um_col=((self.display_size['col']/2-self.experiment_config.DISPLAY_CENTER['col'])/self.display_size['col'])*self.machine_config.SCREEN_SIZE_UM['col']
-#            screen_center_um=numpy.array([screen_center_um_row, screen_center_um_col])
-#            screen_center_angle_offset_row=self.display_size['row']/2-self.experiment_config.DISPLAY_CENTER['row']
-#            screen_center_angle_offset_col=self.display_size['col']/2-self.experiment_config.DISPLAY_CENTER['col']
-#            screen_center_angle_offset=numpy.array([screen_center_angle_offset_row,screen_center_angle_offset_col])
-            colors=[pc[0] for pc in positions_and_colors]
-            positions=numpy.array([[pc[1]['row'],pc[1]['col']] for pc in positions_and_colors])
-            shape_size_=numpy.array([shape_size['row'], shape_size['col']])
-            #Calculate corners from positions
-            corners=numpy.repeat(positions,2,axis=0)
-            corners+=numpy.tile(numpy.array([shape_size_/2,-shape_size_/2]).T,positions.shape[0]).T
-            #pull angles to the angles pointed by display center. For example if display center is at rc 20,40, corners shoud be pulled to -20 and -40 degrees
-            angle_correction=-numpy.array([self.experiment_config.DISPLAY_CENTER['row'],self.experiment_config.DISPLAY_CENTER['col']])-numpy.array([corners[:,0].min(),corners[:,1].min()])
-            corners+=angle_correction#IDAIG JOOO
-            if self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE==0:
-                raise RuntimeError('SCREEN_DISTANCE_FROM_MOUSE_EYE parameter has invalid (0) value')
-            distance_from_closest_point=numpy.tan(numpy.radians(corners))*self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE
-            #This distance has to be transformed to size on retina (um scale)
-            screen_real_size=self.machine_config.SCREEN_PIXEL_WIDTH*numpy.array([self.machine_config.SCREEN_RESOLUTION['row'],self.machine_config.SCREEN_RESOLUTION['col']])
-            screen_size_on_retina=numpy.array([self.machine_config.SCREEN_SIZE_UM['row'],self.machine_config.SCREEN_SIZE_UM['col']])
-            corners_retina_space=screen_size_on_retina/screen_real_size*distance_from_closest_point
-            #Shift it to the center
-            corners_retina_space=corners_retina_space-numpy.array([corners_retina_space[:,0].min(),corners_retina_space[:,1].min()])-0.5*screen_size_on_retina
-            #Calculate shape positions and sizes from corners
-            for i in range(corners_retina_space.shape[0]/2):
-                c1=corners_retina_space[2*i]
-                c2=corners_retina_space[2*i+1]
-                size=abs(c1-c2)
-                center=c1-size/2
-                col, angle=positions_and_colors[i]
-                size=utils.rc((size[0], size[1]))
-                center=utils.rc((center[0], center[1]))
-                positions_and_colors[i]=[angle, size, col, center]
-#            positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
-#            #Correct for display center
-#            center_angle_correction=self.experiment_config.DISPLAY_CENTER
-#            positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
-#            #Convert angles to positions
-#            positions_and_colors = [[self.angle2size(shape_size, p)[0],self.angle2size(shape_size, p)[1],c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
-#            pos=numpy.array([p for a,d,c,p in positions_and_colors])
-#            offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
-#            offset=utils.rc_add(offset,screen_center_um,'+')
-#            positions_and_colors = [[a,d,c,utils.rc_add(p,offset,'-')] for a,d,c, p in positions_and_colors]
+            #correct for screen center
+            screen_center_um=self.machine_config.SCREEN_CENTER
+            positions_and_colors = [[c,utils.rc((p['row']-screen_center_um['row'], p['col']-screen_center_um['col']))] for c,p in positions_and_colors]
+            #Correct for display center
+            center_angle_correction=utils.rc_add(utils.rc_multiply_with_constant(display_size,0.5),self.experiment_config.DISPLAY_CENTER,'-')
+            positions_and_colors = [[c,utils.rc((p['row']-center_angle_correction['row'], p['col']-center_angle_correction['col']))] for c,p in positions_and_colors]
+            #Convert angles to positions
+            positions_and_colors = [[p,self.angle2size(shape_size, p),c,utils.rc((self.angle2screen_pos(p['row'],'row'),self.angle2screen_pos(p['col'],'col')))] for c, p in positions_and_colors]
+            pos=numpy.array([p for a,d,c,p in positions_and_colors])
+            offset=utils.cr(((pos['col'].max()+pos['col'].min())/2,(pos['row'].max()+pos['row'].min())/2))
+            #offset=utils.rc_add(offset,screen_center_um,'+')
+            positions_and_colors = [[a,d,c,utils.rc_add(p,offset,'-')] for a,d,c, p in positions_and_colors]
             #Convert to ulcorner
             if self.machine_config.COORDINATE_SYSTEM=='ulcorner':
                 positions_and_colors = [[a,d,c,utils.rc((-p['row']+0.5*self.machine_config.SCREEN_SIZE_UM['row'],p['col']+0.5*self.machine_config.SCREEN_SIZE_UM['col']))] for a,d,c, p in positions_and_colors]
@@ -1686,7 +1652,7 @@ class AdvancedStimulation(StimulationHelpers):
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
             for angle,shape_size_i, color,p in positions_and_colors:
-                    print angle, shape_size_i['row'],p['row']
+                    print angle
                     #print shape_size_i['row']
             #for p in positions:
              #   for color in shape_colors:
