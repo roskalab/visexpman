@@ -9,12 +9,12 @@ class ReceptiveFieldTest(experiment.ExperimentConfig):
         self.SHAPE = 'rect'
         self.COLORS = [1.0]
         self.BACKGROUND_COLOR = 0
-        self.NROWS = 3#10
-        self.NCOLUMNS = 6#18
+        self.NROWS = 10/3
+        self.NCOLUMNS = 18/3
         self.SIZE_DIMENSION='angle'
         self.DISPLAY_SIZE = utils.rc((50.0,90.0))
-        self.DISPLAY_CENTER = utils.rc((25,45.0))
-        self.ON_TIME = 2.0#0.8
+        self.DISPLAY_CENTER = utils.rc((20.0,20.0))
+        self.ON_TIME = 0.1*10#0.8
         self.OFF_TIME = 0#0.8
         self.REPEATS = 1 
         self.REPEAT_SEQUENCE = 1

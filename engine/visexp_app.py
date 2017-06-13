@@ -74,7 +74,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
         #Check keyboard
         from visexpman.engine.generic.graphics import check_keyboard
         keys = check_keyboard()
-        if not hasattr(self, 'command_issued'):
+        if not hasattr(self, 'command_issued') and 0:
             keys.extend(['0', 'e','escape'])#TODO: remove, this is for testing
             self.command_issued=True
         for key_pressed in keys:
