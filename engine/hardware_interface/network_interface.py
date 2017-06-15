@@ -11,7 +11,6 @@ try:
     import blosc
 except:
     pass
-import simplejson
 import os.path
 import threading
 import SocketServer
@@ -26,7 +25,10 @@ try:
     import zmq
 except:
     pass
-import simplejson
+try:
+    import simplejson
+except:
+    pass
 import multiprocessing
 from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
