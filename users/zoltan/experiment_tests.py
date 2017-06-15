@@ -194,6 +194,25 @@ class Gr(experiment.Stimulus):
 #        self.show_grating(white_bar_width=100, velocity=100.0,duration=self.DURATION,orientation=10)
 #        self.show_grating(white_bar_width=100, velocity=100.0,duration=self.DURATION,orientation=90,display_area=utils.rc((400,800)))
 
+def receptive_field_calculator():
+    height_deg=50
+    width_deg=90
+    nrows=5
+    ncols=9
+    distance=220
+    closest_point_from_left=25#Deg
+    closest_point_from_bottom=20#Deg
+    sizev=height_deg/float(nrows)
+    sizeh=width_deg/float(ncols)
+    angles_h=numpy.linspace(-closest_point_from_left,-closest_point_from_left+width_deg,ncols+1)
+    angles_v=numpy.linspace(-closest_point_from_bottom,-closest_point_from_bottom+height_deg,nrows+1)
+    xd=numpy.tan(numpy.radians(angles_h))*distance
+    yd=numpy.tan(numpy.radians(angles_v))*distance
+    x, y = numpy.meshgrid(xd, yd)
+    pass
+    
+
 if __name__ == "__main__":
+    receptive_field_calculator()
     from visexpman.engine.visexp_app import stimulation_tester
     stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
