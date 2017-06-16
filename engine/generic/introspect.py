@@ -13,8 +13,18 @@ import hashlib
 import weakref
 
 import subprocess, os, signal
-import copy
+import numpy
 import psutil
+
+def visexpman2hash():
+    from visexpman.engine.generic import fileop
+    foldername=fileop.visexpman_package_path()
+    files=[]
+    for subfold in [os.path.join('users','common'), 'engine']:
+        files.extend(fileop.find_files_and_folders(os.path.join(foldername, subfold))[1])
+    sha=hashlib.sha256()
+    files=[sha.update(fileop.read_text_file(f)) for f in files if os.path.splitext(f)[1]=='.py']
+    return numpy.fromstring(sha.digest(), dtype=numpy.uint8)
 
 def cap_attributes2dict(obj):
     '''
@@ -3457,8 +3467,11 @@ class TestUtils(unittest.TestCase):
         
     def tearDown(self):
         pass
+        
+    def test_01_folder2hash(self):
+        visexpman2hash()
 
-    def test_01_ModifiableIterator(self):
+    def test_02_ModifiableIterator(self):
         list = [1,2,3,4]
         alist = ModifiableIterator(list)
         result=[]
