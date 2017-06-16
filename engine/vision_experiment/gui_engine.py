@@ -98,6 +98,9 @@ class ExperimentHandler(object):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
             return
+        if os.path.basename(os.path.dirname(filename))=='common':
+            self.notify('Warning', 'Common stimulus files cannot be opened for editing')
+            return
         lines=fileop.read_text_file(filename).split('\n')
         line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1
         self.printc('Opening {0}/{1} in gedit at line {2}'.format(filename, classname,line))
@@ -511,7 +514,7 @@ class ExperimentHandler(object):
                     
     def convert_stimulus_to_video(self):
         if hasattr(self.machine_config, 'SCREEN_MODE') and self.machine_config.SCREEN_MODE == 'psychopy':
-            self.notify('This function is not supported in SCREEN_MODE = psychopy')
+            self.notify('Warning', 'This function is not supported in SCREEN_MODE = psychopy')
             return
         self.printc('Converting stimulus to video started, please wait')
         cf=self.guidata.read('Selected experiment class')

@@ -119,3 +119,8 @@ class CameronBpSetup(AoCorticalCaImagingConfig):
 #        self.SYNC_RECORD_OVERHEAD=5
         SCREEN_UM_TO_PIXEL_SCALE = 1
         #self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
+
+class CameronDev(CameronAoSetup):
+    def _set_user_parameters(self):
+        CameronAoSetup._set_user_parameters(self)
+        self.FULLSCREEN=not True
