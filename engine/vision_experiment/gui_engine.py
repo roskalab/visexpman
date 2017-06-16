@@ -1236,6 +1236,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.to_gui = Queue.Queue()
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         self.load_context()
+        self.check_software_hash()
         self.widget_status = {}
         self.last_network_check=time.time()
         self.enable_check_network_status=enable_network
