@@ -368,22 +368,24 @@ class ExperimentHandler(object):
                     pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
-                self.printc('TODO: send job to jobhandler')
-                return
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-                #if self.current_experiment_parameters['duration']>5*60: return
-                #Wait till datafile is saved
-                time.sleep(0.5)
-                self.printc('Waiting for MES file')
-                to = (60 if self.current_experiment_parameters['duration']>120 else 30)+0.5*self.current_experiment_parameters['duration']
-                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=to, min_size=1e6)
-                self.printc('Reading MES file')
-                a=aod.AOData(fn)
-                a.tomat()
-                a.close()
-                self.printc('MES data merged to {0}'.format(fn))
+                self.printc('TODO: send job to jobhandler')
+                self.printc(fn)
+#                return
+#                fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+#                #if self.current_experiment_parameters['duration']>5*60: return
+#                #Wait till datafile is saved
+#                time.sleep(0.5)
+#                self.printc('Waiting for MES file')
+#                to = (60 if self.current_experiment_parameters['duration']>120 else 30)+0.5*self.current_experiment_parameters['duration']
+#                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=to, min_size=1e6)
+#                self.printc('Reading MES file')
+#                a=aod.AOData(fn)
+#                a.tomat()
+#                a.close()
+#                self.printc('MES data merged to {0}'.format(fn))
             #Save experiment/stimulus config
-            h = experiment_data.CaImagingData(filename)
+            h = experiment_data.CaImagingData(fn)
             h.sync2time()
             h.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
             h.stimulus_parameters=self.stimulus_parameters

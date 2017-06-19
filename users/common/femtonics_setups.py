@@ -123,4 +123,5 @@ class CameronBpSetup(AoCorticalCaImagingConfig):
 class CameronDev(CameronAoSetup):
     def _set_user_parameters(self):
         CameronAoSetup._set_user_parameters(self)
-        self.FULLSCREEN=not True
+        self.SCREEN_RESOLUTION = utils.cr([800,600])
+        self.FULLSCREEN=False
