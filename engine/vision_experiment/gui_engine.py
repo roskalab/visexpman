@@ -1270,7 +1270,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
     def save_software_hash(self):
         hash=introspect.visexpman2hash()
         if self.guidata.read('software_hash')==None:
-            self.guidata.add('software_hash', hash, 'software_hash')
+            self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
         self.save_context()
@@ -1278,8 +1278,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
     def check_software_hash(self):
         current_hash=introspect.visexpman2hash()
         saved_hash=self.guidata.read('software_hash')
-        if saved_hash!=current_hash:
-            self.notify('Warning', 'Software has changed, hashes do not match')
+        if not numpy.array_equal(saved_hash, current_hash):
+            self.notify('Warning', 'Software has changed, hashes do not match.\r\nMake sure that the correct software version is used!')
             
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())

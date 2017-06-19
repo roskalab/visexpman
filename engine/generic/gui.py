@@ -123,6 +123,8 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                 r.setDefault(item['value'])
             elif mwname == 'stimulusbrowser':
                 self.stimulusbrowser.select_stimulus(item['value'])
+            elif mwname == 'hash':
+                continue
             else:
                 ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
                 wname = ref.__class__.__name__.lower()
