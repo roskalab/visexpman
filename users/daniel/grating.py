@@ -188,6 +188,15 @@ class MovingGratingNoMHor500umsConfig(MovingGratingNoMHor300umsConfig):
         MovingGratingNoMHor300umsConfig._create_parameters(self)
         self.VELOCITIES = [500.0]
 
+class MovingGratingPosterior4SpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
+        self.VELOCITIES = [1200, 1200, 150, 150, 600, 600, 300, 300]
+        self.REPEATS = 1
+        self.ORIENTATIONS = [0]
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
+        
 class MovingGratingLongSpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
     def _create_parameters(self):
         MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
