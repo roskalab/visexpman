@@ -302,6 +302,8 @@ def parse_stimulation_file(filename):
     if fileop.file_extension(filename) != 'py':
         raise RuntimeError('Files only with py extension can be selected: {0}'.format(filename))
     source_code = fileop.read_text_file(filename)
+    if 'import *' in source_code:
+        raise RuntimeError('Parsing {0} might freeze'.format(filename))
     try:
         introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     except Exception as e:
