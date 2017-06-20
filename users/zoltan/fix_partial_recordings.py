@@ -3,27 +3,14 @@ import visexpA.engine.configuration,os,shutil
 from visexpA.engine.datahandlers import importers,hdf5io,matlabfile
 from visexpman.engine.generic import file,utils
 config=[
-    ['fragment_xy_master_0_0_-70.0_ReceptiveFieldFionaEquiFine_1484576737_0.mat',
-    'fragment_xy_master_0_0_-77.2_ReceptiveFieldFionaEquiFine_1484577536_0.hdf5'],
-    ['fragment_xy_master_0_0_-100.3_MovingGratingFiona3x_1484587193_0.mat',
-    'fragment_xy_master_0_0_-92.5_MovingGratingFiona3x_1484589078_0.mat',
-    'fragment_xy_master_0_0_-95.1_MovingGratingFiona3x_1484589481_0.mat',
-    'fragment_xy_master_0_0_-179.4_MovingGratingFiona3x_1484585021_0.hdf5'],
-    ['fragment_xy_master_0_0_-188.7_MovingStandingGratingFiona_1484833332_0.mat',
-    'fragment_xy_master_0_0_0.0_MovingStandingGratingFiona_1485444936_0.hdf5'],
-    ['fragment_xy_master_0_0_-99.0_MovingGratingFiona3x_1484846033_0.mat',
-    'fragment_xy_master_0_0_-102.2_MovingGratingFiona3x_1484847025_0.hdf5'],
-    ['fragment_xy_region1_0_0_-42.6_MovingGratingFiona3x_1485423786_0.mat',
-    'fragment_xy_region1_0_0_-41.0_MovingGratingFiona3x_1485424468_0.mat',
-    'fragment_xy_region1_0_0_-37.9_MovingGratingFiona3x_1485426269_0.mat',
-    'fragment_xy_region1_0_0_-120.5_MovingGratingFiona3x_1485429856_0.mat',
-    'fragment_xy_region1_0_0_-106.5_MovingGratingFiona3x_1485431817_0.mat',
-    'fragment_xy_region1_0_0_-106.5_MovingGratingFiona3x_1485432426_0.mat',
-    'fragment_xy_region1_0_0_-40.7_MovingGratingFiona3x_1485425225_0.hdf5'],
-    ['fragment_xy_master_0_0_-90.1_MovingGratingFiona3x_1485965064_0.mat',
-    'fragment_xy_master_0_0_-90.1_MovingGratingFiona3x_1485965356_0.hdf5'],
-    ['fragment_xy_master_0_0_-120.1_NaturalMovieSv1_1486033201_0.mat',
-    'fragment_xy_master_0_0_-120.1_NaturalMovieSv1_1486033201_0.hdf5']]
+    
+    ['fragment_xy_master_0_0_0.0_MovingGratingFiona3x_1497540710_0.mat',
+    'fragment_xy_master_0_0_0.0_MovingGratingFiona3x_1497541243_0.mat',
+    'fragment_xy_master_0_0_0.0_MovingGratingFiona3x_1497539210_0.mat',
+    'fragment_xy_master_0_0_-4.0_MovingGratingFiona3x_1497542722_0.mat',
+    'fragment_xy_master_0_0_-115.7_MovingGratingFiona3x_1496068777_0.hdf5'],
+    ['fragment_xy_master_0_0_-8.3_NaturalMovieSv1_1497543974_0.mat',
+    'fragment_xy_master_0_0_-1000.0_NaturalMovieSv1_1497270296_0.hdf5']]
 
 class FixPartial(object):
     def __init__(self):

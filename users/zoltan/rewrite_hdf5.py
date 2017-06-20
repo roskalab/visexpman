@@ -9,7 +9,7 @@ def rewrite(filename, outfile):
     for rn in rootnodes: 
         rnd=h.findvar(rn)
         setattr(hout,rn, rnd)
-        hout.save(rnd)
+        hout.save(rn)
     h.close()
     hout.close()
     
@@ -17,4 +17,5 @@ if __name__=='__main__':
     src=sys.argv[1]
     dst=sys.argv[2]
     for f in os.listdir(src):
+        print f
         rewrite(os.path.join(src,f), os.path.join(dst, f))
