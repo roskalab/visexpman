@@ -47,6 +47,7 @@ class ReceptiveFieldExploreZ(experiment.Experiment):
                                                                             on_time = self.experiment_config.ON_TIME,
                                                                             off_time = self.experiment_config.OFF_TIME)
         self.fragment_durations=[self.stimulus_duration]
+        self.duration=self.stimulus_duration
         
             
     def run(self):
@@ -89,15 +90,19 @@ class NaturalBarsExperiment1(experiment.Stimulus):
 
 class Flash(experiment.Stimulus):
     def stimulus_configuration(self):
-        self.DURATION=0.5*10
+        self.DURATION=8
         
     def calculate_stimulus_duration(self):
         self.duration=self.DURATION*3
         
     def run(self):
-        self.show_fullscreen(color=0.0,duration=self.DURATION)
+        self.block_start()
         self.show_fullscreen(color=0.5,duration=self.DURATION)
+        self.block_end()
+        self.show_fullscreen(color=0.5,duration=self.DURATION)
+        self.block_start()
         self.show_fullscreen(color=1.0,duration=self.DURATION)
+        self.block_end()
         
 class Gr(experiment.Stimulus):
     def stimulus_configuration(self):

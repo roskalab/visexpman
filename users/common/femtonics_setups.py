@@ -125,3 +125,5 @@ class CameronDev(CameronAoSetup):
         CameronAoSetup._set_user_parameters(self)
         self.SCREEN_RESOLUTION = utils.cr([800,600])
         self.FULLSCREEN=False
+        self.MES_RECORD_OVERHEAD=20
+        self.MES_RECORD_OVERHEAD2=20

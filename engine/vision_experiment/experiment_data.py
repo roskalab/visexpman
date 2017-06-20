@@ -20,7 +20,7 @@ try:
 except ImportError:
     print 'hdf5io not installed'
     hdf5io_available=False
-    
+FRAME_RATE_TOLERANCE=5    
 
 #### Recording filename handling ####
 
@@ -190,7 +190,7 @@ class CaImagingData(hdf5io.Hdf5io):
         self.file_info = os.stat(filename)
         hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
         
-    def sync2time(self, recreate=False):
+    def sync2time(self, recreate=False,crop=True):
         '''
         Reads raw sync traces and converts them to timestamps. If not found in datafile, it is saved
         Channel id is read from saved machine config
@@ -207,13 +207,36 @@ class CaImagingData(hdf5io.Hdf5io):
         fsample=float(self.machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         self.timg=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
         self.tstim=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TSTIM_SYNC_INDEX']])/fsample
-        self.load('raw_data')
-        #Crop timg
-        if self.machine_config['machine_config']['PLATFORM']=='elphys_retinal_ca':
-            self.timg=self.timg[:self.raw_data.shape[0]]
-        if self.timg.shape[0]!=self.raw_data.shape[0]:
-            raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
-        self.save(['timg', 'tstim'])
+        if crop:
+            self.load('raw_data')
+            #Crop timg
+            if self.machine_config['machine_config']['PLATFORM']=='elphys_retinal_ca':
+                self.timg=self.timg[:self.raw_data.shape[0]]
+            if self.timg.shape[0]!=self.raw_data.shape[0]:
+                raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
+            self.save(['timg', 'tstim'])
+            
+    def check_timing(self):
+        if self.timg.shape[0]==0:
+            raise RuntimeError('No imaging sync signal detected.')
+        if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]):
+            raise RuntimeError('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]<self.tstim[0] else 'End') )
+        #Check frame rate
+        self.load('stimulus_frame_info')
+        sfi=self.stimulus_frame_info
+        if len([1 for s in sfi if 'block_name' in s.keys()])>0:
+            bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
+            bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
+            expected_block_durations =(bei-bsi)/ float(self.machine_config['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
+            measured_block_durations = numpy.diff(self.tstim)[::2]
+            measured_frame_rate=(bei-bsi)/measured_block_durations
+            error=measured_frame_rate-self.machine_config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
+            if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
+                raise RuntimeError('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.machine_config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+        else:
+            raise NotImplementedError()
+        
+        
         
         
     def get_image(self, image_type='mip'):

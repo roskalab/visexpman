@@ -41,9 +41,7 @@ class AOData(experiment_data.CaImagingData):
             for framei in range(nframes):
                 self.raw_data[framei,0,roiid]=\
                         self.image[height*framei+toffset:height*(framei+1)+toffset,width*roiid+xoffset:width*(roiid+1)+xoffset]
-        
         scale=mesdata[mesdata['DATA/WidthStep'][0][0]][0][0]#um/pixel
-        
         self.save('raw_data')
         self.sync_pulses_to_skip=[item for item in mesdata[mesdata['DATA/Clipping'][0][0]].values() if 'savedHeightBegin' in item.name][0][0][0]
         self.save('sync_pulses_to_skip')
@@ -62,6 +60,7 @@ class TestAODData(unittest.TestCase):
         fn='/home/rz/mysoftware/data/ao/data_GrayBackgndOnly5min_201612132042235.hdf5'
         fn='/home/rz/mysoftware/data/ao/data_MovingGratingMid_201612131953459.hdf5'
         folder='/home/rz/mysoftware/data/ao'
+        folder='v:\\debug\\0'
         for fn in os.listdir(folder):
             if os.path.splitext(fn)[1]=='.hdf5':
                 with introspect.Timer(1):

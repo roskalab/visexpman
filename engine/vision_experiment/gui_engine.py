@@ -102,7 +102,7 @@ class ExperimentHandler(object):
             self.notify('Warning', 'Common stimulus files cannot be opened for editing')
             return
         lines=fileop.read_text_file(filename).split('\n')
-        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1
+        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+20#+20: beginning of class is on the middle of the screen
         self.printc('Opening {0}/{1} in gedit at line {2}'.format(filename, classname,line))
         import subprocess
         process = subprocess.Popen(['gedit', filename, '+{0}'.format(line)], shell=self.machine_config.OS != 'Linux')
@@ -370,24 +370,14 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
                 self.printc('TODO: send job to jobhandler')
-                self.printc(fn)
-#                return
-#                fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-#                #if self.current_experiment_parameters['duration']>5*60: return
-#                #Wait till datafile is saved
-#                time.sleep(0.5)
-#                self.printc('Waiting for MES file')
-#                to = (60 if self.current_experiment_parameters['duration']>120 else 30)+0.5*self.current_experiment_parameters['duration']
-#                fileop.wait4file_ready(fn.replace('.hdf5', '.mat'), timeout=to, min_size=1e6)
-#                self.printc('Reading MES file')
-#                a=aod.AOData(fn)
-#                a.tomat()
-#                a.close()
-#                self.printc('MES data merged to {0}'.format(fn))
             #Save experiment/stimulus config
             h = experiment_data.CaImagingData(fn)
-            h.sync2time()
-            h.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+            if self.santiago_setup:
+                crop=True
+            else:
+                crop=False
+            h.sync2time(crop=crop)
+            h.check_timing()
             h.stimulus_parameters=self.stimulus_parameters
             h.save('stimulus_parameters')
             h.close()

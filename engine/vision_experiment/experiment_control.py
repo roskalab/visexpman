@@ -518,6 +518,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if time.time()-t0>self.machine_config.MES_RECORD_OVERHEAD:
                 self.printl('MES did not start')
                 self.send({'notify':['Warning', 'MES did not start']})
+                self.send({'stim error': 0})
                 self.abort=True
                 break
             if not self.mes_interface['mes_response'].empty():
@@ -655,12 +656,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.datafile['software_environment'] = experiment_data.pack_software_environment()
             self.datafile['machine_config'] = experiment_data.pack_configs(self)
-        #Organize stimulus frame info. 'stimulus function' block starts saved after sfi entry and block ends before sfi entry. This has to be reordered
-        block_start_indexes, block_end_indexes = experiment_data.get_block_entry_indexes(self.stimulus_frame_info, block_name = 'stimulus function')
-        for i in block_start_indexes:
-            self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i-1)
-        for i in block_end_indexes:
-            self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i+1)
         self.datafile.frame_times=self.screen.frame_times
         
     def _save2file(self):
