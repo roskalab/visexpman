@@ -4,10 +4,8 @@ import serial
 import numpy
 import time
 
-from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import utils,file
 
 class RcMicroscopeSetup(VisionExperimentConfig):
     '''
@@ -157,7 +155,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                  'UM_PER_USTEP' : (0.75/51.0)*numpy.ones(3, dtype = numpy.float)
                  }, 
                  {'SERIAL_PORT' : goniometer_serial_port,
-                 'ENABLE':True,
+                 'ENABLE': True,
                  'SPEED': 1000000,
                  'ACCELERATION' : 1000000,
                  'MOVE_TIMEOUT' : 15.0,

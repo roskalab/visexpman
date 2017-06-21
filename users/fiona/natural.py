@@ -8,8 +8,8 @@ import time
 class NaturalMovieSv1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.REPEATS=1
-	self.DURATION = 30.0
-        self.FILENAME = 'c:\\Data\\Movies\\catcam17'#movieincage_fiona'
+	self.DURATION = 300.0
+        self.FILENAME = 'c:\\Data\\movieincage_fiona'#\\Movies\\catcam17'#movieincage_fiona'
         self.FRAME_RATE=60.0
         self.STRETCH = 1.7
         self.runnable = 'NaturalMovieExperiment'
