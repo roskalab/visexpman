@@ -610,6 +610,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
                 if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical']:
                     self.send({'trigger':'stim data ready'})
+                if self.machine_config.PLATFORM in ['ao_cortical']:
+                    self._backup(self.datafilename)
+                    self.printl('{0} backed up'.format(self.datafilename))
             else:
                 self.printl('Stimulation stopped')
             if self.machine_config.PLATFORM=='mc_mea':
@@ -694,6 +697,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
             self.datafilename=fn
             scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
+            
+    def _backup(self, filename):
+        dst=os.path.join(self.machine_config.BACKUP_STAGING_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
+        if not os.path.exists(dst):
+            os.makedirs(dst)
+        try:
+            shutil.copy(filename, dst)
+        except:
+            raise RuntimeError('Saving {0} to backup failed'.format(filename))
             
     def _data2matfile_compatible(self):
         '''Make sure that keys are not longer than 31 characters'''

@@ -1,5 +1,3 @@
-from OpenGL.GL import *
-from OpenGL.GLUT import *
 import numpy,time
 from visexpman.engine.generic import utils,geometry,colors
 from visexpman.engine.vision_experiment import experiment
