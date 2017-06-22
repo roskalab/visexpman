@@ -80,7 +80,11 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
     else:
         channels_ = numpy.array([[channel] for channel in channels], dtype = object)
     if channels is None or 'default' not in channels:
-        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = channels_
+        try:
+            m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = channels_
+        except ValueError:
+            m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['scanner'][0][0]['inputimages'][0][0] = channels_
+
 #    if enable_scanner_signal_recording:
 #        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
 #                    numpy.array(numpy.array([[u'pmtUGraw'], [u'ScX'], [u'ScY']]), dtype=object)
