@@ -2964,7 +2964,9 @@ def list_mouse_files(config,username=None):
             mfiles.extend([os.path.join(dirname, fn) for fn in os.listdir(dirname) if fn[-5:]=='.hdf5' and 'mouse' in fn])
         elif dirname[-5:]=='.hdf5' and 'mouse' in dirname:
             mfiles.append(dirname)
+    mfiles=[f for f in mfiles if os.path.getctime(f)>utils.datestring2timestamp("20/06/2017")]
     return mfiles
+
 
         
 

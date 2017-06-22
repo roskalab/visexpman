@@ -1,4 +1,4 @@
-import sys,platform
+import sys,platform,datetime
 import math
 import random
 import numpy
@@ -799,6 +799,9 @@ def datetime_string():
 def date_string():
     now = time.localtime()
     return ('{0:0=4}-{1:0=2}-{2:0=2}'.format(now.tm_year,  now.tm_mon, now.tm_mday))
+
+def datestring2timestamp(ds,format="%d/%m/%Y"):
+    return time.mktime(datetime.datetime.strptime(ds, format).timetuple())
 
 def truncate_timestamps(list_of_timestamps,  at_position):
     '''From a list of floats representing timestamps, we calculates timestamps 

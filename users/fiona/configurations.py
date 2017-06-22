@@ -133,7 +133,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         FRAME_TRIGGER_LINE='dev1/port0/line1'
         #=== stage ===
         motor_serial_port = {
-                                    'port' :  'COM8',
+                                    'port' :  'COM9',
                                     'baudrate' : 19200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
@@ -141,7 +141,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                                     }
                                     
         goniometer_serial_port = {
-                                    'port' :  'COM5',
+                                    'port' :  'COM7',
                                     'baudrate' : 9600,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
