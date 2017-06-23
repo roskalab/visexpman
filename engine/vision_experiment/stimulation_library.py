@@ -1376,8 +1376,7 @@ class AdvancedStimulation(StimulationHelpers):
     def moving_shape_trajectory(self, size, speeds, directions,repetition, \
         pause=0.0,
         shape_starts_from_edge=False, 
-        random_speeds=False, 
-        random_directions=True):
+        random_order=True):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
@@ -1397,20 +1396,27 @@ class AdvancedStimulation(StimulationHelpers):
         
         nSpeeds = len(speeds)
         nDirections = len(directions)
-        speeds = numpy.repeat(speeds, nDirections)
-        directions = numpy.tile(directions, nSpeeds)        
-
-        #%% Randomize if necessary:        
-        numpy.random.seed(1)
-        if random_speeds:
-            speeds = numpy.random.permutation(speeds)
-            
-        if random_directions:
-            directions = numpy.random.permutation(directions)
+        speeds = numpy.repeat(speeds, nDirections*repetition)
+        directions = numpy.tile(directions, nSpeeds*repetition)
         
-        assert len(speeds) == len(directions), 'There must be the same number of speeds as directions at this point!'
+        sd = numpy.array([speeds, directions]).transpose()
+        
+        #%% Randomize if necessary:
+        if random_order:
+            numpy.random.seed(1)
+            sd = numpy.random.permutation(sd) 
+
+                
+        #%% Randomize if necessary:
+        #numpy.random.seed(1)
+        #if random_speeds:
+        #    speeds = numpy.random.permutation(speeds)
+        #if random_directions:
+        #    directions = numpy.random.permutation(directions)
+        
+        #assert len(speeds) == len(directions), 'There must be the same number of speeds as directions at this point!'
         #%%
-        for spd, direction in zip(speeds, directions):
+        for spd, direction in sd:
             #print spd
             #print direction            
             
@@ -1420,11 +1426,11 @@ class AdvancedStimulation(StimulationHelpers):
                 raise RuntimeError('Zero speed is not supported')
             spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
             t=utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
-            for rep in range(repetition):
+            #for rep in range(repetition):
                 #print rep
-                trajectories.append(t)
-                nframes += trajectories[-1].shape[0]
-                trajectory_directions.append(direction)
+            trajectories.append(t)
+            nframes += trajectories[-1].shape[0]
+            trajectory_directions.append(direction)
         
         duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
         return trajectories, trajectory_directions, duration
@@ -1436,8 +1442,7 @@ class AdvancedStimulation(StimulationHelpers):
         moving_range=utils.rc((0.0,0.0)), 
         pause=0.0, 
         repetition = 1, 
-        random_directions = False,
-        random_speeds = False,
+        random_order = True,
         block_trigger = False, 
         shape_starts_from_edge=False,
         save_frame_info =True):
@@ -1455,8 +1460,7 @@ class AdvancedStimulation(StimulationHelpers):
             size = size, speeds = speeds, directions=directions, repetition = repetition,
             pause = pause,
             shape_starts_from_edge = shape_starts_from_edge,
-            random_speeds=random_speeds, 
-            random_directions=random_directions)
+            random_order=random_order)
         
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
