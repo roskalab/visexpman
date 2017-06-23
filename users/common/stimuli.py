@@ -44,8 +44,9 @@ class MovingShapeStimulus(experiment.Experiment):
         'SHAPE_BACKGROUND': 0.5, 
         'SHAPE_SIZE': 10,
         'PAUSE_BETWEEN_DIRECTIONS' : 0.0,
-        'RANDOM_SPEEDS': False,
-        'RANDOM_DIRECTIONS': True,
+        'RANDOM_ORDER': True,        
+        #'RANDOM_SPEEDS': False,
+        #'RANDOM_DIRECTIONS': True,
         'SPEEDS': [160],
         'DIRECTIONS' : range(0, 360, 45),
         }
@@ -58,8 +59,9 @@ class MovingShapeStimulus(experiment.Experiment):
                                     pause = self.pause_between_directions,
                                     repetition = self.experiment_config.REPETITIONS,
                                     shape_starts_from_edge = True,
-                                    random_directions=self.experiment_config.RANDOM_DIRECTIONS,
-                                    random_speeds=self.experiment_config.RANDOM_SPEEDS)
+                                    random_order = self.experiment_config.RANDOM_ORDER)
+                                    #random_directions=self.experiment_config.RANDOM_DIRECTIONS,
+                                    #random_speeds=self.experiment_config.RANDOM_SPEEDS)
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
     
@@ -74,8 +76,7 @@ class MovingShapeStimulus(experiment.Experiment):
                           pause = self.pause_between_directions,
                           repetition = self.experiment_config.REPETITIONS,
                           shape_starts_from_edge = True,
-                          random_directions=self.experiment_config.RANDOM_DIRECTIONS,
-                          random_speeds=self.experiment_config.RANDOM_SPEEDS,
+                          random_order = self.experiment_config.RANDOM_ORDER,
                           block_trigger = True)
         self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':1, 'counter':self.frame_counter})
         
