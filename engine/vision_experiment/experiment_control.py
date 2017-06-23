@@ -564,14 +564,19 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     filename_prefix = ''
                 else:
                     filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
+                
+                #print "filename_prefix (in experiment_control, l568)"
+                #print filename_prefix
                 fn = fileop.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                #print 'fn in experimetnControl l578'                
                 fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
+                
             else:
                 filename_prefix = 'stim'
                 fn = fileop.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
             # debug
-            #print self.datafile
-            print fn
+            
+            #print fn
             scipy.io.savemat(fn, self.datafile, oned_as = 'column') 
             
     def _data2matfile_compatible(self):
