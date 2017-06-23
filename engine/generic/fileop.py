@@ -502,7 +502,10 @@ def parse_fragment_filename(path):
     
 def get_recording_name(config, parameters, separator):
     name = ''
-    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'experiment_name', 'id', 'counter']:
+    #for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'experiment_name', 'id', 'counter']:
+    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'experiment_name', 'counter']:
+        #print "in engine.generic.fileop l506"        
+        #print name        
         if parameters.has_key(k) and parameters[k]!='':
             name += str(parameters[k])+separator
     return name[:-1]
