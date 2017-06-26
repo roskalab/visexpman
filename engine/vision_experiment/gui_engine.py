@@ -402,7 +402,7 @@ class ExperimentHandler(object):
         for framei in range(h.raw_data.shape[0]):
             for chi in range(h.raw_data.shape[1]):
                 base=os.path.splitext(os.path.basename(h.parameters['imaging_filename']))[0]
-                base='_'.join(base.split('_')[:-1])+'_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
+                base='frame_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
                 fn=os.path.join(output_folder, base+'.png')
                 Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
