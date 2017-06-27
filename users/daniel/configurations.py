@@ -47,7 +47,7 @@ class IntrinsicDevelopment(IntrinsicConfig):
         # === hardware ===
         ENABLE_PARALLEL_PORT = False
         CAMERA = {'simulator':False, 'output':'/home/hd/camtemp', 'exposure_gain': [10000, 30],
-                       'width': 1376, 'height': 1038, 'framerate':5, 'binning':None}
+                       'width': 1376, 'height': 1038, 'framerate':10, 'binning':None}
         self._create_parameters_from_locals(locals())
 
 
