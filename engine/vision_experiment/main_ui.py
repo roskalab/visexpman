@@ -302,7 +302,7 @@ class DataFileBrowser(gui.FileTree):
     def plot_action(self):
         if hasattr(self, 'selected_filename'):
             self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.selected_filename]})
-
+            
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
         QtGui.QWidget.__init__(self)
@@ -585,15 +585,14 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.eye_camera.plot.setTitle(time.time())
             elif msg.has_key('plot_sync'):
                 x,y=msg['plot_sync']
-                p=gui.Plot()
+                self.p=gui.Plot(None)
                 pp=[]
                 for i in range(len(x)):
                     c=colors.get_color(i)
                     c=(numpy.array(c)*255).tolist()
                     pp.append({'name': (str(i)), 'pen':c})
-                p.update_curves(x,y,plotparams=pp)
-                p.plot.addLegend(size=(120,60))
-                p.show()
+                self.p.update_curves(x,y,plotparams=pp)
+                self.p.show()
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             
