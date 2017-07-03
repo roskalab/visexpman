@@ -152,8 +152,6 @@ class ExperimentHandler(object):
             if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
         #Collect experiment parameters
-        self.stimulus_parameters=experiment.read_stimulus_parameters(classname, filename,self.machine_config)
-        
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
@@ -377,9 +375,9 @@ class ExperimentHandler(object):
             else:
                 crop=False
             h.sync2time(crop=crop)
+            self.tstim=h.tstim
+            self.timg=h.timg
             h.check_timing()
-            h.stimulus_parameters=self.stimulus_parameters
-            h.save('stimulus_parameters')
             h.close()
             if self.santiago_setup:
                 #Export timing to csv file
@@ -1143,6 +1141,29 @@ class Analysis(object):
             else:
                 os.remove(fn)
         self.printc('Done')
+        
+    def plot_sync(self,filename):
+        if self.machine_config.PLATFORM=='ao_cortical':
+            if os.path.splitext(filename)[1]!='.hdf5':
+                self.notify('Warning', 'Only hdf5 files can be opened!')
+                return
+            if not os.path.exists(filename.replace('.hdf5', '._mat.mat')):
+                if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
+                    return
+            self.fn=filename
+            h=hdf5io.Hdf5io(filename)
+            sync=h.findvar('sync')
+            fs=h.h5f.root.config.machine_config._f_getattr('SYNC_RECORDER_SAMPLE_RATE')#For some reason h.findvar('config') does not work
+            h.close()
+            x=[]
+            y=[]
+            t=numpy.arange(sync.shape[0])*(1.0/fs)
+            for ch in range(sync.shape[1]):
+                x.append(t)
+                y.append(sync[:,ch])
+            self.to_gui.put({'plot_sync':[x,y]})
+        else:
+            raise NotImplementedError()
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)

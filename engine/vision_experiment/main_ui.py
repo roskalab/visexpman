@@ -8,7 +8,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 
-from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
+from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect,colors
 from visexpman.engine.vision_experiment import gui_engine, experiment
 
 
@@ -290,11 +290,18 @@ class DataFileBrowser(gui.FileTree):
         delete_action = QtGui.QAction('Remove recording', self)
         delete_action.triggered.connect(self.delete_action)
         self.menu.addAction(delete_action)
+        plot_action = QtGui.QAction('Plot  sync signals', self)
+        plot_action.triggered.connect(self.plot_action)
+        self.menu.addAction(plot_action)
         self.menu.exec_(self.viewport().mapToGlobal(position))
         
     def delete_action(self):
         if hasattr(self, 'selected_filename'):
             self.parent.parent.to_engine.put({'function': 'remove_recording', 'args':[self.selected_filename]})
+            
+    def plot_action(self):
+        if hasattr(self, 'selected_filename'):
+            self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.selected_filename]})
 
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
@@ -576,7 +583,17 @@ class MainUI(gui.VisexpmanMainWindow):
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
                 self.eye_camera.setFixedHeight(h)
                 self.eye_camera.plot.setTitle(time.time())
-                
+            elif msg.has_key('plot_sync'):
+                x,y=msg['plot_sync']
+                p=gui.Plot()
+                pp=[]
+                for i in range(len(x)):
+                    c=colors.get_color(i)
+                    c=(numpy.array(c)*255).tolist()
+                    pp.append({'name': (str(i)), 'pen':c})
+                p.update_curves(x,y,plotparams=pp)
+                p.plot.addLegend(size=(120,60))
+                p.show()
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             
