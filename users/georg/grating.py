@@ -15,12 +15,12 @@ class CurtainConfig(experiment.ExperimentConfig):
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1 #how many times the bar hit a point -> this + speed = moving time
         self.MARCH_TIME = 0.0 # standing phase time
         self.GRATING_STAND_TIME = 0.0 #post-moving-phase time
-        #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
-        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.COLOR_CONTRAST = 1.0
         self.WHITE_BAR_WIDTHS = [3000.0]
+        self.ORIENTATIONS = range(0, 360, 45)
         self.VELOCITIES = [300.0]
         self.DUTY_CYCLES = [2]*len(self.ORIENTATIONS) #white and blck bar ratio -> number of bars 
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0 #very beginning and end waiting time
         self.runnable = 'MovingGrating'

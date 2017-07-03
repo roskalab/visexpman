@@ -29,7 +29,7 @@ class MovingGratingFiona(grating_base.MovingGratingNoMarchingConfig):
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
         
-        self.pre_runnable = 'BlackPre'
+        self.pre_runnable = 'GreyPre'
         self.BLACK_SCREEN_DURATION=2.0
 
 class MovingGratingOKRFiona(grating_base.MovingGratingNoMarchingConfig):
@@ -55,7 +55,7 @@ class MovingGratingOKRFiona(grating_base.MovingGratingNoMarchingConfig):
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
         
-        self.pre_runnable = 'BlackPre'
+        self.pre_runnable = 'GreyPre'
         self.BLACK_SCREEN_DURATION=2.0
         
 class MovingStandingGratingFiona(grating_base.MovingGratingNoMarchingConfig):
@@ -77,7 +77,7 @@ class MovingStandingGratingFiona(grating_base.MovingGratingNoMarchingConfig):
         self.PAUSE_BEFORE_AFTER = 5.0
         self.CLEAR_SCREEN_AT_END=True
         self.CLEAR_SCREEN_AT_END_COLOR=0
-        self.pre_runnable = 'BlackPre'
+        self.pre_runnable = 'GreyPre'
         self.BLACK_SCREEN_DURATION=2.0
         
         
@@ -100,7 +100,7 @@ class MovingGratingFiona3x(grating_base.MovingGratingNoMarchingConfig):
         self.PAUSE_BEFORE_AFTER = 5.0
         self.CLEAR_SCREEN_AT_END=True
         self.CLEAR_SCREEN_AT_END_COLOR=0
-        self.pre_runnable = 'BlackPre'
+        self.pre_runnable = 'GreyPre'
         self.BLACK_SCREEN_DURATION=2.0
         
         
@@ -122,5 +122,5 @@ class MovingGratingFionaHC(grating_base.MovingGratingNoMarchingConfig):
         self.PAUSE_BEFORE_AFTER = 5.0
         self.CLEAR_SCREEN_AT_END=True
         self.CLEAR_SCREEN_AT_END_COLOR=0.15
-        self.pre_runnable = 'BlackPre'
+        self.pre_runnable = 'GreyPre'
         self.BLACK_SCREEN_DURATION=2.0
