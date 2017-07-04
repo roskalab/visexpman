@@ -200,17 +200,17 @@ class CaImagingData(hdf5io.Hdf5io):
         if not recreate:
             if hasattr(self, 'timg') and hasattr(self , 'tstim'):
                 return
-        for vn in ['sync', 'config', 'sync_scaling']:
+        for vn in ['sync', 'configs', 'sync_scaling']:
             self.load(vn)
         if self.sync.dtype.name not in ['float', 'uint8', 'uint16']:
             raise NotImplementedError()
-        fsample=float(self.config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
-        self.timg=signal.trigger_indexes(self.sync[:,self.config['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
-        self.tstim=signal.trigger_indexes(self.sync[:,self.config['machine_config']['TSTIM_SYNC_INDEX']])/fsample
+        fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
+        self.timg=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
+        self.tstim=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TSTIM_SYNC_INDEX']])/fsample
         if crop:
             self.load('raw_data')
             #Crop timg
-            if self.config['machine_config']['PLATFORM']=='elphys_retinal_ca':
+            if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
                 self.timg=self.timg[:self.raw_data.shape[0]]
             if self.timg.shape[0]!=self.raw_data.shape[0]:
                 raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
@@ -228,12 +228,12 @@ class CaImagingData(hdf5io.Hdf5io):
         if len([1 for s in sfi if 'block_name' in s.keys()])>0:
             bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
             bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
-            expected_block_durations =(bei-bsi)/ float(self.config['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
+            expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
             measured_block_durations = numpy.diff(self.tstim)[::2]
             measured_frame_rate=(bei-bsi)/measured_block_durations
-            error=measured_frame_rate-self.config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
+            error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
             if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
-                errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+                errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
         else:
             raise NotImplementedError()
         if len(errors)>0:

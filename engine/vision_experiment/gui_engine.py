@@ -251,7 +251,7 @@ class ExperimentHandler(object):
             if experiment_parameters==None:
                 return
         if self.machine_config.PLATFORM=='ao_cortical':
-            if not self.ask4confirmation('Is AO line scan selected on MES user interface?\r\nIs MES reconnected to stim?'):
+            if not self.ask4confirmation('Is AO line scan selected on MES user interface?'):
                 return
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
@@ -1150,7 +1150,7 @@ class Analysis(object):
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
-            if not os.path.exists(filename.replace('.hdf5', '._mat.mat')):
+            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
                 if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
                     return
             self.fn=filename
@@ -1158,8 +1158,7 @@ class Analysis(object):
             scale=h.findvar('sync_scaling')
             sync=h.findvar('sync')
             sync=signal.from_16bit(sync,scale)
-            
-            fs=h.h5f.root.config.machine_config._f_getattr('SYNC_RECORDER_SAMPLE_RATE')#For some reason h.findvar('config') does not work
+            fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
             h.close()
             x=[]
             y=[]

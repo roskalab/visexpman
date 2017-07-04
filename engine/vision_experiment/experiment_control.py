@@ -509,7 +509,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         num=int(numpy.random.random()*100)
         msg='SOCechoEOC{0}EOP' .format(num)
         self.mes_interface['mes_command'].put(msg)
-        time.sleep(1)
+        time.sleep(1.5)
         resp=''
         if not self.mes_interface['mes_response'].empty():
             resp=self.mes_interface['mes_response'].get()
@@ -676,21 +676,21 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             setattr(self.datafile, 'software_environment',experiment_data.pack_software_environment())
-            setattr(self.datafile, 'config', experiment_data.pack_configs(self))
+            setattr(self.datafile, 'configs', experiment_data.pack_configs(self))
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.datafile['software_environment'] = experiment_data.pack_software_environment()
-            self.datafile['config'] = experiment_data.pack_configs(self)
+            self.datafile['configs'] = experiment_data.pack_configs(self)
         self.datafile.frame_times=self.screen.frame_times
         
     def _save2file(self):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['parameters', 'stimulus_frame_info', 'config', 'user_data', 'software_environment']#['experiment_name', 'experiment_config_name', 'frame_times']
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment']#['experiment_name', 'experiment_config_name', 'frame_times']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = hdf5io.Hdf5io(self.outputfilename,filelocking=False)
             self._prepare_data2save()
-            res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['config', 'software_environment']]
+            res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
             self.datafile.save(variables2save)
             if hasattr(self, 'analog_input'):
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
