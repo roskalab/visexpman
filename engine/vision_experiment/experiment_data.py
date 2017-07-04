@@ -217,10 +217,11 @@ class CaImagingData(hdf5io.Hdf5io):
             self.save(['timg', 'tstim'])
             
     def check_timing(self):
+        errors=[]
         if self.timg.shape[0]==0:
-            raise RuntimeError('No imaging sync signal detected.')
+            errors.append('No imaging sync signal detected.')
         if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]):
-            raise RuntimeError('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]<self.tstim[0] else 'End') )
+            errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]<self.tstim[0] else 'End') )
         #Check frame rate
         self.load('stimulus_frame_info')
         sfi=self.stimulus_frame_info
@@ -232,9 +233,11 @@ class CaImagingData(hdf5io.Hdf5io):
             measured_frame_rate=(bei-bsi)/measured_block_durations
             error=measured_frame_rate-self.config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
             if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
-                raise RuntimeError('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+                errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
         else:
             raise NotImplementedError()
+        if len(errors)>0:
+            raise RuntimeError('\r\n'.join(errors))
         
     def get_image(self, image_type='mip'):
         '''
