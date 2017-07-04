@@ -1869,7 +1869,7 @@ class MainPoller(Poller):
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
-        if 0:
+        if 1:
             result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
             if not result:
                 self.printc('MES does not respond')
@@ -1954,7 +1954,9 @@ class MainPoller(Poller):
         self.scan_regions[region_name] = scan_region
         self.save2mouse_file('scan_regions')
         self.backup_mousefile()
+        self.printc('7')#TMP: debug for catching gui crash
         self.parent.update_region_names_combobox(region_name)
+        self.printc('8')#TMP debug for catching gui crash
         self.update_scan_regions()#This is probably redundant
         self.printc('{0} scan region saved'.format(region_name))
         
