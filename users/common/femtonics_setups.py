@@ -53,10 +53,9 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.DIGITAL_IO_PORT='COM4'
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TRIGGER_PIN = 0
-        
-        self.MES_RECORD_OVERHEAD=20
-        self.MES_RECORD_OVERHEAD2=40
-        self.MES_RECORD_START_WAITTIME=15
+        self.MES_RECORD_OVERHEAD=5
+        self.MES_RECORD_START_WAITTIME=5
+        self.MES_TIMEOUT=5
         self.SYNC_RECORD_OVERHEAD=10
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
         if '--nofullscreen' in sys.argv:
@@ -125,5 +124,5 @@ class CameronDev(CameronAoSetup):
         CameronAoSetup._set_user_parameters(self)
         self.SCREEN_RESOLUTION = utils.cr([800,600])
         self.FULLSCREEN=False
-        self.MES_RECORD_OVERHEAD=20
-        self.MES_RECORD_OVERHEAD2=20
+        self.SCREEN_EXPECTED_FRAME_RATE = 59
+        self.MES_RECORD_OVERHEAD=5
