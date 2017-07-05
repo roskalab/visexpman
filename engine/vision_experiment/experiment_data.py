@@ -212,6 +212,10 @@ class CaImagingData(hdf5io.Hdf5io):
             #Crop timg
             if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
                 self.timg=self.timg[:self.raw_data.shape[0]]
+            elif self.configs['machine_config']['PLATFORM']=='ao_cortical':
+                self.timg=self.timg[self.findvar('sync_pulses_to_skip'):]
+                #Ignore last frames
+                self.timg=self.timg[:self.raw_data.shape[0]]
             if self.timg.shape[0]!=self.raw_data.shape[0]:
                 raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
             self.save(['timg', 'tstim'])
@@ -245,7 +249,7 @@ class CaImagingData(hdf5io.Hdf5io):
         self.image and self.image_scale
         '''
         self.load('raw_data')
-        self.load('machine_config')
+        self.load('configs')
         if image_type=='mean':
             self.image = self.raw_data.mean(axis=0)[0]
         elif image_type=='mip': 
@@ -257,7 +261,7 @@ class CaImagingData(hdf5io.Hdf5io):
             indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
             keep_frame_indexes=[i for i in range(self.raw_data.shape[0]) if i not in indexes]
             self.image= self.raw_data[keep_frame_indexes].max(axis=0)[0]
-        if self.machine_config['machine_config']['PLATFORM']=='ao_cortical':
+        if self.configs['machine_config']['PLATFORM']=='ao_cortical':
             nrois=self.image.shape[0]
             #merge rois to a square image:
             n=int(numpy.ceil(numpy.sqrt(nrois)))#number of rois across x and y axis

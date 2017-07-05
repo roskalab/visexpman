@@ -177,7 +177,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
         GUI['INJECTED_SUBSTANCE_SUGGESTIONS'] = ['', 'chlorprothixene', 'isofluorane']
         GUI['INJECTED_SUBSTANCE_SUGGESTIONS'].extend(GUI['GREEN_LABELING_SUGGESTIONS'])
-        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,40]]
+        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,100]]
         
         ############# Experiment configuration/ experiment protocol related ######################
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
@@ -415,6 +415,7 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         PLATFORM = 'ao_cortical'
         if self.OS=='Windows':
             BACKUP_STAGING_PATH='u:\\ao'
+        DEFAULT_ROI_SIZE_ON_GUI=20
         self._create_parameters_from_locals(locals())
         
 class UltrasoundConfig(VisionExperimentConfig):

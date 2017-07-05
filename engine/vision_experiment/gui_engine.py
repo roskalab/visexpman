@@ -69,6 +69,12 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             self.eye_camera_running=False
+        else:
+            self.experiment_running=False
+            self.sync_recording_started=False
+            self.batch_running=False
+            self.santiago_setup=False
+            self.eye_camera_running=False
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -80,14 +86,14 @@ class ExperimentHandler(object):
             self.eye_camera_running=True
         
     def stop_eye_camera(self):
-        if hasattr(self,'eye_camera_running') and self.eye_camera_running:
+        if self.eye_camera_running:
             self.printc('Stop eye camera')
             self.eye_camera_running=False
             self.eye_camera.stop()
             self.eye_camera.close()
         
     def eyecamera2screen(self):
-        if hasattr(self,'eye_camera_running') and self.eye_camera_running:
+        if self.eye_camera_running:
             self.eye_camera.save()
             if len(self.eye_camera.frames)>0:
                 if self.to_gui.qsize()<5:#To avoid data congestion
@@ -230,7 +236,7 @@ class ExperimentHandler(object):
         self.batch_running=True
         
     def check_batch(self):
-        if hasattr(self, 'batch_running') and self.batch_running:
+        if self.batch_running:
             if not self.experiment_running and time.time()-self.experiment_finish_time>self.machine_config.WAIT_BETWEEN_BATCH_JOBS:
                 if len(self.batch)==0:
                     self.batch_running=False
@@ -453,7 +459,7 @@ class ExperimentHandler(object):
     def run_always_experiment_handler(self):
         self.check_batch()
         self.eyecamera2screen()
-        if hasattr(self, 'sync_recording_started') and self.sync_recording_started:
+        if self.sync_recording_started:
             self.read_sync_recorder()
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
@@ -573,7 +579,7 @@ class Analysis(object):
         self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
-        self.image_scale=self.datafile.image_scale
+        self.image_scale=self.datafile.scale
         self.meanimage=self.datafile.image
         self.raw_data=self.datafile.raw_data
         if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
@@ -582,7 +588,8 @@ class Analysis(object):
             raise RuntimeError(msg)
         self.experiment_name= self.datafile.findvar('parameters')['stimclass']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
-        self._recalculate_background()
+        if self.machine_config.PLATFORM != 'ao_cortical':
+            self._recalculate_background()
         try:
             self._red_channel_statistics()
         except:
@@ -728,13 +735,14 @@ class Analysis(object):
             return
         baseline_length = self.guidata.read('Baseline lenght')
         for r in self.rois:
-            if any(numpy.isnan(self.background)):
+            if not hasattr(self, 'background') or any(numpy.isnan(self.background)):
                 r['normalized'] = numpy.copy(r['raw'])
             else:
                 r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tstim[0], baseline_length)
             r['baseline_length'] = baseline_length
-            r['background'] = self.background
-            r['background_threshold']=self.background_threshold
+            if hasattr(self, 'background'):
+                r['background'] = self.background
+                r['background_threshold']=self.background_threshold
             r['timg']=self.timg
             r['tstim']=self.tstim
             r['stimulus_name']=self.experiment_name
@@ -945,7 +953,7 @@ class Analysis(object):
             self.printc('Data backed up to  {0}'.format(dst))
         
     def backup(self):
-        if hasattr(self, 'experiment_running') and self.experiment_running:
+        if self.experiment_running:
             self.printc('No backup during recording')
             return
         self.printc('Backing up logfiles')
@@ -966,7 +974,7 @@ class Analysis(object):
         
     def run_always_analysis(self):
         t=datetime.datetime.fromtimestamp(self.last_run)
-        if hasattr(self, 'experiment_running') and not self.experiment_running and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+        if not self.experiment_running and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
             if self.last_run-self.experiment_finish_time>self.machine_config.BACKUP_NO_EXPERIMENT_TIMEOUT*60:
                 self.backup()
         

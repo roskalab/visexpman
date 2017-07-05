@@ -42,7 +42,7 @@ class AOData(experiment_data.CaImagingData):
                         self.image[height*framei+toffset:height*(framei+1)+toffset,width*roiid+xoffset:width*(roiid+1)+xoffset]
         scale=mesdata[mesdata['DATA/WidthStep'][0][0]][0][0]#um/pixel
         self.save('raw_data')
-        self.sync_pulses_to_skip=[item for item in mesdata[mesdata['DATA/Clipping'][0][0]].values() if 'savedHeightBegin' in item.name][0][0][0]
+        self.sync_pulses_to_skip=[item for item in mesdata[mesdata['DATA/Clipping'][0][0]].values() if 'savedHeightBegin' in item.name][0][0][0]/width
         self.save('sync_pulses_to_skip')
         self.load('parameters')
         self.parameters['nrois']=nrois
