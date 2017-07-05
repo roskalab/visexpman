@@ -1,4 +1,4 @@
-import os,tables,unittest,sys,shutil,time,traceback,logging,sys
+import os,tables,unittest,sys,shutil,time,traceback,logging
 from visexpman.engine.generic import fileop,utils,introspect
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.analysis import aod
@@ -48,6 +48,7 @@ level=logging.INFO)
         
     def fetch_job(self):
         query='(measurement_ready==1)&((backed_up==0) | (mesextractor_ready==0) | (converted==0) | (copied==0))'
+        self.ignore_errors=not os.path.exists(os.path.join(self.experiment_data_path, 'force_jobs.txt'))
         if not self.ignore_errors:
             query+='& (error==0)'
         active_jobs=[[r['filename'], r['backed_up'], r['mesextractor_ready'], r['converted'], r['copied']] for r in self.db.hdf5.root.datafiles.where( query)]
