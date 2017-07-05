@@ -80,14 +80,14 @@ class ExperimentHandler(object):
             self.eye_camera_running=True
         
     def stop_eye_camera(self):
-        if self.eye_camera_running:
+        if hasattr(self,'eye_camera_running') and self.eye_camera_running:
             self.printc('Stop eye camera')
             self.eye_camera_running=False
             self.eye_camera.stop()
             self.eye_camera.close()
         
     def eyecamera2screen(self):
-        if self.eye_camera_running:
+        if hasattr(self,'eye_camera_running') and self.eye_camera_running:
             self.eye_camera.save()
             if len(self.eye_camera.frames)>0:
                 if self.to_gui.qsize()<5:#To avoid data congestion
@@ -230,7 +230,7 @@ class ExperimentHandler(object):
         self.batch_running=True
         
     def check_batch(self):
-        if self.batch_running:
+        if hasattr(self, 'batch_running') and self.batch_running:
             if not self.experiment_running and time.time()-self.experiment_finish_time>self.machine_config.WAIT_BETWEEN_BATCH_JOBS:
                 if len(self.batch)==0:
                     self.batch_running=False
@@ -453,7 +453,7 @@ class ExperimentHandler(object):
     def run_always_experiment_handler(self):
         self.check_batch()
         self.eyecamera2screen()
-        if self.sync_recording_started:
+        if hasattr(self, 'sync_recording_started') and self.sync_recording_started:
             self.read_sync_recorder()
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
@@ -945,7 +945,7 @@ class Analysis(object):
             self.printc('Data backed up to  {0}'.format(dst))
         
     def backup(self):
-        if self.experiment_running:
+        if hasattr(self, 'experiment_running') and self.experiment_running:
             self.printc('No backup during recording')
             return
         self.printc('Backing up logfiles')
@@ -966,7 +966,7 @@ class Analysis(object):
         
     def run_always_analysis(self):
         t=datetime.datetime.fromtimestamp(self.last_run)
-        if not self.experiment_running and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
+        if hasattr(self, 'experiment_running') and not self.experiment_running and (t.hour==self.machine_config.BACKUPTIME and t.minute==0):
             if self.last_run-self.experiment_finish_time>self.machine_config.BACKUP_NO_EXPERIMENT_TIMEOUT*60:
                 self.backup()
         

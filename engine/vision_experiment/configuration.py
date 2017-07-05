@@ -413,7 +413,8 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
     def _create_application_parameters(self):
         CorticalCaImagingConfig._create_application_parameters(self)
         PLATFORM = 'ao_cortical'
-        BACKUP_STAGING_PATH='u:\\ao'
+        if self.OS=='Windows':
+            BACKUP_STAGING_PATH='u:\\ao'
         self._create_parameters_from_locals(locals())
         
 class UltrasoundConfig(VisionExperimentConfig):
