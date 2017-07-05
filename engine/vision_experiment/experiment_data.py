@@ -200,44 +200,44 @@ class CaImagingData(hdf5io.Hdf5io):
         if not recreate:
             if hasattr(self, 'timg') and hasattr(self , 'tstim'):
                 return
-        for vn in ['sync', 'machine_config', 'sync_scaling']:
+        for vn in ['sync', 'configs', 'sync_scaling']:
             self.load(vn)
         if self.sync.dtype.name not in ['float', 'uint8', 'uint16']:
             raise NotImplementedError()
-        fsample=float(self.machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
-        self.timg=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
-        self.tstim=signal.trigger_indexes(self.sync[:,self.machine_config['machine_config']['TSTIM_SYNC_INDEX']])/fsample
+        fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
+        self.timg=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
+        self.tstim=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TSTIM_SYNC_INDEX']])/fsample
         if crop:
             self.load('raw_data')
             #Crop timg
-            if self.machine_config['machine_config']['PLATFORM']=='elphys_retinal_ca':
+            if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
                 self.timg=self.timg[:self.raw_data.shape[0]]
             if self.timg.shape[0]!=self.raw_data.shape[0]:
                 raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
             self.save(['timg', 'tstim'])
             
     def check_timing(self):
+        errors=[]
         if self.timg.shape[0]==0:
-            raise RuntimeError('No imaging sync signal detected.')
+            errors.append('No imaging sync signal detected.')
         if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]):
-            raise RuntimeError('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]<self.tstim[0] else 'End') )
+            errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]<self.tstim[0] else 'End') )
         #Check frame rate
         self.load('stimulus_frame_info')
         sfi=self.stimulus_frame_info
         if len([1 for s in sfi if 'block_name' in s.keys()])>0:
             bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
             bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
-            expected_block_durations =(bei-bsi)/ float(self.machine_config['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
+            expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
             measured_block_durations = numpy.diff(self.tstim)[::2]
             measured_frame_rate=(bei-bsi)/measured_block_durations
-            error=measured_frame_rate-self.machine_config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
+            error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
             if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
-                raise RuntimeError('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.machine_config['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+                errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
         else:
             raise NotImplementedError()
-        
-        
-        
+        if len(errors)>0:
+            raise RuntimeError('\r\n'.join(errors))
         
     def get_image(self, image_type='mip'):
         '''
@@ -245,6 +245,7 @@ class CaImagingData(hdf5io.Hdf5io):
         self.image and self.image_scale
         '''
         self.load('raw_data')
+        self.load('machine_config')
         if image_type=='mean':
             self.image = self.raw_data.mean(axis=0)[0]
         elif image_type=='mip': 
@@ -256,11 +257,24 @@ class CaImagingData(hdf5io.Hdf5io):
             indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
             keep_frame_indexes=[i for i in range(self.raw_data.shape[0]) if i not in indexes]
             self.image= self.raw_data[keep_frame_indexes].max(axis=0)[0]
+        if self.machine_config['machine_config']['PLATFORM']=='ao_cortical':
+            nrois=self.image.shape[0]
+            #merge rois to a square image:
+            n=int(numpy.ceil(numpy.sqrt(nrois)))#number of rois across x and y axis
+            merged=numpy.zeros((n*self.image.shape[1], n*self.image.shape[2]), dtype=self.image.dtype)
+            for row in range(n):
+                for col in range(n):
+                    roii=row*n+col
+                    if roii>=nrois:
+                        break
+                    merged[row*self.image.shape[1]:(row+1)*self.image.shape[1], col*self.image.shape[2]:(col+1)*self.image.shape[2]]=self.image[roii]
+            self.image=merged
         self.load('parameters')
         if self.parameters['resolution_unit']=='pixel/um':
-            self.image_scale = 1.0/self.parameters['pixel_size']
+            self.scale = 1.0/self.parameters['pixel_size']
         else:
             raise NotImplementedError('')
+        return self.image,self.scale
 
         
         
@@ -285,9 +299,9 @@ class CaImagingData(hdf5io.Hdf5io):
             raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
         
         
-    def prepare4analysis(self):
+    def prepare4analysis(self):#OBSOLETE
         self.tsync,self.timg = get_sync_events(self)
-        self.meanimage, self.image_scale = get_imagedata(self, self.image_function)
+        self.meanimage, self.image_scale = self.get_image(self.image_function)
         self.crop_rawdata()
         self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
         return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
@@ -322,9 +336,9 @@ class CaImagingData(hdf5io.Hdf5io):
             if not hasattr(self, 'raw_data'):
                 self.load('raw_data')
             if not hasattr(self, 'image_scale'):
-                self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
+                self.meanimage, self.scale = self.get_image('mip')
             #um/pixel to dpi
-            dpi = 1.0/self.image_scale*25.4e3
+            dpi = 1.0/self.scale*25.4e3
             self.outfile = fileop.get_convert_filename(self.filename, 'tif')
             tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
         elif format == 'rois':
@@ -334,9 +348,9 @@ class CaImagingData(hdf5io.Hdf5io):
                 os.makedirs(output_folder)
             if not hasattr(self, 'raw_data'):
                 self.load('raw_data')
-            self.meanimage, self.image_scale = get_imagedata(self, image_function='mip')
+            self.meanimage, self.scale = self.get_image('mip')
             #um/pixel to dpi
-            dpi = 1.0/self.image_scale*25.4e3
+            dpi = 1.0/self.scale*25.4e3
             #mip
             mip2image=numpy.zeros((self.meanimage.shape[0],self.meanimage.shape[1],3), self.raw_data.dtype)
             mip2image[:,:,1]=numpy.cast[self.raw_data.dtype.name](self.meanimage)
@@ -402,7 +416,7 @@ class CaImagingData(hdf5io.Hdf5io):
         Meanimage is calculated from imaging data and saved to file
         '''
         if not hasattr(self, 'meanimage'):
-            self.meanimage, self.image_scale = get_imagedata(self)
+            self.meanimage, self.scale = self.get_image()
         colored_image = numpy.zeros((self.meanimage.shape[0], self.meanimage.shape[1],3),dtype=numpy.uint8)
         colored_image[:,:,1] = numpy.cast['uint8'](signal.scale(self.meanimage)*255)
         Image.fromarray(colored_image).save(fileop.get_convert_filename(self.filename, 'png'))
@@ -512,63 +526,7 @@ def get_ca_activity(h, mask = None):
         raise RuntimeError('Invalid mask size: {0}, expected: {1}'.format(mask.shape, h.raw_data.shape[2:]))
     masked_data = h.raw_data * mask
     return masked_data.mean(axis=2).mean(axis=2).flatten()
-    
-def get_imagedata(h, image_function='mean'):
-    '''
-    Meanimage, rawdata and scale is returned
-    '''
-    h_opened = False
-    if not hasattr(h, 'filename'):
-        h = hdf5io.Hdf5io(h, filelocking=False)
-        h_opened = True
-    h.load('raw_data')
-#    if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical':
-#        scale=numpy.diff(h.timg).mean()
-#        meanimage = h.raw_data[:,0,0,:]
-#        if meanimage.shape[1]/meanimage.shape[0]>1:
-#            print 'TODO: consider averaging of rois?'
-#            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
-#        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
-#            scale*=meanimage.shape[0]/meanimage.shape[1]
-#            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
-#            
-#        
-#    else:
-    if 1:
-        if image_function=='mean':
-            meanimage = h.raw_data.mean(axis=0)[0]
-        elif image_function=='mip': 
-            #Remove saturated frames
-            saturation_value=255 if h.raw_data.dtype.name=='uint8' else 2**16-1
-            row_means=h.raw_data.mean(axis=2)
-            indexes=[i for i in range(row_means.shape[0]) if saturation_value in row_means[i]]
-            col_means=h.raw_data.mean(axis=3)
-            indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
-            keep_frame_indexes=[i for i in range(h.raw_data.shape[0]) if i not in indexes]
-            meanimage = h.raw_data[keep_frame_indexes].max(axis=0)[0]
-        h.load('recording_parameters')
-        if not hasattr(h, 'recording_parameters'):
-            h.load('parameters')
-            par=h.parameters
-        else:
-            par=h.recording_parameters
-        if par['resolution_unit']=='pixel/um':
-            scale = 1/par['pixel_size']
-        else:
-            raise NotImplementedError('')
-
-#        if meanimage.shape[1]/meanimage.shape[0]>1:
-#            meanimage=meanimage[:,::meanimage.shape[1]/meanimage.shape[0]]
-#        elif meanimage.shape[1]/float(meanimage.shape[0])<0.5:
-#            meanimage=meanimage[::meanimage.shape[0]/meanimage.shape[1],:]
-    if not hasattr(h, 'configs_stim'):
-        h.load('configs_stim')
-    if h.configs_stim['machine_config']['PLATFORM']=='ao_cortical' and 0:
-        meanimage=meanimage[:2*meanimage.shape[0]/int(h.parameters['nrois']),:]
-    if h_opened:
-        h.close()
-    return meanimage, scale
-    
+        
 def extract_roi_curve(rawdata, roix, roiy, roisize,roitype,scale):
     '''
     Extract a roi curve using provided roi center, roi size
@@ -640,6 +598,7 @@ def pack_configs(self):
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
     if len([True for c in self.__class__.__bases__  if c.__name__=='Stimulus'])>0:
+        print self.config2dict()
         configs['experiment_config']=self.config2dict()
     return configs
     

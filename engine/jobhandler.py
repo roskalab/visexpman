@@ -1,15 +1,15 @@
-import os,tables,unittest,sys,shutil,time,traceback,logging
+import os,tables,unittest,sys,shutil,time,traceback,logging,getpass
 from visexpman.engine.generic import fileop,utils,introspect
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.analysis import aod
 
 class AoJobhandler(object):
-    def __init__(self, experiment_data_path, backup_path, logpath, database_filename):
+    def __init__(self, experiment_data_path, backup_path, logpath, database_filename,  ignore_errors=False):
         self.db=DatafileDatabase(database_filename)
         self.experiment_data_path=experiment_data_path
         self.backup_path=backup_path
         self.mesfile_minimum_age=60
-        self.ignore_errors=False
+        self.ignore_errors= ignore_errors
         self.logfile = os.path.join(logpath, 'jobhandler_{0}.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -21,6 +21,11 @@ level=logging.INFO)
             raise RuntimeError('Less than {1} GB space on {0}'.format(experiment_data_path,int(self.minimum_free_space/2**30)))
         if fileop.free_space(backup_path)<self.minimum_free_space:
             raise RuntimeError('Less than {1} GB space on {0}'.format(experiment_data_path, int(self.minimum_free_space/2**30)))
+        import visexpman
+        self.printl(os.path.abspath(visexpman.__file__))
+        self.printl('Current user is {0}'.format(getpass.getuser()))
+        self.printl(sys.argv)
+        self.printl(utils.module_versions(utils.imported_modules()[0])[0])
         
     
     def printl(self,msg,loglevel='info'):
@@ -114,7 +119,8 @@ level=logging.INFO)
             if os.path.getsize(f)<1e6:
                 raise IOError('{0} is corrupt'.format(f))
         if introspect.is_test_running(): return
-        aod.AOData(filename)
+        a=aod.AOData(filename)
+        a.close()
         
     def convert(self,filename):
         experiment_data.hdf52mat(filename)
@@ -261,9 +267,11 @@ if __name__=='__main__':
     if len(sys.argv)==1:
         unittest.main()
     else:
+        #/mnt/datafast/debug/ao_jobhandler_test /mnt/databig/ao /mnt/datafast/log_ao /mnt/datafast/context_ao/jobhandler.hdf5
         jh=AoJobhandler(*sys.argv[1:])
         while True:
             if utils.enter_hit(): break
             jh.add_jobs()
             jh.fetch_job()
             time.sleep(0.1)
+        jh.close()

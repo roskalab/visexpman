@@ -103,7 +103,7 @@ class ExperimentHandler(object):
             return
         lines=fileop.read_text_file(filename).split('\n')
         line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+20#+20: beginning of class is on the middle of the screen
-        self.printc('Opening {0}/{1} in gedit at line {2}'.format(filename, classname,line))
+        self.printc('Opening {0}{3}{1} in gedit at line {2}'.format(filename, classname,line,os.sep))
         import subprocess
         process = subprocess.Popen(['gedit', filename, '+{0}'.format(line)], shell=self.machine_config.OS != 'Linux')
         
@@ -152,8 +152,6 @@ class ExperimentHandler(object):
             if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
         #Collect experiment parameters
-        self.stimulus_parameters=experiment.read_stimulus_parameters(classname, filename,self.machine_config)
-        
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
@@ -178,7 +176,7 @@ class ExperimentHandler(object):
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM=='ao_cortical':
-            oh=self.machine_config.MES_RECORD_OVERHEAD if experiment_parameters['duration']>180 else self.machine_config.MES_RECORD_OVERHEAD2
+            oh=self.machine_config.MES_RECORD_START_WAITTIME+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         return experiment_parameters
             
@@ -253,7 +251,7 @@ class ExperimentHandler(object):
             if experiment_parameters==None:
                 return
         if self.machine_config.PLATFORM=='ao_cortical':
-            if not self.ask4confirmation('Is AO line scan selected on MES user interface?'):#\r\nIs MES reconnected to stim?'):
+            if not self.ask4confirmation('Is AO line scan selected on MES user interface?'):
                 return
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
@@ -282,7 +280,10 @@ class ExperimentHandler(object):
         else:
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
-        self.printc('{1} experiment is starting, expected duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass']))
+        if self.machine_config.PLATFORM=='ao_cortical':
+            self.printc('{1} experiment is starting, mes recording length is {2:.0f} ms, stimulus duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass'], experiment_parameters['mes_record_time']))
+        else:
+            self.printc('{1} experiment is starting, expected duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass']))
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
@@ -369,7 +370,7 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-                self.printc('TODO: send job to jobhandler')
+                fileop.wait4file_ready
             #Save experiment/stimulus config
             h = experiment_data.CaImagingData(fn)
             if self.santiago_setup:
@@ -377,9 +378,9 @@ class ExperimentHandler(object):
             else:
                 crop=False
             h.sync2time(crop=crop)
+            self.tstim=h.tstim
+            self.timg=h.timg
             h.check_timing()
-            h.stimulus_parameters=self.stimulus_parameters
-            h.save('stimulus_parameters')
             h.close()
             if self.santiago_setup:
                 #Export timing to csv file
@@ -1143,6 +1144,31 @@ class Analysis(object):
             else:
                 os.remove(fn)
         self.printc('Done')
+        
+    def plot_sync(self,filename):
+        if self.machine_config.PLATFORM=='ao_cortical':
+            if os.path.splitext(filename)[1]!='.hdf5':
+                self.notify('Warning', 'Only hdf5 files can be opened!')
+                return
+            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
+                if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
+                    return
+            self.fn=filename
+            h=hdf5io.Hdf5io(filename)
+            scale=h.findvar('sync_scaling')
+            sync=h.findvar('sync')
+            sync=signal.from_16bit(sync,scale)
+            fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
+            h.close()
+            x=[]
+            y=[]
+            t=numpy.arange(sync.shape[0])*(1.0/fs)
+            for ch in range(sync.shape[1]):
+                x.append(t)
+                y.append(sync[:,ch]+numpy.ceil(ch*sync.max()))
+            self.to_gui.put({'plot_sync':[x,y]})
+        else:
+            raise NotImplementedError()
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
