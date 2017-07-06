@@ -24,6 +24,14 @@ def ReiSetup(Config):
                 {'src':'q:\\processed', 'dst':['m:\\invitro\\processed'],'extensions':['.hdf5', '.mat'], 'move':True},
             ]
             
+def AOSetup(Config):
+    def __init__(self):
+        self.LOGPATH='/mnt/datafast/loq_ao/backup_manager.txt'
+        self.COPY= [
+                {'src':'/mnt/databig/ao/raw', 'dst':['/mnt/mdrive/invivo/ao/raw'],'extensions':['.mat','.hdf5'], 'move':True},
+                {'src':'/mnt/databig/ao/processed', 'dst':['/mnt/mdrive/invivo/ao/processed'],'extensions':['.mat','.hdf5'], 'move':True},
+            ]
+            
 def RCSetup(Config):
     def __init__(self):
         self.LOGPATH='/mnt/datafast/log/backup_manager.txt'
