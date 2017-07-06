@@ -69,6 +69,12 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             self.eye_camera_running=False
+        else:
+            self.experiment_running=False
+            self.sync_recording_started=False
+            self.batch_running=False
+            self.santiago_setup=False
+            self.eye_camera_running=False
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -573,7 +579,7 @@ class Analysis(object):
         self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
-        self.image_scale=self.datafile.image_scale
+        self.image_scale=self.datafile.scale
         self.meanimage=self.datafile.image
         self.raw_data=self.datafile.raw_data
         if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
@@ -582,7 +588,8 @@ class Analysis(object):
             raise RuntimeError(msg)
         self.experiment_name= self.datafile.findvar('parameters')['stimclass']
         self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
-        self._recalculate_background()
+        if self.machine_config.PLATFORM != 'ao_cortical':
+            self._recalculate_background()
         try:
             self._red_channel_statistics()
         except:
@@ -728,13 +735,14 @@ class Analysis(object):
             return
         baseline_length = self.guidata.read('Baseline lenght')
         for r in self.rois:
-            if any(numpy.isnan(self.background)):
+            if not hasattr(self, 'background') or any(numpy.isnan(self.background)):
                 r['normalized'] = numpy.copy(r['raw'])
             else:
                 r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tstim[0], baseline_length)
             r['baseline_length'] = baseline_length
-            r['background'] = self.background
-            r['background_threshold']=self.background_threshold
+            if hasattr(self, 'background'):
+                r['background'] = self.background
+                r['background_threshold']=self.background_threshold
             r['timg']=self.timg
             r['tstim']=self.tstim
             r['stimulus_name']=self.experiment_name

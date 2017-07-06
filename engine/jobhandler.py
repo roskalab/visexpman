@@ -1,4 +1,4 @@
-import os,tables,unittest,sys,shutil,time,traceback,logging,sys
+import os,tables,unittest,sys,shutil,time,traceback,logging,getpass
 from visexpman.engine.generic import fileop,utils,introspect
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.analysis import aod
@@ -21,6 +21,11 @@ level=logging.INFO)
             raise RuntimeError('Less than {1} GB space on {0}'.format(experiment_data_path,int(self.minimum_free_space/2**30)))
         if fileop.free_space(backup_path)<self.minimum_free_space:
             raise RuntimeError('Less than {1} GB space on {0}'.format(experiment_data_path, int(self.minimum_free_space/2**30)))
+        import visexpman
+        self.printl(os.path.abspath(visexpman.__file__))
+        self.printl('Current user is {0}'.format(getpass.getuser()))
+        self.printl(sys.argv)
+        self.printl(utils.module_versions(utils.imported_modules()[0])[0])
         
     
     def printl(self,msg,loglevel='info'):
@@ -48,6 +53,7 @@ level=logging.INFO)
         
     def fetch_job(self):
         query='(measurement_ready==1)&((backed_up==0) | (mesextractor_ready==0) | (converted==0) | (copied==0))'
+        self.ignore_errors=not os.path.exists(os.path.join(self.experiment_data_path, 'force_jobs.txt'))
         if not self.ignore_errors:
             query+='& (error==0)'
         active_jobs=[[r['filename'], r['backed_up'], r['mesextractor_ready'], r['converted'], r['copied']] for r in self.db.hdf5.root.datafiles.where( query)]

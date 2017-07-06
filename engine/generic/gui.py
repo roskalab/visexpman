@@ -614,6 +614,8 @@ def index2filename(index):
         
 class FileTree(QtGui.QTreeView):
     def __init__(self,parent, root, filterlist = []):
+        if not os.path.exists(root):
+            raise RuntimeError('{0} does not exists, file tree cannot be created'.format(root))
         self.parent=parent
         QtGui.QTreeView.__init__(self,parent)
         self.model = QtGui.QFileSystemModel(self)

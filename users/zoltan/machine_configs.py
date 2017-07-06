@@ -1,7 +1,4 @@
-import time
 import numpy
-import serial
-import visexpman
 import os.path
 import os
 import tempfile
@@ -11,7 +8,6 @@ if os.name == 'nt':
     except ImportError:
         pass
 
-import visexpman
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import configuration as config
 from visexpman.engine.generic import utils
@@ -19,11 +15,21 @@ from visexpman.engine.generic import fileop
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
-from visexpman.users.daniel import grating
 from visexpman.users.peter import mea_configurations as peter_configurations
-from visexpman.engine.generic import fileop
 
 GEOMETRY_PRECISION = 3
+
+from visexpman.users.common import femtonics_setups
+class MainUIAOTestConfig(femtonics_setups.CameronDev):
+    def _set_user_parameters(self):
+        femtonics_setups.CameronDev._set_user_parameters(self)
+        self.LOG_PATH = '/tmp/log_ao'
+        self.EXPERIMENT_DATA_PATH = '/tmp/experiment_data_ao'
+        self.CONTEXT_PATH='/tmp/context_ao'
+        self.BACKUP_STAGING_PATH='/tmp/bu'
+        for d in [self.LOG_PATH,self.EXPERIMENT_DATA_PATH,self.CONTEXT_PATH,self.BACKUP_STAGING_PATH]:
+            if not os.path.exists(d):
+                os.mkdir(d)
 
 class GraphicsTestConfig(config.Config):
     def _create_application_parameters(self):

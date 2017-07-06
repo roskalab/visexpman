@@ -162,7 +162,10 @@ def calculate_background(rawdata,threshold=0.1):
     
 def pixels_below_threshold(rawdata,threshold):
     mi=rawdata.mean(axis=0)
-    x,y = numpy.where(mi<mi.max()*threshold)
+    #until now all values under threshold% of max intensity was considered as background, 
+    #now the dimest threshold% of pixels are the backgound
+    th=(mi.max()-mi.min())*threshold+mi.min()
+    x,y = numpy.where(mi<th)
     return x,y
     
 def fast_read(f,vn):
