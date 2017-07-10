@@ -26,6 +26,7 @@ def ReiSetup(Config):
             
 def AOSetup(Config):
     def __init__(self):
+        last_run_timeout=60*10
         self.LOGPATH='/mnt/datafast/loq_ao/backup_manager.txt'
         self.COPY= [
                 {'src':'/mnt/databig/ao/raw', 'dst':['/mnt/mdrive/invivo/ao/raw'],'extensions':['.mat','.hdf5'], 'move':True},
