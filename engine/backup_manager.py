@@ -16,7 +16,7 @@ class TestConfig(Config):
                 {'src':'/tmp/2', 'dst':['/tmp/b', '/tmp/c'],'extensions':['.mat', '.hdf5'],'move':False}
             ]
             
-def ReiSetup(Config):
+class ReiSetup(Config):
     def __init__(self):
         self.LOGPATH='q:\\log\\backup_manager.txt'
         self.COPY= [
@@ -24,16 +24,16 @@ def ReiSetup(Config):
                 {'src':'q:\\processed', 'dst':['m:\\invitro\\processed'],'extensions':['.hdf5', '.mat'], 'move':True},
             ]
             
-def AOSetup(Config):
+class AOSetup(Config):
+    last_run_timeout=60*10
     def __init__(self):
-        last_run_timeout=60*10
-        self.LOGPATH='/mnt/datafast/loq_ao/backup_manager.txt'
+        self.LOGPATH='/mnt/datafast/log_ao/backup_manager.txt'
         self.COPY= [
                 {'src':'/mnt/databig/ao/raw', 'dst':['/mnt/mdrive/invivo/ao/raw'],'extensions':['.mat','.hdf5'], 'move':True},
                 {'src':'/mnt/databig/ao/processed', 'dst':['/mnt/mdrive/invivo/ao/processed'],'extensions':['.mat','.hdf5'], 'move':True},
             ]
             
-def RCSetup(Config):
+class RCSetup(Config):
     def __init__(self):
         self.LOGPATH='/mnt/datafast/log/backup_manager.txt'
         self.COPY= [
@@ -235,4 +235,8 @@ class TestStimulationPatterns(unittest.TestCase):
             
     
 if __name__ == "__main__":
-    unittest.main()
+    if len(sys.argv)==1:
+        unittest.main()
+    else:
+        cc=getattr(sys.modules[__name__], sys.argv[1])()
+        BackupManager(cc).run()

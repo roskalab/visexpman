@@ -102,30 +102,34 @@ class Flash(experiment.Stimulus):
         self.show_fullscreen(color=1.0,duration=self.DURATION)
         self.block_end()
         
-class Gr(experiment.Stimulus):
+class TestStim(experiment.Stimulus):
     def stimulus_configuration(self):
         self.DURATION=3
         
     def calculate_stimulus_duration(self):
         self.duration=self.DURATION*3
         
-    def run(self):
-        if 0:
-            ph=numpy.tile(numpy.sin(numpy.arange(100)/100.*2*3.14)*300,10)
+    def _approach(self):
+        initial_wait=2.0
+        mask_size=400.
+        bar_width=60.
+        speed=80
+        motion=['expand','shrink','left','right']
+        for m in motion:
+            self.show_approach_stimulus(m, bar_width, speed, mask_size=mask_size)
             
-            self.show_grating(white_bar_width =100,  phases=ph, duty_cycle=3)
-            return
-            
-            initial_wait=2.0
-            mask_size=400.
-            bar_width=60.
-            speed=80
-            color=1.0
-            motion=['expand','shrink','left','right']
-            for m in motion:
-                self.show_approach_stimulus(m, bar_width, speed)
-            return
-        from PIL import Image
+    def _moving_grating(self):
+        #Variable speed
+        ph=numpy.tile(numpy.sin(numpy.arange(100)/100.*2*3.14)*300,10)
+        self.show_grating(white_bar_width =100,  phases=ph, duty_cycle=3)
+        #Flickering
+        self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION,display_area=utils.rc((400,600)),
+                flicker={'frequency':5, 'modulation_size':50})
+        self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION*3)
+        self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION*2,
+                flicker={'frequency':5, 'modulation_size':50})
+        
+    def _rolling_image(self):
         pixel_size=10.0/5#um/pixel
         shift=400.0#um
         speed=1200*1
@@ -133,69 +137,27 @@ class Gr(experiment.Stimulus):
         fn='/tmp/Pebbleswithquarzite_grey.png'
         fn='/home/rz/1.jpg'
         self.show_rolling_image(fn,pixel_size,speed,shift,yrange,axis='vertical')
+            
+    def _plaid_stim(self):
+        duration=10
+        direction=0
+        relative_angle=150
+        velocity=100
+        line_width=20
+        duty_cycle=20
+        mask_size=None#200
+        contrast=0.7
+        background_color=0.5
+        sinusoid=False
+        self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
+        
+    def run(self):
+        self._plaid_stim()
         return
-        texture=numpy.flipud(numpy.asarray(Image.open(fn))/255.)
-        if len(texture.shape)<3:
-            texture=numpy.swapaxes(numpy.array(3*[texture]),0,2)
-        texture=texture[yrange[0]:yrange[1],:,:]
-        shift_pixel=shift/self.config.SCREEN_UM_TO_PIXEL_SCALE
-        dpixel=speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
-        #Image size: texture.shape*pixel_size*screen um2 pixel ratio
-        size=utils.rc(numpy.array(texture.shape[:2])*pixel_size/self.config.SCREEN_UM_TO_PIXEL_SCALE)
-        texture_coordinates = numpy.array(
-                             [
-                             [1, 1],
-                             [0.0, 1],
-                             [0.0, 0.0],
-                             [1, 0.0],
-                             ])
-        self._init_texture(size,0)
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
-        #Calculate trajectory of image motion
-        p0=(utils.nd(size)/2-utils.nd(self.config.SCREEN_RESOLUTION)/2)[::-1]
-        p1=p0*numpy.array([-1,1])
-        nshifts=int(size['row']/shift_pixel)-1
-        vertical_offsets=numpy.arange(nshifts)*shift_pixel
-        vertical_offsets=numpy.repeat(vertical_offsets,3)
-        points=numpy.array([p0,p1,p0])
-        points=numpy.array(points.tolist()*nshifts)
-        points[:,1]-=vertical_offsets
-        #Interpolate between points
-        offset=numpy.empty((0,2))
-        for i in range(points.shape[0]-1):
-            start=points[i]
-            end=points[i+1]
-            nsteps=int(abs(((end-start)/dpixel)).max())
-            increment_vector=(end-start)/abs((end-start)).max()*dpixel
-            steps=numpy.repeat(numpy.arange(nsteps),2).reshape(nsteps,2)*increment_vector+start
-            offset=numpy.concatenate((offset,steps))
-        import time
-        t0=time.time()
-        for i in range(offset.shape[0]):
-            now=time.time()
-            index=int((now-t0)*self.config.SCREEN_EXPECTED_FRAME_RATE)
-            vertices = geometry.rectangle_vertices(size, orientation = 0)-offset[index]
-            glEnableClientState(GL_VERTEX_ARRAY)
-            glVertexPointerf(vertices)
-            glTexCoordPointerf(texture_coordinates)
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            glColor3fv((1.0,1.0,1.0))
-            glDrawArrays(GL_POLYGON,  0, 4)
-            self._flip(False)
-            if self.abort:
-                break
-        print i/(time.time()-t0)
-        self._deinit_texture()
-        return
-        t0=time.time()
-        self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION,display_area=utils.rc((400,600)),
-                flicker={'frequency':5, 'modulation_size':50})
-        self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION*3)
-        self.show_grating(duty_cycle=4, white_bar_width=200, velocity=100.0,duration=self.DURATION*2,
-                flicker={'frequency':5, 'modulation_size':50})
-        print t0-time.time()        
-#        self.show_grating(white_bar_width=100, velocity=100.0,duration=self.DURATION,orientation=10)
-#        self.show_grating(white_bar_width=100, velocity=100.0,duration=self.DURATION,orientation=90,display_area=utils.rc((400,800)))
+        self._approach()
+        self._rolling_image()
+        self._moving_grating()
+        
 
 def receptive_field_calculator():
     height=265
@@ -221,4 +183,4 @@ def receptive_field_calculator():
 if __name__ == "__main__":
     #receptive_field_calculator()
     from visexpman.engine.visexp_app import stimulation_tester
-    stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
+    stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')
