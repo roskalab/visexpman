@@ -387,33 +387,36 @@ class AnalysisHelper(QtGui.QWidget):
         QtGui.QWidget.__init__(self, parent)
         self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
         self.show_rois.input.setCheckState(2)
-        self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
-        self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
-        self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
-        self.show_repetitions.input.setCheckState(0)
-        self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
-        self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
-        self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
-        self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
-        self.roi_adjust = RoiShift(self)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
+            self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
+            self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
+            self.show_repetitions.input.setCheckState(0)
+            self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
+            self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
+            self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
+            self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
+            self.roi_adjust = RoiShift(self)
 #        self.trace_parameters = QtGui.QLabel('', self)
 #        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.show_rois,0,0,1,1)
-        self.layout.addWidget(self.keep_rois,1,0,1,1)
-        self.layout.addWidget(self.roi_adjust,0,1,2,2)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.layout.addWidget(self.keep_rois,1,0,1,1)
+            self.layout.addWidget(self.roi_adjust,0,1,2,2)
 #        self.layout.addWidget(self.trace_parameters,0,2,2,1)
-        self.layout.addWidget(self.show_repetitions,0,3,1,1)
-        self.layout.addWidget(self.find_repetitions,1,3,1,1)
-        self.layout.addWidget(self.aggregate,2,3,1,1)
-        self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
-        self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
+            self.layout.addWidget(self.show_repetitions,0,3,1,1)
+            self.layout.addWidget(self.find_repetitions,1,3,1,1)
+            self.layout.addWidget(self.aggregate,2,3,1,1)
+            self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
+            self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
         self.setLayout(self.layout)
         self.setFixedHeight(140)
         self.setFixedWidth(530)
-        self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
-        self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
-        self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
+            self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
+            self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
         
     def find_repetitions_clicked(self):
         self.parent.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
@@ -502,10 +505,12 @@ class MainUI(gui.VisexpmanMainWindow):
         self.show()
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
-            self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+                self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -611,7 +616,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Name', 'type': 'str', 'value': ''},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True                    
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},

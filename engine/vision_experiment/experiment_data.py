@@ -218,7 +218,7 @@ class CaImagingData(hdf5io.Hdf5io):
                 self.timg=self.timg[:self.raw_data.shape[0]]
             if self.timg.shape[0]!=self.raw_data.shape[0]:
                 raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
-            self.save(['timg', 'tstim'])
+        self.save(['timg', 'tstim'])
             
     def check_timing(self):
         errors=[]
