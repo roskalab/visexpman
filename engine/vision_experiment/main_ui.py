@@ -270,6 +270,16 @@ class DataFileBrowser(gui.FileTree):
         self.customContextMenuRequested.connect(self.open_menu)
         self.setSortingEnabled(True)
         
+    def convert_filename(self, filename):
+        ext=os.path.splitext(filename)[1]
+        file2open=filename
+        if ext=='.mat':#If mat or _mat is selected, corresponding hdf5 is opened
+            if '_mat.mat' in filename:
+                file2open=filename.replace('_mat.mat', '.hdf5')
+            else:
+                file2open=filename.replace('.mat', '.hdf5')
+        return file2open
+        
     def file_selected(self,index):
         self.selected_filename = gui.index2filename(index)
         
@@ -283,15 +293,9 @@ class DataFileBrowser(gui.FileTree):
             self.parent.parent.to_engine.put({'function': 'keep_rois', 'args':[keep_rois]})
             if hasattr(self.parent.parent.analysis_helper, 'keep_rois'):#Works only on retina platform
                 self.parent.parent.analysis_helper.keep_rois.input.setCheckState(0) 
-            file2open=filename
-            if ext=='mat':#If mat or _mat is selected, corresponding hdf5 is opened
-                if '_mat.mat' in filename:
-                    file2open=filename.replace('_mat.mat', '.hdf5')
-                else:
-                    file2open=filename.replace('.mat', '.hdf5')
         else:
             raise NotImplementedError(filename)
-        self.parent.parent.to_engine.put({'function': function, 'args':[file2open]})
+        self.parent.parent.to_engine.put({'function': function, 'args':[self.convert_filename(filename)]})
 
     def open_menu(self, position):
         self.menu = QtGui.QMenu(self)
@@ -305,11 +309,11 @@ class DataFileBrowser(gui.FileTree):
         
     def delete_action(self):
         if hasattr(self, 'selected_filename'):
-            self.parent.parent.to_engine.put({'function': 'remove_recording', 'args':[self.selected_filename]})
+            self.parent.parent.to_engine.put({'function': 'remove_recording', 'args':[self.convert_filename(self.selected_filename)]})
             
     def plot_action(self):
         if hasattr(self, 'selected_filename'):
-            self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.selected_filename]})
+            self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.convert_filename(self.selected_filename)]})
             
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
