@@ -277,13 +277,21 @@ class DataFileBrowser(gui.FileTree):
         filename = gui.index2filename(index)
         if os.path.isdir(filename): return#Double click on folder is ignored
         ext = fileop.file_extension(filename)
-        if ext == 'hdf5':
+        if ext  in  ['hdf5', 'mat']:
             function = 'open_datafile'
-            self.parent.parent.to_engine.put({'function': 'keep_rois', 'args':[self.parent.parent.analysis_helper.keep_rois.input.checkState()==2]})
-            self.parent.parent.analysis_helper.keep_rois.input.setCheckState(0)
+            keep_rois=(self.parent.parent.analysis_helper.keep_rois.input.checkState()==2) if hasattr(self.parent.parent.analysis_helper, 'keep_rois') else False
+            self.parent.parent.to_engine.put({'function': 'keep_rois', 'args':[keep_rois]})
+            if hasattr(self.parent.parent.analysis_helper, 'keep_rois'):#Works only on retina platform
+                self.parent.parent.analysis_helper.keep_rois.input.setCheckState(0) 
+            file2open=filename
+            if ext=='mat':#If mat or _mat is selected, corresponding hdf5 is opened
+                if '_mat.mat' in filename:
+                    file2open=filename.replace('_mat.mat', '.hdf5')
+                else:
+                    file2open=filename.replace('.mat', '.hdf5')
         else:
             raise NotImplementedError(filename)
-        self.parent.parent.to_engine.put({'function': function, 'args':[filename]})
+        self.parent.parent.to_engine.put({'function': function, 'args':[file2open]})
 
     def open_menu(self, position):
         self.menu = QtGui.QMenu(self)
