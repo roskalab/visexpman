@@ -247,7 +247,7 @@ class ExperimentHandler(object):
                 self.batch=self.batch[1:]
         
     def start_experiment(self, experiment_parameters=None):
-        if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
+        if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:
             self.notify('Warning', 'Experiment already running')
@@ -536,6 +536,9 @@ class ExperimentHandler(object):
             self.sync_recorder.join()
             self.log.info('Sync recorder terminated')
         self.stop_eye_camera()
+        
+    def test(self):
+        stimuli=['']
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -1292,10 +1295,15 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def save_software_hash(self):
         hash=introspect.visexpman2hash()
+        meshash=introspect.mes2hash()
         if self.guidata.read('software_hash')==None:
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
+        if self.guidata.read('mes_hash')==None:
+            self.guidata.add('mes_hash', hash, 'hash/mes_hash')
+        else:
+            self.guidata.mes_hash.v=meshash
         self.save_context()
     
     def check_software_hash(self):
@@ -1303,6 +1311,10 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             self.notify('Warning', 'Software has changed, hashes do not match.\r\nMake sure that the correct software version is used!')
+        meshash=introspect.mes2hash()
+        saved_hash=self.guidata.read('mes_hash')
+        if not numpy.array_equal(saved_hash, meshash):
+            self.notify('Warning', 'MES has changed, hashes do not match.')
             
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())
