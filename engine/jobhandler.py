@@ -120,6 +120,7 @@ level=logging.INFO)
                 raise IOError('{0} is corrupt'.format(f))
         if introspect.is_test_running(): return
         a=aod.AOData(filename)
+        a.crop_timg()
         a.close()
         
     def convert(self,filename):

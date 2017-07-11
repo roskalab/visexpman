@@ -376,18 +376,15 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-                fileop.wait4file_ready
-            #Save experiment/stimulus config
-            h = experiment_data.CaImagingData(fn)
-            if self.santiago_setup:
-                crop=True
-            else:
-                crop=False
-            h.sync2time(crop=crop)
-            self.tstim=h.tstim
-            self.timg=h.timg
-            h.check_timing()
-            h.close()
+            if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+                h = experiment_data.CaImagingData(fn)
+                h.sync2time()
+                if self.santiago_setup:
+                    h.crop_timg()
+                self.tstim=h.tstim
+                self.timg=h.timg
+                h.check_timing()
+                h.close()
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)

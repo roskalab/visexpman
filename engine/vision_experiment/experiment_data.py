@@ -190,7 +190,7 @@ class CaImagingData(hdf5io.Hdf5io):
         self.file_info = os.stat(filename)
         hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
         
-    def sync2time(self, recreate=False,crop=True):
+    def sync2time(self, recreate=False):
         '''
         Reads raw sync traces and converts them to timestamps. If not found in datafile, it is saved
         Channel id is read from saved machine config
@@ -207,18 +207,21 @@ class CaImagingData(hdf5io.Hdf5io):
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         self.timg=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
         self.tstim=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TSTIM_SYNC_INDEX']])/fsample
-        if crop:
-            self.load('raw_data')
-            #Crop timg
-            if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
-                self.timg=self.timg[:self.raw_data.shape[0]]
-            elif self.configs['machine_config']['PLATFORM']=='ao_cortical':
-                self.timg=self.timg[self.findvar('sync_pulses_to_skip'):]
-                #Ignore last frames
-                self.timg=self.timg[:self.raw_data.shape[0]]
-            if self.timg.shape[0]!=self.raw_data.shape[0]:
-                raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
         self.save(['timg', 'tstim'])
+        
+    def crop_timg(self):
+        for vn in ['configs', 'raw_data', 'timg']:
+            self.load(vn)
+        #Crop timg
+        if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
+            self.timg=self.timg[:self.raw_data.shape[0]]
+        elif self.configs['machine_config']['PLATFORM']=='ao_cortical':
+            self.timg=self.timg[self.findvar('sync_pulses_to_skip'):]
+            #Ignore last frames
+            self.timg=self.timg[:self.raw_data.shape[0]]
+        if self.timg.shape[0]!=self.raw_data.shape[0]:
+            raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
+        self.save(['timg'])
             
     def check_timing(self):
         errors=[]

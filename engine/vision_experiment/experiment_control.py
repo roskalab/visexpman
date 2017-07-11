@@ -690,11 +690,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = hdf5io.Hdf5io(self.outputfilename,filelocking=False)
             self._prepare_data2save()
-            res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
+            [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
             self.datafile.save(variables2save)
-            if hasattr(self, 'analog_input'):
+            if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
+                self.datafile.sync2time()
+                self.datafile.check_timing()
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
