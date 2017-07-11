@@ -536,9 +536,6 @@ class ExperimentHandler(object):
             self.sync_recorder.join()
             self.log.info('Sync recorder terminated')
         self.stop_eye_camera()
-        
-    def test(self):
-        stimuli=['']
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -1314,6 +1311,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         meshash=introspect.mes2hash()
         saved_hash=self.guidata.read('mes_hash')
         if not numpy.array_equal(saved_hash, meshash):
+            print saved_hash, meshash
             self.notify('Warning', 'MES has changed, hashes do not match.')
             
     def save_context(self):
@@ -1322,10 +1320,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def get_queues(self):
         return self.from_gui, self.to_gui
-        
-    def test(self):
-        self.to_gui.put({'function':'test', 'args':[]})
-        
+
     def printc(self,txt):
         self.to_gui.put({'printc':str(txt)})
         

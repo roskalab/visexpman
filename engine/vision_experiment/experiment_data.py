@@ -180,7 +180,7 @@ class CaImagingData(hdf5io.Hdf5io):
         
     In some cases the timg and number of frames do not match:
         legacy ca imaging: y scanner signal is not immediately stopped so more timg pulses are detected than image frames recorded
-        AOD: some frames from the beginning should be thrown away but not sure
+        AOD: some frames from the beginning should be thrown away
         
     Consequently sync2time function should make sure that the number of timg values is correct
         
@@ -269,12 +269,15 @@ class CaImagingData(hdf5io.Hdf5io):
             #merge rois to a square image:
             n=int(numpy.ceil(numpy.sqrt(nrois)))#number of rois across x and y axis
             merged=numpy.zeros((n*self.image.shape[1], n*self.image.shape[2]), dtype=self.image.dtype)
+            rois=[]
             for row in range(n):
                 for col in range(n):
                     roii=row*n+col
                     if roii>=nrois:
                         break
+                    print 'todo: add roi area'
                     merged[row*self.image.shape[1]:(row+1)*self.image.shape[1], col*self.image.shape[2]:(col+1)*self.image.shape[2]]=self.image[roii]
+            print 'todo: rdo similar to _extract_roi_curves add timg, tstim, stimulus_name, meanimage, image_scale, '
             self.image=merged
         self.load('parameters')
         if self.parameters['resolution_unit']=='pixel/um':
@@ -282,36 +285,6 @@ class CaImagingData(hdf5io.Hdf5io):
         else:
             raise NotImplementedError('')
         return self.image,self.scale
-
-        
-        
-    def load_sync(self,recalculate=False):#OBSOLETE?
-        varnames=['tsync','timg']
-        for vn in varnames:
-            self.load(vn)
-        if len([1 for vn in varnames if hasattr(self,vn)])==0 or recalculate:
-            self.prepare4analysis()
-            self.save(varnames)
-            
-    def crop_rawdata(self):
-        nframes_original=self.raw_data.shape[0]
-        self.raw_data = self.raw_data[:self.timg.shape[0]]
-        if self.datatype=='ao':
-            print 'Warning, figure out why number of sync pulses is more than data frames'
-            print 'ao frames: {0}, n pulses {1}'.format(nframes_original, self.timg.shape[0])
-            self.timg = self.timg[-self.raw_data.shape[0]:]
-        elif self.datatype=='ca':
-            self.timg=self.timg[1:self.raw_data.shape[0]+1]
-        if self.raw_data.shape[0]<self.timg.shape[0]:
-            raise RuntimeError('More sync pulses ({0}) detected than number of frames ({1}) recorded'.format(self.timg.shape[0],self.raw_data.shape[0]))
-        
-        
-    def prepare4analysis(self):#OBSOLETE
-        self.tsync,self.timg = get_sync_events(self)
-        self.meanimage, self.image_scale = self.get_image(self.image_function)
-        self.crop_rawdata()
-        self.tsync_indexes=numpy.array([signal.time2index(self.timg,tsynci) for tsynci in self.tsync])
-        return self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data
         
     def convert(self,format):
         '''

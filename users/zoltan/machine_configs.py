@@ -30,6 +30,9 @@ class MainUIAOTestConfig(femtonics_setups.CameronDev):
         for d in [self.LOG_PATH,self.EXPERIMENT_DATA_PATH,self.CONTEXT_PATH,self.BACKUP_STAGING_PATH]:
             if not os.path.exists(d):
                 os.mkdir(d)
+        userfold=os.path.join(self.EXPERIMENT_DATA_PATH, 'zoltan')
+        if not os.path.exists(userfold):
+            os.mkdir(userfold)
 
 class GraphicsTestConfig(config.Config):
     def _create_application_parameters(self):
