@@ -50,6 +50,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         self.TIMG_SYNC_INDEX=3
         self.TSTIM_SYNC_INDEX=2
+        self.TSTIM_LASER_SYNC_INDEX=4
         self.DIGITAL_IO_PORT='COM4'
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TRIGGER_PIN = 0

@@ -200,13 +200,17 @@ class CaImagingData(hdf5io.Hdf5io):
         if not recreate:
             if hasattr(self, 'timg') and hasattr(self , 'tstim'):
                 return
-        for vn in ['sync', 'configs', 'sync_scaling']:
+        for vn in ['sync', 'configs', 'sync_scaling', 'parameters']:
             self.load(vn)
         if self.sync.dtype.name not in ['float', 'uint8', 'uint16']:
             raise NotImplementedError()
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         self.timg=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
-        self.tstim=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TSTIM_SYNC_INDEX']])/fsample
+        if 'laser' in self.parameters['stimclass'].lower():
+            index=self.configs['machine_config']['TSTIM_LASER_SYNC_INDEX']
+        else:
+            index=self.configs['machine_config']['TSTIM_SYNC_INDEX']
+        self.tstim=signal.trigger_indexes(self.sync[:,index])/fsample
         self.save(['timg', 'tstim'])
         
     def crop_timg(self):
