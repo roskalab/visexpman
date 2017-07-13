@@ -247,7 +247,7 @@ class ExperimentHandler(object):
                 self.batch=self.batch[1:]
         
     def start_experiment(self, experiment_parameters=None):
-        if not self.check_mcd_recording_started() and self.machine_config.PLATFORM=='mc_mea':
+        if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:
             self.notify('Warning', 'Experiment already running')
@@ -376,18 +376,15 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-                fileop.wait4file_ready
-            #Save experiment/stimulus config
-            h = experiment_data.CaImagingData(fn)
-            if self.santiago_setup:
-                crop=True
-            else:
-                crop=False
-            h.sync2time(crop=crop)
-            self.tstim=h.tstim
-            self.timg=h.timg
-            h.check_timing()
-            h.close()
+            if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+                h = experiment_data.CaImagingData(fn)
+                h.sync2time()
+                if self.santiago_setup:
+                    h.crop_timg()
+                self.tstim=h.tstim
+                self.timg=h.timg
+                h.check_timing()
+                h.close()
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
@@ -1295,10 +1292,15 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def save_software_hash(self):
         hash=introspect.visexpman2hash()
+        meshash=introspect.mes2hash()
         if self.guidata.read('software_hash')==None:
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
+        if self.guidata.read('mes_hash')==None:
+            self.guidata.add('mes_hash', hash, 'hash/mes_hash')
+        else:
+            self.guidata.mes_hash.v=meshash
         self.save_context()
     
     def check_software_hash(self):
@@ -1306,6 +1308,11 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             self.notify('Warning', 'Software has changed, hashes do not match.\r\nMake sure that the correct software version is used!')
+        meshash=introspect.mes2hash()
+        saved_hash=self.guidata.read('mes_hash')
+        if not numpy.array_equal(saved_hash, meshash):
+            print saved_hash, meshash
+            self.notify('Warning', 'MES has changed, hashes do not match.')
             
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())
@@ -1313,10 +1320,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def get_queues(self):
         return self.from_gui, self.to_gui
-        
-    def test(self):
-        self.to_gui.put({'function':'test', 'args':[]})
-        
+
     def printc(self,txt):
         self.to_gui.put({'printc':str(txt)})
         

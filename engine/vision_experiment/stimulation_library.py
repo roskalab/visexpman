@@ -1203,6 +1203,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             
     def show_approach_stimulus(self, motion, bar_width, speed, color=1.0, initial_wait=2.0, mask_size=400.,save_frame_info=True):
         if save_frame_info:
+            self.log.info('show_approach_stimulus(' + str(motion)+ ', ' + str(bar_width) + ', ' + str(speed) + ', ' + str(color)  + ', ' + str(initial_wait)  + ', ' + str(mask_size)  + ')', source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         bar_width_pixel=bar_width*self.config.SCREEN_UM_TO_PIXEL_SCALE
         mask_size_pixel=mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE
@@ -1299,14 +1300,92 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glDisableClientState(GL_VERTEX_ARRAY)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
+    def show_moving_plaid(self,duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size=None, contrast=1.0, background_color=0.0,  sinusoid=False, save_frame_info=True):
+        if save_frame_info:
+            params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
+            self.log.info('show_approach_stimulus({0})'.format(', '.join(params)), source = 'stim')
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        if sinusoid:
+            raise NotImplementedError()
+        print 'todo: mask'
+        #Generate texture:
+        line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        line_spacing_p=int(line_width_p*duty_cycle)
+        #Generate single tile:
+        tile_height=abs(int(line_spacing_p/numpy.tan(0.5*numpy.radians(relative_angle))))
+        tile=Image.new('L', (line_spacing_p, tile_height))
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(tile)
+        draw.line((0,0, line_spacing_p, tile_height), fill=255, width =line_width_p)
+        draw.line((line_spacing_p, 0,0, tile_height), fill=255, width =line_width_p)
+        tile=numpy.cast['float'](numpy.asarray(tile))/255*contrast
+        tilea=numpy.where(tile==0, background_color, tile)
+        if mask_size ==None:
+            texture_size=numpy.sqrt(self.config.SCREEN_RESOLUTION['col'] **2+self.config.SCREEN_RESOLUTION['row'] **2)
+        else:
+            texture_size=mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        texture_size=int(line_spacing_p*numpy.ceil(texture_size/line_spacing_p))
+        #Repeat tile and make a texture of it
+        nrepeats=numpy.cast['int'](numpy.ceil(numpy.array(2*[texture_size], dtype=numpy.float)/numpy.array(tilea.shape)))
+        texture=numpy.zeros(nrepeats*numpy.array(tilea.shape))
+        for row in range(nrepeats[0]):
+            for col in range(nrepeats[1]):
+                texture[row*tilea.shape[0]:(row+1)*tilea.shape[0],col*tilea.shape[1]:(col+1)*tilea.shape[1]]=tilea
+        texture=numpy.rot90(texture)
+        texture_coordinates=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
+        texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+        dpixel=-velocity*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE/texture.shape[1]
+        if mask_size != None:
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=0.025)
+            vertices = geometry.rectangle_vertices(utils.rc((texture.shape[0], texture.shape[1])),direction)
+            #vertices=numpy.append(vertices, mask)
+            glEnableClientState(GL_VERTEX_ARRAY)
+            glVertexPointerf(vertices)
+        phase=0
+        t0=time.time()
+        for i in range(int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)):
+            phase+=dpixel
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
+            #glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+            #glEnable( GL_STENCIL_TEST )
+            #glStencilFunc( GL_ALWAYS, 1, 1 )
+            #glStencilOp( GL_REPLACE, GL_REPLACE, GL_REPLACE )
+            
+#            for shi in range(mask.shape[0]/4):
+#                glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+            
+            #glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE )
+            #glStencilFunc( GL_EQUAL, 1, 1 )
+            #glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+            
+            
+            glTexCoordPointerf(texture_coordinates+numpy.array([phase,0.0]))
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            
+#            for shi in range(mask.shape[0]/4):
+#                glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+            #glDisable( GL_STENCIL_TEST )
+            self._flip(False)
+            if self.abort:
+                break
+        print time.time()-t0
+        self._deinit_texture()
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
     
             
+            
 class StimulationHelpers(Stimulations):
-    def _init_texture(self,size,orientation=0,texture_coordinates=None):
+    def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True):
         from visexpman.engine.generic import geometry
         vertices = geometry.rectangle_vertices(size, orientation = orientation)
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
+        if set_vertices:
+            glEnableClientState(GL_VERTEX_ARRAY)
+            glVertexPointerf(vertices)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
@@ -1327,6 +1406,32 @@ class StimulationHelpers(Stimulations):
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
+        
+    def _generate_mask_vertices(self, mask_size_pixel, resolution=0.5):
+        circle_vertices=geometry.circle_vertices([mask_size_pixel]*2,  resolution = resolution)+0*numpy.array([[100,0]])
+        #Convert circle to its complementer shape being composed of rectangles
+        rect_width=self.config.SCREEN_RESOLUTION['col']/2+circle_vertices[:,0].min()
+        x1=-self.config.SCREEN_RESOLUTION['col']/2+rect_width/2
+        x2=self.config.SCREEN_RESOLUTION['col']/2-rect_width/2
+        mask_vertices1=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x1,0]])
+        mask_vertices2=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x2,0]])
+        mask_vertices=mask_vertices1
+        mask_vertices=numpy.append(mask_vertices,mask_vertices2,axis=0)
+        for pi in range(circle_vertices.shape[0]):
+            p1=circle_vertices[pi]
+            if pi==circle_vertices.shape[0]-1:
+                p2=circle_vertices[0]
+            else:
+                p2=circle_vertices[pi+1]
+            if numpy.sign(p1[1])!=numpy.sign(p2[1]):
+                continue
+            if p1[1]>0:
+                coo=self.config.SCREEN_RESOLUTION['row']/2
+            else:
+                coo=-self.config.SCREEN_RESOLUTION['row']/2
+            rect=numpy.array([p1,p2, [p2[0],coo], [p1[0],coo]])
+            mask_vertices=numpy.append(mask_vertices,rect,axis=0)
+        return mask_vertices
     
     def _merge_identical_frames(self):
         self.merged_bitmaps = [[self.screen.stimulus_bitmaps[0], 1]]

@@ -1,4 +1,4 @@
-import logging
+import logging,platform
 import logging.handlers
 log = logging.getLogger('introspect')
 import PyQt4.QtCore as QtCore
@@ -25,6 +25,16 @@ def visexpman2hash():
     sha=hashlib.sha256()
     files=[sha.update(fileop.read_text_file(f)) for f in files if os.path.splitext(f)[1]=='.py']
     return numpy.fromstring(sha.digest(), dtype=numpy.uint8)
+    
+def mes2hash():
+    if platform.system()=='Windows':
+        from visexpman.engine.generic import fileop
+        folder='C:\\MES\\MES5'
+        sha=hashlib.sha256()
+        [sha.update(fileop.read_text_file(f)) for f in fileop.find_files_and_folders(folder)[1]]
+        return numpy.fromstring(sha.digest(), dtype=numpy.uint8)
+    else:
+        return numpy.array([], dtype=numpy.uint8)
 
 def cap_attributes2dict(obj):
     '''
