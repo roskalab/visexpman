@@ -6,7 +6,7 @@ if getpass.getuser()!='hd':
     pw=fileop.read_text_file(os.path.join(path,'..','..','..', '..','jobhandler','pw.txt')).title()
     host=platform.uname()[1]
     print host
-    if host in ['microscopy-3d', 'Fu238D-DDF19D', 'FEMTO-0195']:
+    if host in ['microscopy-3d', 'Fu238D-DDF19D', 'FEMTO-0195', 'fu244i-850c8d']:
         try:
             import visexpman
             dst=os.path.dirname(os.path.dirname(visexpman.__file__))
