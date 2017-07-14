@@ -129,3 +129,4 @@ class CameronDev(CameronAoSetup):
         self.FULLSCREEN=False
         self.SCREEN_EXPECTED_FRAME_RATE = 59
         self.MES_RECORD_OVERHEAD=5
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:4'

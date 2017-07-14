@@ -719,6 +719,9 @@ class MainUI(gui.VisexpmanMainWindow):
         '''
         Adds (all) manually placed roi(s)
         '''
+        if self.machine_config.PLATFORM=='ao_cortical':
+            QtGui.QMessageBox.question(self, 'Warning', 'Adding manual ROIs to AO data is not supported', QtGui.QMessageBox.Ok)
+            return
         movable_rois = [r for r in self.image.rois if r.translatable]#Rois manually placed
         if len(movable_rois)>0 and 0:
             self.printc('Only one manually placed roi can be added!')
@@ -728,7 +731,7 @@ class MainUI(gui.VisexpmanMainWindow):
             return
         for roi in movable_rois:
             rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]
-            if self.analysis_helper.find_cells_scaled.input.checkState()==2:
+            if self.machine_config.PLATFORM=='elphys_retinal_ca' and self.analysis_helper.find_cells_scaled.input.checkState()==2:
                 pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
             else:
                 pixel_range=None

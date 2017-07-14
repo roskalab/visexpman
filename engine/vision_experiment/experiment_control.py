@@ -688,7 +688,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment']#['experiment_name', 'experiment_config_name', 'frame_times']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            self.datafile = hdf5io.Hdf5io(self.outputfilename,filelocking=False)
+            self.datafile = experiment_data.CaImagingData(self.outputfilename)
             self._prepare_data2save()
             [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
             self.datafile.save(variables2save)

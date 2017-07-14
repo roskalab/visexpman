@@ -31,7 +31,7 @@ def mes2hash():
         from visexpman.engine.generic import fileop
         folder='C:\\MES\\MES5'
         sha=hashlib.sha256()
-        [sha.update(fileop.read_text_file(f)) for f in fileop.find_files_and_folders(folder)[1]]
+        [sha.update(fileop.read_text_file(f)) for f in fileop.find_files_and_folders(folder, extension='mat')[1]]
         return numpy.fromstring(sha.digest(), dtype=numpy.uint8)
     else:
         return numpy.array([], dtype=numpy.uint8)

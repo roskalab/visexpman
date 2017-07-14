@@ -564,6 +564,9 @@ class Analysis(object):
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
+        if self.machine_config.PLATFORM=='ao_cortical' and not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
+            self.notify('File is not yet completely processed by jobhandler. Try opening it a bit later')
+            return
         if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
             self.notify('Warning', 'ROIS cannot be copied to a file itself')
             del self.reference_roi_filename
@@ -1301,6 +1304,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.guidata.add('mes_hash', hash, 'hash/mes_hash')
         else:
             self.guidata.mes_hash.v=meshash
+        self.printc('Software hash saved')
         self.save_context()
     
     def check_software_hash(self):

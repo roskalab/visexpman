@@ -60,6 +60,7 @@ class TestAODData(unittest.TestCase):
         fn='/home/rz/mysoftware/data/ao/data_MovingGratingMid_201612131953459.hdf5'
         folder='/home/rz/mysoftware/data/ao'
         folder='/home/rz/test'
+        folder='v:\\experiment_data_ao\\zoltan\\20170714'
         #folder='v:\\debug\\0'
         for fn in os.listdir(folder):
             if os.path.splitext(fn)[1]=='.hdf5':

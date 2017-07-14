@@ -4,18 +4,18 @@ from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.analysis import aod
 
 class AoJobhandler(object):
-    def __init__(self, experiment_data_path, backup_path, logpath, database_filename,  ignore_errors=False):
+    def __init__(self, experiment_data_path, backup_path, logpath, database_filename):
         self.db=DatafileDatabase(database_filename)
         self.experiment_data_path=experiment_data_path
         self.backup_path=backup_path
         self.mesfile_minimum_age=60
-        self.ignore_errors= ignore_errors
         self.logfile = os.path.join(logpath, 'jobhandler_{0}.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
 level=logging.INFO)
         self.minimum_free_space=15e9/10
         fs=fileop.free_space(experiment_data_path)
+        print '='*80#Indicate the beginning of jobhandler prints on console
         self.printl('{0} GB free space is on {1}'.format(int(fs/2**30), experiment_data_path))
         if fs<self.minimum_free_space:
             raise RuntimeError('Less than {1} GB space on {0}'.format(experiment_data_path,int(self.minimum_free_space/2**30)))
@@ -53,8 +53,8 @@ level=logging.INFO)
         
     def fetch_job(self):
         query='(measurement_ready==1)&((backed_up==0) | (mesextractor_ready==0) | (converted==0) | (copied==0))'
-        self.ignore_errors=not os.path.exists(os.path.join(self.experiment_data_path, 'force_jobs.txt'))
-        if not self.ignore_errors:
+        self.rerun_failed=not os.path.exists(os.path.join(self.experiment_data_path, 'rerun_failed.txt'))
+        if self.rerun_failed:
             query+='& (error==0)'
         active_jobs=[[r['filename'], r['backed_up'], r['mesextractor_ready'], r['converted'], r['copied']] for r in self.db.hdf5.root.datafiles.where( query)]
         if len(active_jobs)==0:
@@ -78,7 +78,11 @@ level=logging.INFO)
                 next_job.append('copy')
         #Get full filename
         hdf5files=fileop.find_files_and_folders(self.experiment_data_path,extension='hdf5')[1]
-        fullpath=[f for f in hdf5files if os.path.basename(f)==next_job[0]][0]
+        fullpath=[f for f in hdf5files if os.path.basename(f)==next_job[0]]
+        if len(fullpath)==0:
+            return
+        else:
+            fullpath=fullpath[0]
         try:            
             getattr(self, next_job[1])(fullpath)
             now=time.time()
