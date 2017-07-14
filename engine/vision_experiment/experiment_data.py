@@ -187,8 +187,9 @@ class CaImagingData(hdf5io.Hdf5io):
     
     '''
     def __init__(self,filename, **kwargs):
-        self.file_info = os.stat(filename)
         hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
+        if os.path.exists(filename):
+            self.file_info = os.stat(filename)
         
     def sync2time(self, recreate=False):
         '''
@@ -205,12 +206,19 @@ class CaImagingData(hdf5io.Hdf5io):
         if self.sync.dtype.name not in ['float', 'uint8', 'uint16']:
             raise NotImplementedError()
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
-        self.timg=signal.trigger_indexes(self.sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']])[::2]/fsample
-        if 'laser' in self.parameters['stimclass'].lower():
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
+        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+            raise RuntimeError('Imaging timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+        self.timg=signal.trigger_indexes(sig)[::2]/fsample
+        if 'laser' in str(self.parameters['stimclass']).lower():
             index=self.configs['machine_config']['TSTIM_LASER_SYNC_INDEX']
         else:
             index=self.configs['machine_config']['TSTIM_SYNC_INDEX']
-        self.tstim=signal.trigger_indexes(self.sync[:,index])/fsample
+        sig=sync[:,index]
+        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+            raise RuntimeError('Stimulus timing signal maximum amplitude is only {0:0.2f} V. Check connections'.format(sig.max()))
+        self.tstim=signal.trigger_indexes(sig)/fsample
         self.save(['timg', 'tstim'])
         
     def crop_timg(self):
@@ -220,7 +228,7 @@ class CaImagingData(hdf5io.Hdf5io):
         if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
             self.timg=self.timg[:self.raw_data.shape[0]]
         elif self.configs['machine_config']['PLATFORM']=='ao_cortical':
-            self.timg=self.timg[self.findvar('sync_pulses_to_skip'):]
+            self.timg=self.timg[int(self.findvar('sync_pulses_to_skip')):]
             #Ignore last frames
             self.timg=self.timg[:self.raw_data.shape[0]]
         if self.timg.shape[0]!=self.raw_data.shape[0]:
@@ -236,7 +244,9 @@ class CaImagingData(hdf5io.Hdf5io):
         #Check frame rate
         self.load('stimulus_frame_info')
         sfi=self.stimulus_frame_info
-        if len([1 for s in sfi if 'block_name' in s.keys()])>0:
+        if 'laser' in str(self.parameters['stimclass']).lower():
+            pass
+        elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
             bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
             bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
             expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
@@ -270,18 +280,21 @@ class CaImagingData(hdf5io.Hdf5io):
             self.image= self.raw_data[keep_frame_indexes].max(axis=0)[0]
         if self.configs['machine_config']['PLATFORM']=='ao_cortical':
             nrois=self.image.shape[0]
+            roi_aspect_ratio=self.raw_data.shape[-2]/float(self.raw_data.shape[-1])
             #merge rois to a square image:
-            n=int(numpy.ceil(numpy.sqrt(nrois)))#number of rois across x and y axis
-            merged=numpy.zeros((n*self.image.shape[1], n*self.image.shape[2]), dtype=self.image.dtype)
+            n=int(numpy.ceil(numpy.sqrt(nrois/roi_aspect_ratio)))#number of rois across x axis
+            nrow=n
+            ncol=int(n*roi_aspect_ratio)
+            merged=numpy.zeros((nrow*self.image.shape[1], ncol*self.image.shape[2]), dtype=self.image.dtype)
             rois=[]
-            for row in range(n):
-                for col in range(n):
-                    roii=row*n+col
+            for row in range(nrow):
+                for col in range(ncol):
+                    roii=row*ncol+col
                     if roii>=nrois:
                         break
                     print 'todo: add roi area'
                     merged[row*self.image.shape[1]:(row+1)*self.image.shape[1], col*self.image.shape[2]:(col+1)*self.image.shape[2]]=self.image[roii]
-            print 'todo: rdo similar to _extract_roi_curves add timg, tstim, stimulus_name, meanimage, image_scale, '
+            print 'todo: do similar to _extract_roi_curves add timg, tstim, stimulus_name, meanimage, image_scale, '
             self.image=merged
         self.load('parameters')
         if self.parameters['resolution_unit']=='pixel/um':

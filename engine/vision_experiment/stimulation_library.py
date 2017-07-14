@@ -1338,7 +1338,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         dpixel=-velocity*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE/texture.shape[1]
         if mask_size != None:
-            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=0.025)
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1)
             vertices = geometry.rectangle_vertices(utils.rc((texture.shape[0], texture.shape[1])),direction)
             #vertices=numpy.append(vertices, mask)
             glEnableClientState(GL_VERTEX_ARRAY)
@@ -1347,27 +1347,27 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         t0=time.time()
         for i in range(int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)):
             phase+=dpixel
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
-            #glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
-            #glEnable( GL_STENCIL_TEST )
-            #glStencilFunc( GL_ALWAYS, 1, 1 )
-            #glStencilOp( GL_REPLACE, GL_REPLACE, GL_REPLACE )
-            
-#            for shi in range(mask.shape[0]/4):
-#                glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
-            
-            #glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE )
-            #glStencilFunc( GL_EQUAL, 1, 1 )
-            #glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
-            
-            
-            glTexCoordPointerf(texture_coordinates+numpy.array([phase,0.0]))
-            glColor3fv((1.0,1.0,1.0))
-            glDrawArrays(GL_POLYGON,  0, 4)
-            
-#            for shi in range(mask.shape[0]/4):
-#                glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
-            #glDisable( GL_STENCIL_TEST )
+            if mask_size == None:
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
+                glTexCoordPointerf(texture_coordinates+numpy.array([phase,0.0]))
+                glColor3fv((1.0,1.0,1.0))
+                glDrawArrays(GL_POLYGON,  0, 4)
+            else:
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
+                glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+                glEnable( GL_STENCIL_TEST )
+                glStencilFunc( GL_ALWAYS, 1, 1 )
+                glStencilOp( GL_REPLACE, GL_REPLACE, GL_REPLACE )
+                for shi in range(mask.shape[0]/4):
+                    glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+                
+                glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE )
+                glStencilFunc( GL_EQUAL, 1, 1 )
+                glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+                glTexCoordPointerf(texture_coordinates+numpy.array([phase,0.0]))
+                glColor3fv((1.0,1.0,1.0))
+                glDrawArrays(GL_POLYGON,  0, 4)
+                glDisable( GL_STENCIL_TEST )
             self._flip(False)
             if self.abort:
                 break

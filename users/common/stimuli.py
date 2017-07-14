@@ -260,7 +260,6 @@ class LaserPulse(experiment.Stimulus):
         self.ZERO_VOLTAGE=0.0
         
     def calculate_waveform(self):
-        print 1
         init=numpy.zeros(int(self.SAMPLE_RATE*self.INITIAL_DELAY))
         pulses=[]
         if len(self.PULSE_DURATION)!=len(self.PERIOD_TIME):
@@ -295,4 +294,6 @@ class LaserPulse(experiment.Stimulus):
     def run(self):
         from visexpman.engine.hardware_interface import daq_instrument
         self.show_fullscreen(color=0.0,duration=0)
+        self.block_start('laser')
         daq_instrument.set_waveform('Dev1/ao0:1',self.combined_waveform,sample_rate = self.SAMPLE_RATE)
+        self.block_end('laser')

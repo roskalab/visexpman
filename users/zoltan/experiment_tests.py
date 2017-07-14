@@ -1,6 +1,18 @@
 import numpy,time
 from visexpman.engine.generic import utils,geometry,colors
 from visexpman.engine.vision_experiment import experiment
+from visexpman.users.common import stimuli
+from visexpman.users.common.grating import MovingGratingNoMarchingConfig
+        
+class MovingGratingTest(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.GRATING_STAND_TIME = 0.5
+        self.MARCH_TIME = 3.0#
+        self.PAUSE_BEFORE_AFTER = 1.0
+        self.REPEATS = 3
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.WHITE_BAR_WIDTHS=[150]
 
 class ReceptiveFieldTest(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -10,8 +22,13 @@ class ReceptiveFieldTest(experiment.ExperimentConfig):
         self.NROWS = 5
         self.NCOLUMNS = 9
         self.SIZE_DIMENSION='angle'
-        self.DISPLAY_SIZE = utils.rc((51.77,91.0))
-        self.DISPLAY_CENTER = utils.rc((4.96,43.0))
+        if 'rc' in self.machine_config.PLATFORM:
+            self.DISPLAY_SIZE = utils.rc((51.77,91.0))
+            self.DISPLAY_CENTER = utils.rc((4.96,43.0))
+        elif 'ao' in self.machine_config.PLATFORM:
+            self.DISPLAY_SIZE = utils.rc((50.5,87.25))#degrees Overall size of display in angles
+            self.DISPLAY_CENTER = utils.rc((3.45,33.35))#degrees Center
+
         self.ON_TIME = 0.1*10#0.8
         self.OFF_TIME = 0#0.8
         self.REPEATS = 1 
@@ -19,6 +36,15 @@ class ReceptiveFieldTest(experiment.ExperimentConfig):
         self.ENABLE_RANDOM_ORDER =  False
         self.runnable='ReceptiveFieldExploreZ'
         self._create_parameters_from_locals(locals())
+
+class IRLaserTest(stimuli.LaserPulse):
+    def stimulus_configuration(self):
+        stimuli.LaserPulse.stimulus_configuration(self)
+        self.INITIAL_DELAY=1
+        self.PULSE_DURATION=[100E-3]
+        self.PERIOD_TIME=[5.0]
+        self.NPULSES=5
+        self.LASER_AMPLITUDE=[1.0, 2.0]
 
 
 class ReceptiveFieldExploreZ(experiment.Experiment):
@@ -64,7 +90,7 @@ class ReceptiveFieldExploreZ(experiment.Experiment):
         #print self.shape_size,self.machine_config.SCREEN_SIZE_UM,self.ncolumns,self.nrows
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
 
-class NaturalBarsExperiment1(experiment.Stimulus):
+class NaturalBarsTest(experiment.Stimulus):
     def stimulus_configuration(self):
         self.SPEED = [800, 400,1500.0]#um/s
         self.SPEED = [400]
@@ -145,16 +171,17 @@ class TestStim(experiment.Stimulus):
         velocity=100
         line_width=20
         duty_cycle=20
-        mask_size=None#200
+        mask_size=100
         contrast=0.7
         background_color=0.5
         sinusoid=False
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
         
     def run(self):
+        self._approach()
         self._plaid_stim()
         return
-        self._approach()
+        
         self._rolling_image()
         self._moving_grating()
         
