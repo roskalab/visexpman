@@ -10,7 +10,7 @@ class AOData(experiment_data.CaImagingData):
     def __init__(self, filename):
         self.mesfilename=filename.replace('.hdf5','.mat')
         if not os.path.exists(self.mesfilename):
-            raise RuntimeError('No mes file found for {0}'.format(self.filename))
+            raise RuntimeError('No mes file found for {0}'.format(filename))
         experiment_data.CaImagingData.__init__(self,filename)
         self.process_mes_file()
         self.datatype='ao'
@@ -61,6 +61,7 @@ class TestAODData(unittest.TestCase):
         folder='/home/rz/mysoftware/data/ao'
         folder='/home/rz/test'
         folder='v:\\experiment_data_ao\\zoltan\\20170714'
+        folder='/tmp/processed'
         #folder='v:\\debug\\0'
         for fn in os.listdir(folder):
             if os.path.splitext(fn)[1]=='.hdf5':

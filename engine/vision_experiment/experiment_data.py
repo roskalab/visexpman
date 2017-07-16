@@ -265,8 +265,11 @@ class CaImagingData(hdf5io.Hdf5io):
         loads 2d representation of ca imaging data with scaling information
         self.image and self.image_scale
         '''
-        self.load('raw_data')
-        self.load('configs')
+        map(self.load, ['parameters', 'configs', 'raw_data'])
+        if self.parameters['resolution_unit']=='pixel/um':
+            self.scale = 1.0/self.parameters['pixel_size']
+        else:
+            raise NotImplementedError('')
         if image_type=='mean':
             self.image = self.raw_data.mean(axis=0)[0]
         elif image_type=='mip': 
@@ -292,15 +295,25 @@ class CaImagingData(hdf5io.Hdf5io):
                     roii=row*ncol+col
                     if roii>=nrois:
                         break
-                    print 'todo: add roi area'
-                    merged[row*self.image.shape[1]:(row+1)*self.image.shape[1], col*self.image.shape[2]:(col+1)*self.image.shape[2]]=self.image[roii]
-            print 'todo: do similar to _extract_roi_curves add timg, tstim, stimulus_name, meanimage, image_scale, '
+                    #Format: center[0], center[1], size[0], size[1]
+                    roi=[row*self.image.shape[1]+self.image[roii].shape[0]/2,col*self.image.shape[2]+self.image[roii].shape[1]/2]
+                    roi.extend(self.image[roii].shape)
+                    roi[-2]-=1
+                    roi[-3]-=1
+                    raw= self.raw_data[:,0,roii].mean(axis=1).mean(axis=1)
+                    rois.append({'rectangle':roi, 'raw': raw})
+                    merged[row*self.image.shape[1]:(row+1)*self.image.shape[1], col*self.image.shape[2]:(col+1)*self.image.shape[2]]=self.image[roii]            
+            self.load('rois')
+            if not hasattr(self, 'rois'):
+                vns=['tstim', 'timg']
+                map(self.load, vns)
+                add2roi={'stimulus_name':str(self.parameters['stimclass']), 'meanimage': merged, 'image_scale': self.scale, 'tstim': self.tstim, 'timg': self.timg}
+                for i in range(len(rois)):
+                    rois[i].update(add2roi)
+                self.rois=rois
+                self.save('rois')
             self.image=merged
         self.load('parameters')
-        if self.parameters['resolution_unit']=='pixel/um':
-            self.scale = 1.0/self.parameters['pixel_size']
-        else:
-            raise NotImplementedError('')
         return self.image,self.scale
         
     def convert(self,format):

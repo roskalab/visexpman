@@ -565,7 +565,7 @@ class Analysis(object):
             self.notify('Warning', 'This file cannot be displayed')
             return
         if self.machine_config.PLATFORM=='ao_cortical' and not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
-            self.notify('File is not yet completely processed by jobhandler. Try opening it a bit later')
+            self.notify('Warning', 'File is not yet completely processed by jobhandler. Try opening it a bit later')
             return
         if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
             self.notify('Warning', 'ROIS cannot be copied to a file itself')
@@ -1049,7 +1049,7 @@ class Analysis(object):
         mean_of_repetitions = self.guidata.mean_of_repetitions.v if hasattr(self.guidata, 'mean_of_repetitions') else False
         baseline_length = self.guidata.read('Baseline lenght')
         x=[self.timg]
-        key='raw' if self.santiago_setup else 'normalized'
+        key='raw' if (self.santiago_setup or self.machine_config.PLATFORM=='ao_cortical') else 'normalized'
         y=[roi[key]]
         parameters = []
         if roi.has_key('matches'):
