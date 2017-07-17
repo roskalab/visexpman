@@ -59,7 +59,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.MES_TIMEOUT=5
         self.SYNC_RECORD_OVERHEAD=10
         gammafn=os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5')
-        if 0:#TMP TEST
+        if os.path.exists(gammafn):
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
         if '--nofullscreen' in sys.argv:
             self.FULLSCREEN=False

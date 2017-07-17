@@ -83,7 +83,7 @@ class NaturalBarsTest(NaturalBarsConfig):
         self.SPEED = [800]#um/s
         self.REPEATS = 1
         self.DIRECTIONS = [0]
-        self.DURATION = 3
+        self.DURATION = 5
 
         
       
