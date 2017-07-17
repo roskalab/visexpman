@@ -71,8 +71,8 @@ class CameronAoSetup(AOSetup):
         SCREEN_RESOLUTION = utils.cr([1280, 800])
         COORDINATE_SYSTEM='center'
         TRIGGER_MES=True
-        self.MES_RECORD_OVERHEAD=10#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
-        self.MES_RECORD_OVERHEAD2=10#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
+        self.MES_RECORD_OVERHEAD=15#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
+        self.MES_RECORD_OVERHEAD2=15#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
         self.SCREEN_EXPECTED_FRAME_RATE = 119.0
         self._create_parameters_from_locals(locals())
         

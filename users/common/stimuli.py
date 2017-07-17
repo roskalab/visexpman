@@ -272,13 +272,13 @@ class LaserPulse(experiment.Stimulus):
                 pulses.append(numpy.tile(pulse,self.NPULSES))
         self.waveform=numpy.concatenate(pulses)
         self.waveform=numpy.concatenate((init, self.waveform))
+        timing_waveform=numpy.where(self.waveform==0,0,5)#.reshape(1,self.waveform.shape[0])
         self.waveform=numpy.where(self.waveform==0.0,self.ZERO_VOLTAGE,self.waveform)
-        if 0:
+        if 1:
                 from pylab import plot,savefig,cla,clf
                 clf()
                 cla()
-                plot(self.waveform);savefig('c:\\temp\\fig.png')
-        timing_waveform=numpy.where(self.waveform==0,0,5)#.reshape(1,self.waveform.shape[0])
+                plot(timing_waveform);savefig('c:\\temp\\fig.png')
 #        self.waveform=self.waveform.reshape(1,self.waveform.shape[0])
         self.combined_waveform=numpy.zeros((2,self.waveform.shape[0]))
         self.combined_waveform[0]=self.waveform

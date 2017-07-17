@@ -127,6 +127,7 @@ class NaturalBarsExperimentC(experiment.Experiment):
                             offset=self.experiment_config.OFFSET,
                             intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
                     self.block_end('natural_end')
+                    #self.printl((rep, directions, speeds))
            
         
 class NaturalMovieExperiment(experiment.Experiment):
