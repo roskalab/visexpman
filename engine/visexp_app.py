@@ -197,6 +197,13 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
     def toggle_bullseye(self,state):
         self.show_bullseye = state
         
+    def check_mes_connection(self):
+        if self.machine_config.PLATFORM!='ao_cortical':
+            raise NotImplementedError()
+        from visexpman.engine.hardware_interface import mes_interface
+        res=mes_interface.check_mes_connection(self.mes_interface['mes_command'], self.mes_interface['mes_response'])
+        self.send({'mes_connection_status': res})
+        
     def set_experiment_config(self,source_code, experiment_config_name):
         '''
         When user changes Experiment config name (stimulus), the selected experiment config

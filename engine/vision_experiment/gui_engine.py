@@ -1267,6 +1267,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.last_network_check=time.time()
         self.enable_check_network_status=enable_network
         self.enable_network=enable_network
+        self.mes_connection_status=False
         
     def load_context(self):
         self.guidata = GUIData()
@@ -1363,6 +1364,13 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if self.ping(timeout=0.5, connection=remote_node_name):
                 self.connected_nodes += remote_node_name + ' '
                 n_connected += 1
+        if self.machine_config.PLATFORM=='ao_cortical':
+            #Initiate stim to check mes connection but don't wait for result
+            self.send({'function': 'check_mes_connection','args':[]},'stim')
+            n_connections+=1
+            if self.mes_connection_status:
+                n_connected += 1
+                self.connected_nodes+='stim-mes '
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
@@ -1376,6 +1384,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                         self.trigger_handler(msg['trigger'])
                 elif msg.has_key('notify'):
                     self.notify(msg['notify'][0],msg['notify'][1])
+                elif msg.has_key('mes_connection_status'):
+                    self.mes_connection_status=msg['mes_connection_status']
+                
         
     def run(self):
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
