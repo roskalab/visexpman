@@ -209,15 +209,17 @@ class NaturalBars(experiment.ExperimentConfig):
 class NaturalBarsExperiment(experiment.Experiment):
     def prepare(self):
         self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)*len(self.experiment_config.SPEED)]
-        self.duration=self.fragment_durations[0]
-        print self.duration
+        self.run(duration_calc_only=True)
         
-    def run(self):
+    def run(self, duration_calc_only=False):
+        self.duration=0
         for rep in range(self.experiment_config.REPEATS):
             if self.abort:
                 break
-            print rep
-            self.show_fullscreen(duration = self.experiment_config.BACKGROUND_TIME, color =  self.experiment_config.BACKGROUND_COLOR, flip=True)
+            if not duration_calc_only:
+                self.show_fullscreen(duration = self.experiment_config.BACKGROUND_TIME, color =  self.experiment_config.BACKGROUND_COLOR, flip=True)
+            else:
+                self.duration+=self.experiment_config.BACKGROUND_TIME
             for directions in self.experiment_config.DIRECTIONS:
                 if self.abort:
                     break
@@ -240,12 +242,14 @@ class NaturalBarsExperiment(experiment.Experiment):
                     if not self.experiment_config.ENABLE_FLYINOUT:
                         fly_in = False
                         fly_out = False
-                    self.block_start('natural_bars')
-                    self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
+                    if not duration_calc_only:
+                        self.block_start('natural_bars')
+                    self.duration+=self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
                             scale=self.experiment_config.SCALE,
                             offset=self.experiment_config.OFFSET,
-                            intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
-                    self.block_end('natural_end')
+                            intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out, duration_calc_only=duration_calc_only)
+                    if not duration_calc_only:
+                        self.block_end('natural_end')
 
 class LaserBeamStimulus(experiment.Experiment):
     def run(self):
