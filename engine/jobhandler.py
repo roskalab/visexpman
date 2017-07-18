@@ -27,7 +27,6 @@ level=logging.INFO)
         self.printl('Current user is {0}'.format(getpass.getuser()))
         self.printl(sys.argv)
         self.printl(utils.module_versions(utils.imported_modules()[0])[0])
-        
     
     def printl(self,msg,loglevel='info'):
         print msg

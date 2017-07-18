@@ -322,23 +322,27 @@ class CaImagingData(hdf5io.Hdf5io):
         '''
         if format == 'mat':
             if not hasattr(self, 'timg'):
-                self.prepare4analysis()
+                self.sync2time()
             items = [r._v_name for r in self.h5f.list_nodes('/')]
             data={}
             for item in items:
                 self.load(item)
                 data[item]=getattr(self,item)
+                if isinstance(data[item], dict) and len(data[item].keys())==0:
+                    data[item]=0
             data['timg']=self.timg
-            data['tsync']=self.tsync
+            data['tstim']=self.tstim
             #Make sure that rois field does not contain None:
             if data.has_key('rois'):
                 for r in data['rois']:
                     if r.has_key('area') and r['area'] is None:
                         del r['area']
-            self.outfile = fileop.get_convert_filename(self.filename, 'mat')
+            if not hasattr(self, 'configs'):
+                self.load('configs')
+            tag='_mat' if self.configs['machine_config']['PLATFORM']=='ao_cortical' else ''
+            self.outfile = fileop.get_convert_filename(self.filename, '.mat', tag)
             #Write to mat file
             scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
-            fileop.set_file_dates(self.outfile, self.file_info)
         elif format == 'png':
             self._save_meanimage()
         elif format == 'tif':
@@ -456,6 +460,8 @@ class CaImagingData(hdf5io.Hdf5io):
         if not os.path.exists(os.path.dirname(dst)):
             os.makedirs(os.path.dirname(dst))
         shutil.copy2(self.filename,dst)
+        if os.path.exists(fileop._mat(self.filename)):
+            shutil.copy2(fileop._mat(self.filename),os.path.dirname(dst))
         return dst
         
 def timing_from_file(filename):

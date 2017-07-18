@@ -939,6 +939,7 @@ class Analysis(object):
             self.datafile.save(['rois', 'trace_parameters'], overwrite=True)
         else:
             self.datafile.save(['rois'], overwrite=True)
+        self.printc('Converting, please wait...')
         self.datafile.convert(self.guidata.read('Save File Format'))
         if self.santiago_setup:
             self.datafile.convert('rois')
@@ -949,7 +950,11 @@ class Analysis(object):
         self.printc('Data exported to  {0}'.format(self.datafile.outfile))
         if not self.santiago_setup:
             #Copy to BACKUP_PATH/user/date/filename
-            dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
+            if self.machine_config.PLATFORM=='ao_cortical':
+                bupath=os.path.join(self.machine_config.BACKUP_PATH , 'processed')
+            else:
+                bupath=self.machine_config.BACKUP_PATH 
+            dst=self.datafile.backup(bupath, 2)
             self.printc('Data backed up to  {0}'.format(dst))
         
     def backup(self):

@@ -707,7 +707,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
     def _backup(self, filename):
-        dst=os.path.join(self.machine_config.BACKUP_STAGING_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
+        dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
         if not os.path.exists(dst):
             os.makedirs(dst)
         try:

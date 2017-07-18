@@ -244,12 +244,14 @@ class NaturalBarsExperiment(experiment.Experiment):
                         fly_out = False
                     if not duration_calc_only:
                         self.block_start('natural_bars')
-                    self.duration+=self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
+                    res=self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
                             scale=self.experiment_config.SCALE,
                             offset=self.experiment_config.OFFSET,
                             intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out, duration_calc_only=duration_calc_only)
                     if not duration_calc_only:
                         self.block_end('natural_end')
+                    else:
+                        self.duration+=res
 
 class LaserBeamStimulus(experiment.Experiment):
     def run(self):
