@@ -14,7 +14,9 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     Visual stimulation machine of 3D microscope setup
     '''
     def _set_user_parameters(self):
-        TEXT_COLOR = [0.1, 0.0, 0.0]
+        TEXT_COLOR = [0.5, 0.5, 0.5]
+        ENABLE_TEXT=False
+        PRERUNNABLE_AT_DATASAVE=True
         GUI_REFRESH_PERIOD = 10.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True

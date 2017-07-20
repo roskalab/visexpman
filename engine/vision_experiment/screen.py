@@ -89,6 +89,9 @@ class VisionExperimentScreen(graphics.Screen):
         if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command     
             self._show_menu()
             self._show_message(self.message_to_screen, flip = flip)
+        else:
+            if flip:
+                self.flip()            
 
     def run_preexperiment(self):
         pass

@@ -142,7 +142,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
         ENABLE_FRAME_CAPTURE = False
         MAX_LOG_COLORS = [3,  [0,  100000]]        
-        
+        PRERUNNABLE_AT_DATASAVE=False
+
         ########  Coordinate system selection ########
         COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 
         ORIGO = utils.rc((numpy.inf, numpy.inf))

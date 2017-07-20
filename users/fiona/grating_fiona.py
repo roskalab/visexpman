@@ -101,7 +101,7 @@ class MovingGratingFiona3x(grating_base.MovingGratingNoMarchingConfig):
         self.CLEAR_SCREEN_AT_END=True
         self.CLEAR_SCREEN_AT_END_COLOR=0
         self.pre_runnable = 'GreyPre'
-        self.BLACK_SCREEN_DURATION=2.0
+        #self.BLACK_SCREEN_DURATION=0.0
         
         
 class MovingGratingFionaHC(grating_base.MovingGratingNoMarchingConfig):
