@@ -455,7 +455,7 @@ def check_hitmiss_files(filename):
             protocol_duration+=h.protocol['RESPONSE_WINDOW']
         if protocol_duration>recording_duration:
             raise RuntimeError('protocol_duration duration ({0}) is longer than sync recording duration ({1})'.format(protocol_duration, recording_duration))
-        dt=20e-3
+        dt=200e-3
         if 0:
             reward=h.sync[:, 0]
             stimulus=h.sync[:, 2]
@@ -526,7 +526,6 @@ class HitmissAnalysis(object):
                      continue
                 h=hdf5io.Hdf5io(f)
                 stat=h.findvar('stat')
-                self.nflashes+=1
                 if not stat.has_key('stimulus_t'):
                     h.close()
                     continue
@@ -539,6 +538,7 @@ class HitmissAnalysis(object):
                 if self.filter.has_key('voltage') and h.findvar('protocol')['LASER_INTENSITY'] != self.filter['voltage']:
                     h.close()
                     continue
+                self.nflashes+=1
                 h.close()
                 self.nhits+=stat['result']
                 self.nsuccesfullicks+=stat['lick_result']
