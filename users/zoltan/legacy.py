@@ -474,7 +474,7 @@ def merge_ca_data(folder,**kwargs):
         out=numpy.zeros((len(rawdata ), rawdata [0].shape[0]),dtype=numpy.uint8)
         for i in range(len(rawdata)):
             #Scale, max 10 V
-            out[i]=numpy.cast['uint8'](rawdata[i]/10.0*(2**8-1))
+            out[i]=numpy.cast['uint8'](rawdata[i]/7.0*(2**8-1))
         rawdata=out
         #rawdata = numpy.array(rawdata)
         rawdata = rawdata.reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
