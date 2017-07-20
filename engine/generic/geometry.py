@@ -1040,6 +1040,25 @@ def circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  end_angle = 
             if arc_slice:                
                 vertices[-1] = numpy.array([0,  0])
     return vertices
+    
+def vertices2image(vertices):
+    '''
+    Vertice locations are visualized on an image with small +s
+    '''
+    from pylab import show, imshow
+    height=int(vertices[:,0].max()-vertices[:,0].min())+1
+    width=int(vertices[:,1].max()-vertices[:,1].min())+1
+    im=numpy.zeros((height,width))
+    coo=numpy.cast['int'](vertices-vertices.min(axis=0))
+    for c in coo:
+        for i in range(-3,4):
+            try:
+                im[c[0]+i, c[1]]=1
+                im[c[0], c[1]+i]=1
+            except IndexError:
+                pass
+    imshow(im)
+    show()
 
 class TestGeometry(unittest.TestCase):
     def setUp(self):
@@ -1494,6 +1513,45 @@ class TestGeometry(unittest.TestCase):
     def test_39_circle_mask(self):
         from pylab import imshow,show
         imshow(circle_mask([5,5],5, [20,30]));show()
+        
+    def test_40_vertices2image(self):
+        v=numpy.array([[ -9.39692621e+01,   2.88000000e+02],
+           [ -5.12000000e+02,   2.88000000e+02],
+           [ -5.12000000e+02,  -2.88000000e+02],
+           [ -9.39692621e+01,  -2.88000000e+02],
+           [  5.12000000e+02,   2.88000000e+02],
+           [  9.39692621e+01,   2.88000000e+02],
+           [  9.39692621e+01,  -2.88000000e+02],
+           [  5.12000000e+02,  -2.88000000e+02],
+           [  7.66044443e+01,   6.42787610e+01],
+           [  1.73648178e+01,   9.84807753e+01],
+           [  1.73648178e+01,   2.88000000e+02],
+           [  7.66044443e+01,   2.88000000e+02],
+           [  1.73648178e+01,   9.84807753e+01],
+           [ -5.00000000e+01,   8.66025404e+01],
+           [ -5.00000000e+01,   2.88000000e+02],
+           [  1.73648178e+01,   2.88000000e+02],
+           [ -5.00000000e+01,   8.66025404e+01],
+           [ -9.39692621e+01,   3.42020143e+01],
+           [ -9.39692621e+01,   2.88000000e+02],
+           [ -5.00000000e+01,   2.88000000e+02],
+           [ -9.39692621e+01,  -3.42020143e+01],
+           [ -5.00000000e+01,  -8.66025404e+01],
+           [ -5.00000000e+01,  -2.88000000e+02],
+           [ -9.39692621e+01,  -2.88000000e+02],
+           [ -5.00000000e+01,  -8.66025404e+01],
+           [  1.73648178e+01,  -9.84807753e+01],
+           [  1.73648178e+01,  -2.88000000e+02],
+           [ -5.00000000e+01,  -2.88000000e+02],
+           [  1.73648178e+01,  -9.84807753e+01],
+           [  7.66044443e+01,  -6.42787610e+01],
+           [  7.66044443e+01,  -2.88000000e+02],
+           [  1.73648178e+01,  -2.88000000e+02],
+           [  7.66044443e+01,  -6.42787610e+01],
+           [  1.00000000e+02,  -2.44929360e-14],
+           [  1.00000000e+02,  -2.88000000e+02],
+           [  7.66044443e+01,  -2.88000000e+02]])
+        vertices2image(v)
         
 
 def test_estimate_rotation():

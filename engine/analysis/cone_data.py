@@ -35,7 +35,7 @@ def exp(t,tconst, a,b):
 def sigmoid(t, t0, sigma,a,b):
     return a/(1+numpy.exp(-(t-t0)/sigma))+b
     
-def calculate_trace_parameters(trace, tsync, timg,baseline_length):
+def calculate_trace_parameters(trace, tstim, timg,baseline_length):
     '''
     Calculates: 
     1) Response size in baseline std
@@ -49,10 +49,10 @@ def calculate_trace_parameters(trace, tsync, timg,baseline_length):
     fitted_traces = []
     tsample=numpy.diff(timg)[0]
     #determine indexes of signal boundaries
-    response_start = signal.time2index(timg, tsync[0])
-    response_end = signal.time2index(timg, tsync[1])
-    baseline_start = signal.time2index(timg, tsync[0]-baseline_length)
-    baseline_end = signal.time2index(timg, tsync[0])
+    response_start = signal.time2index(timg, tstim[0])
+    response_end = signal.time2index(timg, tstim[1])
+    baseline_start = signal.time2index(timg, tstim[0]-baseline_length)
+    baseline_end = signal.time2index(timg, tstim[0])
     baseline=numpy.array(trace[baseline_start:baseline_end])
     end_of_drop = trace[:response_start].argmin()
     #initial drop quantification
@@ -162,7 +162,10 @@ def calculate_background(rawdata,threshold=0.1):
     
 def pixels_below_threshold(rawdata,threshold):
     mi=rawdata.mean(axis=0)
-    x,y = numpy.where(mi<mi.max()*threshold)
+    #until now all values under threshold% of max intensity was considered as background, 
+    #now the dimest threshold% of pixels are the backgound
+    th=(mi.max()-mi.min())*threshold+mi.min()
+    x,y = numpy.where(mi<th)
     return x,y
     
 def fast_read(f,vn):
@@ -320,7 +323,7 @@ def cell_trace_params(cell):
     for key in keys:
         baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop,fitted_traces = \
                     calculate_trace_parameters(cell[key[0]][key[1]]['normalized'],
-                                                                 cell[key[0]][key[1]]['tsync'], 
+                                                                 cell[key[0]][key[1]]['tstim'], 
                                                                  cell[key[0]][key[1]]['timg'], 
                                                                  cell[key[0]][key[1]]['baseline_length'])
         cell[key[0]][key[1]]['response_amplitude']=response_amplitude
@@ -376,9 +379,9 @@ class TestCA(unittest.TestCase):
         for f in self.files:
             h=experiment_data.CaImagingData(f,filelocking=False)
             rc=[r['raw'] for r in h.findvar('rois')]
-            tsync,timg, meanimage, image_scale, raw_data = h.prepare4analysis()
+            tstim,timg, meanimage, image_scale, raw_data = h.prepare4analysis()
 #            with introspect.Timer(''):
-            res = map(calculate_trace_parameters, rc, len(rc)*[tsync], len(rc)*[timg], len(rc)*[1])
+            res = map(calculate_trace_parameters, rc, len(rc)*[tstim], len(rc)*[timg], len(rc)*[1])
             response_amplitudes = []
             response_rise_sigmas = []
             T_fallings = []
@@ -471,7 +474,7 @@ class TestCA(unittest.TestCase):
         self.assertTrue(isinstance(cells,list))
         [self.assertTrue('scan_region' in cell.keys()) for cell in cells]
         [self.assertGreater(len(cell.keys()),0) for cell in cells]
-        expected_cell_properties = ['image_scale', 'area', 'match_weight', 'meanimage', 'stimulus_name', 'tsync', 'raw', 'baseline_length', 'normalized', 'background', 'background_threshold', 'rectangle', 'timg', 'red']
+        expected_cell_properties = ['image_scale', 'area', 'match_weight', 'meanimage', 'stimulus_name', 'tstim', 'raw', 'baseline_length', 'normalized', 'background', 'background_threshold', 'rectangle', 'timg', 'red']
         for cell in cells:
             repeats=cell[[c for c in cell.keys() if 'scan_region' !=c][0]].values()
             for r in repeats:

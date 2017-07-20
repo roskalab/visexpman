@@ -73,7 +73,11 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
             return 'terminate'
         #Check keyboard
         from visexpman.engine.generic.graphics import check_keyboard
-        for key_pressed in check_keyboard():
+        keys = check_keyboard()
+        if not hasattr(self, 'command_issued') and 0:
+            keys.extend(['0', 'e','escape'])#TODO: remove, this is for testing
+            self.command_issued=True
+        for key_pressed in keys:
             if key_pressed == self.config.KEYS['exit']:#Exit application
                 return 'terminate'
             elif key_pressed == self.config.KEYS['measure framerate']:#measure frame rate
@@ -110,10 +114,10 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
                     self.stim_context['screen_center']['col'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
                 elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
                     self.stim_context['screen_center']['col'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
-            elif (self.config.PLATFORM == 'hi_mea' or self.config.PLATFORM == 'standalone') and key_pressed in self.experiment_select_commands:
+            elif (self.config.PLATFORM in ['hi_mea', 'standalone', 'intrinsic']) and key_pressed in self.experiment_select_commands:
                 self.selected_experiment = self.experiment_configs[int(key_pressed)]
                 self.printl('Experiment selected: {0}'.format(self.selected_experiment))
-            elif (self.config.PLATFORM == 'hi_mea' or self.config.PLATFORM == 'standalone') and key_pressed == self.config.KEYS['start stimulus']:
+            elif (self.config.PLATFORM in ['hi_mea', 'standalone', 'intrinsic']) and key_pressed == self.config.KEYS['start stimulus']:
                 if not hasattr(self, 'selected_experiment'):
                     self.printl('Select stimulus first')
                     return
@@ -193,6 +197,13 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
     def toggle_bullseye(self,state):
         self.show_bullseye = state
         
+    def check_mes_connection(self):
+        if self.machine_config.PLATFORM!='ao_cortical':
+            raise NotImplementedError()
+        from visexpman.engine.hardware_interface import mes_interface
+        res=mes_interface.check_mes_connection(self.mes_interface['mes_command'], self.mes_interface['mes_response'])
+        self.send({'mes_connection_status': res})
+        
     def set_experiment_config(self,source_code, experiment_config_name):
         '''
         When user changes Experiment config name (stimulus), the selected experiment config
@@ -244,15 +255,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
 def run_main_ui(context):
     context['logger'].add_source('engine')
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
-    if 0:
-        gui =  VisionExperimentGui(config=context['machine_config'], 
-                                                        user_interface_name =context['user_interface_name'], 
-                                                        log=context['logger'],
-                                                        socket_queues = context['socket_queues'],
-                                                        warning = context['warning'])
-    else:
-        from visexpman.engine.vision_experiment import main_ui
-        main_ui.MainUI(context=context)
+    from visexpman.engine.vision_experiment import main_ui
+    main_ui.MainUI(context=context)
 
 def run_stim(context, timeout = None):
     stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'], context=context)

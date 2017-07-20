@@ -448,28 +448,75 @@ def merge_ca_data(folder,**kwargs):
     except:
         raise RuntimeError('Imaging datafiles are missing')
     recording_name=os.path.basename(imaging_folder)
-    frames=[]
-    while True:#Wait until all files are copied
-        frames_new=[os.path.join(imaging_folder,f) for f in os.listdir(imaging_folder) if os.path.splitext(f)[1]=='.png']
-        if len(frames_new)==len(frames):
-            break
-        import copy
-        frames=copy.deepcopy(frames_new)
-        time.sleep(1.0)
-    if len(frames)==0:
-        raise RuntimeError('No image frame files found. Make sure that TOP and/or SIDE channels are enabled')
-    channels=['side','top']
-    from PIL import Image
-    rawdata=[]
-    for channel in channels[::-1]:
-        chframes=[f for f in frames if os.path.basename(f).split('_')[-2]==channel]
-        chframes.sort()
-        rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
-    if (len(rawdata[0])==0 or len(rawdata[1])==0):
-        rawdata=[rawdata[numpy.nonzero(numpy.array([len(r)>0 for r in rawdata]))[0][0]]]
-    rd=numpy.array(rawdata).swapaxes(0,1)
-    raw_data=rd
-    raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
+    if os.path.splitext(os.listdir(imaging_folder)[0])[1]=='.csv':
+        fn=os.path.join(imaging_folder, (os.listdir(imaging_folder)[0]))
+        frame_fn=fn
+        sizex, sizey, a,b, res = map(float, os.path.split(fn)[1].replace('.csv','').split('_')[-6:-1])
+        nchannels=2 if fn.split('_')[-1].split('.')[0]=='both' else 1
+        channels=[fn.split('_')[-1].split('.')[0]]
+        if channels==['both']:
+            channels=['top', 'side']
+        while True:
+            try:
+                data=numpy.fromfile(fn,">f4")
+                break
+            except IOError:
+                time.sleep(10)
+        nframes = int(data.shape[0]/(sizex*res*(sizey*res-1))/2)
+        data_=data[:int(2*(sizey*res*(sizex*res-1))*nframes)]
+        pixel_per_frame = int(2*(sizex*res)*(sizey*res-1)+4)
+        boundaries = numpy.repeat(numpy.arange(nframes)*pixel_per_frame,2)
+        boundaries[1::2]+=pixel_per_frame-4
+        boundaries = boundaries[numpy.where(boundaries<data_.shape[0])[0]]
+        nframes=boundaries.shape[0]/2
+        boundaries = boundaries[:2*(boundaries.shape[0]/2)]
+        rawdata = numpy.split(data, boundaries)[1:][::2]
+        out=numpy.zeros((len(rawdata ), rawdata [0].shape[0]),dtype=numpy.uint8)
+        for i in range(len(rawdata)):
+            #Scale, max 10 V
+            out[i]=numpy.cast['uint8'](rawdata[i]/7.0*(2**8-1))
+        rawdata=out
+        #rawdata = numpy.array(rawdata)
+        rawdata = rawdata.reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
+        if nchannels==1:
+            if channels[0]=='top':
+                rawdata=rawdata[:,1:,:,:]
+            elif channels[0]=='side':
+                rawdata=rawdata[:,:1,:,:]
+        raw_data=rawdata[:,::-1,:,:]
+        
+#        rawdata/=10.0
+#        rawdata*=(2**16-1)
+#        #rawdata=signal.scale(rawdata[:,::-1,:,:],0,2**16-1)
+#        raw_data = numpy.cast['uint16'](rawdata)
+        #raw_data = numpy.fliplr(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+        raw_data=raw_data.swapaxes(2,3)
+        raw_data = numpy.fliplr(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
+        pass
+    else:
+        frames=[]
+        while True:#Wait until all files are copied
+            frames_new=[os.path.join(imaging_folder,f) for f in os.listdir(imaging_folder) if os.path.splitext(f)[1]=='.png']
+            if len(frames_new)==len(frames):
+                break
+            import copy
+            frames=copy.deepcopy(frames_new)
+            time.sleep(1.0)
+        if len(frames)==0:
+            raise RuntimeError('No image frame files found. Make sure that TOP and/or SIDE channels are enabled')
+        frame_fn=frames[0]
+        channels=['side','top']
+        from PIL import Image
+        rawdata=[]
+        for channel in channels[::-1]:
+            chframes=[f for f in frames if os.path.basename(f).split('_')[-2]==channel]
+            chframes.sort()
+            rawdata.append([numpy.asarray(Image.open(chf)) for chf in chframes])
+        if (len(rawdata[0])==0 or len(rawdata[1])==0):
+            rawdata=[rawdata[numpy.nonzero(numpy.array([len(r)>0 for r in rawdata]))[0][0]]]
+        rd=numpy.array(rawdata).swapaxes(0,1)
+        raw_data=rd
+        raw_data = numpy.rot90(numpy.rot90(numpy.rot90(raw_data.swapaxes(2,0).swapaxes(3,1)))).swapaxes(0,2).swapaxes(1,3)
     #raw_data = raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
     #Sync data
     syncfile=os.path.join(folder,[f for f in files if os.path.splitext(f)[1]=='.hdf5'][0])
@@ -477,9 +524,11 @@ def merge_ca_data(folder,**kwargs):
     machine_config=hsync.findvar('machine_config')
     sync_scaling=hsync.findvar('sync_scaling')
     recording_parameters = {}
+    recording_parameters['channels']=channels
+    recording_parameters['imaging_filename']=frame_fn
     recording_parameters['resolution_unit'] = 'pixel/um'
-    recording_parameters['pixel_size'] = float(os.path.splitext(os.path.basename(frames[0]))[0].split('_')[-3])
-    recording_parameters['scanning_range'] = utils.rc((map(float,os.path.splitext(os.path.basename(frames[0]))[0].split('_')[-7:-5])))
+    recording_parameters['pixel_size'] = float(os.path.splitext(os.path.basename(frame_fn))[0].split('_')[-2])
+    recording_parameters['scanning_range'] = utils.rc((map(float,os.path.splitext(os.path.basename(frame_fn))[0].split('_')[-6:-4])))
     recording_parameters['elphys_sync_sample_rate'] = machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
     recording_parameters['experiment_name']=stimulus['experiment_name']
     try:
@@ -491,19 +540,22 @@ def merge_ca_data(folder,**kwargs):
         if not recording_parameters.has_key(k):
             recording_parameters[k]=v
     hsync.load('sync')
-    hsync.sync=numpy.cast['float'](hsync.sync)/sync_scaling['scale']-sync_scaling['offset']#Scale back to voltage range
-    sync_and_elphys = numpy.zeros((hsync.sync.shape[0], 5))
+    hsync.sync/=256
+    hsync.sync=numpy.cast['uint8'](hsync.sync)
+#    hsync.sync/=sync_scaling['scale']
+#    hsync.sync-=sync_scaling['offset']#Scale back to voltage range
+    sync_and_elphys = numpy.zeros((hsync.sync.shape[0], 3), dtype=numpy.uint8)
     sync_and_elphys[:,2]=hsync.sync[:,2]#block trigger
     if 0:
         #convert y scanner to binary
-        sync_and_elphys[:,4]=yscanner2sync(hsync.sync[:,0], machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],raw_data.shape[0])#frame trigger\
+        sync_and_elphys[:,1]=yscanner2sync(hsync.sync[:,0], machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],raw_data.shape[0])#frame trigger\
     else:
-        sync_and_elphys[:,4]=hsync.sync[:,3]
+        sync_and_elphys[:,1]=hsync.sync[:,3]
     hsync.close()
     #Save everything to final file
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
     h=hdf5io.Hdf5io(filename)
-    h.recording_parameters=recording_parameters
+    h.parameters=recording_parameters
     h.sync= sync_and_elphys
     h.fsync=syncfile
     h.fimg=imaging_folder
@@ -511,19 +563,22 @@ def merge_ca_data(folder,**kwargs):
     h.elphys_sync_conversion_factor=1
     h.raw_data=raw_data
     h.sync_scaling=sync_scaling
-    h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
-    h.configs_stim['machine_config']=machine_config['machine_config']
     h.machine_config=machine_config
     h.generated_data=stimulus['generated_data']
     h.datatype='ca'
-    h.save(['raw_data', 'fsync', 'fimg', 'fstim', 'recording_parameters', 'sync', 'elphys_sync_conversion_factor', 'sync_scaling', 'configs_stim', 'machine_config', 'datatype', 'generated_data'])
+    h.save('raw_data')
+    del h.raw_data
+    h.save('sync')
+    del h.sync
+    h.save(['fsync', 'fimg', 'fstim', 'parameters', 'elphys_sync_conversion_factor', 'sync_scaling',  'machine_config', 'datatype', 'generated_data'])
     h.close()
     #Copy raw pngs to output folder
     output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     import shutil
-    [shutil.copy(f, output_folder) for f in frames]
+    if os.path.splitext(frame_fn)[1]=='.png':
+        [shutil.copy(f, output_folder) for f in frames]
     return filename
     
 def yscanner2sync(sig,fsample,nframes):
@@ -604,10 +659,10 @@ class TestConverter(unittest.TestCase):
         folder='x:\\data\\user\\Zoltan\\1'
         folder='e:\\Zoltan\\1\\zip'
         folder='e:\\Zoltan\\0'
+        folder='x:\\santiago-setup\\debug\\bin1'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
         h=experiment_data.CaImagingData(filename)
-        self.tsync,self.timg, self.meanimage, self.image_scale, self.raw_data=h.prepare4analysis()
-        plot(self.timg,self.raw_data.mean(axis=2).mean(axis=2)[:,0]);plot(self.tsync, 10*numpy.ones_like(self.tsync),'o');show()
+        h.sync2time()
         h.close()
         
     @unittest.skip('')  

@@ -8,7 +8,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import pyqtgraph
 
-from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
+from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect,colors
 from visexpman.engine.vision_experiment import gui_engine, experiment
 
 
@@ -122,7 +122,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         
     def stimulus_info_action(self):
         duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
-        self.parent.printc('{0} stimulus takes {1} seconds'.format(self.classname, duration))
+        self.parent.printc('{0} stimulus takes {1:0.0f} seconds'.format(self.classname, duration))
 
     def stimulus_par_action(self):
         parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
@@ -270,6 +270,16 @@ class DataFileBrowser(gui.FileTree):
         self.customContextMenuRequested.connect(self.open_menu)
         self.setSortingEnabled(True)
         
+    def convert_filename(self, filename):
+        ext=os.path.splitext(filename)[1]
+        file2open=filename
+        if ext=='.mat':#If mat or _mat is selected, corresponding hdf5 is opened
+            if '_mat.mat' in filename:
+                file2open=filename.replace('_mat.mat', '.hdf5')
+            else:
+                file2open=filename.replace('.mat', '.hdf5')
+        return file2open
+        
     def file_selected(self,index):
         self.selected_filename = gui.index2filename(index)
         
@@ -277,25 +287,34 @@ class DataFileBrowser(gui.FileTree):
         filename = gui.index2filename(index)
         if os.path.isdir(filename): return#Double click on folder is ignored
         ext = fileop.file_extension(filename)
-        if ext == 'hdf5':
+        if ext  in  ['hdf5', 'mat']:
             function = 'open_datafile'
-            self.parent.parent.to_engine.put({'function': 'keep_rois', 'args':[self.parent.parent.analysis_helper.keep_rois.input.checkState()==2]})
-            self.parent.parent.analysis_helper.keep_rois.input.setCheckState(0)
+            keep_rois=(self.parent.parent.analysis_helper.keep_rois.input.checkState()==2) if hasattr(self.parent.parent.analysis_helper, 'keep_rois') else False
+            self.parent.parent.to_engine.put({'function': 'keep_rois', 'args':[keep_rois]})
+            if hasattr(self.parent.parent.analysis_helper, 'keep_rois'):#Works only on retina platform
+                self.parent.parent.analysis_helper.keep_rois.input.setCheckState(0) 
         else:
             raise NotImplementedError(filename)
-        self.parent.parent.to_engine.put({'function': function, 'args':[filename]})
+        self.parent.parent.to_engine.put({'function': function, 'args':[self.convert_filename(filename)]})
 
     def open_menu(self, position):
         self.menu = QtGui.QMenu(self)
         delete_action = QtGui.QAction('Remove recording', self)
         delete_action.triggered.connect(self.delete_action)
         self.menu.addAction(delete_action)
+        plot_action = QtGui.QAction('Plot  sync signals', self)
+        plot_action.triggered.connect(self.plot_action)
+        self.menu.addAction(plot_action)
         self.menu.exec_(self.viewport().mapToGlobal(position))
         
     def delete_action(self):
         if hasattr(self, 'selected_filename'):
-            self.parent.parent.to_engine.put({'function': 'remove_recording', 'args':[self.selected_filename]})
-
+            self.parent.parent.to_engine.put({'function': 'remove_recording', 'args':[self.convert_filename(self.selected_filename)]})
+            
+    def plot_action(self):
+        if hasattr(self, 'selected_filename'):
+            self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.convert_filename(self.selected_filename)]})
+            
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
         QtGui.QWidget.__init__(self)
@@ -380,33 +399,36 @@ class AnalysisHelper(QtGui.QWidget):
         QtGui.QWidget.__init__(self, parent)
         self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
         self.show_rois.input.setCheckState(2)
-        self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
-        self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
-        self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
-        self.show_repetitions.input.setCheckState(0)
-        self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
-        self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
-        self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
-        self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
-        self.roi_adjust = RoiShift(self)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
+            self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
+            self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
+            self.show_repetitions.input.setCheckState(0)
+            self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
+            self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
+            self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
+            self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
+            self.roi_adjust = RoiShift(self)
 #        self.trace_parameters = QtGui.QLabel('', self)
 #        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.show_rois,0,0,1,1)
-        self.layout.addWidget(self.keep_rois,1,0,1,1)
-        self.layout.addWidget(self.roi_adjust,0,1,2,2)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.layout.addWidget(self.keep_rois,1,0,1,1)
+            self.layout.addWidget(self.roi_adjust,0,1,2,2)
 #        self.layout.addWidget(self.trace_parameters,0,2,2,1)
-        self.layout.addWidget(self.show_repetitions,0,3,1,1)
-        self.layout.addWidget(self.find_repetitions,1,3,1,1)
-        self.layout.addWidget(self.aggregate,2,3,1,1)
-        self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
-        self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
+            self.layout.addWidget(self.show_repetitions,0,3,1,1)
+            self.layout.addWidget(self.find_repetitions,1,3,1,1)
+            self.layout.addWidget(self.aggregate,2,3,1,1)
+            self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
+            self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
         self.setLayout(self.layout)
         self.setFixedHeight(140)
         self.setFixedWidth(530)
-        self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
-        self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
-        self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
+            self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
+            self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
         
     def find_repetitions_clicked(self):
         self.parent.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
@@ -444,7 +466,6 @@ class MainUI(gui.VisexpmanMainWindow):
         #Add dockable widgets
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
-        
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.image = Image(self,roi_diameter=self.machine_config.DEFAULT_ROI_SIZE_ON_GUI)
@@ -462,7 +483,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.plot.setLabels(bottom='sec')
             self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.cellbrowser=CellBrowser(self)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.analysis = QtGui.QWidget(self)
@@ -474,35 +495,34 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
             self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
             self.analysis.setLayout(self.analysis.layout)
-        
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.advanced=Advanced(self)
-        
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
-        self.main_tab.addTab(self.params, 'Settings')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical']:
             self.main_tab.addTab(self.analysis, 'Analysis')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         if self.machine_config.PLATFORM in ['us_cortical']:
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
+        self.main_tab.addTab(self.params, 'Settings')
         self.main_tab.addTab(self.advanced, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
-        
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self.load_all_parameters()
         self.show()
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
             self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
-            self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+                self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -580,7 +600,16 @@ class MainUI(gui.VisexpmanMainWindow):
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
                 self.eye_camera.setFixedHeight(h)
                 self.eye_camera.plot.setTitle(time.time())
-                
+            elif msg.has_key('plot_sync'):
+                x,y=msg['plot_sync']
+                self.p=gui.Plot(None)
+                pp=[]
+                for i in range(len(x)):
+                    c=colors.get_color(i)
+                    c=(numpy.array(c)*255).tolist()
+                    pp.append({'name': (str(i)), 'pen':c})
+                self.p.update_curves(x,y,plotparams=pp)
+                self.p.show()
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             
@@ -599,7 +628,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Name', 'type': 'str', 'value': ''},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True                    
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
@@ -690,6 +719,9 @@ class MainUI(gui.VisexpmanMainWindow):
         '''
         Adds (all) manually placed roi(s)
         '''
+        if self.machine_config.PLATFORM=='ao_cortical':
+            QtGui.QMessageBox.question(self, 'Warning', 'Adding manual ROIs to AO data is not supported', QtGui.QMessageBox.Ok)
+            return
         movable_rois = [r for r in self.image.rois if r.translatable]#Rois manually placed
         if len(movable_rois)>0 and 0:
             self.printc('Only one manually placed roi can be added!')
@@ -699,7 +731,7 @@ class MainUI(gui.VisexpmanMainWindow):
             return
         for roi in movable_rois:
             rectangle = [roi.x(), roi.y(),  roi.size().x(),  roi.size().y()]
-            if self.analysis_helper.find_cells_scaled.input.checkState()==2:
+            if self.machine_config.PLATFORM=='elphys_retinal_ca' and self.analysis_helper.find_cells_scaled.input.checkState()==2:
                 pixel_range=[self.adjust.low.value(),self.adjust.high.value()]
             else:
                 pixel_range=None

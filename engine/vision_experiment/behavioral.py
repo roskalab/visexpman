@@ -100,7 +100,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         self.context_variables=['datafolder','parameters','current_animal']
         self.load_context()
-        free_space=round(fileop.free_space(self.datafolder)/1e9,1)
+        free_space=round(fileop.free_space(self.datafolder)/2**30,1)
         if free_space<self.machine_config.MINIMUM_FREE_SPACE:
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         logging.info('Pack source code')
@@ -911,7 +911,7 @@ class Behavioral(gui.SimpleAppWindow):
         folder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
         if folder=='':return
         self.engine.datafolder=folder
-        free_space=round(fileop.free_space(self.engine.datafolder)/1e9,1)
+        free_space=round(fileop.free_space(self.engine.datafolder)/2**30,1)
         if free_space<self.machine_config.MINIMUM_FREE_SPACE:
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         self.cw.filebrowserw.set_root(self.engine.datafolder)

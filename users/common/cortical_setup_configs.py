@@ -169,6 +169,8 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         SYNC_RECORDER_CHANNELS='Dev1/ai4:7'
         self.SYNC_RECORDER_SAMPLE_RATE=10000
         self.SYNC_RECORDING_BUFFER_TIME=5.0
+        self.TIMG_SYNC_INDEX=1
+        self.TSTIM_SYNC_INDEX=2
         COORDINATE_SYSTEM='center'
         ######################### Ca imaging specific ################################ 
         self.CA_IMAGING_START_DELAY = 10.0#NEW

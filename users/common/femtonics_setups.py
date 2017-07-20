@@ -24,7 +24,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.ENABLE_FRAME_CAPTURE = False
         self.GUI['SIZE'] =  utils.cr((1024,768)) 
         #Network
-        stim_computer_ip = '172.27.26.69'
+        stim_computer_ip = '172.27.26.46'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         #Command relay server is used for conencting to MES because no zmq is supported and mes works only in client mode
@@ -50,17 +50,35 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         self.TIMG_SYNC_INDEX=3
         self.TSTIM_SYNC_INDEX=2
+        self.TSTIM_LASER_SYNC_INDEX=4
         self.DIGITAL_IO_PORT='COM4'
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TRIGGER_PIN = 0
-        
-        self.MES_RECORD_OVERHEAD=20
-        self.MES_RECORD_OVERHEAD2=40
-        self.MES_RECORD_START_WAITTIME=15
+        self.MES_RECORD_OVERHEAD=5
+        self.MES_RECORD_START_WAITTIME=5
+        self.MES_RECORD_START_WAITTIME_LONG_RECORDING=25
+        self.MES_LONG_RECORDING=200
+        self.MES_TIMEOUT=5
         self.SYNC_RECORD_OVERHEAD=10
-        self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
+        gammafn=os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5')
+        if os.path.exists(gammafn):
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
         if '--nofullscreen' in sys.argv:
             self.FULLSCREEN=False
+        
+        
+class CameronAoSetup(AOSetup):
+    def _set_user_parameters(self):
+        AOSetup._set_user_parameters(self)
+        SCREEN_UM_TO_PIXEL_SCALE=1.0
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=True
+        SCREEN_RESOLUTION = utils.cr([1280, 800])
+        COORDINATE_SYSTEM='center'
+        TRIGGER_MES=True
+        self.MES_RECORD_OVERHEAD=10#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
+        self.MES_RECORD_OVERHEAD2=10#This is responsible for the recording overhead. Reduce if don't want to wait too long after recording
+        self.SCREEN_EXPECTED_FRAME_RATE = 119.0
+        self._create_parameters_from_locals(locals())
         
         
 class CameronBpSetup(AoCorticalCaImagingConfig):
@@ -105,3 +123,8 @@ class CameronBpSetup(AoCorticalCaImagingConfig):
 #        self.SYNC_RECORD_OVERHEAD=5
         SCREEN_UM_TO_PIXEL_SCALE = 1
         #self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5'), 'gamma_correction'))
+
+class CameronDev(CameronAoSetup):
+    def _set_user_parameters(self):
+        CameronAoSetup._set_user_parameters(self)
+        self.SCREEN_EXPECTED_FRAME_RATE = 59

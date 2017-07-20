@@ -6,7 +6,21 @@ import numpy
 import copy
 import time
 
-class GrayBackgndOnly_5_min(experiment.ExperimentConfig):
+class GrayBackgndOnly10sec(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'GrayBackgndOnly'
+        self.FULLSCREEN_TIME = 10.0 # 1 Minutes
+        self.FULLSCREEN_COLOR = 0.25 # Medium gray contrast
+        self._create_parameters_from_locals(locals())
+
+class GrayBackgndOnly20sec(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'GrayBackgndOnly'
+        self.FULLSCREEN_TIME = 20.0 # 1 Minutes
+        self.FULLSCREEN_COLOR = 0.25 # Medium gray contrast
+        self._create_parameters_from_locals(locals())
+
+class GrayBackgndOnly5min(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'GrayBackgndOnly'
         self.FULLSCREEN_TIME = 300.0 # 5 Minutes
@@ -14,7 +28,7 @@ class GrayBackgndOnly_5_min(experiment.ExperimentConfig):
         
         self._create_parameters_from_locals(locals())
 
-class GrayBackgndOnly_10_min(experiment.ExperimentConfig):
+class GrayBackgndOnly10min(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'GrayBackgndOnly'
         self.FULLSCREEN_TIME = 600.0 # 5 Minutes
@@ -22,7 +36,7 @@ class GrayBackgndOnly_10_min(experiment.ExperimentConfig):
         
         self._create_parameters_from_locals(locals())
 
-class GrayBackgndOnly_15_min(experiment.ExperimentConfig):
+class GrayBackgndOnly15min(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'GrayBackgndOnly'
         self.FULLSCREEN_TIME = 900.0 # 5 Minutes
@@ -32,7 +46,9 @@ class GrayBackgndOnly_15_min(experiment.ExperimentConfig):
 class GrayBackgndOnly(experiment.Experiment):
     def prepare(self):
          self.fragment_durations = [self.experiment_config.FULLSCREEN_TIME]
+         self.duration=self.fragment_durations[0]
         
     def run(self):
-        self.show_fullscreen(duration = self.experiment_config.FULLSCREEN_TIME,color = self.experiment_config.FULLSCREEN_COLOR)
+        #self.show_shape(shape='r',size=100,duration=20, color=1.0, background_color=0.0)
+        self.show_fullscreen(duration = self.experiment_config.FULLSCREEN_TIME,color = self.experiment_config.FULLSCREEN_COLOR,is_block=True)
         # You can also have control signals here. 
