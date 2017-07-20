@@ -1,7 +1,7 @@
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.generic import signal
 import numpy, serial, time
-from pylab import *
+from pylab import plot,show
 
 ai='Dev1/ai3:4'
 ao='Dev1/ao1'

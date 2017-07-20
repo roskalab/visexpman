@@ -514,3 +514,5 @@ class StimStopRewardShort(StimStopReward):
     __doc__=StimStopReward.__doc__
     RUN_TIME=5.0
     RANDOM_TIME_RANGE=6.0
+if __name__ == "__main__":
+    pass

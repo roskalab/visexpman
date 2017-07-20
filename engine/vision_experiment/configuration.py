@@ -177,17 +177,14 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
         GUI['INJECTED_SUBSTANCE_SUGGESTIONS'] = ['', 'chlorprothixene', 'isofluorane']
         GUI['INJECTED_SUBSTANCE_SUGGESTIONS'].extend(GUI['GREEN_LABELING_SUGGESTIONS'])
+        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,100]]
         
         ############# Experiment configuration/ experiment protocol related ######################
-        GUI_CONFIGURABLE_STIMULATION_DEVICES = ['led', 'two photon laser', 'polychrome', 'electrode']
-        STIMULATION_DEVICES = ['projector', 'display', 'microled']#If empy, experiment config is not overridden
-        STIMULATION_DEVICES.extend(GUI_CONFIGURABLE_STIMULATION_DEVICES)
-        PREFERRED_STIMULATION_DEVICES = ['led', 'two photon laser']
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]]
         self.MOUSE_1_VISUAL_DEGREE_ON_RETINA=300.0/10.0
-    
+        BACKUPTIME=[-1,[-1,24]]
         self._create_parameters_from_locals(locals())#this function call is compulsory
 
     def _calculate_parameters(self):
@@ -342,7 +339,6 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         
         DATAFILE_COMPRESSION_LEVEL = [4, [0,9]]
         SYNC_SAMPLE_SIZE = [3, [1, 100]]
-        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,40]]
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
@@ -363,6 +359,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         ROI_PATTERN_SIZE = [2, [1, 10]]
         ROI_PATTERN_RADIUS = [1, [0, 50]]
         ########### Vision experiment manager GUI #################
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
         screen_size = utils.cr((800, 600))
         if len(sys.argv) > 0:
             if 'gui' in sys.argv[0]: #if gui is the main module
@@ -416,7 +413,9 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
     def _create_application_parameters(self):
         CorticalCaImagingConfig._create_application_parameters(self)
         PLATFORM = 'ao_cortical'
-        
+        if self.OS=='Windows':
+            BACKUP_PATH='u:\\ao'
+        DEFAULT_ROI_SIZE_ON_GUI=20
         self._create_parameters_from_locals(locals())
         
 class UltrasoundConfig(VisionExperimentConfig):

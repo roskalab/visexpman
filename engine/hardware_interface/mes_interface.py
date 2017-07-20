@@ -29,6 +29,16 @@ except:
     test_mode=False
 parameter_extract = re.compile('EOC(.+)EOP')
 
+def check_mes_connection(command, response, waittime=1.5):
+    num=int(numpy.random.random()*100)
+    msg='SOCechoEOC{0}EOP' .format(num)
+    command.put(msg)
+    time.sleep(waittime)
+    resp=''
+    if not response.empty():
+        resp=response.get()
+    return resp==msg
+
 def generate_scan_points_mat(points, mat_file):
     '''
     Points shall be a struct array of numpy.float64 with x, y and z fields.
