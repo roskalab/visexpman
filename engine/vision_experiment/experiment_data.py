@@ -240,7 +240,7 @@ class CaImagingData(hdf5io.Hdf5io):
         if self.timg.shape[0]==0:
             errors.append('No imaging sync signal detected.')
         if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]):
-            errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]<self.tstim[0] else 'End') )
+            errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
         #Check frame rate
         self.load('stimulus_frame_info')
         sfi=self.stimulus_frame_info

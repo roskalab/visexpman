@@ -533,7 +533,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     break
             time.sleep(1)
         self.ao_expected_finish=time.time()+self.parameters['mes_record_time']/1000
-        time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
+        if self.parameters['duration']>self.machine_config.MES_LONG_RECORDING:
+            time.sleep(self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING)
+        else:
+            time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
+        
             
     def wait4ao(self):
         if self.abort:

@@ -182,7 +182,11 @@ class ExperimentHandler(object):
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM=='ao_cortical':
-            oh=self.machine_config.MES_RECORD_START_WAITTIME+self.machine_config.MES_RECORD_OVERHEAD
+            if experiment_parameters['duration']<self.machine_config.MES_LONG_RECORDING:
+                wt=self.machine_config.MES_RECORD_START_WAITTIME
+            else:
+                wt=self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING
+            oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         return experiment_parameters
             
@@ -559,6 +563,7 @@ class Analysis(object):
 
     def open_datafile(self,filename):
         if self.experiment_running:
+            self.printc('Try again after recording')
             return
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':

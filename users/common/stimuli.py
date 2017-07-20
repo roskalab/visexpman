@@ -186,7 +186,7 @@ class NaturalMovieExperiment(experiment.Experiment):
             duration = 1.0/self.experiment_config.FRAME_RATE
         self.show_image(self.experiment_config.FILENAME,duration)
         
-class NaturalBars(experiment.ExperimentConfig):
+class NaturalBarsOriginal(experiment.ExperimentConfig):
     def _create_parameters(self):
 
         self.SPEED = [800,400,1200]#um/s

@@ -56,6 +56,8 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.FRAME_TRIGGER_PIN = 0
         self.MES_RECORD_OVERHEAD=5
         self.MES_RECORD_START_WAITTIME=5
+        self.MES_RECORD_START_WAITTIME_LONG_RECORDING=25
+        self.MES_LONG_RECORDING=200
         self.MES_TIMEOUT=5
         self.SYNC_RECORD_OVERHEAD=10
         gammafn=os.path.join(self.CONTEXT_PATH, 'gamma_ao_cortical_monitor.hdf5')
@@ -125,8 +127,4 @@ class CameronBpSetup(AoCorticalCaImagingConfig):
 class CameronDev(CameronAoSetup):
     def _set_user_parameters(self):
         CameronAoSetup._set_user_parameters(self)
-        self.SCREEN_RESOLUTION = utils.cr([800,600])
-        self.FULLSCREEN=False
         self.SCREEN_EXPECTED_FRAME_RATE = 59
-        self.MES_RECORD_OVERHEAD=5
-        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:4'
