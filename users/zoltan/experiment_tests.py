@@ -167,18 +167,18 @@ class TestStim(experiment.Stimulus):
     def _plaid_stim(self):
         duration=10
         direction=0
-        relative_angle=150
+        relative_angle=50
         velocity=100
         line_width=20
-        duty_cycle=20
-        mask_size=100
+        duty_cycle=10
+        mask_size=500
         contrast=0.7
         background_color=0.5
         sinusoid=False
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
         
     def run(self):
-        self._approach()
+        #self._approach()
         self._plaid_stim()
         return
         
