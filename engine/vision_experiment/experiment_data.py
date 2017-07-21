@@ -235,28 +235,29 @@ class CaImagingData(hdf5io.Hdf5io):
             raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
         self.save(['timg'])
             
-    def check_timing(self):
+    def check_timing(self, check_frame_rate=True):
         errors=[]
         if self.timg.shape[0]==0:
             errors.append('No imaging sync signal detected.')
         if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]):
             errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
-        #Check frame rate
-        self.load('stimulus_frame_info')
-        sfi=self.stimulus_frame_info
-        if 'laser' in str(self.parameters['stimclass']).lower():
-            pass
-        elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
-            bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
-            bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
-            expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
-            measured_block_durations = numpy.diff(self.tstim)[::2]
-            measured_frame_rate=(bei-bsi)/measured_block_durations
-            error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
-            if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
-                errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
-        else:
-            raise NotImplementedError()
+        if check_frame_rate:
+            #Check frame rate
+            self.load('stimulus_frame_info')
+            sfi=self.stimulus_frame_info
+            if 'laser' in str(self.parameters['stimclass']).lower() or 'led' in str(self.parameters['stimclass']).lower():
+                pass
+            elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
+                bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
+                bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
+                expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
+                measured_block_durations = numpy.diff(self.tstim)[::2]
+                measured_frame_rate=(bei-bsi)/measured_block_durations
+                error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
+                if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
+                    errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+            else:
+                raise NotImplementedError()
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
         

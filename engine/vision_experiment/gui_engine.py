@@ -368,6 +368,7 @@ class ExperimentHandler(object):
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
+                fn=filename
                 self.printc('Data saved to {0}'.format(filename))
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
@@ -381,13 +382,14 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
             if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+                self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
                 if self.santiago_setup:
                     h.crop_timg()
                 self.tstim=h.tstim
                 self.timg=h.timg
-                h.check_timing()
+                h.check_timing(check_frame_rate=not self.santiago_setup)
                 h.close()
             if self.santiago_setup:
                 #Export timing to csv file
@@ -1164,18 +1166,24 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM=='ao_cortical':
+        if self.machine_config.PLATFORM=='ao_cortical' or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
-            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
+            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')) and not self.santiago_setup:
                 if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
                     return
             self.fn=filename
             h=hdf5io.Hdf5io(filename)
             scale=h.findvar('sync_scaling')
+            self.printc(scale)
             sync=h.findvar('sync')
-            sync=signal.from_16bit(sync,scale)
+            if sync.dtype.name=='uint16':
+                sync=signal.from_16bit(sync,scale)
+            elif sync.dtype.name=='uint8':
+                sync=signal.from_16bit(sync*256,scale)
+            else:
+                raise NotImplementedError()
             fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
             h.close()
             x=[]
@@ -1311,10 +1319,11 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
-        if self.guidata.read('mes_hash')==None:
-            self.guidata.add('mes_hash', hash, 'hash/mes_hash')
-        else:
-            self.guidata.mes_hash.v=meshash
+        if self.machine_config.PLATFORM=='ao_cortical':
+            if self.guidata.read('mes_hash')==None:
+                self.guidata.add('mes_hash', hash, 'hash/mes_hash')
+            else:
+                self.guidata.mes_hash.v=meshash
         self.printc('Software hash saved')
         self.save_context()
     
@@ -1323,11 +1332,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             self.notify('Warning', 'Software has changed, hashes do not match.\r\nMake sure that the correct software version is used!')
-        meshash=introspect.mes2hash()
-        saved_hash=self.guidata.read('mes_hash')
-        if not numpy.array_equal(saved_hash, meshash):
-            print saved_hash, meshash
-            self.notify('Warning', 'MES has changed, hashes do not match.')
+        if self.machine_config.PLATFORM=='ao_cortical':
+            meshash=introspect.mes2hash()
+            saved_hash=self.guidata.read('mes_hash')
+            if not numpy.array_equal(saved_hash, meshash):
+                print saved_hash, meshash
+                self.notify('Warning', 'MES has changed, hashes do not match.')
             
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())
