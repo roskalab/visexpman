@@ -20,7 +20,7 @@ class StimulusDevelopment(VisionExperimentConfig):
         CONTEXT_PATH = self.root_folder
         for p in [CAPTURE_PATH, LOG_PATH]:
             if not os.path.exists(p):
-                os.mkdir(p)
+                os.makedirs(p)
         DATA_PATH = self.root_folder
         EXPERIMENT_DATA_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
@@ -38,8 +38,15 @@ class StimulusDevelopment(VisionExperimentConfig):
         ENABLE_PARALLEL_PORT = False
         
         
-        SCREEN_RESOLUTION = utils.cr((1024, 768))#TMP febr 09
-        SCREEN_UM_TO_PIXEL_SCALE = 0.5#1/2.47#TMP febr 09
+        SCREEN_RESOLUTION = utils.cr((1024, 576))#TMP febr 09
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0#1/2.47#TMP febr 09
         BACKGROUND_COLOR = 3*[0.0]#TMP febr 09
-        
+        SCREEN_DISTANCE_FROM_MOUSE_EYE=230
+        SCREEN_PIXEL_WIDTH=0.458
+        self._create_parameters_from_locals(locals())
+
+class StimulusDevelopmentFullScreen(StimulusDevelopment):
+    def _set_user_parameters(self):
+        StimulusDevelopment._set_user_parameters(self)
+        FULLSCREEN = True
         self._create_parameters_from_locals(locals())

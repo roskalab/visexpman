@@ -302,6 +302,8 @@ def parse_stimulation_file(filename):
     if fileop.file_extension(filename) != 'py':
         raise RuntimeError('Files only with py extension can be selected: {0}'.format(filename))
     source_code = fileop.read_text_file(filename)
+    if 'import *' in source_code:
+        raise RuntimeError('Parsing {0} might freeze'.format(filename))
     try:
         introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     except Exception as e:
@@ -309,7 +311,10 @@ def parse_stimulation_file(filename):
     experiment_module = __import__('experiment_module')
     experiment_config_classes = {}
     for c in inspect.getmembers(experiment_module,inspect.isclass):
-        if 'ExperimentConfig' in introspect.class_ancestors(c[1]):
+        if c[1]==object:#call to =introspect.class_ancestors hangs
+            continue
+        ancestorts=introspect.class_ancestors(c[1])
+        if 'ExperimentConfig' in ancestorts:
             try:
                 expconfig_lines = source_code.split('class '+c[0])[1].split('def _create_parameters')[1].split('def')[0].split('\n')
                 experiment_config_classes[c[0]] = \
@@ -317,7 +322,7 @@ def parse_stimulation_file(filename):
                         if '=' in expconfig_line and (expconfig_line.split('=')[0].replace('self.','').isupper() or 'self.editable' in expconfig_line.split('=')[0])]
             except:
                 continue
-        elif 'Stimulus' in introspect.class_ancestors(c[1]):
+        elif 'Stimulus' in ancestorts:
             experiment_config_classes[c[0]] = []
     return experiment_config_classes
 
@@ -331,6 +336,7 @@ class testExperimentHelpers(unittest.TestCase):
                           ), 
                           (True, True, True))
         parse_stimulation_file(os.path.join(fileop.visexpman_package_path(), 'users','volker','plot_mcd.py'))
+        parse_stimulation_file('v:\\codes\\zdev2\\visexpman\\users\\common\\behavioral_protocols.py')
     
     def test_02_read_experiment_duration(self):
         from visexpman.users.test.test_configurations import GUITestConfig

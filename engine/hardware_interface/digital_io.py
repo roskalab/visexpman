@@ -54,7 +54,10 @@ class SerialPortDigitalIO(instrument.Instrument):
         if len(self.s)-1 < device_id:
             raise RuntimeError('Invalid data bit')
         if channel%2 == 0:
-            self.s[device_id].setBreak(not bool(value))
+            if hasattr(self.s[device_id], 'setBreak'):
+                self.s[device_id].setBreak(not bool(value))
+            else:
+                self.s[device_id].sendBreak(not bool(value))
         elif channel%2 == 1:
             self.s[device_id].setRTS(not bool(value))
         if log:

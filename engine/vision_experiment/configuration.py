@@ -21,6 +21,9 @@ ElectroporationConfig:
 BehavioralConfig:
         inherits VisionExperimentConfig and expands it with behavioral setup specific parameters that are not used on other platforms
         Platfrom name: behav
+IntrinsicConfig:
+    Intrinsic imaging platform.
+    Platform name: intrinsic
 '''
 import os
 import sys
@@ -73,7 +76,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -95,6 +98,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_RESOLUTION = utils.rc([600, 800])
         SCREEN_POSITION = utils.rc([0, 0])
         FULLSCREEN = False
+        ENABLE_TIME_INDEXING=False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_RATE_TOLERANCE = [4.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
@@ -173,17 +177,14 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
         GUI['INJECTED_SUBSTANCE_SUGGESTIONS'] = ['', 'chlorprothixene', 'isofluorane']
         GUI['INJECTED_SUBSTANCE_SUGGESTIONS'].extend(GUI['GREEN_LABELING_SUGGESTIONS'])
+        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,100]]
         
         ############# Experiment configuration/ experiment protocol related ######################
-        GUI_CONFIGURABLE_STIMULATION_DEVICES = ['led', 'two photon laser', 'polychrome', 'electrode']
-        STIMULATION_DEVICES = ['projector', 'display', 'microled']#If empy, experiment config is not overridden
-        STIMULATION_DEVICES.extend(GUI_CONFIGURABLE_STIMULATION_DEVICES)
-        PREFERRED_STIMULATION_DEVICES = ['led', 'two photon laser']
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]]
         self.MOUSE_1_VISUAL_DEGREE_ON_RETINA=300.0/10.0
-    
+        BACKUPTIME=[-1,[-1,24]]
         self._create_parameters_from_locals(locals())#this function call is compulsory
 
     def _calculate_parameters(self):
@@ -338,7 +339,6 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         
         DATAFILE_COMPRESSION_LEVEL = [4, [0,9]]
         SYNC_SAMPLE_SIZE = [3, [1, 100]]
-        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,40]]
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
@@ -359,6 +359,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         ROI_PATTERN_SIZE = [2, [1, 10]]
         ROI_PATTERN_RADIUS = [1, [0, 50]]
         ########### Vision experiment manager GUI #################
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
         screen_size = utils.cr((800, 600))
         if len(sys.argv) > 0:
             if 'gui' in sys.argv[0]: #if gui is the main module
@@ -412,7 +413,9 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
     def _create_application_parameters(self):
         CorticalCaImagingConfig._create_application_parameters(self)
         PLATFORM = 'ao_cortical'
-        
+        if self.OS=='Windows':
+            BACKUP_PATH='u:\\ao'
+        DEFAULT_ROI_SIZE_ON_GUI=20
         self._create_parameters_from_locals(locals())
         
 class UltrasoundConfig(VisionExperimentConfig):
@@ -449,6 +452,15 @@ class ElectroporationConfig(VisionExperimentConfig):
         PLATFORM = 'epos'
         EXPERIMENT_FILE_FORMAT = 'mat'
         EXPERIMENT_START_TRIGGER = [10, [10, 15]]
+        STIM_RECORDS_ANALOG_SIGNALS = False
+        self._create_parameters_from_locals(locals())
+        
+class IntrinsicConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'intrinsic'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.KEYS['start stimulus'] = 'e'
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 

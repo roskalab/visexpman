@@ -1,7 +1,7 @@
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.generic import signal
 import numpy, time, hdf5io
-from pylab import *
+from pylab import plot,show
 
 if __name__ == "__main__":
     ai='Dev1/ai1:2'

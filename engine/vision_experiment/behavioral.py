@@ -100,7 +100,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         self.context_variables=['datafolder','parameters','current_animal']
         self.load_context()
-        free_space=round(fileop.free_space(self.datafolder)/1e9,1)
+        free_space=round(fileop.free_space(self.datafolder)/2**30,1)
         if free_space<self.machine_config.MINIMUM_FREE_SPACE:
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         logging.info('Pack source code')
@@ -208,7 +208,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def edit_protocol(self):
-        fn=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__file__
+        classes=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.BehavioralProtocol,direct = False)
+        if len(classes)==0:
+            logging.info((classes, self.parameters['Protocol']))
+        fn=classes[0][0].__file__
         if fn[-3:]=='pyc':
             fn=fn[:-1]
         lines=fileop.read_text_file(fn).split('\n')
@@ -276,7 +279,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             del x[1]
             del y[1]
             del trace_names[1]
-        y[-1]*=0#TEMP!!!
+        #y[-1]*=0#TEMP!!!
         self.to_gui.put({'set_events_title': os.path.basename(self.filename)})
         self.to_gui.put({'update_events_plot':{'x':x, 'y':y, 'trace_names': trace_names}})
         
@@ -385,6 +388,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def finish_recording(self):
         self.protocol.join()
         logging.info('Protocol finished')
+        time.sleep(0.5)
         self.ai.commandq.put('stop')
         time.sleep(0.5)
         t0=time.time()
@@ -415,6 +419,9 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.day_analysis.add2day_analysis(self.filename)
             self.stat2gui()
         except:
+            self.session_ongoing=False
+            self.to_gui.put({'set_recording_state': 'idle'})
+            logging.info('Session ended')
             self.dump()
             logging.info(traceback.format_exc())
             
@@ -904,7 +911,7 @@ class Behavioral(gui.SimpleAppWindow):
         folder = self.ask4foldername('Select Data Folder', self.engine.datafolder)
         if folder=='':return
         self.engine.datafolder=folder
-        free_space=round(fileop.free_space(self.engine.datafolder)/1e9,1)
+        free_space=round(fileop.free_space(self.engine.datafolder)/2**30,1)
         if free_space<self.machine_config.MINIMUM_FREE_SPACE:
             self.notify('Warning', 'Only {0} GB free space is left'.format(free_space))
         self.cw.filebrowserw.set_root(self.engine.datafolder)

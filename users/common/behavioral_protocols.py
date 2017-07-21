@@ -84,7 +84,7 @@ class Lick(HitMiss):
 class HitMissRandomLaser(HitMiss):
     __doc__=HitMiss.__doc__
     ENABLE_RANDOM_LASER_INTENSITIES=True
-    RANDOM_LASER_INTENSITIES=[0.1,0.5,0.7]
+    RANDOM_LASER_INTENSITIES=[0.9,1.1,1.3]
 
 class LickRandomLaser(HitMiss):
     __doc__=HitMiss.__doc__
@@ -92,7 +92,7 @@ class LickRandomLaser(HitMiss):
     RESPONSE_WINDOW=0.5
     REWARD_DELAY=0.0
     ENABLE_RANDOM_LASER_INTENSITIES=True
-    RANDOM_LASER_INTENSITIES=[0.1,0.5,0.7]
+    RANDOM_LASER_INTENSITIES=[0.9,1.1,1.3]
 
 
     
@@ -514,3 +514,5 @@ class StimStopRewardShort(StimStopReward):
     __doc__=StimStopReward.__doc__
     RUN_TIME=5.0
     RANDOM_TIME_RANGE=6.0
+if __name__ == "__main__":
+    pass
