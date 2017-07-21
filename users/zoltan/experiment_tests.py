@@ -28,7 +28,11 @@ class ReceptiveFieldTest(experiment.ExperimentConfig):
         elif 'ao' in self.machine_config.PLATFORM:
             self.DISPLAY_SIZE = utils.rc((50.5,87.25))#degrees Overall size of display in angles
             self.DISPLAY_CENTER = utils.rc((3.45,33.35))#degrees Center
-
+        else:
+            self.DISPLAY_SIZE = utils.rc((51.0,90.0))
+            self.DISPLAY_CENTER = utils.rc((25.5,24.0))
+        self.DISPLAY_SIZE = utils.rc((51.77,91.0))
+        self.DISPLAY_CENTER = utils.rc((4.96,43.0))
         self.ON_TIME = 0.1*10#0.8
         self.OFF_TIME = 0#0.8
         self.REPEATS = 1 
@@ -210,4 +214,5 @@ def receptive_field_calculator():
 if __name__ == "__main__":
     #receptive_field_calculator()
     from visexpman.engine.visexp_app import stimulation_tester
-    stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')
+    stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
+    #stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')

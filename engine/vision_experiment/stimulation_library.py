@@ -1750,9 +1750,12 @@ class AdvancedStimulation(StimulationHelpers):
             posh=numpy.tan(numpy.radians(self.experiment_config.DISPLAY_CENTER['col']))*self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE
             screen_v=self.machine_config.SCREEN_PIXEL_WIDTH*self.machine_config.SCREEN_RESOLUTION['row']
             screen_h=self.machine_config.SCREEN_PIXEL_WIDTH*self.machine_config.SCREEN_RESOLUTION['col']
+            #Check if the range covered by corners does not exceed the screen's physical size
+            if any(signal.coo_range(d)>numpy.array([screen_v, screen_h])):
+                raise RuntimeError('angle coordinates exceed screen size')
             posvcoo=-(screen_v/2-posv)
             poshcoo=-(screen_h/2-posh)
-            offset=numpy.array([posvcoo,poshcoo])
+            offset=numpy.array([posvcoo,poshcoo])#Offset (closest point's coordinates) in mm space / on screen
             d+=offset
             #distance from screen center needs to be transformed to um space
             scale=numpy.array([self.machine_config.SCREEN_SIZE_UM['row'],self.machine_config.SCREEN_SIZE_UM['col']])/numpy.array([screen_v,screen_h])
@@ -1788,6 +1791,9 @@ class AdvancedStimulation(StimulationHelpers):
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
+        if 1:
+            print corners_um[:,0].min(), corners_um[:,0].max(), self.machine_config.SCREEN_SIZE_UM['row']
+            print corners_um[:,1].min(), corners_um[:,1].max(), self.machine_config.SCREEN_SIZE_UM['col']
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
             for angle,shape_size_i, color,p in positions_and_colors:
