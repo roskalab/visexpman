@@ -182,7 +182,11 @@ class ExperimentHandler(object):
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM=='ao_cortical':
-            oh=self.machine_config.MES_RECORD_START_WAITTIME+self.machine_config.MES_RECORD_OVERHEAD
+            if experiment_parameters['duration']<self.machine_config.MES_LONG_RECORDING:
+                wt=self.machine_config.MES_RECORD_START_WAITTIME
+            else:
+                wt=self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING
+            oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         return experiment_parameters
             
@@ -364,6 +368,7 @@ class ExperimentHandler(object):
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
+                fn=filename
                 self.printc('Data saved to {0}'.format(filename))
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
@@ -377,13 +382,14 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
             if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+                self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
                 if self.santiago_setup:
                     h.crop_timg()
                 self.tstim=h.tstim
                 self.timg=h.timg
-                h.check_timing()
+                h.check_timing(check_frame_rate=not self.santiago_setup)
                 h.close()
             if self.santiago_setup:
                 #Export timing to csv file
@@ -401,7 +407,7 @@ class ExperimentHandler(object):
         for framei in range(h.raw_data.shape[0]):
             for chi in range(h.raw_data.shape[1]):
                 base=os.path.splitext(os.path.basename(h.parameters['imaging_filename']))[0]
-                base='_'.join(base.split('_')[:-1])+'_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
+                base='frame_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
                 fn=os.path.join(output_folder, base+'.png')
                 Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
@@ -559,13 +565,14 @@ class Analysis(object):
 
     def open_datafile(self,filename):
         if self.experiment_running:
+            self.printc('Try again after recording')
             return
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
         if self.machine_config.PLATFORM=='ao_cortical' and not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
-            self.notify('File is not yet completely processed by jobhandler. Try opening it a bit later')
+            self.notify('Warning', 'File is not yet completely processed by jobhandler. Try opening it a bit later')
             return
         if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
             self.notify('Warning', 'ROIS cannot be copied to a file itself')
@@ -939,6 +946,7 @@ class Analysis(object):
             self.datafile.save(['rois', 'trace_parameters'], overwrite=True)
         else:
             self.datafile.save(['rois'], overwrite=True)
+        self.printc('Converting, please wait...')
         self.datafile.convert(self.guidata.read('Save File Format'))
         if self.santiago_setup:
             self.datafile.convert('rois')
@@ -949,7 +957,11 @@ class Analysis(object):
         self.printc('Data exported to  {0}'.format(self.datafile.outfile))
         if not self.santiago_setup:
             #Copy to BACKUP_PATH/user/date/filename
-            dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
+            if self.machine_config.PLATFORM=='ao_cortical':
+                bupath=os.path.join(self.machine_config.BACKUP_PATH , 'processed')
+            else:
+                bupath=self.machine_config.BACKUP_PATH 
+            dst=self.datafile.backup(bupath, 2)
             self.printc('Data backed up to  {0}'.format(dst))
         
     def backup(self):
@@ -1049,7 +1061,7 @@ class Analysis(object):
         mean_of_repetitions = self.guidata.mean_of_repetitions.v if hasattr(self.guidata, 'mean_of_repetitions') else False
         baseline_length = self.guidata.read('Baseline lenght')
         x=[self.timg]
-        key='raw' if self.santiago_setup else 'normalized'
+        key='raw' if (self.santiago_setup or self.machine_config.PLATFORM=='ao_cortical') else 'normalized'
         y=[roi[key]]
         parameters = []
         if roi.has_key('matches'):
@@ -1154,18 +1166,24 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM=='ao_cortical':
+        if self.machine_config.PLATFORM=='ao_cortical' or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
-            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
+            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')) and not self.santiago_setup:
                 if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
                     return
             self.fn=filename
             h=hdf5io.Hdf5io(filename)
             scale=h.findvar('sync_scaling')
+            self.printc(scale)
             sync=h.findvar('sync')
-            sync=signal.from_16bit(sync,scale)
+            if sync.dtype.name=='uint16':
+                sync=signal.from_16bit(sync,scale)
+            elif sync.dtype.name=='uint8':
+                sync=signal.from_16bit(sync*256,scale)
+            else:
+                raise NotImplementedError()
             fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
             h.close()
             x=[]
@@ -1267,6 +1285,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.last_network_check=time.time()
         self.enable_check_network_status=enable_network
         self.enable_network=enable_network
+        self.mes_connection_status=False
         
     def load_context(self):
         self.guidata = GUIData()
@@ -1300,10 +1319,11 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
-        if self.guidata.read('mes_hash')==None:
-            self.guidata.add('mes_hash', hash, 'hash/mes_hash')
-        else:
-            self.guidata.mes_hash.v=meshash
+        if self.machine_config.PLATFORM=='ao_cortical':
+            if self.guidata.read('mes_hash')==None:
+                self.guidata.add('mes_hash', hash, 'hash/mes_hash')
+            else:
+                self.guidata.mes_hash.v=meshash
         self.printc('Software hash saved')
         self.save_context()
     
@@ -1312,11 +1332,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             self.notify('Warning', 'Software has changed, hashes do not match.\r\nMake sure that the correct software version is used!')
-        meshash=introspect.mes2hash()
-        saved_hash=self.guidata.read('mes_hash')
-        if not numpy.array_equal(saved_hash, meshash):
-            print saved_hash, meshash
-            self.notify('Warning', 'MES has changed, hashes do not match.')
+        if self.machine_config.PLATFORM=='ao_cortical':
+            meshash=introspect.mes2hash()
+            saved_hash=self.guidata.read('mes_hash')
+            if not numpy.array_equal(saved_hash, meshash):
+                print saved_hash, meshash
+                self.notify('Warning', 'MES has changed, hashes do not match.')
             
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())
@@ -1350,7 +1371,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         '''
         for k,v in status.items():
             self.widget_status[k]=v
-
+            
     def check_network_status(self):
         now=time.time()
         if now-self.last_network_check<4:
@@ -1363,6 +1384,13 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if self.ping(timeout=0.5, connection=remote_node_name):
                 self.connected_nodes += remote_node_name + ' '
                 n_connected += 1
+        if self.machine_config.PLATFORM=='ao_cortical' and 0:#Disabled now
+            #Initiate stim to check mes connection but don't wait for result
+            self.send({'function': 'check_mes_connection','args':[]},'stim')
+            n_connections+=1
+            if self.mes_connection_status:
+                n_connected += 1
+                self.connected_nodes+='stim-mes '
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
@@ -1376,6 +1404,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                         self.trigger_handler(msg['trigger'])
                 elif msg.has_key('notify'):
                     self.notify(msg['notify'][0],msg['notify'][1])
+                elif msg.has_key('mes_connection_status'):
+                    self.mes_connection_status=msg['mes_connection_status']
         
     def run(self):
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]

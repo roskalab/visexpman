@@ -416,7 +416,7 @@ class TestTimeIndexing(experiment.Stimulus):
         nframes=(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         from PIL import Image
         import os,shutil
-        framesfolder='/tmp/frames'
+        framesfolder='c:\\Data\\frames'
         if not os.path.exists(framesfolder):
             #shutil.rmtree(framesfolder)
             os.mkdir(framesfolder)

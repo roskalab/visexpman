@@ -235,28 +235,29 @@ class CaImagingData(hdf5io.Hdf5io):
             raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
         self.save(['timg'])
             
-    def check_timing(self):
+    def check_timing(self, check_frame_rate=True):
         errors=[]
         if self.timg.shape[0]==0:
             errors.append('No imaging sync signal detected.')
         if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]):
-            errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]<self.tstim[0] else 'End') )
-        #Check frame rate
-        self.load('stimulus_frame_info')
-        sfi=self.stimulus_frame_info
-        if 'laser' in str(self.parameters['stimclass']).lower():
-            pass
-        elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
-            bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
-            bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
-            expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
-            measured_block_durations = numpy.diff(self.tstim)[::2]
-            measured_frame_rate=(bei-bsi)/measured_block_durations
-            error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
-            if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
-                errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
-        else:
-            raise NotImplementedError()
+            errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
+        if check_frame_rate:
+            #Check frame rate
+            self.load('stimulus_frame_info')
+            sfi=self.stimulus_frame_info
+            if 'laser' in str(self.parameters['stimclass']).lower() or 'led' in str(self.parameters['stimclass']).lower():
+                pass
+            elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
+                bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
+                bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
+                expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
+                measured_block_durations = numpy.diff(self.tstim)[::2]
+                measured_frame_rate=(bei-bsi)/measured_block_durations
+                error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
+                if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
+                    errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+            else:
+                raise NotImplementedError()
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
         
@@ -265,8 +266,11 @@ class CaImagingData(hdf5io.Hdf5io):
         loads 2d representation of ca imaging data with scaling information
         self.image and self.image_scale
         '''
-        self.load('raw_data')
-        self.load('configs')
+        map(self.load, ['parameters', 'configs', 'raw_data'])
+        if self.parameters['resolution_unit']=='pixel/um':
+            self.scale = 1.0/self.parameters['pixel_size']
+        else:
+            raise NotImplementedError('')
         if image_type=='mean':
             self.image = self.raw_data.mean(axis=0)[0]
         elif image_type=='mip': 
@@ -292,15 +296,25 @@ class CaImagingData(hdf5io.Hdf5io):
                     roii=row*ncol+col
                     if roii>=nrois:
                         break
-                    print 'todo: add roi area'
-                    merged[row*self.image.shape[1]:(row+1)*self.image.shape[1], col*self.image.shape[2]:(col+1)*self.image.shape[2]]=self.image[roii]
-            print 'todo: do similar to _extract_roi_curves add timg, tstim, stimulus_name, meanimage, image_scale, '
+                    #Format: center[0], center[1], size[0], size[1]
+                    roi=[row*self.image.shape[1]+self.image[roii].shape[0]/2,col*self.image.shape[2]+self.image[roii].shape[1]/2]
+                    roi.extend(self.image[roii].shape)
+                    roi[-2]-=1
+                    roi[-3]-=1
+                    raw= self.raw_data[:,0,roii].mean(axis=1).mean(axis=1)
+                    rois.append({'rectangle':roi, 'raw': raw})
+                    merged[row*self.image.shape[1]:(row+1)*self.image.shape[1], col*self.image.shape[2]:(col+1)*self.image.shape[2]]=self.image[roii]            
+            self.load('rois')
+            if not hasattr(self, 'rois'):
+                vns=['tstim', 'timg']
+                map(self.load, vns)
+                add2roi={'stimulus_name':str(self.parameters['stimclass']), 'meanimage': merged, 'image_scale': self.scale, 'tstim': self.tstim, 'timg': self.timg}
+                for i in range(len(rois)):
+                    rois[i].update(add2roi)
+                self.rois=rois
+                self.save('rois')
             self.image=merged
         self.load('parameters')
-        if self.parameters['resolution_unit']=='pixel/um':
-            self.scale = 1.0/self.parameters['pixel_size']
-        else:
-            raise NotImplementedError('')
         return self.image,self.scale
         
     def convert(self,format):
@@ -309,23 +323,27 @@ class CaImagingData(hdf5io.Hdf5io):
         '''
         if format == 'mat':
             if not hasattr(self, 'timg'):
-                self.prepare4analysis()
+                self.sync2time()
             items = [r._v_name for r in self.h5f.list_nodes('/')]
             data={}
             for item in items:
                 self.load(item)
                 data[item]=getattr(self,item)
+                if isinstance(data[item], dict) and len(data[item].keys())==0:
+                    data[item]=0
             data['timg']=self.timg
-            data['tsync']=self.tsync
+            data['tstim']=self.tstim
             #Make sure that rois field does not contain None:
             if data.has_key('rois'):
                 for r in data['rois']:
                     if r.has_key('area') and r['area'] is None:
                         del r['area']
-            self.outfile = fileop.get_convert_filename(self.filename, 'mat')
+            if not hasattr(self, 'configs'):
+                self.load('configs')
+            tag='_mat' if self.configs['machine_config']['PLATFORM']=='ao_cortical' else ''
+            self.outfile = fileop.get_convert_filename(self.filename, '.mat', tag)
             #Write to mat file
             scipy.io.savemat(self.outfile, data, oned_as = 'row', long_field_names=True,do_compression=True)
-            fileop.set_file_dates(self.outfile, self.file_info)
         elif format == 'png':
             self._save_meanimage()
         elif format == 'tif':
@@ -443,6 +461,8 @@ class CaImagingData(hdf5io.Hdf5io):
         if not os.path.exists(os.path.dirname(dst)):
             os.makedirs(os.path.dirname(dst))
         shutil.copy2(self.filename,dst)
+        if os.path.exists(fileop._mat(self.filename)):
+            shutil.copy2(fileop._mat(self.filename),os.path.dirname(dst))
         return dst
         
 def timing_from_file(filename):

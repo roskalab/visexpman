@@ -414,7 +414,7 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         CorticalCaImagingConfig._create_application_parameters(self)
         PLATFORM = 'ao_cortical'
         if self.OS=='Windows':
-            BACKUP_STAGING_PATH='u:\\ao'
+            BACKUP_PATH='u:\\ao'
         DEFAULT_ROI_SIZE_ON_GUI=20
         self._create_parameters_from_locals(locals())
         

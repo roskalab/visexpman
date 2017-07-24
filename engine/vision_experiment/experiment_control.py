@@ -503,30 +503,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.sync_recorder_started=time.time()
         self.abort=not self.analog_input.start_daq_activity()
         
-    def check_mes_connection(self):
-        if self.machine_config.PLATFORM!='ao_cortical':
-            raise NotImplementedError()
-        num=int(numpy.random.random()*100)
-        msg='SOCechoEOC{0}EOP' .format(num)
-        self.mes_interface['mes_command'].put(msg)
-        time.sleep(1.5)
-        resp=''
-        if not self.mes_interface['mes_response'].empty():
-            resp=self.mes_interface['mes_response'].get()
-        if resp!=msg:
-            self.send({'notify':['Error', 'MES not connected to stim']})
-            self.send({'trigger': 'stim error'})
-            self.abort=True
-            return False
-        else:
-            return True
-        
     def start_ao(self):
         if hasattr(self.machine_config,'TRIGGER_MES') and not self.machine_config.TRIGGER_MES:
             return
         while not self.mes_interface['mes_response'].empty():
             self.mes_interface['mes_response'].get()#Make sure that response buffer is empty
-        if not self.check_mes_connection():
+        if not mes_interface.check_mes_connection(self.mes_interface['mes_command'], self.mes_interface['mes_response']):
+            self.send({'notify':['Error', 'MES not connected to stim']})
+            self.send({'trigger': 'stim error'})
+            self.abort=True
             return
         mesfn=self.outputfilename.replace('.hdf5','.mat')
         fp=open(mesfn,'wt')
@@ -548,7 +533,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     break
             time.sleep(1)
         self.ao_expected_finish=time.time()+self.parameters['mes_record_time']/1000
-        time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
+        if self.parameters['duration']>self.machine_config.MES_LONG_RECORDING:
+            time.sleep(self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING)
+        else:
+            time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
+        
             
     def wait4ao(self):
         if self.abort:
@@ -722,7 +711,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
     def _backup(self, filename):
-        dst=os.path.join(self.machine_config.BACKUP_STAGING_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
+        dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
         if not os.path.exists(dst):
             os.makedirs(dst)
         try:

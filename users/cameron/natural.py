@@ -1,9 +1,7 @@
-from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.generic import utils,signal
+from visexpman.engine.generic import utils
+from visexpman.users.common.stimuli import NaturalBarsOriginal
 import os
-import numpy
-import time
 
 # class NaturalMovie(experiment.ExperimentConfig):
 #     def _create_parameters(self):
@@ -52,7 +50,7 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
 #         self.REPETITIONS = 3
 #         self._create_parameters_from_locals(locals())
 #         
-class NaturalBarsConfig(experiment.ExperimentConfig):
+class NaturalBarsConfig(NaturalBarsOriginal):
     def _create_parameters(self):
         
 #         self.SPEED = [800,400,1200.0]#um/s
@@ -74,7 +72,7 @@ class NaturalBarsConfig(experiment.ExperimentConfig):
         self.MINIMAL_SPATIAL_PERIOD= 120 #None
         self.SCALE= 1.0
         self.OFFSET=0.0
-        self.runnable = 'NaturalBarsExperimentC'
+        self.runnable = 'NaturalBarsExperiment'
         self._create_parameters_from_locals(locals())
 
 class NaturalBarsTest(NaturalBarsConfig):
@@ -83,51 +81,7 @@ class NaturalBarsTest(NaturalBarsConfig):
         self.SPEED = [800]#um/s
         self.REPEATS = 1
         self.DIRECTIONS = [0]
-        self.DURATION = 3
-
-        
-      
-class NaturalBarsExperimentC(experiment.Experiment):
-    def prepare(self):
-        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)*len(self.experiment_config.SPEED)]
-        self.duration=self.fragment_durations[0]
-        print self.duration
-        
-    def run(self):
-        for rep in range(self.experiment_config.REPEATS):
-            if self.abort:
-                break
-            print rep
-            self.show_fullscreen(duration = self.experiment_config.BACKGROUND_TIME, color =  self.experiment_config.BACKGROUND_COLOR, flip=True)
-            for directions in self.experiment_config.DIRECTIONS:
-                if self.abort:
-                    break
-                for speeds in self.experiment_config.SPEED:
-                    if self.abort:
-                        break
-                    if self.experiment_config.ALWAYS_FLY_IN_OUT:
-                        fly_in = True
-                        fly_out = True
-                    else:
-                        if self.experiment_config.SPEED.index(speeds) == 0:
-                            fly_in = True
-                            fly_out = False
-                        elif self.experiment_config.SPEED.index(speeds) == len(self.experiment_config.SPEED)-1:
-                            fly_in = False
-                            fly_out = True
-                        else:
-                            fly_in = False
-                            fly_out = False
-                    if not self.experiment_config.ENABLE_FLYINOUT:
-                        fly_in = False
-                        fly_out = False
-                    self.block_start('natural_bars')
-                    self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
-                            scale=self.experiment_config.SCALE,
-                            offset=self.experiment_config.OFFSET,
-                            intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
-                    self.block_end('natural_end')
-           
+        self.DURATION = 5
         
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):

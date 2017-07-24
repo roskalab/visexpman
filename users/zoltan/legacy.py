@@ -474,7 +474,7 @@ def merge_ca_data(folder,**kwargs):
         out=numpy.zeros((len(rawdata ), rawdata [0].shape[0]),dtype=numpy.uint8)
         for i in range(len(rawdata)):
             #Scale, max 10 V
-            out[i]=numpy.cast['uint8'](rawdata[i]/10.0*(2**8-1))
+            out[i]=numpy.cast['uint8'](rawdata[i]/7.0*(2**8-1))
         rawdata=out
         #rawdata = numpy.array(rawdata)
         rawdata = rawdata.reshape((nframes,2, int(sizex*res-1), int(sizey*res)))
@@ -560,17 +560,17 @@ def merge_ca_data(folder,**kwargs):
     h.fsync=syncfile
     h.fimg=imaging_folder
     h.fstim=stimdatafile
-    h.elphys_sync_conversion_factor=1
     h.raw_data=raw_data
     h.sync_scaling=sync_scaling
-    h.machine_config=machine_config
+    h.configs=machine_config
     h.generated_data=stimulus['generated_data']
+    h.stimulus_frame_info=stimulus['stimulus_frame_info']
     h.datatype='ca'
     h.save('raw_data')
     del h.raw_data
     h.save('sync')
     del h.sync
-    h.save(['fsync', 'fimg', 'fstim', 'parameters', 'elphys_sync_conversion_factor', 'sync_scaling',  'machine_config', 'datatype', 'generated_data'])
+    h.save(['fsync', 'fimg', 'fstim', 'parameters', 'sync_scaling',  'configs', 'datatype', 'generated_data', 'stimulus_frame_info'])
     h.close()
     #Copy raw pngs to output folder
     output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))

@@ -35,6 +35,10 @@ def histogram_shift(data, output_range, min = None, max = None, gamma = 1.0, ban
 def scale(data, output_range_min = 0.0, output_range_max =1.0):
     return (numpy.cast['float'](data) - data.min())/(data.max() - data.min())*(output_range_max - output_range_min)+output_range_min
     
+def coo_range(d):
+    return d.max(axis=0)-d.min(axis=0)
+    
+    
 def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
     '''
     If im is uint8, the result is scaled back to the range of this datatype

@@ -9,6 +9,7 @@ class AoJobhandler(object):
         self.experiment_data_path=experiment_data_path
         self.backup_path=backup_path
         self.mesfile_minimum_age=60
+        self.fileepoch=utils.datestring2timestamp('15/07/2017',format="%d/%m/%Y")
         self.logfile = os.path.join(logpath, 'jobhandler_{0}.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -26,7 +27,6 @@ level=logging.INFO)
         self.printl('Current user is {0}'.format(getpass.getuser()))
         self.printl(sys.argv)
         self.printl(utils.module_versions(utils.imported_modules()[0])[0])
-        
     
     def printl(self,msg,loglevel='info'):
         print msg
@@ -40,8 +40,12 @@ level=logging.INFO)
         return res
         
     def add_jobs(self):
-        hdf5files=fileop.find_files_and_folders(self.experiment_data_path,extension='hdf5')[1]
-        mesfiles=[f for f in fileop.find_files_and_folders(self.experiment_data_path,extension='mat')[1] if self.mesfile_ready(f)]
+        try:
+            allfiles=[f for f in fileop.find_files_and_folders(self.experiment_data_path)[1] if os.path.getctime(f)>self.fileepoch]
+        except OSError:
+            return
+        hdf5files=[f for f in allfiles if os.path.splitext(f)[1]=='.hdf5']
+        mesfiles=[f for f in allfiles if os.path.splitext(f)[1]=='.mat' and self.mesfile_ready(f)]
         files2process=[f for f in hdf5files if not self.db.exists(f) and f.replace('.hdf5', '.mat') in mesfiles]
         now=time.time()
         for f in files2process:
