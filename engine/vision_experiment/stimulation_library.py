@@ -1306,8 +1306,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
             self.log.info('show_approach_stimulus({0})'.format(', '.join(params)), source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-        if sinusoid:
-            raise NotImplementedError()
         #Generate texture:
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         line_spacing_p=int(line_width_p*duty_cycle)
@@ -1320,12 +1318,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         draw.line((line_spacing_p, 0,0, tile_height), fill=255, width =line_width_p)
         tile=numpy.cast['float'](numpy.asarray(tile))/255*contrast
         tilea=numpy.where(tile==0, background_color, tile)
-        if sinusoid:#Filter tilea such that the intensity distribution of the line crossections is sinusoid
-            tilea_unfiltered=tilea.copy()
-            tilea_unfiltered=numpy.cast['uint8'](numpy.where(tilea_unfiltered==background_color, 0, 1))
-            tilea=signal.shape2distance(tilea_unfiltered)
-            #Convert distances to sine values
-            tilea=numpy.sin(tilea/float(tilea.max())*numpy.pi/2)
         if mask_size ==None:
             texture_size=numpy.sqrt(self.config.SCREEN_RESOLUTION['col'] **2+self.config.SCREEN_RESOLUTION['row'] **2)
         else:
@@ -1333,10 +1325,22 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         texture_size=int(line_spacing_p*numpy.ceil(texture_size/line_spacing_p))
         #Repeat tile and make a texture of it
         nrepeats=numpy.cast['int'](numpy.ceil(numpy.array(2*[texture_size], dtype=numpy.float)/numpy.array(tilea.shape)))
+        if sinusoid:#Extend texture
+            nrepeats+=2
         texture=numpy.zeros(nrepeats*numpy.array(tilea.shape))
         for row in range(nrepeats[0]):
             for col in range(nrepeats[1]):
                 texture[row*tilea.shape[0]:(row+1)*tilea.shape[0],col*tilea.shape[1]:(col+1)*tilea.shape[1]]=tilea
+        if sinusoid:
+            #transform texture into distance from edges
+            texture=numpy.where(texture==background_color,0,1)
+            texture=signal.shape2distance(texture, line_width_p/2)
+            #Apply sinus on distances
+            contrast_step=contrast-background_color
+            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)*contrast_step+background_color
+            #Cut off extensions
+            texture=texture[tilea.shape[0]:-tilea.shape[0], tilea.shape[1]:-tilea.shape[1]]
+            
         texture=numpy.rot90(texture)
         texture_coordinates=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)

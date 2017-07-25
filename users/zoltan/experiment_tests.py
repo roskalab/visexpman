@@ -178,7 +178,7 @@ class TestStim(experiment.Stimulus):
         mask_size=600
         contrast=0.7
         background_color=0.5
-        sinusoid=not False
+        sinusoid=True
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
         
     def run(self):
@@ -214,5 +214,5 @@ def receptive_field_calculator():
 if __name__ == "__main__":
     #receptive_field_calculator()
     from visexpman.engine.visexp_app import stimulation_tester
-    stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
-    #stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')
+    #stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
+    stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')
