@@ -1320,6 +1320,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         draw.line((line_spacing_p, 0,0, tile_height), fill=255, width =line_width_p)
         tile=numpy.cast['float'](numpy.asarray(tile))/255*contrast
         tilea=numpy.where(tile==0, background_color, tile)
+        if sinusoid:#Filter tilea such that the intensity distribution of the line crossections is sinusoid
+            tilea_unfiltered=tilea.copy()
+            tilea_unfiltered=numpy.cast['uint8'](numpy.where(tilea_unfiltered==background_color, 0, 1))
+            tilea=signal.shape2distance(tilea_unfiltered)
+            #Convert distances to sine values
+            tilea=numpy.sin(tilea/float(tilea.max())*numpy.pi/2)
         if mask_size ==None:
             texture_size=numpy.sqrt(self.config.SCREEN_RESOLUTION['col'] **2+self.config.SCREEN_RESOLUTION['row'] **2)
         else:

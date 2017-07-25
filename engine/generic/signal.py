@@ -295,6 +295,34 @@ def measure_sin(sig,  fsample,  p0=[1, 1, 0, 0]):
     par,  cov=scipy.optimize.curve_fit(sinus, t, sig, p0=p0)
     a, f, ph, o=par
     return a, f
+    
+def shape2distance(im):
+    '''
+    im is a binay image representing one object.
+    The output is an image showing the distance of each pixel in the object 
+    from the edge
+    '''
+    import scipy.ndimage.morphology, scipy.ndimage.filters
+    def edgefilt(a):
+        return a[4]==1 and a.sum()<9
+    input=im.copy()
+    edges=scipy.ndimage.filters.generic_filter(input, edgefilt, 3)
+    edge_coo=numpy.nonzero(edges)
+    edge_coo=numpy.array([edge_coo])[0].T
+    object_coo=numpy.array([numpy.nonzero(input)])[0].T
+    #row,col,distance
+    distances=numpy.zeros((edge_coo.shape[0],edge_coo.shape[1]+1),dtype=edge_coo.dtype)
+    distances[:,:2]=edge_coo
+    inside_shape=[oc for oc in object_coo if oc.tolist() not in edge_coo.tolist()]
+    for p in inside_shape:
+        p_edge_distance=numpy.sqrt(((edge_coo-p)**2).sum(axis=1))
+        closest=int(p_edge_distance.min())
+        a=numpy.array([[p[0], p[1], closest]])
+        distances=numpy.append(distances, a, axis=0)
+    output=numpy.zeros_like(input)
+    for d in distances:
+        output[d[0], d[1]]=d[2]
+    return output    
 
 
 class TestSignal(unittest.TestCase):
@@ -471,6 +499,20 @@ class TestSignal(unittest.TestCase):
         s,sc=to_16bit(data)
         data_= from_16bit(s,sc)
         numpy.testing.assert_array_almost_equal(data,data_,2)
+        
+    def test_18_shape2distance(self):
+        from PIL import Image
+        from fileop import visexpman_package_path
+        from pylab import imshow,show,figure
+        import os
+        im=numpy.asarray(Image.open(os.path.join(visexpman_package_path(), 'data', 'images', 'cross.png')))
+        d=shape2distance(im)
+        imshow(d)
+        show()
+        #im=numpy.zeros((16,16),dtype=numpy.uint8)
+        #im[2:14, 2:14]=1
+        #d=shape2distance(im, 5)
+        
 
         
         
