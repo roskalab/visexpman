@@ -401,8 +401,9 @@ def write_text_file(filename, content):
     f.close()
 
 ################# Vision experiment manager related ####################
-#TODO: This shoudl go to experiment_data
+#TODO: This should go to experiment_data
 def visexpman_package_path():
+    import visexpman
     return os.path.split(sys.modules['visexpman'].__file__)[0]
     
 def visexpA_package_path():
