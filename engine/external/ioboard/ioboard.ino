@@ -2,7 +2,8 @@
 #define PRESCALE 4 //64 prescale
 #define IDLE_ST 0
 #define WAIT_PAR_ST 1
-#define OUTPORT_MASK 0xC0
+#define OUTPORT_MASK 0xe0
+#define INPORT_MASK 0x1C
 
 char b;
 byte state;
@@ -19,7 +20,7 @@ ISR(TIMER1_COMPA_vect) {
    TCNT1L=0;
    TCNT1H=0;
    time = millis();
-   port=PIND&0xfc;
+   port=PIND&INPORT_MASK;
    if ((port!=port_prev) || force_read_pin)
    {
      if (send_data)
@@ -59,7 +60,6 @@ void setup() {
 void loop() {
   b = Serial.read();
   if (b!=-1) {
-    //Serial.write(state+0x30);
     switch (state)
     {
       case IDLE_ST:
@@ -90,7 +90,7 @@ void loop() {
       case WAIT_PAR_ST:
         par = b;
         switch (cmd) {
-          case 'd':
+          case 'o':
               PORTD = par&OUTPORT_MASK;
               break;
           case 'p':
@@ -107,45 +107,5 @@ void loop() {
         break;
     }  
   }
-  
-  /*if (b>0)
-  {
-    if (b=='(' &&!eop_received)
-    {
-      eoc_received=true;
-    }
-    else if (b==')' &&eoc_received)
-    {
-      eop_received=true;
-    }
-    buf[index]=b;
-    index++;
-    if (index==BUFLEN){
-       index=0;
-    }
-    
-    
-    if (eoc_received && eop_received&&1)
-    {      
-      val=buf[index-2];
-      cmd=buf[index-4];
-      Serial.write(cmd);
-      switch (cmd) {
-        case 'd':
-            PORTD = val&0xFC;
-            break;
-        case 'p':
-            PORTD |= val&0xFC;
-            delay(2);
-            PORTD &= ~(val&0xFC);
-            break;
-        case 'a':
-            break;
-      eoc_received=false;
-      eop_received=false;
-      index=0;
-      }
-    }
-  }*/
   
 }
