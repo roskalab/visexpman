@@ -35,6 +35,10 @@ def histogram_shift(data, output_range, min = None, max = None, gamma = 1.0, ban
 def scale(data, output_range_min = 0.0, output_range_max =1.0):
     return (numpy.cast['float'](data) - data.min())/(data.max() - data.min())*(output_range_max - output_range_min)+output_range_min
     
+def coo_range(d):
+    return d.max(axis=0)-d.min(axis=0)
+    
+    
 def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
     '''
     If im is uint8, the result is scaled back to the range of this datatype
@@ -291,6 +295,22 @@ def measure_sin(sig,  fsample,  p0=[1, 1, 0, 0]):
     par,  cov=scipy.optimize.curve_fit(sinus, t, sig, p0=p0)
     a, f, ph, o=par
     return a, f
+    
+def shape2distance(im,iterations):
+    '''
+    im is a binay image representing one object.
+    The output is an image showing the distance of each pixel in the object 
+    from the edge
+    '''
+    import scipy.ndimage.morphology, scipy.ndimage.filters
+    input=im.copy()
+    stages=[input.copy()]
+    output=numpy.zeros_like(im)
+    for i in range(iterations):
+        input=scipy.ndimage.morphology.binary_erosion(input)
+        stages.append(input.copy())
+        output+=numpy.cast['uint8'](input.copy())*(i+1)
+    return output
 
 
 class TestSignal(unittest.TestCase):
@@ -467,6 +487,20 @@ class TestSignal(unittest.TestCase):
         s,sc=to_16bit(data)
         data_= from_16bit(s,sc)
         numpy.testing.assert_array_almost_equal(data,data_,2)
+        
+    def test_18_shape2distance(self):
+        from PIL import Image
+        from fileop import visexpman_package_path
+        from pylab import imshow,show,figure
+        import os
+        im=numpy.asarray(Image.open(os.path.join(visexpman_package_path(), 'data', 'images', 'cross.png')))
+        d=shape2distance(im, 4)
+        imshow(d)
+        show()
+        #im=numpy.zeros((16,16),dtype=numpy.uint8)
+        #im[2:14, 2:14]=1
+        #d=shape2distance(im, 5)
+        
 
         
         

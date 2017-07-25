@@ -1306,9 +1306,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
             self.log.info('show_approach_stimulus({0})'.format(', '.join(params)), source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-        if sinusoid:
-            raise NotImplementedError()
-        print 'todo: mask'
         #Generate texture:
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         line_spacing_p=int(line_width_p*duty_cycle)
@@ -1328,19 +1325,32 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         texture_size=int(line_spacing_p*numpy.ceil(texture_size/line_spacing_p))
         #Repeat tile and make a texture of it
         nrepeats=numpy.cast['int'](numpy.ceil(numpy.array(2*[texture_size], dtype=numpy.float)/numpy.array(tilea.shape)))
+        if sinusoid:#Extend texture
+            nrepeats+=2
         texture=numpy.zeros(nrepeats*numpy.array(tilea.shape))
         for row in range(nrepeats[0]):
             for col in range(nrepeats[1]):
                 texture[row*tilea.shape[0]:(row+1)*tilea.shape[0],col*tilea.shape[1]:(col+1)*tilea.shape[1]]=tilea
+        if sinusoid:
+            #transform texture into distance from edges
+            texture=numpy.where(texture==background_color,0,1)
+            texture=signal.shape2distance(texture, line_width_p/2)
+            #Apply sinus on distances
+            contrast_step=contrast-background_color
+            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)*contrast_step+background_color
+            #Cut off extensions
+            texture=texture[tilea.shape[0]:-tilea.shape[0], tilea.shape[1]:-tilea.shape[1]]
+            
         texture=numpy.rot90(texture)
         texture_coordinates=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         dpixel=-velocity*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE/texture.shape[1]
         if mask_size != None:
-            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1)
+            mask_resolution=0.1
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=mask_resolution)
             vertices = geometry.rectangle_vertices(utils.rc((texture.shape[0], texture.shape[1])),direction)
-            #vertices=numpy.append(vertices, mask)
+            vertices=numpy.append(vertices, mask,axis=0)
             glEnableClientState(GL_VERTEX_ARRAY)
             glVertexPointerf(vertices)
         phase=0
@@ -1351,33 +1361,29 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
                 glTexCoordPointerf(texture_coordinates+numpy.array([phase,0.0]))
                 glColor3fv((1.0,1.0,1.0))
-                glDrawArrays(GL_POLYGON,  0, 4)
+                glDrawArrays(GL_POLYGON, 0, 4)
             else:
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT)
                 glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
-                glEnable( GL_STENCIL_TEST )
-                glStencilFunc( GL_ALWAYS, 1, 1 )
-                glStencilOp( GL_REPLACE, GL_REPLACE, GL_REPLACE )
+                glEnable(GL_STENCIL_TEST)
+                glStencilFunc(GL_ALWAYS, 1, 1)
+                glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE)
                 for shi in range(mask.shape[0]/4):
                     glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
-                
-                glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE )
-                glStencilFunc( GL_EQUAL, 1, 1 )
+                glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
+                glStencilFunc(GL_EQUAL, 1, 1)
                 glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
                 glTexCoordPointerf(texture_coordinates+numpy.array([phase,0.0]))
                 glColor3fv((1.0,1.0,1.0))
-                glDrawArrays(GL_POLYGON,  0, 4)
-                glDisable( GL_STENCIL_TEST )
-            self._flip(False)
+                glDrawArrays(GL_POLYGON, 0, 4)
+                glDisable(GL_STENCIL_TEST)
+            self._flip(frame_trigger = True)
             if self.abort:
                 break
         print time.time()-t0
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
-    
-            
             
 class StimulationHelpers(Stimulations):
     def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True):
@@ -1417,15 +1423,20 @@ class StimulationHelpers(Stimulations):
         mask_vertices2=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x2,0]])
         mask_vertices=mask_vertices1
         mask_vertices=numpy.append(mask_vertices,mask_vertices2,axis=0)
-        for pi in range(circle_vertices.shape[0]):
+        for pi in range(circle_vertices.shape[0]-1):
             p1=circle_vertices[pi]
             if pi==circle_vertices.shape[0]-1:
                 p2=circle_vertices[0]
             else:
                 p2=circle_vertices[pi+1]
-            if numpy.sign(p1[1])!=numpy.sign(p2[1]):
+            if numpy.sign(numpy.round(p1[1],6))!=numpy.sign(numpy.round(p2[1])) and numpy.round(p2[1])!=0 and numpy.round(p1[1])!=0:
                 continue
-            if p1[1]>0:
+            if numpy.round(p1[1],6)==0:
+                if p2[1]>0:
+                    coo=self.config.SCREEN_RESOLUTION['row']/2
+                else:
+                    coo=-self.config.SCREEN_RESOLUTION['row']/2
+            elif p1[1]>0:
                 coo=self.config.SCREEN_RESOLUTION['row']/2
             else:
                 coo=-self.config.SCREEN_RESOLUTION['row']/2
@@ -1749,9 +1760,12 @@ class AdvancedStimulation(StimulationHelpers):
             posh=numpy.tan(numpy.radians(self.experiment_config.DISPLAY_CENTER['col']))*self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE
             screen_v=self.machine_config.SCREEN_PIXEL_WIDTH*self.machine_config.SCREEN_RESOLUTION['row']
             screen_h=self.machine_config.SCREEN_PIXEL_WIDTH*self.machine_config.SCREEN_RESOLUTION['col']
+            #Check if the range covered by corners does not exceed the screen's physical size
+            if any(signal.coo_range(d)>numpy.array([screen_v, screen_h])):
+                raise RuntimeError('angle coordinates exceed screen size')
             posvcoo=-(screen_v/2-posv)
             poshcoo=-(screen_h/2-posh)
-            offset=numpy.array([posvcoo,poshcoo])
+            offset=numpy.array([posvcoo,poshcoo])#Offset (closest point's coordinates) in mm space / on screen
             d+=offset
             #distance from screen center needs to be transformed to um space
             scale=numpy.array([self.machine_config.SCREEN_SIZE_UM['row'],self.machine_config.SCREEN_SIZE_UM['col']])/numpy.array([screen_v,screen_h])
@@ -1787,6 +1801,9 @@ class AdvancedStimulation(StimulationHelpers):
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
+        if 1:
+            print corners_um[:,0].min(), corners_um[:,0].max(), self.machine_config.SCREEN_SIZE_UM['row']
+            print corners_um[:,1].min(), corners_um[:,1].max(), self.machine_config.SCREEN_SIZE_UM['col']
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
             for angle,shape_size_i, color,p in positions_and_colors:
