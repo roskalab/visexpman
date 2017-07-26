@@ -1306,8 +1306,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
             self.log.info('show_moving_plaid({0})'.format(', '.join(params)), source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-        if sinusoid:
-            raise NotImplementedError()
         #Generate texture:
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         line_spacing_p=int(line_width_p*duty_cycle)
@@ -1327,10 +1325,22 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         texture_size=int(line_spacing_p*numpy.ceil(texture_size/line_spacing_p))
         #Repeat tile and make a texture of it
         nrepeats=numpy.cast['int'](numpy.ceil(numpy.array(2*[texture_size], dtype=numpy.float)/numpy.array(tilea.shape)))
+        if sinusoid:#Extend texture
+            nrepeats+=2
         texture=numpy.zeros(nrepeats*numpy.array(tilea.shape))
         for row in range(nrepeats[0]):
             for col in range(nrepeats[1]):
                 texture[row*tilea.shape[0]:(row+1)*tilea.shape[0],col*tilea.shape[1]:(col+1)*tilea.shape[1]]=tilea
+        if sinusoid:
+            #transform texture into distance from edges
+            texture=numpy.where(texture==background_color,0,1)
+            texture=signal.shape2distance(texture, line_width_p/2)
+            #Apply sinus on distances
+            contrast_step=contrast-background_color
+            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)*contrast_step+background_color
+            #Cut off extensions
+            texture=texture[tilea.shape[0]:-tilea.shape[0], tilea.shape[1]:-tilea.shape[1]]
+            
         texture=numpy.rot90(texture)
         texture_coordinates=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
