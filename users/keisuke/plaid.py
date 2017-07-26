@@ -14,6 +14,7 @@ class PlaidConfig(experiment.ExperimentConfig):
         self.CONTRAST=1.0
         self.BACKGROUND_COLOR=0.5
         self.REPEATS=1
+        self.SINUSOID=False
         self.runnable = 'PlaidExp'
         self._create_parameters_from_locals(locals())
 
@@ -30,7 +31,7 @@ class PlaidExp(experiment.Experiment):
                                     self.experiment_config.MASK_SIZE,
                                     self.experiment_config.CONTRAST,
                                     self.experiment_config.BACKGROUND_COLOR,
-                                    sinusoid=False)
+                                    self.experiment_config.SINUSOID)
 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester

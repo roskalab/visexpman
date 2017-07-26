@@ -9,7 +9,7 @@ class AoJobhandler(object):
         self.experiment_data_path=experiment_data_path
         self.backup_path=backup_path
         self.mesfile_minimum_age=60
-        self.fileepoch=utils.datestring2timestamp('15/07/2017',format="%d/%m/%Y")
+        self.fileepoch=utils.datestring2timestamp('26/07/2017',format="%d/%m/%Y")
         self.logfile = os.path.join(logpath, 'jobhandler_{0}.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -280,7 +280,11 @@ if __name__=='__main__':
         jh=AoJobhandler(*sys.argv[1:])
         while True:
             if utils.enter_hit(): break
-            jh.add_jobs()
-            jh.fetch_job()
+            try:
+                jh.add_jobs()
+                jh.fetch_job()
+            except:
+                import traceback
+                logging.error(traceback.format_exc())
             time.sleep(0.1)
         jh.close()

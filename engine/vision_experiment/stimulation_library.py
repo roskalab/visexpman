@@ -632,7 +632,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0,  noise_intensity = 0, flicker={}, phases=[],
+                    duty_cycle = 1.0,  noise_intensity = 0, flicker=None, phases=[],
                     part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
@@ -776,7 +776,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #== Generate texture  
         texture = stimulus_profile
         texture=texture.swapaxes(0,1)
-        if flicker.has_key('frequency') and flicker.has_key('modulation_size'):
+        if hasattr(flicker, 'has_key') and flicker.has_key('frequency') and flicker.has_key('modulation_size'):
             modulation_size_p=flicker['modulation_size']*self.config.SCREEN_UM_TO_PIXEL_SCALE
             modulation_pixels=int(display_area_adjusted[1]/modulation_size_p)
             texture=numpy.tile(texture,(modulation_pixels,1,1))
@@ -809,7 +809,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 phase = phases[index]
             else:
                 phase=phases_pixel[index]
-            if flicker.has_key('frequency') and flicker.has_key('modulation_size'):
+            if hasattr(flicker, 'has_key') and flicker.has_key('frequency') and flicker.has_key('modulation_size'):
                 if i%switch_count==0:
                     flicker_state=not flicker_state
                     texture1=numpy.copy(texture)
@@ -1304,7 +1304,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_moving_plaid(self,duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size=None, contrast=1.0, background_color=0.0,  sinusoid=False, save_frame_info=True):
         if save_frame_info:
             params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
-            self.log.info('show_approach_stimulus({0})'.format(', '.join(params)), source = 'stim')
+            self.log.info('show_moving_plaid({0})'.format(', '.join(params)), source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         if sinusoid:
             raise NotImplementedError()

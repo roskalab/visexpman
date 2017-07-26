@@ -338,7 +338,7 @@ class CaImagingData(hdf5io.Hdf5io):
                 for r in data['rois']:
                     if r.has_key('area') and r['area'] is None:
                         del r['area']
-            if not hasattr(self, 'configs'):
+            if not hasattr(self, 'configs'):#TODO: this might be unnecessary
                 self.load('configs')
             tag='_mat' if self.configs['machine_config']['PLATFORM']=='ao_cortical' else ''
             self.outfile = fileop.get_convert_filename(self.filename, '.mat', tag)
