@@ -473,6 +473,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
             digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
             self.digital_output = digital_output_class(self.machine_config, self.log)
+        elif self.machine_config.DIGITAL_IO_PORT =='daq':
+            self.digital_output=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
         else:
             self.digital_output = None
         Trigger.__init__(self, machine_config, queues, self.digital_output)
