@@ -660,9 +660,11 @@ class TestConverter(unittest.TestCase):
         folder='e:\\Zoltan\\1\\zip'
         folder='e:\\Zoltan\\0'
         folder='x:\\santiago-setup\\debug\\bin1'
+        folder='/tmp/1'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
         h=experiment_data.CaImagingData(filename)
         h.sync2time()
+        h.crop_timg()
         h.close()
         
     @unittest.skip('')  
