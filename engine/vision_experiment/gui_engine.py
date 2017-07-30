@@ -395,6 +395,17 @@ class ExperimentHandler(object):
                 #Export timing to csv file
                 self._timing2csv(filename)
                 
+    def _remerge_files(self,folder,hdf5fold):
+        if not self.santiago_setup:
+            return
+        from visexpman.users.zoltan import legacy
+        for fold in fileop.listdir_fullpath(folder):
+            self.printc(fold)
+            fn=[f for f in fileop.listdir_fullpath(hdf5fold) if os.path.basename(fold) in f][0]
+            pars=hdf5io.read_item(fn, 'parameters')
+            filename=legacy.merge_ca_data(fold,**pars)
+            self._timing2csv(filename)
+                
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
