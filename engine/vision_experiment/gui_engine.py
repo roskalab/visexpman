@@ -399,16 +399,39 @@ class ExperimentHandler(object):
         if not self.santiago_setup:
             return
         from visexpman.users.zoltan import legacy
+        self.printc('Warning, not tested')
         for fold in fileop.listdir_fullpath(folder):
+            import tempfile,zipfile
+            zip_ref = zipfile.ZipFile(fold, 'r')
+            
+            dst=os.path.join(tempfile.gettempdir(),'z')
+            if os.path.exists(dst):
+                shutil.rmtree(dst)
+            os.mkdir(dst)
+            zip_ref.extractall(dst)
+            zip_ref.close()
+    
             self.printc(fold)
-            fn=[f for f in fileop.listdir_fullpath(hdf5fold) if os.path.basename(fold) in f][0]
+            fn=[f for f in fileop.listdir_fullpath(hdf5fold) if os.path.splitext(os.path.basename(fold))[0] in f][0]
             pars=hdf5io.read_item(fn, 'parameters')
-            filename=legacy.merge_ca_data(fold,**pars)
-            self._timing2csv(filename)
+            filename=legacy.merge_ca_data(dst,**pars)
+            shutil.copy(filename,folder)
+            self._timing2csv(os.path.join(folder, os.path.basename(filename)))
+            
+    def fix_timg(self,folder):
+        for fn in fileop.listdir_fullpath(folder):
+            h=hdf5io.Hdf5io(fn)
+            h.load('timg')
+            h.timg+=numpy.diff(h.timg)[0]
+            h.save('timg')
+            h.close()
+            self._timing2csv(fn)
                 
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
         from PIL import Image
         h.load('raw_data')
         h.load('parameters')
