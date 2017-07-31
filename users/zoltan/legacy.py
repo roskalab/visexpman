@@ -584,6 +584,18 @@ def merge_ca_data(folder,**kwargs):
         [shutil.copy(f, output_folder) for f in frames]
     return filename
     
+def get_dropped_frames(filename):
+    h=hdf5io.Hdf5io(filename)
+    h.load('sync')
+    h.load('raw_data')
+    h.load('configs')
+    nframes=h.raw_data.shape[0]
+    fsample=float(h.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
+    npulses=(signal.trigger_indexes(h.sync[:,1])[::2]/fsample).shape[0]
+    h.close()
+    d=npulses-nframes
+    return d
+    
 def yscanner2sync(sig,fsample,nframes):
     indexes=numpy.where(abs(numpy.diff(sig))>0.01)[0]
     start=indexes[0]
