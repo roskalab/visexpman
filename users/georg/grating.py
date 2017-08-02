@@ -9,7 +9,8 @@ class GeorgGratingParameters(experiment.ExperimentConfig):
         self.FREEZE_TIME=2
         self.DUTY_CYCLE=0.5
         self.REPEATS=1#n sweeps
-        self.PATTERN='off'#on 'off', 'curtain', 'grating'
+        self.PATTERN='on'#on 'off', 'curtain', 'grating'
+        self.BACKGROUND=0.0#0=black,1.0=white,'meangray'
         self.runnable='GeorgGrating'
         self._create_parameters_from_locals(locals())
         
@@ -29,6 +30,11 @@ class GeorgGrating(experiment.Experiment):
             fract_bar_width=fract_period_size
             fract_bg=0
         self.gray=(nfull_periods*ec.BAR_WIDTH+fract_bar_width)/self.machine_config.SCREEN_SIZE_UM['col']
+        if ec.BACKGROUND!='meangray':
+            if ec.PATTERN=='off' or ec.PATTERN=='curtain':
+                self.gray=1.0
+            else:
+                self.gray=0.0
         self.duty_cycle=1/ec.DUTY_CYCLE-1
         #Calculate sweep durations
         if ec.PATTERN=='curtain':
@@ -62,8 +68,8 @@ class GeorgGrating(experiment.Experiment):
         for i in range(len(ec.SPEEDS)):
             spd=ec.SPEEDS[i]
             duration=self.durations[i]
-            contrast=1.0-self.gray
-            offset=0.5*contrast+self.gray
+            contrast=-self.gray
+            offset=0.5*self.gray
             w=self.machine_config.SCREEN_SIZE_UM['col']
             h=self.machine_config.SCREEN_SIZE_UM['row']
             sf=(h-0.5*(w-h))/(2*h)*360
@@ -143,7 +149,7 @@ def pngs2video(folder):
         
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
-    if 1:
+    if 0:
         protocols=['on', 'off', 'grating','curtain']
         for sn in protocols:
             test_gray('/tmp/'+sn)
@@ -152,4 +158,4 @@ if __name__ == "__main__":
         legend(protocols)
         savefig('/tmp/means.png',dpi=200)
     else:
-        stimulation_tester('georg', 'StimulusDevelopment', 'GeorgGratingParameters',ENABLE_FRAME_CAPTURE=True)
+        stimulation_tester('georg', 'StimulusDevelopment', 'GeorgGratingParameters',ENABLE_FRAME_CAPTURE=not True)
