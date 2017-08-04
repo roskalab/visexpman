@@ -32,9 +32,8 @@ class MEAConfig(HiMEAConfig):
         
         #recordingMachineName = 'bs-hpws18' # hungary setup
         recordingMachineName = 'bs-hpws19' # retina room
-        folder = '/mnt/' + recordingMachineName + '/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
-        #folder = '/home/rolandd/tmp/'        
-        
+        #folder = '/mnt/' + recordingMachineName + '/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
+        folder = '/nfs4/' + recordingMachineName + '/data/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
         
         if not os.path.isdir(folder):
             os.makedirs(folder)
@@ -97,7 +96,7 @@ class MEAConfigLightChar(MEAConfig):
     def _set_user_parameters(self):
         MEAConfig._set_user_parameters(self)
         self.FULLSCREEN = True
-        folder = '/home/rolandd/rolandd-fileshare/tmp'       
+        folder = '/home/rolandd/tmp'       
         self.ENABLE_MEA_START_COMMAND = False
         
         if not os.path.isdir(folder):
