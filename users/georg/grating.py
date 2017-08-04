@@ -1,4 +1,4 @@
-import numpy
+import numpy, copy
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
 class GeorgGratingParameters(experiment.ExperimentConfig):
@@ -9,8 +9,16 @@ class GeorgGratingParameters(experiment.ExperimentConfig):
         self.FREEZE_TIME=2
         self.DUTY_CYCLE=0.5
         self.REPEATS=1#n sweeps
-        self.PATTERN='on'#on 'off', 'curtain', 'grating'
-        self.BACKGROUND=0.0#0=black,1.0=white,'meangray'
+        self.RANDOMIZE_PATTERNS=False
+        self.PATTERN_REPEAT=1
+        self.PATTERN_ORDER=['on',  'off',  'grating',  'curtain'] #on 'off', 'curtain', 'grating'
+        if self.RANDOMIZE_PATTERNS:
+            patterns=[]
+            for r in range(self.PATTERN_REPEAT):
+                patterns.extend(self.PATTERN_ORDER)
+            self.PATTERN_ORDER=patterns
+            numpy.random.shuffle(self.PATTERN_ORDER)
+        self.BACKGROUND='meangray'#0=black,1.0=white,'meangray'
         self.runnable='GeorgGrating'
         self._create_parameters_from_locals(locals())
         
@@ -30,26 +38,23 @@ class GeorgGrating(experiment.Experiment):
             fract_bar_width=fract_period_size
             fract_bg=0
         self.gray=(nfull_periods*ec.BAR_WIDTH+fract_bar_width)/self.machine_config.SCREEN_SIZE_UM['col']
-        if ec.BACKGROUND!='meangray':
-            if ec.PATTERN=='off' or ec.PATTERN=='curtain':
-                self.gray=1.0
-            else:
-                self.gray=0.0
         self.duty_cycle=1/ec.DUTY_CYCLE-1
         #Calculate sweep durations
-        if ec.PATTERN=='curtain':
-            self.durations=(self.machine_config.SCREEN_SIZE_UM['row'])/numpy.array(ec.SPEEDS)*ec.REPEATS
-        else:
-            self.durations=(self.machine_config.SCREEN_SIZE_UM['col']+ec.BAR_WIDTH)/numpy.array(ec.SPEEDS)*ec.REPEATS
-        self.fragment_duration=[self.durations.sum()+self.durations.shape[0]*ec.FREEZE_TIME+ec.INITIAL_WAIT]
-        self.duration=self.fragment_duration[0]
+        self.durations={}
+        for p in ec.PATTERN_ORDER:
+            if p=='curtain':
+                self.durations[p]=(self.machine_config.SCREEN_SIZE_UM['row'])/numpy.array(ec.SPEEDS)*ec.REPEATS
+            else:
+                self.durations[p]=(self.machine_config.SCREEN_SIZE_UM['col']+ec.BAR_WIDTH)/numpy.array(ec.SPEEDS)*ec.REPEATS
+        #self.fragment_duration=[self.durations.sum()+self.durations.shape[0]*ec.FREEZE_TIME+ec.INITIAL_WAIT]
+        #self.duration=self.fragment_duration[0]
         
         
     def grating(self):
         ec=self.experiment_config
         for i in range(len(ec.SPEEDS)):
             spd=ec.SPEEDS[i]
-            duration=self.durations[i]
+            duration=self.durations['grating'][i]
             self.show_grating(orientation=self.orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
@@ -67,7 +72,7 @@ class GeorgGrating(experiment.Experiment):
         ec=self.experiment_config
         for i in range(len(ec.SPEEDS)):
             spd=ec.SPEEDS[i]
-            duration=self.durations[i]
+            duration=self.durations['curtain'][i]
             contrast=-self.gray
             offset=0.5*self.gray
             w=self.machine_config.SCREEN_SIZE_UM['col']
@@ -88,7 +93,8 @@ class GeorgGrating(experiment.Experiment):
         ec=self.experiment_config
         for i in range(len(ec.SPEEDS)):
             spd=ec.SPEEDS[i]
-            duration=self.durations[i]
+            p='on' if on else 'off'
+            duration=self.durations[p][i]
             duty_cycle=self.machine_config.SCREEN_SIZE_UM['col']/ec.BAR_WIDTH
             if on:
                 bg=(self.gray*self.machine_config.SCREEN_SIZE_UM['col']-ec.BAR_WIDTH)/(self.machine_config.SCREEN_SIZE_UM['col']-ec.BAR_WIDTH)
@@ -116,18 +122,26 @@ class GeorgGrating(experiment.Experiment):
                                 color_offset = offset)
                                 
     def run(self):
-        self.screen.start_frame_capture=True
+        #self.screen.start_frame_capture=True
         ec=self.experiment_config
         self.show_fullscreen(color=self.gray, duration=ec.INITIAL_WAIT)
-        if ec.PATTERN=='grating':
-            self.grating()
-        elif ec.PATTERN=='on':
-            self.bar(on=True)
-        elif ec.PATTERN=='off':
-            self.bar(on=False)
-        elif ec.PATTERN=='curtain':
-            self.curtain()
-        self.screen.start_frame_capture=False
+        self.meangray=copy.deepcopy(self.gray)
+        for p in ec.PATTERN_ORDER:
+            self.gray=copy.deepcopy(self.meangray)
+            if ec.BACKGROUND!='meangray':
+                if p=='off' or p=='curtain':
+                    self.gray=1.0
+                else:
+                    self.gray=0.0
+            if p=='grating':
+                self.grating()
+            elif p=='on':
+                self.bar(on=True)
+            elif p=='off':
+                self.bar(on=False)
+            elif p=='curtain':
+                self.curtain()
+        #self.screen.start_frame_capture=False
         
 def test_gray(folder):
     from pylab import plot, show,ylabel,xlabel,savefig,ylim
