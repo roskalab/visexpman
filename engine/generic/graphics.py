@@ -405,7 +405,11 @@ class Screen(object):
         Saves actual frame in frame buffer to an image file
         '''
         pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
-        frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        try:
+            frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        except:
+            frame = Image.frombytes('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+            
         frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
         frame.save(path)
         

@@ -1,7 +1,7 @@
 '''
 generic.gui module has generic gui widgets like labeled widgets. It also contains some gui helper function
 '''
-import os.path
+import os
 import numpy
 import time
 import copy,Queue,logging,tempfile
@@ -299,7 +299,7 @@ class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
             selfw = parent.parent
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: main gui widget, numpy, utils, fileop, signal')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os}, text = 'self: main gui widget, numpy, utils, fileop, signal, os')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):

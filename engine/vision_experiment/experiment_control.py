@@ -473,6 +473,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
             digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
             self.digital_output = digital_output_class(self.machine_config, self.log)
+        elif self.machine_config.DIGITAL_IO_PORT =='daq':
+            self.digital_output=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
         else:
             self.digital_output = None
         Trigger.__init__(self, machine_config, queues, self.digital_output)
@@ -533,7 +535,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     break
             time.sleep(1)
         self.ao_expected_finish=time.time()+self.parameters['mes_record_time']/1000
-        time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
+        if self.parameters['duration']>self.machine_config.MES_LONG_RECORDING:
+            time.sleep(self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING)
+        else:
+            time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
+        
             
     def wait4ao(self):
         if self.abort:
@@ -707,7 +713,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
     def _backup(self, filename):
-        dst=os.path.join(self.machine_config.BACKUP_STAGING_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
+        dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
         if not os.path.exists(dst):
             os.makedirs(dst)
         try:

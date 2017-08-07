@@ -62,6 +62,7 @@ class TestAODData(unittest.TestCase):
         folder='/home/rz/test'
         folder='v:\\experiment_data_ao\\zoltan\\20170714'
         folder='/tmp/processed'
+        folder='c:\\temp\\1'
         #folder='v:\\debug\\0'
         for fn in os.listdir(folder):
             if os.path.splitext(fn)[1]=='.hdf5':
@@ -72,6 +73,7 @@ class TestAODData(unittest.TestCase):
                     a.get_image('mip')
                 with introspect.Timer(2):
                     a.sync2time(True)
+                    a.check_timing()
                     a.close()
         
 if __name__ == '__main__':

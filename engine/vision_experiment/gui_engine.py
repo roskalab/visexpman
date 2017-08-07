@@ -182,7 +182,11 @@ class ExperimentHandler(object):
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
         if self.machine_config.PLATFORM=='ao_cortical':
-            oh=self.machine_config.MES_RECORD_START_WAITTIME+self.machine_config.MES_RECORD_OVERHEAD
+            if experiment_parameters['duration']<self.machine_config.MES_LONG_RECORDING:
+                wt=self.machine_config.MES_RECORD_START_WAITTIME
+            else:
+                wt=self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING
+            oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         return experiment_parameters
             
@@ -364,7 +368,16 @@ class ExperimentHandler(object):
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
+                fn=filename
                 self.printc('Data saved to {0}'.format(filename))
+                #Check for dropped frames
+                dropped_frames=legacy.get_dropped_frames(filename)
+                if dropped_frames>2:
+                    raise RuntimeError('{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
+                elif dropped_frames==2:
+                    self.printc('No dropped frames detected')
+                else:
+                    self.printc('Warning: more frames than timing pulses were detected.')
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
@@ -377,21 +390,56 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
             if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+                self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
                 if self.santiago_setup:
                     h.crop_timg()
                 self.tstim=h.tstim
                 self.timg=h.timg
-                h.check_timing()
+                h.check_timing(check_frame_rate=not self.santiago_setup)
                 h.close()
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
                 
+    def _remerge_files(self,folder,hdf5fold):
+        if not self.santiago_setup:
+            return
+        from visexpman.users.zoltan import legacy
+        self.printc('Warning, not tested')
+        for fold in fileop.listdir_fullpath(folder):
+            import tempfile,zipfile
+            zip_ref = zipfile.ZipFile(fold, 'r')
+            
+            dst=os.path.join(tempfile.gettempdir(),'z')
+            if os.path.exists(dst):
+                shutil.rmtree(dst)
+            os.mkdir(dst)
+            zip_ref.extractall(dst)
+            zip_ref.close()
+    
+            self.printc(fold)
+            fn=[f for f in fileop.listdir_fullpath(hdf5fold) if os.path.splitext(os.path.basename(fold))[0] in f][0]
+            pars=hdf5io.read_item(fn, 'parameters')
+            filename=legacy.merge_ca_data(dst,**pars)
+            shutil.copy(filename,folder)
+            self._timing2csv(os.path.join(folder, os.path.basename(filename)))
+            
+    def fix_timg(self,folder):
+        for fn in fileop.listdir_fullpath(folder):
+            h=hdf5io.Hdf5io(fn)
+            h.load('timg')
+            h.timg+=numpy.diff(h.timg)[0]
+            h.save('timg')
+            h.close()
+            self._timing2csv(fn)
+                
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
         from PIL import Image
         h.load('raw_data')
         h.load('parameters')
@@ -401,7 +449,7 @@ class ExperimentHandler(object):
         for framei in range(h.raw_data.shape[0]):
             for chi in range(h.raw_data.shape[1]):
                 base=os.path.splitext(os.path.basename(h.parameters['imaging_filename']))[0]
-                base='_'.join(base.split('_')[:-1])+'_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
+                base='frame_'+h.parameters['channels'][chi]+'_{0:0=5}'.format(framei)
                 fn=os.path.join(output_folder, base+'.png')
                 Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
@@ -414,20 +462,30 @@ class ExperimentHandler(object):
             tstim_sep={}
             for ch in ['stim','led']:
                 tstim_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
-        h.close()
+        h.close()        
         if 'Led2' in filename:
+            self.printc(numpy.round(tstim_sep['led']))
             txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
             txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
+            #Calculate image index for stim events
+            stim_indexes=[(abs(h.timg-s)).argmin() for s in tstim_sep['stim']]
+            led_indexes=[(abs(h.timg-s)).argmin() for s in tstim_sep['led']]
+            txtlines1a=','.join(map(str,stim_indexes))+'\n'+txtlines1
+            txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         else:
             txtlines2=','.join(map(str,numpy.round(h.tstim,3)))
         txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
         csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
         csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
+        csvfn2a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled_index.csv'))
         csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
+        csvfn1a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim_index.csv'))
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         if 'Led2' in filename:
             fileop.write_text_file(csvfn1, txtlines1)
+            fileop.write_text_file(csvfn1a, txtlines1a)
+            fileop.write_text_file(csvfn2a, txtlines2a)
         fileop.write_text_file(csvfn2, txtlines2)
         fileop.write_text_file(csvfn3, txtlines3)
         self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))
@@ -559,6 +617,7 @@ class Analysis(object):
 
     def open_datafile(self,filename):
         if self.experiment_running:
+            self.printc('Try again after recording')
             return
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
@@ -939,6 +998,7 @@ class Analysis(object):
             self.datafile.save(['rois', 'trace_parameters'], overwrite=True)
         else:
             self.datafile.save(['rois'], overwrite=True)
+        self.printc('Converting, please wait...')
         self.datafile.convert(self.guidata.read('Save File Format'))
         if self.santiago_setup:
             self.datafile.convert('rois')
@@ -949,7 +1009,11 @@ class Analysis(object):
         self.printc('Data exported to  {0}'.format(self.datafile.outfile))
         if not self.santiago_setup:
             #Copy to BACKUP_PATH/user/date/filename
-            dst=self.datafile.backup(self.machine_config.BACKUP_PATH,2)
+            if self.machine_config.PLATFORM=='ao_cortical':
+                bupath=os.path.join(self.machine_config.BACKUP_PATH , 'processed')
+            else:
+                bupath=self.machine_config.BACKUP_PATH 
+            dst=self.datafile.backup(bupath, 2)
             self.printc('Data backed up to  {0}'.format(dst))
         
     def backup(self):
@@ -1154,18 +1218,24 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM=='ao_cortical':
+        if self.machine_config.PLATFORM=='ao_cortical' or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
-            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
+            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')) and not self.santiago_setup:
                 if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
                     return
             self.fn=filename
             h=hdf5io.Hdf5io(filename)
             scale=h.findvar('sync_scaling')
+            self.printc(scale)
             sync=h.findvar('sync')
-            sync=signal.from_16bit(sync,scale)
+            if sync.dtype.name=='uint16':
+                sync=signal.from_16bit(sync,scale)
+            elif sync.dtype.name=='uint8':
+                sync=signal.from_16bit(sync*256,scale)
+            else:
+                raise NotImplementedError()
             fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
             h.close()
             x=[]
@@ -1301,10 +1371,11 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
-        if self.guidata.read('mes_hash')==None:
-            self.guidata.add('mes_hash', hash, 'hash/mes_hash')
-        else:
-            self.guidata.mes_hash.v=meshash
+        if self.machine_config.PLATFORM=='ao_cortical':
+            if self.guidata.read('mes_hash')==None:
+                self.guidata.add('mes_hash', hash, 'hash/mes_hash')
+            else:
+                self.guidata.mes_hash.v=meshash
         self.printc('Software hash saved')
         self.save_context()
     
@@ -1313,11 +1384,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             self.notify('Warning', 'Software has changed, hashes do not match.\r\nMake sure that the correct software version is used!')
-        meshash=introspect.mes2hash()
-        saved_hash=self.guidata.read('mes_hash')
-        if not numpy.array_equal(saved_hash, meshash):
-            print saved_hash, meshash
-            self.notify('Warning', 'MES has changed, hashes do not match.')
+        if self.machine_config.PLATFORM=='ao_cortical':
+            meshash=introspect.mes2hash()
+            saved_hash=self.guidata.read('mes_hash')
+            if not numpy.array_equal(saved_hash, meshash):
+                print saved_hash, meshash
+                self.notify('Warning', 'MES has changed, hashes do not match.')
             
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())

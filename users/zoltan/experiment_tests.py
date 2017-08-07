@@ -28,7 +28,11 @@ class ReceptiveFieldTest(experiment.ExperimentConfig):
         elif 'ao' in self.machine_config.PLATFORM:
             self.DISPLAY_SIZE = utils.rc((50.5,87.25))#degrees Overall size of display in angles
             self.DISPLAY_CENTER = utils.rc((3.45,33.35))#degrees Center
-
+        else:
+            self.DISPLAY_SIZE = utils.rc((51.0,90.0))
+            self.DISPLAY_CENTER = utils.rc((25.5,24.0))
+        self.DISPLAY_SIZE = utils.rc((51.77,91.0))
+        self.DISPLAY_CENTER = utils.rc((4.96,43.0))
         self.ON_TIME = 0.1*10#0.8
         self.OFF_TIME = 0#0.8
         self.REPEATS = 1 
@@ -166,19 +170,19 @@ class TestStim(experiment.Stimulus):
             
     def _plaid_stim(self):
         duration=10
-        direction=0
-        relative_angle=150
+        direction=90
+        relative_angle=50
         velocity=100
-        line_width=20
-        duty_cycle=20
-        mask_size=100
+        line_width=50
+        duty_cycle=10
+        mask_size=600
         contrast=0.7
         background_color=0.5
-        sinusoid=False
+        sinusoid=True
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
         
     def run(self):
-        self._approach()
+        #self._approach()
         self._plaid_stim()
         return
         
@@ -210,4 +214,5 @@ def receptive_field_calculator():
 if __name__ == "__main__":
     #receptive_field_calculator()
     from visexpman.engine.visexp_app import stimulation_tester
+    #stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
     stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')

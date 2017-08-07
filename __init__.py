@@ -1,6 +1,6 @@
 '''
 ==== Get started with Vision Experiment Manager framework  ====
-
+    !!! Outdated !!!
     === Framework installation ===
 
         = Ubuntu 12.04 =
@@ -235,4 +235,4 @@ import sys
 import os
 import numpy
 
-version = 'v0.2.0'
+version = 'v0.3.0'

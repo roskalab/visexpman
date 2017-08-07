@@ -26,8 +26,8 @@ class MainUIAOTestConfig(femtonics_setups.CameronDev):
         self.LOG_PATH = '/tmp/log_ao'
         self.EXPERIMENT_DATA_PATH = '/tmp/experiment_data_ao'
         self.CONTEXT_PATH='/tmp/context_ao'
-        self.BACKUP_STAGING_PATH='/tmp/bu'
-        for d in [self.LOG_PATH,self.EXPERIMENT_DATA_PATH,self.CONTEXT_PATH,self.BACKUP_STAGING_PATH]:
+        self.BACKUP_PATH='/tmp/bu'
+        for d in [self.LOG_PATH,self.EXPERIMENT_DATA_PATH,self.CONTEXT_PATH,self.BACKUP_PATH]:
             if not os.path.exists(d):
                 os.mkdir(d)
         userfold=os.path.join(self.EXPERIMENT_DATA_PATH, 'zoltan')

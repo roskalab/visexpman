@@ -9,17 +9,17 @@ import time
 class Led2Config(experiment.ExperimentConfig):
     def _create_parameters(self):
 #### EDIT FROM HERE
-        self.REPEATS=6+9*0# how many repetitions of stim
+        self.REPEATS=6# how many repetitions of stim
         self.SCREEN_COLOR=0.0
-        self.MAIN_LED_CURRENT_RANGE=[0, 5]#Change this to limit max led current
+        self.MAIN_LED_CURRENT_RANGE=[0, 500]#Change this to limit max led current ie [0, 10] for 10mA
         self.PRE_TIME=10.0
         self.OFFTIME=5.0 #visual LED off time
-        self.ONTIME=5	#visual LED on time
+        self.ONTIME=5.0	#visual LED on time
         self.NFLASHES = 1 #number of steps between current_range above
         self.ENABLE_LED= True #False, this is to enable LGN LED blue one
         self.FLASH_DURATION=0.5 # for LGN LED
-        self.LED_CURRENT = 950 #mA also for LGN LED
-        self.LED_FLASH_DELAY=.100 #if negative, led flashes start earlier than screen
+        self.LED_CURRENT = 0 #mA also for LGN LED
+        self.LED_FLASH_DELAY=0.200 #if negative, led flashes start earlier than screen (in Seconds NOT MS)
         self.LED_FLASH_RATE=2#1=led in all repetition, 2: led flash in every second repetition
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
@@ -33,6 +33,9 @@ class Led2Stimulation(experiment.Experiment):
     '''
     def prepare(self):
         if 1:
+            for vn in ['LED_FLASH_DELAY', 'FLASH_DURATION']:
+                if abs(getattr(self.experiment_config, vn))>50:
+                    raise RuntimeError('{1} must be in s dimension, not ms. Current value is {0}'.format(getattr(self.experiment_config, vn), vn))
             self.duration=self.experiment_config.PRE_TIME+self.experiment_config.REPEATS*(self.experiment_config.NFLASHES*(self.experiment_config.ONTIME+self.experiment_config.OFFTIME)+self.experiment_config.OFFTIME)
             self.mid=numpy.array(self.experiment_config.MAIN_LED_CURRENT_RANGE).mean()
             ontime=self.experiment_config.ONTIME

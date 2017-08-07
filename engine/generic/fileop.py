@@ -19,7 +19,7 @@ timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
 
-def file_extension(filename):
+def file_extension(filename):#TODO: use os.path.splitext
     return os.path.split(filename)[1].split('.')[-1]
     
 def is_first_tag(fn, tag):
@@ -66,8 +66,10 @@ def get_tmp_file(suffix, delay = 0.0):
     time.sleep(delay)
     return path
     
-def get_convert_filename(filename, extension, outfolder = None):
-    fn=filename.replace(file_extension(filename), extension)
+def get_convert_filename(filename, extension, tag='', outfolder = None):
+    fn=filename.replace(os.path.splitext(filename)[1], extension)
+    if len(tag)>0:
+        fn=fn.replace(extension, tag+extension)
     if outfolder is not None:
         fn=os.path.join(outfolder, os.path.basename(filename))
     return fn
@@ -242,8 +244,15 @@ def move2zip(src,dst,delete=False):
 
 ################# File finders ####################
 
-def listdir_fullpath(folder):
+def listdir_fullpath(folder):#Legacy
+    return listdir(folder)
+    
+def listdir(folder):
+    '''
+    Return lfull path of files in folder in alphabetical order
+    '''
     files = os.listdir(folder)
+    files.sort()
     return map(os.path.join, len(files)*[folder],files)
     
 def find_latest(path, extension=None):
@@ -399,8 +408,9 @@ def write_text_file(filename, content):
     f.close()
 
 ################# Vision experiment manager related ####################
-#TODO: This shoudl go to experiment_data
+#TODO: This should go to experiment_data
 def visexpman_package_path():
+    import visexpman
     return os.path.split(sys.modules['visexpman'].__file__)[0]
     
 def visexpA_package_path():
@@ -441,6 +451,17 @@ def cleanup_files(config):
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
     if os.path.exists(get_context_filename(config)):
         os.remove(get_context_filename(config))
+        
+def _mat(filename):
+    '''
+    Inserts _mat tag at the end of filename if hdf5 or mat without _mat tag provided. Else hdf5 is generated from filename with _mat
+    '''
+    ext=os.path.splitext(filename)[1]
+    if '_mat' == os.path.splitext(filename)[0][-4:]:
+        return os.path.splitext(filename)[0][:-4]+'.hdf5'
+    else:
+        return filename.replace(ext, '_mat.mat')
+    
         
 ################# Experiment file related ####################
 

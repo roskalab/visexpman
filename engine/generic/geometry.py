@@ -1057,7 +1057,7 @@ def vertices2image(vertices):
                 im[c[0], c[1]+i]=1
             except IndexError:
                 pass
-    imshow(im)
+    imshow(im,cmap='gray')
     show()
 
 class TestGeometry(unittest.TestCase):

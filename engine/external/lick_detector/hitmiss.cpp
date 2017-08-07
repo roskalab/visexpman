@@ -106,7 +106,8 @@ void HitMiss::run(void)
         else
         {
           #if (PLATFORM==ARDUINO)
-            Serial.println("unknown command");
+            Serial.print("unknown command: ");
+            Serial.println(command);
           #endif
         }
           

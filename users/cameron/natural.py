@@ -1,6 +1,6 @@
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
-from visexpman.users.common.stimuli import NaturalBars
+from visexpman.users.common.stimuli import NaturalBarsOriginal
 import os
 
 # class NaturalMovie(experiment.ExperimentConfig):
@@ -50,7 +50,7 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
 #         self.REPETITIONS = 3
 #         self._create_parameters_from_locals(locals())
 #         
-class NaturalBarsConfig(NaturalBars):
+class NaturalBarsConfig(NaturalBarsOriginal):
     def _create_parameters(self):
         
 #         self.SPEED = [800,400,1200.0]#um/s
