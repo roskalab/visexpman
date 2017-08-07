@@ -106,6 +106,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         PLATFORM = 'mes'
 #        PLATFORM = 'standalone'
         #=== Network ===
+        stimip='192.168.2.5'#'192.168.2.3'
         self.JOBHANDLER_PUSHER_PORT=10100
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '192.168.2.4'#'172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
@@ -114,8 +115,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
             'GUI_MES'  : {'GUI' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.4', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.3',  'PORT': self.BASE_PORT + 5}}, 
+            'STIM_MES'  : {'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': stimip, 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': stimip,  'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.2', 'PORT': self.BASE_PORT + 7}}, 
             }
         self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\

@@ -7,8 +7,10 @@ import traceback
 import re
 import cPickle as pickle
 import zmq
-
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import introspect
 from visexpman.engine.generic import command_parser

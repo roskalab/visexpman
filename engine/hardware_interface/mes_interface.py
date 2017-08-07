@@ -12,8 +12,10 @@ import os
 import os.path
 import shutil
 import tempfile
-
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 
 import visexpman.engine.generic.configuration
 from visexpA.engine.datahandlers import matlabfile

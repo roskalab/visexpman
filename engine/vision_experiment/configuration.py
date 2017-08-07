@@ -12,8 +12,10 @@ except:
 
 import tempfile
 import unittest
-
-import PyQt4.QtGui as QtGui
+try:
+    import PyQt4.QtGui as QtGui
+except ImportError:
+    import PyQt5.QtGui as QtGui
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 

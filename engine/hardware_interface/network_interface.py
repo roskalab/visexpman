@@ -4,7 +4,10 @@ import sys
 import time
 import unittest
 import visexpman.engine.generic.configuration
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 import os
 import numpy
 try:
