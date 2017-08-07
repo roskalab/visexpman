@@ -641,12 +641,12 @@ class HitmissAnalysis(object):
         self.animal_success_rate=animal_success_rate
         return animal_success_rate
         
-def extract_mouse_position(im, threshold=100):
+def extract_mouse_position(im, channel,threshold=100):
     from pylab import imshow,show
     import scipy.ndimage.measurements
     #green channel seems the best for extracting brightest white point.
 #    from skimage.filters import threshold_otsu
-    green=im[:,:,2]
+    green=im[:,:,channel]
 #    th=threshold_otsu(green)
     mask=numpy.where(green>threshold,1,0)
     if 0:
