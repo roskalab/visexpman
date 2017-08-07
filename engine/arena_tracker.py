@@ -30,8 +30,6 @@ class CWidget(QtGui.QWidget):
         self.main_tab.setFixedHeight(500)
         self.main_tab.setTabPosition(self.main_tab.South)
 
-
-
 class ArenaTracker(gui.SimpleAppWindow):
     def __init__(self):
         self.init()
@@ -39,7 +37,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def init_gui(self):
         self.setWindowTitle('Mouse Position Tracker')
-        self.setGeometry(20,20,700,700)
+        self.setGeometry(50,50,700,700)
         self.debugw.setFixedHeight(150)
         self.debugw.setMaximumWidth(700)        
         self.maximized=False
@@ -71,7 +69,7 @@ class ArenaTracker(gui.SimpleAppWindow):
                     level=logging.INFO)
         w=640
         h=480
-        self.camera = cv2.VideoCapture(0)#Initialize video capturing
+        self.camera = cv2.VideoCapture(1)#Initialize video capturing
         self.camera.set(3, w)#Set camera resolution
         self.camera.set(4, h)
         logging.info('Camera initialized')

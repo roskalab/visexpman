@@ -1,8 +1,9 @@
-import os,numpy
+import os,numpy,sys
 from visexpman.engine.vision_experiment.configuration import BehavioralConfig
 from visexpman.engine.generic import fileop,utils
 
-class BehavioralSetup(BehavioralConfig):
+class BehavioralSetup(object):
+        PLATFORM = 'behav'
         LOG_PATH = fileop.select_folder_exists(['c:\\Data\\log','q:\\log', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
@@ -55,7 +56,7 @@ class OfficeTest(BehavioralSetup):
     BACKUP_LOG_TIMEOUT=15#minutes
     #SESSION_TIMEOUT=10#Minutes
 
-class Behavioral2Setup(BehavioralConfig):
+class Behavioral2Setup(BehavioralConfig):#Miao's setup
     def _set_user_parameters(self):
         self.root_folder = 'x:\\behavioral2'
         LOG_PATH = os.path.join(self.root_folder,'log')
@@ -80,9 +81,10 @@ class Behavioral2Setup(BehavioralConfig):
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TRIGGER_PIN = 0
         self.SYNC_RECORD_OVERHEAD=10
-        gammafn=os.path.join(self.CONTEXT_PATH, 'gamma.hdf5')
+        gammafn=os.path.join(CONTEXT_PATH, 'gamma.hdf5')
         if os.path.exists(gammafn):
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
         if '--nofullscreen' in sys.argv:
             self.FULLSCREEN=False
+        self._create_parameters_from_locals(locals())
