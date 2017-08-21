@@ -26,7 +26,7 @@ class ReceptiveFieldFionaBasic(experiment.ExperimentConfig):
         self.REPEAT_SEQUENCE = 1
         self.ENABLE_RANDOM_ORDER =  not False
         self.runnable='ReceptiveFieldExploreF'
-        self.pre_runnable = 'GreyPre'
+       # self.pre_runnable = 'GreyPre'
         self._create_parameters_from_locals(locals())
         
         

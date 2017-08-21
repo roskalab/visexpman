@@ -16,12 +16,12 @@ class MovingGratingFiona(grating_base.MovingGratingNoMarchingConfig):
         self.GREY_INSTEAD_OF_MARCHING=True
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 120)
+        self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [1200.0]#1200#1800
         #self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 1
+        self.REPEATS = 5
         self.PAUSE_BEFORE_AFTER = 5.0
         self.CLEAR_SCREEN_AT_END=True
         self.CLEAR_SCREEN_AT_END_COLOR=0

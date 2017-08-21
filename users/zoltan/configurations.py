@@ -106,7 +106,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         PLATFORM = 'mes'
 #        PLATFORM = 'standalone'
         #=== Network ===
-        stimip='192.168.2.5'#'192.168.2.3'
+        stimip='192.168.2.3'#'192.168.2.5'
         self.JOBHANDLER_PUSHER_PORT=10100
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '192.168.2.4'#'172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
