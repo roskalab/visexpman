@@ -14,7 +14,9 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     Visual stimulation machine of 3D microscope setup
     '''
     def _set_user_parameters(self):
-        TEXT_COLOR = [0.8, 0.0, 0.0]
+        TEXT_COLOR = [0.5, 0.5, 0.5]
+        ENABLE_TEXT=False
+        PRERUNNABLE_AT_DATASAVE=True
         GUI_REFRESH_PERIOD = 10.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
@@ -54,25 +56,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
 
         #=== screen ===
         import sys
-        if '--MICROLED'in sys.argv:
-            SCREEN_RESOLUTION = utils.cr([16, 16])
-            SCREEN_DISTANCE_FROM_MOUSE_EYE = [19.0, [0, 300]] #mm
-            SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, 
-            FULLSCREEN = False
-            SCREEN_EXPECTED_FRAME_RATE = 1/50e-3
-            SCREEN_MAX_FRAME_RATE = 1/50e-3
-            ULED_SERIAL_PORT = 'COM4'
-        else:
-#            SCREEN_DISTANCE_FROM_MOUSE_EYE = [320.0, [0, 300]] #mm 
-#            SCREEN_DISTANCE_FROM_MOUSE_EYE = [220.0, [0, 300]] #mm , screen
-#            SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
-#            SCREEN_PIXEL_WIDTH = [477.0/1280., [0, 0.99]] # mm, screen
-#            SCREEN_RESOLUTION = utils.cr([800, 600])
-#            SCREEN_RESOLUTION = utils.cr([1280, 720])#screen
-#            self.SCREEN_UPSIDE_DOWN=True
-#            FULLSCREEN = True
-            SCREEN_EXPECTED_FRAME_RATE = 60.0
-            SCREEN_MAX_FRAME_RATE = 60.0
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         #CAPTURE_PATH = os.path.join(v_drive_data_folder,'capture')

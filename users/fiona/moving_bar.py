@@ -11,6 +11,7 @@ class FionaMovingBar(experiment.ExperimentConfig):
         random.shuffle(self.DIRECTIONS)
         self.PAUSE=3.0#Pause between directions
         self.runnable = 'MovingBarExperiment1'
+        self.pre_runnable = 'GreyPre'
         self._create_parameters_from_locals(locals())
         self.REPEATS=3
         

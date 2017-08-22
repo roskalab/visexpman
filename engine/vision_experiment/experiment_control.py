@@ -115,6 +115,9 @@ class ExperimentControl(object):
                             self.run()
                         else:
                             self.run(fragment_id)
+                        if hasattr(self.experiment_config, 'pre_runnable') and self.config.PRERUNNABLE_AT_DATASAVE:
+                            self.experiment_config.pre_runnable.run()
+                            self._flip()
                         if not self._finish_fragment(fragment_id):
                             self.abort = True
                             #close fragment files

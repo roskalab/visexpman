@@ -17,6 +17,45 @@ if os.name == 'nt':
         import PyDAQmx.DAQmxTypes as DAQmxTypes
     except:
         pass
+
+def set_waveform(channels,waveform,sample_rate = 100000):
+    '''
+    Waveform: first dimension channels, second: samples
+    '''
+    analog_output, wf_duration = set_waveform_start(channels,waveform,sample_rate = sample_rate)
+    set_waveform_finish(analog_output, wf_duration)
+    
+def set_waveform_start(channels,waveform,sample_rate = 100000):
+    sample_per_channel = waveform.shape[1]
+    wf_duration = float(sample_per_channel)/sample_rate
+    analog_output = PyDAQmx.Task()
+    analog_output.CreateAOVoltageChan(channels,
+                                        'ao',
+                                        -10.0,
+                                        10.0,
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+    analog_output.CfgSampClkTiming("OnboardClock",
+                                        sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                        sample_per_channel)
+
+    analog_output.WriteAnalogF64(sample_per_channel,
+                                False,
+                                wf_duration+1.0,
+                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                waveform,
+                                None,
+                                None)
+    analog_output.StartTask()
+    return analog_output, wf_duration
+    
+def set_waveform_finish(analog_output, timeout):
+    analog_output.WaitUntilTaskDone(timeout+1.0)
+    analog_output.StopTask()                            
+    analog_output.ClearTask()
+
         
 def read_digital_line(channel):
     di = PyDAQmx.Task()

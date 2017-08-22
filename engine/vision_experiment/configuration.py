@@ -12,8 +12,10 @@ except:
 
 import tempfile
 import unittest
-
-import PyQt4.QtGui as QtGui
+try:
+    import PyQt4.QtGui as QtGui
+except ImportError:
+    import PyQt5.QtGui as QtGui
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
@@ -142,7 +144,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
         ENABLE_FRAME_CAPTURE = False
         MAX_LOG_COLORS = [3,  [0,  100000]]        
-        
+        PRERUNNABLE_AT_DATASAVE=False
+
         ########  Coordinate system selection ########
         COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 
         ORIGO = utils.rc((numpy.inf, numpy.inf))

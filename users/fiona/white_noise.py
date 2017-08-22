@@ -15,6 +15,7 @@ class WhiteNoiseParameters(experiment.ExperimentConfig):
         self.N_WHITE_PIXELS = None
         self.COLORS = [0.0, 1.0]
         self.runnable = 'WhiteNoiseExperiment'
+        self.pre_runnable = 'GreyPre'
         self._create_parameters_from_locals(locals())
 
 class WhiteNoiseExperiment(experiment.Experiment):

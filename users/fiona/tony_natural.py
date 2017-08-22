@@ -24,6 +24,7 @@ class TonyNaturalBarsCircularConfig(experiment.ExperimentConfig):
         self.SCALE= 1.0
         self.OFFSET=0.0
         self.runnable = 'TonyNaturalBarsExperiment'
+        self.pre_runnable = 'GreyPre'
         self._create_parameters_from_locals(locals())
 
 class TonyNaturalBarsConfig(experiment.ExperimentConfig):
@@ -45,6 +46,7 @@ class TonyNaturalBarsConfig(experiment.ExperimentConfig):
         self.SCALE= 1.0
         self.OFFSET=0.0
         self.runnable = 'TonyNaturalBarsExperiment'
+        self.pre_runnable = 'GreyPre'
         self._create_parameters_from_locals(locals())
         
 class TonyNaturalBarsExperiment(experiment.Experiment):

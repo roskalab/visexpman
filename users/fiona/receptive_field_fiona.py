@@ -26,6 +26,7 @@ class ReceptiveFieldFionaBasic(experiment.ExperimentConfig):
         self.REPEAT_SEQUENCE = 1
         self.ENABLE_RANDOM_ORDER =  not False
         self.runnable='ReceptiveFieldExploreF'
+       # self.pre_runnable = 'GreyPre'
         self._create_parameters_from_locals(locals())
         
         
@@ -73,7 +74,7 @@ class ReceptiveFieldFionaFine(ReceptiveFieldFionaBasic):
     def _create_parameters(self):
         ReceptiveFieldFionaBasic._create_parameters(self)
         self.COLORS = [1.0]
-        self.NROWS = 10
+        self.NROWS = 1
         self.NCOLUMNS = 18
         self.SIZE_DIMENSION='angle'
         self.DISPLAY_SIZE = utils.rc((51.0,90.0))#((65.0,96.7))#((51.0,90.0))#degrees

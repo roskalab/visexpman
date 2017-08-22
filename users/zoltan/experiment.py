@@ -28,6 +28,14 @@ class ZoltanMovingGratingConfig1(ZoltanMovingGratingConfig):
         ZoltanMovingGratingConfig._create_parameters(self)
         self.ORIENTATIONS = [0,45,90,135,180,225,270,315]
 
+class MovingGratingTestScreen(ZoltanMovingGratingConfig):
+    def _create_parameters(self):
+        ZoltanMovingGratingConfig._create_parameters(self)
+        self.ORIENTATIONS = [0,90]*4
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
+        self.MARCH_TIME = 3
+        self.GRATING_STAND_TIME = 3
+
 
 class PhasesGratingConfig(grating_base.MovingGratingConfig):
     def _create_parameters(self):
