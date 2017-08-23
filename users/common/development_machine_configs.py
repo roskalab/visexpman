@@ -38,8 +38,8 @@ class StimulusDevelopment(VisionExperimentConfig):
         ENABLE_PARALLEL_PORT = False
         
         
-        SCREEN_RESOLUTION = utils.cr((1024, 576))#TMP febr 09
-        SCREEN_RESOLUTION = utils.cr([1280, 720])
+        SCREEN_RESOLUTION = utils.cr((800, 600))
+        #SCREEN_RESOLUTION = utils.cr([1280, 720])
         SCREEN_DISTANCE_FROM_MOUSE_EYE=230
         SCREEN_PIXEL_WIDTH=477.0/1280
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  

@@ -464,8 +464,15 @@ class IntrinsicConfig(VisionExperimentConfig):
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 
-class BehavioralConfig(object):
+class BehavioralConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'behav'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.KEYS['start stimulus'] = 'e'
+        STIM_RECORDS_ANALOG_SIGNALS = True
+        COORDINATE_SYSTEM='center'
+        self._create_parameters_from_locals(locals())
 
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

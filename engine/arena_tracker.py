@@ -20,7 +20,14 @@ class CWidget(QtGui.QWidget):
         self.image.setFixedWidth(640)
         self.image.setFixedHeight(480)
         self.params_config=[
-                            {'name': 'Threshold', 'type': 'int', 'value': 100}
+                            {'name': 'Threshold', 'type': 'int', 'value': 200},
+                            {'name': 'Enable ROI cut', 'type': 'bool', 'value': True},
+                            {'name': 'ROI x1', 'type': 'int', 'value': 200},
+                            {'name': 'ROI y1', 'type': 'int', 'value': 200},
+                            {'name': 'ROI x2', 'type': 'int', 'value': 400},
+                            {'name': 'ROI y2', 'type': 'int', 'value': 400},
+                            {'name': 'Channel', 'type': 'int', 'value': 0},
+                            {'name': 'Show channel only', 'type': 'bool', 'value': False},
                     ]
         self.paramw = gui.ParameterTable(self, self.params_config)
         self.main_tab = QtGui.QTabWidget(self)
@@ -30,8 +37,6 @@ class CWidget(QtGui.QWidget):
         self.main_tab.setFixedHeight(500)
         self.main_tab.setTabPosition(self.main_tab.South)
 
-
-
 class ArenaTracker(gui.SimpleAppWindow):
     def __init__(self):
         self.init()
@@ -39,7 +44,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def init_gui(self):
         self.setWindowTitle('Mouse Position Tracker')
-        self.setGeometry(20,20,700,700)
+        self.setGeometry(50,50,700,700)
         self.debugw.setFixedHeight(150)
         self.debugw.setMaximumWidth(700)        
         self.maximized=False
@@ -56,10 +61,6 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.cam_timer.start(33)#ms
         self.connect(self.cam_timer, QtCore.SIGNAL('timeout()'), self.update_camera_image)
         
-        self.track_timer=QtCore.QTimer()
-        self.track_timer.start(5*33)#ms
-        self.connect(self.track_timer, QtCore.SIGNAL('timeout()'), self.update_track)
-        
     def parameter_changed(self):
         self.parameters=self.cw.paramw.get_parameter_tree(return_dict=True)
         
@@ -71,7 +72,7 @@ class ArenaTracker(gui.SimpleAppWindow):
                     level=logging.INFO)
         w=640
         h=480
-        self.camera = cv2.VideoCapture(0)#Initialize video capturing
+        self.camera = cv2.VideoCapture(1)#Initialize video capturing
         self.camera.set(3, w)#Set camera resolution
         self.camera.set(4, h)
         logging.info('Camera initialized')
@@ -87,34 +88,22 @@ class ArenaTracker(gui.SimpleAppWindow):
         frame_color_corrected[:,:,2]=frame[:,:,0]
         return frame_color_corrected
         
-    def update_track(self):
-        return
-        if not hasattr(self.frame, 'dtype'):
-            return
-        coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Threshold'])
-        if coo!=None and self.record:
-            self.track.append(coo)
-            for t in self.track:
-                self.frame[t[0], t[1],1]=255
-                self.frame[t[0], t[1],0]=0
-                self.frame[t[0], t[1],2]=0
-            self.cw.image.set_image(numpy.rot90(numpy.flipud(self.frame)))
-            return
-            if hasattr(self, 'roi'):
-                self.cw.image.plot.removeItem(self.roi)
-            self.roi = pyqtgraph.PolyLineROI(self.track, closed=False)
-            self.roi.setPen((0, 255, 0, 255), width=3)
-            self.cw.image.plot.addItem(self.roi)
-        
     def update_camera_image(self):
         self.frame=self.read_camera()
         if hasattr(self.frame, 'dtype'):
-            coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Threshold'])
+            if self.parameters['Enable ROI cut']:
+                self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
+            coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Channel'], self.parameters['Threshold'])
             f=numpy.copy(self.frame)
-            if coo!=None and self.record and numpy.nan != coo[0]:
+            if coo!=None and not numpy.isnan(coo[0]) and self.record and numpy.nan != coo[0]:
+                if self.parameters['Show channel only']:
+                    for i in range(3):
+                        if i!=self.parameters['Channel']:
+                            f[:,:,i]=0
                 self.track.append(coo)
                 for coo in self.track:
-                    f[f.shape[0]-int(coo[1]), f.shape[1]-int(coo[0])]=numpy.array([0,255,0],dtype=f.dtype)
+                    f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
+
 
             self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
         

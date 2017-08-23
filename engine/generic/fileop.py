@@ -244,8 +244,15 @@ def move2zip(src,dst,delete=False):
 
 ################# File finders ####################
 
-def listdir_fullpath(folder):
+def listdir_fullpath(folder):#Legacy
+    return listdir(folder)
+    
+def listdir(folder):
+    '''
+    Return lfull path of files in folder in alphabetical order
+    '''
     files = os.listdir(folder)
+    files.sort()
     return map(os.path.join, len(files)*[folder],files)
     
 def find_latest(path, extension=None):
