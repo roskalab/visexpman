@@ -434,6 +434,10 @@ class ExperimentHandler(object):
             h.save('timg')
             h.close()
             self._timing2csv(fn)
+            
+    def indexofsmallestpositive(self,a):
+        m=numpy.where(a<0, 0, a)
+        return numpy.where(a==a[numpy.nonzero(m)[0]].min())[0][0]
                 
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
@@ -468,8 +472,8 @@ class ExperimentHandler(object):
             txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
             txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
             #Calculate image index for stim events
-            stim_indexes=[(abs(h.timg-s)).argmin() for s in tstim_sep['stim']]
-            led_indexes=[(abs(h.timg-s)).argmin() for s in tstim_sep['led']]
+            stim_indexes=[self.indexofsmallestpositive(h.timg-s) for s in tstim_sep['stim']]
+            led_indexes=[self.indexofsmallestpositive(h.timg-s) for s in tstim_sep['led']]
             txtlines1a=','.join(map(str,stim_indexes))+'\n'+txtlines1
             txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         else:

@@ -11,15 +11,15 @@ class Led2Config(experiment.ExperimentConfig):
 #### EDIT FROM HERE
         self.REPEATS=6# how many repetitions of stim
         self.SCREEN_COLOR=0.0
-        self.MAIN_LED_CURRENT_RANGE=[0, 500]#Change this to limit max led current ie [0, 10] for 10mA
+        self.MAIN_LED_CURRENT_RANGE=[0, 5]#Change this to limit max led current ie [0, 10] for 10mA
         self.PRE_TIME=10.0
         self.OFFTIME=5.0 #visual LED off time
         self.ONTIME=5.0	#visual LED on time
         self.NFLASHES = 1 #number of steps between current_range above
         self.ENABLE_LED= True #False, this is to enable LGN LED blue one
         self.FLASH_DURATION=0.5 # for LGN LED
-        self.LED_CURRENT = 0 #mA also for LGN LED
-        self.LED_FLASH_DELAY=0.200 #if negative, led flashes start earlier than screen (in Seconds NOT MS)
+        self.LED_CURRENT = 500 #mA also for LGN LED
+        self.LED_FLASH_DELAY=-.050 #if negative, led flashes start earlier than screen (in Seconds NOT MS)
         self.LED_FLASH_RATE=2#1=led in all repetition, 2: led flash in every second repetition
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
