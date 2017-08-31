@@ -532,7 +532,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        if self.parameters['Protocol']=='HitMissRandomLaser':
+        if self.parameters['Protocol'] in ['HitMissRandomLaser', 'LickRandomLaser']:
             filter={'voltage':self.parameters['Laser Intensity']}
         else:
             filter={}
@@ -698,7 +698,7 @@ class Behavioral(gui.SimpleAppWindow):
     '''
     def __init__(self):
         #Figure out machine config
-        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = object,direct = False)[0][1]()
         self.logfile=fileop.get_log_filename(self.machine_config)
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
