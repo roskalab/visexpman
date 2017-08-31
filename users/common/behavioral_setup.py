@@ -1,8 +1,9 @@
-import os
+import os,numpy,sys
 from visexpman.engine.vision_experiment.configuration import BehavioralConfig
-from visexpman.engine.generic import fileop
+from visexpman.engine.generic import fileop,utils
 
-class BehavioralSetup(BehavioralConfig):
+class BehavioralSetup(object):
+        PLATFORM = 'behav'
         LOG_PATH = fileop.select_folder_exists(['c:\\Data\\log','q:\\log', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['q:\\data', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
         CONTEXT_PATH = fileop.select_folder_exists(['q:\\context', '/tmp', 'd:\\Data', 'c:\\Data','c:\\Users\\rz\\tmp'])
@@ -54,3 +55,36 @@ class OfficeTest(BehavioralSetup):
     BACKUPTIME=3
     BACKUP_LOG_TIMEOUT=15#minutes
     #SESSION_TIMEOUT=10#Minutes
+
+class Behavioral2Setup(BehavioralConfig):#Miao's setup
+    def _set_user_parameters(self):
+        self.root_folder = 'x:\\behavioral2'
+        LOG_PATH = os.path.join(self.root_folder,'log')
+        EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
+        CONTEXT_PATH = os.path.join(self.root_folder,'context')
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        ENABLE_FRAME_CAPTURE = False
+        DIGITAL_IO_PORT='COM3'
+        BLOCK_TRIGGER_PIN=0
+        FRAME_TRIGGER_PIN=1
+        self.SCREEN_RESOLUTION = utils.cr([1920, 1080])
+        self.SCREEN_WIDTH=600#mm
+        self.SCREEN_MOUSE_DISTANCE=180#mm
+        self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.radians(1.0/self.MOUSE_1_VISUAL_DEGREE_ON_RETINA))*self.SCREEN_MOUSE_DISTANCE/(self.SCREEN_WIDTH/float(self.SCREEN_RESOLUTION['col']))        
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:1'#0 block trigger, 1: trigger from ephys
+        self.SYNC_RECORDER_SAMPLE_RATE=5000#mes sync pulses are very short
+        self.SYNC_RECORDING_BUFFER_TIME=5.0
+        self.TIMG_SYNC_INDEX=1
+        self.TSTIM_SYNC_INDEX=0
+        self.DIGITAL_OUTPUT='daq'
+        self.TIMING_CHANNELS='dev1/port0/line1'
+        self.BLOCK_TRIGGER_PIN = 1
+        self.FRAME_TRIGGER_PIN = 0
+        self.SYNC_RECORD_OVERHEAD=10
+        gammafn=os.path.join(CONTEXT_PATH, 'gamma.hdf5')
+        if os.path.exists(gammafn):
+            import copy
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
+        if '--nofullscreen' in sys.argv:
+            self.FULLSCREEN=False
+        self._create_parameters_from_locals(locals())

@@ -370,6 +370,14 @@ class ExperimentHandler(object):
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
                 fn=filename
                 self.printc('Data saved to {0}'.format(filename))
+                #Check for dropped frames
+                dropped_frames=legacy.get_dropped_frames(filename)
+                if dropped_frames>2:
+                    raise RuntimeError('{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
+                elif dropped_frames==2:
+                    self.printc('No dropped frames detected')
+                else:
+                    self.printc('Warning: more frames than timing pulses were detected.')
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
@@ -395,9 +403,47 @@ class ExperimentHandler(object):
                 #Export timing to csv file
                 self._timing2csv(filename)
                 
+    def _remerge_files(self,folder,hdf5fold):
+        if not self.santiago_setup:
+            return
+        from visexpman.users.zoltan import legacy
+        self.printc('Warning, not tested')
+        for fold in fileop.listdir_fullpath(folder):
+            import tempfile,zipfile
+            zip_ref = zipfile.ZipFile(fold, 'r')
+            
+            dst=os.path.join(tempfile.gettempdir(),'z')
+            if os.path.exists(dst):
+                shutil.rmtree(dst)
+            os.mkdir(dst)
+            zip_ref.extractall(dst)
+            zip_ref.close()
+    
+            self.printc(fold)
+            fn=[f for f in fileop.listdir_fullpath(hdf5fold) if os.path.splitext(os.path.basename(fold))[0] in f][0]
+            pars=hdf5io.read_item(fn, 'parameters')
+            filename=legacy.merge_ca_data(dst,**pars)
+            shutil.copy(filename,folder)
+            self._timing2csv(os.path.join(folder, os.path.basename(filename)))
+            
+    def fix_timg(self,folder):
+        for fn in fileop.listdir_fullpath(folder):
+            h=hdf5io.Hdf5io(fn)
+            h.load('timg')
+            h.timg+=numpy.diff(h.timg)[0]
+            h.save('timg')
+            h.close()
+            self._timing2csv(fn)
+            
+    def indexofsmallestpositive(self,a):
+        m=numpy.where(a<0, 0, a)
+        return numpy.where(a==a[numpy.nonzero(m)[0]].min())[0][0]
+                
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
         from PIL import Image
         h.load('raw_data')
         h.load('parameters')
@@ -420,20 +466,30 @@ class ExperimentHandler(object):
             tstim_sep={}
             for ch in ['stim','led']:
                 tstim_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
-        h.close()
+        h.close()        
         if 'Led2' in filename:
+            self.printc(numpy.round(tstim_sep['led']))
             txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
             txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
+            #Calculate image index for stim events
+            stim_indexes=[self.indexofsmallestpositive(h.timg-s) for s in tstim_sep['stim']]
+            led_indexes=[self.indexofsmallestpositive(h.timg-s) for s in tstim_sep['led']]
+            txtlines1a=','.join(map(str,stim_indexes))+'\n'+txtlines1
+            txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         else:
             txtlines2=','.join(map(str,numpy.round(h.tstim,3)))
         txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
         csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
         csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
+        csvfn2a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled_index.csv'))
         csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
+        csvfn1a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim_index.csv'))
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         if 'Led2' in filename:
             fileop.write_text_file(csvfn1, txtlines1)
+            fileop.write_text_file(csvfn1a, txtlines1a)
+            fileop.write_text_file(csvfn2a, txtlines2a)
         fileop.write_text_file(csvfn2, txtlines2)
         fileop.write_text_file(csvfn3, txtlines3)
         self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))

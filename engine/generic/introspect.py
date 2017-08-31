@@ -1,7 +1,10 @@
 import logging,platform
 import logging.handlers
 log = logging.getLogger('introspect')
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 from contextlib import contextmanager
 import inspect
 import time

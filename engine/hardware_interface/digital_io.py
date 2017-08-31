@@ -2,7 +2,7 @@ try:
     import serial
 except:
     pass
-import os
+import os,numpy
 import time
 import unittest
 import instrument
@@ -118,6 +118,33 @@ class AduinoIO(object):
         
     def close(self):
         self.s.close()
+        
+class DaqDio(object):
+    def __init__(self,channels):
+        try:
+            import PyDAQmx
+            import PyDAQmx.DAQmxConstants as DAQmxConstants
+        except ImportError:
+            pass
+        self.daq = PyDAQmx.Task()
+        self.daq.CreateDOChan(channels,
+                                                'do',
+                                                DAQmxConstants.DAQmx_Val_ChanPerLine)    
+                                                            
+                                                            
+        def set_data_bit(self, pin, state):
+            #TODO: only one channel is handled, pin is not interpreted yet
+            digital_values = numpy.array([int(state)], dtype=numpy.uint8)
+            self.daq.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    digital_values,
+                                    None,
+                                    None)
+
+        def close(self):
+            self.daq.ClearTask()
            
 class TestConfig(object):
     def __init__(self):

@@ -227,6 +227,8 @@ class CaImagingData(hdf5io.Hdf5io):
         #Crop timg
         if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
             self.timg=self.timg[:self.raw_data.shape[0]]
+            dt=numpy.diff(self.timg)[0]
+            self.timg+=dt#Not yet understood why this is necessary
         elif self.configs['machine_config']['PLATFORM']=='ao_cortical':
             self.timg=self.timg[int(self.findvar('sync_pulses_to_skip')):]
             #Ignore last frames

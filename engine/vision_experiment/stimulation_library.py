@@ -646,7 +646,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 profile parameter can be a list of these keywords. Then different profiles are applied to each 
                 color channel
             - white_bar_width: length of one bar in um
-            - display area: by default the whole screen but it can be confined to a smaller surface
+            - display area: by default the whole screen but it can be confined to a smaller surface. 
+                    In fullscreen mode, the first bar in the grating pattern may not be at the edge of the screen
             - pos: position of display area            
             - orientation: orientation of grating in degrees
             - starting_phase: starting phase of stimulus in degrees
@@ -800,6 +801,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         phase = 0
         self.t0=time.time()
         phases=pixel_velocities.cumsum()
+        phases-=phases[0]
         for i in range(n_frames):
             if self.machine_config.ENABLE_TIME_INDEXING:
                 index=self._get_frame_index()
