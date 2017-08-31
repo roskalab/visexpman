@@ -25,14 +25,10 @@ class MEAConfig(HiMEAConfig):
         SCREEN_UM_TO_PIXEL_SCALE = self.RETINA_ROOM_SCALE
         
         # Folders & paths:
-        #self.root_folder = fileop.select_folder_exists(['/home/localadmin/tmp'])
-        #folder = '/home/localadmin/recordings/'+time.strftime('%y%m%d'.format(os.sep))+'/data/'
         import getpass
         username = getpass.getuser()
         
-        #recordingMachineName = 'bs-hpws18' # hungary setup
         recordingMachineName = 'bs-hpws19' # retina room
-        #folder = '/mnt/' + recordingMachineName + '/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
         folder = '/nfs4/' + recordingMachineName + '/data/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
         
         if not os.path.isdir(folder):
@@ -76,7 +72,7 @@ class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):
         MEAConfig._set_user_parameters(self)
         self.FULLSCREEN = False
-        folder = '/home/rolandd/tmp'#rolandd-fileshare/tmp'       
+        folder = '/home/zmatej/tmp'       
         self.ENABLE_MEA_START_COMMAND = not True # set True when stim software needs to start the recording
                 
         if not os.path.isdir(folder):
@@ -96,7 +92,7 @@ class MEAConfigLightChar(MEAConfig):
     def _set_user_parameters(self):
         MEAConfig._set_user_parameters(self)
         self.FULLSCREEN = True
-        folder = '/home/rolandd/tmp'       
+        folder = '/home/zmatej/tmp'       
         self.ENABLE_MEA_START_COMMAND = False
         
         if not os.path.isdir(folder):
