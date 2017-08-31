@@ -412,7 +412,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.iscamera.close()
             del self.iscamera
         try:
-            self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+            self.stat, self.lick_times, self.protocol_state_change_times, self.stimulus_t =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
             self.update_plot()
             self.save2file()
             behavioral_data.check_hitmiss_files(self.filename)
@@ -495,10 +495,22 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         nodes=['stat','frame_times', 'sync', 'animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'parameters', 'software']
         self.datafile.save(nodes)
         self.datafile.close()
+        self.export2xls()
         del self.datafile
         logging.info('Data saved to {0}'.format(self.filename))
         self.filecounter+=1
         #self.show_day_success_rate(self.filename)
+        
+    def export2xls(self):
+        import xlwt
+        fn=self.filename.replace('.hdf5', '.xls')
+        lick_times=self.lick_times-self.stimulus_t[0]
+        book = xlwt.Workbook()
+        sh = book.add_sheet('lick_times')
+        for i in range(lick_times.shape[0]):
+            sh.write(i, 0, lick_times[i])
+        book.save(fn)
+        logging.info('Data exported to {0}'.format(fn))
         
     def open_file(self, filename):
         if self.session_ongoing:
@@ -508,7 +520,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile_opened=time.time()
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.sync=self.datafile.findvar('sync')
-        self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+        self.stat, self.lick_times, self.protocol_state_change_times, self.stimulus_t =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
         self.stat2gui()
         self.datafile.close()
         self.to_gui.put({'set_events_title': os.path.basename(filename)})
