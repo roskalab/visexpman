@@ -5,10 +5,11 @@ Created on Thu Aug 31 2017
 """
 
 from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.generic import utils
 
 # -----------------------------------------------------------------------------
 #30 min
-class WhiteNoise-Long(experiment.ExperimentConfig):
+class WhiteNoiseLong(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
         self.DURATION_MINS = 30.0 
@@ -16,11 +17,11 @@ class WhiteNoise-Long(experiment.ExperimentConfig):
         #self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False
         self.COLORS = [[0.0, 0.0, 0.0],[0.0, 1.0, 1.0]]
-]       self._create_parameters_from_locals(locals())
+        self._create_parameters_from_locals(locals())
 
 # -----------------------------------------------------------------------------
 #5 min
-class WhiteNoise-Short(experiment.ExperimentConfig):
+class WhiteNoiseShort(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
         self.DURATION_MINS = 5.0
@@ -32,7 +33,7 @@ class WhiteNoise-Short(experiment.ExperimentConfig):
 
 # ------------------------------------------------------------------------------
 #20 min
-class MovingGrating-Long(experiment.ExperimentConfig):
+class MovingGratingLong(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
         self.REPEATS = 10
@@ -51,7 +52,7 @@ class MovingGrating-Long(experiment.ExperimentConfig):
 
 # ------------------------------------------------------------------------------
 #1 min
-class MovingGrating-Short(experiment.ExperimentConfig):
+class MovingGratingShort(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
         self.REPEATS = 10
@@ -99,7 +100,7 @@ class FullFieldFlashes(experiment.ExperimentConfig):
 # -----------------------------------------------------------------------------
 class MovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.runnable = 'MovingBar'
+        self.runnable = 'MovingStimulus'
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
         self.SPEEDS = [1600] #um/s#
         #self.SPEEDS = [120, 200,400,1600] #um/s
