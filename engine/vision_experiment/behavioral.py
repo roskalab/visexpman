@@ -254,11 +254,15 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def convert_folder(self,folder):
         files=fileop.find_files_and_folders(folder)[1]
-        hdf5files=[f for f in files if os.path.splitext(f)[1]=='.hdf5']
-        logging.info('Converting hdf5 files to mat')
+        hdf5files=[f for f in files if os.path.splitext(f)[1]=='.hdf5' and 'animal' not in os.path.basename(f)]
+        logging.info('Converting hdf5 files to mat in {0}'.format(folder))
         for f in hdf5files:
-            experiment_data.hdf52mat(f)
-            logging.info(f)
+            try:
+                experiment_data.hdf52mat(f)
+                self.export2xls(f)
+                logging.info(f)
+            except:
+                logging.info(traceback.format_exc())
     
     def update_plot(self):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
@@ -495,16 +499,20 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         nodes=['stat','frame_times', 'sync', 'animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'parameters', 'software']
         self.datafile.save(nodes)
         self.datafile.close()
-        self.export2xls()
         del self.datafile
         logging.info('Data saved to {0}'.format(self.filename))
         self.filecounter+=1
         #self.show_day_success_rate(self.filename)
         
-    def export2xls(self):
+    def export2xls(self, filename):
+        h=hdf5io.Hdf5io(filename)
+        sync=h.findvar('sync')
+        voltage=h.findvar('parameters')['Laser Intensity']
+        stat, lick_times, protocol_state_change_times, stimulus_t =lick_detector.detect_events(sync, self.machine_config.AI_SAMPLE_RATE)
+        h.close()
         import xlwt
-        fn=self.filename.replace('.hdf5', '.xls')
-        lick_times=self.lick_times-self.stimulus_t[0]
+        fn=filename.replace('.hdf5', '_{0:0.1f}V.xls'.format(voltage))
+        lick_times=lick_times-stimulus_t[0]
         book = xlwt.Workbook()
         sh = book.add_sheet('lick_times')
         for i in range(lick_times.shape[0]):
@@ -1007,7 +1015,7 @@ class CWidget(QtGui.QWidget):
         
 class FileBrowserW(gui.FileTree):
     def __init__(self,parent):
-        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['*.mat','*.hdf5', '*.avi'])
+        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['*.mat','*.hdf5', '*.avi', '*.xls'])
         self.doubleClicked.connect(self.open_file)
         self.clicked.connect(self.file_selected)
         
