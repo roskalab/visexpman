@@ -34,12 +34,12 @@ class RainbowExperiment(experiment.Experiment):
         self.polychrome.set_resting_wavelength(680)
         self.polychrome.set_intensity(self.experiment_config.INTENSITY)
         for wavelength in self.wavelengths:
-            self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
+            self.parallel_port.set_data_bit(self.machine_config.FRAME_TIMING_PIN, 1)
             self.polychrome.set_wavelength(wavelength)
             if self.experiment_config.SHOW_COLORS_ON_PROJECTOR:
                     self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_timing_pulse = False)
             time.sleep(self.time_per_step)
-            self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 0)
+            self.parallel_port.set_data_bit(self.machine_config.FRAME_TIMING_PIN, 0)
             if self.check_abort_pressed() or self.abort:
                 break
         self.polychrome.set_intensity(0.0)

@@ -67,7 +67,7 @@ class PolychromeExperiment(experiment.Experiment):
                     else:
                         self.polychrome.set_intensity(intensity)
                 
-                self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.machine_config.FRAME_TIMING_PIN, 1)
                 self.printl('Setting wavelenght: {0}'.format(wavelength))
                 if self.experiment_config.SHOW_COLORS_ON_PROJECTOR:
                     self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_timing_pulse = False)
@@ -82,7 +82,7 @@ class PolychromeExperiment(experiment.Experiment):
                     self.polychrome.set_intensity(0.0)#Takes 114 ms
                 else:
                     self.polychrome.set_intensity(0.0)
-                self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.machine_config.FRAME_TIMING_PIN, 0)
                 self.show_fullscreen(duration = 0,  color = 0, block_trigger = False, frame_timing_pulse = False)
                 time.sleep(self.experiment_config.OFF_TIME)
         self.finish()

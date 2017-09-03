@@ -139,8 +139,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Generates frame trigger pulses
         '''
-        if self.config.FRAME_TRIGGER_PIN!=-1:
-            self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
+        if self.config.FRAME_TIMING_PIN!=-1:
+            self.trigger_pulse(self.config.FRAME_TIMING_PIN, self.config.FRAME_TIMING_PULSE_WIDTH)
             
     def block_start(self, block_name = 'stimulus function'):
         if hasattr(self.digital_output,'set_data_bit'):

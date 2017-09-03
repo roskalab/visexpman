@@ -33,11 +33,11 @@ class ColorFlickerExperiment(experiment.Experiment):
             self.polychrome.set_intensity(self.experiment_config.INTENSITY)
             for i in range(self.experiment_config.NUMBER_OF_PERIODS):
                 self.polychrome.set_wavelength(self.experiment_config.COLOR)
-#                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
+#                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TIMING_PIN, 1)
                 if self.experiment_config.SHOW_COLORS_ON_PROJECTOR:
                         self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(self.experiment_config.COLOR), block_trigger = False, frame_timing_pulse = False)
                 time.sleep(1.0/(frequency * 2))
-#                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 0)
+#                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TIMING_PIN, 0)
                 self.polychrome.set_wavelength(self.experiment_config.BLACK)
                 if self.experiment_config.SHOW_COLORS_ON_PROJECTOR:
                         self.show_fullscreen(duration = 0,  color = 0.0, block_trigger = False, frame_timing_pulse = False)

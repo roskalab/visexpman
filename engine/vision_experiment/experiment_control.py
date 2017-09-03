@@ -172,7 +172,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):#OBSOLETE
         waveforms = numpy.array([parameters['xsignal'], 
                                 parameters['ysignal'],
                                 parameters['stimulus_flash_trigger_signal']*parameters['enable_scanner_synchronization']*self.config.STIMULATION_TRIGGER_AMPLITUDE,
-                                parameters['frame_trigger_signal']*self.config.FRAME_TRIGGER_AMPLITUDE])
+                                parameters['frame_trigger_signal']*self.config.FRAME_TIMING_AMPLITUDE])
         if xy_scanner_only:
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms
@@ -480,7 +480,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Trigger.__init__(self, machine_config, queues, self.digital_output)
         if self.digital_output!=None:#Digital output is available
             self.clear_trigger(self.config.BLOCK_TRIGGER_PIN)
-            self.clear_trigger(self.config.FRAME_TRIGGER_PIN)
+            self.clear_trigger(self.config.FRAME_TIMING_PIN)
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         self.user_data = {}

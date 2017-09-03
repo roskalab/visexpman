@@ -57,7 +57,7 @@ class AEPHVS(ElphysRetinalCaImagingConfig):
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
         BLOCK_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -145,7 +145,7 @@ class MEASetup(AEPHVS):
         EXPERIMENT_LOG_PATH = LOG_PATH
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         self.DAQ_CONFIG[0]['ENABLE'] = False
         self.DAQ_CONFIG[1]['ENABLE'] = False
         COLOR_MASK = numpy.array([0.0,  1.0,  1.0])
@@ -180,7 +180,7 @@ class ChiBlocktrigger(AEPHVS):
         AEPHVS._set_user_parameters(self, check_path=False)
         ACQUISITION_TRIGGER_PIN = 2
         BLOCK_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 1
+        FRAME_TIMING_PIN = 1
         self._create_parameters_from_locals(locals())
 
         

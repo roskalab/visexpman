@@ -40,7 +40,7 @@ class InsermSetupConfig(ElphysRetinalCaImagingConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
         ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 1
+        FRAME_TIMING_PIN = 1
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
