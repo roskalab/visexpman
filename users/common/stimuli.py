@@ -351,3 +351,13 @@ class LaserPulse(experiment.Stimulus):
         self.block_start('laser')
         daq_instrument.set_waveform('Dev1/ao0:1',self.combined_waveform,sample_rate = self.SAMPLE_RATE)
         self.block_end('laser')
+
+class ShortTestStimulus(experiment.Stimulus):
+    def default_configuration(self):
+        self.DURATION=1.0
+        
+    def calculate_stimulus_duration(self):
+        self.duration = self.DURATION
+
+    def run(self):
+        self.show_fullscreen(duration=self.DURATION, color=0.5)
