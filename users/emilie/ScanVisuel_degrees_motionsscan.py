@@ -17,7 +17,7 @@ import os  # handy system and path functions
 import serial
 from visexpman.engine.vision_experiment import experiment
 class PP_ScanVisuel_degrees_motionsscan(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         pass
         
     def calculate_stimulus_duration(self):

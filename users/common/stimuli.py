@@ -10,7 +10,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
 class MovingBarTemplate(experiment.Stimulus):
-    def default_stimulus_configuration(self):
+    def default_configuration(self):
         self.BAR_WIDTH=5.0
         self.BAR_HEIGHT=5.0
         self.SPEED=100
@@ -304,7 +304,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
 
 class LaserPulse(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.INITIAL_DELAY=10.0
         self.PULSE_DURATION=[20e-3]
         self.PERIOD_TIME=[10.0]
