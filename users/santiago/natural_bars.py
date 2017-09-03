@@ -23,7 +23,7 @@ class NaturalBarsExperiment(experiment.Experiment):
         
     def run(self):
         self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
-        self.show_fullscreen(duration = self.experiment_config.PAUSE_BEFORE_AFTER, color = 0,frame_trigger = False)
+        self.show_fullscreen(duration = self.experiment_config.PAUSE_BEFORE_AFTER, color = 0,frame_timing_pulse = False)
         for rep in range(self.experiment_config.REPEATS):
             if self.abort:
                 break
@@ -33,4 +33,4 @@ class NaturalBarsExperiment(experiment.Experiment):
                 self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
                 self.show_natural_bars(speed = self.experiment_config.SPEED, duration=self.experiment_config.DURATION, minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = directions)
                 self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
-        self.show_fullscreen(duration = self.experiment_config.PAUSE_BEFORE_AFTER, color = 0,frame_trigger = False)
+        self.show_fullscreen(duration = self.experiment_config.PAUSE_BEFORE_AFTER, color = 0,frame_timing_pulse = False)

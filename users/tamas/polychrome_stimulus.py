@@ -37,7 +37,7 @@ class PolychromeExperiment(experiment.Experiment):
         pass
 
     def run(self):
-        self.show_fullscreen(duration = self.experiment_config.INIT_DELAY,  color = 0.0, block_trigger = False, frame_trigger = False)
+        self.show_fullscreen(duration = self.experiment_config.INIT_DELAY,  color = 0.0, block_trigger = False, frame_timing_pulse = False)
         self.polychrome = polychrome_interface.Polychrome(self.machine_config)
         self.polychrome.set_resting_wavelength(self.experiment_config.RESTING_WAVELENGTH)
         if self.machine_config.ENABLE_SHUTTER:
@@ -70,7 +70,7 @@ class PolychromeExperiment(experiment.Experiment):
                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
                 self.printl('Setting wavelenght: {0}'.format(wavelength))
                 if self.experiment_config.SHOW_COLORS_ON_PROJECTOR:
-                    self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_trigger = False)
+                    self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_timing_pulse = False)
                 time.sleep(self.experiment_config.ON_TIME)
                 if self.check_abort_pressed() or self.abort:
                     break
@@ -83,7 +83,7 @@ class PolychromeExperiment(experiment.Experiment):
                 else:
                     self.polychrome.set_intensity(0.0)
                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 0)
-                self.show_fullscreen(duration = 0,  color = 0, block_trigger = False, frame_trigger = False)
+                self.show_fullscreen(duration = 0,  color = 0, block_trigger = False, frame_timing_pulse = False)
                 time.sleep(self.experiment_config.OFF_TIME)
         self.finish()
         

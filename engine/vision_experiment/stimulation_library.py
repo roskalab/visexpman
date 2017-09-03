@@ -67,7 +67,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #Command buffer for keyboard commands during experiment
         self.keyboard_commands = multiprocessing.Queue()
         
-    def _flip(self, frame_trigger, count = True):
+    def _flip(self, frame_timing_pulse, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """
@@ -78,8 +78,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if current_texture_state:
             glEnable(GL_TEXTURE_2D)
         self.screen.flip()
-        if frame_trigger and not self.config.STIMULUS2MEMORY:
-            self._frame_trigger_pulse()
+        if frame_timing_pulse and not self.config.STIMULUS2MEMORY:
+            self._frame_timing_pulse()
         if count:
             self.frame_counter += 1
         if not self.config.STIMULUS2MEMORY:
@@ -135,7 +135,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             time.sleep(width)
             self.digital_output.set_data_bit(pin, int(not polarity), log = False)
 
-    def _frame_trigger_pulse(self):
+    def _frame_timing_pulse(self):
         '''
         Generates frame trigger pulses
         '''
@@ -236,7 +236,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     #== Various visual patterns ==
     
     def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, 
-                is_block = False, save_frame_info = True, frame_trigger = True):
+                is_block = False, save_frame_info = True, frame_timing_pulse = True):
         '''
         Show a fullscreen simulus where color is the color of the screen. 
             duration: duration of stimulus, 0.0: one frame time, -1.0: forever, 
@@ -252,14 +252,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.screen.clear_screen(color = color_to_set)
         if duration == 0.0:
             if flip:
-                self._flip(frame_trigger = frame_trigger, count = count)
+                self._flip(frame_timing_pulse = frame_timing_pulse, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
                 if i == 1:
                     self.screen.clear_screen(color = color_to_set)
                 if flip:
-                    self._flip(frame_trigger = True, count = count)
+                    self._flip(frame_timing_pulse = True, count = count)
                 i += 1
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
@@ -268,7 +268,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     self.screen.clear_screen(color = color_to_set)
                 if flip:
                     self._add_block_start(is_block, i, nframes)
-                    self._flip(frame_trigger = frame_trigger, count = count)
+                    self._flip(frame_timing_pulse = frame_timing_pulse, count = count)
                     self._add_block_end(is_block, i, nframes)
                 if self.abort:
                     break
@@ -321,7 +321,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 fn=fns[index]
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
             self.screen.clear_screen()
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if is_block:
                 self.block_end()
         elif os.path.isfile(path) and os.path.splitext(path)=='.hdf5': # a hdf5 file with stimulus_frames variable having nframes * x * y dimensions
@@ -346,7 +346,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     if self.abort:
                         break
                 self.screen.clear_screen()
-                self._flip(frame_trigger=True)
+                self._flip(frame_timing_pulse=True)
                 if is_block:
                     self.block_end()
         else:
@@ -367,7 +367,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._add_block_start(is_block, i, nframes)
-                self._flip(frame_trigger = True)
+                self._flip(frame_timing_pulse = True)
                 self._add_block_end(is_block, i, nframes)
             if self.abort:
                 break
@@ -574,7 +574,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glDrawArrays(GL_POLYGON,  0, n)
             if flip:
                 self._add_block_start(is_block, frame_i, n_frames)
-                self._flip(frame_trigger = True)
+                self._flip(frame_timing_pulse = True)
                 self._add_block_end(is_block, frame_i, n_frames)
             if self.abort:
                 break
@@ -824,7 +824,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glDrawArrays(GL_POLYGON,  0, 4)
             if not part_of_drawing_sequence:
                 self._add_block_start(is_block, i, n_frames)
-                self._flip(frame_trigger = True)
+                self._flip(frame_timing_pulse = True)
                 self._add_block_end(is_block, i, n_frames)
             if self.abort:
                 break
@@ -1062,7 +1062,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         self._add_block_end(is_block, 0, 1)
@@ -1114,7 +1114,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
             self.draw()
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         self._deinit_texture()
@@ -1294,9 +1294,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glDisable( GL_STENCIL_TEST )
             if i==1:
                 for w in range(intial_wait_frames-1):
-                    self._flip(frame_trigger = True)
+                    self._flip(frame_timing_pulse = True)
             else:
-                self._flip(frame_trigger = True)
+                self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -1379,7 +1379,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glColor3fv((1.0,1.0,1.0))
                 glDrawArrays(GL_POLYGON, 0, 4)
                 glDisable(GL_STENCIL_TEST)
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         print time.time()-t0
@@ -1464,7 +1464,7 @@ class StimulationHelpers(Stimulations):
             for frame_i in range(len(self.merged_bitmaps)):
                 t0=time.time()
                 self.microledarray.reset()
-                self._frame_trigger_pulse()
+                self._frame_timing_pulse()
                 if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False) or self.check_abort_pressed():
                     self.abort=True
                     break
@@ -1528,7 +1528,7 @@ class AdvancedStimulation(StimulationHelpers):
                     glDrawArrays(GL_POLYGON,  0, 4)
                 else:
                     glDrawArrays(GL_POLYGON,  4+(shi-1)*nvertice, nvertice)
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         
@@ -1587,7 +1587,7 @@ class AdvancedStimulation(StimulationHelpers):
             glColor3fv(colors.convert_color(1.0, self.config))
             glDrawArrays(GL_POLYGON, frame_i*8, 4)
             glDrawArrays(GL_POLYGON, frame_i*8+4, 4)
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -1927,7 +1927,7 @@ class AdvancedStimulation(StimulationHelpers):
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories})
-        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_timing_pulse = False)
         for block in range(len(trajectories)):
             self.show_shape(shape = shape,  pos = trajectories[block], 
                             color = color,  background_color = background_color, 
@@ -1935,10 +1935,10 @@ class AdvancedStimulation(StimulationHelpers):
                             is_block = block_trigger, save_frame_info = True,  #save_frame_info = True might confuse block/repeat detection
                             enable_centering = False)
             if pause > 0:
-                self.show_fullscreen(duration = pause, color = background_color, save_frame_info = True, frame_trigger = True)
+                self.show_fullscreen(duration = pause, color = background_color, save_frame_info = True, frame_timing_pulse = True)
             if self.abort:
                 break
-        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = True, frame_trigger = True)
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = True, frame_timing_pulse = True)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         return duration
@@ -1955,12 +1955,12 @@ class AdvancedStimulation(StimulationHelpers):
         start_point = utils.rc_add(utils.cr((0.5 * 2 * movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * 2 * movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
         pos = utils.calculate_trajectory(start_point, end_point, speed/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         if pause > 0:
-            self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
+            self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_timing_pulse = False)
         self.show_shape(shape = 'rect',  pos = pos,  
                             color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  is_block = block_trigger, 
                             save_frame_info = False, enable_centering = False)
         if pause > 0:
-            self.show_fullscreen(duration = pause, color = color, save_frame_info = False, frame_trigger = False)
+            self.show_fullscreen(duration = pause, color = color, save_frame_info = False, frame_timing_pulse = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def point_laser_beam(self, positions, jump_time, hold_time):

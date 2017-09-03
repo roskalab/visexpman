@@ -284,7 +284,7 @@ class TestStimulusBlocks(experiment.Experiment):
         for flipi, is_blocki, counti, frame_triggeri, color in itertools.product(*[flip, is_block, count, frame_trigger, self.experiment_config.COLORS]):
             if is_blocki and flipi:
                 ct+=1
-            self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flipi, count = counti, is_block = is_blocki, frame_trigger = frame_triggeri)
+            self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flipi, count = counti, is_block = is_blocki, frame_timing_pulse = frame_triggeri)
         params = [self.experiment_config.IMAGE_FOLDERS, self.experiment_config.IMAGE_STRETCHES, is_block]
         for path, stretch, is_block_i in itertools.product(*params):
             if is_block_i:
@@ -381,7 +381,7 @@ class TestGratingExp(experiment.Experiment):
 #            glBindTexture(GL_TEXTURE_2D, self.grating_texture)
 
 
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         #self._deinit_texture()
