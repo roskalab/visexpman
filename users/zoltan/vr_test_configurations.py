@@ -38,7 +38,7 @@ class VirtualRealityTestConfig(VisionExperimentConfig):
         elif dataset == 1:
             COORDINATE_SYSTEM='ulcorner'
         ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
+        FRAME_TIMING_PIN = 2
         ARCHIVE_FORMAT = 'zip'
         self._create_parameters_from_locals(locals())
 

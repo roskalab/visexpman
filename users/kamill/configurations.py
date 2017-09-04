@@ -37,7 +37,7 @@ class StimDev(VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False#(self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'

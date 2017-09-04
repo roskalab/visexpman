@@ -220,7 +220,7 @@ class TamasSetupConfig(ElphysRetinalCaImagingConfig):
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
         ACQUISITION_TRIGGER_PIN = 2
         BLOCK_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 1
+        FRAME_TIMING_PIN = 1
         ENABLE_UDP = True
         
         ENABLE_FILTERWHEEL=True

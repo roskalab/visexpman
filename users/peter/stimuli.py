@@ -31,7 +31,7 @@ class MoreSizeSpotsExperiment(experiment.Experiment): # this is an expt class, h
     
         self.show_fullscreen(color = 0.0, 
                             duration=self.experiment_config.LOWTIME,
-                            frame_trigger = False)
+                            frame_timing_pulse = False)
                             
         for i in range(3):
         
@@ -47,7 +47,7 @@ class MoreSizeSpotsExperiment(experiment.Experiment): # this is an expt class, h
                             
                 self.show_fullscreen(color = 0.0, 
                             duration=self.experiment_config.LOWTIME,
-                            frame_trigger = False)
+                            frame_timing_pulse = False)
          
         self.trigger_pulse(self.machine_config.USER_PIN)  
         
@@ -69,7 +69,7 @@ class ContrastExperiment(experiment.Experiment): # this is an expt class, higher
     
         self.show_fullscreen(color = 0.0, 
                             duration=8,
-                            frame_trigger = False)
+                            frame_timing_pulse = False)
                            
         for i in range(3):
             
@@ -120,7 +120,7 @@ class FullFieldExperiment(experiment.Experiment): # this is an expt class, highe
     
         self.show_fullscreen(color = 0.0, 
                             duration=8,
-                            frame_trigger = False)
+                            frame_timing_pulse = False)
                            
         for i in range(3):
             self.show_shape(shape = 'spot',  
@@ -132,7 +132,7 @@ class FullFieldExperiment(experiment.Experiment): # this is an expt class, highe
                             block_trigger = True)  
             
             self.show_fullscreen(color = 0.0, duration=self.experiment_config.LOWTIME,
-                            frame_trigger = False)
+                            frame_timing_pulse = False)
                             
         self.trigger_pulse(self.machine_config.USER_PIN)
                   
@@ -171,7 +171,7 @@ class MovingShapeExperiment(experiment.Experiment): # this is an expt class, hig
         
         self.show_fullscreen(color = 0.0, 
                             duration=8,
-                            frame_trigger = False)
+                            frame_timing_pulse = False)
     
         for i in range (3):
             self.moving_shape(self.experiment_config.SHAPE_SIZE, self.experiment_config.SPEED, self.experiment_config.DIRECTIONS, 
@@ -219,7 +219,7 @@ class SpotFullExperiment(experiment.Experiment):
         
         self.show_fullscreen(color = 0.0, 
                             duration=8.0,
-                            frame_trigger = False)
+                            frame_timing_pulse = False)
                            
         for i in range(self.experiment_config.REPEATS):
             for radius in self.experiment_config.RADIUS:
@@ -232,7 +232,7 @@ class SpotFullExperiment(experiment.Experiment):
                             block_trigger = True)  
                 self.trigger_pulse(self.machine_config.USER_PIN)
                 self.show_fullscreen(color = 0.0, duration=self.experiment_config.LOWTIME,
-                                frame_trigger = False)
+                                frame_timing_pulse = False)
 
         self.trigger_pulse(self.machine_config.USER_PIN) 
         

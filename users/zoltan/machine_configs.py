@@ -138,8 +138,8 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         
         GUI_SIZE =  utils.cr((1280,1024))
         

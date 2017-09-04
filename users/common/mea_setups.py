@@ -25,7 +25,7 @@ class CRTMEASetup(MCMEAConfig):
         ACQUISITION_TRIGGER_PIN=0
         ACQUISITION_TRIGGER_POLARITY = False
         BLOCK_TRIGGER_PIN=1
-        FRAME_TRIGGER_PIN=-1
+        FRAME_TIMING_PIN=-1
         self.GUI['SIZE'] =  utils.cr((1024,768))
         main_ui_ip = '192.168.161.153'
         stim_ip = '192.168.161.148'
@@ -57,7 +57,7 @@ class MEAConfig(HiMEAConfig):
         ENABLE_FRAME_CAPTURE = not True
         COORDINATE_SYSTEM='center'
         DIGITAL_IO_PORT = 'COM5'
-        FRAME_TRIGGER_PIN = 1
+        FRAME_TIMING_PIN = 1
         BLOCK_TRIGGER_PIN = 0
         self.ENABLE_MEA_START_COMMAND=False
         self.INTENSITIES_425NM = numpy.array([0.96, 21, 37.3, 84.5, 127, 263.4, 419, 597, 815, 1080, 1282])

@@ -3,7 +3,7 @@ from visexpman.engine.vision_experiment import experiment
 import time
 
 class FlashWithShutter(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.FLASH_DURATIONS = [100e-3]
         self.REPEATS = 100
         self.PAUSE_BETWEEN_FLASHES = 0.3

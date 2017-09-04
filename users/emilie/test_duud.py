@@ -18,7 +18,7 @@ import serial
 import time
 from visexpman.engine.vision_experiment import experiment
 class PP_duud(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         pass
         
     def calculate_stimulus_duration(self):

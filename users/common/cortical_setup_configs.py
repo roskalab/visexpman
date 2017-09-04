@@ -16,7 +16,7 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         ENABLE_FRAME_CAPTURE = False
         DIGITAL_IO_PORT='COM3'
         BLOCK_TRIGGER_PIN=0
-        FRAME_TRIGGER_PIN=1
+        FRAME_TIMING_PIN=1
         stim_computer_ip = '192.168.2.4'
         behavioral_computer_ip = '192.168.2.3'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
@@ -122,7 +122,7 @@ class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):#OBSOLETE
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
         ACQUISITION_TRIGGER_PIN = 0
         BLOCK_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 1
+        FRAME_TIMING_PIN = 1
         
         
         ENABLE_UDP = True

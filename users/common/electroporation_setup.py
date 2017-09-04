@@ -39,7 +39,7 @@ class ElectroporationSetup228Config(ElectroporationConfig):
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
         ACQUISITION_TRIGGER_PIN = 0
         BLOCK_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 2
+        FRAME_TIMING_PIN = 2
         EXPERIMENT_START_TRIGGER = 11
         self._create_parameters_from_locals(locals())
 

@@ -83,7 +83,7 @@ class BehavioralSetup(IntrinsicSetup):
         self.SCREEN_UM_TO_PIXEL_SCALE = self.SCREEN_RESOLUTION['col']/self.SCREEN_SIZE['col']
 #        self.SERIAL_DIO_PORT = '/dev/ttyUSB0'
         self.ACQUISITION_TRIGGER_PIN=1
-        self.FRAME_TRIGGER_PIN=0
+        self.FRAME_TIMING_PIN=0
 
 class GenVideoConf(BehavioralSetup):
     def _set_user_parameters(self):
