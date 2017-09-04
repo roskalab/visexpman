@@ -264,7 +264,6 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         elif self.parameters['Conversion Format']=='xls':
             logging.info('Aggregating hdf5 files to xls in {0}'.format(folder))
         self.xls_aggregate={}
-        hdf5files=hdf5files[::5]
         for f in hdf5files:
             try:
                 if self.parameters['Conversion Format']=='mat':
@@ -278,14 +277,19 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             fn=os.path.join(folder, os.path.basename(folder)+'.xls')
             import xlwt
             book = xlwt.Workbook()
-            for sheet, data in self.xls_aggregate.items():
+            sheets=self.xls_aggregate.keys()
+            sheets.sort()
+            for sheet in sheets:
+                data=self.xls_aggregate[sheet]
                 sh = book.add_sheet(sheet)
+                rowct=0
                 for row in range(len(data)):
                     if data[row].shape[0]==0:
                         continue
                     for col in range(data[row].shape[0]):
-                        sh.write(row, col, data[row][col])
-                book.save(fn)
+                        sh.write(rowct, col, data[row][col])
+                    rowct+=1
+            book.save(fn)
             logging.info('Data exported to {0}'.format(fn))
     
     def update_plot(self):
@@ -531,7 +535,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def aggregate2xls(self,filename):
         h=hdf5io.Hdf5io(filename)
         sync=h.findvar('sync')
-        voltage=h.findvar('parameters')['Laser Intensity']
+        voltage=round(h.findvar('protocol')['LASER_INTENSITY'],1)
         stat, lick_times, protocol_state_change_times, stimulus_t =lick_detector.detect_events(sync, self.machine_config.AI_SAMPLE_RATE)
         h.close()
         day=filename.split(os.sep)[-2]
@@ -544,7 +548,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def export2xls(self, filename):
         h=hdf5io.Hdf5io(filename)
         sync=h.findvar('sync')
-        voltage=h.findvar('parameters')['Laser Intensity']
+        voltage=round(h.findvar('protocol')['LASER_INTENSITY'],1)
         stat, lick_times, protocol_state_change_times, stimulus_t =lick_detector.detect_events(sync, self.machine_config.AI_SAMPLE_RATE)
         h.close()
         import xlwt
@@ -566,10 +570,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.sync=self.datafile.findvar('sync')
         self.stat, self.lick_times, self.protocol_state_change_times, self.stimulus_t =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+        volt=round(self.datafile.findvar('protocol')['LASER_INTENSITY'],1)
         self.stat2gui()
         self.datafile.close()
         self.to_gui.put({'set_events_title': os.path.basename(filename)})
-        logging.info('Opened {0}'.format(filename))
+        logging.info('Opened {0}@{1}V'.format(filename,volt))
         self.update_plot()
             
     def show_animal_statistics(self):

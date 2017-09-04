@@ -493,7 +493,7 @@ class HitmissAnalysis(object):
         self.folder=folder
         self.filter=filter
         self.histogram_bin_time=histogram_bin_time*1e3
-        items_in_folder=fileop.listdir_fullpath(folder)
+        items_in_folder=[f for f in fileop.listdir_fullpath(folder) if os.path.splitext(f)[1]=='.hdf5' or os.path.isdir(f)]
         nsubfolders=len([f for f in items_in_folder if os.path.isdir(f)])
         nitems=len(items_in_folder)
         nfiles=nitems-nsubfolders
