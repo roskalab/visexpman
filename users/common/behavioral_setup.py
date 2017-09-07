@@ -64,7 +64,7 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         CONTEXT_PATH = os.path.join(self.root_folder,'context')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         ENABLE_FRAME_CAPTURE = False
-        DIGITAL_IO_PORT='COM3'
+        DIGITAL_IO_PORT='daq'
         BLOCK_TRIGGER_PIN=0
         FRAME_TIMING_PIN=1
         self.SCREEN_RESOLUTION = utils.cr([1920, 1080])
@@ -78,6 +78,7 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         self.TSTIM_SYNC_INDEX=0
         self.DIGITAL_OUTPUT='daq'
         self.TIMING_CHANNELS='dev1/port0/line1'
+        self.STIM_TRIGGER_CHANNEL='dev1/port0/line2'
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TIMING_PIN = 0
         self.SYNC_RECORD_OVERHEAD=10

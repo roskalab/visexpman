@@ -351,8 +351,7 @@ def ai_channels2daq_channel_string(channels, daq_device):
         if abs(numpy.diff(channels).max()) != 1:
             raise DaqInstrumentError('Only channels in consecutive order are supported: {0}'.format(channels))
         return '{0}/ai{1}:{2}'.format(daq_device,min(channels),max(channels))
-        
-    
+           
 def set_digital_line(channel, value):
     digital_output = PyDAQmx.Task()
     digital_output.CreateDOChan(channel,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
