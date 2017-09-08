@@ -77,8 +77,8 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         self.TIMG_SYNC_INDEX=1
         self.TSTIM_SYNC_INDEX=0
         self.DIGITAL_OUTPUT='daq'
-        self.TIMING_CHANNELS='dev1/port0/line1'
-        self.STIM_TRIGGER_CHANNEL='dev1/port0/line2'
+        self.TIMING_CHANNELS='Dev1/port1/line1'
+        self.STIM_TRIGGER_CHANNEL='Dev1/port0/line0'
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TIMING_PIN = 0
         self.SYNC_RECORD_OVERHEAD=10
