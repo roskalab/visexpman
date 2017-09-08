@@ -269,6 +269,9 @@ class CaImagingData(hdf5io.Hdf5io):
         self.image and self.image_scale
         '''
         map(self.load, ['parameters', 'configs', 'raw_data'])
+        if not hasattr(self, 'configs'):#For older files
+            self.load('machine_config')
+            self.configs=self.machine_config
         if self.parameters['resolution_unit']=='pixel/um':
             self.scale = 1.0/self.parameters['pixel_size']
         else:
