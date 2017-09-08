@@ -3,7 +3,7 @@ from visexpman.engine.vision_experiment import experiment
 import visexpman.users.common.stimuli as st
 
 class Flash(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.BASELINE_TIME=5.0
         self.ON_TIME=0.5
         self.OFF_TIME=0.5
@@ -20,7 +20,7 @@ class Flash(experiment.Stimulus):
             self.show_fullscreen(color=self.OFF_COLOR,duration=self.OFF_TIME)
             
 class MovingBar(st.MovingBarTemplate):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.BAR_WIDTH=5000.0
         self.BAR_HEIGHT=300.0
         self.SPEED=1000

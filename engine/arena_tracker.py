@@ -72,7 +72,7 @@ class ArenaTracker(gui.SimpleAppWindow):
                     level=logging.INFO)
         w=640
         h=480
-        self.camera = cv2.VideoCapture(1)#Initialize video capturing
+        self.camera = cv2.VideoCapture(2)#Initialize video capturing
         self.camera.set(3, w)#Set camera resolution
         self.camera.set(4, h)
         logging.info('Camera initialized')

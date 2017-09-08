@@ -1,7 +1,7 @@
 from visexpman.engine.vision_experiment import experiment
 
 class NaturalBarsConfig(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.SPEED = 800
         self.REPEATS = 10 #5
         self.DIRECTIONS = [0,45,90,135,180,225,270,315] #range(0,360,90)
@@ -55,8 +55,8 @@ class NaturalBarsConfig(experiment.Stimulus):
                 self.show_fullscreen(duration = self.WAIT_TIME, color =  self.BACKGROUND_COLOR, flip=True)
                     
 class NaturalBarsDebug(NaturalBarsConfig):
-    def stimulus_configuration(self):
-        NaturalBarsConfig.stimulus_configuration(self)
+    def configuration(self):
+        NaturalBarsConfig.configuration(self)
         self.SPEED = 800
         self.REPEATS = 2 #5
         self.DIRECTIONS = [0,90]

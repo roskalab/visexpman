@@ -178,7 +178,7 @@ class MovingGrating3(experiment.Experiment):
             s = MicroLEDArray(self.machine_config)
             for frame_i in range(len(self.stimulus_bitmaps)):
                 pixels = self.stimulus_bitmaps[frame_i]
-                s.display_pixels(pixels, 1/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-self.machine_config.FRAME_TRIGGER_PULSE_WIDTH)
+                s.display_pixels(pixels, 1/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-self.machine_config.FRAME_TIMING_PULSE_WIDTH)
                 self._frame_trigger_pulse()
             s.release_instrument()
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)

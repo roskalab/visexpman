@@ -64,9 +64,9 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         CONTEXT_PATH = os.path.join(self.root_folder,'context')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         ENABLE_FRAME_CAPTURE = False
-        DIGITAL_IO_PORT='COM3'
+        DIGITAL_IO_PORT='daq'
         BLOCK_TRIGGER_PIN=0
-        FRAME_TRIGGER_PIN=1
+        FRAME_TIMING_PIN=1
         self.SCREEN_RESOLUTION = utils.cr([1920, 1080])
         self.SCREEN_WIDTH=600#mm
         self.SCREEN_MOUSE_DISTANCE=180#mm
@@ -77,9 +77,10 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         self.TIMG_SYNC_INDEX=1
         self.TSTIM_SYNC_INDEX=0
         self.DIGITAL_OUTPUT='daq'
-        self.TIMING_CHANNELS='dev1/port0/line1'
+        self.TIMING_CHANNELS='Dev1/port1/line1'
+        self.STIM_TRIGGER_CHANNEL='Dev1/port0/line0'
         self.BLOCK_TRIGGER_PIN = 1
-        self.FRAME_TRIGGER_PIN = 0
+        self.FRAME_TIMING_PIN = 0
         self.SYNC_RECORD_OVERHEAD=10
         gammafn=os.path.join(CONTEXT_PATH, 'gamma.hdf5')
         if os.path.exists(gammafn):

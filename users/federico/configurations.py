@@ -55,8 +55,8 @@ class ProtocolDevelopment(VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         
         #=== stage ===
         motor_serial_port = {
@@ -136,8 +136,8 @@ class LizardBehavioral(VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         
         self.LASER_BEAM_CONTROL = {}
         self.LASER_BEAM_CONTROL['CHANNELS'] = '/Dev1/ao0:1'

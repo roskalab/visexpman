@@ -1720,7 +1720,7 @@ class CaImagingEngine(GUIEngine):
         waveforms = numpy.array([parameters['x'], 
                                 parameters['y'],
                                 parameters['stim_sync']*self.machine_config.STIMULATION_TRIGGER_AMPLITUDE,
-                                parameters['frame_sync']*self.machine_config.FRAME_TRIGGER_AMPLITUDE])
+                                parameters['frame_sync']*self.machine_config.FRAME_TIMING_AMPLITUDE])
         if xy_scanner_only:
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms

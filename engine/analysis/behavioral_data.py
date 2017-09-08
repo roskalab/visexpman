@@ -493,7 +493,7 @@ class HitmissAnalysis(object):
         self.folder=folder
         self.filter=filter
         self.histogram_bin_time=histogram_bin_time*1e3
-        items_in_folder=fileop.listdir_fullpath(folder)
+        items_in_folder=[f for f in fileop.listdir_fullpath(folder) if os.path.splitext(f)[1]=='.hdf5' or os.path.isdir(f)]
         nsubfolders=len([f for f in items_in_folder if os.path.isdir(f)])
         nitems=len(items_in_folder)
         nfiles=nitems-nsubfolders
@@ -507,7 +507,7 @@ class HitmissAnalysis(object):
             self.analysis_type='all'
             self.all_animals()
         else:
-            raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}'.format(nfiles, nitems, nsubfolders))
+            raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}, folder: {3}'.format(nfiles, nitems, nsubfolders, self.folder))
         
     def day_analysis(self,folder=None, filter=None):
         if isinstance(folder,str) and os.path.exists(folder):

@@ -92,8 +92,8 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         #=== stage ===
         motor_serial_port = {
                                     'port' :  'COM1',
@@ -359,8 +359,8 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         #=== DAQ ===
         STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [

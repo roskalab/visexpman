@@ -1,20 +1,11 @@
 import time,pdb
 import os.path
 import tempfile
-import uuid
-import hashlib
 import scipy.io
-import io
-import StringIO
-import zipfile
 import numpy
-import inspect
-import cPickle as pickle
 import traceback
-import gc
 import shutil
 import copy
-import multiprocessing
 import tables
 import sys
 import zmq
@@ -27,7 +18,7 @@ except ImportError:
 
 import experiment_data
 import visexpman.engine
-from visexpman.engine.generic import log,utils,fileop,introspect,signal
+from visexpman.engine.generic import utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
 from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
@@ -172,7 +163,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):#OBSOLETE
         waveforms = numpy.array([parameters['xsignal'], 
                                 parameters['ysignal'],
                                 parameters['stimulus_flash_trigger_signal']*parameters['enable_scanner_synchronization']*self.config.STIMULATION_TRIGGER_AMPLITUDE,
-                                parameters['frame_trigger_signal']*self.config.FRAME_TRIGGER_AMPLITUDE])
+                                parameters['frame_trigger_signal']*self.config.FRAME_TIMING_AMPLITUDE])
         if xy_scanner_only:
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms
@@ -440,7 +431,23 @@ class Trigger(object):
         return self._wait4trigger(is_key_pressed, (self.machine_config.KEYS[key]), {})
         
     def wait4digital_input_trigger(self, pin):
-        pass
+        if 'Dev' in pin:
+            result=False
+            digital_input = PyDAQmx.Task()
+            digital_input.CreateDIChan(pin,'di', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            data = numpy.zeros((1,), dtype=numpy.uint8 )
+            total_samps = DAQmxTypes.int32()
+            total_bytes = DAQmxTypes.int32()
+            while True:
+                digital_input.ReadDigitalLines(1,0.1,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+                if data[0]==True:
+                    result=True
+                    break
+                self.check_abort()
+                if self.abort:
+                    break
+            digital_input.ClearTask()
+        return result
     
     def wait4newfiletrigger(self):
         files = os.listdir(self.machine_config.TRIGGER_PATH)
@@ -480,7 +487,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Trigger.__init__(self, machine_config, queues, self.digital_output)
         if self.digital_output!=None:#Digital output is available
             self.clear_trigger(self.config.BLOCK_TRIGGER_PIN)
-            self.clear_trigger(self.config.FRAME_TRIGGER_PIN)
+            self.clear_trigger(self.config.FRAME_TIMING_PIN)
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         self.user_data = {}
@@ -593,6 +600,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.camera = XimeaCamera(config=self.machine_config)
                 self.camera.start()
                 self.camera.trigger.set()  # starts acquisition
+            elif self.machine_config.PLATFORM=='behav':
+                self.printl('Waiting for external trigger')
+                if not self.wait4digital_input_trigger(self.machine_config.STIM_TRIGGER_CHANNEL):
+                    self.abort=True
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))

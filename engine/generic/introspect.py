@@ -3472,6 +3472,39 @@ def string2objectreference(self, reference_string):
     else:
         return None
     
+class VerifyInstallation(object):
+    def __init__(self):
+        self.system=platform.system()
+        self.verify_pygame()
+        self.verify_qt()
+        self.verify_serial()
+        self.verify_paramiko()
+        
+    def verify_serial(self):
+        import serial
+        if self.system=='Linux':
+            port='/dev/ttyUSB0'
+            return
+        elif self.system=='Windows':
+            port='COM1'
+        s=serial.Serial(port,timeout=1)
+        s.write('test')
+        time.sleep(0.3)
+        s.close()
+        
+    def verify_paramiko(self):
+        import fileop,tempfile
+        path='v:\\' if self.system=='Windows' else '/mnt/datafast'
+        pw=fileop.read_text_file(os.path.join(path, 'codes','jobhandler','pw.txt')).title()
+        fileop.download_folder('rldata.fmi.ch', 'mouse', '/data/software/rldata/visexpman', tempfile.gettempdir(), password=pw)
+        
+    def verify_pygame(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        stimulation_tester('zoltan', 'StimulusDevelopment', 'ShortTestStimulus')
+
+    def verify_qt(self):
+        from visexpman.engine.generic import gui
+        gui=gui.SimpleAppWindow()
   
 import unittest
 class TestUtils(unittest.TestCase):
@@ -3493,6 +3526,13 @@ class TestUtils(unittest.TestCase):
                 alist.list = [1,3,4,5]
             result.append(item)
         self.assertEqual(result,[1,2,1,3,4,5])
+        
+    def test_03_installation_tester(self):
+        VerifyInstallation()
+        
+        
+        
+        pass
         
     def test_flatten(self):
         a = []

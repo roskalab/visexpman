@@ -53,7 +53,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.TSTIM_LASER_SYNC_INDEX=4
         self.DIGITAL_IO_PORT='COM4'
         self.BLOCK_TRIGGER_PIN = 1
-        self.FRAME_TRIGGER_PIN = 0
+        self.FRAME_TIMING_PIN = 0
         self.MES_RECORD_OVERHEAD=5
         self.MES_RECORD_START_WAITTIME=5
         self.MES_RECORD_START_WAITTIME_LONG_RECORDING=25
@@ -116,7 +116,7 @@ class CameronBpSetup(AoCorticalCaImagingConfig):
         }   
         self.DIGITAL_IO_PORT='COM1'
         self.BLOCK_TRIGGER_PIN = 1
-        self.FRAME_TRIGGER_PIN = 0
+        self.FRAME_TIMING_PIN = 0
         
 #        self.MES_RECORD_OVERHEAD=12
 #        self.MES_RECORD_START_WAITTIME=6

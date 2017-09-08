@@ -158,7 +158,7 @@ def detect_events(sync, fsample):
         
     if 0:
         plot(protocol_state+5);plot(stimulus);plot(reward);plot(lick);show()
-    return stat, lick_t, protocol_state_t
+    return stat, lick_t, protocol_state_t, stimulus_t
     
     
 class TestProtocolHandler(unittest.TestCase):

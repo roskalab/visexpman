@@ -42,8 +42,8 @@ class ReceptiveFieldTest(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 class IRLaserTest(stimuli.LaserPulse):
-    def stimulus_configuration(self):
-        stimuli.LaserPulse.stimulus_configuration(self)
+    def configuration(self):
+        stimuli.LaserPulse.configuration(self)
         self.INITIAL_DELAY=1
         self.PULSE_DURATION=[100E-3]
         self.PERIOD_TIME=[5.0]
@@ -95,7 +95,7 @@ class ReceptiveFieldExploreZ(experiment.Experiment):
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
 
 class NaturalBarsTest(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.SPEED = [800, 400,1500.0]#um/s
         self.SPEED = [400]
         self.REPEATS = 2 #5
@@ -117,7 +117,7 @@ class NaturalBarsTest(experiment.Stimulus):
             self.show_fullscreen(duration = self.DURATION/2, color =  self.BACKGROUND_COLOR)
 
 class Flash(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.DURATION=8
         
     def calculate_stimulus_duration(self):
@@ -133,7 +133,7 @@ class Flash(experiment.Stimulus):
         self.block_end()
         
 class TestStim(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.DURATION=3
         
     def calculate_stimulus_duration(self):

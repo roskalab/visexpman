@@ -253,12 +253,45 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         logging.info(self.serialport.readline())
         
     def convert_folder(self,folder):
+        if not os.path.exists(os.path.join(folder, 'animal_'+os.path.basename(folder)+'.hdf5')) and self.parameters['Conversion Format']=='xls':
+            if self.notify('Make sure that animal folder is selected '):
+                return
         files=fileop.find_files_and_folders(folder)[1]
-        hdf5files=[f for f in files if os.path.splitext(f)[1]=='.hdf5']
-        logging.info('Converting hdf5 files to mat')
+        hdf5files=[f for f in files if os.path.splitext(f)[1]=='.hdf5' and 'animal' not in os.path.basename(f)]
+        hdf5files.sort()
+        if self.parameters['Conversion Format']=='mat':
+            logging.info('Converting hdf5 files to mat in {0}'.format(folder))
+        elif self.parameters['Conversion Format']=='xls':
+            logging.info('Aggregating hdf5 files to xls in {0}'.format(folder))
+        self.xls_aggregate={}
         for f in hdf5files:
-            experiment_data.hdf52mat(f)
-            logging.info(f)
+            try:
+                if self.parameters['Conversion Format']=='mat':
+                    experiment_data.hdf52mat(f)
+                elif self.parameters['Conversion Format']=='xls':
+                    self.aggregate2xls(f)
+                logging.info(f)
+            except:
+                logging.info(traceback.format_exc())
+        if self.parameters['Conversion Format']=='xls':
+            fn=os.path.join(folder, os.path.basename(folder)+'.xls')
+            import xlwt
+            book = xlwt.Workbook()
+            sheets=self.xls_aggregate.keys()
+            sheets.sort()
+            for sheet in sheets:
+                data=self.xls_aggregate[sheet]
+                sh = book.add_sheet(sheet)
+                rowct=0
+                for row in range(len(data)):
+                    if data[row].shape[0]==0:
+                        sh.write(row,0, 1000000)
+                        continue
+                    for col in range(data[row].shape[0]):
+                        sh.write(row, col, data[row][col])
+                    rowct+=1
+            book.save(fn)
+            logging.info('Data exported to {0}'.format(fn))
     
     def update_plot(self):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
@@ -412,7 +445,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.iscamera.close()
             del self.iscamera
         try:
-            self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+            self.stat, self.lick_times, self.protocol_state_change_times, self.stimulus_t =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
             self.update_plot()
             self.save2file()
             behavioral_data.check_hitmiss_files(self.filename)
@@ -500,6 +533,35 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.filecounter+=1
         #self.show_day_success_rate(self.filename)
         
+    def aggregate2xls(self,filename):
+        h=hdf5io.Hdf5io(filename)
+        sync=h.findvar('sync')
+        voltage=round(h.findvar('protocol')['LASER_INTENSITY'],1)
+        stat, lick_times, protocol_state_change_times, stimulus_t =lick_detector.detect_events(sync, self.machine_config.AI_SAMPLE_RATE)
+        h.close()
+        day=filename.split(os.sep)[-2]
+        protocol_name=os.path.basename(filename).split('_')[1]
+        sheet=str('{0}{1}{2}'.format(day, protocol_name, voltage))
+        if not self.xls_aggregate.has_key(sheet):
+            self.xls_aggregate[sheet]=[]
+        self.xls_aggregate[sheet].append(lick_times-stimulus_t[0])
+        
+    def export2xls(self, filename):
+        h=hdf5io.Hdf5io(filename)
+        sync=h.findvar('sync')
+        voltage=round(h.findvar('protocol')['LASER_INTENSITY'],1)
+        stat, lick_times, protocol_state_change_times, stimulus_t =lick_detector.detect_events(sync, self.machine_config.AI_SAMPLE_RATE)
+        h.close()
+        import xlwt
+        fn=filename.replace('.hdf5', '_{0:0.1f}V.xls'.format(voltage))
+        lick_times=lick_times-stimulus_t[0]
+        book = xlwt.Workbook()
+        sh = book.add_sheet('lick_times')
+        for i in range(lick_times.shape[0]):
+            sh.write(i, 0, lick_times[i])
+        book.save(fn)
+        logging.info('Data exported to {0}'.format(fn))
+        
     def open_file(self, filename):
         if self.session_ongoing:
             self.notify('Warning', 'Stop recording before opening a file')
@@ -508,11 +570,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile_opened=time.time()
         self.datafile=hdf5io.Hdf5io(self.filename)
         self.sync=self.datafile.findvar('sync')
-        self.stat, self.lick_times, self.protocol_state_change_times =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+        self.stat, self.lick_times, self.protocol_state_change_times, self.stimulus_t =lick_detector.detect_events(self.sync, self.machine_config.AI_SAMPLE_RATE)
+        volt=round(self.datafile.findvar('protocol')['LASER_INTENSITY'],1)
         self.stat2gui()
         self.datafile.close()
         self.to_gui.put({'set_events_title': os.path.basename(filename)})
-        logging.info('Opened {0}'.format(filename))
+        logging.info('Opened {0}@{1}V'.format(filename,volt))
         self.update_plot()
             
     def show_animal_statistics(self):
@@ -520,7 +583,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        if self.parameters['Protocol']=='HitMissRandomLaser':
+        if self.parameters['Protocol'] in ['HitMissRandomLaser', 'LickRandomLaser']:
             filter={'voltage':self.parameters['Laser Intensity']}
         else:
             filter={}
@@ -686,7 +749,7 @@ class Behavioral(gui.SimpleAppWindow):
     '''
     def __init__(self):
         #Figure out machine config
-        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = object,direct = False)[0][1]()
         self.logfile=fileop.get_log_filename(self.machine_config)
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -730,6 +793,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 #{'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
                                 {'name': 'Enable Lick Simulation', 'type': 'bool', 'value': False},
                                 {'name': 'Histogram bin size', 'type': 'float', 'value': 50e-3, 'siPrefix': True, 'suffix': 's'},
+                                {'name': 'Conversion Format', 'type': 'list', 'values': ['mat', 'xls'],'value':'xls'},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):
@@ -995,7 +1059,7 @@ class CWidget(QtGui.QWidget):
         
 class FileBrowserW(gui.FileTree):
     def __init__(self,parent):
-        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['*.mat','*.hdf5', '*.avi'])
+        gui.FileTree.__init__(self,parent, parent.parent().engine.datafolder, ['*.mat','*.hdf5', '*.avi', '*.xls'])
         self.doubleClicked.connect(self.open_file)
         self.clicked.connect(self.file_selected)
         

@@ -146,9 +146,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DIGITAL_IO_PORT = False#'parallel port, or comport expected
         ACQUISITION_TRIGGER_PIN = [0,  PARALLEL_PORT_PIN_RANGE]
         ACQUISITION_STOP_PIN = [1,  PARALLEL_PORT_PIN_RANGE]
-        FRAME_TRIGGER_PIN = [2,  PARALLEL_PORT_PIN_RANGE]
+        FRAME_TIMING_PIN = [2,  PARALLEL_PORT_PIN_RANGE]
         BLOCK_TRIGGER_PIN = [3,  PARALLEL_PORT_PIN_RANGE]
-        FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        FRAME_TIMING_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         ACQUISITION_TRIGGER_POLARITY = True
         ENABLE_SHUTTER = False
@@ -262,8 +262,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import hdf5io
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
-    
-        
+
 class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
     '''
         FILTERWHEEL = [{
@@ -297,7 +296,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         XMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]#Offset of scanner signal cannot exceed 2 V
         YMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]
         STIMULATION_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging stimulus trigger signals
-        FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
+        FRAME_TIMING_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
         TWO_PHOTON = {}

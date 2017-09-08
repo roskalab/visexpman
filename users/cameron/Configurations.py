@@ -59,7 +59,7 @@ class Debug(VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  (self.OS == 'win')
         ACQUISITON_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -154,7 +154,7 @@ class AEPHVS(VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -243,7 +243,7 @@ class MEASetup(AEPHVS):
         EXPERIMENT_LOG_PATH = LOG_PATH
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         self.DAQ_CONFIG[0]['ENABLE'] = False
         self.DAQ_CONFIG[1]['ENABLE'] = False
         COLOR_MASK = numpy.array([1.0,  1.0,  1.0])

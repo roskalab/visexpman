@@ -23,6 +23,7 @@ class ExperimentConfig(Config):
     '''
     def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, screen=None, create_runnable=True):
         Config.__init__(self, machine_config=machine_config,ignore_range = True)
+        check_experiment_config(self)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         self.name=self.__class__.__name__
         if machine_config != None and create_runnable:
@@ -62,6 +63,18 @@ class ExperimentConfig(Config):
             else:
                 self.runnable.run()
         self.runnable.cleanup()
+        
+def check_experiment_config(config):
+    timing_keywords=['duration', 'time', 'delay', 'pause']
+    second_millisecond_warning_threshold=200
+    for vn in dir(config):
+        if vn.isupper():
+            #Variable names with timing_keywords and woutout _MS tag considered as timing parameters in seconds
+            if len([kw.upper() in vn and '_MS' not in vn for kw in timing_keywords])>0:
+                v=getattr(config, vn)
+                if v >second_millisecond_warning_threshold:
+                    import warnings
+                    warnings.warn('{0} ({1}) parameter might be in milliseconds'.format(vn,v))
 
 class Experiment(stimulation_library.AdvancedStimulation):
     '''
@@ -146,17 +159,18 @@ class Stimulus(stimulation_library.AdvancedStimulation):
         self.kwargs=kwargs
         if init_hardware:
             stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
-        self.default_stimulus_configuration()
-        self.stimulus_configuration()
+        self.default_configuration()
+        self.configuration()
+        check_experiment_config(self)
         self.calculate_stimulus_duration()
         self.name=self.__class__.__name__
         
-    def default_stimulus_configuration(self):
+    def default_configuration(self):
         '''
         Shall be used by Stimulus superclasses
         '''
         
-    def stimulus_configuration(self):
+    def configuration(self):
         '''
         This method needs to be overdefined by subclasses. The experiment configuration parameters are defined here
         '''
@@ -274,7 +288,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
                 experiment_class_object = experiment_class(config, experiment_config_class_object)
     if hasattr(experiment_class_object,'calculate_stimulus_duration'):
         ec=experiment_class_object(config)
-        ec.stimulus_configuration()
+        ec.configuration()
         ec.calculate_stimulus_duration()
     else:
         ec=None
