@@ -568,12 +568,13 @@ def merge_ca_data(folder,**kwargs):
     h.configs=machine_config
     h.generated_data=stimulus['generated_data']
     h.stimulus_frame_info=stimulus['stimulus_frame_info']
+    h.software_environment= experiment_data.pack_software_environment()
     h.datatype='ca'
     h.save('raw_data')
     del h.raw_data
     h.save('sync')
     del h.sync
-    h.save(['fsync', 'fimg', 'fstim', 'parameters', 'sync_scaling',  'configs', 'datatype', 'generated_data', 'stimulus_frame_info'])
+    h.save(['fsync', 'fimg', 'fstim', 'parameters', 'sync_scaling',  'configs', 'datatype', 'generated_data', 'stimulus_frame_info', 'software_environment'])
     h.close()
     #Copy raw pngs to output folder
     output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))

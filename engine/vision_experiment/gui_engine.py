@@ -438,7 +438,16 @@ class ExperimentHandler(object):
     def indexofsmallestpositive(self,a):
         m=numpy.where(a<0, 0, a)
         return numpy.where(a==a[numpy.nonzero(m)[0]].min())[0][0]
-                
+        
+    def _folder2csv(self,folder):
+        for f in fileop.listdir_fullpath(folder):
+            if os.path.splitext(f)[1]=='.hdf5':
+                try:
+                    self._timing2csv(f)
+                except:
+                    import traceback
+                    self.printc(traceback.format_exc())
+                    
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
@@ -468,7 +477,7 @@ class ExperimentHandler(object):
                 tstim_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
         h.close()        
         if 'Led2' in filename:
-            self.printc(numpy.round(tstim_sep['led']))
+            self.printc(['led stim', numpy.round(tstim_sep['led'])])
             txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
             txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
             #Calculate image index for stim events
@@ -478,6 +487,8 @@ class ExperimentHandler(object):
             txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         else:
             txtlines2=','.join(map(str,numpy.round(h.tstim,3)))
+            led_indexes=[self.indexofsmallestpositive(h.timg-s) for s in h.tstim]
+            txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
         csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
         csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
@@ -489,7 +500,7 @@ class ExperimentHandler(object):
         if 'Led2' in filename:
             fileop.write_text_file(csvfn1, txtlines1)
             fileop.write_text_file(csvfn1a, txtlines1a)
-            fileop.write_text_file(csvfn2a, txtlines2a)
+        fileop.write_text_file(csvfn2a, txtlines2a)
         fileop.write_text_file(csvfn2, txtlines2)
         fileop.write_text_file(csvfn3, txtlines3)
         self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))

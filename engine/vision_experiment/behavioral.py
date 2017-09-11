@@ -285,9 +285,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 rowct=0
                 for row in range(len(data)):
                     if data[row].shape[0]==0:
+                        sh.write(row,0, 1000000)
                         continue
                     for col in range(data[row].shape[0]):
-                        sh.write(rowct, col, data[row][col])
+                        sh.write(row, col, data[row][col])
                     rowct+=1
             book.save(fn)
             logging.info('Data exported to {0}'.format(fn))
