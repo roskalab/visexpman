@@ -17,7 +17,6 @@ from visexpman.engine.generic import fileop
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
-ALTERNATIVE_TIMING = False
 
 def get_screen_size():
     import platform
@@ -205,7 +204,7 @@ class Screen(object):
         self.before_flip()
         #TODO: mac needs the delay
         if hasattr(self.config, 'INSERT_FLIP_DELAY') and self.config.INSERT_FLIP_DELAY:
-           if ALTERNATIVE_TIMING:
+           if self.config.ALTERNATIVE_TIMING:
                next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
                while True:
                    if next_flip_time <= time.time():
@@ -361,8 +360,12 @@ class Screen(object):
         im = Image.open(path)
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
             im = im.transpose(Image.FLIP_TOP_BOTTOM)
-        image = (numpy.cast['float'](numpy.asarray(im))/255.0)[:,:,:3]
+        image = (numpy.cast['float'](numpy.asarray(im))/255.0)
+        if image.shape[2]>3:
+            mask=numpy.where(image[:,:,3]>0, True, False)[:,:,numpy.newaxis]
+            image=image[:,:,:3]* mask
         self.render_image(image, position = position, stretch=stretch,position_in_pixel=False)
+        return image
         
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)

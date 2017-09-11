@@ -271,7 +271,10 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         if len(stimulus_class)==1:
             experiment_class_object=stimulus_class[0][1]
         else:
-            experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+            try:
+                experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+            except IndexError:
+                experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
             experiment_class_object = experiment_class(config).runnable
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)

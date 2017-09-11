@@ -356,7 +356,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self.screen.render_image(path, position=utils.rc_add(position, self.machine_config.SCREEN_CENTER),
                                              stretch=stretch)
             else:  # load image file given its path as a string
-                self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+                if i==0:
+                    image=self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+                else:
+                    self.screen.render_image(image, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._flip(frame_timing_pulse = True)
             if self.abort:

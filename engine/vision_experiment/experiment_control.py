@@ -572,6 +572,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
+                if hasattr(self, 'calculate_stimulus_duration'):
+                    self.parameters['stimclass']=self.__class__.__name__
+                else:
+                    self.parameters['stimclass']=self.experiment_config.__class__.__name__
+                from visexpman.engine.vision_experiment.experiment import get_experiment_duration
+                self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
             
             self.prepare()#Computational intensive precalculations for stimulus
@@ -601,6 +607,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.camera.start()
                 self.camera.trigger.set()  # starts acquisition
             elif self.machine_config.PLATFORM=='behav':
+                self.sync_recording_duration=self.parameters['duration']
+                self.start_sync_recording()
+                self.printl('Sync signal recording started')
                 self.printl('Waiting for external trigger')
                 if not self.wait4digital_input_trigger(self.machine_config.STIM_TRIGGER_CHANNEL):
                     self.abort=True
@@ -626,6 +635,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.camera.join()
             if self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
+            if self.machine_config.PLATFORM in ['behav', 'ao_cortical']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
             if not self.abort:
