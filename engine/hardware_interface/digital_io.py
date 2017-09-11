@@ -2,6 +2,11 @@ try:
     import serial
 except:
     pass
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+except ImportError:
+    pass
 import os,numpy
 import time
 import unittest
@@ -121,30 +126,32 @@ class AduinoIO(object):
         
 class DaqDio(object):
     def __init__(self,channels):
-        try:
-            import PyDAQmx
-            import PyDAQmx.DAQmxConstants as DAQmxConstants
-        except ImportError:
-            pass
-        self.daq = PyDAQmx.Task()
-        self.daq.CreateDOChan(channels,
-                                                'do',
-                                                DAQmxConstants.DAQmx_Val_ChanPerLine)    
-                                                            
-                                                            
-        def set_data_bit(self, pin, state):
-            #TODO: only one channel is handled, pin is not interpreted yet
-            digital_values = numpy.array([int(state)], dtype=numpy.uint8)
-            self.daq.WriteDigitalLines(1,
-                                    True,
-                                    1.0,
-                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                    digital_values,
-                                    None,
-                                    None)
+        if not isinstance(channels, list):
+            channels=[channels]
+        self.daq=[]
+        for channel in channels:
+            daq = PyDAQmx.Task()
+            daq.CreateDOChan(channel,
+                                                    'do',
+                                                    DAQmxConstants.DAQmx_Val_ChanPerLine)    
+            self.daq.append(daq)
+            
+    def set_data_bit(self, pin, state, log=None):
+        digital_values = numpy.array([int(state)], dtype=numpy.uint8)
+        self.daq[pin].WriteDigitalLines(1,
+                                True,
+                                1.0,
+                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                digital_values,
+                                None,
+                                None)
 
-        def close(self):
-            self.daq.ClearTask()
+    def set_pin(self, channel,value):
+        self.set_data_bit(channel, value)
+
+    def close(self):
+        for d in self.daq:
+            d.ClearTask()
            
 class TestConfig(object):
     def __init__(self):

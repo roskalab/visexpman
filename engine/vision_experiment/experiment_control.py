@@ -477,11 +477,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.machine_config = machine_config
         self.parameters = parameters
         self.log = log
-        if self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
+        if self.machine_config.DIGITAL_IO_PORT =='daq':
+            self.digital_output=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
+        elif self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
             digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
             self.digital_output = digital_output_class(self.machine_config, self.log)
-        elif self.machine_config.DIGITAL_IO_PORT =='daq':
-            self.digital_output=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
         else:
             self.digital_output = None
         Trigger.__init__(self, machine_config, queues, self.digital_output)
@@ -570,7 +570,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         try:
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
-            if self.machine_config.PLATFORM in ['standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
+            if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
             

@@ -26,6 +26,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
     def __init__(self, machine_config, socket_queues, command, log,context={}):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
         self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
+        self.experiment_configs.extend([ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)])
         self.experiment_configs.sort()
         if len(self.experiment_configs)>10:
             self.experiment_configs = self.experiment_configs[:10]#TODO: give some warning
@@ -114,10 +115,10 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
                     self.stim_context['screen_center']['col'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
                 elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
                     self.stim_context['screen_center']['col'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
-            elif (self.config.PLATFORM in ['hi_mea', 'standalone', 'intrinsic']) and key_pressed in self.experiment_select_commands:
+            elif (self.config.PLATFORM in ['behav', 'hi_mea', 'standalone', 'intrinsic']) and key_pressed in self.experiment_select_commands:
                 self.selected_experiment = self.experiment_configs[int(key_pressed)]
                 self.printl('Experiment selected: {0}'.format(self.selected_experiment))
-            elif (self.config.PLATFORM in ['hi_mea', 'standalone', 'intrinsic']) and key_pressed == self.config.KEYS['start stimulus']:
+            elif (self.config.PLATFORM in ['behav', 'hi_mea', 'standalone', 'intrinsic']) and key_pressed == self.config.KEYS['start stimulus']:
                 if not hasattr(self, 'selected_experiment'):
                     self.printl('Select stimulus first')
                     return

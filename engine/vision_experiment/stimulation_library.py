@@ -278,7 +278,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, 
-            flip = True, is_block = False):
+            flip = True):
         '''        
         Three use cases are handled here:
             - showing individual image files
@@ -310,8 +310,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             fns.sort()
             if len([f for f in fns if os.path.splitext(f)[1] not in ['.png', '.bmp', '.jpg']])>0:
                  raise RuntimeError('{0} folder contains non image files, please remove them!'.format(path))
-            if is_block:
-                self.block_start()
             self.t0=time.time()
             for i in range(len(fns)):
                 if self.machine_config.ENABLE_TIME_INDEXING:
@@ -319,11 +317,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     index=i
                 fn=fns[index]
-                self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
             self.screen.clear_screen()
             self._flip(frame_timing_pulse = True)
-            if is_block:
-                self.block_end()
         elif os.path.isfile(path) and os.path.splitext(path)=='.hdf5': # a hdf5 file with stimulus_frames variable having nframes * x * y dimensions
             if self.machine_config.ENABLE_TIME_INDEXING:
                 raise NotImplementedError()
@@ -331,8 +327,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 full_chunk = 0
                 if full_chunk: # read big chunk
                     allframedata = handler.root.stimulus_frames[:5000].astype(float)/255
-                if is_block:
-                    self.block_start()
                 for f1i in range(handler.root.stimulus_frames.shape[0]):
                     mytime = time.time()
                     if full_chunk:
@@ -341,19 +335,17 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         framedata = handler.root.stimulus_frames[f1i].astype(float)/255  # put actual image frames into the list of paths
                     if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
                         framedata = framedata[::-1]  # flip row order = flip image TOP to Bottom
-                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip, is_block=False)
+                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip)
                     print(1./(time.time() - mytime))
                     if self.abort:
                         break
                 self.screen.clear_screen()
                 self._flip(frame_timing_pulse=True)
-                if is_block:
-                    self.block_end()
         else:
-            self._show_image(path,duration,position,stretch,flip,is_block)
+            self._show_image(path,duration,position,stretch,flip)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
-    def _show_image(self,path,duration,position,stretch,flip,is_block):
+    def _show_image(self,path,duration,position,stretch,flip):
         if duration == 0.0:
             nframes=1
         else:
@@ -366,9 +358,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             else:  # load image file given its path as a string
                 self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
-                self._add_block_start(is_block, i, nframes)
                 self._flip(frame_timing_pulse = True)
-                self._add_block_end(is_block, i, nframes)
             if self.abort:
                 break
 

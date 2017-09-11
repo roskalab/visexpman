@@ -59,6 +59,8 @@ class OfficeTest(BehavioralSetup):
 class Behavioral2Setup(BehavioralConfig):#Miao's setup
     def _set_user_parameters(self):
         self.root_folder = 'x:\\behavioral2'
+        if not os.path.exists(self.root_folder):
+            self.root_folder='c:\\temp'
         LOG_PATH = os.path.join(self.root_folder,'log')
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
         CONTEXT_PATH = os.path.join(self.root_folder,'context')
@@ -67,17 +69,17 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         DIGITAL_IO_PORT='daq'
         BLOCK_TRIGGER_PIN=0
         FRAME_TIMING_PIN=1
-        self.SCREEN_RESOLUTION = utils.cr([1920, 1080])
-        self.SCREEN_WIDTH=600#mm
-        self.SCREEN_MOUSE_DISTANCE=180#mm
+        self.SCREEN_RESOLUTION = utils.cr([1280, 720])
+        self.SCREEN_WIDTH=300#mm
+        self.SCREEN_MOUSE_DISTANCE=290#mm
         self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.radians(1.0/self.MOUSE_1_VISUAL_DEGREE_ON_RETINA))*self.SCREEN_MOUSE_DISTANCE/(self.SCREEN_WIDTH/float(self.SCREEN_RESOLUTION['col']))        
-        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:1'#0 block trigger, 1: trigger from ephys
-        self.SYNC_RECORDER_SAMPLE_RATE=5000#mes sync pulses are very short
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:2'#0: trigger from ephys, 1 block trigger, 2 frame trigger
+        self.SYNC_RECORDER_SAMPLE_RATE=5000
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         self.TIMG_SYNC_INDEX=1
         self.TSTIM_SYNC_INDEX=0
         self.DIGITAL_OUTPUT='daq'
-        self.TIMING_CHANNELS='Dev1/port1/line1'
+        self.TIMING_CHANNELS=['Dev1/port1/line1','Dev1/port1/line2']
         self.STIM_TRIGGER_CHANNEL='Dev1/port0/line0'
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TIMING_PIN = 0
