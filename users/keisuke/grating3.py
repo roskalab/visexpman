@@ -26,8 +26,10 @@ class GratingExperimentWilson(experiment.Experiment):
     def prepare(self):
         ec=self.experiment_config
         self.orientations=numpy.arange(0, 360, 360./ec.DIRECTIONS)
+        self.experiment_config.ORIENTATIONS=self.orientations
         self.period=1.0/ec.SPATIAL_FREQUENCY*30.0 #Assuming that 1 visual degree corresponds to 30 um on mouse retina
         self.white_bar_width=0.5*self.period
+        self.experiment_config.PERIOD=self.period
         self.speed=ec.SPEED*self.period
         self.offset=ec.CONTRAST*0.5
         self.contrast=ec.CONTRAST*0.5
