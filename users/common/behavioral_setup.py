@@ -83,6 +83,7 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         self.DIGITAL_OUTPUT='daq'
         self.TIMING_CHANNELS=['Dev1/port1/line1','Dev1/port1/line2']
         self.STIM_TRIGGER_CHANNEL='Dev1/port0/line0'
+        self.WAIT4TRIGGER_ENABLED=True
         self.BLOCK_TRIGGER_PIN = 1
         self.FRAME_TIMING_PIN = 0
         self.SYNC_RECORD_OVERHEAD=10
@@ -90,6 +91,5 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         if os.path.exists(gammafn):
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
-        if '--nofullscreen' in sys.argv:
-            self.FULLSCREEN=False
+        self.FULLSCREEN='--nofullscreen' not in sys.argv
         self._create_parameters_from_locals(locals())

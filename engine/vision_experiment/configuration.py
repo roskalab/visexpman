@@ -153,6 +153,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         ACQUISITION_TRIGGER_POLARITY = True
         ENABLE_SHUTTER = False
+        WAIT4TRIGGER_ENABLED=False
         
         ############# Graphical User Interface related ######################
         GUI = {}

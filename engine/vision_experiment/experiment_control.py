@@ -611,7 +611,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.start_sync_recording()
                 self.printl('Sync signal recording started')
                 self.printl('Waiting for external trigger')
-                if not self.wait4digital_input_trigger(self.machine_config.STIM_TRIGGER_CHANNEL):
+                if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_TRIGGER_CHANNEL):
                     self.abort=True
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:

@@ -1796,7 +1796,7 @@ class AdvancedStimulation(StimulationHelpers):
         self.nrows=nrows
         self.ncolumns=ncolumns
         self.shape_size=shape_size
-        if 1:
+        if 0:
             print corners_um[:,0].min(), corners_um[:,0].max(), self.machine_config.SCREEN_SIZE_UM['row']
             print corners_um[:,1].min(), corners_um[:,1].max(), self.machine_config.SCREEN_SIZE_UM['col']
         self.show_fullscreen(color = background_color, duration = off_time)
