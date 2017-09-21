@@ -60,17 +60,17 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
     def _set_user_parameters(self):
         self.root_folder = 'x:\\behavioral2'
         if not os.path.exists(self.root_folder):
-            self.root_folder='c:\\temp'
+            self.root_folder='c:\\Data'
         LOG_PATH = os.path.join(self.root_folder,'log')
-        EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
+        EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = os.path.join(self.root_folder,'context')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         ENABLE_FRAME_CAPTURE = False
         DIGITAL_IO_PORT='daq'
         BLOCK_TRIGGER_PIN=0
         FRAME_TIMING_PIN=1
-        self.INSERT_FLIP_DELAY=True
-        self.ALTERNATIVE_TIMING=True
+        #self.INSERT_FLIP_DELAY=True
+        #self.ALTERNATIVE_TIMING=True
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
         self.SCREEN_WIDTH=300#mm
         self.SCREEN_MOUSE_DISTANCE=290#mm

@@ -23,4 +23,8 @@ class VisualImageDisplay(experiment.Stimulus):
                 self.show_image(f,  duration = self.IMAGE_ON_TIME,  stretch=1.0)
                 self.block_end('image')
                 self.show_fullscreen(self.IMAGE_OFF_TIME, color=self.BACKGROUND)
+                if self.abort:
+                    break
+            if self.abort:
+                break
                 

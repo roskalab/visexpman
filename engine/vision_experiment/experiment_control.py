@@ -646,6 +646,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.PLATFORM in ['ao_cortical']:
                     self._backup(self.datafilename)
                     self.printl('{0} backed up'.format(self.datafilename))
+                elif self.machine_config.PLATFORM in ['behav']:
+                    experiment_data.hdf52mat(self.outputfilename)
             else:
                 self.printl('Stimulation stopped')
             if self.machine_config.PLATFORM=='mc_mea':

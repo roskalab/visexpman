@@ -14,6 +14,7 @@ import warnings
 import visexpman.engine
 from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.engine.vision_experiment.screen import StimulationScreen
+from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.generic import utils,fileop,introspect
 try:
     import hdf5io#TODO: thismoves with StimulationLoop
@@ -123,7 +124,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
                     self.printl('Select stimulus first')
                     return
                 parameters = {'experiment_name': self.selected_experiment, 'stimulus_only':False,
-                    'id':str(int(numpy.round(time.time(), 2)*100))}
+                    'id':experiment_data.get_id()}
                 self.start_stimulus(parameters)
             else:
                 self.printl('Key pressed: {0}'.format(key_pressed))
