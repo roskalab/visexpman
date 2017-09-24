@@ -11,9 +11,12 @@ byte par;
 
 byte cmd = 0;
 byte send_data=true;
-byte port,port_prev;
+byte port,port_prev,waveform_pin;
 unsigned long time;
 bool force_read_pin=false;
+bool enable_waveform=false;
+byte frequency;
+int period;
 
 ISR(TIMER1_COMPA_vect) {
    PORTB |=(1<<2);//D10 output
@@ -53,6 +56,7 @@ void setup() {
   init_digital_input_timer();
   port_prev=0;
   port=0;
+  frequency=0;
   sei();
 }
 
@@ -82,6 +86,13 @@ void loop() {
             send_data=false;
             state=IDLE_ST;
             break;
+          case 'f'://set frequency
+            state=WAIT_PAR_ST;
+            cmd=b;
+          case 'w': //enable pulse train waveform
+            cmd=b;
+            state=WAIT_PAR_ST;
+            break;
           default:
             state=IDLE_ST;
             break;
@@ -98,6 +109,23 @@ void loop() {
               delay(2);
               PORTD &= ~(par&OUTPORT_MASK);
               break;
+          case 'f':
+              frequency=par;
+              period=1000/par/2;
+              break;
+          case 'w':
+              waveform_pin=par;
+              if (enable_waveform)
+              {
+                enable_waveform=false;
+              }
+              else
+              {
+                enable_waveform=true;
+              }
+              
+              //enable_waveform=~enable_waveform;
+              break;
           case 'a':
               break;
         }
@@ -107,5 +135,11 @@ void loop() {
         break;
     }  
   }
-  
+  if (enable_waveform)
+  {
+    PORTD |= waveform_pin&OUTPORT_MASK;
+    delay(period);
+    PORTD &= ~(waveform_pin&OUTPORT_MASK);
+    delay(period);
+  }
 }

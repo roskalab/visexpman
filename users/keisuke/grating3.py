@@ -16,6 +16,7 @@ class GratingParametersWilson(experiment.ExperimentConfig):
         self.BLANK_TIME=3
         self.TRIALS=8
         self.DIRECTIONS=16
+        self.PRE_TRIAL_TIME=10.0
         
         self.DRUG_CONC = 0.0  
         self.BACKGROUND_COLOR=0.0
@@ -36,6 +37,7 @@ class GratingExperimentWilson(experiment.Experiment):
         
     def run(self):
         ec=self.experiment_config
+        self.show_fullscreen(duration =ec.PRE_TRIAL_TIME, color =  ec.BACKGROUND_COLOR)
         for t in range(ec.TRIALS):
             for o in self.orientations:
                 self.show_grating(duration = ec.SWEEP_TIME,  profile = 'sin',  white_bar_width = self.white_bar_width,   

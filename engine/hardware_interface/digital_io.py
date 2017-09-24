@@ -121,6 +121,14 @@ class AduinoIO(object):
         self.s.write('p'+chr(1<<channel))
         time.sleep(2e-3)
         
+    def enable_waveform(self, pin,frequency):
+        self.s.write('f'+chr(frequency))
+        time.sleep(1e-3)
+        self.s.write('w'+chr(1<<pin))
+        
+    def disable_waveform(self):
+        self.s.write('w'+chr(1<<1))
+        
     def close(self):
         self.s.close()
         
@@ -219,16 +227,21 @@ class TestDigitalIO(unittest.TestCase):
         s.release_instrument()
         
     def test_05_AIO(self):
-        a=AduinoIO('COM4' if os.name=='nt' else '/dev/ttyACM0')
+        a=AduinoIO('COM11' if os.name=='nt' else '/dev/ttyACM0')
         #time.sleep(5e-3)
+        pin=5
         for i in range(100):
-            a.pulse_trigger(6)
+            a.pulse_trigger(pin)
             #time.sleep(5e-3)
         for i in range(100):
-            a.set_pin(6,1)
+            a.set_pin(pin,1)
             time.sleep(5e-3)
-            a.set_pin(6,0)
+            a.set_pin(pin,0)
             time.sleep(5e-3)
+        time.sleep(1)
+        a.enable_waveform(pin,20)
+        time.sleep(1)
+        a.disable_waveform()
         a.close()
 
 if __name__ == '__main__':
