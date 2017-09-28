@@ -70,7 +70,7 @@ def check_experiment_config(config):
     for vn in dir(config):
         if vn.isupper():
             #Variable names with timing_keywords and woutout _MS tag considered as timing parameters in seconds
-            if len([kw.upper() in vn and '_MS' not in vn for kw in timing_keywords])>0:
+            if any([kw.upper() in vn and '_MS' not in vn for kw in timing_keywords]):
                 v=getattr(config, vn)
                 if v >second_millisecond_warning_threshold:
                     import warnings

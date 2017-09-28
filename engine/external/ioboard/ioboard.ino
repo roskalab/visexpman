@@ -57,6 +57,7 @@ void setup() {
   port_prev=0;
   port=0;
   frequency=0;
+  pinMode(LED_BUILTIN, OUTPUT);
   sei();
 }
 
@@ -138,8 +139,14 @@ void loop() {
   if (enable_waveform)
   {
     PORTD |= waveform_pin&OUTPORT_MASK;
+    digitalWrite(LED_BUILTIN, HIGH);
     delay(period);
     PORTD &= ~(waveform_pin&OUTPORT_MASK);
+    digitalWrite(LED_BUILTIN, LOW);
     delay(period);
   }
+  /*PORTD |= (1<<5)&OUTPORT_MASK;
+  delay(50);
+  PORTD &= ~((1<<5)&OUTPORT_MASK);
+  delay(50);*/
 }

@@ -98,7 +98,7 @@ class Photointerrupter(threading.Thread):
             time.sleep(5e-3)
            
           
-class AduinoIO(object):
+class ArduinoIO(object):
     def __init__(self,port):
         self.s=serial.Serial(port, baudrate=115200)
         self.s.setTimeout(1)
