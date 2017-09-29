@@ -6,10 +6,10 @@ class SoundAndGratingC(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEEDS=[200,600,1200]
         self.CONDITIONS=['sound', 'grating', 'both']
-        self.RANDOMIZE=True
-        self.BLOCK_DURATION=15.0
-        self.PAUSE=5.0
-        self.SOUND_BASE_FREQUENCY=15e3
+        self.RANDOMIZE=False #true
+        self.BLOCK_DURATION=8.0
+        self.PAUSE=4.0
+        self.SOUND_BASE_FREQUENCY=14000
         self.BAR_WIDTH=300
         self.GRATING_DUTY_CYCLE=0.5
         self.GRAY=0.5
@@ -22,6 +22,7 @@ class SoundAndGratingE(experiment.Experiment):
         self.protocol=[[s,c] for s, c in itertools.product(ec.SPEEDS, ec.CONDITIONS)]
         if ec.RANDOMIZE:
             random.shuffle(self.protocol)
+        self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
         self.experiment_config.PROTOCOL=self.protocol
         self.experiment_config.GRATING_FREQUENCY=1.0/(ec.BAR_WIDTH/ec.GRATING_DUTY_CYCLE/numpy.array(ec.SPEEDS))
         self.sound_filenames={}
@@ -31,13 +32,16 @@ class SoundAndGratingE(experiment.Experiment):
             self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
             self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
         self.orientation=0
-        self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
+        
         
     def block(self, speed, condition):
         ec=self.experiment_config
         if condition!='grating':
-            soundplayer=sound.SoundPlayer(self.sound_filenames[speed])
-            soundplayer.start()
+            if hasattr(self, 'soundplayer'):
+                if self.soundplayer.is_alive():
+                    raise RuntimeError('Previous block\'s sound generator have not finished')
+            self.soundplayer=sound.SoundPlayer(self.sound_filenames[speed])
+            self.soundplayer.start()
         if condition=='sound':
             self.show_fullscreen(color=ec.GRAY, duration=ec.BLOCK_DURATION)
         else:
@@ -47,9 +51,8 @@ class SoundAndGratingE(experiment.Experiment):
                                duration=ec.BLOCK_DURATION,
                                display_area=self.machine_config.SCREEN_SIZE_UM,
                                velocity=speed)
-        if condition!='grating':
-            self.show_fullscreen(color=ec.GRAY)
-            soundplayer.join()
+#        if condition!='grating':
+#            self.show_fullscreen(color=ec.GRAY)
         
     def run(self):
         ec=self.experiment_config
