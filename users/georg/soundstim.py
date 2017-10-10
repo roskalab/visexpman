@@ -1,6 +1,7 @@
 import itertools,random,numpy
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import sound
+from visexpman.engine.generic import signal
 
 class SoundAndGratingC(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -10,9 +11,12 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.BLOCK_DURATION=8.0
         self.PAUSE=4.0
         self.SOUND_BASE_FREQUENCY=14000
+        self.FREQUENCY_STEP=1000#Hz
+        self.MODULATION='am'#'fm'
         self.BAR_WIDTH=300
         self.GRATING_DUTY_CYCLE=0.5
         self.GRAY=0.5
+        self.AUDIO_SAMPLING_RATE=48e3
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
         
@@ -29,10 +33,13 @@ class SoundAndGratingE(experiment.Experiment):
         self.s=[]
         for i in range(len(ec.GRATING_FREQUENCY)):
             self.s.append(sound.SoundGenerator())
-            self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
+            self.s[-1].sample_rate=ec.AUDIO_SAMPLING_RATE
+            if ec.MODULATION=='fm':
+                self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE))
+            elif ec.MODULATION=='am':
+                self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
             self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
         self.orientation=0
-        
         
     def block(self, speed, condition):
         ec=self.experiment_config

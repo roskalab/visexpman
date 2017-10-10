@@ -738,10 +738,12 @@ class LabeledComboBox(QtGui.QWidget):
     Default value in input field:
         self.input.setText(TEXT)
     '''
-    def __init__(self, parent, label,items=None):
+    def __init__(self, parent, label,items=None,editable=False):
         QtGui.QWidget.__init__(self, parent)
         self.label = label
         self.create_widgets()
+        if editable:
+            self.input.setEditable(editable)
         self.create_layout()
         if items is not None:
             self.update_items(items)

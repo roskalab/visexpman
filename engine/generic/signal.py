@@ -311,7 +311,14 @@ def shape2distance(im,iterations):
         stages.append(input.copy())
         output+=numpy.cast['uint8'](input.copy())*(i+1)
     return output
-
+    
+def generate_frequency_modulated_waveform(duration, base_frequency, frequency_step, switch_frequency, fsample):
+    f1=base_frequency+frequency_step
+    f2=base_frequency-frequency_step
+    on_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f1)
+    off_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f2)
+    nshift_periods=int(duration*switch_frequency)
+    return numpy.tile(numpy.concatenate((on_waveform, off_waveform)),nshift_periods)
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -501,7 +508,8 @@ class TestSignal(unittest.TestCase):
         #im[2:14, 2:14]=1
         #d=shape2distance(im, 5)
         
-
+    def test_19_fm(self):
+        generate_frequency_modulated_waveform(10, 15e3, 1e3, 10,48e3)
         
         
     
