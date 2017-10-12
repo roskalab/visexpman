@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Aug 31 2017
+Created on Thu Oct 03 2017
 @author: matej
 """
 
@@ -36,7 +36,7 @@ class WhiteNoiseShort(experiment.ExperimentConfig):
 class MovingGratingLong(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
-        self.REPEATS = 10
+        self.REPEATS = 15
         self.N_BAR_ADVANCES_OVER_POINT = 20
         self.MARCH_TIME = 0.0
         self.GREY_INSTEAD_OF_MARCHING = False
@@ -55,7 +55,7 @@ class MovingGratingLong(experiment.ExperimentConfig):
 class MovingGratingShort(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
-        self.REPEATS = 10
+        self.REPEATS = 3
         self.N_BAR_ADVANCES_OVER_POINT = 20
         self.MARCH_TIME = 0.0
         self.GREY_INSTEAD_OF_MARCHING = False
@@ -105,8 +105,22 @@ class MovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingShapeStimulus'
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
-        self.SPEEDS = [1600] #um/s#
-        #self.SPEEDS = [120, 200,400,1600] #um/s
+        self.PAUSE_BETWEEN_DIRECTIONS = 1.0
+        self.RANDOM_DIRECTIONS = True
+        self.DIRECTIONS = range(0,360,45)
+        self.SHAPE = 'rect'
+        self.SPEEDS = [300, 1600]  # um/s#
+        self.REPETITIONS = 5
+        self.SHAPE_BACKGROUND = 0.0
+        self.SHAPE_CONTRAST = 1.0
+        self._create_parameters_from_locals(locals())
+
+class MovingBar2(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'MovingGratingStimulus'
+        self.SHAPE_SIZE = utils.cr((1000, 500)) #um
+        #self.SPEEDS = [1600] #um/s#
+        self.SPEEDS = [120, 200,400,1600] #um/s
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self.RANDOM_DIRECTIONS = True
         self.REPETITIONS = 10
@@ -114,4 +128,23 @@ class MovingBar(experiment.ExperimentConfig):
         self.SHAPE = 'rect'
         self.SHAPE_BACKGROUND=0.0
         self.SHAPE_CONTRAST = 1.0
+        self._create_parameters_from_locals(locals())
+
+# -----------------------------------------------------------------------------
+
+class NewRandomDots(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'RandomDotsStimulus'
+        self.REPEATS = 1
+        self.DURATION = 10*60 # time scale wrong at this point!
+        self.DIRECTIONS = []
+        self.DOTSIZES = [50]
+        self.DOTSIZES_MIN_MAX = []
+        self.DOTDURATIONS = [0.5]
+        self.DOTDURATIONS_MIN_MAX = []
+        self.SPEEDS = [6]
+        self.SPEEDS_MIN_MAX = []
+        self.COLORS = [[1,1,1], [0,0,0]]
+        self.BGCOLOR = [0.5, 0.5, 0.5]
+        self.SPARSITY_FACTOR = 0.05
         self._create_parameters_from_locals(locals())
