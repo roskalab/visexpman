@@ -24,7 +24,7 @@ class WhiteNoiseLong(experiment.ExperimentConfig):
 class WhiteNoiseShort(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
-        self.DURATION_MINS = 5
+        self.DURATION_MINS = 5.0
         self.PIXEL_SIZE = [40.0]
         #self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False
@@ -55,7 +55,7 @@ class MovingGratingLong(experiment.ExperimentConfig):
 class MovingGratingShort(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
-        self.REPEATS = 5
+        self.REPEATS = 3
         self.N_BAR_ADVANCES_OVER_POINT = 20
         self.MARCH_TIME = 0.0
         self.GREY_INSTEAD_OF_MARCHING = False
@@ -105,29 +105,22 @@ class MovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingShapeStimulus'
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
-        self.SPEEDS = [1600] #um/s#
-        #self.SPEEDS = [120, 200,400,1600] #um/s
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self.RANDOM_DIRECTIONS = True
-        self.REPETITIONS = 10
         self.DIRECTIONS = range(0,360,45)
         self.SHAPE = 'rect'
-        self.SHAPE_BACKGROUND=0.0
-        self.SHAPE_CONTRAST = 1.0
-        self._create_parameters_from_locals(locals())
-
         self.SPEEDS = [300, 1600]  # um/s#
-        self.REPETITIONS = 6
+        self.REPETITIONS = 5
         self.SHAPE_BACKGROUND = 0.0
         self.SHAPE_CONTRAST = 1.0
-
+        self._create_parameters_from_locals(locals())
 
 class MovingBar2(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
-        self.SPEEDS = [1600] #um/s#
-        #self.SPEEDS = [120, 200,400,1600] #um/s
+        #self.SPEEDS = [1600] #um/s#
+        self.SPEEDS = [120, 200,400,1600] #um/s
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self.RANDOM_DIRECTIONS = True
         self.REPETITIONS = 10
