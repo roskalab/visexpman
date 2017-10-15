@@ -171,7 +171,13 @@ def wait4file_ready(f,timeout=60, min_size=0):
         if time.time()-t0>timeout:
             raise RuntimeError('Wait for {} file timeout'.format(f))
 
-
+def folder_signature(folder):
+    '''
+    Signature consist of: number of files, overall file size, latest modification date
+    '''
+    files=find_files_and_folders(folder)[1]
+    return (len(files), sum([os.path.getsize(f) for f in files]), max([os.path.getmtime(f) for f in files]))
+    
 ################# File/directory operations ####################
 
 def mkstemp(suffix=None, filename = None):
