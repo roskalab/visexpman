@@ -9,7 +9,7 @@ import random
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
-class LaserPulse(experiment.ExperimentConfig):
+class LaserPulseC(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.INITIAL_DELAY=10.0
         self.PULSE_DURATION=[20e-3]
@@ -43,6 +43,8 @@ class LaserPulseE(experiment.Experiment):
         self.combined_waveform=numpy.zeros((2,self.waveform.shape[0]))
         self.combined_waveform[0]=self.waveform
         self.combined_waveform[1]=timing_waveform
+        #self.printl((self.combined_waveform.shape, len(pulses)))
+
 
     def prepare(self):
         self.calculate_waveform()
@@ -51,6 +53,7 @@ class LaserPulseE(experiment.Experiment):
         
     def run(self):
         from visexpman.engine.hardware_interface import daq_instrument
+        self._frame_trigger_pulse()
         self.show_fullscreen(color=0.0,duration=0)
 #        self.block_start('laser')
         daq_instrument.set_waveform('Dev1/ao0:1',self.combined_waveform,sample_rate = self.experiment_config.SAMPLE_RATE)

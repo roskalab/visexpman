@@ -7,6 +7,26 @@ import random
 import copy
 
 
+class MovingGratingQuickMarchConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 4 #number of static bar compositions at beginning
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3 #how many times the bar hit a point -> this + speed = moving time
+        self.MARCH_TIME = 2 # standing phase time
+        self.GRATING_STAND_TIME = 2.0 #post-moving-phase time
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.WHITE_BAR_WIDTHS = [300.0]
+        self.VELOCITIES = [1200.0]
+        self.DUTY_CYCLES = [3.] #white and blck bar ratio -> number of bars
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 1.0 #very beginning and end witing time
+        self.COLOR_CONTRAST = 1.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+
 class PhasesGratingConfig(grating_base.MovingGratingConfig):
     def _create_parameters(self):
         grating_base.MovingGratingConfig._create_parameters(self)
@@ -35,24 +55,63 @@ class MovingGratingExpAccConfig(grating_base.MovingGratingConfig):
         grating_base.MovingGratingConfig._create_parameters(self)
         #Timing
         self.NUMBER_OF_MARCHING_PHASES = 1
-        self.MARCH_TIME = 3.0
-        self.GRATING_STAND_TIME = 3.0
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3 #how many times the bar hit a point -> this + speed = moving time
+        self.MARCH_TIME = 0
+        self.GRATING_STAND_TIME = 0
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
-        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.DUTY_CYCLES = [6.0] #put 1.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 3.0
         self.PHASES={}
-        for o in self.ORIENTATIONS:
+        self.STARTING_PHASES = []
+        for oi, o in enumerate(self.ORIENTATIONS):
             duration=5.0#sec
-            f=1.
-            self.PHASES[o]=6000*1./(1.+numpy.exp(-f*numpy.linspace(-3,3,int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))*numpy.pi*2))
-            
+            f=[0.1,1,4]
+            es = [50,9,2.4]
+            for n in range(self.NUMBER_OF_BAR_ADVANCE_OVER_POINT):
+                interval = 4*(self.WHITE_BAR_WIDTHS[0]*self.DUTY_CYCLES[0]) * \
+                    1./(1.+numpy.exp(-f[n]*numpy.linspace(-es,es,int(duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE))))
+                if o not in self.PHASES:
+                    self.STARTING_PHASES.append(interval[0])
+                self.PHASES[o] = numpy.concatenate([self.PHASES[o], self.PHASES[o][-1] + interval]) if o in self.PHASES else interval
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
+        
+class MovingGratingStartStopConfig(grating_base.MovingGratingConfig):
+    def _create_parameters(self):
+        grating_base.MovingGratingConfig._create_parameters(self)
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 2 #how many times the bar hit a point -> this + speed = moving time
+        self.MARCH_TIME = 2.
+        self.GRATING_STAND_TIME = 0.
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.DUTY_CYCLES = [6.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 2.0
+        self.PHASES={}
+        self.STARTING_PHASES = []
+        for oi, o in enumerate(self.ORIENTATIONS):
+            duration=[1.5,6.]#sec
+            p1 = 2.
+            for d1 in duration:
+                for n in range(self.NUMBER_OF_BAR_ADVANCE_OVER_POINT):
+                    interval = 0.5*(self.WHITE_BAR_WIDTHS[0]*self.DUTY_CYCLES[0]) * \
+                        (-numpy.cos(numpy.linspace(0, numpy.pi, int(d1*self.machine_config.SCREEN_EXPECTED_FRAME_RATE)))+1)
+                    pause = numpy.ones((int(p1*self.machine_config.SCREEN_EXPECTED_FRAME_RATE),)) * interval[-1]
+                    ip = numpy.concatenate([interval, pause])
+                    if o not in self.PHASES:
+                        self.STARTING_PHASES.append(ip[0])
+                    self.PHASES[o] = numpy.concatenate([self.PHASES[o], self.PHASES[o][-1] + ip]) if o in self.PHASES else ip
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+        
         
 class CurtainConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -129,6 +188,15 @@ class MovingGratingNoMHor500umsConfig(MovingGratingNoMHor300umsConfig):
         MovingGratingNoMHor300umsConfig._create_parameters(self)
         self.VELOCITIES = [500.0]
 
+class MovingGratingPosterior4SpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
+        self.VELOCITIES = [1200, 1200, 150, 150, 600, 600, 300, 300]
+        self.REPEATS = 1
+        self.ORIENTATIONS = [0]
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
+        self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
+        
 class MovingGratingLongSpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
     def _create_parameters(self):
         MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
