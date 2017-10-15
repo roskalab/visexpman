@@ -69,7 +69,8 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
     m = matlabfile.MatData(reference_path_local, target_path_local)
     if scan_time != None:
         ts = m.get_field(m.name2path('ts'))[0][0][0][0]
-        ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
+        scantime_ms=numpy.round(float(1000*scan_time))
+        ts = numpy.array([ts[0],ts[1],ts[2],scantime_ms, 0], dtype = numpy.float64)
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
     if channels is None or channels == 'green':
         channels_ = numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)

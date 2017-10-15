@@ -11,7 +11,6 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
 	self.DURATION = 300.0
         self.FILENAME = 'c:\\Data\\movieincage_fiona'#\\Movies\\catcam17'#movieincage_fiona'
         self.FRAME_RATE=60.0
-        self.STRETCH = 1.7
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
 
@@ -132,6 +131,16 @@ class LedMorseStimulation(experiment.Experiment):
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):
         self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]*self.experiment_config.REPEATS
+        #Calculate stretch
+        from PIL import Image
+        frame_size=numpy.asarray(Image.open(os.path.join(self.experiment_config.FILENAME, os.listdir(self.experiment_config.FILENAME)[0]))).shape
+        w=frame_size[1]
+        h=frame_size[0]
+        frame=numpy.array([h,w],dtype=numpy.float)
+        screen=numpy.array([self.machine_config.SCREEN_RESOLUTION['row'],self.machine_config.SCREEN_RESOLUTION['col']],dtype=numpy.float)
+        self.experiment_config.STRETCH=(screen/frame).max()
+        self.printl((frame, screen))
+        self.printl((screen/frame, (screen/frame).max()))
         
     def run(self):
 #        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
@@ -141,7 +150,15 @@ class NaturalMovieExperiment(experiment.Experiment):
             raise RuntimeError('This frame rate is not possible')
         else:
             duration = 1.0/self.experiment_config.FRAME_RATE
+        nframes=len(os.listdir(self.experiment_config.FILENAME))
         for rep in range(self.experiment_config.REPEATS):
             #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+            t0=time.time()
             self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH)
+            dt=time.time()-t0
+            self.printl((nframes, dt, nframes/dt))
+            dfps=abs(nframes/dt-self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+            if dfps>5:
+                raise RuntimeError('Frame rate error, expected: {0}, measured {1}, make sure that image frame resolution is not big'
+                            .format(self.machine_config.SCREEN_EXPECTED_FRAME_RATE,nframes/dt))
             #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
