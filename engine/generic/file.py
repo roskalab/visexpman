@@ -229,6 +229,13 @@ def get_tmp_file(suffix, delay = 0.0):
         os.remove(path)
     time.sleep(delay)
     return path
+def folder_signature(folder):
+    '''
+    Signature consist of: number of files, overall file size, latest modification date
+    '''
+    files=find_files_and_folders(folder)[1]
+    return (len(files), sum([os.path.getsize(f) for f in files]), max([os.path.getmtime(f) for f in files]))
+    
 
 def mkstemp(suffix=None, filename = None):
     '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''        

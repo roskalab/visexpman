@@ -263,7 +263,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if count and not self.precalculate_duration_mode and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True):
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, offset=0, length=0, flip = True):
         '''
         Two use cases are handled here:
             - showing individual image files
@@ -300,6 +300,11 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         print self.frame_counter
         if os.path.isdir(path):
             files=os.listdir(path)
+            files.sort()
+            if length>0:
+                length_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*length)
+                offset_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*offset)
+                files=files[offset_f:offset_f+length_f]
             if len([f for f in files if os.path.splitext(f)[1] not in ['.png', '.bmp', '.jpg']])>0:
                  raise RuntimeError('{0} folder contains non image files, please remove them!'.format(path))
             for fn in files:
