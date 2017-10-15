@@ -277,7 +277,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if count and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, 
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, offset=0, length=0,
             flip = True):
         '''        
         Three use cases are handled here:
@@ -308,6 +308,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if os.path.isdir(path):
             fns = os.listdir(path)
             fns.sort()
+            if length>0:
+                length_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*length)
+                offset_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*offset)
+                fns=fns[offset_f:offset_f+length_f]
             if len([f for f in fns if os.path.splitext(f)[1] not in ['.png', '.bmp', '.jpg']])>0:
                  raise RuntimeError('{0} folder contains non image files, please remove them!'.format(path))
             self.t0=time.time()
