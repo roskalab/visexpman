@@ -236,3 +236,5 @@ import os
 import numpy
 
 version = 'v0.3.0'
+
+from visexpman.engine.visexp_smallapp import rotate_images

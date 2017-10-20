@@ -791,5 +791,21 @@ def run_gui():
         gui = getattr(sys.modules[__name__], sys.argv[1])()
     app.exec_()
 
+def rotate_images(root='.'):
+    '''
+    Prepares a folder of images for video stimulus by generating the rotation  of all images
+    Input: image folder, output folder
+    Output: checksum/hash of all folders
+    '''
+    from visexpman.engine.generic.gui import fileinput
+    from visexpman.engine.generic.imageop import rotate_folder
+    from visexpman.engine.generic.fileop import folder_signature
+    image_folder=fileinput(title='Select image folder',root=root, mode='folder')
+    output_folder=fileinput(title='Select output folder',root=root, mode='folder')
+    for rot in range(0,360,90):
+        print rot
+        rotate_folder(image_folder, os.path.join(output_folder,str(rot)), rot)
+    print folder_signature(output_folder)
+
 if __name__ == '__main__':
     run_gui()
