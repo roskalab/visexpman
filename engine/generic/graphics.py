@@ -569,6 +569,14 @@ def check_keyboard():
     
 def is_key_pressed(key):
     return key in check_keyboard()
+    
+def is_valid_frame_rate(fps_requested, fps_machine,threshold=0.1):
+    trequested=1.0/fps_requested
+    tmachine=1.0/fps_machine
+    frac=numpy.modf(trequested/tmachine)[0]
+    if frac>0.5:
+        frac=1-frac
+    return frac<threshold
 
 if __name__ == "__main__": 
     pass
