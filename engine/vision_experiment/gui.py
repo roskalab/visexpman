@@ -38,7 +38,7 @@ BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following forma
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
 
 ENABLE_SCAN_REGION_SERIALIZATION= False
-STAGE= True
+STAGE= not True
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
@@ -1431,7 +1431,8 @@ class MainPoller(Poller):
     def read_stage(self, display_coords = False):
         self.printc('Reading stage and objective position, please wait')
         #result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        self.stage_position = self.stage.read_position()
+        if STAGE:
+            self.stage_position = self.stage.read_position()
         self.stage_position=numpy.array([self.stage_position[0], self.stage_position[1], 0])
         if display_coords:
             self.printc('rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
