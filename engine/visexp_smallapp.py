@@ -805,7 +805,7 @@ def rotate_images(root='.'):
     for rot in range(0,360,90):
         print rot
         rotate_folder(image_folder, os.path.join(output_folder,str(rot)), rot)
-    print folder_signature(output_folder)
+    print 'Image files signature:', folder_signature(output_folder), 'Add this to stimulus file!'
 
 if __name__ == '__main__':
     run_gui()
