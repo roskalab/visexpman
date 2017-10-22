@@ -996,8 +996,8 @@ class FileInput(Qt.QMainWindow):
             filename = map(str,QtGui.QFileDialog.getOpenFileNames(self, self.title, self.root, self.filter))
         elif self.mode=='folder':
             filename= str(QtGui.QFileDialog.getExistingDirectory(self, self.title, self.root))
-        if os.name=='nt':
-            filename=[f.replace('/','\\') for f in filename]
+#        if os.name=='nt':
+#            filename=[f.replace('/','\\') for f in filename]
         self.filename=filename
         self.close()
         
