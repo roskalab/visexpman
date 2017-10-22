@@ -6,6 +6,7 @@ from PIL import Image
 from visexpman.engine.generic import fileop
 
 def rotate_folder(src, dst, rot):
+    print src
     files=fileop.find_files_and_folders(src)[1]
     for f in files:
         img=Image.open(f)
