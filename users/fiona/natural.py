@@ -13,14 +13,14 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
         self.FILENAME = 'c:\\Data\\movieincage_fiona\\rotated'
         self.ROTATION=0
         self.FRAME_RATE=60.0
-        self.VIDEO_OFFSET=0.0#seconds
-        self.VIDEO_DURATION=0.0 #seconds
+        self.VIDEO_OFFSET=2.0#seconds
+        self.VIDEO_DURATION=4.0 #seconds
         sig_catcam17= (72720, 3419760788L, 1508680615.640625)
         sig_movieincage= (9840, 376030701L, 1508684084.046875)
         if 'catcam17' in self.FILENAME:
             sig=sig_catcam17
         elif 'movieincage_fiona' in self.FILENAME:
-            sig=sig_movieincagesig_movieincage
+            sig=sig_movieincage
         else:
             raise NotImplementedError('Signature is not generated for this folder: {0}'.format(self.FILENAME))
         self.IMAGE_FOLDER_SIGNATURE= sig
@@ -143,20 +143,31 @@ class LedMorseStimulation(experiment.Experiment):
         
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):
+        self.fn=os.path.join(self.experiment_config.FILENAME, str(self.experiment_config.ROTATION))
+        files=os.listdir(self.fn)
+        files.sort()
+        if self.experiment_config.VIDEO_DURATION>0:
+            length_f=int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*self.experiment_config.VIDEO_DURATION)
+            offset_f=int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*self.experiment_config.VIDEO_OFFSET)
+            files=files[offset_f:offset_f+length_f]
+        self.nframes=len(files)
         fps_factor=self.machine_config.SCREEN_EXPECTED_FRAME_RATE/float(self.experiment_config.FRAME_RATE)
-        self.fragment_durations = [fps_factor*len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]*self.experiment_config.REPEATS
+        self.fragment_durations = [fps_factor*len(files)/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]*self.experiment_config.REPEATS
+        self.printl((fps_factor, self.fragment_durations))
         #Calculate stretch
         from PIL import Image
-        foldname=os.path.join(self.experiment_config.FILENAME, str(self.experiment_config.ROTATION))
-        frame_size=numpy.asarray(Image.open(os.path.join(foldname, os.listdir(foldname)[0]))).shape
-        w=frame_size[1]
-        h=frame_size[0]
-        frame=numpy.array([h,w],dtype=numpy.float)
-        screen=numpy.array([self.machine_config.SCREEN_RESOLUTION['row'],self.machine_config.SCREEN_RESOLUTION['col']],dtype=numpy.float)
-        self.experiment_config.STRETCH=(screen/frame).max()
-        self.printl((frame, screen))
-        self.printl((screen/frame, (screen/frame).max()))
-        self.fn=os.path.join(self.experiment_config.FILENAME, str(self.experiment_config.ROTATION))
+        stretches=[]
+        for rot in [0,90]:
+            foldname=os.path.join(self.experiment_config.FILENAME, str(rot))
+            frame_size=numpy.asarray(Image.open(os.path.join(foldname, os.listdir(foldname)[0]))).shape
+            w=frame_size[1]
+            h=frame_size[0]
+            frame=numpy.array([h,w],dtype=numpy.float)
+            screen=numpy.array([self.machine_config.SCREEN_RESOLUTION['row'],self.machine_config.SCREEN_RESOLUTION['col']],dtype=numpy.float)
+            stretches.append((screen/frame).max())
+            self.printl((rot, frame, screen))
+            self.printl((rot, screen/frame, (screen/frame).max()))
+        self.experiment_config.STRETCH=max(stretches)
         if not os.path.exists(self.fn):
             raise RuntimeError('Invalid rotation: {0}'.format(self.experiment_config.ROTATION))
         from visexpman.engine.generic import graphics
@@ -164,11 +175,10 @@ class NaturalMovieExperiment(experiment.Experiment):
             raise ValueError('Invalid FRAME_RATE value')
         #check folder signature
         sig=file.folder_signature(self.experiment_config.FILENAME)
-        if sig!=self.experiment_config.IMAGE_FOLDER_SIGNATURE:
+        if sig!=self.experiment_config.IMAGE_FOLDER_SIGNATURE and 0:
             raise RuntimeError('{0} folder\'s signature is not correct, expected signature: {1}, found: {2}'.format(self.experiment_config.FILENAME, self.experiment_config.IMAGE_FOLDER_SIGNATURE, sig))
         else:
             self.printl('Image folder signature OK: {0}'.format(sig))
-        
         
     def run(self):
 #        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
@@ -176,7 +186,6 @@ class NaturalMovieExperiment(experiment.Experiment):
             duration = 0
         else:
             duration = 1.0/self.experiment_config.FRAME_RATE
-        nframes=len(os.listdir(self.experiment_config.FILENAME))
         for rep in range(self.experiment_config.REPEATS):
             #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
             t0=time.time()
@@ -185,9 +194,9 @@ class NaturalMovieExperiment(experiment.Experiment):
                              offset=self.experiment_config.VIDEO_OFFSET, 
                              length=self.experiment_config.VIDEO_DURATION)
             dt=time.time()-t0
-            self.printl((nframes, dt, nframes/dt))
-            dfps=abs(nframes/dt-self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-            if dfps>5:
+            self.printl((self.nframes, dt, self.nframes/dt))
+            dfps=abs(self.nframes/dt-self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+            if dfps>5 and not self.abort:
                 raise RuntimeError('Frame rate error, expected: {0}, measured {1}, make sure that image frame resolution is not big'
-                            .format(self.machine_config.SCREEN_EXPECTED_FRAME_RATE,nframes/dt))
+                            .format(self.machine_config.SCREEN_EXPECTED_FRAME_RATE,self.nframes/dt))
             #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
