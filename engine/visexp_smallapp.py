@@ -802,9 +802,12 @@ def rotate_images(root='.'):
     from visexpman.engine.generic.fileop import folder_signature
     image_folder=fileinput(title='Select image folder',root=root, mode='folder')
     output_folder=fileinput(title='Select output folder',root=root, mode='folder')
+    if image_folder==output_folder:
+        raise RuntimeError('rotated files cannot be put to image folder')
     for rot in range(0,360,90):
-        print rot
-        rotate_folder(image_folder, os.path.join(output_folder,str(rot)), rot)
+        subfolder=str(rot)
+        print rot,image_folder, output_folder,os.path.join(output_folder,subfolder)
+        rotate_folder(image_folder, os.path.join(output_folder,subfolder), rot)
     print 'Image files signature:', folder_signature(output_folder), 'Add this to stimulus file!'
 
 if __name__ == '__main__':
