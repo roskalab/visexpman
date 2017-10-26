@@ -9,14 +9,15 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.REPEATS=1
 	self.DURATION = 300.0
-        #self.FILENAME = 'c:\\Data\\catcam17\\rotated'
-        self.FILENAME = 'c:\\Data\\movieincage_fiona\\rotated'
+        self.FILENAME = 'c:\\Data\\rotated\\catcam17'
+        #self.FILENAME = 'c:\\Data\\rotated\\movieincage_fiona'
         self.ROTATION=0
         self.FRAME_RATE=60.0
-        self.VIDEO_OFFSET=2.0#seconds
-        self.VIDEO_DURATION=4.0 #seconds
-        sig_catcam17= (72720, 3419760788L, 1508680615.640625)
-        sig_movieincage= (9840, 376030701L, 1508684084.046875)
+        self.VIDEO_OFFSET=0.0#seconds
+        self.VIDEO_DURATION=0.0 #seconds
+        sig_catcam17=  (19392, 911855977L, 1509011964.359375)
+        sig_movieincage= (2624, 100294490L, 1509011613.5)
+
         if 'catcam17' in self.FILENAME:
             sig=sig_catcam17
         elif 'movieincage_fiona' in self.FILENAME:
@@ -175,7 +176,7 @@ class NaturalMovieExperiment(experiment.Experiment):
             raise ValueError('Invalid FRAME_RATE value')
         #check folder signature
         sig=file.folder_signature(self.experiment_config.FILENAME)
-        if sig!=self.experiment_config.IMAGE_FOLDER_SIGNATURE and 0:
+        if sig!=self.experiment_config.IMAGE_FOLDER_SIGNATURE:
             raise RuntimeError('{0} folder\'s signature is not correct, expected signature: {1}, found: {2}'.format(self.experiment_config.FILENAME, self.experiment_config.IMAGE_FOLDER_SIGNATURE, sig))
         else:
             self.printl('Image folder signature OK: {0}'.format(sig))
