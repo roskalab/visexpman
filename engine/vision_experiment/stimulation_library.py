@@ -302,8 +302,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             files=os.listdir(path)
             files.sort()
             if length>0:
-                length_f=int(self.config.SCREEN_EXPECTED_FRAME_RATE*length)
-                offset_f=int(self.config.SCREEN_EXPECTED_FRAME_RATE*offset)
+                if duration==0:
+                    fps_ratio=1
+                else: 
+                    fps_ratio=int(self.config.SCREEN_EXPECTED_FRAME_RATE /(1.0/duration))
+                length_f=int(self.config.SCREEN_EXPECTED_FRAME_RATE*length/fps_ratio)
+                offset_f=int(self.config.SCREEN_EXPECTED_FRAME_RATE*offset/fps_ratio)
                 files=files[offset_f:offset_f+length_f]
             if len([f for f in files if os.path.splitext(f)[1] not in ['.png', '.bmp', '.jpg']])>0:
                  raise RuntimeError('{0} folder contains non image files, please remove them!'.format(path))
