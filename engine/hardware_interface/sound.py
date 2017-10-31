@@ -84,9 +84,5 @@ class TestSound(unittest.TestCase):
         wf.put('terminate')
         sp.join()
         
-        
-    
-
-        
 if __name__ == "__main__":    
     unittest.main()

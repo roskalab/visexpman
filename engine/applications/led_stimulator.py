@@ -1,4 +1,10 @@
-import os,logging,numpy
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except ImportError:
+    pass
+import os,logging,numpy,copy
 import PyQt4.QtGui as QtGui
 from visexpman.engine.generic import gui
 
@@ -17,6 +23,7 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Sample Rate', 'type': 'int', 'value': 10000, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
                     {'name': 'Tmin', 'type': 'float', 'value': 0.5, 'suffix': 's', 'siPrefix': True},
+                    {'name': 'DAQ device', 'type': 'string', 'value': 'Dev1'},
                                                                                                 ]
         self.parametersw = gui.ParameterTable(self, params)
         self.parametersw.setFixedWidth(230)
@@ -51,6 +58,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.addToolBar(self.toolbar)
         self.settings_changed()
         self.ao_sample_rate=1000
+        self.daq_timeout=1
 
     def settings_changed(self):
         self.settings = self.cw.parametersw.get_parameter_tree(True)
@@ -73,6 +81,84 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.waveform=numpy.array(2*[self.waveform])
         enable_mask=numpy.array([[self.settings['Left LED'],self.settings['Right LED']]]).T
         self.waveform*=enable_mask
+        
+    def init_daq(self):
+        self.analog_output = PyDAQmx.Task()
+        self.analog_output.CreateAOVoltageChan(self.settings['DAQ device'],
+                                                            'ao',
+                                                            0,
+                                                            5.0,
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+        self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(self.settings['DAQ device']), DAQmxConstants.DAQmx_Val_Rising)
+        self.analog_input = PyDAQmx.Task()
+        if self.settings['Left LED'] and self.settings['Right LED']:
+            ch1=0
+            ch2=2
+        elif self.settings['Left LED'] and not self.settings['Right LED']:
+            ch1=0
+            ch2=1
+        elif not self.settings['Left LED'] and self.settings['Right LED']:
+            ch1=1
+            ch2=2
+        ai_channels='{0}/ai{1}:{2}' .format(self.settings['DAQ device'], ch1, ch2)
+        self.analog_input.CreateAIVoltageChan(ai_channels,
+                                                'ai',
+                                                DAQmxConstants.DAQmx_Val_RSE,
+                                                -5.0,
+                                                5.0,
+                                                DAQmxConstants.DAQmx_Val_Volts,
+                                                None)
+        self.read = DAQmxTypes.int32()
+
+    def start_daq(self):
+        self.analog_output.CfgSampClkTiming("OnboardClock",
+                                    self.ao_sample_rate,
+                                    DAQmxConstants.DAQmx_Val_Rising,
+                                    DAQmxConstants.DAQmx_Val_ContSamps,
+                                    self.number_of_ao_samples)
+        self.analog_input.CfgSampClkTiming("OnboardClock",
+                                    self.settings['Sample Rate'],
+                                    DAQmxConstants.DAQmx_Val_Rising,
+                                    DAQmxConstants.DAQmx_Val_ContSamps,
+                                    self.number_of_ai_samples)
+        self.analog_output.WriteAnalogF64(self.number_of_ao_samples,
+                                False,
+                                self.daq_timeout,
+                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                self.waveform,
+                                None,
+                                None)
+        self.analog_output.StartTask()
+        self.analog_input.StartTask()
+
+    def read_daq(self):
+        samples_to_read = self.number_of_ai_samples * self.number_of_ai_channels
+        self.ai_data = numpy.zeros(self.number_of_ai_samples*self.number_of_ai_channels, dtype=numpy.float64)
+        try:
+            self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
+                                        self.daq_timeout,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        self.ai_data,
+                                        samples_to_read,
+                                        DAQmxTypes.byref(self.read),
+                                        None)
+        except PyDAQmx.DAQError:
+            if self.finite_samples:
+                import traceback
+                self.printl(traceback.format_exc())
+        ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+        self.printl(self.ai_data.shape)
+        ##self.ai_raw_data = self.ai_data
+        ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
+        self.queues['data'].put(ai_data)
+        self.ai_frames += 1
+        return ai_data
+        
+    def close_daq(self):
+        self.analog_output.ClearTask()
+        self.analog_input.ClearTask()
+
 
 if __name__ == "__main__":
     stim=LEDStimulator()
