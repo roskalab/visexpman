@@ -982,7 +982,7 @@ class FileInput(Qt.QMainWindow):
         self.filter=filter
         self.root=root
         self.mode=mode
-        self.setGeometry(50,50,100,100)
+        self.setGeometry(50,50,400,100)
         self.timer=QtCore.QTimer()
         self.timer.singleShot(50, self.popup)#ms
         self.show()
@@ -996,13 +996,17 @@ class FileInput(Qt.QMainWindow):
             filename = map(str,QtGui.QFileDialog.getOpenFileNames(self, self.title, self.root, self.filter))
         elif self.mode=='folder':
             filename= str(QtGui.QFileDialog.getExistingDirectory(self, self.title, self.root))
-#        if os.name=='nt':
-#            filename=[f.replace('/','\\') for f in filename]
+        if os.name=='nt':
+            if isinstance(filename,list):
+                filename=[f.replace('/','\\') for f in filename]
+            else:
+                filename=filename.replace('/','\\')
         self.filename=filename
         self.close()
         
 def fileinput(title='',root='.',filter='*.*', mode='file'):
     g=FileInput(title, root, filter, mode)
+    print g.filename
     return g.filename
 
 class GuiTest(unittest.TestCase):
