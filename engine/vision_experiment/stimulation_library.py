@@ -309,6 +309,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             fns = os.listdir(path)
             fns.sort()
             if length>0:
+                raise NotImmplementedError('Merge bugfix from 17.02 rc branch')
                 length_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*length)
                 offset_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*offset)
                 fns=fns[offset_f:offset_f+length_f]
