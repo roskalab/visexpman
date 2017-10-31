@@ -13,9 +13,9 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Right LED', 'type': 'bool', 'value': False,},
                     {'name': 'Enable Average', 'type': 'bool', 'value': True,},
                     {'name': 'Stimulus Rate', 'type': 'int', 'value': 1, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'LED on time', 'type': 'float', 'value': 100, 'suffix': 'ms', 'siPrefix': True},
                     {'name': 'Sample Rate', 'type': 'int', 'value': 10000, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
-                    {'name': 'Duty Cycle', 'type': 'float', 'value': 50, 'suffix': '%', 'siPrefix': True},
                     {'name': 'Tmin', 'type': 'float', 'value': 0.5, 'suffix': 's', 'siPrefix': True},
                                                                                                 ]
         self.parametersw = gui.ParameterTable(self, params)
@@ -38,8 +38,8 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.toolbar.setToolTip('''
         Connections:
             AI0: Left LED
-            AI1: Right LED
-            AI2: amplifier's output
+            AI2: Right LED
+            AI1: amplifier's output
             AO0: Left LED
             AO1: Right LED
         Usage:
@@ -50,6 +50,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         ''')
         self.addToolBar(self.toolbar)
         self.settings_changed()
+        self.ao_sample_rate=1000
 
     def settings_changed(self):
         self.settings = self.cw.parametersw.get_parameter_tree(True)
@@ -65,16 +66,13 @@ class LEDStimulator(gui.SimpleAppWindow):
         
     def generate_waveform(self):
         tperiod=1.0/self.settings['Stimulus Rate']
-        nrepeats=numpy.ceils(self.settings['Tmin']/tperiod)
-        self.waveform=self.settings['LED Voltage']*numpy.tile(numpy.concatenate((numpy.ones(tperiod*self.settings['Sample Rate']*self.settings['Duty Cycle']*1e-2),
-                numpy.zeros(tperiod*self.settings['Sample Rate']*(100-self.settings['Duty Cycle'])*1e-2))), nrepeats)
+        duty_cycle=self.settings['LED on time']*1e-3/tperiod
+        nrepeats=numpy.ceil(self.settings['Tmin']/tperiod)
+        self.waveform=self.settings['LED Voltage']*numpy.tile(numpy.concatenate((numpy.ones(int(tperiod*self.ao_sample_rate*duty_cycle)),
+                numpy.zeros(int(tperiod*self.ao_sample_rate*(1-duty_cycle))))), nrepeats)
         self.waveform=numpy.array(2*[self.waveform])
-        
-        self.settings['Left LED']
-        self.settings['Right LED']
-        self.settings['Sample Rate']
-        self.settings['Stimulus Rate']
-        self.settings['LED Voltage']
+        enable_mask=numpy.array([[self.settings['Left LED'],self.settings['Right LED']]]).T
+        self.waveform*=enable_mask
 
 if __name__ == "__main__":
     stim=LEDStimulator()
