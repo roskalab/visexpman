@@ -12,7 +12,7 @@ import pyqtgraph
 import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal,introspect
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import traceback,sys,Queue
+import traceback,sys
 
 def excepthook(excType, excValue, tracebackobj):
     msg='\n'.join(traceback.format_tb(tracebackobj))+str(excType.__name__)+': '+str(excValue)
