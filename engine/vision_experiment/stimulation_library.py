@@ -310,8 +310,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             fns.sort()
             if length>0:
                 raise NotImmplementedError('Merge bugfix from 17.02 rc branch')
-                length_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*length)
-                offset_f=(self.config.SCREEN_EXPECTED_FRAME_RATE*offset)
+                length_f=int(self.config.SCREEN_EXPECTED_FRAME_RATE*length)
+                offset_f=int(self.config.SCREEN_EXPECTED_FRAME_RATE*offset)
                 fns=fns[offset_f:offset_f+length_f]
             if len([f for f in fns if os.path.splitext(f)[1] not in ['.png', '.bmp', '.jpg']])>0:
                  raise RuntimeError('{0} folder contains non image files, please remove them!'.format(path))
@@ -1073,7 +1073,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
-    def show_white_noise(self, duration, square_size,save_frame_info=True):
+    def show_white_noise(self, duration, square_size, save_frame_info=True):
         '''
         Generates white noise stimulus using numpy.random.random
         

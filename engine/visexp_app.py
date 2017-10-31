@@ -290,6 +290,9 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
             'id':str(int(numpy.round(time.time(), 2)*100))}
     if kwargs.has_key('stimulus_source_code'):
         parameters['stimulus_source_code']=kwargs['stimulus_source_code']
+    if kwargs.has_key('experiment_config_source_code'):
+        parameters['experiment_config_source_code']=kwargs['experiment_config_source_code']
+        parameters['stimclass']=experiment_config
     commands = [{'function': 'start_stimulus', 'args': [parameters]}]
     commands.append({'function': 'exit_application'})
     map(context['socket_queues']['stim']['fromsocket'].put, commands)
