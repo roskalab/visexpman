@@ -1,4 +1,4 @@
-import playsound,subprocess,platform,numpy,scipy.io.wavfile,unittest,tempfile,os,threading,uuid
+import playsound,subprocess,numpy,scipy.io.wavfile,unittest,tempfile,os,threading,uuid
 import time
 
 class SoundGenerator():
@@ -26,7 +26,7 @@ class SoundGenerator():
         for fn in [self.wavfn, self.mp3fn]:
             if os.path.exists(fn):
                 os.remove(fn)
-                
+        
 class SoundPlayer(threading.Thread):
     def __init__(self,filename,sample_rate=None,waveforms=None ):
         self.waveforms=waveforms
