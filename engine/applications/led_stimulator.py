@@ -4,9 +4,11 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
-import os,logging,numpy,copy
+import os,logging,numpy,copy,pyqtgraph
 import PyQt4.QtGui as QtGui
-from visexpman.engine.generic import gui
+import PyQt4.QtCore as QtCore
+from visexpman.engine.generic import gui, signal
+
 
 class CWidget(QtGui.QWidget):
     def __init__(self,parent):
@@ -23,7 +25,7 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Sample Rate', 'type': 'int', 'value': 10000, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
                     {'name': 'Tmin', 'type': 'float', 'value': 0.5, 'suffix': 's', 'siPrefix': True},
-                    {'name': 'DAQ device', 'type': 'string', 'value': 'Dev1'},
+                    {'name': 'DAQ device', 'type': 'str', 'value': 'Dev1'},
                                                                                                 ]
         self.parametersw = gui.ParameterTable(self, params)
         self.parametersw.setFixedWidth(230)
@@ -59,15 +61,21 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.settings_changed()
         self.ao_sample_rate=1000
         self.daq_timeout=1
+        self.running=False
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(1000)
 
     def settings_changed(self):
         self.settings = self.cw.parametersw.get_parameter_tree(True)
 
     def start_action(self):
         logging.info('start')
+        self.running=True
 
     def stop_action(self):
         logging.info('stop')
+        self.running=False
 
     def exit_action(self):
         self.close()
@@ -82,6 +90,18 @@ class LEDStimulator(gui.SimpleAppWindow):
         enable_mask=numpy.array([[self.settings['Left LED'],self.settings['Right LED']]]).T
         self.waveform*=enable_mask
         
+    def update(self):
+        if self.running:
+            newsig=numpy.random.random(1000)
+            if not hasattr(self, 'sigs'):
+                self.sigs=[]
+            self.sigs.append(newsig)
+            self.sig=numpy.array(self.sigs).mean(axis=0)
+            self.trig=5*numpy.concatenate((numpy.ones(500),numpy.zeros(500)))
+            t=signal.time_series(self.trig.shape[0], self.settings['Sample Rate'])
+            pp=[{'name': 'sig', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'trig', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}]
+            self.cw.plotw.update_curves(2*[t], [self.sig,self.trig],plotparams=pp)
+        
     def init_daq(self):
         self.analog_output = PyDAQmx.Task()
         self.analog_output.CreateAOVoltageChan(self.settings['DAQ device'],
@@ -94,7 +114,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.analog_input = PyDAQmx.Task()
         if self.settings['Left LED'] and self.settings['Right LED']:
             ch1=0
-            ch2=2
+            ch2=1
         elif self.settings['Left LED'] and not self.settings['Right LED']:
             ch1=0
             ch2=1

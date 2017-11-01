@@ -59,7 +59,10 @@ def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
        
 ############## Waveform generation ##############
 def time_series(duration, fs):
-    return numpy.linspace(0, duration, int(numpy.round(duration*fs))+1)
+    if isinstance(duration, float):
+        return numpy.linspace(0, duration, int(numpy.round(duration*fs))+1)
+    elif isinstance(duration, int):
+        return numpy.arange(duration,dtype=numpy.float)/fs
 
 def wf_sin(a, f, duration, fs, phase = 0, offset = 0):
     t = time_series(duration, fs)
