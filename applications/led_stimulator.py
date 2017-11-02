@@ -26,6 +26,7 @@ class CWidget(QtGui.QWidget):
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
                     {'name': 'Tmin', 'type': 'float', 'value': 0.5, 'suffix': 's', 'siPrefix': True},
                     {'name': 'DAQ device', 'type': 'str', 'value': 'Dev5'},
+                    {'name': 'Simulate', 'type': 'bool', 'value': False,},
                                                                                                 ]
         self.parametersw = gui.ParameterTable(self, params)
         self.parametersw.setFixedWidth(230)
@@ -75,7 +76,7 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.running=True
             self.init_daq()
             self.start_daq()
-            self.timer.start(int(1000*(0.95*self.tperiod)))
+            self.timer.start(int(1000*(0.9*self.tperiod)))
 
     def stop_action(self):
         self.close_daq()
@@ -106,7 +107,11 @@ class LEDStimulator(gui.SimpleAppWindow):
     def update(self):
         if self.running:
             ai_data=self.read_daq()
-            newsig=ai_data[:,self.elphys_channel_index]#numpy.random.random(1000)
+            newsig=ai_data[:,self.elphys_channel_index]
+            if self.settings['Simulate']:
+                sig=numpy.load(os.path.join('..', 'data', 'test', 'lfp_mv_40kHz.npy'))
+                repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
+                newsig=numpy.tile(sig,repeat)[:newsig.shape[0]]
             self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
             if not hasattr(self, 'sigs'):
                 self.sigs=[]
