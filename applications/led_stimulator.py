@@ -72,6 +72,7 @@ class LEDStimulator(gui.SimpleAppWindow):
     def start_action(self):
         logging.info('start')
         if self.generate_waveform():
+            self.sigs=[]
             self.running=True
             self.init_daq()
             self.start_daq()
@@ -108,8 +109,6 @@ class LEDStimulator(gui.SimpleAppWindow):
             ai_data=self.read_daq()
             newsig=ai_data[:,self.elphys_channel_index]#numpy.random.random(1000)
             self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
-            if not hasattr(self, 'sigs'):
-                self.sigs=[]
             self.sigs.append(newsig)
             if self.settings['Enable Average']:
                 self.sig=numpy.array(self.sigs).mean(axis=0)
