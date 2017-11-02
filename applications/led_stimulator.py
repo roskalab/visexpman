@@ -110,9 +110,10 @@ class LEDStimulator(gui.SimpleAppWindow):
             ai_data=self.read_daq()
             newsig=ai_data[:,self.elphys_channel_index]
             if self.settings['Simulate']:
-                sig=numpy.load(os.path.join('..', 'data', 'test', 'lfp_mv_40kHz.npy'))
+                sig=numpy.load(os.path.join(os.path.dirname(__file__),'..', 'data', 'test', 'lfp_mv_40kHz.npy'))
                 repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
                 newsig=numpy.tile(sig,repeat)[:newsig.shape[0]]
+                newsig+=numpy.random.random(newsig.shape[0])
             self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
             self.sigs.append(newsig)
             if self.settings['Enable Average']:
