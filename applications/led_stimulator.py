@@ -8,7 +8,7 @@ import os,logging,numpy,copy,pyqtgraph,scipy.signal
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal
-
+SKIP_ACQUIRED_DATA=True
 
 class CWidget(QtGui.QWidget):
     def __init__(self,parent):
@@ -83,6 +83,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start(1000)
+        self.counter=0
 
     def settings_changed(self):
         self.settings = self.cw.parametersw.get_parameter_tree(True)
@@ -131,31 +132,34 @@ class LEDStimulator(gui.SimpleAppWindow):
     def update(self):
         if self.running:
             ai_data=self.read_daq()
-            newsig=ai_data[:,self.elphys_channel_index]
-            if self.settings['Simulate']:
-                sig=numpy.load(os.path.join(os.path.dirname(__file__),'..', 'data', 'test', 'lfp_mv_40kHz.npy'))
-                repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
-                newsig=numpy.tile(sig,repeat)[:newsig.shape[0]]
-                newsig+=numpy.random.random(newsig.shape[0])
-            self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
-            self.sigs.append(newsig)
-            if len(self.sigs)>1000:
-                self.sigs=self.sigs[-1000:]
-            if self.settings['Enable Average']:
-                self.sig=numpy.array(self.sigs).mean(axis=0)
-            else:
-                self.sig=newsig
-                
-            if self.settings['Enable Filter']:
-                lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.sig).real
-                highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.sig).real            
-            
-            t=signal.time_series(int(self.trig.shape[0]), self.settings['Sample Rate'])*1e3
-            pp=[{'name': 'sig', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'trig', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}]
-            self.cw.plotw.update_curves(2*[t], [self.sig,self.trig],plotparams=pp)
-            if self.settings['Enable Filter']:
-                self.cw.plotfiltered['Field Potential'].update_curves(2*[t], [lowpassfiltered,self.trig],plotparams=pp)
-                self.cw.plotfiltered['Spike'].update_curves(2*[t], [highpassfiltered,self.trig],plotparams=pp)
+            self.counter+=1
+            if self.counter%2==1 or not SKIP_ACQUIRED_DATA:
+                if ai_data==None:
+                    return
+                newsig=ai_data[:,self.elphys_channel_index]
+                if self.settings['Simulate']:
+                    sig=numpy.load(os.path.join(os.path.dirname(__file__),'..', 'data', 'test', 'lfp_mv_40kHz.npy'))
+                    repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
+                    newsig=numpy.tile(sig,repeat)[:newsig.shape[0]]
+                    newsig+=numpy.random.random(newsig.shape[0])
+                self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
+                self.sigs.append(newsig)
+                if len(self.sigs)>1000:
+                    self.sigs=self.sigs[-1000:]
+                if self.settings['Enable Average']:
+                    self.sig=numpy.array(self.sigs).mean(axis=0)
+                else:
+                    self.sig=newsig
+                if self.settings['Enable Filter']:
+                    self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.sig).real
+                    self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.sig).real            
+            if self.counter%2==0 or not SKIP_ACQUIRED_DATA:
+                t=signal.time_series(int(self.trig.shape[0]), self.settings['Sample Rate'])*1e3
+                pp=[{'name': 'sig', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'trig', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}]
+                self.cw.plotw.update_curves(2*[t], [self.sig,self.trig],plotparams=pp)
+                if self.settings['Enable Filter']:
+                    self.cw.plotfiltered['Field Potential'].update_curves(2*[t], [self.lowpassfiltered,self.trig],plotparams=pp)
+                    self.cw.plotfiltered['Spike'].update_curves(2*[t], [self.highpassfiltered,self.trig],plotparams=pp)
         
     def init_daq(self):
         self.analog_output = PyDAQmx.Task()
@@ -224,6 +228,8 @@ class LEDStimulator(gui.SimpleAppWindow):
                                         DAQmxTypes.byref(self.read),
                                         None)
         except PyDAQmx.DAQError:
+            logging.error('Skipping data')
+            return
             import traceback
             logging.error(traceback.format_exc())
         ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
