@@ -4,7 +4,7 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
-import os,logging,numpy,copy,pyqtgraph
+import os,logging,numpy,copy,pyqtgraph,scipy
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal
@@ -15,7 +15,14 @@ class CWidget(QtGui.QWidget):
         QtGui.QWidget.__init__(self,parent)
         self.plotw=gui.Plot(self)
         self.plotw.setFixedWidth(950)
-        self.plotw.setFixedHeight(300)
+        self.plotw.setFixedHeight(200)
+        self.plotw.plot.setTitle('Raw')
+        self.plotfiltered={}
+        for pn in ['Spike', 'Field Potential']:
+            self.plotfiltered[pn]=gui.Plot(self)
+            self.plotfiltered[pn].setFixedWidth(950)
+            self.plotfiltered[pn].setFixedHeight(200)
+            self.plotfiltered[pn].plot.setTitle(pn)
         params = [
                     {'name': 'Left LED', 'type': 'bool', 'value': True,},
                     {'name': 'Right LED', 'type': 'bool', 'value': True,},
@@ -23,17 +30,25 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Stimulus Rate', 'type': 'int', 'value': 1, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED on time', 'type': 'float', 'value': 100, 'suffix': 'ms', 'siPrefix': True},
                     {'name': 'Sample Rate', 'type': 'int', 'value': 40000, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'Filter Frequency', 'type': 'int', 'value': 300, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'Enable Filter', 'type': 'bool', 'value': True,},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
-                    {'name': 'Tmin', 'type': 'float', 'value': 0.5, 'suffix': 's', 'siPrefix': True},
-                    {'name': 'DAQ device', 'type': 'str', 'value': 'Dev5'},
-                    {'name': 'Simulate', 'type': 'bool', 'value': False,},
-                                                                                                ]
+                    {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Filter Order', 'type': 'int', 'value': 3},
+                                {'name': 'Tmin', 'type': 'float', 'value': 0.5, 'suffix': 's', 'siPrefix': True},
+                                {'name': 'DAQ device', 'type': 'str', 'value': 'Dev5'},
+                                {'name': 'Simulate', 'type': 'bool', 'value': False,},
+                                ]},]
         self.parametersw = gui.ParameterTable(self, params)
         self.parametersw.setFixedWidth(230)
-        self.parametersw.setFixedHeight(300)
+        self.parametersw.setFixedHeight(500)
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
         self.l.addWidget(self.plotw, 0, 1, 1, 5)
-        self.l.addWidget(self.parametersw, 0, 0, 1, 1)
+        ct=0
+        for v in self.plotfiltered.values():
+            self.l.addWidget(v, ct+1, 1, 1, 5)
+            ct+=1
+        self.l.addWidget(self.parametersw, 0, 0, 2, 1)
         self.setLayout(self.l)
 
 class LEDStimulator(gui.SimpleAppWindow):
@@ -42,7 +57,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.cw=CWidget(self)
         self.setCentralWidget(self.cw)
         self.cw.parametersw.params.sigTreeStateChanged.connect(self.settings_changed)
-        self.resize(1000,500)
+        self.resize(1000,800)
         icon_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'icons')
         self.toolbar = gui.ToolBar(self, ['start', 'stop','exit'], icon_folder = icon_folder)
         self.toolbar.setToolTip('''
@@ -73,6 +88,8 @@ class LEDStimulator(gui.SimpleAppWindow):
     def start_action(self):
         logging.info('start')
         if self.generate_waveform():
+            self.lowpass=scipy.signal.butter(self.settings['Filter Order'],self.settings['Filter Frequency']/self.settings['Sample Rate'],'low')
+            self.highpass=scipy.signal.butter(self.settings['Filter Order'],self.settings['Filter Frequency']/self.settings['Sample Rate'],'high')
             self.running=True
             self.init_daq()
             self.start_daq()
@@ -112,6 +129,9 @@ class LEDStimulator(gui.SimpleAppWindow):
                 sig=numpy.load(os.path.join('..', 'data', 'test', 'lfp_mv_40kHz.npy'))
                 repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
                 newsig=numpy.tile(sig,repeat)[:newsig.shape[0]]
+            if self.settings['Enable Filter']:
+                lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], newsig).real
+                highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], newsig).real            
             self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
             if not hasattr(self, 'sigs'):
                 self.sigs=[]
