@@ -90,6 +90,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         if self.generate_waveform():
             self.lowpass=scipy.signal.butter(self.settings['Filter Order'],self.settings['Filter Frequency']/self.settings['Sample Rate'],'low')
             self.highpass=scipy.signal.butter(self.settings['Filter Order'],self.settings['Filter Frequency']/self.settings['Sample Rate'],'high')
+            self.sigs=[]
             self.running=True
             self.init_daq()
             self.start_daq()
@@ -133,8 +134,6 @@ class LEDStimulator(gui.SimpleAppWindow):
                 lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], newsig).real
                 highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], newsig).real            
             self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
-            if not hasattr(self, 'sigs'):
-                self.sigs=[]
             self.sigs.append(newsig)
             if self.settings['Enable Average']:
                 self.sig=numpy.array(self.sigs).mean(axis=0)
