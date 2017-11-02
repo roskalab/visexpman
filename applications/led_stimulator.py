@@ -4,7 +4,7 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
-import os,logging,numpy,copy,pyqtgraph
+import os,logging,numpy,copy,pyqtgraph,scipy.signal
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal
@@ -15,25 +15,42 @@ class CWidget(QtGui.QWidget):
         QtGui.QWidget.__init__(self,parent)
         self.plotw=gui.Plot(self)
         self.plotw.setFixedWidth(950)
-        self.plotw.setFixedHeight(300)
+        self.plotw.setFixedHeight(200)
+        self.plotw.plot.setTitle('Raw')
+        self.plotw.plot.setLabels(left='mV', bottom='ms')
+        self.plotfiltered={}
+        for pn in ['Spike', 'Field Potential']:
+            self.plotfiltered[pn]=gui.Plot(self)
+            self.plotfiltered[pn].setFixedWidth(950)
+            self.plotfiltered[pn].setFixedHeight(200)
+            self.plotfiltered[pn].plot.setTitle(pn)
+            self.plotfiltered[pn].plot.setLabels(left='mV', bottom='ms')
         params = [
                     {'name': 'Left LED', 'type': 'bool', 'value': True,},
                     {'name': 'Right LED', 'type': 'bool', 'value': True,},
                     {'name': 'Enable Average', 'type': 'bool', 'value': True,},
-                    {'name': 'Stimulus Rate', 'type': 'int', 'value': 1, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'Stimulus Rate', 'type': 'int', 'value': 2, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED on time', 'type': 'float', 'value': 100, 'suffix': 'ms', 'siPrefix': True},
-                    {'name': 'Sample Rate', 'type': 'int', 'value': 40000, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'Sample Rate', 'type': 'int', 'value': 20000, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'Filter Frequency', 'type': 'int', 'value': 100, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'Enable Filter', 'type': 'bool', 'value': True,},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
-                    {'name': 'Tmin', 'type': 'float', 'value': 0.5, 'suffix': 's', 'siPrefix': True},
-                    {'name': 'DAQ device', 'type': 'str', 'value': 'Dev5'},
-                    {'name': 'Simulate', 'type': 'bool', 'value': False,},
-                                                                                                ]
+                    {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Filter Order', 'type': 'int', 'value': 3},
+                                {'name': 'Tmin', 'type': 'float', 'value': 0.2, 'suffix': 's', 'siPrefix': True},
+                                {'name': 'DAQ device', 'type': 'str', 'value': 'Dev5'},
+                                {'name': 'Simulate', 'type': 'bool', 'value': False,},
+                                ]},]
         self.parametersw = gui.ParameterTable(self, params)
         self.parametersw.setFixedWidth(230)
-        self.parametersw.setFixedHeight(300)
+        self.parametersw.setFixedHeight(500)
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
         self.l.addWidget(self.plotw, 0, 1, 1, 5)
-        self.l.addWidget(self.parametersw, 0, 0, 1, 1)
+        ct=0
+        for v in self.plotfiltered.values():
+            self.l.addWidget(v, ct+1, 1, 1, 5)
+            ct+=1
+        self.l.addWidget(self.parametersw, 0, 0, 2, 1)
         self.setLayout(self.l)
 
 class LEDStimulator(gui.SimpleAppWindow):
@@ -42,7 +59,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.cw=CWidget(self)
         self.setCentralWidget(self.cw)
         self.cw.parametersw.params.sigTreeStateChanged.connect(self.settings_changed)
-        self.resize(1000,500)
+        self.resize(1000,800)
         icon_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'icons')
         self.toolbar = gui.ToolBar(self, ['start', 'stop','exit'], icon_folder = icon_folder)
         self.toolbar.setToolTip('''
@@ -71,15 +88,21 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.settings = self.cw.parametersw.get_parameter_tree(True)
 
     def start_action(self):
+        if self.running:
+            return
         logging.info('start')
         if self.generate_waveform():
+            self.lowpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'low')
+            self.highpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'high')
             self.sigs=[]
             self.running=True
             self.init_daq()
             self.start_daq()
-            self.timer.start(int(1000*(0.9*self.tperiod)))
+            self.timer.start(int(1000*(0.8*self.tperiod)))
 
     def stop_action(self):
+        if not self.running:
+            return
         self.close_daq()
         logging.info('stop')
         self.running=False
@@ -116,14 +139,23 @@ class LEDStimulator(gui.SimpleAppWindow):
                 newsig+=numpy.random.random(newsig.shape[0])
             self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
             self.sigs.append(newsig)
+            if len(self.sigs)>1000:
+                self.sigs=self.sigs[-1000:]
             if self.settings['Enable Average']:
                 self.sig=numpy.array(self.sigs).mean(axis=0)
             else:
                 self.sig=newsig
+                
+            if self.settings['Enable Filter']:
+                lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.sig).real
+                highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.sig).real            
             
-            t=signal.time_series(int(self.trig.shape[0]), self.settings['Sample Rate'])
+            t=signal.time_series(int(self.trig.shape[0]), self.settings['Sample Rate'])*1e3
             pp=[{'name': 'sig', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'trig', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}]
             self.cw.plotw.update_curves(2*[t], [self.sig,self.trig],plotparams=pp)
+            if self.settings['Enable Filter']:
+                self.cw.plotfiltered['Field Potential'].update_curves(2*[t], [lowpassfiltered,self.trig],plotparams=pp)
+                self.cw.plotfiltered['Spike'].update_curves(2*[t], [highpassfiltered,self.trig],plotparams=pp)
         
     def init_daq(self):
         self.analog_output = PyDAQmx.Task()
