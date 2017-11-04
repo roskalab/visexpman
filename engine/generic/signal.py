@@ -217,6 +217,19 @@ def trigger_indexes(trigger,threshold=0.3, abs_threshold=None):
         return numpy.array([])
     return numpy.nonzero(abs(numpy.diff(numpy.where(trigger-trigger.min()>threshold*(trigger.max()-trigger.min()),1,0))))[0]+1
     #return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>threshold*(trigger.max()-trigger.min()), 1, 0))[0]+1
+    
+def detect_edges(signal, threshold):
+    return numpy.nonzero(numpy.diff(numpy.where(signal>threshold,1,0)))[0]+1
+    
+def generate_bins(signal, binsize):
+    '''
+    generate bins such that it is aligned to binsize
+    '''
+    nsteps_lower=signal.min()/binsize
+    range_min=numpy.ceil(abs(nsteps_lower))*numpy.sign(nsteps_lower)*binsize
+    nsteps_upper=numpy.ceil(signal.max()/binsize)
+    range_max=nsteps_upper*binsize
+    return numpy.arange(range_min,range_max,binsize)
 
 def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
