@@ -4,10 +4,10 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
-import os,logging,numpy,copy,pyqtgraph,scipy.signal
+import os,logging,numpy,copy,pyqtgraph,scipy.signal,scipy.io,time
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-from visexpman.engine.generic import gui, signal
+from visexpman.engine.generic import gui, signal,utils
 SKIP_ACQUIRED_DATA=True
 
 class CWidget(QtGui.QWidget):
@@ -32,6 +32,7 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Stimulus Rate', 'type': 'int', 'value': 2, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED on time', 'type': 'float', 'value': 100, 'suffix': 'ms', 'siPrefix': True},
                     {'name': 'Sample Rate', 'type': 'int', 'value': 20000, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'Phase Shift', 'type': 'int', 'value': 0, 'suffix': 'deg', 'siPrefix': True},
                     {'name': 'Filter Frequency', 'type': 'int', 'value': 100, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'Enable Filter', 'type': 'bool', 'value': True,},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
@@ -61,7 +62,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.cw.parametersw.params.sigTreeStateChanged.connect(self.settings_changed)
         self.resize(1000,800)
         icon_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'icons')
-        self.toolbar = gui.ToolBar(self, ['start', 'stop','exit'], icon_folder = icon_folder)
+        self.toolbar = gui.ToolBar(self, ['start', 'stop','save', 'exit'], icon_folder = icon_folder)
         self.toolbar.setToolTip('''
         Connections:
             AI0: Left LED
@@ -107,7 +108,27 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.close_daq()
         logging.info('stop')
         self.running=False
-
+        
+    def save_action(self):
+        if self.running:
+            return
+        self.foldername=self.ask4foldername('Select save location of current waveform', 'c:\\')
+        if os.path.exists(self.foldername):
+            gui.text_input_popup(self, 'Specify file name', 'file name', self.save_traces)
+            
+    def save_traces(self):
+        name=str(self.w.input.input.text())
+        if len(name)==0:
+            name='untitled'
+        name+='_'+utils.timestamp2ymdhms(time.time(), filename=True)
+        self.w.close()
+        filename=os.path.join(self.foldername, name+'.mat')
+        if not hasattr(self, 't'):
+            self.notify('Warning', 'No data to save')
+            return
+        scipy.io.savemat(filename, {'time': self.t, 'elphys': self.sig, 'stimulus_timing': self.trig})
+        logging.info('Traces are saved to {0}'.format(filename))
+        
     def exit_action(self):
         if self.running:
             self.stop_action()
@@ -118,11 +139,13 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.notify('Warning', 'Please enable at least one LED')
             return False
         tperiod=1.0/self.settings['Stimulus Rate']
+        phase_shift=int(tperiod*self.ao_sample_rate*self.settings['Phase Shift']/360.)
         duty_cycle=self.settings['LED on time']*1e-3/tperiod
         nrepeats=numpy.ceil(self.settings['Tmin']/tperiod)
         self.waveform=self.settings['LED Voltage']*numpy.tile(numpy.concatenate((numpy.ones(int(tperiod*self.ao_sample_rate*duty_cycle)),
                 numpy.zeros(int(tperiod*self.ao_sample_rate*(1-duty_cycle))))), nrepeats)
-        self.waveform=numpy.array(2*[self.waveform])
+        phase_shifted=numpy.roll(self.waveform, phase_shift)
+        self.waveform=numpy.array([self.waveform,phase_shifted])
         enable_mask=numpy.array([[self.settings['Left LED'],self.settings['Right LED']]]).T
         self.waveform*=enable_mask
         self.tperiod=self.waveform.shape[1]/float(self.ao_sample_rate)
@@ -134,7 +157,7 @@ class LEDStimulator(gui.SimpleAppWindow):
             ai_data=self.read_daq()
             self.counter+=1
             if self.counter%2==1 or not SKIP_ACQUIRED_DATA:
-                if ai_data==None:
+                if ai_data is None:
                     return
                 newsig=ai_data[:,self.elphys_channel_index]
                 if self.settings['Simulate']:
@@ -142,7 +165,9 @@ class LEDStimulator(gui.SimpleAppWindow):
                     repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
                     newsig=numpy.tile(sig,repeat)[:newsig.shape[0]]
                     newsig+=numpy.random.random(newsig.shape[0])
-                self.trig=ai_data[:,int(not bool(self.elphys_channel_index))]
+                indexes=range(self.number_of_ai_channels)
+                indexes=[i for i in indexes if i!=self.elphys_channel_index]               
+                self.trig=ai_data[:,indexes].T
                 self.sigs.append(newsig)
                 if len(self.sigs)>1000:
                     self.sigs=self.sigs[-1000:]
@@ -154,12 +179,15 @@ class LEDStimulator(gui.SimpleAppWindow):
                     self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.sig).real
                     self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.sig).real            
             if self.counter%2==0 or not SKIP_ACQUIRED_DATA:
-                t=signal.time_series(int(self.trig.shape[0]), self.settings['Sample Rate'])*1e3
-                pp=[{'name': 'sig', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'trig', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}]
-                self.cw.plotw.update_curves(2*[t], [self.sig,self.trig],plotparams=pp)
+                if not hasattr(self,'trig'):
+                    return
+                self.t=signal.time_series(int(self.trig.shape[1]), self.settings['Sample Rate'])*1e3
+                pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}, 
+                        {'name': 'right', 'pen': pyqtgraph.mkPen(color=(10,100,30), width=3)}]
+                self.cw.plotw.update_curves(3*[self.t], [self.sig,self.trig[0],self.trig[1]],plotparams=pp)
                 if self.settings['Enable Filter']:
-                    self.cw.plotfiltered['Field Potential'].update_curves(2*[t], [self.lowpassfiltered,self.trig],plotparams=pp)
-                    self.cw.plotfiltered['Spike'].update_curves(2*[t], [self.highpassfiltered,self.trig],plotparams=pp)
+                    self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.trig[0], self.trig[1]],plotparams=pp)
+                    self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.trig[0], self.trig[1]],plotparams=pp)
         
     def init_daq(self):
         self.analog_output = PyDAQmx.Task()
@@ -182,7 +210,10 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.elphys_channel_index=0
             ch1=1
             ch2=2
-        self.number_of_ai_channels=2
+        ch1=0
+        ch2=2
+        self.elphys_channel_index=1
+        self.number_of_ai_channels=3
         ai_channels='{0}/ai{1}:{2}' .format(self.settings['DAQ device'], ch1, ch2)
         self.analog_input.CreateAIVoltageChan(ai_channels,
                                                 'ai',
@@ -229,9 +260,9 @@ class LEDStimulator(gui.SimpleAppWindow):
                                         None)
         except PyDAQmx.DAQError:
             logging.error('Skipping data')
-            return
             import traceback
             logging.error(traceback.format_exc())
+            return
         ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
         ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
         return ai_data

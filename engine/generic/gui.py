@@ -1008,6 +1008,19 @@ def fileinput(title='',root='.',filter='*.*', mode='file'):
     g=FileInput(title, root, filter, mode)
     print g.filename
     return g.filename
+    
+def text_input_popup(self, title, name, callback):
+    self.w=QtGui.QWidget(None)
+    self.w.setWindowTitle(title)
+    self.w.setGeometry(50,50,400,100)
+    self.w.input=LabeledInput(self.w,name)
+    self.w.okbtn=QtGui.QPushButton('OK', parent=self.w)
+    self.w.l = QtGui.QGridLayout()
+    self.w.l.addWidget(self.w.input, 0, 0, 1, 1)
+    self.w.l.addWidget(self.w.okbtn, 1, 0, 1, 1)
+    self.w.setLayout(self.w.l)
+    self.w.connect(self.w.okbtn, QtCore.SIGNAL('clicked()'), callback)
+    self.w.show()
 
 class GuiTest(unittest.TestCase):
     def test_01_ask4filename(self):
