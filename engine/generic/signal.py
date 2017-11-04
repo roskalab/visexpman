@@ -229,7 +229,9 @@ def generate_bins(signal, binsize):
     range_min=numpy.ceil(abs(nsteps_lower))*numpy.sign(nsteps_lower)*binsize
     nsteps_upper=numpy.ceil(signal.max()/binsize)
     range_max=nsteps_upper*binsize
-    return numpy.arange(range_min,range_max,binsize)
+    bins=numpy.arange(range_min,range_max,binsize)
+    bins=numpy.append(bins, range_max)
+    return bins
 
 def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
