@@ -8,6 +8,7 @@ import os,logging,numpy,copy,pyqtgraph,scipy.signal,scipy.io,time
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal,utils
+from visexpman.engine.analysis import elphys
 SKIP_ACQUIRED_DATA=True
 
 class CWidget(QtGui.QWidget):
@@ -39,6 +40,8 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Filter Order', 'type': 'int', 'value': 3},
                                 {'name': 'Tmin', 'type': 'float', 'value': 0.2, 'suffix': 's', 'siPrefix': True},
+                                {'name': 'Psths bin time', 'type': 'float', 'value': 0.1, 'suffix': 's', 'siPrefix': True},
+                                {'name': 'Spike Threshold', 'type': 'float', 'value': 4, 'suffix': 'mV', 'siPrefix': True},
                                 {'name': 'DAQ device', 'type': 'str', 'value': 'Dev5'},
                                 {'name': 'Simulate', 'type': 'bool', 'value': False,},
                                 ]},]
@@ -159,7 +162,7 @@ class LEDStimulator(gui.SimpleAppWindow):
             if self.counter%2==1 or not SKIP_ACQUIRED_DATA:
                 if ai_data is None:
                     return
-                newsig=ai_data[:,self.elphys_channel_index]
+                newsig=ai_data[:,self.elphys_channel_index]*1e3
                 if self.settings['Simulate']:
                     sig=numpy.load(os.path.join(os.path.dirname(__file__),'..', 'data', 'test', 'lfp_mv_40kHz.npy'))
                     repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
@@ -270,7 +273,22 @@ class LEDStimulator(gui.SimpleAppWindow):
     def close_daq(self):
         self.analog_output.ClearTask()
         self.analog_input.ClearTask()
+    
+    def show_psths(self):
+        if self.settings['Enable Filter']:
+            h,b,self.tspikerel=elphys.peristimulus_histogram(self.highpassfiltered,  self.trig[0], self.settings['Sample Rate'], self.settings['Psths bin time'], self.settings['Spike Threshold'])
+            self.h=h
+            self.b=b
+            x=b[:-1]*1e3
+            self.p=gui.Plot(None)
+            pp=[{'fillLevel':-0.01, 'brush': (50,50,128,100)}]
+            self.p.plot.setLabels(left='occurence', bottom='dt [ms]')
+            self.p.plot.setYRange(0, max(h))
+            self.p.plot.setTitle('Peristimulus histogram')
+            self.p.update_curves([x],[h],plotparams=pp)
+            self.p.show()
 
+            
 
 if __name__ == "__main__":
     stim=LEDStimulator()
