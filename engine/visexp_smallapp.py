@@ -797,7 +797,7 @@ def rotate_images(root='.'):
     Input: image folder, output folder
     Output: checksum/hash of all folders
     '''
-    from visexpman.engine.generic.gui import fileinput
+    from visexpman.engine.generic.gui_standalone import fileinput
     from visexpman.engine.generic.imageop import rotate_folder
     from visexpman.engine.generic.fileop import folder_signature
     image_folder=fileinput(title='Select image folder',root=root, mode='folder')
