@@ -28,6 +28,8 @@ class SoundAndGratingE(experiment.Experiment):
             random.shuffle(self.protocol)
         self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
         self.experiment_config.PROTOCOL=self.protocol
+        self.experiment_config.PROTOCOL1=[[p[0], int(p[1]=='grating' or p[1]=='both'), int(p[1]=='sound' or p[1]=='both')] for p in self.protocol]
+        self.experiment_config.PROTOCOL1=numpy.array(self.experiment_config.PROTOCOL1)
         self.experiment_config.GRATING_FREQUENCY=1.0/(ec.BAR_WIDTH/ec.GRATING_DUTY_CYCLE/numpy.array(ec.SPEEDS))
         self.sound_filenames={}
         self.s=[]
