@@ -23,7 +23,7 @@ class CWidget(QtGui.QWidget):
         for pn in ['Spike', 'Field Potential']:
             self.plotfiltered[pn]=gui.Plot(self)
             self.plotfiltered[pn].setFixedWidth(950)
-            self.plotfiltered[pn].setFixedHeight(200)
+            self.plotfiltered[pn].setFixedHeight(180)
             self.plotfiltered[pn].plot.setTitle(pn)
             self.plotfiltered[pn].plot.setLabels(left='mV', bottom='ms')
         params = [
@@ -42,12 +42,12 @@ class CWidget(QtGui.QWidget):
                                 {'name': 'Tmin', 'type': 'float', 'value': 0.2, 'suffix': 's', 'siPrefix': True},
                                 {'name': 'Psths bin time', 'type': 'float', 'value': 0.1, 'suffix': 's', 'siPrefix': True},
                                 {'name': 'Spike Threshold', 'type': 'float', 'value': 4, 'suffix': 'mV', 'siPrefix': True},
-                                {'name': 'DAQ device', 'type': 'str', 'value': 'Dev5'},
+                                {'name': 'DAQ device', 'type': 'str', 'value': 'Dev1'},
                                 {'name': 'Simulate', 'type': 'bool', 'value': False,},
                                 ]},]
         self.parametersw = gui.ParameterTable(self, params)
         self.parametersw.setFixedWidth(230)
-        self.parametersw.setFixedHeight(500)
+        self.parametersw.setFixedHeight(400)
         self.l = QtGui.QGridLayout()#Organize the above created widgets into a layout
         self.l.addWidget(self.plotw, 0, 1, 1, 5)
         ct=0
@@ -63,7 +63,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.cw=CWidget(self)
         self.setCentralWidget(self.cw)
         self.cw.parametersw.params.sigTreeStateChanged.connect(self.settings_changed)
-        self.resize(1000,800)
+        self.setGeometry(30, 30, 1000,700)
         icon_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'icons')
         self.toolbar = gui.ToolBar(self, ['start', 'stop','save', 'exit'], icon_folder = icon_folder)
         self.toolbar.setToolTip('''
@@ -103,7 +103,7 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.running=True
             self.init_daq()
             self.start_daq()
-            self.timer.start(int(1000*(0.8*self.tperiod)))
+            self.timer.start(int(1000*(self.tperiod)))
 
     def stop_action(self):
         if not self.running:
@@ -225,6 +225,8 @@ class LEDStimulator(gui.SimpleAppWindow):
                                                 5.0,
                                                 DAQmxConstants.DAQmx_Val_Volts,
                                                 None)
+        #self.analog_output.CfgDigEdgeStartTrig('/{0}/PFI0' .format(self.settings['DAQ device']), DAQmxConstants.DAQmx_Val_Rising)
+        #self.analog_input.CfgDigEdgeStartTrig('/{0}/PFI1' .format(self.settings['DAQ device']), DAQmxConstants.DAQmx_Val_Rising)
         self.read = DAQmxTypes.int32()
 
     def start_daq(self):
@@ -288,7 +290,8 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.p.update_curves([x],[h],plotparams=pp)
             self.p.show()
 
-            
+def led_stimulator():
+    stim=LEDStimulator()
 
 if __name__ == "__main__":
     stim=LEDStimulator()
