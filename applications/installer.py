@@ -65,6 +65,7 @@ class Installer(Qt.QMainWindow):
             print 'TODO: unzip'
             print 'TODO: install PyDAQmx'
         subprocess.call('cd {0}&python install.py'.format(self.modulename2filename('eric')),shell=True)
+        print 'TODO: create eric4 shortcut'
         #Verify installation
         subprocess.call('cd {0}&call shortcuts\\verify_installation.bat'.format(visexpman_folder),shell=True)
             
