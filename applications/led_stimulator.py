@@ -9,7 +9,6 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal,utils
 from visexpman.engine.analysis import elphys
-SKIP_ACQUIRED_DATA=True
 
 class CWidget(QtGui.QWidget):
     def __init__(self,parent):
@@ -39,11 +38,12 @@ class CWidget(QtGui.QWidget):
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
                     {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Filter Order', 'type': 'int', 'value': 3},
-                                {'name': 'Tmin', 'type': 'float', 'value': 0.2, 'suffix': 's', 'siPrefix': True},
+                                {'name': 'Tmin', 'type': 'float', 'value': 1.0, 'suffix': 's', 'siPrefix': True},
                                 {'name': 'Psths bin time', 'type': 'float', 'value': 0.1, 'suffix': 's', 'siPrefix': True},
                                 {'name': 'Spike Threshold', 'type': 'float', 'value': 4, 'suffix': 'mV', 'siPrefix': True},
                                 {'name': 'DAQ device', 'type': 'str', 'value': 'Dev1'},
                                 {'name': 'Simulate', 'type': 'bool', 'value': False,},
+                                {'name': 'Buffer Size', 'type': 'int', 'value': 100,},
                                 ]},]
         self.parametersw = gui.ParameterTable(self, params)
         self.parametersw.setFixedWidth(230)
@@ -100,6 +100,7 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.lowpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'low')
             self.highpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'high')
             self.sigs=[]
+            self.ai_trace=numpy.empty((0, 3))
             self.running=True
             self.init_daq()
             self.start_daq()
@@ -129,7 +130,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         if not hasattr(self, 't'):
             self.notify('Warning', 'No data to save')
             return
-        scipy.io.savemat(filename, {'time': self.t, 'elphys': self.sig, 'stimulus_timing': self.trig})
+        scipy.io.savemat(filename, {'time': self.t, 'signals': self.signals})
         logging.info('Traces are saved to {0}'.format(filename))
         
     def exit_action(self):
@@ -155,42 +156,65 @@ class LEDStimulator(gui.SimpleAppWindow):
         logging.info('Period time is {0:0.2f}'.format(self.tperiod))
         return True
         
+    def process_ai_trace(self):
+        '''
+        Cut signal across rising edges of channel 0 (led left)
+        
+        '''
+        buffer_size=self.settings['Buffer Size']
+        trig=self.ai_trace[:, 1]
+        edges=signal.detect_edges(trig,0.5*trig.max())
+        if trig[0]>0.5*trig.max():
+            edges=numpy.insert(edges, 0, 0)
+        rising_edges=edges[::2]
+        if rising_edges.shape[0]<2:
+            return False
+        if not all(trig[rising_edges-1]<trig[rising_edges]):
+            self.notify('Error','Corrupted led control signal, recording will be automatically terminated')
+            self.stop_action()
+            return
+        nperiods=rising_edges.shape[0]-1
+        sections=numpy.split(self.ai_trace, rising_edges)[1:-1]
+        section_length=min([s.shape[0] for s in sections])
+        max_data_size=(buffer_size-0.2)*section_length
+        if max_data_size<self.ai_trace.shape[0]:
+            logging.info('cut data')
+            self.ai_trace=self.ai_trace[-max_data_size:, :]
+        self.cut2repeats=numpy.array([s[:section_length] for s in sections])#Dimensions: repeat, time, channel
+        if self.settings['Simulate']:
+            r=int(40e3/self.settings['Sample Rate'])
+            sig=numpy.load(os.path.join(os.path.dirname(__file__),'..', 'data', 'test', 'lfp_mv_40kHz.npy'))[::r]
+            repeat=numpy.int(numpy.ceil(section_length/float(sig.shape[0])))
+            sig=numpy.tile(sig,repeat)[:section_length]
+            for i in range(self.cut2repeats.shape[0]):
+                self.cut2repeats[i, :, 2]=sig[:section_length]+numpy.random.random(section_length)+i*1e-3
+        self.signals={}
+        self.signals['last']={}
+        self.signals['mean']={}
+        self.signals['last']['elphys']=self.cut2repeats[-1, :, 2]
+        self.signals['last']['left']=self.cut2repeats[-1, :, 0]
+        self.signals['last']['right']=self.cut2repeats[-1, :, 1]
+        self.signals['mean']['elphys']=self.cut2repeats[:, :, 2].mean(axis=0)
+        self.t=signal.time_series(int(section_length), self.settings['Sample Rate'])*1e3
+        return True
+        
     def update(self):
         if self.running:
             ai_data=self.read_daq()
-            self.counter+=1
-            if self.counter%2==1 or not SKIP_ACQUIRED_DATA:
-                if ai_data is None:
-                    return
-                newsig=ai_data[:,self.elphys_channel_index]*1e3
-                if self.settings['Simulate']:
-                    sig=numpy.load(os.path.join(os.path.dirname(__file__),'..', 'data', 'test', 'lfp_mv_40kHz.npy'))
-                    repeat=numpy.int(numpy.ceil(newsig.shape[0]/float(sig.shape[0])))
-                    newsig=numpy.tile(sig,repeat)[:newsig.shape[0]]
-                    newsig+=numpy.random.random(newsig.shape[0])
-                indexes=range(self.number_of_ai_channels)
-                indexes=[i for i in indexes if i!=self.elphys_channel_index]               
-                self.trig=ai_data[:,indexes].T
-                self.sigs.append(newsig)
-                if len(self.sigs)>1000:
-                    self.sigs=self.sigs[-1000:]
-                if self.settings['Enable Average']:
-                    self.sig=numpy.array(self.sigs).mean(axis=0)
-                else:
-                    self.sig=newsig
-                if self.settings['Enable Filter']:
-                    self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.sig).real
-                    self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.sig).real            
-            if self.counter%2==0 or not SKIP_ACQUIRED_DATA:
-                if not hasattr(self,'trig'):
-                    return
-                self.t=signal.time_series(int(self.trig.shape[1]), self.settings['Sample Rate'])*1e3
-                pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}, 
-                        {'name': 'right', 'pen': pyqtgraph.mkPen(color=(10,100,30), width=3)}]
-                self.cw.plotw.update_curves(3*[self.t], [self.sig,self.trig[0],self.trig[1]],plotparams=pp)
-                if self.settings['Enable Filter']:
-                    self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.trig[0], self.trig[1]],plotparams=pp)
-                    self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.trig[0], self.trig[1]],plotparams=pp)
+            logging.info(ai_data.shape)
+            self.ai_trace=numpy.concatenate((self.ai_trace, ai_data))
+            if not self.process_ai_trace():
+                return
+            if self.settings['Enable Filter']:
+                self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.signals['last']['elphys']).real
+                self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.signals['last']['elphys']).real            
+            k='mean' if self.settings['Enable Average'] else 'last'
+            pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}, 
+                    {'name': 'right', 'pen': pyqtgraph.mkPen(color=(10,100,30), width=3)}]
+            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+            if self.settings['Enable Filter']:
+                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
         
     def init_daq(self):
         self.analog_output = PyDAQmx.Task()
