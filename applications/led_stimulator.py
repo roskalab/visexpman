@@ -4,7 +4,7 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
-import os,logging,numpy,copy,pyqtgraph,scipy.signal,scipy.io,time
+import os,logging,numpy,copy,pyqtgraph,scipy.signal,scipy.io,time, copy
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal,utils
@@ -95,8 +95,11 @@ class LEDStimulator(gui.SimpleAppWindow):
     def start_action(self):
         if self.running:
             return
+        if self.settings['Sample Rate']>22e3:
+            self.notify('Warning',  'LED Stimulator may not be stable at {0} Hz sampling rate'.format(self.settings['Sample Rate']))
         logging.info('start')
         if self.generate_waveform():
+            self.t0=time.time()
             self.lowpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'low')
             self.highpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'high')
             self.sigs=[]
@@ -170,15 +173,16 @@ class LEDStimulator(gui.SimpleAppWindow):
         if rising_edges.shape[0]<2:
             return False
         if not all(trig[rising_edges-1]<trig[rising_edges]):
-            self.notify('Error','Corrupted led control signal, recording will be automatically terminated')
-            self.stop_action()
-            return
+            logging.info('Error','Corrupted led control signal, recording will be automatically terminated')
+#            self.notify('Error','Corrupted led control signal, recording will be automatically terminated')
+#            self.stop_action()
+#            return
         nperiods=rising_edges.shape[0]-1
         sections=numpy.split(self.ai_trace, rising_edges)[1:-1]
         section_length=min([s.shape[0] for s in sections])
-        max_data_size=(buffer_size-0.2)*section_length
+        max_data_size=(buffer_size)*section_length-2
         if max_data_size<self.ai_trace.shape[0]:
-            logging.info('cut data')
+            #logging.info('cut data')
             self.ai_trace=self.ai_trace[-max_data_size:, :]
         self.cut2repeats=numpy.array([s[:section_length] for s in sections])#Dimensions: repeat, time, channel
         if self.settings['Simulate']:
@@ -201,7 +205,11 @@ class LEDStimulator(gui.SimpleAppWindow):
     def update(self):
         if self.running:
             ai_data=self.read_daq()
-            logging.info(ai_data.shape)
+            if ai_data is None:
+                return
+            if ai_data.shape[0]<int(self.settings['Stimulus Rate']/self.settings['Sample Rate']):
+                logging.error('acquired data is less than expected: {0}/{1}'.format(ai_data.shape[0], int(self.settings['Stimulus Rate']/self.settings['Sample Rate'])))
+            #logging.info(ai_data.shape)
             self.ai_trace=numpy.concatenate((self.ai_trace, ai_data))
             if not self.process_ai_trace():
                 return
@@ -212,9 +220,17 @@ class LEDStimulator(gui.SimpleAppWindow):
             pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}, 
                     {'name': 'right', 'pen': pyqtgraph.mkPen(color=(10,100,30), width=3)}]
             self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+            self.cw.plotw.plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
+            dt=(time.time()-self.t0)/60.
+            self.cw.plotw.plot.setTitle('Raw {0:0.1f} minutes'.format(dt))
             if self.settings['Enable Filter']:
                 self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
                 self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+                self.cw.plotfiltered['Field Potential'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
+                self.cw.plotfiltered['Spike'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
+            if self.t.max()<1.0/self.settings['Stimulus Rate']:
+                print '!!!!'
+                logging.info('!!!!')
         
     def init_daq(self):
         self.analog_output = PyDAQmx.Task()
