@@ -187,11 +187,11 @@ def select_path_exists(paths, dirs = True):
         if os.path.exists(path) and ((os.path.isdir(path) and dirs) or (not os.path.isdir(path) and not dirs)):
             return path
 
-TEST_data = select_path_exists(['/mnt/rzws/test_data', 'r:\\test_data', '/home/rz/Downloads/test_data', 'c:\\temp'])
-TEST_valid_file = select_path_exists(['/mnt/rzws/codes/visexpman/__init__.py', '/etc/fstab', 'r:\\codes\\visexpman\\__init__.py'],dirs=False)
-if TEST_valid_file is None:
-    raise IOError('TEST_valid_file parameter incorrect')
-TEST_invalid_file = '/home'
+#TEST_data = select_path_exists(['/mnt/rzws/test_data', 'r:\\test_data', '/home/rz/Downloads/test_data', 'c:\\temp'])
+#TEST_valid_file = select_path_exists(['/mnt/rzws/codes/visexpman/__init__.py', '/etc/fstab', 'r:\\codes\\visexpman\\__init__.py'],dirs=False)
+#if TEST_valid_file is None:
+#    raise IOError('TEST_valid_file parameter incorrect')
+#TEST_invalid_file = '/home'
 
 def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file = False):
     ref_folder = os.path.join(select_path_exists(TEST_test_data_folder), modulename)
