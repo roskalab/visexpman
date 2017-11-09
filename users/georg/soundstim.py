@@ -29,7 +29,6 @@ class SoundAndGratingE(experiment.Experiment):
         self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
         self.experiment_config.PROTOCOL=self.protocol
         self.experiment_config.PROTOCOL1=[[p[0], int(p[1]=='grating' or p[1]=='both'), int(p[1]=='sound' or p[1]=='both')] for p in self.protocol]
-        self.experiment_config.PROTOCOL1=numpy.array(self.experiment_config.PROTOCOL1)
         self.experiment_config.GRATING_FREQUENCY=1.0/(ec.BAR_WIDTH/ec.GRATING_DUTY_CYCLE/numpy.array(ec.SPEEDS))
         self.sound_filenames={}
         self.s=[]
@@ -42,8 +41,10 @@ class SoundAndGratingE(experiment.Experiment):
                 self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
             self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
         self.orientation=0
+        self.block_boundaries=[]
         
     def block(self, speed, condition):
+        self.block_boundaries.append(self.frame_counter)
         ec=self.experiment_config
         if condition!='grating':
             if hasattr(self, 'soundplayer'):
@@ -60,6 +61,7 @@ class SoundAndGratingE(experiment.Experiment):
                                duration=ec.BLOCK_DURATION,
                                display_area=self.machine_config.SCREEN_SIZE_UM,
                                velocity=speed)
+        self.block_boundaries.append(self.frame_counter-1)
 #        if condition!='grating':
 #            self.show_fullscreen(color=ec.GRAY)
         
@@ -72,6 +74,12 @@ class SoundAndGratingE(experiment.Experiment):
             self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
             if self.abort:
                 break
+        #save block boundaries
+        for i in range(len(self.experiment_config.PROTOCOL1)):
+            self.experiment_config.PROTOCOL1[i].extend([self.block_boundaries[2*i],self.block_boundaries[2*i+1]])
+        self.experiment_config.PROTOCOL1=numpy.array(self.experiment_config.PROTOCOL1)
+        print self.experiment_config.PROTOCOL1
+        
                 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
