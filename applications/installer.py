@@ -68,7 +68,7 @@ class Installer(Qt.QMainWindow):
         print 'TODO: create eric4 shortcut'
         #Verify installation
         subprocess.call('cd {0}&call shortcuts\\verify_installation.bat'.format(visexpman_folder),shell=True)
-            
+        print 'TODO: change windows theme to basic'
         
             
     def install_ffmpeg(self):
