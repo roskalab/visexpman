@@ -330,13 +330,24 @@ def shape2distance(im,iterations):
         output+=numpy.cast['uint8'](input.copy())*(i+1)
     return output
     
-def generate_frequency_modulated_waveform(duration, base_frequency, frequency_step, switch_frequency, fsample):
+def generate_frequency_modulated_waveform(duration, base_frequency, frequency_step, switch_frequency, fsample,step=True):
     f1=base_frequency+frequency_step
     f2=base_frequency-frequency_step
-    on_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f1)
-    off_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f2)
-    nshift_periods=int(duration*switch_frequency)
-    return numpy.tile(numpy.concatenate((on_waveform, off_waveform)),nshift_periods)
+    if step:
+        on_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f1)
+        off_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f2)
+        nshift_periods=int(duration*switch_frequency)
+        return numpy.tile(numpy.concatenate((on_waveform, off_waveform)),nshift_periods)
+    else:
+        t=time_series(float(duration), fsample)
+        frequency_values=numpy.sin(t* 2* numpy.pi* switch_frequency)*0.5*abs(f2-f1)+f1
+        #Reduce frequency levels
+        frequency_values=numpy.round(frequency_values,-1)
+        sig=numpy.sin(t*numpy.pi*2*frequency_values)
+        if 0:
+            import scipy.io.wavfile
+            scipy.io.wavfile.write('/tmp/14-16kHz-1Hz-10Hz-step.wav', 44100, sig)
+        return sig
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -528,6 +539,7 @@ class TestSignal(unittest.TestCase):
         
     def test_19_fm(self):
         generate_frequency_modulated_waveform(10, 15e3, 1e3, 10,48e3)
+        generate_frequency_modulated_waveform(10, 15e3, 1e3, 1,48e3,False)
         
         
     
