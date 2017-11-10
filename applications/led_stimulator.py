@@ -97,6 +97,9 @@ class LEDStimulator(gui.SimpleAppWindow):
             return
         if self.settings['Sample Rate']>22e3:
             self.notify('Warning',  'LED Stimulator may not be stable at {0} Hz sampling rate'.format(self.settings['Sample Rate']))
+        if 1.0/self.settings['Stimulus Rate']<self.settings['LED on time']*1e-3:
+            self.notify('Warning',  'LED on time is longer than stimulus preiod time')
+            return
         logging.info('start')
         if self.generate_waveform():
             self.t0=time.time()
@@ -106,8 +109,7 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.ai_trace=numpy.empty((0, 3))
             self.running=True
             self.init_daq()
-            self.start_daq()
-            self.timer.start(int(1000*(self.tperiod)))
+            self.timer.start(int(1000*(self.tperiod-0.5*self.daq_timeout)))
 
     def stop_action(self):
         if not self.running:
@@ -172,13 +174,15 @@ class LEDStimulator(gui.SimpleAppWindow):
         rising_edges=edges[::2]
         if rising_edges.shape[0]<2:
             return False
-        if not all(trig[rising_edges-1]<trig[rising_edges]):
-            logging.info('Error','Corrupted led control signal, recording will be automatically terminated')
+#        if not all(trig[rising_edges-1]<trig[rising_edges]):
+#            logging.info('Error, corrupted led control signal, recording will be automatically terminated')
 #            self.notify('Error','Corrupted led control signal, recording will be automatically terminated')
 #            self.stop_action()
 #            return
         nperiods=rising_edges.shape[0]-1
         sections=numpy.split(self.ai_trace, rising_edges)[1:-1]
+        if len(sections)>10:
+            sections=sections[1:]
         section_length=min([s.shape[0] for s in sections])
         max_data_size=(buffer_size)*section_length-2
         if max_data_size<self.ai_trace.shape[0]:
@@ -228,9 +232,6 @@ class LEDStimulator(gui.SimpleAppWindow):
                 self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
                 self.cw.plotfiltered['Field Potential'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
                 self.cw.plotfiltered['Spike'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
-            if self.t.max()<1.0/self.settings['Stimulus Rate']:
-                print '!!!!'
-                logging.info('!!!!')
         
     def init_daq(self):
         self.analog_output = PyDAQmx.Task()
@@ -268,8 +269,6 @@ class LEDStimulator(gui.SimpleAppWindow):
         #self.analog_output.CfgDigEdgeStartTrig('/{0}/PFI0' .format(self.settings['DAQ device']), DAQmxConstants.DAQmx_Val_Rising)
         #self.analog_input.CfgDigEdgeStartTrig('/{0}/PFI1' .format(self.settings['DAQ device']), DAQmxConstants.DAQmx_Val_Rising)
         self.read = DAQmxTypes.int32()
-
-    def start_daq(self):
         self.number_of_ao_samples=self.waveform.shape[1]
         self.number_of_ai_samples=int(self.waveform.shape[1]/float(self.ao_sample_rate)*self.settings['Sample Rate'])
         self.analog_output.CfgSampClkTiming("OnboardClock",
