@@ -342,11 +342,8 @@ def generate_frequency_modulated_waveform(duration, base_frequency, frequency_st
         t=time_series(float(duration), fsample)
         frequency_values=numpy.sin(t* 2* numpy.pi* switch_frequency)*0.5*abs(f2-f1)+f1
         #Reduce frequency levels
-        frequency_values=numpy.round(frequency_values,-1)
+        frequency_values=numpy.round(frequency_values,-2)
         sig=numpy.sin(t*numpy.pi*2*frequency_values)
-        if 0:
-            import scipy.io.wavfile
-            scipy.io.wavfile.write('/tmp/14-16kHz-1Hz-10Hz-step.wav', 44100, sig)
         return sig
 
 class TestSignal(unittest.TestCase):

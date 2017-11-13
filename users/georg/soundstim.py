@@ -36,7 +36,9 @@ class SoundAndGratingE(experiment.Experiment):
             self.s.append(sound.SoundGenerator())
             self.s[-1].sample_rate=ec.AUDIO_SAMPLING_RATE
             if ec.MODULATION=='fm':
-                self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE))
+                self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=True))
+            elif ec.MODULATION=='fmsmooth':
+                self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=False))
             elif ec.MODULATION=='am':
                 self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
             self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
