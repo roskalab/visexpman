@@ -75,9 +75,18 @@ class LEDStimulator(gui.SimpleAppWindow):
             AO1: Right LED
         Usage:
             1. Enable LEDs
-            2. Adjust stimulation frequency
-            3. Press start button
-            4. Press stop and start for restaring averaging
+            2. Adjust stimulation frequency, LED on time
+            3. Press Start button to monitor signals
+            4. Press Stop to finish monitoring signals
+            5. Press Save button to save signals in actual view
+            
+        Plots:
+            Raw: raw signals displayed. If "Enable Average" is checked, average of elphys signal from the last 100 flashes is displayed.
+                    Next to the title the current lenght of the actual monitoring session is displayed in minutes
+            Field Potential: The output of low pass filtering the raw, not averaged elphys signal
+            Spike: The output of high pass filtering the raw, not averaged elphys signal
+            
+            The filter's default cutoff frequency is 100 Hz, it is a 3rd order butterworth filter.
         ''')
         self.addToolBar(self.toolbar)
         self.settings_changed()
