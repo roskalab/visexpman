@@ -144,7 +144,11 @@ class LEDStimulator(gui.SimpleAppWindow):
         if not hasattr(self, 't'):
             self.notify('Warning', 'No data to save')
             return
-        scipy.io.savemat(filename, {'time': self.t, 'signals': self.signals})
+        settings={}
+        for k, v in self.settings.items():
+            settings[k.replace(' ', '_')]=v
+        
+        scipy.io.savemat(filename, {'time': self.t, 'signals': self.signals, 'settings': settings})
         logging.info('Traces are saved to {0}'.format(filename))
         
     def exit_action(self):
