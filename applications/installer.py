@@ -31,11 +31,13 @@ class Installer(Qt.QMainWindow):
     def installer(self):
         self.tmpdirs=[]
         self.notifications=[]
-        process = subprocess.Popen(['python', '-h'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        if not TEST and 'usage: python [option] ... [-c cmd | -m mod | file | -] [arg] ...' in out:
+        fp=open('python_installed.txt')
+        txt=fp.read()
+        fp.close()
+        if 'usage: python [option] ... [-c cmd | -m mod | file | -] [arg] ...' in txt:
             self.notify('Warning', 'Python is already installed')
             self.close()
+            return
         #Ask user to specify location of visexpman
         visexpman_default_folder='x:\\software'
         if self.location=='fmi' and not os.path.exists(visexpman_default_folder):
@@ -64,19 +66,17 @@ class Installer(Qt.QMainWindow):
             self.close()
             return
         modules=['anaconda', 'opengl','pygame','opencv','pyqtgraph', 'pyserial', 'gedit', 'tcmd', 'meld']
+        commands=[]
         for module in modules:
             fn=self.modulename2filename(module)
+            self.commands.append(fn)
             logging.info('Installing {0} ...'.format(fn))
-            if not TEST:
-                subprocess.call(fn,shell=True)
         python_module_folder='c:\\Anaconda\\Lib\\site-packages'
-        if not os.path.exists(python_module_folder):
-            self.notifications.append('Install pth file manually')
-        else:
-            logging.info('Creating pth file')
-            fp=open(os.path.join(python_module_folder, 'v.pth'), 'wt')
-            fp.write(self.visexpmanfolder.replace('\\','\\\\'))
-            fp.close()
+        logging.info('Creating pth file')
+        fp=open('v.pth', 'wt')
+        fp.write(self.visexpmanfolder.replace('\\','\\\\'))
+        fp.close()
+        self.commands.append('copy v.pth {0}'.format(python_module_folder))
         if visexpman_folder not in self.visexpmanfolder:
             shutil.copy(self.modulename2filename('hdf5io'), self.visexpmanfolder)
             logging.info('hdf5io copied')
@@ -85,30 +85,32 @@ class Installer(Qt.QMainWindow):
             fn=self.modulename2filename('nidaq')
             folder=self.extract(fn, 'daq')
             self.tmpdirs.append(folder)
-            subprocess.call(os.path.join(folder, 'setup.exe'),shell=True)
-            #Untested from this point
+            self.commands.append(os.path.join(folder, 'setup.exe'))
             folder=self.extract(fn, 'pydaqmx')
             self.tmpdirs.append(folder)
-            os.chdir(folder)
-            subprocess.call('python setup.py install',shell=True)
+            self.commands.append('cd {0}'.format(folder))
+            self.commands.append('python setup.py install')
             
         folder=self.extract(fn, 'eric')
         self.tmpdirs.append(folder)
-        os.chdir(folder)
-        subprocess.call('python install.py',shell=True)
+        self.commands.append('cd {0}'.format(folder))
+        self.commands.append('python install.py')
         print 'TODO: create eric4 shortcut'
         #Verify installation
-        os.chdir(visexpman_folder)
-        subprocess.call('call shortcuts\\verify_installation.bat',shell=True)
+        self.commands.append('cd {0}'.format(visexpman_folder))
+        self.commands.append('call shortcuts\\verify_installation.bat')
         self.notifications.append('change windows theme to classical')
-        self.notify('Warning', '\r\n'.join(self.notifications))
+        self.commands.append('echo Notifications:')
+        self.commands.extend(['echo {0}'.format(n) for n in self.notifications])
+        fn='installer2.bat'
+        instbatfp=open(fn,'w')
+        instbatfp.writelines(self.commands)
+        instbatfp.close()
             
     def install_ffmpeg(self):
         shutil.copy(self.modulename2filename('ffmpeg'),  self.visexpmanfolder)
         self.notifications.append('add {0} to path environmental variable'.format(self.visexpmanfolder))
         
-
-
     def notify(self, title, message):
         QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
         
