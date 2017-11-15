@@ -57,4 +57,5 @@ class LaserPulseE(experiment.Experiment):
         self.show_fullscreen(color=0.0,duration=0)
 #        self.block_start('laser')
         daq_instrument.set_waveform('Dev1/ao0:1',self.combined_waveform,sample_rate = self.experiment_config.SAMPLE_RATE)
+        self.show_fullscreen(color=0.0,duration=0)
 #        self.block_end('laser')
