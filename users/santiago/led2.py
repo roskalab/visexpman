@@ -99,7 +99,7 @@ class Led2Stimulation(experiment.Experiment):
                                         DAQmxConstants.DAQmx_Val_Volts,
                                         None)
         self._set_voltage(0,0)
-        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
         self.show_fullscreen(color=self.experiment_config.SCREEN_COLOR,duration=self.experiment_config.PRE_TIME)
         intensity_index=0
         val1=0
@@ -120,7 +120,7 @@ class Led2Stimulation(experiment.Experiment):
                 elif 'ledoff'==cmd:
                     val1=0
             if val2prev==0 and val1prev==0 and (val1!=0 or val2!=0):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 if val1!=0 and val2!=0:
                     self.block_trigger_order.append('both')
                 elif val1!=0:
@@ -128,7 +128,7 @@ class Led2Stimulation(experiment.Experiment):
                 elif val2!=0:
                     self.block_trigger_order.append('stim')
             elif val2==0 and val1==0 and (val1prev!=0 or val2prev!=0):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 if val1prev!=0 and val2prev!=0:
                     self.block_trigger_order.append('both')
                 elif val1prev!=0:
@@ -136,9 +136,9 @@ class Led2Stimulation(experiment.Experiment):
                 elif val2prev!=0:
                     self.block_trigger_order.append('stim')
             elif (val1!=0 or val2!=0) and (val1prev!=0 or val2prev!=0):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 time.sleep(self.trigger_pulse_width)
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 if val1!=val1prev:
                     self.block_trigger_order.append('led')
                 elif val2!=val2prev:

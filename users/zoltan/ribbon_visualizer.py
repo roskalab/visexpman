@@ -25,7 +25,6 @@ class RibbonScanVisualizeConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_RESOLUTION = utils.rc([768, 1024])
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0, FPS_RANGE]
-        SCREEN_MAX_FRAME_RATE = [60.0, FPS_RANGE]
         BACKGROUND_COLOR = [[0.0, 0.0, 0.0], COLOR_RANGE]
         FRAME_WAIT_FACTOR = [1.0, [0.0, 1.0]]
         FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]

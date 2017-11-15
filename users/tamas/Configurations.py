@@ -32,7 +32,6 @@ class InsermSetupConfig(ElphysRetinalCaImagingConfig):
         COORDINATE_SYSTEM='center'        
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 2.0#calibrated 01.03.2013
         INSERT_FLIP_DELAY = True
         FLIP_EXECUTION_TIME = -1e-3

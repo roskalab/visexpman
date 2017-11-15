@@ -12,7 +12,6 @@ class KarlWindowsConfig(Configuration.PresentinatorConfig):
         EXPERIMENT_DATA_PATH = self.BASE_PATH + os.sep + 'data'
         LOG_PATH = self.BASE_PATH + os.sep + 'data'
         SCREEN_EXPECTED_FRAME_RATE = 75.0
-        SCREEN_MAX_FRAME_RATE = 75.0
         FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  'COM1',
                                     'baudrate' : 9600,

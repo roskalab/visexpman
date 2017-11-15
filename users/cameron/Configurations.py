@@ -53,7 +53,6 @@ class Debug(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 1.5
         
         #=== hardware ===
@@ -148,7 +147,6 @@ class AEPHVS(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 1.5
         
         #=== hardware ===
@@ -230,7 +228,6 @@ class MEASetup(AEPHVS):
         SCREEN_RESOLUTION = utils.cr((1024, 768))
 #         SCREEN_RESOLUTION = utils.cr((1600, 1200))
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         SCREEN_UM_TO_PIXEL_SCALE = 1/2.47#Has to be adjusted
         ENABLE_UDP = False
         BACKGROUND_COLOR = [0.5,0.5,0.5]#[0.0,0.0,0.0]#[0.5,0.5,0.5]

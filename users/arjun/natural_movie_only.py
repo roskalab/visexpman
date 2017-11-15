@@ -235,7 +235,7 @@ class NaturalMovieOnlyE(experiment.Experiment):
         self.duration=self.durations[0]
         
     def my_movie(self):
-#        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+#        self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
         if self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
             duration = 0
         elif self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
@@ -243,9 +243,9 @@ class NaturalMovieOnlyE(experiment.Experiment):
         else:
             duration = 1.0/self.experiment_config.FRAME_RATE
         for rep in range(self.experiment_config.MOVIE_REPEATS):
-            #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+            #self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
             self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH)
-            #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)    
+            #self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)    
         
     def run(self):
         # Effectively, this is run when the code is called (and is required), but you don't have to run the code until 

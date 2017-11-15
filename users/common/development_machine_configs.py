@@ -30,7 +30,6 @@ class StimulusDevelopment(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
 #        SCREEN_EXPECTED_FRAME_RATE = 60.0
-#        SCREEN_MAX_FRAME_RATE = 60.0
         STIM_RECORDS_ANALOG_SIGNALS = False
         EXPERIMENT_FILE_FORMAT = 'mat'
         

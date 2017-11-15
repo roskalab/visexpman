@@ -36,7 +36,6 @@ class ProtocolDevelopment(VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE =  False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         
         #=== experiment specific ===
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
@@ -124,7 +123,6 @@ class LizardBehavioral(VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE =  False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         
         #=== experiment specific ===
         SCREEN_UM_TO_PIXEL_SCALE = 1.0

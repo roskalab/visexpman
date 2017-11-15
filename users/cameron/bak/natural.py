@@ -83,7 +83,7 @@ class NaturalBarsExperiment(experiment.Experiment):
         self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)]
         
     def run(self):
-        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
         for rep in range(self.experiment_config.REPEATS):
             if self.abort:
                 break
@@ -111,12 +111,12 @@ class NaturalBarsExperiment(experiment.Experiment):
                     if not self.experiment_config.ENABLE_FLYINOUT:
                         fly_in = False
                         fly_out = False
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                     self.show_natural_bars(speed = speeds, duration=self.experiment_config.DURATION, minimal_spatial_period = self.experiment_config.MINIMAL_SPATIAL_PERIOD, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
                             scale=self.experiment_config.SCALE,
                             offset=self.experiment_config.OFFSET,
                             intensity_levels = 255, direction = directions, fly_in = fly_in, fly_out = fly_out)
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
         
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):
@@ -131,7 +131,7 @@ class NaturalMovieExperiment(experiment.Experiment):
                 coordinates,contrasts = read_receptive_field_centers()
         
         self.show_fullscreen(duration = self.experiment_config.BACKGROUND_TIME, color =  self.experiment_config.BACKGROUND_COLOR)
-        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
         if self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
            duration = 0
         elif self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
@@ -142,18 +142,18 @@ class NaturalMovieExperiment(experiment.Experiment):
         if self.experiment_config.JUMPING:    
             for coordinate in coordinates:
                 for repetitions in range(self.experiment_config.REPETITIONS):
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                     self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH,position=utils.cr(tuple(coordinate)))
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                     if self.abort:
                         break
                 if self.abort or not self.experiment_config.JUMPING:#when not jumping, one iteration is enough
                     break
         else:
             for repetitions in range(self.experiment_config.REPETITIONS):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH)
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 self.show_fullscreen(duration = self.experiment_config.BACKGROUND_TIME, color =  self.experiment_config.BACKGROUND_COLOR)
                 if self.abort:
                    break

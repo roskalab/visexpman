@@ -21,7 +21,6 @@ class VirtualRealityTestConfig(VisionExperimentConfig):
         SCREEN_RESOLUTION = utils.cr([1680, 1050])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm

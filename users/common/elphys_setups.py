@@ -84,7 +84,7 @@ class ReiBaseConfig(ElphysRetinalCaImagingConfig):
                                                 }
                         }]
         self.DIGITAL_IO_PORT = 'parallel port'
-        self.BLOCK_TRIGGER_PIN = 0
+        self.BLOCK_TIMING_PIN = 0
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
         
@@ -187,7 +187,7 @@ class ReiAnalysisConfig(ElphysRetinalCaImagingConfig):
                                                 }
                         }]
         self.DIGITAL_IO_PORT = 'parallel port'
-        self.BLOCK_TRIGGER_PIN = 0
+        self.BLOCK_TIMING_PIN = 0
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
         
@@ -212,14 +212,13 @@ class TamasSetupConfig(ElphysRetinalCaImagingConfig):
         ENABLE_FRAME_CAPTURE = False
         INSERT_FLIP_DELAY = True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         SCREEN_UM_TO_PIXEL_SCALE = 0.377
         #SCREEN_PIXEL_WIDTH = 0.5#mm 200 pixels = 100 mm
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
         ACQUISITION_TRIGGER_PIN = 2
-        BLOCK_TRIGGER_PIN = 0
+        BLOCK_TIMING_PIN = 0
         FRAME_TIMING_PIN = 1
         ENABLE_UDP = True
         

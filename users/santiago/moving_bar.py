@@ -32,15 +32,15 @@ class MovingShapeExperiment1(experiment.Experiment):
         self.show_fullscreen(duration = self.experiment_config.PAUSE_BEFORE_AFTER, color = self.experiment_config.SHAPE_BACKGROUND,frame_timing_pulse = False)
         if self.experiment_config.RUN_NATURAL_BARS:
             if hasattr(self,'parallel_port'):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
             for rep in range(self.experiment_config.NATURAL_BARS['REPEATS']):
                 if self.abort:
                     break
                 if hasattr(self,'parallel_port'):
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 self.show_natural_bars(speed = self.experiment_config.NATURAL_BARS['SPEED'], duration=self.experiment_config.NATURAL_BARS['DURATION'], minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = 180)
                 if hasattr(self,'parallel_port'):
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)        
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)        
             self.show_fullscreen(duration = self.experiment_config.PAUSE_BEFORE_AFTER, color = self.experiment_config.SHAPE_BACKGROUND,frame_timing_pulse = False)
         self.show_fullscreen(duration = 4, color = 0.0)
         self.show_fullscreen(duration = 4, color = 1.0)

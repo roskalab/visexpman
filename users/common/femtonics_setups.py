@@ -17,7 +17,6 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
         self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
-        self.SCREEN_MAX_FRAME_RATE = 60.0
         self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
         self.FULLSCREEN=True
         self.COORDINATE_SYSTEM='center'
@@ -52,7 +51,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.TSTIM_SYNC_INDEX=2
         self.TSTIM_LASER_SYNC_INDEX=4
         self.DIGITAL_IO_PORT='COM4'
-        self.BLOCK_TRIGGER_PIN = 1
+        self.BLOCK_TIMING_PIN = 1
         self.FRAME_TIMING_PIN = 0
         self.MES_RECORD_OVERHEAD=5
         self.MES_RECORD_START_WAITTIME=5
@@ -93,7 +92,6 @@ class CameronBpSetup(AoCorticalCaImagingConfig):
         self.CONTEXT_PATH='d:\\context'
         #Stimulus screen
         self.SCREEN_RESOLUTION = utils.cr([1024, 768])
-        self.SCREEN_MAX_FRAME_RATE = 60.0
         self.FULLSCREEN=not True
         self.COORDINATE_SYSTEM='center'
         self.ENABLE_FRAME_CAPTURE = False
@@ -115,7 +113,7 @@ class CameronBpSetup(AoCorticalCaImagingConfig):
                      'GUI_ANALYSIS'  : ['', stim_computer_ip],
         }   
         self.DIGITAL_IO_PORT='COM1'
-        self.BLOCK_TRIGGER_PIN = 1
+        self.BLOCK_TIMING_PIN = 1
         self.FRAME_TIMING_PIN = 0
         
 #        self.MES_RECORD_OVERHEAD=12

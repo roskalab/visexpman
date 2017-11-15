@@ -73,7 +73,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ############## Ranges ###############
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
-        PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
+        DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'undefined']]
@@ -145,10 +145,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 
         ############# External hardware ######################
         DIGITAL_IO_PORT = False#'parallel port, or comport expected
-        ACQUISITION_TRIGGER_PIN = [0,  PARALLEL_PORT_PIN_RANGE]
-        ACQUISITION_STOP_PIN = [1,  PARALLEL_PORT_PIN_RANGE]
-        FRAME_TIMING_PIN = [2,  PARALLEL_PORT_PIN_RANGE]
-        BLOCK_TRIGGER_PIN = [3,  PARALLEL_PORT_PIN_RANGE]
+        ACQUISITION_TRIGGER_PIN = [0,  DIGITAL_PORT_PIN_RANGE]
+        ACQUISITION_STOP_PIN = [1,  DIGITAL_PORT_PIN_RANGE]
+        FRAME_TIMING_PIN = [2,  DIGITAL_PORT_PIN_RANGE]
+        BLOCK_TIMING_PIN = [3,  DIGITAL_PORT_PIN_RANGE]
+        STIM_START_TRIGGER_PIN = [0,  DIGITAL_PORT_PIN_RANGE]
         FRAME_TIMING_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         ACQUISITION_TRIGGER_POLARITY = True

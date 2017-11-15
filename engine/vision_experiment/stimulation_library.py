@@ -130,10 +130,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Generates trigger pulses
         '''
-        if hasattr(self.digital_output,'set_data_bit'):
-            self.digital_output.set_data_bit(pin, int(polarity), log = False)
+        if hasattr(self.digital_io,'set_data_bit'):
+            self.digital_io.set_data_bit(pin, int(polarity), log = False)
             time.sleep(width)
-            self.digital_output.set_data_bit(pin, int(not polarity), log = False)
+            self.digital_io.set_data_bit(pin, int(not polarity), log = False)
 
     def _frame_timing_pulse(self):
         '''
@@ -143,8 +143,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.trigger_pulse(self.config.FRAME_TIMING_PIN, self.config.FRAME_TIMING_PULSE_WIDTH)
             
     def block_start(self, block_name = 'stimulus function'):
-        if hasattr(self.digital_output,'set_data_bit'):
-            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
+        if hasattr(self.digital_io,'set_data_bit'):
+            self.digital_io.set_data_bit(self.config.BLOCK_TIMING_PIN, 1, log = False)
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 1]})
@@ -152,8 +152,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.log.info('{0} block started' .format(block_name), source='stim')
                 
     def block_end(self, block_name = 'stimulus function'):
-        if hasattr(self.digital_output,'set_data_bit'):
-            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+        if hasattr(self.digital_io,'set_data_bit'):
+            self.digital_io.set_data_bit(self.config.BLOCK_TIMING_PIN, 0, log = False)
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 0]})

@@ -15,7 +15,7 @@ class UltrasoundSetupConfig(UltrasoundConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         ENABLE_FRAME_CAPTURE = False
         DIGITAL_IO_PORT='COM3'
-        BLOCK_TRIGGER_PIN=0
+        BLOCK_TIMING_PIN=0
         FRAME_TIMING_PIN=1
         stim_computer_ip = '192.168.2.4'
         behavioral_computer_ip = '192.168.2.3'
@@ -121,7 +121,7 @@ class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):#OBSOLETE
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
         ACQUISITION_TRIGGER_PIN = 0
-        BLOCK_TRIGGER_PIN = 2
+        BLOCK_TIMING_PIN = 2
         FRAME_TIMING_PIN = 1
         
         
@@ -187,7 +187,7 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         DATAFILE_COMPRESSION_LEVEL = 5
         self.DEFAULT_ROI_SIZE_ON_GUI=5
         self.DIGITAL_IO_PORT = 'parallel port'
-        self.BLOCK_TRIGGER_PIN = 0
+        self.BLOCK_TIMING_PIN = 0
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
 

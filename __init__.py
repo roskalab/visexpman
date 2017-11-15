@@ -91,7 +91,7 @@
             SCREEN_UM_TO_PIXEL_SCALE = 1 Size of 1 um in pixels. Has to be measured at each setup
             ACQUISITION_TRIGGER_PIN = 2 The pin number on the parallel port interface that triggers the data acquisition. On Elphys setups this signal is connected to the PFI0 input.
             FRAME_TIMING_PIN = 0 On this parallel port pin a pulse is generated at each low level screen update. Consequently its frequency will be equal with the projector's frame rate
-            BLOCK_TRIGGER_PIN = 1 This signal can be used to align stimulation with electrophysiology data. There is a level change when the visual information is updated on the screen
+            BLOCK_TIMING_PIN = 1 This signal can be used to align stimulation with electrophysiology data. There is a level change when the visual information is updated on the screen
             ENABLE_FILTERWHEEL = True Enable filterwheel control
             Example for configuring two filterwheels. user has to make sure that the right port name and baudrate is used
             import serial

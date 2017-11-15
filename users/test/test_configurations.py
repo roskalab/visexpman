@@ -70,7 +70,6 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
         SCREEN_UM_TO_PIXEL_SCALE = 0.3
         MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #100
@@ -350,7 +349,6 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
         SCREEN_UM_TO_PIXEL_SCALE = 0.3
         MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #100

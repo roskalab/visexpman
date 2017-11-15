@@ -66,12 +66,12 @@ class LedStimulation(experiment.Experiment):
             self._set_voltage(0)
             time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
             for i in range(int(self.experiment_config.NUMBER_OF_FLASHES)):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 self._set_voltage(self.amplitude)
                 time.sleep(self.experiment_config.FLASH_DURATION)
                 if self.abort:
                     break
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 self._set_voltage(0)
                 time.sleep(self.experiment_config.PAUSE_BETWEEN_FLASHES)
                 if self.abort:

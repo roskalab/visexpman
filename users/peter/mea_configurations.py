@@ -13,7 +13,6 @@ class MEASetup(HiMEAConfig):#Hierlemann machine config
         SCREEN_RESOLUTION = [1680,   1050]
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 30.0
-        SCREEN_MAX_FRAME_RATE = 30.0
 
         PLATFORM = 'smallapp'
         SMALLAPP = {'NAME': 'Flowmeter logger',  'POLLER':'FlowmeterPoller'}
@@ -85,7 +84,6 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 0.384 #how much u is one px; if 1 micron is 1 pixel, TO USE PIXELS
         
         #=== hardware === SETTING TTL 
@@ -154,7 +152,6 @@ class PetersConfig(HiMEAConfig):
         SCREEN_RESOLUTION = [1680,   1050]
         ENABLE_FRAME_CAPTURE = False
         
-        SCREEN_EXPECTED_FRAME_RATE = 30.0
         SCREEN_MAX_FRAME_RATE = 30.0
         FRAME_WAIT_FACTOR = 0.7
 

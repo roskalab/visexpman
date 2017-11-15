@@ -49,14 +49,13 @@ class AEPHVS(ElphysRetinalCaImagingConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 0.6
         BACKGROUND_COLOR = [0.5,0.5,0.5]
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
-        BLOCK_TRIGGER_PIN = 1
+        BLOCK_TIMING_PIN = 1
         FRAME_TIMING_PIN = 0
         
         #=== network ===
@@ -132,7 +131,6 @@ class MEASetup(AEPHVS):
         SCREEN_RESOLUTION = utils.cr((1024, 768))
         SCREEN_RESOLUTION = utils.cr((800, 600))
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         SCREEN_UM_TO_PIXEL_SCALE = 1.28/1.6276
         ENABLE_UDP = False
         BACKGROUND_COLOR = [0.5,0.5,0.5]
@@ -179,7 +177,7 @@ class ChiBlocktrigger(AEPHVS):
     def _set_user_parameters(self):
         AEPHVS._set_user_parameters(self, check_path=False)
         ACQUISITION_TRIGGER_PIN = 2
-        BLOCK_TRIGGER_PIN = 0
+        BLOCK_TIMING_PIN = 0
         FRAME_TIMING_PIN = 1
         self._create_parameters_from_locals(locals())
 

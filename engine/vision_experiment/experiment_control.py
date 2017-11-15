@@ -409,7 +409,7 @@ class Trigger(object):
     def __init__(self,machine_config, queues, digital_output):
         self.machine_config=machine_config
         self.queues = queues
-        self.digital_output = digital_output
+        self.digital_io = digital_output
         
     def _wait4trigger(self, timeout, wait_method, args=[], kwargs={}):
         '''
@@ -447,6 +447,14 @@ class Trigger(object):
                 if self.abort:
                     break
             digital_input.ClearTask()
+        else:
+            while True:
+                if self.digital_io.read_pin(self.machine_config.STIM_START_TRIGGER_PIN):
+                    result = True
+                    break
+                self.check_abort()
+                if self.abort:
+                    break
         return result
     
     def wait4newfiletrigger(self):
@@ -456,10 +464,10 @@ class Trigger(object):
         return self._wait4trigger(is_new_file, (files), {})
             
     def set_trigger(self, pin):
-        self.digital_output.set_pin(pin, True)
+        self.digital_io.set_pin(pin, True)
         
     def clear_trigger(self,pin):
-        self.digital_output.set_pin(pin, False)
+        self.digital_io.set_pin(pin, False)
         
 class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
     '''
@@ -478,18 +486,20 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.parameters = parameters
         self.log = log
         if self.machine_config.DIGITAL_IO_PORT =='daq':
-            self.digital_output=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
+            self.digital_io=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
         elif self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
             digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
-            self.digital_output = digital_output_class(self.machine_config, self.log)
+            self.digital_io = digital_output_class(self.machine_config, self.log)
         else:
-            self.digital_output = None
-        Trigger.__init__(self, machine_config, queues, self.digital_output)
-        if self.digital_output!=None:#Digital output is available
-            self.clear_trigger(self.config.BLOCK_TRIGGER_PIN)
+            self.digital_io = None
+        Trigger.__init__(self, machine_config, queues, self.digital_io)
+        if self.digital_io!=None:#Digital output is available
+            self.clear_trigger(self.config.BLOCK_TIMING_PIN)
             self.clear_trigger(self.config.FRAME_TIMING_PIN)
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
+        if self.machine_config.PLATFORM=='epos':
+            self.camera_trigger=digital_io.AduinoIO(self.machine_config.CAMERA_TRIGGER_PORT)
         self.user_data = {}
         self.abort = False
         
@@ -547,7 +557,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         else:
             time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
         
-            
     def wait4ao(self):
         if self.abort:
             return
@@ -579,16 +588,16 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 from visexpman.engine.vision_experiment.experiment import get_experiment_duration
                 self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
-            
-            self.prepare()#Computational intensive precalculations for stimulus
-            #import pdb;pdb.set_trace()
+            #Computational intensive precalculations for stimulus
+            self.prepare()
+            #Control/synchronization with platform specific recording devices
+            time.sleep(0.1)
             if self.machine_config.PLATFORM=='ao_cortical':
                 self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
                 self.start_sync_recording()
                 self.printl('Sync signal recording started')
                 self.start_ao()
-            time.sleep(0.1)
-            if self.machine_config.PLATFORM=='hi_mea':
+            elif self.machine_config.PLATFORM=='hi_mea':
                 #send start signal
                 self._send_himea_cmd("start")
             elif self.machine_config.PLATFORM=='elphys_retinal_ca':
@@ -606,13 +615,17 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.camera = XimeaCamera(config=self.machine_config)
                 self.camera.start()
                 self.camera.trigger.set()  # starts acquisition
-            elif self.machine_config.PLATFORM=='behav':
-                self.sync_recording_duration=self.parameters['duration']
-                self.start_sync_recording()
-                self.printl('Sync signal recording started')
+            elif self.machine_config.PLATFORM in ['behav','epos']:
+                if self.machine_config.PLATFORM=='behav':
+                    self.sync_recording_duration=self.parameters['duration']
+                    self.start_sync_recording()
+                    self.printl('Sync signal recording started')
                 self.printl('Waiting for external trigger')
-                if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_TRIGGER_CHANNEL):
+                if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
                     self.abort=True
+                if self.machine_config.PLATFORM=='epos':
+                    self.camera_trigger.enable_waveform(self.machine_config.CAMERA_TRIGGER_PIN, self.machine_config.CAMERA_TRIGGER_FRAME_RATE)
+                    time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
@@ -624,20 +637,25 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 exc_info = sys.exc_info()
                 raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
             self.log.resume()
+            #Terminate recording devices
+            if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
+                self.printl('Stimulation ended')
+                self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
-            elif self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
-                self.printl('Stimulation ended')
-                self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             elif self.machine_config.PLATFORM=='intrinsic':
                 self.camera.trigger.clear()
                 self.camera.join()
-            if self.machine_config.PLATFORM=='ao_cortical':
+            elif self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
+            elif self.machine_config.PLATFORM=='epos':
+                time.sleep(self.machine_config.CAMERA_POST_STIM_WAIT)
+                self.camera_trigger.disable_waveform()
             if self.machine_config.PLATFORM in ['behav', 'ao_cortical']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
+            #Saving data
             if not self.abort:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
@@ -663,8 +681,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.close()#If something goes wrong, close serial port
 
     def close(self):
-        if hasattr(self.digital_output, 'release_instrument'):
-                self.digital_output.release_instrument()
+        if hasattr(self.digital_io, 'release_instrument'):
+                self.digital_io.release_instrument()
+        if hasattr(self, 'camera_trigger'):
+            self.camera_trigger.close()
 
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)

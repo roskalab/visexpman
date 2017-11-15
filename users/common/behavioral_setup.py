@@ -67,7 +67,7 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         ENABLE_FRAME_CAPTURE = False
         DIGITAL_IO_PORT='daq'
-        BLOCK_TRIGGER_PIN=0
+        BLOCK_TIMING_PIN=0
         FRAME_TIMING_PIN=1
         #self.INSERT_FLIP_DELAY=True
         #self.ALTERNATIVE_TIMING=True
@@ -82,9 +82,9 @@ class Behavioral2Setup(BehavioralConfig):#Miao's setup
         self.TSTIM_SYNC_INDEX=1
         self.DIGITAL_OUTPUT='daq'
         self.TIMING_CHANNELS=['Dev1/port1/line1','Dev1/port1/line2']
-        self.STIM_TRIGGER_CHANNEL='Dev1/port0/line0'
+        self.STIM_START_TRIGGER_PIN='Dev1/port0/line0'
         self.WAIT4TRIGGER_ENABLED=True
-        self.BLOCK_TRIGGER_PIN = 1
+        self.BLOCK_TIMING_PIN = 1
         self.FRAME_TIMING_PIN = 0
         self.SYNC_RECORD_OVERHEAD=10
         gammafn=os.path.join(CONTEXT_PATH, 'gamma.hdf5')
