@@ -1,17 +1,17 @@
 #TODO: progressbar
-import os,subprocess,logging,time,sys,shutil,zipfile,tempfile
+import os,subprocess,logging,time,sys,shutil,zipfile,tempfile,ctypes
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
-TEST=True
+TEST=not True
 
 class Installer(Qt.QMainWindow):
     def __init__(self):
         if QtCore.QCoreApplication.instance() is None:
             self.qt_app = Qt.QApplication([])
         Qt.QMainWindow.__init__(self)
-        self.setWindowTitle('Vision Experiment Manager Installer')
+        self.setWindowTitle('Vision Experiment Manager Installation Configurator')
         self.setGeometry(0,0,0,0)
         if len(sys.argv)>1:
             self.location=sys.argv[1]
@@ -28,9 +28,21 @@ class Installer(Qt.QMainWindow):
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
+    def log(self,msg):
+        logging.info(msg)
+        print msg
+            
     def installer(self):
+        self.log('Installer batch generator started')
         self.tmpdirs=[]
         self.notifications=[]
+        free_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p('c:\\'), None, None, ctypes.pointer(free_bytes))
+        free_min=3
+        if free_bytes.value*1e-9 < free_min:
+            self.notify('Warning', 'At least {0} GB free space is required'.format(free_min))
+            self.close()
+            return
         fp=open('python_installed.txt')
         txt=fp.read()
         fp.close()
@@ -66,46 +78,51 @@ class Installer(Qt.QMainWindow):
             self.close()
             return
         modules=['anaconda', 'opengl','pygame','opencv','pyqtgraph', 'pyserial', 'gedit', 'tcmd', 'meld']
-        commands=[]
+        self.commands=['title Vision Experiment Manager Installer', 'del python_installed.txt']
         for module in modules:
             fn=self.modulename2filename(module)
             self.commands.append(fn)
-            logging.info('Installing {0} ...'.format(fn))
+            self.log('Adding to bat file: {0} ...'.format(fn))
         python_module_folder='c:\\Anaconda\\Lib\\site-packages'
-        logging.info('Creating pth file')
+        self.log('Creating pth file')
         fp=open('v.pth', 'wt')
         fp.write(self.visexpmanfolder.replace('\\','\\\\'))
         fp.close()
         self.commands.append('copy v.pth {0}'.format(python_module_folder))
         if visexpman_folder not in self.visexpmanfolder:
             shutil.copy(self.modulename2filename('hdf5io'), self.visexpmanfolder)
-            logging.info('hdf5io copied')
+            self.log('hdf5io copied')
         self.install_ffmpeg()
         if self.install_daqmx:
             fn=self.modulename2filename('nidaq')
             folder=self.extract(fn, 'daq')
             self.tmpdirs.append(folder)
             self.commands.append(os.path.join(folder, 'setup.exe'))
+            self.log('Extracting daqmx')
             folder=self.extract(fn, 'pydaqmx')
             self.tmpdirs.append(folder)
             self.commands.append('cd {0}'.format(folder))
             self.commands.append('python setup.py install')
-            
         folder=self.extract(fn, 'eric')
         self.tmpdirs.append(folder)
         self.commands.append('cd {0}'.format(folder))
         self.commands.append('python install.py')
-        print 'TODO: create eric4 shortcut'
+        self.log('TODO: create eric4 shortcut')
         #Verify installation
         self.commands.append('cd {0}'.format(visexpman_folder))
         self.commands.append('call shortcuts\\verify_installation.bat')
         self.notifications.append('change windows theme to classical')
+        self.commands.append('echo cleaning up')
+        self.commands.extend(['rd /s /q {0}'.format(f) for f in self.tmpdirs])
         self.commands.append('echo Notifications:')
         self.commands.extend(['echo {0}'.format(n) for n in self.notifications])
+        self.commands.append('pause')
         fn='installer2.bat'
         instbatfp=open(fn,'w')
-        instbatfp.writelines(self.commands)
+        [instbatfp.write(c+'\r\n') for c in self.commands]
         instbatfp.close()
+        self.close()
+        self.log('Configurator Done')
             
     def install_ffmpeg(self):
         shutil.copy(self.modulename2filename('ffmpeg'),  self.visexpmanfolder)
