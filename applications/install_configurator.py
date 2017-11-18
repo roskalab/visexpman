@@ -17,7 +17,7 @@ class Installer(Qt.QMainWindow):
             self.location=sys.argv[1]
         else:
             self.location='unknown'
-        self.installer_checksum=2478538140L
+        self.installer_checksum=2501958671L
         self.logfile = os.path.join('install_log_{0}.txt'.format(time.time()))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -76,7 +76,7 @@ class Installer(Qt.QMainWindow):
         else:
             d=os.path.join(os.getcwd(),'modules')
         self.installer_files=[os.path.join(d,f) for f in os.listdir(d)]
-        if self.installer_checksum !=checksum(self.installer_files):
+        if self.installer_checksum !=checksum(d):
             self.notify('Error', 'Invalid binari(es) in {0}'.format(self.d))
             self.close()
             return
@@ -96,6 +96,8 @@ class Installer(Qt.QMainWindow):
             shutil.copy(self.modulename2filename('hdf5io'), self.visexpmanfolder)
             self.log('hdf5io copied')
         self.install_ffmpeg()
+        self.commands.append('setx path "%PATH%;{0}"'.format(self.visexpmanfolder))
+        self.commands.append('setx path "%PATH%;c:\\Program Files\\gedit\\bin"')
         if self.install_daqmx:
             fn=self.modulename2filename('nidaq')
             folder=self.extract(fn, 'daq')
@@ -107,17 +109,40 @@ class Installer(Qt.QMainWindow):
             self.tmpdirs.append(folder)
             self.commands.append('cd {0}'.format(folder))
             self.commands.append('c:\\Anaconda\\python.exe setup.py install')
+        fn=self.modulename2filename('zc.lock')
+        folder=self.extract(fn)
+        self.tmpdirs.append(folder)
+        self.commands.append('cd {0}'.format(folder))
+        self.commands.append('c:\\Anaconda\\python.exe setup.py install')
         fn=self.modulename2filename('eric')
         folder=self.extract(fn)
         self.tmpdirs.append(folder)
         self.commands.append('cd {0}'.format(folder))
         self.commands.append('c:\\Anaconda\\python.exe install.py')
-        self.log('TODO: create eric4 shortcut')
+        create_shortcut='''
+            @echo off
+
+            set SCRIPT="%TEMP%\%RANDOM%-%RANDOM%-%RANDOM%-%RANDOM%.vbs"
+
+            echo Set oWS = WScript.CreateObject("WScript.Shell") >> %SCRIPT%
+            echo sLinkFile = "%USERPROFILE%\Desktop\myshortcut.lnk" >> %SCRIPT%
+            echo Set oLink = oWS.CreateShortcut(sLinkFile) >> %SCRIPT%
+            echo oLink.TargetPath = "c:\Anaconda\eric4.bat" >> %SCRIPT%
+            echo oLink.Save >> %SCRIPT%
+
+            cscript /nologo %SCRIPT%
+            del %SCRIPT%
+        '''
+        self.log('Extract visexpman to {0}'.format(self.visexpmanfolder))
+        self.commands.append(create_shortcut)
+        fn=self.modulename2filename('visexpman')
+        folder=self.extract(fn)
+        shutil.copytree(folder, self.visexpmanfolder)
         #Verify installation
         self.commands.append('cd {0}'.format(visexpman_folder))
         self.commands.append('call shortcuts\\verify_installation.bat')
+        self.commands.append('call c:\\Anaconda\\eric4.bat')
         self.notifications.append('change windows theme to classical')
-        self.notifications.append('add gedit path to path')
         self.commands.append('echo cleaning up')
         self.commands.extend(['rd /s /q {0}'.format(f) for f in self.tmpdirs])
         self.commands.append('echo Notifications:')
@@ -174,7 +199,7 @@ class Installer(Qt.QMainWindow):
         return out
         
 def checksum(folder):
-    return sum([os.path.getsize(os.path.join(folder,f)) for f in folder])
+    return sum([os.path.getsize(os.path.join(folder,f)) for f in os.listdir(folder)])
 
 if __name__=='__main__':
     i=Installer()
