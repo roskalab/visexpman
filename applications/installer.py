@@ -33,12 +33,12 @@ class Installer(Qt.QMainWindow):
         print msg
             
     def installer(self):
-        self.log('Installer batch generator started')
+        self.log('Install configurator started')
         self.tmpdirs=[]
         self.notifications=[]
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p('c:\\'), None, None, ctypes.pointer(free_bytes))
-        free_min=3
+        free_min=10
         if free_bytes.value*1e-9 < free_min:
             self.notify('Warning', 'At least {0} GB free space is required'.format(free_min))
             self.close()
@@ -66,14 +66,17 @@ class Installer(Qt.QMainWindow):
             visexpman_folder = visexpman_default_local_folder
             os.mkdir(visexpman_folder)
         self.visexpmanfolder=self.ask4foldername('Please select visexpman package location', visexpman_folder)
-        self.install_daqmx=self.ask4confirmation('Do you want to install PyDAQmx and NI DAQ?')
+        if 'daqmx' in sys.argv:
+            self.install_daqmx=True
+        else:
+            self.install_daqmx=self.ask4confirmation('Do you want to install PyDAQmx and NI DAQ?')
         #Check installers:
         if TEST:
             d=os.path.join('c:\\temp','modules')
         else:
             d=os.path.join(os.getcwd(),'modules')
         self.installer_files=[os.path.join(d,f) for f in os.listdir(d)]
-        if self.installer_checksum !=sum([os.path.getsize(f) for f in self.installer_files]):
+        if self.installer_checksum !=checksum(self.installer_files):
             self.notify('Error', 'Invalid binari(es) in {0}'.format(self.d))
             self.close()
             return
@@ -99,19 +102,22 @@ class Installer(Qt.QMainWindow):
             self.tmpdirs.append(folder)
             self.commands.append(os.path.join(folder, 'setup.exe'))
             self.log('Extracting daqmx')
-            folder=self.extract(fn, 'pydaqmx')
+            fn=self.modulename2filename('pydaqmx')
+            folder=self.extract(fn)
             self.tmpdirs.append(folder)
             self.commands.append('cd {0}'.format(folder))
-            self.commands.append('python setup.py install')
-        folder=self.extract(fn, 'eric')
+            self.commands.append('c:\\Anaconda\\python.exe setup.py install')
+        fn=self.modulename2filename('eric')
+        folder=self.extract(fn)
         self.tmpdirs.append(folder)
         self.commands.append('cd {0}'.format(folder))
-        self.commands.append('python install.py')
+        self.commands.append('c:\\Anaconda\\python.exe install.py')
         self.log('TODO: create eric4 shortcut')
         #Verify installation
         self.commands.append('cd {0}'.format(visexpman_folder))
         self.commands.append('call shortcuts\\verify_installation.bat')
         self.notifications.append('change windows theme to classical')
+        self.notifications.append('add gedit path to path')
         self.commands.append('echo cleaning up')
         self.commands.extend(['rd /s /q {0}'.format(f) for f in self.tmpdirs])
         self.commands.append('echo Notifications:')
@@ -151,15 +157,24 @@ class Installer(Qt.QMainWindow):
         else:
             return fn[0]
             
-    def extract(self, zip, tag):
-        out=os.path.join(tempfile.gettempdir(), tag)
-        if os.path.exists(out):
-            shutil.rmtree(out)
-        os.mkdir(out)
+    def extract(self, zip,tag=None):
+        if tag !=None:
+            out=os.path.join(tempfile.gettempdir(), tag)
+            if os.path.exists(out):
+                shutil.rmtree(out)
+            os.mkdir(out)
+        else:
+            out=tempfile.gettempdir()
+        self.log('Extracting: {0}'.format(zip))
         z=zipfile.ZipFile(zip)
         z.extractall(out)
         z.close()
+        if tag==None:
+             out=[os.path.join(out, f) for f in os.listdir(out) if os.path.isdir(os.path.join(out,f)) and os.path.splitext(os.path.basename(zip))[0] in f][0]
         return out
+        
+def checksum(folder):
+    return sum([os.path.getsize(os.path.join(folder,f)) for f in folder])
 
 if __name__=='__main__':
     i=Installer()
