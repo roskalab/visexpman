@@ -69,8 +69,8 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.toolbar.setToolTip('''
         Connections:
             AI0: Left LED
-            AI2: Right LED
-            AI1: amplifier's output
+            AI1: Right LED
+            AI2: amplifier's output
             AO0: Left LED
             AO1: Right LED
         Usage:
@@ -87,6 +87,8 @@ class LEDStimulator(gui.SimpleAppWindow):
             Spike: The output of high pass filtering the raw, not averaged elphys signal
             
             The filter's default cutoff frequency is 100 Hz, it is a 3rd order butterworth filter.
+            
+            Display: psths: type self.show_psths() to Log/Debug/Python debug console
         ''')
         self.addToolBar(self.toolbar)
         self.settings_changed()
@@ -180,7 +182,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         
         '''
         buffer_size=self.settings['Buffer Size']
-        trig=self.ai_trace[:, 1]
+        trig=self.ai_trace[:, 0]
         edges=signal.detect_edges(trig,0.5*trig.max())
         if trig[0]>0.5*trig.max():
             edges=numpy.insert(edges, 0, 0)
@@ -234,8 +236,8 @@ class LEDStimulator(gui.SimpleAppWindow):
                 self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.signals['last']['elphys']).real
                 self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.signals['last']['elphys']).real            
             k='mean' if self.settings['Enable Average'] else 'last'
-            pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}, 
-                    {'name': 'right', 'pen': pyqtgraph.mkPen(color=(10,100,30), width=3)}]
+            pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(255,0,0), width=3)}, 
+                    {'name': 'right', 'pen': pyqtgraph.mkPen(color=(0,0,255), width=3)}]
             self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
             self.cw.plotw.plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
             dt=(time.time()-self.t0)/60.
@@ -330,7 +332,7 @@ class LEDStimulator(gui.SimpleAppWindow):
     
     def show_psths(self):
         if self.settings['Enable Filter']:
-            h,b,self.tspikerel=elphys.peristimulus_histogram(self.highpassfiltered,  self.trig[0], self.settings['Sample Rate'], self.settings['Psths bin time'], self.settings['Spike Threshold'])
+            h,b,self.tspikerel=elphys.peristimulus_histogram(self.highpassfiltered,  self.signals['last']['left'], self.settings['Sample Rate'], self.settings['Psths bin time'], self.settings['Spike Threshold'])
             self.h=h
             self.b=b
             x=b[:-1]*1e3
