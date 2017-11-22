@@ -67,7 +67,7 @@ class MovingBar(experiment.ExperimentConfig):
         self.SHAPE_CONTRAST = 1.0
         self.SHAPE = 'rect'
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
-        self.RANDOM_ORDER = True
+        #self.RANDOM_ORDER = True
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self._create_parameters_from_locals(locals())
 
