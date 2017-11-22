@@ -76,7 +76,7 @@ class MovingBar(experiment.ExperimentConfig):
 class ChirpSweep(experiment.ExperimentConfig): 
     def _create_parameters(self):
         self.runnable = 'ChirpSweep'
-        self.VARS['Chirp_Sweep'] = {}
+        self.Chirp_Sweep = {}
         self.DURATION_BREAKS = 1.5
         self.DURATION_FULLFIELD = 4
         self.DURATION_FREQ = 8
