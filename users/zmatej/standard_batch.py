@@ -90,7 +90,7 @@ class StBChirpSweep(experiment.ExperimentConfig):
 
 # -----------------------------------------------------------------------------
 # fingerprinting
-class FingerPrinting(experiment.ExperimentConfig): 
+class StBFingerPrinting(experiment.ExperimentConfig): 
     def _create_parameters(self):
         self.runnable = 'FingerPrintingStimulus'
         self.FingerPrinting = {}
