@@ -9,6 +9,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal,utils
 from visexpman.engine.analysis import elphys
+from visexpman.engine.hardware_interface import daq_instrument
 
 class CWidget(QtGui.QWidget):
     def __init__(self,parent):
@@ -105,10 +106,11 @@ class LEDStimulator(gui.SimpleAppWindow):
 
     def start_action(self):
         if self.running:
-            return
+            self.stop_action()
+            time.sleep(0.3)
         if self.settings['Sample Rate']>22e3:
             self.notify('Warning',  'LED Stimulator may not be stable at {0} Hz sampling rate'.format(self.settings['Sample Rate']))
-        if 1.0/self.settings['Stimulus Rate']<self.settings['LED on time']*1e-3:
+        if 1.0/self.settings['Stimulus Rate']<=self.settings['LED on time']*1e-3:
             self.notify('Warning',  'LED on time is longer than stimulus preiod time')
             return
         logging.info('start')
@@ -128,6 +130,8 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.close_daq()
         logging.info('stop')
         self.running=False
+        daq_instrument.set_voltage('{0}/ao0'.format(self.settings['DAQ device']), 0)
+        daq_instrument.set_voltage('{0}/ao1'.format(self.settings['DAQ device']), 0)
         
     def save_action(self):
         if self.running:
