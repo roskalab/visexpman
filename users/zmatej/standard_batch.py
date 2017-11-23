@@ -10,7 +10,7 @@ from visexpman.engine.vision_experiment import experiment
 
 # -----------------------------------------------------------------------------
 #15 min
-class WhiteNoise(experiment.ExperimentConfig):
+class StBWhiteNoise(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
         self.DURATION_MINS = 15.0
@@ -22,7 +22,7 @@ class WhiteNoise(experiment.ExperimentConfig):
 
 # ------------------------------------------------------------------------------
 #24 min
-class MovingGrating(experiment.ExperimentConfig):
+class StBMovingGrating(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
         self.REPEATS = 1
@@ -40,7 +40,7 @@ class MovingGrating(experiment.ExperimentConfig):
 
 # -----------------------------------------------------------------------------
 #27 min
-class MarchingSquares(experiment.ExperimentConfig):
+class StBMarchingSquares(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable='ReceptiveFieldExplore'
         self.SHAPE = 'rect'
@@ -57,7 +57,7 @@ class MarchingSquares(experiment.ExperimentConfig):
 
 # -----------------------------------------------------------------------------
 # not working - copied from roland/jacek2.py
-class MovingBar(experiment.ExperimentConfig):
+class StBMovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingShapeStimulus'
         self.DIRECTIONS = range(0, 360, 45)
@@ -67,13 +67,13 @@ class MovingBar(experiment.ExperimentConfig):
         self.SHAPE_CONTRAST = 1.0
         self.SHAPE = 'rect'
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
-        #self.RANDOM_ORDER = True
+        self.RANDOM_ORDER = True
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self._create_parameters_from_locals(locals())
 
 # -----------------------------------------------------------------------------
 # chirp sweep
-class ChirpSweep(experiment.ExperimentConfig): 
+class StBChirpSweep(experiment.ExperimentConfig): 
     def _create_parameters(self):
         self.runnable = 'ChirpSweep'
         self.Chirp_Sweep = {}
