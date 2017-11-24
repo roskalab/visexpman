@@ -29,7 +29,7 @@ class CWidget(QtGui.QWidget):
         params = [
                     {'name': 'Left LED', 'type': 'bool', 'value': True,},
                     {'name': 'Right LED', 'type': 'bool', 'value': True,},
-                    {'name': 'Enable Average', 'type': 'bool', 'value': True,},
+                    {'name': 'Enable Average', 'type': 'bool', 'value': False,},
                     {'name': 'Stimulus Rate', 'type': 'int', 'value': 2, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED on time', 'type': 'float', 'value': 100, 'suffix': 'ms', 'siPrefix': True},
                     {'name': 'Sample Rate', 'type': 'int', 'value': 20000, 'suffix': 'Hz', 'siPrefix': True},
@@ -37,6 +37,7 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Filter Frequency', 'type': 'int', 'value': 100, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'Enable Filter', 'type': 'bool', 'value': True,},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
+                    {'name': 'Amplifier gain', 'type': 'float', 'value': 10000},
                     {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Filter Order', 'type': 'int', 'value': 3},
                                 {'name': 'Tmin', 'type': 'float', 'value': 1.0, 'suffix': 's', 'siPrefix': True},
@@ -237,18 +238,24 @@ class LEDStimulator(gui.SimpleAppWindow):
             if not self.process_ai_trace():
                 return
             if self.settings['Enable Filter']:
-                self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.signals['last']['elphys']).real
-                self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.signals['last']['elphys']).real            
+                try:
+                    self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.signals['last']['elphys']).real
+                    self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.signals['last']['elphys']).real            
+                except:
+                    return
             k='mean' if self.settings['Enable Average'] else 'last'
             pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(255,0,0), width=3)}, 
                     {'name': 'right', 'pen': pyqtgraph.mkPen(color=(0,0,255), width=3)}]
-            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+            maxamp=abs(self.signals[k]['elphys'].max())
+            left=self.signals['last']['left']/self.signals['last']['left'].max()*maxamp
+            right=self.signals['last']['right']/self.signals['last']['right'].max()*maxamp
+            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],left,  right],plotparams=pp)
             self.cw.plotw.plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
             dt=(time.time()-self.t0)/60.
             self.cw.plotw.plot.setTitle('Raw {0:0.1f} minutes'.format(dt))
             if self.settings['Enable Filter']:
-                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
-                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,left,  right],plotparams=pp)
+                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,left,  right],plotparams=pp)
                 self.cw.plotfiltered['Field Potential'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
                 self.cw.plotfiltered['Spike'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
         
