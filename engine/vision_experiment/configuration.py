@@ -101,6 +101,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ALTERNATIVE_TIMING=False
         ENABLE_TIME_INDEXING=False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
+        FRAME_RATE_ERROR_THRESHOLD=[0.1, [0.01,0.5]]
         FRAME_RATE_TOLERANCE = [4.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
