@@ -1,12 +1,39 @@
-#TODO: progressbar
-import os,subprocess,logging,time,sys,shutil,zipfile,tempfile,ctypes
+import os,logging,time,sys,shutil,zipfile,tempfile,ctypes
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 TEST=not True
 
-class Installer(Qt.QMainWindow):
+class SelectShortcut(QtGui.QWidget):
+    def __init__(self,shortcuts, callback):
+        self.callback=callback
+        QtGui.QWidget.__init__(self, None)
+        self.setGeometry(40,40,300,300)
+        self.shortcuts2select = QtGui.QListWidget(self)
+        self.shortcuts2select.setSelectionMode(self.shortcuts2select.MultiSelection)
+        self.shortcuts2select.addItems(QtCore.QStringList(shortcuts))
+        self.install=QtGui.QPushButton('Install Selected')
+        self.cancel=QtGui.QPushButton('Cancel')
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.shortcuts2select, 0, 0, 1, 2)
+        self.layout.addWidget(self.install, 1, 0, 1, 1)
+        self.layout.addWidget(self.cancel, 1, 1, 1, 1)
+        self.setLayout(self.layout)
+        self.connect(self.install, QtCore.SIGNAL('clicked()'), self.install_pressed)
+        self.connect(self.cancel, QtCore.SIGNAL('clicked()'), self.cancel_pressed)
+        
+    def install_pressed(self):
+        self.selection = [str(i.text()) for i in map(self.shortcuts2select.item, [s.row() for s in self.shortcuts2select.selectedIndexes()])]
+        self.close()
+        self.callback()
+    
+    def cancel_pressed(self):
+        self.selection=[]
+        self.close()
+        self.callback()
+
+class InstallConfigurator(Qt.QMainWindow):
     def __init__(self):
         if QtCore.QCoreApplication.instance() is None:
             self.qt_app = Qt.QApplication([])
@@ -37,12 +64,13 @@ class Installer(Qt.QMainWindow):
         self.tmpdirs=[]
         self.notifications=[]
         free_bytes = ctypes.c_ulonglong(0)
-        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p('c:\\'), None, None, ctypes.pointer(free_bytes))
-        free_min=10
-        if free_bytes.value*1e-9 < free_min:
-            self.notify('Warning', 'At least {0} GB free space is required'.format(free_min))
-            self.close()
-            return
+        if os.name=='nt':
+            ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p('c:\\'), None, None, ctypes.pointer(free_bytes))
+            free_min=10
+            if free_bytes.value*1e-9 < free_min:
+                self.notify('Warning', 'At least {0} GB free space is required'.format(free_min))
+                self.close()
+                return
         fp=open('python_installed.txt')
         txt=fp.read()
         fp.close()
@@ -61,10 +89,11 @@ class Installer(Qt.QMainWindow):
             if not self.ask4confirmation('{0} already exists, visexpman might be already installed, continue?'.format(visexpman_default_local_folder)):
                 self.close()
                 return
-        visexpman_folder = visexpman_default_folder
-        if not os.path.exists(visexpman_default_folder):
+        if not os.path.exists(visexpman_default_folder):#X is not available then go for local folder
             visexpman_folder = visexpman_default_local_folder
             os.mkdir(visexpman_folder)
+        else:
+            visexpman_folder = visexpman_default_folder
         self.visexpmanfolder=self.ask4foldername('Please select visexpman package location', visexpman_folder)
         if 'daqmx' in sys.argv:
             self.install_daqmx=True
@@ -80,6 +109,47 @@ class Installer(Qt.QMainWindow):
             self.notify('Error', 'Invalid binari(es) in {0}'.format(self.d))
             self.close()
             return
+        #unzip visexpman and offer shortcuts
+        visexpman_zip=self.modulename2filename('visexpman')
+        z=zipfile.ZipFile(visexpman_zip)
+        z.extractall(self.visexpmanfolder)
+        z.close()
+        self.shortcutfolder=os.path.join(self.visexpmanfolder,'visexpman','shortcuts')
+        shortcut_files=[]
+        for root, dirs, files in os.walk(self.shortcutfolder):            
+            shortcut_files.extend( [(root + os.sep + file).replace(self.shortcutfolder+os.sep,'') for file in files if os.path.splitext(file)[1]=='.bat'])
+        shortcut_files.extend(['Stim.bat', 'Vision Experiment Manager.bat'])
+        shortcut_files.sort()
+        self.s=SelectShortcut(shortcut_files, self.install2)
+        self.s.show()
+        
+    def install2(self):
+        stim_bat_content='''
+        title Stim
+        python c:\visexp\visexpman\engine\visexp_app.py -u tbd -a stim -c tbd
+        pause
+        '''
+        visexpman_bat_content='''
+        title Vision Experiment Manager
+        python c:\visexp\visexpman\engine\visexp_app.py -u tbd -a main_ui -c tbd
+        pause
+        '''
+        desktop=''#TODO: figure out how to copy to all users
+        for s in self.s.selection:
+            fn=os.path.join(self.shortcutfolder, s)
+            if os.path.exists(fn):
+                shutil.copy(fn,desktop)
+            else:
+                if 'Stim.bat' in fn:
+                    bfn='Stim.bat'
+                    content=stim_bat_content
+                else:
+                    bfn='Vision Experiment Manager.bat'
+                    content=visexpman_bat_content
+                fp=open(os.path.join(desktop, bfn),'w')
+                fp.write(content)
+                fp.close()
+        #aggregate all files:
         modules=['anaconda', 'opengl','pygame','opencv','pyqtgraph', 'pyserial', 'gedit', 'tcmd', 'meld']
         self.commands=['title Vision Experiment Manager Installer', 'del python_installed.txt']
         for module in modules:
@@ -92,8 +162,9 @@ class Installer(Qt.QMainWindow):
         fp.write(self.visexpmanfolder.replace('\\','\\\\'))
         fp.close()
         self.commands.append('copy v.pth {0}'.format(python_module_folder))
-        if visexpman_folder not in self.visexpmanfolder:
-            shutil.copy(self.modulename2filename('hdf5io'), self.visexpmanfolder)
+        hfn=self.modulename2filename('hdf5io')
+        if not os.path.exists(os.path.join(self.visexpmanfolder,os.path.basename(hfn))):
+            shutil.copy(hfn, self.visexpmanfolder)
             self.log('hdf5io copied')
         self.install_ffmpeg()
         self.commands.append('setx path "%PATH%;{0}"'.format(self.visexpmanfolder))
@@ -139,7 +210,7 @@ class Installer(Qt.QMainWindow):
         folder=self.extract(fn)
         shutil.copytree(folder, self.visexpmanfolder)
         #Verify installation
-        self.commands.append('cd {0}'.format(visexpman_folder))
+        self.commands.append('cd {0}'.format(self.visexpmanfolder))
         self.commands.append('call shortcuts\\verify_installation.bat')
         self.commands.append('call c:\\Anaconda\\eric4.bat')
         self.notifications.append('change windows theme to classical')
@@ -176,7 +247,7 @@ class Installer(Qt.QMainWindow):
             return True
             
     def modulename2filename(self,modulename):
-        fn=[f for f in self.installer_files if modulename in f.lower()]
+        fn=[f for f in self.installer_files if modulename in os.path.basename(f).lower()]
         if len(fn)!=1:
             self.notify('Error', '{0} installer component does not exists'.format(modulename))
         else:
@@ -202,5 +273,5 @@ def checksum(folder):
     return sum([os.path.getsize(os.path.join(folder,f)) for f in os.listdir(folder)])
 
 if __name__=='__main__':
-    i=Installer()
+    i=InstallConfigurator()
     
