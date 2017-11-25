@@ -9,6 +9,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal,utils
 from visexpman.engine.analysis import elphys
+from visexpman.engine.hardware_interface import daq_instrument
 
 class CWidget(QtGui.QWidget):
     def __init__(self,parent):
@@ -28,7 +29,7 @@ class CWidget(QtGui.QWidget):
         params = [
                     {'name': 'Left LED', 'type': 'bool', 'value': True,},
                     {'name': 'Right LED', 'type': 'bool', 'value': True,},
-                    {'name': 'Enable Average', 'type': 'bool', 'value': True,},
+                    {'name': 'Enable Average', 'type': 'bool', 'value': False,},
                     {'name': 'Stimulus Rate', 'type': 'int', 'value': 2, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'LED on time', 'type': 'float', 'value': 100, 'suffix': 'ms', 'siPrefix': True},
                     {'name': 'Sample Rate', 'type': 'int', 'value': 20000, 'suffix': 'Hz', 'siPrefix': True},
@@ -36,6 +37,7 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Filter Frequency', 'type': 'int', 'value': 100, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'Enable Filter', 'type': 'bool', 'value': True,},
                     {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
+                    {'name': 'Amplifier gain', 'type': 'float', 'value': 10000},
                     {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Filter Order', 'type': 'int', 'value': 3},
                                 {'name': 'Tmin', 'type': 'float', 'value': 1.0, 'suffix': 's', 'siPrefix': True},
@@ -69,8 +71,8 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.toolbar.setToolTip('''
         Connections:
             AI0: Left LED
-            AI2: Right LED
-            AI1: amplifier's output
+            AI1: Right LED
+            AI2: amplifier's output
             AO0: Left LED
             AO1: Right LED
         Usage:
@@ -87,6 +89,8 @@ class LEDStimulator(gui.SimpleAppWindow):
             Spike: The output of high pass filtering the raw, not averaged elphys signal
             
             The filter's default cutoff frequency is 100 Hz, it is a 3rd order butterworth filter.
+            
+            Display: psths: type self.show_psths() to Log/Debug/Python debug console
         ''')
         self.addToolBar(self.toolbar)
         self.settings_changed()
@@ -103,10 +107,11 @@ class LEDStimulator(gui.SimpleAppWindow):
 
     def start_action(self):
         if self.running:
-            return
+            self.stop_action()
+            time.sleep(0.3)
         if self.settings['Sample Rate']>22e3:
             self.notify('Warning',  'LED Stimulator may not be stable at {0} Hz sampling rate'.format(self.settings['Sample Rate']))
-        if 1.0/self.settings['Stimulus Rate']<self.settings['LED on time']*1e-3:
+        if 1.0/self.settings['Stimulus Rate']<=self.settings['LED on time']*1e-3:
             self.notify('Warning',  'LED on time is longer than stimulus preiod time')
             return
         logging.info('start')
@@ -126,6 +131,8 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.close_daq()
         logging.info('stop')
         self.running=False
+        daq_instrument.set_voltage('{0}/ao0'.format(self.settings['DAQ device']), 0)
+        daq_instrument.set_voltage('{0}/ao1'.format(self.settings['DAQ device']), 0)
         
     def save_action(self):
         if self.running:
@@ -180,7 +187,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         
         '''
         buffer_size=self.settings['Buffer Size']
-        trig=self.ai_trace[:, 1]
+        trig=self.ai_trace[:, 0]
         edges=signal.detect_edges(trig,0.5*trig.max())
         if trig[0]>0.5*trig.max():
             edges=numpy.insert(edges, 0, 0)
@@ -231,18 +238,24 @@ class LEDStimulator(gui.SimpleAppWindow):
             if not self.process_ai_trace():
                 return
             if self.settings['Enable Filter']:
-                self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.signals['last']['elphys']).real
-                self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.signals['last']['elphys']).real            
+                try:
+                    self.lowpassfiltered=scipy.signal.filtfilt(self.lowpass[0],self.lowpass[1], self.signals['last']['elphys']).real
+                    self.highpassfiltered=scipy.signal.filtfilt(self.highpass[0],self.highpass[1], self.signals['last']['elphys']).real            
+                except:
+                    return
             k='mean' if self.settings['Enable Average'] else 'last'
-            pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(10,20,30), width=3)}, 
-                    {'name': 'right', 'pen': pyqtgraph.mkPen(color=(10,100,30), width=3)}]
-            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+            pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(255,0,0), width=3)}, 
+                    {'name': 'right', 'pen': pyqtgraph.mkPen(color=(0,0,255), width=3)}]
+            maxamp=abs(self.signals[k]['elphys'].max())
+            left=self.signals['last']['left']/self.signals['last']['left'].max()*maxamp
+            right=self.signals['last']['right']/self.signals['last']['right'].max()*maxamp
+            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],left,  right],plotparams=pp)
             self.cw.plotw.plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
             dt=(time.time()-self.t0)/60.
             self.cw.plotw.plot.setTitle('Raw {0:0.1f} minutes'.format(dt))
             if self.settings['Enable Filter']:
-                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
-                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.signals['last']['left'],  self.signals['last']['right']],plotparams=pp)
+                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,left,  right],plotparams=pp)
+                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,left,  right],plotparams=pp)
                 self.cw.plotfiltered['Field Potential'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
                 self.cw.plotfiltered['Spike'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
         
@@ -330,7 +343,7 @@ class LEDStimulator(gui.SimpleAppWindow):
     
     def show_psths(self):
         if self.settings['Enable Filter']:
-            h,b,self.tspikerel=elphys.peristimulus_histogram(self.highpassfiltered,  self.trig[0], self.settings['Sample Rate'], self.settings['Psths bin time'], self.settings['Spike Threshold'])
+            h,b,self.tspikerel=elphys.peristimulus_histogram(self.highpassfiltered,  self.signals['last']['left'], self.settings['Sample Rate'], self.settings['Psths bin time'], self.settings['Spike Threshold'])
             self.h=h
             self.b=b
             x=b[:-1]*1e3
