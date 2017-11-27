@@ -56,7 +56,7 @@ class StBMarchingSquares(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 # -----------------------------------------------------------------------------
-# not working - copied from roland/jacek2.py
+# moving bar
 class StBMovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingShapeStimulus'
