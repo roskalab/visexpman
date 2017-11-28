@@ -1,4 +1,4 @@
-import os,logging,time,sys,shutil,zipfile,tempfile,ctypes
+import os,logging,time,sys,shutil,zipfile,tempfile,ctypes,getpass
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
@@ -134,7 +134,7 @@ class InstallConfigurator(Qt.QMainWindow):
         python c:\visexp\visexpman\engine\visexp_app.py -u tbd -a main_ui -c tbd
         pause
         '''
-        desktop=''#TODO: figure out how to copy to all users
+        desktop=os.path.join('c:\\Users', getpass.getuser())
         for s in self.s.selection:
             fn=os.path.join(self.shortcutfolder, s)
             if os.path.exists(fn):
@@ -154,7 +154,7 @@ class InstallConfigurator(Qt.QMainWindow):
         self.commands=['title Vision Experiment Manager Installer', 'del python_installed.txt']
         for module in modules:
             fn=self.modulename2filename(module)
-            self.commands.append(fn)
+            self.commands.append('msiexec \\i {0} \\qb'.format(fn))
             self.log('Adding to bat file: {0} ...'.format(fn))
         python_module_folder='c:\\Anaconda\\Lib\\site-packages'
         self.log('Creating pth file')
