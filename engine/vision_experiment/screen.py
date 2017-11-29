@@ -119,7 +119,7 @@ class StimulationScreen(graphics.Screen):
         commands.sort()
         for k in commands:
             self.menu_text+= '\n{0} - {1} '.format(self.config.KEYS[k], k)
-        if self.config.PLATFORM in ['behav', 'hi_mea', 'standalone', 'intrinsic']:
+        if self.config.PLATFORM in ['behav', 'epos', 'hi_mea', 'standalone', 'intrinsic']:
             ct = 0
             for ec in self.experiment_configs:
                 self.menu_text+= '\n{0} - {1} '.format(ct, ec)

@@ -17,6 +17,9 @@ import Queue
 class SerialPortDigitalIO(instrument.Instrument):
     '''
     Serial port lines are controlled as digital io lines
+    pin 0: orange
+    pin1: green
+    input pin: brown
     '''
     def init_instrument(self):
         if isinstance(self.config.DIGITAL_IO_PORT, list) and len(self.config.DIGITAL_IO_PORT)>1:
@@ -25,8 +28,6 @@ class SerialPortDigitalIO(instrument.Instrument):
                 self.s.append(serial.Serial(port))
         else:
             self.s = [serial.Serial(self.config.DIGITAL_IO_PORT)]
-        if os.name != 'nt':
-            self.s.open()
             
     def clear_pins(self):
         if isinstance(self.config.DIGITAL_IO_PORT, list):
@@ -108,14 +109,27 @@ class Photointerrupter(threading.Thread):
                     self.state[id] = current_state
                     self.queues[id].put((now, self.state[id]))
             time.sleep(5e-3)
-           
-          
+
 class ArduinoIO(object):
     def __init__(self,port):
-        self.s=serial.Serial(port, baudrate=115200)
-        self.s.setTimeout(1)
+        self.s=serial.Serial(port, baudrate=115200,timeout=1)
         self.state=0
+        self.t0=time.time()
+        self.wait_done=False
         self.set_do(self.state)
+        
+    def _wait(self):
+        '''
+        Wait before sending first commands to arduino to ensure that it is ready for receiving them
+        '''
+        if self.wait_done:
+            return
+        while True:
+            now=time.time()
+            if now-self.t0>0.5:
+                self.wait_done=True
+                break
+            time.sleep(0.1)
         
     def set_pin(self,channel,value):
         if value:
@@ -126,19 +140,23 @@ class ArduinoIO(object):
         #self.s.write('p(\xff)');self.s.read(100)
         
     def set_do(self,value):
-        self.s.write('d'+chr(value))
+        self._wait()
+        self.s.write('o'+chr(value))
         time.sleep(2e-3)#On windows computers this delays prevents firmware crash
         
     def pulse_trigger(self,channel):
+        self._wait()
         self.s.write('p'+chr(1<<channel))
         time.sleep(2e-3)
         
     def enable_waveform(self, pin,frequency):
+        self._wait()
         self.s.write('f'+chr(frequency))
         time.sleep(1e-3)
         self.s.write('w'+chr(1<<pin))
         
     def disable_waveform(self):
+        self._wait()
         self.s.write('w'+chr(1<<1))
         
     def close(self):
@@ -239,7 +257,7 @@ class TestDigitalIO(unittest.TestCase):
         s.release_instrument()
         
     def test_05_AIO(self):
-        a=AduinoIO('COM11' if os.name=='nt' else '/dev/ttyACM0')
+        a=ArduinoIO('COM11' if os.name=='nt' else '/dev/ttyACM0')
         #time.sleep(5e-3)
         pin=5
         for i in range(100):

@@ -22,6 +22,11 @@ class GeorgGratingParameters(experiment.ExperimentConfig):
         self.runnable='GeorgGrating'
         self._create_parameters_from_locals(locals())
         
+class GeorgGratingShort(GeorgGratingParameters):
+    def _create_parameters(self):
+        GeorgGratingParameters._create_parameters(self)
+        self.SPEEDS=[1200]
+        
 class GeorgGrating(experiment.Experiment):
     def prepare(self):
         #calculate mean gray

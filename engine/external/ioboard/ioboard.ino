@@ -1,9 +1,23 @@
+/*
+Arduino pin 0-1: reserved
+Arduino pin 2-4: input: level changes are captured and timestamps are sent over usb/serial port
+Arduino pin 5-7: output: level, pulse or pulse train waveform can be generated.
+
+Commands:
+'o': set level, + 1byte binary packed pin values 
+'p': generate single pulse on pins determined by subsequent byte value. The lenght of the pulse is 2 ms (PULSE_WIDTH)
+'f': set frequency, subsequent byte is interpreted in Hz
+'w': toggle enable waveform state
+'e': enable send input pin state
+'d': disable send input pin state
+*/
 #define COMPARE 116//2 kHz, FCPU is 14.7456MHz, comp=FCPU/(f*prescale)+1
 #define PRESCALE 4 //64 prescale
 #define IDLE_ST 0
 #define WAIT_PAR_ST 1
 #define OUTPORT_MASK 0xe0
 #define INPORT_MASK 0x1C
+#define PULSE_WIDTH 2
 
 char b;
 byte state;
@@ -107,7 +121,7 @@ void loop() {
               break;
           case 'p':
               PORTD |= par&OUTPORT_MASK;
-              delay(2);
+              delay(PULSE_WIDTH);
               PORTD &= ~(par&OUTPORT_MASK);
               break;
           case 'f':

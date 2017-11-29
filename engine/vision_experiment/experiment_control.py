@@ -431,7 +431,7 @@ class Trigger(object):
         return self._wait4trigger(is_key_pressed, (self.machine_config.KEYS[key]), {})
         
     def wait4digital_input_trigger(self, pin):
-        if 'Dev' in pin:
+        if isinstance(pin,str) and 'Dev' in pin:
             result=False
             digital_input = PyDAQmx.Task()
             digital_input.CreateDIChan(pin,'di', DAQmxConstants.DAQmx_Val_ChanPerLine)
@@ -499,7 +499,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         if self.machine_config.PLATFORM=='epos':
-            self.camera_trigger=digital_io.AduinoIO(self.machine_config.CAMERA_TRIGGER_PORT)
+            self.camera_trigger=digital_io.ArduinoIO(self.machine_config.CAMERA_TRIGGER_PORT)
         self.user_data = {}
         self.abort = False
         
@@ -621,6 +621,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.start_sync_recording()
                     self.printl('Sync signal recording started')
                 self.printl('Waiting for external trigger')
+                if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
+                    import threading
+                    t=threading.Thread(target=inject_trigger, args=('/dev/ttyACM1',5,2))
+                    t.start()
                 if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
                     self.abort=True
                 if self.machine_config.PLATFORM=='epos':
@@ -714,10 +718,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             setattr(self.datafile, 'software_environment',experiment_data.pack_software_environment())
             setattr(self.datafile, 'configs', experiment_data.pack_configs(self))
+            self.datafile.frame_times=self.screen.frame_times
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.datafile['software_environment'] = experiment_data.pack_software_environment()
             self.datafile['configs'] = experiment_data.pack_configs(self)
-        self.datafile.frame_times=self.screen.frame_times
+            self.datafile['frame_times']=self.screen.frame_times
         
     def _save2file(self):
         '''
@@ -750,11 +755,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     filename_prefix = ''
                 else:
                     filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
-                fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
                 fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
             else:
-                filename_prefix = 'stim'
-                fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                if self.machine_config.PLATFORM == 'epos':
+                    filename_prefix = ''
+                else:
+                    filename_prefix = 'stim'
+                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
             self.datafilename=fn
             scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
@@ -798,6 +806,16 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             socket.connect("tcp://12.0.1.1:75000")
             socket.send(cmd)
             socket.recv()#This is blocking!!!
+        
+def inject_trigger(port,pin,delay):
+    d=digital_io.ArduinoIO(port)
+    time.sleep(delay)
+    d.set_pin(pin,1)
+    time.sleep(1.0)
+    d.set_pin(pin,0)
+    d.close()
+    
+    
         
         
 if test_mode:        

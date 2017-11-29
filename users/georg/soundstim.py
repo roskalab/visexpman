@@ -20,6 +20,11 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
         
+class SoundAndGratingShort(SoundAndGratingC):
+    def _create_parameters(self):
+        SoundAndGratingC._create_parameters(self)
+        self.SPEEDS=[1200]
+        
 class SoundAndGratingE(experiment.Experiment):
     def prepare(self):
         ec=self.experiment_config
@@ -76,11 +81,12 @@ class SoundAndGratingE(experiment.Experiment):
             self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
             if self.abort:
                 break
-        #save block boundaries
-        for i in range(len(self.experiment_config.PROTOCOL1)):
-            self.experiment_config.PROTOCOL1[i].extend([self.block_boundaries[2*i],self.block_boundaries[2*i+1]])
-        self.experiment_config.PROTOCOL1=numpy.array(self.experiment_config.PROTOCOL1)
-        print self.experiment_config.PROTOCOL1
+        if not self.abort:
+            #save block boundaries
+            for i in range(len(self.experiment_config.PROTOCOL1)):
+                self.experiment_config.PROTOCOL1[i].extend([self.block_boundaries[2*i],self.block_boundaries[2*i+1]])
+            self.experiment_config.PROTOCOL1=numpy.array(self.experiment_config.PROTOCOL1)
+            print self.experiment_config.PROTOCOL1
         
                 
 if __name__ == "__main__":

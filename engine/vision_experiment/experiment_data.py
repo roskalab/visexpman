@@ -11,7 +11,8 @@ import tempfile
 import time,datetime
 import StringIO
 from PIL import Image,ImageDraw
-
+import matplotlib
+matplotlib.use('Qt4Agg')
 from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
 try:
