@@ -69,15 +69,17 @@ class SerialPortDigitalIO(instrument.Instrument):
         if log:
             self.log_during_experiment('Serial DIO pin {0} set to {1}'.format(channel, value))
             
-    def read_pin(self,channel=0):
+    def read_pin(self,channel=0,inverted=False):
         '''
         pin 0: cts
         Theoretically receiving brake via rx could be pin 1 but no function available for that in pyserial
         '''
         if channel == 0:
             v= self.s[0].getCTS()
-            #print v
-            return v
+            if inverted:
+                return not v
+            else:
+                return v
         else:
             raise NotImplementedError()
             

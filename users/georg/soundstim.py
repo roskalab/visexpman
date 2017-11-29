@@ -51,6 +51,8 @@ class SoundAndGratingE(experiment.Experiment):
         self.block_boundaries=[]
         
     def block(self, speed, condition):
+        block_sig=(condition, speed)
+        self.block_start(block_sig)
         self.block_boundaries.append(self.frame_counter)
         ec=self.experiment_config
         if condition!='grating':
@@ -69,6 +71,7 @@ class SoundAndGratingE(experiment.Experiment):
                                display_area=self.machine_config.SCREEN_SIZE_UM,
                                velocity=speed)
         self.block_boundaries.append(self.frame_counter-1)
+        self.block_end(block_sig)
 #        if condition!='grating':
 #            self.show_fullscreen(color=ec.GRAY)
         

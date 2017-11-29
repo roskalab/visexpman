@@ -59,6 +59,8 @@ class GeorgGrating(experiment.Experiment):
         ec=self.experiment_config
         for i in range(len(ec.SPEEDS)):
             spd=ec.SPEEDS[i]
+            block_sig=(self.grating.__name__, spd)
+            self.block_start(block_sig)
             duration=self.durations['grating'][i]
             self.show_grating(orientation=self.orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
@@ -72,6 +74,7 @@ class GeorgGrating(experiment.Experiment):
                                duration=duration,
                                display_area=self.machine_config.SCREEN_SIZE_UM,
                                velocity=spd)
+            self.block_end(block_sig)
             
     def curtain(self):
         ec=self.experiment_config
@@ -83,6 +86,8 @@ class GeorgGrating(experiment.Experiment):
             w=self.machine_config.SCREEN_SIZE_UM['col']
             h=self.machine_config.SCREEN_SIZE_UM['row']
             sf=(h-0.5*(w-h))/(2*h)*360
+            block_sig=(self.curtain.__name__, spd)
+            self.block_start(block_sig)
             self.show_fullscreen(color=self.gray, duration=ec.FREEZE_TIME)
             self.show_grating(orientation=270,
                                 white_bar_width =self.machine_config.SCREEN_SIZE_UM['row'], 
@@ -94,11 +99,15 @@ class GeorgGrating(experiment.Experiment):
                                 color_offset = offset,
                                starting_phase=sf 
                                 )
+            self.block_end(block_sig)
+            
     def bar(self, on=True):
         ec=self.experiment_config
         for i in range(len(ec.SPEEDS)):
             spd=ec.SPEEDS[i]
             p='on' if on else 'off'
+            block_sig=(self.bar.__name__+' '+p, spd)
+            self.block_start(block_sig)
             duration=self.durations[p][i]
             duty_cycle=self.machine_config.SCREEN_SIZE_UM['col']/ec.BAR_WIDTH
             if on:
@@ -125,6 +134,7 @@ class GeorgGrating(experiment.Experiment):
                                display_area=self.machine_config.SCREEN_SIZE_UM,
                                 color_contrast = contrast,  
                                 color_offset = offset)
+            self.block_end(block_sig)
                                 
     def run(self):
         #self.screen.start_frame_capture=True

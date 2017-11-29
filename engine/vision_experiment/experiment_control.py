@@ -449,7 +449,7 @@ class Trigger(object):
             digital_input.ClearTask()
         else:
             while True:
-                if self.digital_io.read_pin(self.machine_config.STIM_START_TRIGGER_PIN):
+                if self.digital_io.read_pin(self.machine_config.STIM_START_TRIGGER_PIN, inverted=self.machine_config.PLATFORM=='epos'):
                     result = True
                     break
                 self.check_abort()
@@ -710,7 +710,44 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
            
     def _stop_frame_capture(self):
         self.screen.start_frame_capture=False
-
+        
+    def _blocks2table(self):
+        '''
+        Prepare stimulus block table
+        '''
+        block_info=[sfi for sfi in self.stimulus_frame_info if sfi.has_key('block_name')]
+        #convert block names to column headers
+        signatures=[b['block_name'] for b in block_info]
+        if any(numpy.array(map(len, signatures))-len(signatures[0])):
+            self.printl('Block info cannot be converted to a table')
+            return
+        if isinstance(signatures[0][0],str):
+            #Assume, that first item in signature is always an enumerated string
+            #none, all and both are reserved keywords
+            enum_values=list(set([s[0] for s in signatures if s[0] not in ['none', 'all','both']]))
+            enum_values.sort()
+            nblocks=len(block_info)/2
+            block_table=numpy.zeros((nblocks, len(enum_values)+2+len(signatures[0])-1))
+            for bi in range(nblocks):
+                start=block_info[2*bi]
+                end=block_info[2*bi+1]
+                if start['block_name']!=end['block_name']:
+                    self.printl('Block info cannot be converted to a table')
+                    return
+                pars=start['block_name'][1:]
+                parnames=['par{0}'.format(i) for i in range(len(pars))]
+                block_table[bi,:len(pars)]=pars
+                block_table[bi,len(pars):len(pars)+len(enum_values)]=numpy.array([int(start['block_name'][0]== e) for e in enum_values])
+                if start['block_name'][0] in ['all', 'both']:
+                    block_table[bi,len(pars):len(pars)+len(enum_values)]=1
+                block_table[bi,len(pars)+len(enum_values):]=numpy.array([start['block_start'],end['block_end']-1])
+        else:
+            raise NotImplementedError('Block signatures without string/enumerated')
+        block_table_header=parnames
+        block_table_header.extend(enum_values)
+        block_table_header.extend(['start counter', 'end counter'])
+        self.block={'table':block_table, 'column_names': block_table_header}
+        
     def _prepare_data2save(self):
         '''
         Pack software enviroment and configs
@@ -728,7 +765,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment']#['experiment_name', 'experiment_config_name', 'frame_times']
+        self._blocks2table()
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block']#['experiment_name', 'experiment_config_name', 'frame_times']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = experiment_data.CaImagingData(self.outputfilename)
             self._prepare_data2save()
@@ -809,10 +847,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         
 def inject_trigger(port,pin,delay):
     d=digital_io.ArduinoIO(port)
+    d.set_pin(pin,1)
     time.sleep(delay)
     d.set_pin(pin,1)
     time.sleep(1.0)
-    d.set_pin(pin,0)
+    d.set_pin(pin,1)
     d.close()
     
     
