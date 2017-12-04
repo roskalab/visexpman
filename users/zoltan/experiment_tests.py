@@ -189,7 +189,7 @@ class TestStim(experiment.Stimulus):
         #self.show_grating(duration=4,velocity=300, mask_size=90,white_bar_width=40)
         #return
         #self._approach()
-        self._plaid_stim()
+        #self._plaid_stim()
         return
         
         self._rolling_image()

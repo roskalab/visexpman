@@ -599,8 +599,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if name=='concentric_circle':
             size_pixel=size*self.config.SCREEN_UM_TO_PIXEL_SCALE
             nperiods=numpy.ceil(size/spatial_period)
-        texture=numpy.random.random((6,4,3))
-        #texture[::2,::2,:]=1.0
+        texture=numpy.zeros((6,4,3))
+        texture[::2,::2,:]=1.0
         self._init_texture(utils.rc((size,size)),orientation=45)
         for frame_i in range(nframes):
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
@@ -817,7 +817,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              [0.0, 0.0],
                              [cut_off_ratio, 0.0],
                              ])
-        t,rect=self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates,set_vertices=False)
+        t,rect=self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates,set_vertices=False,enable_texture=False)
         if mask_size!=None:
             mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1)
             vertices=numpy.append(rect,mask,axis=0)
@@ -1422,7 +1422,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
 class StimulationHelpers(Stimulations):
-    def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True):
+    def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True,enable_texture=True):
         from visexpman.engine.generic import geometry
         vertices = geometry.rectangle_vertices(size, orientation = orientation)
         if set_vertices:
@@ -1431,7 +1431,8 @@ class StimulationHelpers(Stimulations):
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        
+        if enable_texture:
+            glEnable(GL_TEXTURE_2D)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         if texture_coordinates is None:
             texture_coordinates = numpy.array(
