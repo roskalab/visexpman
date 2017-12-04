@@ -1526,6 +1526,16 @@ def roi_plot(pars):
         h=roi['raw'].max()-roi['raw'].min()
         gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
     savefig(outfile)
+    
+def cpd2um(cpd,retina_scale):
+    '''
+    Converts cycle per degree to um on retina considering retina_scale
+    retina_scale is in um (on retina) per degree
+    Output: spatial period in um
+    '''
+    return cpd*360*retina_scale
+    
+    
 
 try:
     import paramiko

@@ -20,7 +20,7 @@ import tables
 
 import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
-from visexpman.engine.vision_experiment import screen
+from visexpman.engine.vision_experiment import screen,experiment_data
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
@@ -586,6 +586,31 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #Restore original background color
         if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
+    def show_symbol(self,name, size, spatial_frequency, duration,color=1.0, save_frame_info=True):
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+            self.log.info('show_symbol({0},{1},{2},{3},{4})'.format(name, size, color, spatial_frequency, duration),source='stim')
+        spatial_period=experiment_data.cpd2um(spatial_frequency,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
+        nframes=1 if duration==0 else int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)
+        #Generate vertices
+        if name=='concentric_circle':
+            size_pixel=size*self.config.SCREEN_UM_TO_PIXEL_SCALE
+            nperiods=numpy.ceil(size/spatial_period)
+        texture=numpy.random.random((6,4,3))
+        #texture[::2,::2,:]=1.0
+        self._init_texture(utils.rc((size,size)),orientation=45)
+        for frame_i in range(nframes):
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip(frame_timing_pulse = True)
+            if self.abort:
+                break
+        self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 

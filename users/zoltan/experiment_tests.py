@@ -182,8 +182,12 @@ class TestStim(experiment.Stimulus):
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
 
     def run(self):
-        self.show_grating(duration=4,velocity=300, mask_size=90,white_bar_width=40)
-        return
+        #self.show_white_noise(10,100)
+        self.show_symbol('concentric_circle', 50, 10, 1)
+#        return
+        #self.show_image('/tmp/1.png',duration=10)
+        #self.show_grating(duration=4,velocity=300, mask_size=90,white_bar_width=40)
+        #return
         #self._approach()
         self._plaid_stim()
         return
