@@ -180,8 +180,10 @@ class TestStim(experiment.Stimulus):
         background_color=0.5
         sinusoid=True
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
-        
+
     def run(self):
+        self.show_grating(duration=4,velocity=300, mask_size=90,white_bar_width=40)
+        return
         #self._approach()
         self._plaid_stim()
         return

@@ -630,7 +630,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0,  noise_intensity = 0, flicker=None, phases=[],
+                    duty_cycle = 1.0, mask_size=None, flicker=None, phases=[],
                     part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
@@ -655,7 +655,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             - duty_cycle: duty cycle of grating stimulus with sqr profile. Its interpretation is 
                             different from the usual: period = (bar_width * (1.0 + duty_cycle). 
                             For a 50% black and white the duty_cycle value should be 1.0
-            - noise_intensity: Maximum contrast of random noise mixed to the stimulus.
             - flicker = {'frequency':,'modulation_size'}: 
                         grating flickering frequency. Grating pattern is modulated with Modulation Size
         
@@ -793,7 +792,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              [0.0, 0.0],
                              [cut_off_ratio, 0.0],
                              ])
-        self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates)
+        t,rect=self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates,set_vertices=False)
+        if mask_size!=None:
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1)
+            vertices=numpy.append(rect,mask,axis=0)
+        else:
+            vertices=rect
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         start_time = time.time()
         phase = 0
@@ -815,11 +821,17 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     texture1=numpy.copy(texture)
                     texture1[int(flicker_state)::2]=0.0
                     glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture1)
-            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            if mask_size!=None:
+                glColor3fv((0.0,0.0,0.0))
+                for shi in range(vertices.shape[0]/4-1):
+                    glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
+            glEnable(GL_TEXTURE_2D)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
+            glDisable(GL_TEXTURE_2D)
             if not part_of_drawing_sequence:
                 self._add_block_start(is_block, i, n_frames)
                 self._flip(frame_timing_pulse = True)
@@ -1340,9 +1352,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)*contrast_step+background_color
             #Cut off extensions
             texture=texture[tilea.shape[0]:-tilea.shape[0], tilea.shape[1]:-tilea.shape[1]]
-            
         texture=numpy.rot90(texture)
-        texture_coordinates=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
+        texture_coordinates,v=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
         dpixel=-velocity*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE/texture.shape[1]
@@ -1395,7 +1406,7 @@ class StimulationHelpers(Stimulations):
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        glEnable(GL_TEXTURE_2D)
+        
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         if texture_coordinates is None:
             texture_coordinates = numpy.array(
@@ -1406,7 +1417,7 @@ class StimulationHelpers(Stimulations):
                              [1.0, 0.0],
                              ])
         glTexCoordPointerf(texture_coordinates)
-        return texture_coordinates
+        return texture_coordinates,vertices
         
     def _deinit_texture(self):
         glDisable(GL_TEXTURE_2D)

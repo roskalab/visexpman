@@ -167,8 +167,7 @@ class InstallConfigurator(Qt.QMainWindow):
             shutil.copy(hfn, self.visexpmanfolder)
             self.log('hdf5io copied')
         self.install_ffmpeg()
-        self.commands.append('setx path "%PATH%;{0}"'.format(self.visexpmanfolder))
-        self.commands.append('setx path "%PATH%;c:\\Program Files\\gedit\\bin"')
+        self.commands.append('setx path "%path%;{0};c:\\Program Files\\gedit\\bin"'.format(self.visexpmanfolder))
         if self.install_daqmx:
             fn=self.modulename2filename('nidaq')
             folder=self.extract(fn, 'daq')
