@@ -16,6 +16,7 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.BAR_WIDTH=300
         self.GRATING_DUTY_CYCLE=0.5
         self.GRAY=0.5
+        self.MASK_SIZE=100.0#um
         self.AUDIO_SAMPLING_RATE=44.1e3
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
@@ -69,7 +70,9 @@ class SoundAndGratingE(experiment.Experiment):
                                duty_cycle=self.duty_cycle,
                                duration=ec.BLOCK_DURATION,
                                display_area=self.machine_config.SCREEN_SIZE_UM,
-                               velocity=speed)
+                               velocity=speed,
+                               mask_size=ec.MASK_SIZE,
+                               mask_color=ec.GRAY)
         self.block_boundaries.append(self.frame_counter-1)
         self.block_end(block_sig)
 #        if condition!='grating':

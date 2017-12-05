@@ -589,10 +589,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_symbol(self,name, size, spatial_frequency, duration,orientation=0, color_max=1.0, color_min=0.0, save_frame_info=True):
+    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_max=1.0, color_min=0.0, narms=4, save_frame_info=True):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-            self.log.info('show_symbol({0},{1},{2},{3},{4},{5},{6})'.format(name, size, spatial_frequency, duration,orientation, color_max,color_min),source='stim')
+            self.log.info('show_object({0},{1},{2},{3},{4},{5},{6})'.format(name, size, spatial_frequency, duration,orientation, color_max,color_min),source='stim')
         spatial_period=experiment_data.cpd2um(spatial_frequency,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
         nframes=1 if duration==0 else int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)
         size_pixel=int(size*self.config.SCREEN_UM_TO_PIXEL_SCALE)
@@ -616,7 +616,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 draw.ellipse(bbox,fill=contrast)
             texture=numpy.asarray(im)/255.
         elif name=='pizza':
-            narms=4
             duty_cycle=0.5
             angle_offset=45
             angle_ranges=numpy.roll(numpy.repeat(numpy.arange(0,360,360/narms),2),-1)-360/narms/2
@@ -694,7 +693,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0, mask_size=None, flicker=None, phases=[],
+                    duty_cycle = 1.0, mask_size=None, mask_color=0.0, flicker=None, phases=[],
                     part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
@@ -888,7 +887,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if mask_size!=None:
-                glColor3fv((0.0,0.0,0.0))
+                glColor3fv(colors.convert_color(mask_color, self.config))
                 for shi in range(vertices.shape[0]/4-1):
                     glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))

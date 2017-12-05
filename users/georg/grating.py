@@ -8,6 +8,7 @@ class GeorgGratingParameters(experiment.ExperimentConfig):
         self.INITIAL_WAIT=5
         self.FREEZE_TIME=2
         self.DUTY_CYCLE=0.5
+        self.GRATING_MASK_SIZE=100.0#Set to None for disabling
         self.REPEATS=1#n sweeps
         self.RANDOMIZE_PATTERNS=False
         self.PATTERN_REPEAT=1
@@ -33,7 +34,10 @@ class GeorgGrating(experiment.Experiment):
         self.orientation=0
         ec=self.experiment_config
         period=ec.BAR_WIDTH/ec.DUTY_CYCLE
-        nperiods=self.machine_config.SCREEN_SIZE_UM['col']/period
+        if ec.GRATING_MASK_SIZE==None:
+            nperiods=self.machine_config.SCREEN_SIZE_UM['col']/period
+        else:
+            nperiods=ec.GRATING_MASK_SIZE/period#in this case the round shape of the mask is not considered
         nfull_periods=numpy.floor(nperiods)
         fract_period_size=nperiods-nfull_periods
         if fract_period_size>ec.BAR_WIDTH/period:
@@ -67,12 +71,16 @@ class GeorgGrating(experiment.Experiment):
                                duty_cycle=self.duty_cycle,
                                duration=ec.FREEZE_TIME,
                                display_area=self.machine_config.SCREEN_SIZE_UM,
+                               mask_size=ec.GRATING_MASK_SIZE,
+                               mask_color=self.gray,
                                velocity=0)
             self.show_grating(orientation=self.orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
                                duration=duration,
                                display_area=self.machine_config.SCREEN_SIZE_UM,
+                               mask_size=ec.GRATING_MASK_SIZE,
+                               mask_color=self.gray,
                                velocity=spd)
             self.block_end(block_sig)
             

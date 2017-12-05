@@ -183,10 +183,10 @@ class TestStim(experiment.Stimulus):
 
     def run(self):
         #self.show_white_noise(10,100)
-        self.show_symbol('pizza', 500, 0.005, 10)
+        self.show_object('pizza', 500, 0.005, 3)
 #        return
         #self.show_image('/tmp/1.png',duration=10)
-        #self.show_grating(duration=4,velocity=300, mask_size=90,white_bar_width=40)
+        self.show_grating(duration=4,velocity=300, mask_size=90,mask_color=0.5,white_bar_width=40)
         #return
         #self._approach()
         #self._plaid_stim()
