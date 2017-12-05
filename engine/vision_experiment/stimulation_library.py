@@ -4,7 +4,7 @@ import os
 import numpy
 import math
 import time
-from PIL import Image
+from PIL import Image,ImageDraw
 import inspect
 import re
 import multiprocessing
@@ -589,18 +589,57 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_symbol(self,name, size, spatial_frequency, duration,color=1.0, save_frame_info=True):
+    def show_symbol(self,name, size, spatial_frequency, duration,orientation=0, color_max=1.0, color_min=0.0, save_frame_info=True):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-            self.log.info('show_symbol({0},{1},{2},{3},{4})'.format(name, size, color, spatial_frequency, duration),source='stim')
+            self.log.info('show_symbol({0},{1},{2},{3},{4},{5},{6})'.format(name, size, spatial_frequency, duration,orientation, color_max,color_min),source='stim')
         spatial_period=experiment_data.cpd2um(spatial_frequency,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
         nframes=1 if duration==0 else int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)
-        #Generate vertices
+        size_pixel=int(size*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        if size<spatial_period:
+            raise RuntimeError('Symbol cannot be generated, size of stimulus is too small for spatial frequency')
+        nperiods=numpy.round(size/spatial_period)
+        pixels_per_period=spatial_period*self.config.SCREEN_UM_TO_PIXEL_SCALE
+        texture=numpy.zeros((size_pixel,size_pixel,3))
+        #Generate texture
+        im=Image.new('L', (size_pixel,size_pixel))
+        draw = ImageDraw.Draw(im)
         if name=='concentric_circle':
-            size_pixel=size*self.config.SCREEN_UM_TO_PIXEL_SCALE
-            nperiods=numpy.ceil(size/spatial_period)
-        texture=numpy.zeros((6,4,3))
-        texture[::2,::2,:]=1.0
+            radius=size_pixel/2
+            intensity=numpy.cos(numpy.arange(radius)*2*numpy.pi/pixels_per_period)/2*(color_max-color_min)
+            intensity-=intensity.min()
+            intensity+=color_min
+            for i in range(intensity.shape[0]-1,0,-1):
+                rad=i
+                contrast=int(255*intensity[i])
+                bbox=(size_pixel/2-rad,size_pixel/2-rad,size_pixel/2+rad,size_pixel/2+rad)
+                draw.ellipse(bbox,fill=contrast)
+            texture=numpy.asarray(im)/255.
+        elif name=='pizza':
+            narms=4
+            duty_cycle=0.5
+            angle_offset=45
+            angle_ranges=numpy.roll(numpy.repeat(numpy.arange(0,360,360/narms),2),-1)-360/narms/2
+            shift=numpy.zeros_like(angle_ranges,dtype=numpy.float)
+            shift[::2]+=360/narms*duty_cycle/2
+            shift[1::2]-=360/narms*duty_cycle/2
+            angles=angle_ranges+shift+orientation+angle_offset
+            angles=numpy.where(angles<0, angles+360,angles)
+            for arm in range(narms):
+                start_angle=angles[2*arm]
+                end_angle=angles[2*arm+1]
+                draw.pieslice([0,0,size_pixel,size_pixel], start_angle, end_angle,fill=int(color_max*255))
+            texture=numpy.asarray(im)/255.
+            #At half radius, 20 % of arm size
+            transition=int(size_pixel*numpy.pi/narms*0.1)
+            texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
+            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
+            texture=signal.scale(texture,color_min,color_max)
+        elif name=='hyperbolic':
+            pass
+        elif name=='spiral':
+            pass
+        texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
         self._init_texture(utils.rc((size,size)),orientation=45)
         for frame_i in range(nframes):
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
