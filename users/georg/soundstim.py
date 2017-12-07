@@ -16,7 +16,7 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.BAR_WIDTH=300
         self.GRATING_DUTY_CYCLE=0.5
         self.GRAY=0.5
-        self.MASK_SIZE=100.0#um
+        self.MASK_SIZE=1500.0#um
         self.AUDIO_SAMPLING_RATE=44.1e3
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())

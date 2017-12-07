@@ -49,7 +49,7 @@ class DebugEposConfig(ElectroporationSetup228Config):
         self.WAIT4TRIGGER_ENABLED=False
         self.CAMERA_TRIGGER_FRAME_RATE=10
         
-class DevelopEposConfig(ElectroporationSetup228Config):
+class DevelopEposLinuxConfig(ElectroporationSetup228Config):
     def _set_user_parameters(self):
         ElectroporationSetup228Config._set_user_parameters(self)
         self.FULLSCREEN = False
@@ -58,3 +58,14 @@ class DevelopEposConfig(ElectroporationSetup228Config):
         self.DIGITAL_IO_PORT='/dev/ttyUSB0'
         self.CAMERA_TRIGGER_PORT='/dev/ttyACM0'
         self.INJECT_START_TRIGGER=True
+        
+class DevelopEposConfig(ElectroporationSetup228Config):
+    def _set_user_parameters(self):
+        ElectroporationSetup228Config._set_user_parameters(self)
+        self.FULLSCREEN = False
+        self.WAIT4TRIGGER_ENABLED=not False
+        self.CAMERA_TRIGGER_FRAME_RATE=10
+        self.SCREEN_RESOLUTION = utils.cr([1280/2,768/2])
+        self.WAIT4TRIGGER_ENABLED=False
+        
+

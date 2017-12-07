@@ -431,8 +431,8 @@ class Trigger(object):
         return self._wait4trigger(is_key_pressed, (self.machine_config.KEYS[key]), {})
         
     def wait4digital_input_trigger(self, pin):
+        result=False
         if isinstance(pin,str) and 'Dev' in pin:
-            result=False
             digital_input = PyDAQmx.Task()
             digital_input.CreateDIChan(pin,'di', DAQmxConstants.DAQmx_Val_ChanPerLine)
             data = numpy.zeros((1,), dtype=numpy.uint8 )

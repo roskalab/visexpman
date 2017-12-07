@@ -8,7 +8,7 @@ class GeorgGratingParameters(experiment.ExperimentConfig):
         self.INITIAL_WAIT=5
         self.FREEZE_TIME=2
         self.DUTY_CYCLE=0.5
-        self.GRATING_MASK_SIZE=100.0#Set to None for disabling
+        self.GRATING_MASK_SIZE=1500.0#Set to None for disabling
         self.REPEATS=1#n sweeps
         self.RANDOMIZE_PATTERNS=False
         self.PATTERN_REPEAT=1
@@ -48,6 +48,7 @@ class GeorgGrating(experiment.Experiment):
             fract_bg=0
         self.gray=(nfull_periods*ec.BAR_WIDTH+fract_bar_width)/self.machine_config.SCREEN_SIZE_UM['col']
         self.duty_cycle=1/ec.DUTY_CYCLE-1
+        print 'mean gray', self.gray
         #Calculate sweep durations
         self.durations={}
         for p in ec.PATTERN_ORDER:
