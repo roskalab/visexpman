@@ -718,6 +718,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         block_info=[sfi for sfi in self.stimulus_frame_info if sfi.has_key('block_name')]
         #convert block names to column headers
         signatures=[b['block_name'] for b in block_info]
+        if not isinstance(signatures[0],tuple):
+            self.printl('Block info cannot be converted to table, block names must be tuples')
+            return
         if any(numpy.array(map(len, signatures))-len(signatures[0])):
             self.printl('Block info cannot be converted to a table')
             return

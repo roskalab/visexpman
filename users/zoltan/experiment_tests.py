@@ -183,7 +183,7 @@ class TestStim(experiment.Stimulus):
 
     def run(self):
         #self.show_white_noise(10,100)
-        self.show_object('pizza', 500, 0.005, 3)
+        self.show_object('pizza',90, 0.005, 3)
 #        return
         #self.show_image('/tmp/1.png',duration=10)
         self.show_grating(duration=4,velocity=300, mask_size=90,mask_color=0.5,white_bar_width=40)
@@ -194,7 +194,6 @@ class TestStim(experiment.Stimulus):
         
         self._rolling_image()
         self._moving_grating()
-        
 
 def receptive_field_calculator():
     height=265
@@ -214,8 +213,6 @@ def receptive_field_calculator():
     xd=numpy.tan(numpy.radians(angles_h))*distance
     yd=numpy.tan(numpy.radians(angles_v))*distance
     x, y = numpy.meshgrid(xd, yd)
-    pass
-    
 
 if __name__ == "__main__":
     #receptive_field_calculator()

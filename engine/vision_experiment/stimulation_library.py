@@ -589,7 +589,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_max=1.0, color_min=0.0, narms=4, save_frame_info=True):
+    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=1.0, color_max=0.0, narms=4, save_frame_info=True):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
             self.log.info('show_object({0},{1},{2},{3},{4},{5},{6})'.format(name, size, spatial_frequency, duration,orientation, color_max,color_min),source='stim')
@@ -604,7 +604,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #Generate texture
         im=Image.new('L', (size_pixel,size_pixel))
         draw = ImageDraw.Draw(im)
-        if name=='concentric_circle':
+        if name=='concentric':
             radius=size_pixel/2
             intensity=numpy.cos(numpy.arange(radius)*2*numpy.pi/pixels_per_period)/2*(color_max-color_min)
             intensity-=intensity.min()
@@ -639,7 +639,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         elif name=='spiral':
             pass
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
-        self._init_texture(utils.rc((size,size)),orientation=45)
+        self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=45)
         for frame_i in range(nframes):
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
