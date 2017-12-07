@@ -1431,7 +1431,8 @@ class MainPoller(Poller):
     def read_stage(self, display_coords = False):
         self.printc('Reading stage and objective position, please wait')
         #result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        self.stage_position = self.stage.read_position() if hasattr(self, 'stage') else [0,0]
+        if STAGE:
+            self.stage_position = self.stage.read_position()
         self.stage_position=numpy.array([self.stage_position[0], self.stage_position[1], 0])
         if display_coords:
             self.printc('rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
