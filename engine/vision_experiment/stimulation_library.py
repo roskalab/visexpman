@@ -604,7 +604,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         pixels_per_period=int(spatial_period*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         #If pixels_per_period is not the integer multiple of size_pixel, slightly adjust pixels_per_period
         pixels_per_period=size_pixel/numpy.round(size_pixel/float(pixels_per_period))
-        texture=numpy.zeros((size_pixel,size_pixel,3))
         #Generate texture
         if name=='concentric':
             im=Image.new('L', (size_pixel,size_pixel))
@@ -680,7 +679,21 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             #Put a circular mask on texture
             texture*=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
         elif name=='spiral':
-            pass
+            texture=numpy.zeros((size_pixel,size_pixel))
+            texture_orientation=0
+            res=1800.
+            nrev=2
+            angle=numpy.linspace(1/res,numpy.pi*2*nrev,nrev*res)
+            a=pixels_per_period/2
+            b=0.2
+            for sign in [1,-1]:
+                r=sign*a*numpy.e**(b*angle)
+                coo=numpy.cast['int'](numpy.array([r*numpy.cos(angle)+size_pixel/2,r*numpy.sin(angle)+size_pixel/2]))
+                indexes=[numpy.where(numpy.logical_and(coo[i]<size_pixel, coo[i]>=0),1,0) for i in range(2)]
+                indexes=numpy.nonzero(indexes[0]*indexes[1])[0]
+                texture[coo[0][indexes],coo[1][indexes]]=1.0
+            from pylab import imshow,show
+            imshow(texture);show()
         else:
             raise NotImplementedError('{0} object is not supported'.format(name))
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
