@@ -606,9 +606,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         pixels_per_period=size_pixel/numpy.round(size_pixel/float(pixels_per_period))
         texture=numpy.zeros((size_pixel,size_pixel,3))
         #Generate texture
-        im=Image.new('L', (size_pixel,size_pixel))
-        draw = ImageDraw.Draw(im)
         if name=='concentric':
+            im=Image.new('L', (size_pixel,size_pixel))
+            draw = ImageDraw.Draw(im)
             texture_orientation=0
             radius=size_pixel/2
             intensity=numpy.sin(numpy.arange(radius)*2*numpy.pi/pixels_per_period)/2*(color_max-color_min)
@@ -630,16 +630,20 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             shift[1::2]-=360/narms*duty_cycle/2
             angles=angle_ranges+shift+orientation+angle_offset
             angles=numpy.where(angles<0, angles+360,angles)
+            im=Image.new('L', (2*size_pixel,2*size_pixel))
+            draw = ImageDraw.Draw(im)
             for arm in range(narms):
                 start_angle=angles[2*arm]
                 end_angle=angles[2*arm+1]
-                draw.pieslice([0,0,size_pixel,size_pixel], start_angle, end_angle,fill=int(color_max*255))
+                draw.pieslice([0,0,2*size_pixel-1,2*size_pixel-1], start_angle, end_angle,fill=int(color_max*255))
             texture=numpy.asarray(im)/255.
             #At half radius, 20 % of arm size
-            transition=int(size_pixel*numpy.pi/narms*0.1)
+            transition=int(size_pixel*numpy.pi/narms*0.15)
             texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
             texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
             texture=signal.scale(texture,color_min,color_max)
+            texture*=geometry.circle_mask([size_pixel]*2,size_pixel/2,2*[2*size_pixel])
+            texture=texture[size_pixel/2:3*size_pixel/2, size_pixel/2:3*size_pixel/2]
         elif name=='hyperbolic':
             texture_orientation=45+orientation
             #witdh of line is pixels_per_period/2, also spacing is pixels_per_period/2
@@ -674,13 +678,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
             texture=signal.scale(texture,color_min,color_max)
             #Put a circular mask on texture
-            d=numpy.array(numpy.nonzero(numpy.ones_like(texture)))
-            dshifted=d-numpy.array([[size_pixel/2,size_pixel/2]]).T
-            mask_indexes=numpy.nonzero((dshifted[0]**2+dshifted[1]**2)>(size_pixel/2)**2)[0]
-            coo=d[:,mask_indexes]
-            texture[coo[0],coo[1]]=0
+            texture*=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
         elif name=='spiral':
             pass
+        else:
+            raise NotImplementedError('{0} object is not supported'.format(name))
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
         self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=texture_orientation)
         for frame_i in range(nframes):
