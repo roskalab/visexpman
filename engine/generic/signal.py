@@ -324,7 +324,7 @@ def shape2distance(im,iterations):
     input=im.copy()
     stages=[input.copy()]
     output=numpy.zeros_like(im)
-    for i in range(iterations):
+    for i in range(int(iterations)):
         input=scipy.ndimage.morphology.binary_erosion(input)
         stages.append(input.copy())
         output+=numpy.cast['uint8'](input.copy())*(i+1)
