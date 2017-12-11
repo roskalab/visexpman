@@ -1,10 +1,4 @@
-import traceback
-import Queue
-import re
-import unittest
-import sys
-import time
-import multiprocessing
+import traceback, Queue, re, unittest, time, multiprocessing
 from visexpman.engine.generic import utils, introspect
 from visexpman.engine.hardware_interface import queued_socket
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
@@ -132,6 +126,7 @@ class ProcessLoop(multiprocessing.Process):
         Subclass should overdefine this function
         '''
 
+#OBSOLETE
 class CommandParser(object):
     '''
     generic class that parses the content of incoming queue(s) and calls the corresponding functions

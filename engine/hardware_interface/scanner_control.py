@@ -726,6 +726,7 @@ def generate_test_lines(scanner_range, repeats, speeds):
                     lines.append(line_to_add)
     return lines
     
+#OBSOLETE
 class TwoPhotonScannerLoop(command_parser.CommandParser):
     def __init__(self, config, queues):
         self.config = config
