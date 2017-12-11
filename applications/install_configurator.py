@@ -139,6 +139,7 @@ class InstallConfigurator(Qt.QMainWindow):
             fn=os.path.join(self.shortcutfolder, s)
             if os.path.exists(fn):
                 shutil.copy(fn,desktop)
+                self.log('{0} copied to {1}'.format(fn,desktop))
             else:
                 if 'Stim.bat' in fn:
                     bfn='Stim.bat'
@@ -149,12 +150,14 @@ class InstallConfigurator(Qt.QMainWindow):
                 fp=open(os.path.join(desktop, bfn),'w')
                 fp.write(content)
                 fp.close()
+                self.log('{0} saved'.format(os.path.join(desktop, bfn)))
         #aggregate all files:
         modules=['anaconda', 'opengl','pygame','opencv','pyqtgraph', 'pyserial', 'gedit', 'tcmd', 'meld']
         self.commands=['title Vision Experiment Manager Installer', 'del python_installed.txt']
         for module in modules:
             fn=self.modulename2filename(module)
-            self.commands.append('msiexec \\i {0} \\qb'.format(fn))
+            #self.commands.append('msiexec \\i {0} \\qb'.format(fn))
+            self.commands.append('msiexec {0}'.format(fn))
             self.log('Adding to bat file: {0} ...'.format(fn))
         python_module_folder='c:\\Anaconda\\Lib\\site-packages'
         self.log('Creating pth file')
@@ -207,7 +210,11 @@ class InstallConfigurator(Qt.QMainWindow):
         self.commands.append(create_shortcut)
         fn=self.modulename2filename('visexpman')
         folder=self.extract(fn)
+        self.log('1')
+        self.log(folder)
+        self.log(self.visexpmanfolder)
         shutil.copytree(folder, self.visexpmanfolder)
+        self.log('2')
         #Verify installation
         self.commands.append('cd {0}'.format(self.visexpmanfolder))
         self.commands.append('call shortcuts\\verify_installation.bat')
@@ -218,6 +225,7 @@ class InstallConfigurator(Qt.QMainWindow):
         self.commands.append('echo Notifications:')
         self.commands.extend(['echo {0}'.format(n) for n in self.notifications])
         self.commands.append('pause')
+        self.log('Writing commands to bat file')
         fn='installer2.bat'
         instbatfp=open(fn,'w')
         [instbatfp.write(c+'\r\n') for c in self.commands]
