@@ -1,3 +1,4 @@
+#TODO: Functions obsolete or has to be reworked
 import numpy
 try:
     import Image

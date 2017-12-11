@@ -795,7 +795,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if latest_file is None:
                     filename_prefix = ''
                 else:
-                    filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
+                    filename_prefix = str(os.path.split(latest_file)[1].replace(os.path.splitext(latest_file)[1],'')[:-1])
                 fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
                 fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
             else:

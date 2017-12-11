@@ -25,6 +25,20 @@ FRAME_RATE_TOLERANCE=5
 
 #### Recording filename handling ####
 
+
+def add_mat_tag(fn):
+    '''
+    when hdf5 measurement files converted to mat, a "_mat" tag is appended to the filename
+    '''
+    if os.path.splitext(fn)[0][-4:]=='_mat':#No modification when already appended
+        return fn
+    ext=os.path.splitext(fn)[1] 
+    if ext in ['.hdf5']:
+        return fn.replace(ext, '_mat'+ext)
+    else:
+        raise NotImplementedError('')
+    
+
 def get_recording_name(parameters, separator):
     name = ''
     for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
@@ -64,7 +78,7 @@ def parse_recording_filename(filename):
     items = {}
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
-    items['extension'] = fileop.file_extension(filename)
+    items['extension'] = os.path.explitext(filename)[1]
     fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
@@ -467,8 +481,8 @@ class CaImagingData(hdf5io.Hdf5io):
         if not os.path.exists(os.path.dirname(dst)):
             os.makedirs(os.path.dirname(dst))
         shutil.copy2(self.filename,dst)
-        if os.path.exists(fileop._mat(self.filename)):
-            shutil.copy2(fileop._mat(self.filename),os.path.dirname(dst))
+        if os.path.exists(add_mat_tag(self.filename)):
+            shutil.copy2(add_mat_tag(self.filename),os.path.dirname(dst))
         return dst
         
 def timing_from_file(filename):
@@ -1501,7 +1515,7 @@ def hdf52mat(filename):
     if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     h.close()
-    matfile=filename.replace('.hdf5', '_mat.mat')
+    matfile=add_mat_tag(filename)
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
     
 def read_sync(filename):
@@ -1527,7 +1541,7 @@ def roi_plot(pars):
         gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
     savefig(outfile)
     
-def cpd2um(cpd,retina_scale):
+def cpd2um(cpd,retina_scale=30):
     '''
     Converts cycle per degree to um on retina considering retina_scale
     retina_scale is in um (on retina) per degree
@@ -1535,7 +1549,8 @@ def cpd2um(cpd,retina_scale):
     '''
     return cpd*360*retina_scale
     
-    
+def um2cpd(um, retina_scale=30):
+    return um/(360.*retina_scale)
 
 try:
     import paramiko

@@ -138,7 +138,7 @@ level=logging.INFO)
         dst=os.path.join(self.backup_path, 'processed', *filename.split(os.sep)[-3:-1])
         if not os.path.exists(dst):
             os.makedirs(dst)
-        files2copy=[filename, filename.replace('.hdf5', '_mat.mat')]
+        files2copy=[filename, experiment_data.add_mat_tag(filename)]
         for f in files2copy:
             shutil.copy(f, dst) 
             

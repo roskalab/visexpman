@@ -1,14 +1,7 @@
-import sys,filecmp,logging
-import os, re
-import os.path
-import ctypes
-import platform
-import shutil
-import numpy
-import tempfile
-import time
-import subprocess
-import multiprocessing,threading,Queue
+'''
+Common file and filename operations
+'''
+import sys, os, re, ctypes, platform, shutil, numpy, tempfile, time, subprocess, multiprocessing,threading,Queue
 from distutils import file_util,  dir_util
 try:
     import psutil
@@ -18,11 +11,12 @@ import utils
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
-
-def file_extension(filename):#TODO: use os.path.splitext
-    return os.path.split(filename)[1].split('.')[-1]
+   
     
 def is_first_tag(fn, tag):
+    '''
+    is tag the first characters of fn?
+    '''
     return tag == os.path.split(fn)[1][:len(tag)]
 
 def generate_filename(path, insert_timestamp = False, last_tag = ''):
@@ -60,14 +54,26 @@ def generate_foldername(path):
             raise RuntimeError('Foldername cannot be generated')
     return testable_path
 
+#OBSOLETE
 def get_tmp_file(suffix, delay = 0.0):
     path = os.path.join(tempfile.gettempdir(), 'tmp.' + suffix)
     remove_if_exists(path)
     time.sleep(delay)
     return path
     
+def replace_extension(fn,ext):
+    '''
+    Replaces fn's extension to ext
+    '''
+    return fn.replace(os.path.splitext(fn)[1], ext)
+    
 def get_convert_filename(filename, extension, tag='', outfolder = None):
-    fn=filename.replace(os.path.splitext(filename)[1], extension)
+    '''
+    Generate a filename at dataconversion:
+    original base name is kept but replaced to provided extension. If tag is not '', it is inserted between filename and extension
+    If outfolder is provided, it is inserted to the basename of the provided filename
+    '''
+    fn=replace_extension(filename, extension)
     if len(tag)>0:
         fn=fn.replace(extension, tag+extension)
     if outfolder is not None:
@@ -97,6 +103,9 @@ def parsefilename(filename, regexdict):
     return regexdict
     
 def select_folder_exists(folders):
+    '''
+    Return the first folder from the provided folder names which exists
+    '''
     for folder in folders:
         if os.path.exists(folder) and os.path.isdir(folder):
             return folder
@@ -104,6 +113,9 @@ def select_folder_exists(folders):
 ################# File system ####################
 
 def free_space(path):
+    '''
+    Calculates the free space on the provided location. Windows, OSX and Linux platforms are all supported
+    '''
     if platform.system() == 'Windows':
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(path), None, None, ctypes.pointer(free_bytes))
@@ -115,14 +127,23 @@ def free_space(path):
         raise NotImplementedError('')
         
 def folder_size(path):
+    '''
+    Size of a folder is calculated, not supported on windows 
+    '''
     if platform.system() == 'Linux' or platform.system()=='Darwin':
         tmp='/tmp/o.txt'
         if os.path.exists(tmp):
             os.remove(tmp)
         subprocess.call('du -sh {0}>>{1}'.format(path,tmp), shell=True)
         return read_text_file(tmp).split('\t')[0]
+    else:
+        raise NotImplementedError('OS not supported')
+            
     
 def set_file_dates(path, file_info):
+    '''
+    Sets the timestamp of a file
+    '''
     try:
         if hasattr(file_info,'st_atime') and hasattr(file_info,'st_mtime'):
             os.utime(path, (file_info.st_atime, file_info.st_mtime))
@@ -133,6 +154,8 @@ def set_file_dates(path, file_info):
         
 def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
+    if platform.system() == 'Windows':
+        raise NotImplementedError('')
     ccmd = 'lsof -Fp '+filename
     p=subprocess.Popen(ccmd, shell=True)
     res= p.communicate()
@@ -152,6 +175,10 @@ def total_size(source):
         return total_size_bytes
         
 def wait4file_ready(f,timeout=60, min_size=0):
+    '''
+    Waits until f file is ready by checking size periodically. This can be used when a big file is being written by an other process
+    or computer on a fileshare
+    '''
     if os.path.exists(f):
         filesize_prev=os.path.getsize(f)
     else:
@@ -191,6 +218,9 @@ def mkstemp(suffix=None, filename = None):
         return filename
         
 def remove_if_exists(filename):
+    '''
+    Removes a file if exists
+    '''
     if os.path.exists(filename):
         os.remove(filename)
 
@@ -208,6 +238,9 @@ def mkdir_notexists(folder, remove_if_exists=False):
             os.makedirs(f)
         
 def recreate_dir(folder):
+    '''
+    If folder exists, all of its contents are removed and then the folder is recreated
+    '''
     if os.path.exists(folder):
         shutil.rmtree(folder)
     os.makedirs(folder)
@@ -267,7 +300,7 @@ def find_latest(path, extension=None):
     '''
     if not os.path.isdir(path):
         raise RuntimeError('Foldername expected not filename: {0}'.format(path))
-    fns = [fn for fn in listdir_fullpath(path) if file_extension(fn)==extension or extension is None and not os.path.isdir(fn)]
+    fns = [fn for fn in listdir_fullpath(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
     fns_dates = map(os.path.getmtime, fns)
@@ -458,17 +491,6 @@ def cleanup_files(config):
     if os.path.exists(get_context_filename(config)):
         os.remove(get_context_filename(config))
         
-def _mat(filename):
-    '''
-    Inserts _mat tag at the end of filename if hdf5 or mat without _mat tag provided. Else hdf5 is generated from filename with _mat
-    '''
-    ext=os.path.splitext(filename)[1]
-    if '_mat' == os.path.splitext(filename)[0][-4:]:
-        return os.path.splitext(filename)[0][:-4]+'.hdf5'
-    else:
-        return filename.replace(ext, '_mat.mat')
-    
-        
 ################# Experiment file related ####################
 
 
@@ -542,7 +564,7 @@ def parse_animal_filename(filename):
     
 def is_animal_file(filename):
     fn = os.path.split(filename)[1]
-    if is_first_tag(fn, 'animal_') and file_extension(fn) == 'hdf5':
+    if is_first_tag(fn, 'animal_') and os.path.splitext(fn)[1] == '.hdf5':
         return True
     else:
         return False

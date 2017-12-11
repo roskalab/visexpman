@@ -9,7 +9,7 @@ import PyQt4.QtCore as QtCore
 import pyqtgraph
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect,colors
-from visexpman.engine.vision_experiment import gui_engine, experiment
+from visexpman.engine.vision_experiment import gui_engine, experiment,experiment_data
 
 
 class Advanced(QtGui.QWidget):
@@ -133,7 +133,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
     def populate(self):
         subdirs=map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)
         files = fileop.find_files_and_folders(self.root)[1]
-        files = [f for f in files if fileop.file_extension(f) =='py' and os.path.dirname(f) in subdirs]
+        files = [f for f in files if os.path.splitext(f)[1] =='.py' and os.path.dirname(f) in subdirs]
         experiment_configs = []
         for f in files:
             try:
@@ -275,7 +275,7 @@ class DataFileBrowser(gui.FileTree):
         file2open=filename
         if ext=='.mat':#If mat or _mat is selected, corresponding hdf5 is opened
             if '_mat.mat' in filename:
-                file2open=filename.replace('_mat.mat', '.hdf5')
+                file2open=experiment_data.add_mat_tag(filename)
             else:
                 file2open=filename.replace('.mat', '.hdf5')
         return file2open
@@ -286,8 +286,8 @@ class DataFileBrowser(gui.FileTree):
     def file_open(self,index):
         filename = gui.index2filename(index)
         if os.path.isdir(filename): return#Double click on folder is ignored
-        ext = fileop.file_extension(filename)
-        if ext  in  ['hdf5', 'mat']:
+        ext = os.path.splitext(filename)[1]
+        if ext  in  ['.hdf5', '.mat']:
             function = 'open_datafile'
             keep_rois=(self.parent.parent.analysis_helper.keep_rois.input.checkState()==2) if hasattr(self.parent.parent.analysis_helper, 'keep_rois') else False
             self.parent.parent.to_engine.put({'function': 'keep_rois', 'args':[keep_rois]})

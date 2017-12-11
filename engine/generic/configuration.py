@@ -1,12 +1,4 @@
-import sys
-import os.path
-import os 
-import platform
-import copy
-import utils
-import parameter
-
-import unittest
+import os, platform, copy, utils, parameter, unittest
 
 PRINT_PAR_NAMES = False
 

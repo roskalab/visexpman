@@ -1441,15 +1441,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         #Generate texture:
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        print line_width_p
         line_spacing_p=int(line_width_p*duty_cycle)
         #Generate single tile:
         tile_height=abs(int(line_spacing_p/numpy.tan(0.5*numpy.radians(relative_angle))))
         tile=Image.new('L', (line_spacing_p, tile_height))
         from PIL import ImageDraw
         draw = ImageDraw.Draw(tile)
-        draw.line((0,0, line_spacing_p, tile_height), fill=255, width =line_width_p)
-        draw.line((line_spacing_p, 0,0, tile_height), fill=255, width =line_width_p)
-        tile=numpy.cast['float'](numpy.asarray(tile))/255*contrast
+        draw.line((0,0, line_spacing_p, tile_height), fill=int(255*contrast), width =line_width_p)
+        draw.line((line_spacing_p, 0,0, tile_height), fill=int(255*contrast), width =line_width_p)
+        tile=numpy.cast['float'](numpy.asarray(tile))/255.
         tilea=numpy.where(tile==0, background_color, tile)
         if mask_size ==None:
             texture_size=numpy.sqrt(self.config.SCREEN_RESOLUTION['col'] **2+self.config.SCREEN_RESOLUTION['row'] **2)
@@ -1512,7 +1513,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
-        print time.time()-t0
+        #print time.time()-t0
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)

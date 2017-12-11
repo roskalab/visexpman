@@ -137,7 +137,7 @@ class Logger(multiprocessing.Process,LoggerHelper):
         Copies log files from LOG_PATH to REMOTE_LOG_PATH
         '''
         for fn in fileop.listdir_fullpath(self.logpath):
-            if fileop.is_first_tag(fn, 'log_') and fileop.file_extension(fn) == 'txt':
+            if fileop.is_first_tag(fn, 'log_') and os.path.splitext(fn)[1] == '.txt':
                 target_path = os.path.join(self.remote_logpath, os.path.split(fn)[1])
                 if not os.path.exists(target_path):#Copy file if cannot be found in remote log folder
                     import shutil
