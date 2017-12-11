@@ -316,7 +316,7 @@ def parse_stimulation_file(filename):
     From a stimulation file get the names of experiment classes and the parameter values for each
     Only the values defined in the class itself are fetched, parameters from ancestors are ignored
     '''
-    if fileop.file_extension(filename) != 'py':
+    if os.path.splitext(filename)[1] != '.py':
         raise RuntimeError('Files only with py extension can be selected: {0}'.format(filename))
     source_code = fileop.read_text_file(filename)
     if 'import *' in source_code:

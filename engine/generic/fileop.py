@@ -18,9 +18,6 @@ import utils
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
-
-def file_extension(filename):#TODO: use os.path.splitext
-    return os.path.split(filename)[1].split('.')[-1]
     
 def is_first_tag(fn, tag):
     return tag == os.path.split(fn)[1][:len(tag)]
@@ -267,7 +264,7 @@ def find_latest(path, extension=None):
     '''
     if not os.path.isdir(path):
         raise RuntimeError('Foldername expected not filename: {0}'.format(path))
-    fns = [fn for fn in listdir_fullpath(path) if file_extension(fn)==extension or extension is None and not os.path.isdir(fn)]
+    fns = [fn for fn in listdir_fullpath(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
     fns_dates = map(os.path.getmtime, fns)
@@ -542,7 +539,7 @@ def parse_animal_filename(filename):
     
 def is_animal_file(filename):
     fn = os.path.split(filename)[1]
-    if is_first_tag(fn, 'animal_') and file_extension(fn) == 'hdf5':
+    if is_first_tag(fn, 'animal_') and os.path.splitext(fn)[1] == '.hdf5':
         return True
     else:
         return False

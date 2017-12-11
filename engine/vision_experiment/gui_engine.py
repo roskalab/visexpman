@@ -303,7 +303,7 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='mc_mea':
             if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
                 #Find latest mcd file and save experiment metadata to the same folder
-                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd')
+                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
                 txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
                         .format(\
                         self.guidata.read('name'),
@@ -555,7 +555,7 @@ class ExperimentHandler(object):
     def check_mcd_recording_started(self):
         if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
             #Find latest mcd file and save experiment metadata to the same folder
-            dt=time.time()-os.path.getmtime(fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd'))
+            dt=time.time()-os.path.getmtime(fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd'))
             res=True
             if dt>5:
                 res= self.ask4confirmation('MEA recording may not be started, do you want to continue?')
@@ -1202,7 +1202,7 @@ class Analysis(object):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
         
     def remove_recording(self,filename):
-        if not experiment_data.is_recording_filename(filename) or fileop.file_extension(filename)!='hdf5':
+        if not experiment_data.is_recording_filename(filename) or os.path.splitext(filename)[1]!='.hdf5':
             self.notify('Info', '{0} is not a recording file'.format(filename))
             return
         #Figure out which files will be removed
@@ -1840,7 +1840,7 @@ class TestMainUIEngineIF(unittest.TestCase):
         self.engine.machine_config.EXPERIMENT_DATA_PATH = self.working_folder
         shutil.copytree(ref_folder, self.working_folder)
         files = fileop.listdir_fullpath(self.working_folder)
-        protocol_files = [f for f in files if fileop.file_extension(f) == 'txt']
+        protocol_files = [f for f in files if os.path.splitext(f)[1] == '.txt']
         protocols = dict(map(self._parse_protocol_files, protocol_files))
         for n in protocols.keys():
             protocol = protocols[n]

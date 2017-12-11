@@ -64,7 +64,7 @@ def parse_recording_filename(filename):
     items = {}
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
-    items['extension'] = fileop.file_extension(filename)
+    items['extension'] = os.path.explitext(filename)[1]
     fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
@@ -1527,7 +1527,7 @@ def roi_plot(pars):
         gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
     savefig(outfile)
     
-def cpd2um(cpd,retina_scale):
+def cpd2um(cpd,retina_scale=30):
     '''
     Converts cycle per degree to um on retina considering retina_scale
     retina_scale is in um (on retina) per degree
@@ -1535,7 +1535,8 @@ def cpd2um(cpd,retina_scale):
     '''
     return cpd*360*retina_scale
     
-    
+def um2cpd(um, retina_scale=30):
+    return um/(360.*retina_scale)
 
 try:
     import paramiko

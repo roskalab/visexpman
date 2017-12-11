@@ -43,22 +43,22 @@ class PhysTiff2Hdf5(object):
             self.allfiles.extend(fileop.find_files_and_folders(folder)[1])
         if self.outfolder==self.folder:
             self.outfiles=self.allfiles
-            self.outfiles = [f for f in self.outfiles if fileop.file_extension(f)=='hdf5']
+            self.outfiles = [f for f in self.outfiles if os.path.splitext(f)[1]=='.hdf5']
         else:
-            self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
+            self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if os.path.splitext(f)[1]=='.hdf5']
         
-        excluded_extensions=['txt','hdf5','tif' if not self.use_tiff else 'csv']
-        self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and fileop.file_extension(f) not in excluded_extensions]
+        excluded_extensions=['.txt','.hdf5','.tif' if not self.use_tiff else '.csv']
+        self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and os.path.splitext(f)[1] not in excluded_extensions]
         #self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600]#Considering files not older than 2 weeks
         #Exclude unclosed files
         now=time.time()
         self.allfiles = [f for f in self.allfiles if now-os.path.getctime(f)>10 and now-os.path.getmtime(f)>10]
         
         if self.irlaser:
-            physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='csv' and 'rect' not in f and 'timestamps' not in f]
+            physfiles = [f for f in self.allfiles if os.path.splitext(f)[1]=='.csv' and 'rect' not in f and 'timestamps' not in f]
         else:
-            physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='phys']
-        tiffiles = [f for f in self.allfiles if fileop.file_extension(f)==('tif' if self.use_tiff else 'csv')]
+            physfiles = [f for f in self.allfiles if os.path.splitext(f)[1]=='.phys']
+        tiffiles = [f for f in self.allfiles if os.path.splitext(f)[1]==('.tif' if self.use_tiff else '.csv')]
         if self.irlaser:
             tiffiles = [tf for tf in tiffiles if tf not in physfiles]
         #if not self.use_tiff:
@@ -75,7 +75,7 @@ class PhysTiff2Hdf5(object):
             if 1:
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
-                found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(fileop.file_extension(pf),''))[:-1] in tf]
+                found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(os.path.splitext(pf)[1],''))[:-1] in tf]
                 foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f or NOMATFILE or self.irlaser]
                 
             if 1:
@@ -126,8 +126,8 @@ class PhysTiff2Hdf5(object):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
         self.filetimes = [[f, os.path.getmtime(f)] for f in self.allfiles]
         self.files = {}
-        for filetype in ['phys', 'tif']:
-            self.files[filetype] = [f for f in self.filetimes if fileop.file_extension(f[0]) == filetype]
+        for filetype in ['.phys', '.tif']:
+            self.files[filetype] = [f for f in self.filetimes if os.path.splitext(f[0])[1] == filetype]
         assignments = {}
         for fphys, tphys in self.files['phys']:
             for ftif, ttif in self.files['tif']:
@@ -242,7 +242,7 @@ class PhysTiff2Hdf5(object):
         print 'rawdata ok', time.time()-t0
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
-        recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+fileop.file_extension(ftiff), ''))
+        recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+os.path.splitext(ftiff)[1], ''))
         recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
         recording_parameters['elphys_sync_sample_rate'] = 10000 if not FIX1KHZ else 1000
         if self.irlaser:
