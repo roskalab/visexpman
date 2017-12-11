@@ -25,6 +25,20 @@ FRAME_RATE_TOLERANCE=5
 
 #### Recording filename handling ####
 
+
+def add_mat_tag(fn):
+    '''
+    when hdf5 measurement files converted to mat, a "_mat" tag is appended to the filename
+    '''
+    if os.path.splitext(fn)[0][-4:]=='_mat':#No modification when already appended
+        return fn
+    ext=os.path.splitext(fn)[1] 
+    if ext in ['.hdf5']:
+        return fn.replace(ext, '_mat'+ext)
+    else:
+        raise NotImplementedError('')
+    
+
 def get_recording_name(parameters, separator):
     name = ''
     for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
@@ -467,8 +481,8 @@ class CaImagingData(hdf5io.Hdf5io):
         if not os.path.exists(os.path.dirname(dst)):
             os.makedirs(os.path.dirname(dst))
         shutil.copy2(self.filename,dst)
-        if os.path.exists(fileop._mat(self.filename)):
-            shutil.copy2(fileop._mat(self.filename),os.path.dirname(dst))
+        if os.path.exists(add_mat_tag(self.filename)):
+            shutil.copy2(add_mat_tag(self.filename),os.path.dirname(dst))
         return dst
         
 def timing_from_file(filename):
@@ -1501,7 +1515,7 @@ def hdf52mat(filename):
     if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     h.close()
-    matfile=filename.replace('.hdf5', '_mat.mat')
+    matfile=add_mat_tag(filename)
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
     
 def read_sync(filename):

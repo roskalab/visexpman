@@ -638,7 +638,7 @@ class Analysis(object):
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
-        if self.machine_config.PLATFORM=='ao_cortical' and not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
+        if self.machine_config.PLATFORM=='ao_cortical' and not os.path.exists(experiment_data.add_mat_tag(filename)):
             self.notify('Warning', 'File is not yet completely processed by jobhandler. Try opening it a bit later')
             return
         if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
@@ -1237,7 +1237,7 @@ class Analysis(object):
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
-            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')) and not self.santiago_setup:
+            if not os.path.exists(experiment_data.add_mat_tag(filename)) and not self.santiago_setup:
                 if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
                     return
             self.fn=filename

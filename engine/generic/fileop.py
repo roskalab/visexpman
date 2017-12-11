@@ -18,6 +18,7 @@ import utils
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
+   
     
 def is_first_tag(fn, tag):
     return tag == os.path.split(fn)[1][:len(tag)]
@@ -454,17 +455,6 @@ def cleanup_files(config):
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
     if os.path.exists(get_context_filename(config)):
         os.remove(get_context_filename(config))
-        
-def _mat(filename):
-    '''
-    Inserts _mat tag at the end of filename if hdf5 or mat without _mat tag provided. Else hdf5 is generated from filename with _mat
-    '''
-    ext=os.path.splitext(filename)[1]
-    if '_mat' == os.path.splitext(filename)[0][-4:]:
-        return os.path.splitext(filename)[0][:-4]+'.hdf5'
-    else:
-        return filename.replace(ext, '_mat.mat')
-    
         
 ################# Experiment file related ####################
 
