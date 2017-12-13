@@ -47,7 +47,7 @@ class DebugEposConfig(ElectroporationSetup228Config):
         ElectroporationSetup228Config._set_user_parameters(self)
         self.FULLSCREEN = False
         self.WAIT4TRIGGER_ENABLED=False
-        self.CAMERA_TRIGGER_FRAME_RATE=10
+        self.CAMERA_TRIGGER_FRAME_RATE=10.0
         
 class DevelopEposLinuxConfig(ElectroporationSetup228Config):
     def _set_user_parameters(self):

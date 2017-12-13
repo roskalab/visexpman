@@ -153,7 +153,7 @@ class ArduinoIO(object):
         
     def enable_waveform(self, pin,frequency):
         self._wait()
-        self.s.write('f'+chr(frequency))
+        self.s.write('f'+chr(int(frequency)))
         time.sleep(1e-3)
         self.s.write('w'+chr(1<<pin))
         

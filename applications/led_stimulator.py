@@ -219,10 +219,10 @@ class LEDStimulator(gui.SimpleAppWindow):
         self.signals={}
         self.signals['last']={}
         self.signals['mean']={}
-        self.signals['last']['elphys']=self.cut2repeats[-1, :, 2]
-        self.signals['last']['left']=self.cut2repeats[-1, :, 0]
-        self.signals['last']['right']=self.cut2repeats[-1, :, 1]
-        self.signals['mean']['elphys']=self.cut2repeats[:, :, 2].mean(axis=0)
+        self.signals['last']['elphys']=self.cut2repeats[-1, :, 2]/self.settings['Amplifier gain']*1e3
+        self.signals['last']['left']=self.cut2repeats[-1, :, 0]/self.settings['Amplifier gain']*1e3
+        self.signals['last']['right']=self.cut2repeats[-1, :, 1]/self.settings['Amplifier gain']*1e3
+        self.signals['mean']['elphys']=self.cut2repeats[:, :, 2].mean(axis=0)/self.settings['Amplifier gain']*1e3
         self.t=signal.time_series(int(section_length), self.settings['Sample Rate'])*1e3
         return True
         
