@@ -589,10 +589,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=0.0, color_max=1.0, narms=4, save_frame_info=True):
+    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=0.0, color_max=1.0, narms=4, background_color=0.5, save_frame_info=True):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-            self.log.info('show_object({0},{1},{2},{3},{4},{5},{6})'.format(name, size, spatial_frequency, duration,orientation, color_max,color_min),source='stim')
+            self.log.info('show_object({0},{1},{2},{3},{4},{5},{6},{7})'.format(name, size, spatial_frequency, duration,orientation, color_max,color_min,background_color),source='stim')
+        if background_color != None:
+            background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+            converted_background_color = colors.convert_color(background_color, self.config)
+            glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
         spatial_period=experiment_data.cpd2um(spatial_frequency,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
         nframes=1 if duration==0 else int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)
         size_pixel=int(size*self.config.SCREEN_UM_TO_PIXEL_SCALE)
@@ -603,14 +607,39 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         nperiods=numpy.round(size/spatial_period)
         pixels_per_period=int(spatial_period*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         #If pixels_per_period is not the integer multiple of size_pixel, slightly adjust pixels_per_period
-        pixels_per_period=size_pixel/numpy.round(size_pixel/float(pixels_per_period))
+        pixels_per_period=int(round(size_pixel/numpy.round(size_pixel/float(pixels_per_period))))
         #Generate texture
         if name=='concentric':
+#            texture_orientation=0
+#            texture=numpy.zeros((size_pixel,size_pixel))
+#            quadrant=numpy.ones((size_pixel/2,size_pixel/2))
+#            L0=0.5
+#            m=0.5
+#            x,y=numpy.nonzero(quadrant)
+#            r=numpy.arctan(y/x)
+#            c=numpy.sqrt(x**2+y**2)
+#            f=1.5/pixels_per_period
+#            ph=0
+#            L=L0*(1+m*(numpy.cos(2*numpy.pi*f*c+ph)+numpy.cos(2*numpy.pi*f*r+ph)))
+#            quadrant[x,y]=L
+#            texture[size_pixel/2:,size_pixel/2:]=quadrant
+#            #Mirror curves to all the sides
+#            left=numpy.copy(numpy.fliplr(texture))
+#            up=numpy.copy(numpy.rot90(texture))
+#            down=numpy.copy(numpy.flipud(left))
+#            texture+=left+up+down
+#            texture=signal.scale(texture,color_min,color_max)
+#            mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
+#            texture*=mask
+#            if background_color !=None:
+#                mask_inv=numpy.where(mask==0,converted_background_color[0],0)
+#                texture+=mask_inv
             im=Image.new('L', (size_pixel,size_pixel))
             draw = ImageDraw.Draw(im)
             texture_orientation=0
-            radius=size_pixel/2
-            intensity=numpy.sin(numpy.arange(radius)*2*numpy.pi/pixels_per_period)/2*(color_max-color_min)
+            nperiods=round(size_pixel/float(pixels_per_period))
+            radius=nperiods*0.5*pixels_per_period
+            intensity=numpy.cos(numpy.arange(radius)*2*numpy.pi/pixels_per_period)/2*(color_max-color_min)
             intensity-=intensity.min()
             intensity+=color_min
             for i in range(intensity.shape[0]-1,0,-1):
@@ -619,6 +648,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 bbox=(size_pixel/2-rad,size_pixel/2-rad,size_pixel/2+rad,size_pixel/2+rad)
                 draw.ellipse(bbox,fill=contrast)
             texture=numpy.asarray(im)/255.
+            mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
+            texture*=mask
+            if background_color !=None:
+                mask_inv=numpy.where(mask==0,converted_background_color[0],0)
+                texture+=mask_inv
         elif name=='pizza':
             texture_orientation=45
             duty_cycle=0.5
@@ -641,59 +675,82 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
             texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
             texture=signal.scale(texture,color_min,color_max)
-            texture*=geometry.circle_mask([size_pixel]*2,size_pixel/2,2*[2*size_pixel])
+            mask=geometry.circle_mask([size_pixel]*2,size_pixel/2,2*[2*size_pixel])
+            texture*=mask
+            if background_color !=None:
+                mask_inv=numpy.where(mask==0,converted_background_color[0],0)
+                texture+=mask_inv
             texture=texture[size_pixel/2:3*size_pixel/2, size_pixel/2:3*size_pixel/2]
         elif name=='hyperbolic':
             texture_orientation=45+orientation
             #witdh of line is pixels_per_period/2, also spacing is pixels_per_period/2
-            line_width=int(pixels_per_period/2)
             texture=numpy.zeros((size_pixel,size_pixel))
-            x=numpy.arange(size_pixel)
-            a_params=(0.5+numpy.arange(1, (size_pixel/pixels_per_period)/2))*pixels_per_period
-            for a in a_params:
-                c=a+0.5*pixels_per_period
-                bsq=c**2-a**2
-                for i in range(1,line_width):
-                    sign=1
-                    y=numpy.cast['int'](sign*numpy.sqrt(a**2*((x-size_pixel/2)**2/bsq+1))+size_pixel/2-1+sign*i)
-                    indexes=numpy.nonzero(numpy.where(numpy.logical_and(y<size_pixel, y>=0),1,0))[0]
-                    texture[x[indexes],y[indexes]]=1
+            quadrant=numpy.ones((size_pixel/2,size_pixel/2))
+            L0=0.5
+            m=0.5
+            x,y=numpy.nonzero(quadrant)
+            u=x*numpy.cos(0)-y*numpy.sin(0)
+            v=x*numpy.sin(0)+y*numpy.cos(0)
+            #Convert spatial frequency to pixel domain
+            f=2./pixels_per_period
+            L=L0*(1+m*numpy.cos(2*numpy.pi*f*numpy.sqrt(u*v)))
+            quadrant[x,y]=L
+            texture[size_pixel/2:,size_pixel/2:]=quadrant
             #Mirror curves to all the sides
             left=numpy.copy(numpy.fliplr(texture))
             up=numpy.copy(numpy.rot90(texture))
-            down=numpy.copy(numpy.flipud(up))
+            down=numpy.copy(numpy.flipud(left))
             texture+=left+up+down
-            #Cross to the middle:
-            for offset in range(-line_width/2,line_width/2):
-                for sign in [1,-1]:
-                    x=numpy.arange(size_pixel)[::sign]
-                    y=numpy.arange(size_pixel)+offset
-                    indexes=numpy.nonzero(numpy.where(numpy.logical_and(y<size_pixel, y>=0),1,0))[0]
-                    texture[x[indexes],y[indexes]]=1
-            transition=round(0.5*line_width)
-            if transition<1:
-                transition=1
-            texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
-            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
             texture=signal.scale(texture,color_min,color_max)
             #Put a circular mask on texture
-            texture*=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
+            mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
+            texture*=mask
+            if background_color !=None:
+                mask_inv=numpy.where(mask==0,converted_background_color[0],0)
+                texture+=mask_inv
         elif name=='spiral':
-            texture=numpy.zeros((size_pixel,size_pixel))
             texture_orientation=0
+            texture=numpy.zeros((size_pixel,size_pixel))
+#            L0=0.5
+#            m=0.5
+#            x,y=numpy.nonzero(texture+1)
+#            #x-=texture.shape[0]/2
+#            #y-=texture.shape[0]/2
+#            c=numpy.sqrt(x**2+y**2)
+#            r=numpy.arctan(y/x)
+#            f=spatial_frequency*3
+#            ph=numpy.pi/3*0
+#            L=L0*(1+m*(numpy.cos(2*numpy.pi*f*c+ph)+numpy.cos(2*numpy.pi*100*r+ph)))
+#            texture[x,y]=L
+#            from pylab import imshow,show,plot
+#            imshow(texture);show()
+            texture_orientation=90
+            #Calculate angle range from spatial frequency
             res=1800.
-            nrev=2
+            nrev=0.5#Coming from paper
             angle=numpy.linspace(1/res,numpy.pi*2*nrev,nrev*res)
-            a=pixels_per_period/2
-            b=0.2
-            for sign in [1,-1]:
-                r=sign*a*numpy.e**(b*angle)
-                coo=numpy.cast['int'](numpy.array([r*numpy.cos(angle)+size_pixel/2,r*numpy.sin(angle)+size_pixel/2]))
-                indexes=[numpy.where(numpy.logical_and(coo[i]<size_pixel, coo[i]>=0),1,0) for i in range(2)]
-                indexes=numpy.nonzero(indexes[0]*indexes[1])[0]
-                texture[coo[0][indexes],coo[1][indexes]]=1.0
-            from pylab import imshow,show
-            imshow(texture);show()
+            a=0.5*size_pixel/numpy.pi
+            for o in range(-int(pixels_per_period),int(pixels_per_period)):
+                for sign in [1,-1]:
+                    r=sign*a*angle+o
+                    coo=numpy.cast['int'](numpy.array([r*numpy.cos(angle)+size_pixel/2,r*numpy.sin(angle)+size_pixel/2]))
+                    indexes=[numpy.where(numpy.logical_and(coo[i]<size_pixel, coo[i]>=0),1,0) for i in range(2)]
+                    indexes=numpy.nonzero(indexes[0]*indexes[1])[0]
+                    texture[coo[0][indexes],coo[1][indexes]]=1.0
+#            import scipy.ndimage.morphology
+#            original=numpy.copy(texture)
+#            texture= scipy.ndimage.morphology.binary_dilation(texture,iterations=int(pixels_per_period))
+#            texture=numpy.cast['float'](texture)
+            transition=int(pixels_per_period*0.5)
+#            texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
+#            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
+#            texture=signal.scale(texture,color_min,color_max)
+            mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
+            texture*=mask
+            #texture-=original*0.5
+            if background_color !=None:
+                mask_inv=numpy.where(mask==0,converted_background_color[0],0)
+                texture+=mask_inv
         else:
             raise NotImplementedError('{0} object is not supported'.format(name))
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
@@ -707,6 +764,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
         self._deinit_texture()
+        if background_color != None:            
+            glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
