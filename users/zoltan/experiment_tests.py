@@ -184,8 +184,8 @@ class TestStim(experiment.Stimulus):
     def run(self):
         #self.show_white_noise(10,100)
         #self.show_object('concentric',330, 0.004, 30,orientation=10)#30 um
-        self.show_object('hyperbolic',300, 0.004, 30,orientation=10)#30 um
-        self.show_object('spiral',300, 0.004, 30,orientation=10)
+#        self.show_object('hyperbolic',300, 0.004, 30,orientation=10)#30 um
+        self.show_object('spiral',300, 0.01, 30,orientation=10)
 #        return
         #self.show_image('/tmp/1.png',duration=10)
         self.show_grating(duration=4,velocity=30, mask_size=200,mask_color=0.5,white_bar_width=40)
