@@ -4,8 +4,8 @@ from visexpman.engine.vision_experiment import experiment,experiment_data
 class ObjectStim(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.OBJECTS=['grating','pizza', 'concentric', 'hyperbolic','spiral']
-        self.ON_TIME=2.0
-        self.OFF_TIME=2.0
+        self.ON_TIME=4.0
+        self.OFF_TIME=1.0
         self.REPEAT_PER_OBJECT=2
         self.SPATIAL_FREQUENCY=0.05#cycle per degree.
         self.ORIENTATION=0

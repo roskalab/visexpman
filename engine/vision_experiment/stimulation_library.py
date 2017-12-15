@@ -638,7 +638,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     res=numpy.ceil(one_degree_size)*3
                 else:
                     res=3
-                
                 v=numpy.cast['int'](geometry.circle_vertices(rad*2,resolution=res)+numpy.array(2*[texture.shape[0]/2]))
                 texture[v[:,0],v[:,1]]=intensity[i]
             mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
@@ -738,7 +737,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=texture[size_pixel/2:3*size_pixel/2,size_pixel/2:3*size_pixel/2]
             mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
             texture*=mask
-            
             #texture-=original*0.5
             if background_color !=None:
                 mask_inv=numpy.where(mask==0,converted_background_color[0],0)
@@ -746,6 +744,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         else:
             raise NotImplementedError('{0} object is not supported'.format(name))
         if hasattr(self.config, 'GAMMA_CORRECTION'):
+#            import pdb;pdb.set_trace()
             texture = self.config.GAMMA_CORRECTION(texture)
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
         self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=texture_orientation)
