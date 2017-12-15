@@ -590,6 +590,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
     def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=0.0, color_max=1.0, narms=4, background_color=0.5, save_frame_info=True):
+        '''
+        Showing different objects:
+        todo:explain parameters
+        pizza:
+            spatial_frequency is not interpreted            
+            
+        Limitations:
+        1) generating bigger objects (above 800-1000 um) might be slower
+        2) big pizza is very slow
+        '''
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
             self.log.info('show_object({0},{1},{2},{3},{4},{5},{6},{7})'.format(name, size, spatial_frequency, duration,orientation, color_max,color_min,background_color),source='stim')
@@ -631,11 +641,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 
                 v=numpy.cast['int'](geometry.circle_vertices(rad*2,resolution=res)+numpy.array(2*[texture.shape[0]/2]))
                 texture[v[:,0],v[:,1]]=intensity[i]
-
-#                contrast=int(255*intensity[i])
-#                bbox=(size_pixel/2-rad,size_pixel/2-rad,size_pixel/2+rad,size_pixel/2+rad)
-#                draw.ellipse(bbox,fill=contrast)
-#            texture=numpy.asarray(im)/255.
             mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
             texture*=mask
             if background_color !=None:
@@ -740,6 +745,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 texture+=mask_inv
         else:
             raise NotImplementedError('{0} object is not supported'.format(name))
+        if hasattr(self.config, 'GAMMA_CORRECTION'):
+            texture = self.config.GAMMA_CORRECTION(texture)
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
         self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=texture_orientation)
         for frame_i in range(nframes):
