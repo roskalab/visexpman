@@ -124,7 +124,6 @@ class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):#OBSOLETE
         BLOCK_TIMING_PIN = 2
         FRAME_TIMING_PIN = 1
         
-        
         ENABLE_UDP = True
         self._create_parameters_from_locals(locals())
 

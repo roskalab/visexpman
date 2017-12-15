@@ -618,12 +618,24 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             intensity=numpy.cos(numpy.arange(radius)*2*numpy.pi/pixels_per_period)/2*(color_max-color_min)
             intensity-=intensity.min()
             intensity+=color_min
-            for i in range(intensity.shape[0]-1,0,-1):
+            texture=numpy.zeros((size_pixel,size_pixel))
+            for i in range(1,intensity.shape[0]):
                 rad=i
-                contrast=int(255*intensity[i])
-                bbox=(size_pixel/2-rad,size_pixel/2-rad,size_pixel/2+rad,size_pixel/2+rad)
-                draw.ellipse(bbox,fill=contrast)
-            texture=numpy.asarray(im)/255.
+                if i>size_pixel/2-1:
+                    break
+                one_degree_size=2* rad* numpy.pi/360.
+                if one_degree_size>1:
+                    res=numpy.ceil(one_degree_size)*3
+                else:
+                    res=3
+                
+                v=numpy.cast['int'](geometry.circle_vertices(rad*2,resolution=res)+numpy.array(2*[texture.shape[0]/2]))
+                texture[v[:,0],v[:,1]]=intensity[i]
+
+#                contrast=int(255*intensity[i])
+#                bbox=(size_pixel/2-rad,size_pixel/2-rad,size_pixel/2+rad,size_pixel/2+rad)
+#                draw.ellipse(bbox,fill=contrast)
+#            texture=numpy.asarray(im)/255.
             mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
             texture*=mask
             if background_color !=None:
@@ -658,7 +670,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 texture+=mask_inv
             texture=texture[size_pixel/2:3*size_pixel/2, size_pixel/2:3*size_pixel/2]
         elif name=='hyperbolic':
-            texture_orientation=45+orientation
+            texture_orientation=orientation
             #witdh of line is pixels_per_period/2, also spacing is pixels_per_period/2
             texture=numpy.zeros((size_pixel,size_pixel))
             quadrant=numpy.ones((size_pixel/2,size_pixel/2))
@@ -685,30 +697,43 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 mask_inv=numpy.where(mask==0,converted_background_color[0],0)
                 texture+=mask_inv
         elif name=='spiral':
-            texture_orientation=0
             texture=numpy.zeros((size_pixel*2,size_pixel*2))
-            texture_orientation=90
+            texture_orientation=90+orientation
             #Calculate angle range from spatial frequency
-            res=1800.
+            res=3600./2
             nrev=round(nperiods/2)*2/4#Coming from paper
-            overrun_factor=1.5
+            overrun_factor=1.2
+            one_degree_size=size_pixel*numpy.pi/360
+            #res/=8/one_degree_size
             angle=numpy.linspace(1/res,numpy.pi*2*nrev*overrun_factor,nrev*overrun_factor*res)
             a=0.5*size_pixel/(2*numpy.pi*nrev)
+            rev_angle_intervals=numpy.arange(1,(nrev*overrun_factor+1))*numpy.pi*2
+            expected_radius=rev_angle_intervals*numpy.pi*2*a
+            pixel_angular_size=360/(expected_radius*2*numpy.pi)
+            angle=[]
+            for i in range(pixel_angular_size.shape[0]):
+                if i==0:
+                    start=0
+                else:
+                    start=rev_angle_intervals[i-1]
+                end=rev_angle_intervals[i]
+                angle.extend(numpy.linspace(start, end, 10*numpy.ceil((end-start)/pixel_angular_size[i])).tolist())
+                pass
+            angle=numpy.array(angle)
             max_angle=numpy.pi/2
-            for o in numpy.linspace(-max_angle/2,max_angle/2,50):
+            t0=time.time()
+            for o in numpy.linspace(-max_angle/2,max_angle/2,80):
                 for sign in [1,-1]:
                     r=sign*a*angle
                     coo=numpy.cast['int'](numpy.array([r*numpy.cos(angle+o)+size_pixel,r*numpy.sin(angle+o)+size_pixel]))
-                    indexes=[numpy.where(numpy.logical_and(coo[i]<2*size_pixel, coo[i]>=0),1,0) for i in range(2)]
-                    indexes=numpy.nonzero(indexes[0]*indexes[1])[0]
-                    texture[coo[0][indexes],coo[1][indexes]]=1.0
-            transition=int(pixels_per_period*0.1)
-            texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
-            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
+                    coo=[numpy.where(numpy.logical_and(coo[i]>2*size_pixel, coo[i]<0),0,coo[i]) for i in range(2)]
+                    texture[coo[0],coo[1]]=numpy.cos(o/max_angle*numpy.pi)
+            print t0-time.time()    
             texture=signal.scale(texture,color_min,color_max)
             texture=texture[size_pixel/2:3*size_pixel/2,size_pixel/2:3*size_pixel/2]
             mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
             texture*=mask
+            
             #texture-=original*0.5
             if background_color !=None:
                 mask_inv=numpy.where(mask==0,converted_background_color[0],0)

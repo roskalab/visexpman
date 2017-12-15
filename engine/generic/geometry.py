@@ -910,7 +910,7 @@ def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100))
     for i in range(len(active_pixel_mask)):
         if active_pixel_mask[i] == 1:
             circle[coords[0][i], coords[1][i]] = color
-    return circle 
+    return circle
     
 def numpy_circles(radii,  centers,  array_size,  colors = None):
     if 0:
