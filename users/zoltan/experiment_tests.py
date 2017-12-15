@@ -182,21 +182,22 @@ class TestStim(experiment.Stimulus):
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
         
     def _object(self):
-        objects=['spiral']#, 'concentric', 'hyperbolic','spiral']
+        objects=['concentric','pizza',  'hyperbolic','spiral']
         pizza_arms=5
         duration=40
         orientation=[90,0,10,45]
+        orientation=[0]
         sizes=[100,200,400,800,1500,3000]
         sizes=[300]
         spatial_frequency=[0.001, 0.004,0.01]
-        spatial_frequency=[0.004]
+        spatial_frequency=[0.002]
         for ob in objects:
             for o in orientation:
                 for s in sizes:
                     for sp in spatial_frequency:
                         print ob,'orientation', o,'size', s,'spatial frq', sp
                         try:
-                            self.show_object(ob,s, sp, duration,orientation=o,background_color=0.5,narms=pizza_arms)
+                            self.show_object(ob,s, sp, duration,orientation=o,background_color=0.5,narms=pizza_arms,color_min=0.5, color_max=1.0)
                         except:
                             pass
                         self.abort=False

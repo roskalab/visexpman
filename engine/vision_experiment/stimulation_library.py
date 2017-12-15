@@ -591,14 +591,21 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             
     def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=0.0, color_max=1.0, narms=4, background_color=0.5, save_frame_info=True):
         '''
-        Showing different objects:
-        todo:explain parameters
-        pizza:
-            spatial_frequency is not interpreted            
+        Shows an object defined by name parameter:
+            concentric circles (name='concentric')
+            pizza slices (name='pizza')
+            hyperbolic grating (name='hyperbolic')
+            two armed spiral (name='spiral')
+        All edges are smoothened with sinus profile
+        size: size of object in um
+        spatial_frequency: unit is cycle per degree. Not interpreted if pizza object is selected.
+        orientation: orientation of object, not applicable when name=='concentric '
+        color_min,color_max: minimum and maximum intensity of displayed object
+        narms: applicable only when name=='pizza', number of radial arms
             
         Limitations:
         1) generating bigger objects (above 800-1000 um) might be slower
-        2) big pizza is very slow
+        2) big pizza object is very slow
         '''
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
@@ -641,7 +648,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 
                 v=numpy.cast['int'](geometry.circle_vertices(rad*2,resolution=res)+numpy.array(2*[texture.shape[0]/2]))
                 texture[v[:,0],v[:,1]]=intensity[i]
-            mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
+            mask=geometry.circle_mask([size_pixel/2]*2,intensity.shape[0]-1,2*[size_pixel])
             texture*=mask
             if background_color !=None:
                 mask_inv=numpy.where(mask==0,converted_background_color[0],0)

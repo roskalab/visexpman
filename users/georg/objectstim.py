@@ -21,6 +21,16 @@ class ObjectStim(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
                 
 class ObjectExperiment(experiment.Experiment):
+    '''
+    Displays circular objects in a randomized order:
+        grating in circular mask
+        two armed spiral
+        hyperbolic grating
+        pizza slices
+        concentric circles
+        
+    Each is shown REPEAT_PER_OBJECT times, order is shuffled.
+    '''
     def run(self):
         ec=self.experiment_config
         self.show_fullscreen(color=ec.GRAY, duration=ec.OFF_TIME)
