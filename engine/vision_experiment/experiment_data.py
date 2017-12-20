@@ -1547,9 +1547,10 @@ def cpd2um(cpd,retina_scale=30):
     retina_scale is in um (on retina) per degree
     Output: spatial period in um
     '''
-    return cpd*360*retina_scale
+    return retina_scale/cpd
     
 def um2cpd(um, retina_scale=30):
+    raise NotImplementedError('to be fixed')
     return um/(360.*retina_scale)
 
 try:

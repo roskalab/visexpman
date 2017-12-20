@@ -13,8 +13,8 @@ class SoundGenerator():
         indexes=numpy.arange(int(duration*self.sample_rate))/float(self.sample_rate)
         base_signal=numpy.sin(indexes*2*numpy.pi*frequency)
         modulated_signal=numpy.sin(indexes*2*numpy.pi*modulation_frequency)
-        signal=numpy.cast['int16'](base_signal*modulated_signal*self.amplitude)
-        self.array2mp3(signal)
+        self.signal=numpy.cast['int16'](base_signal*modulated_signal*self.amplitude)
+        self.array2mp3(self.signal)
         
     def array2mp3(self,array):
         scipy.io.wavfile.write(self.wavfn, self.sample_rate, array)
