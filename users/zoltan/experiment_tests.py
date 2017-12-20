@@ -169,16 +169,16 @@ class TestStim(experiment.Stimulus):
         self.show_rolling_image(fn,pixel_size,speed,shift,yrange,axis='vertical')
             
     def _plaid_stim(self):
-        duration=10
+        duration=100
         direction=90
-        relative_angle=50
+        relative_angle=120
         velocity=100
         line_width=50
-        duty_cycle=10
+        duty_cycle=5
         mask_size=600
-        contrast=0.7
-        background_color=0.5
-        sinusoid=True
+        contrast=0.2
+        background_color=0.1
+        sinusoid= True
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
         
     def _object(self):
@@ -203,7 +203,8 @@ class TestStim(experiment.Stimulus):
                         self.abort=False
 
     def run(self):
-        self._object()
+        self._plaid_stim()
+#        self._object()
         return
         #self.show_white_noise(10,100)
         duration=4

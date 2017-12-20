@@ -1,7 +1,7 @@
 from visexpman.engine.vision_experiment import experiment
 
 
-class PlaidConfig(experiment.ExperimentConfig):
+class PlaidConfig1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.INITIAL_WAIT=2.0
         self.MASK_SIZE=400.
@@ -18,7 +18,7 @@ class PlaidConfig(experiment.ExperimentConfig):
         self.runnable = 'PlaidExp'
         self._create_parameters_from_locals(locals())
 
-class PlaidExp(experiment.Experiment):
+class PlaidExp1(experiment.Experiment):
     def run(self):
         self.show_fullscreen(color=self.experiment_config.BACKGROUND_COLOR, duration=self.experiment_config.INITIAL_WAIT)
         for r in range(self.experiment_config.REPEATS):
