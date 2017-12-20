@@ -7,7 +7,7 @@ import os
 import shutil
 import random
             
-class SpotParameters(experiment.ExperimentConfig):
+class SpotParameters1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPOT_SIZE = [300, 1500]  # [100,  200,  300,  400,  500,  1000]  fullfield 2500
         self.ON_TIME = 1 #s
@@ -20,10 +20,10 @@ class SpotParameters(experiment.ExperimentConfig):
         self.BACKGROUND_COLOR = 0.5
         self.DRUG_CONC = 0.0  
   
-        self.runnable = 'SpotExperiment'        
+        self.runnable = 'SpotExperiment1'        
         self._create_parameters_from_locals(locals())
 
-class SpotExperiment(experiment.Experiment):
+class SpotExperiment1(experiment.Experiment):
     def run(self):
         for repetitions in range(self.experiment_config.REPETITIONS_ALL):
             for spot_contrast_on in self.experiment_config.SPOT_CONTRAST_ON:
