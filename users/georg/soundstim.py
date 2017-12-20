@@ -48,6 +48,7 @@ class SoundAndGratingE(experiment.Experiment):
             elif ec.MODULATION=='am':
                 self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
             self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
+            #import shutil;shutil.copy(self.s[-1].mp3fn,'c:\\temp')
         self.orientation=0
         self.block_boundaries=[]
         
