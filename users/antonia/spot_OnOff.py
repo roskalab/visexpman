@@ -19,10 +19,10 @@ class SpotOnOffParameters(experiment.ExperimentConfig):
         self.DRUG_CONC = 0.0  
         self.BLACK = 0.01
         self.WHITE = 0.999
-        self.runnable = 'SpotExperiment1'        
+        self.runnable = 'SpotExperiment'
         self._create_parameters_from_locals(locals())
 
-class SpotExperiment1(experiment.Experiment):
+class SpotExperiment(experiment.Experiment):
     def run(self):
         for repetitions in range(self.experiment_config.REPETITIONS_ALL):
             self.show_fullscreen(duration = self.experiment_config.BACKGROUND_TIME, color =  self.experiment_config.BACKGROUND_COLOR)
