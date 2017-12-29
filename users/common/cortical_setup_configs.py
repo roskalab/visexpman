@@ -190,3 +190,16 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
 
+class SantiagoAnalysisConfig(ElphysRetinalCaImagingConfig):
+    def _set_user_parameters(self):
+        self.root_folder = '/tmp'
+        self.LOG_PATH = self.root_folder
+        self.EXPERIMENT_LOG_PATH = self.LOG_PATH        
+        self.EXPERIMENT_DATA_PATH = self.root_folder
+        self.CONTEXT_PATH = self.root_folder
+        self.COORDINATE_SYSTEM='center'
+        self.TIMG_SYNC_INDEX=1
+        self.TSTIM_SYNC_INDEX=2
+        ######################### Ca imaging specific ################################ 
+        self.GUI['SIZE'] =  utils.cr((1280,800))
+        self.DEFAULT_ROI_SIZE_ON_GUI=5

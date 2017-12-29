@@ -129,7 +129,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
     wrange = range(minsomaradius, maxsomaradius,stepsize)
     ims=signal.scale(im, 0.0, 1.0)
     res = roi.ratio_center_perimeter(ims, centers,  wrange)
-    maskcum = numpy.zeros_like(im1)
+    maskcum = numpy.zeros_like(im1,dtype=numpy.float)
     c=numpy.zeros_like(im1)
     soma_rois = []
     for i in range(res[1].shape[0]):

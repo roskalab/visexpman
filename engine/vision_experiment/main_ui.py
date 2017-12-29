@@ -254,8 +254,8 @@ class RoiShift(gui.ArrowButtons):
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
-        self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
-        self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
+        self.setMaximumWidth(parent.machine_config.GUI['SIZE']['col']/2)
+        self.setMaximumHeight(parent.machine_config.GUI['SIZE']['col']/2)
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
         self.connect(self, QtCore.SIGNAL('wheel_double_click'), parent.add_roi_action)
@@ -355,8 +355,6 @@ class TraceParameterPlots(QtGui.QWidget):
                     continue
                 x=self.distributions[stimnames[0]][pname]
                 y=self.distributions[stimnames[1]][pname]
-                xfildered=[]
-                yfiltered=[]
                 self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
                 self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
             elif naxis==1:

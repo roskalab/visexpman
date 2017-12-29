@@ -78,7 +78,7 @@ def parse_recording_filename(filename):
     items = {}
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
-    items['extension'] = os.path.explitext(filename)[1]
+    items['extension'] = os.path.splitext(filename)[1]
     fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
