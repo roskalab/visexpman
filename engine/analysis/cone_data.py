@@ -364,8 +364,8 @@ def roi_redetect(rectangle, meanimage, subimage_size=3):
     #Take item in the center
     area=numpy.where(labeled==labeled[binary.shape[0]/2,binary.shape[1]/2])
     area=numpy.copy(area)
-    area[0]+=rectangle[0]-rectangle[2]*0.5*subimage_size
-    area[1]+=rectangle[1]-rectangle[3]*0.5*subimage_size
+    area[0]+=numpy.cast['int'](rectangle[0]-rectangle[2]*subimage_size*0.5)
+    area[1]+=numpy.cast['int'](rectangle[1]-rectangle[3]*subimage_size*0.5)
     return numpy.array(area).T
     
 class TestCA(unittest.TestCase):

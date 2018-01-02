@@ -233,7 +233,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         
     def _give_not_stimulus_selected_warning(self):
         QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)        
-
+        
 class RoiShift(gui.ArrowButtons):
     def __init__(self,parent):
         gui.ArrowButtons.__init__(self, 'Shift Rois', parent)
@@ -250,7 +250,7 @@ class RoiShift(gui.ArrowButtons):
         elif direction == 'up':
             v += 1
         self.parent.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
-                
+        
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
@@ -315,6 +315,54 @@ class DataFileBrowser(gui.FileTree):
         if hasattr(self, 'selected_filename'):
             self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.convert_filename(self.selected_filename)]})
             
+class AnalysisHelper(QtGui.QWidget):
+    def __init__(self, parent):
+        self.parent = parent
+        QtGui.QWidget.__init__(self, parent)
+        self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
+        self.show_rois.input.setCheckState(2)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
+            self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
+            self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
+            self.show_repetitions.input.setCheckState(0)
+            self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
+            self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
+            self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
+            self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
+            self.roi_adjust = RoiShift(self)
+#        self.trace_parameters = QtGui.QLabel('', self)
+#        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.show_rois,0,0,1,1)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.layout.addWidget(self.keep_rois,1,0,1,1)
+            self.layout.addWidget(self.roi_adjust,0,1,2,2)
+#        self.layout.addWidget(self.trace_parameters,0,2,2,1)
+            self.layout.addWidget(self.show_repetitions,0,3,1,1)
+            self.layout.addWidget(self.find_repetitions,1,3,1,1)
+            self.layout.addWidget(self.aggregate,2,3,1,1)
+            self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
+            self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
+        self.setLayout(self.layout)
+        self.setFixedHeight(140)
+        self.setFixedWidth(530)
+        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
+            self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
+            self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
+            self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
+        
+    def find_repetitions_clicked(self):
+        self.parent.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
+        
+    def show_trace_parameter_distribution_clicked(self):
+        self.parent.parent.to_engine.put({'function': 'display_trace_parameter_distribution', 'args':[]})
+        
+    def aggregate_clicked(self):
+        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.parent.machine_config.EXPERIMENT_DATA_PATH))
+        if os.path.exists(folder):
+            self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder]})
+
 class TraceParameterPlots(QtGui.QWidget):
     def __init__(self, distributions):
         QtGui.QWidget.__init__(self)
@@ -391,54 +439,6 @@ class TraceParameterPlots(QtGui.QWidget):
             mu,std = (y.mean(), n*y.std())
             plot.plot.setYRange(mu-std, mu+std)
 
-class AnalysisHelper(QtGui.QWidget):
-    def __init__(self, parent):
-        self.parent = parent
-        QtGui.QWidget.__init__(self, parent)
-        self.show_rois = gui.LabeledCheckBox(self, 'Show/hide rois')
-        self.show_rois.input.setCheckState(2)
-        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
-            self.keep_rois = gui.LabeledCheckBox(self, 'Keep rois')
-            self.keep_rois.setToolTip('Check this it before opening next file and rois will be kept as a reference set and will be used for the next file')
-            self.show_repetitions = gui.LabeledCheckBox(self, 'Show Repetitions')
-            self.show_repetitions.input.setCheckState(0)
-            self.find_repetitions = QtGui.QPushButton('Find repetitions' ,parent=self)
-            self.aggregate = QtGui.QPushButton('Aggregate cells' ,parent=self)
-            self.show_trace_parameter_distribution = QtGui.QPushButton('Trace parameter distributions' ,parent=self)
-            self.find_cells_scaled = gui.LabeledCheckBox(self, 'Find Cells Scaled')
-            self.roi_adjust = RoiShift(self)
-#        self.trace_parameters = QtGui.QLabel('', self)
-#        self.trace_parameters.setFont(QtGui.QFont('Arial', 10))
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.show_rois,0,0,1,1)
-        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
-            self.layout.addWidget(self.keep_rois,1,0,1,1)
-            self.layout.addWidget(self.roi_adjust,0,1,2,2)
-#        self.layout.addWidget(self.trace_parameters,0,2,2,1)
-            self.layout.addWidget(self.show_repetitions,0,3,1,1)
-            self.layout.addWidget(self.find_repetitions,1,3,1,1)
-            self.layout.addWidget(self.aggregate,2,3,1,1)
-            self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
-            self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
-        self.setLayout(self.layout)
-        self.setFixedHeight(140)
-        self.setFixedWidth(530)
-        if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
-            self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
-            self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
-            self.connect(self.aggregate, QtCore.SIGNAL('clicked()'), self.aggregate_clicked)
-        
-    def find_repetitions_clicked(self):
-        self.parent.parent.to_engine.put({'function': 'find_repetitions', 'args':[]})
-        
-    def show_trace_parameter_distribution_clicked(self):
-        self.parent.parent.to_engine.put({'function': 'display_trace_parameter_distribution', 'args':[]})
-        
-    def aggregate_clicked(self):
-        folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.parent.machine_config.EXPERIMENT_DATA_PATH))
-        if os.path.exists(folder):
-            self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder]})
-
 class MainUI(gui.VisexpmanMainWindow):
     def __init__(self, context):        
         if QtCore.QCoreApplication.instance() is None:
@@ -451,7 +451,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self._set_window_title()
         #Set up toobar
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
@@ -518,8 +518,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
-        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
-                self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca' and hasattr(self.analysis_helper, 'show_repetitions'):
+            self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
 
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:

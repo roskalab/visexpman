@@ -1,6 +1,7 @@
 import numpy, copy
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
+
 class GeorgGratingParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEEDS=[150, 200,600,1200]

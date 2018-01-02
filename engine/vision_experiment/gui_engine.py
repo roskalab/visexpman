@@ -67,14 +67,13 @@ class ExperimentHandler(object):
             self.experiment_running=False
             self.experiment_finish_time=time.time()
             self.batch_running=False
-            self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             self.eye_camera_running=False
         else:
             self.experiment_running=False
             self.sync_recording_started=False
             self.batch_running=False
-            self.santiago_setup=False
             self.eye_camera_running=False
+        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
