@@ -614,8 +614,10 @@ def pack_configs(self):
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
-    if len([True for c in self.__class__.__bases__  if c.__name__=='Stimulus'])>0:
-        print self.config2dict()
+#    if len([True for c in self.__class__.__bases__  if c.__name__=='Stimulus'])>0:
+#        print self.config2dict()
+#        configs['experiment_config']=self.config2dict()
+    if not configs.has_key('experiment_config'):
         configs['experiment_config']=self.config2dict()
     return configs
     

@@ -3,6 +3,33 @@ from visexpman.engine.generic import utils,geometry,colors
 from visexpman.engine.vision_experiment import experiment
 from visexpman.users.common import stimuli
 from visexpman.users.common.grating import MovingGratingNoMarchingConfig
+
+from visexpman.users.common import stimuli
+
+class TestBse(stimuli.LaserPulse):
+    def stimulus_configuration(self):
+        stimuli.LaserPulse.stimulus_configuration(self)
+        self.INITIAL_DELAY=1
+        self.PULSE_DURATION=[100E-3]
+        self.PERIOD_TIME=[5.0]
+        self.NPULSES=5
+        self.LASER_AMPLITUDE=[4.0]
+        self.ZERO_VOLTAGE=-0.1
+
+class MovingGratingSimple(experiment.Stimulus):
+    def stimulus_configuration(self):
+        self.DURATION=10
+
+    def calculate_stimulus_duration(self):
+        self.duration = self.DURATION
+        
+    def run(self):
+        for spd in [0,100]:
+            self.show_grating(orientation=0, 
+                                white_bar_width =300,
+                               duty_cycle=2,
+                               duration=self.DURATION,
+                               velocity=spd)
         
 class MovingGratingTest(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
