@@ -540,7 +540,13 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.set_scale(self.image_scale)
                 h=self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0])
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
-                self.image.setFixedHeight(h)
+                if h>self.image.height() and self.isMaximized():#when maximized and actual height is smaller then image width
+                    self.printc('WARNING: temporary user interface rescaling')
+                    w=self.image.height()*float(self.meanimage.shape[0])/float(self.meanimage.shape[1])
+                    self.image.setFixedWidth(w)
+                    #self.image.setFixedHeight(self.image.height())
+                else:
+                    self.image.setFixedHeight(h)
                 self.adjust_contrast()
                 if hasattr(boundaries, 'shape'):
                     self.image.add_linear_region(boundaries)

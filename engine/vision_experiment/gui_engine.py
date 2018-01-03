@@ -1091,26 +1091,29 @@ class Analysis(object):
         self.display_roi_curve()
         
     def aggregate(self, folder):
-        self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
-        self.cells = cone_data.aggregate_cells(folder)
-        self.printc('Calculating parameter distributions')
-        self.parameter_distributions = cone_data.quantify_cells(self.cells)
-        self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
-        if len(self.cells)==0:
-            self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
-            return
-        self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
-        aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
-        h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
-        h.cells=self.cells
-        h.stage_coordinates=self.stage_coordinates
-        h.parameter_distributions=self.parameter_distributions
-        h.save(['stage_coordinates','cells', 'parameter_distributions'])
-        h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
-        self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
-        self.to_gui.put({'display_cell_tree':self.cells})
-        self.display_trace_parameter_distribution()
+        if self.santiago_setup:
+            pass
+        else:
+            self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
+            self.cells = cone_data.aggregate_cells(folder)
+            self.printc('Calculating parameter distributions')
+            self.parameter_distributions = cone_data.quantify_cells(self.cells)
+            self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
+            if len(self.cells)==0:
+                self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
+                return
+            self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
+            aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
+            h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
+            h.cells=self.cells
+            h.stage_coordinates=self.stage_coordinates
+            h.parameter_distributions=self.parameter_distributions
+            h.save(['stage_coordinates','cells', 'parameter_distributions'])
+            h.close()
+            scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
+            self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
+            self.to_gui.put({'display_cell_tree':self.cells})
+            self.display_trace_parameter_distribution()
         
     def display_trace_parameter_distribution(self):
         if not hasattr(self, 'parameter_distributions'):
