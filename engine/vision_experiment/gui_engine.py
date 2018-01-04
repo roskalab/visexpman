@@ -692,6 +692,7 @@ class Analysis(object):
             self.display_roi_curve()
             self._roi_area2image()
         self.datafile.close()
+        self._bouton_analysis()
         
     def _init_meanimge_w_rois(self):
         self.image_w_rois = numpy.ones((self.meanimage.shape[0], self.meanimage.shape[1], 3))*self.meanimage.min()
@@ -739,6 +740,7 @@ class Analysis(object):
         self.current_roi_index = 0
         self.display_roi_rectangles()
         self.display_roi_curve()
+        self._bouton_analysis()
         
     def _roi_area2image(self, recalculate_contours = True, shiftx = 0, shifty = 0):
         areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
@@ -835,6 +837,24 @@ class Analysis(object):
                     t0=r['matches'][fn]['tstim'][0]
                     r['matches'][fn]['normalized'] = signal.df_over_f(timg, raw, t0, baseline_length)
         
+    def _bouton_analysis(self):
+        if self.santiago_setup:
+            from visexpman.users.santiago import bouton_analysis
+            if self.datafile.h5f.isopen==0:
+                rois=self.rois
+                raw_data=self.raw_data
+                stimulus_parameters=hdf5io.read_item(self.datafile.filename, 'stimulus_parameters')
+            else:
+                raise NotImplementedError('')
+            res=bouton_analysis.extract_bouton_increase(raw_data, rois, stimulus_parameters, self.guidata.read('Baseline'),
+                                                                                            self.guidata.read('Preflash'),
+                                                                                            self.guidata.read('Postflash'),
+                                                                                            self.guidata.read('Significance Threshold'),
+                                                                                            self.guidata.read('Mean Method'))
+            if res!=None:
+                self.rois=res[0]
+                self.printc(res[1])
+        
     def display_roi_rectangles(self):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
@@ -846,6 +866,10 @@ class Analysis(object):
                 x=x[0]
                 y=y[0]
             self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tstim, {}]})
+            if self.santiago_setup and self.rois[self.current_roi_index].has_key('bouton_analysis'):
+                ba=self.rois[self.current_roi_index]['bouton_analysis']
+                self.printc('Preflash [df/F]: {0}, postflash: {1}, std: {3}, significant change: {2}'
+                                .format(ba['preflash'], ba['postflash'], ba['is_significant'], ba['preflash_std']))
 #            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
@@ -909,6 +933,7 @@ class Analysis(object):
             self.current_roi_index = len(self.rois)-1
         self.display_roi_curve()
         self._roi_area2image()
+        self._bouton_analysis()
         
     def reset_datafile(self):
         if not hasattr(self, 'current_roi_index'):
@@ -958,6 +983,9 @@ class Analysis(object):
         self.display_roi_curve()
         self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
+        self.printc(len(self.rois))
+        self._bouton_analysis()
+        self.printc(len(self.rois))
         
     def readd_rois(self, filename):
         rois=hdf5io.read_item(filename,'rois',filelocking=False)

@@ -664,6 +664,11 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': '3d to 2d Image Function', 'type': 'list', 'values': ['mean', 'mip'], 'value': 'mean'},
                             ]
                             }])
+        if 'santiago' in self.machine_config.__class__.__name__.lower():
+            from visexpman.users.santiago import bouton_analysis
+            self.params_config[-1]['children'].append(bouton_analysis.settings)
+            self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
+            self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [

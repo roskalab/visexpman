@@ -38,13 +38,15 @@ class StimulusDevelopment(VisionExperimentConfig):
         
         
         SCREEN_RESOLUTION = utils.cr((800, 600))
+        SCREEN_RESOLUTION = utils.cr((800, 450))
+        self.SCREEN_WIDTH=47.657#cm
+        self.SCREEN_HEIGHT=26.876#cm
         #SCREEN_RESOLUTION = utils.cr([1280, 720])
         SCREEN_DISTANCE_FROM_MOUSE_EYE=230
         SCREEN_PIXEL_WIDTH=477.0/1280
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = 1.0#numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE/SCREEN_PIXEL_WIDTH
         BACKGROUND_COLOR = 3*[0.0]#TMP febr 09
-        
         
         self._create_parameters_from_locals(locals())
 

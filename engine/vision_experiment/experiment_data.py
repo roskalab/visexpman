@@ -25,7 +25,6 @@ FRAME_RATE_TOLERANCE=5
 
 #### Recording filename handling ####
 
-
 def add_mat_tag(fn):
     '''
     when hdf5 measurement files converted to mat, a "_mat" tag is appended to the filename
@@ -1542,6 +1541,9 @@ def roi_plot(pars):
         h=roi['raw'].max()-roi['raw'].min()
         gca().add_patch(Rectangle((roi['tstim'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
     savefig(outfile)
+
+def cm2um(cm, config):
+    return cm*config.SCREEN_SIZE_UM['col']/config.SCREEN_WIDTH
     
 def cpd2um(cpd,retina_scale=30):
     '''
