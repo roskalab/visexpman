@@ -6,10 +6,11 @@ import scipy.interpolate
 import os.path
 import copy
 import unittest
+from contextlib import closing
 try:
     import hdf5io
 except ImportError:
-    pass
+    import visexpA.engine.datahandlers.hdf5io as hdf5io
 import itertools
 try:
     from visexpA.engine.dataprocessors import roi
@@ -382,7 +383,7 @@ class TestCA(unittest.TestCase):
         if '_01_' in self._testMethodName or '_02_' in self._testMethodName or '_03_' in self._testMethodName:
             from visexpman.users.test import unittest_aggregator
             self.files = fileop.listdir_fullpath(os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_test_data_folder), 'trace_analysis'))
-        
+            print(self.files)
     @unittest.skip('')
     def test_01_trace_parameters(self):
         ct=0
@@ -421,14 +422,14 @@ class TestCA(unittest.TestCase):
             h.close()
 #        show()
      
-    @unittest.skip('')
+    #@unittest.skip('')
     def test_02_detect_cell(self):
         for f in self.files:
-            
+            print(f)
             minsomaradius = 3*2
             maxsomaradius = 3*3
-            h=hdf5io.Hdf5io(f,filelocking=False)
-            im1 = h.findvar('raw_data').mean(axis=0)[0]
+            with closing(hdf5io.Hdf5io(f,filelocking=False)) as h:
+                im1 = h.findvar('raw_data').mean(axis=0)[0]
             rois = find_rois(im1, minsomaradius, maxsomaradius, 0.2*maxsomaradius,1)
             im=numpy.zeros((im1.shape[0],im1.shape[1], 3))
             im[:,:,1]=signal.scale(im1,0,1)
@@ -444,8 +445,7 @@ class TestCA(unittest.TestCase):
             subplot(1,2,2)
             imshow(im)
 #            show()
-            h.close()
-            break
+            #break
             
     @unittest.skip('')
     def test_03_calculate_background(self):
