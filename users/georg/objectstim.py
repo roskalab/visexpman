@@ -50,8 +50,11 @@ class ObjectExperiment(experiment.Experiment):
             if name=='grating':
                 bw=0.5*experiment_data.cpd2um(ec.SPATIAL_FREQUENCY,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
                 period=2*bw
-                starting_phase=-(ec.SIZE/period-int(ec.SIZE/period*2)*0.5)*360/2
-                self.show_grating(duration=ec.ON_TIME, 
+                if int(ec.SIZE/period*2)%2==0:
+                    starting_phase=-(ec.SIZE/period-int(ec.SIZE/period*2)*0.5-0.5)*360/2
+                else:
+                    starting_phase=-(ec.SIZE/period-int(ec.SIZE/period*2)*0.5)*360/2
+                self.show_grating(duration=ec.ON_TIME*100, 
                                                 velocity=0, 
                                                 orientation=ori,
                                                 mask_size=ec.SIZE,
