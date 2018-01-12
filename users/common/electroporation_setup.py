@@ -53,7 +53,7 @@ class DevelopEposLinuxConfig(ElectroporationSetup228Config):
     def _set_user_parameters(self):
         ElectroporationSetup228Config._set_user_parameters(self)
         self.FULLSCREEN = False
-        self.WAIT4TRIGGER_ENABLED=not False
+        self.WAIT4TRIGGER_ENABLED=False
         self.CAMERA_TRIGGER_FRAME_RATE=10
         self.DIGITAL_IO_PORT='/dev/ttyUSB0'
         self.CAMERA_TRIGGER_PORT='/dev/ttyACM0'

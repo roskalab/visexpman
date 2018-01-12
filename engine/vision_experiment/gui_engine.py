@@ -67,14 +67,13 @@ class ExperimentHandler(object):
             self.experiment_running=False
             self.experiment_finish_time=time.time()
             self.batch_running=False
-            self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             self.eye_camera_running=False
         else:
             self.experiment_running=False
             self.sync_recording_started=False
             self.batch_running=False
-            self.santiago_setup=False
             self.eye_camera_running=False
+        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -693,6 +692,7 @@ class Analysis(object):
             self.display_roi_curve()
             self._roi_area2image()
         self.datafile.close()
+        self._bouton_analysis()
         
     def _init_meanimge_w_rois(self):
         self.image_w_rois = numpy.ones((self.meanimage.shape[0], self.meanimage.shape[1], 3))*self.meanimage.min()
@@ -740,6 +740,7 @@ class Analysis(object):
         self.current_roi_index = 0
         self.display_roi_rectangles()
         self.display_roi_curve()
+        self._bouton_analysis()
         
     def _roi_area2image(self, recalculate_contours = True, shiftx = 0, shifty = 0):
         areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
@@ -836,6 +837,24 @@ class Analysis(object):
                     t0=r['matches'][fn]['tstim'][0]
                     r['matches'][fn]['normalized'] = signal.df_over_f(timg, raw, t0, baseline_length)
         
+    def _bouton_analysis(self):
+        if self.santiago_setup:
+            from visexpman.users.santiago import bouton_analysis
+            if self.datafile.h5f.isopen==0:
+                rois=self.rois
+                raw_data=self.raw_data
+                stimulus_parameters=hdf5io.read_item(self.datafile.filename, 'stimulus_parameters')
+            else:
+                raise NotImplementedError('')
+            res=bouton_analysis.extract_bouton_increase(raw_data, rois, stimulus_parameters, self.guidata.read('Baseline'),
+                                                                                            self.guidata.read('Preflash'),
+                                                                                            self.guidata.read('Postflash'),
+                                                                                            self.guidata.read('Significance Threshold'),
+                                                                                            self.guidata.read('Mean Method'))
+            if res!=None:
+                self.rois=res[0]
+                self.printc(res[1])
+        
     def display_roi_rectangles(self):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
@@ -847,6 +866,10 @@ class Analysis(object):
                 x=x[0]
                 y=y[0]
             self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tstim, {}]})
+            if self.santiago_setup and self.rois[self.current_roi_index].has_key('bouton_analysis'):
+                ba=self.rois[self.current_roi_index]['bouton_analysis']
+                self.printc('Preflash [df/F]: {0}, postflash: {1}, std: {3}, significant change: {2}'
+                                .format(ba['preflash'], ba['postflash'], ba['is_significant'], ba['preflash_std']))
 #            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
@@ -910,6 +933,7 @@ class Analysis(object):
             self.current_roi_index = len(self.rois)-1
         self.display_roi_curve()
         self._roi_area2image()
+        self._bouton_analysis()
         
     def reset_datafile(self):
         if not hasattr(self, 'current_roi_index'):
@@ -959,6 +983,9 @@ class Analysis(object):
         self.display_roi_curve()
         self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
+        self.printc(len(self.rois))
+        self._bouton_analysis()
+        self.printc(len(self.rois))
         
     def readd_rois(self, filename):
         rois=hdf5io.read_item(filename,'rois',filelocking=False)
@@ -1092,26 +1119,29 @@ class Analysis(object):
         self.display_roi_curve()
         
     def aggregate(self, folder):
-        self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
-        self.cells = cone_data.aggregate_cells(folder)
-        self.printc('Calculating parameter distributions')
-        self.parameter_distributions = cone_data.quantify_cells(self.cells)
-        self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
-        if len(self.cells)==0:
-            self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
-            return
-        self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
-        aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
-        h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
-        h.cells=self.cells
-        h.stage_coordinates=self.stage_coordinates
-        h.parameter_distributions=self.parameter_distributions
-        h.save(['stage_coordinates','cells', 'parameter_distributions'])
-        h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
-        self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
-        self.to_gui.put({'display_cell_tree':self.cells})
-        self.display_trace_parameter_distribution()
+        if self.santiago_setup:
+            pass
+        else:
+            self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
+            self.cells = cone_data.aggregate_cells(folder)
+            self.printc('Calculating parameter distributions')
+            self.parameter_distributions = cone_data.quantify_cells(self.cells)
+            self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
+            if len(self.cells)==0:
+                self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
+                return
+            self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
+            aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
+            h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
+            h.cells=self.cells
+            h.stage_coordinates=self.stage_coordinates
+            h.parameter_distributions=self.parameter_distributions
+            h.save(['stage_coordinates','cells', 'parameter_distributions'])
+            h.close()
+            scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
+            self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
+            self.to_gui.put({'display_cell_tree':self.cells})
+            self.display_trace_parameter_distribution()
         
     def display_trace_parameter_distribution(self):
         if not hasattr(self, 'parameter_distributions'):

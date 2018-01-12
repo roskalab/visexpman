@@ -1495,7 +1495,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_moving_plaid(self,duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size=None, contrast=1.0, background_color=0.0,  sinusoid=False, save_frame_info=True):
+    def show_moving_plaid(self,duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size=None, contrast=1.0, background_color=0.0,  sinusoid=False, bipolar_additive=False,save_frame_info=True):
         '''
         Contrast: relative to background
         '''
@@ -1503,57 +1503,69 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
             self.log.info('show_moving_plaid({0})'.format(', '.join(params)), source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        lateral_speed=velocity/numpy.cos(numpy.radians(0.5*relative_angle))
         #Generate texture:
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         line_spacing_p=int(line_width_p*duty_cycle)
-        from PIL import ImageDraw
         if mask_size ==None:
             texture_width=numpy.sqrt(self.config.SCREEN_RESOLUTION['col'] **2+self.config.SCREEN_RESOLUTION['row'] **2)
         else:
             texture_width=mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE
-        texture_width=int(texture_width)
-        yshift=int(line_spacing_p/numpy.tan(numpy.radians(relative_angle)/2))
-#        if relative_angle>90:
-#            texture_height=int(line_spacing_p/numpy.tan(numpy.radians(relative_angle-90)/2))
-#        else:
-        texture_height=yshift
-        bg=int(background_color/2*255)
-        texture=Image.new('L', (texture_width, texture_height),bg)
-        nlines=int(numpy.ceil(texture_width/float(line_spacing_p)))
-        draw = ImageDraw.Draw(texture)
-        nsublines=line_width_p/numpy.cos(numpy.radians(relative_angle/2))
-        line_pos=numpy.arange(-nsublines/2,nsublines/2,dtype=numpy.float)
-        if sinusoid:
-            c=contrast/2*(numpy.cos(line_pos/(nsublines/2)*numpy.pi)+1)
-            c=c+background_color/2
-            c=numpy.cast['int'](c*255)
-            c=numpy.where(c>127,127,c)
+        extension_factor=2
+        texture_width*=extension_factor#Make sure that rotation can be performed properly
+        #Generate waveform
+        nperiods=round(texture_width/line_spacing_p)
+        if bipolar_additive:
+            profile=0.5* contrast*numpy.sin(2* numpy.pi*numpy.arange(line_spacing_p*nperiods)/line_spacing_p)
         else:
-            c=numpy.cast['int'](255*numpy.ones_like(line_pos,dtype=numpy.int)*(contrast+0.5*background_color))
-        for l in range(-nlines,2*nlines):
-            startx=int(l*line_spacing_p)
-            starty=0
-            endx=int((l+1)*line_spacing_p)
-            endy=yshift
-            for i in range(line_pos.shape[0]):
-                pi=line_pos[i]
-                draw.line((startx+pi,starty, endx+pi, endy), fill=c[i], width=0)
-        flipped=texture.transpose(Image.FLIP_LEFT_RIGHT)
-        texture=numpy.asarray(texture)+numpy.asarray(flipped)
+            profile=0.5*background_color+0.5* contrast*numpy.sin(2* numpy.pi*numpy.arange(line_spacing_p*nperiods)/line_spacing_p)+contrast*0.5
+        if not sinusoid:
+            profile=numpy.where(profile>profile.mean(), profile.max(), profile.min())
+        texture=numpy.zeros((profile.shape[0], profile.shape[0]))
+        texture[:,:]=profile
+        if bipolar_additive:
+            tmp_offset=texture.min()
+            texture-=tmp_offset
+        texture=numpy.cast['uint8'](numpy.round(texture*255.))
+        texture=Image.fromarray(texture)
+        texture1=numpy.cast['float'](numpy.asarray(texture.rotate(relative_angle/2)))/255.
+        texture2=numpy.cast['float'](numpy.asarray(texture.rotate(-relative_angle/2)))/255.
+        if bipolar_additive:
+            texture1+=tmp_offset
+            texture2+=tmp_offset
+            texture=texture1+texture2+background_color
+        else:
+            texture=texture1+texture2
+        print 'm', texture.max(), texture1.max(), texture2.max(),profile.max()
+        #calculate pattern period in merged texture
+        #merged_period=float(texture.shape[1])/(abs(numpy.fft.rfft(texture[:,texture.shape[0]/2]))[1:].argmax()+1)
+        
+        cut=int(texture_width*(1-1.0/extension_factor)/2)
+        merged_period=line_spacing_p/numpy.sin(numpy.radians(relative_angle/2))
+        nreps=int(0.5*self.config.SCREEN_RESOLUTION['col']/merged_period)#Texture is reassambled from half screen wide segments
+        segment=texture[cut:cut+int(round(merged_period*nreps))]
+        nsegments=int(numpy.ceil(texture_width/segment.shape[0]))
+        texture=numpy.zeros((segment.shape[0]*nsegments, segment.shape[1]))
+        for i in range(nsegments):
+            texture[i*segment.shape[0]:(i+1)*segment.shape[0]]=segment
+        
+#        length=int((texture_width-cut)/length)*length
+#        length=numpy.round(numpy.ceil(self.config.SCREEN_RESOLUTION['col']/merged_period)*merged_period)
+#        texture=texture[cut:cut+length]
         #This has to be extended
-        texture=numpy.cast['float'](texture)/255
-        nreps=int(numpy.ceil(float(texture.shape[1])/texture.shape[0]))
-        extended_texture=numpy.zeros((texture.shape[0]*nreps, texture.shape[1]))
-        for r in range(nreps):
-            extended_texture[r*texture.shape[0]:(r+1)*texture.shape[0],:]=texture
-        texture=extended_texture
         texture=numpy.rot90(texture)
         texture_coordinates,v=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
-        texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
+        t0=time.time()
+        tout=numpy.zeros((texture.shape[0],texture.shape[1],3))#Complicated solution but runs quicker on stim computer than rolling axis'
+        for i in range(3):
+            tout[:,:,i]=texture
+        texture=tout
+#        texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
+        print t0-time.time()
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             texture = self.config.GAMMA_CORRECTION(texture)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
-        dpixel=-velocity*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE/texture.shape[1]
+        dpixel=-lateral_speed*self.config.SCREEN_UM_TO_PIXEL_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE/texture.shape[1]
         if mask_size != None:
             mask_resolution=0.1
             mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=mask_resolution)

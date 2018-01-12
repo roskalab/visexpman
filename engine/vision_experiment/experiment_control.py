@@ -716,6 +716,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Prepare stimulus block table
         '''
         block_info=[sfi for sfi in self.stimulus_frame_info if sfi.has_key('block_name')]
+        if len(block_info)==0: return
         #convert block names to column headers
         signatures=[b['block_name'] for b in block_info]
         if not isinstance(signatures[0],tuple):

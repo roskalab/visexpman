@@ -90,53 +90,7 @@ class UltrasoundSetupConfigDevOffline(UltrasoundSetupConfig):
         self.LOG_PATH = os.path.join(self.root_folder,'log')
         self.EXPERIMENT_DATA_PATH = os.path.join(self.root_folder,'experiment_data')
         self.CONTEXT_PATH = os.path.join(self.root_folder,'context')
-        
-class SantiagoSetupConfig(ElphysRetinalCaImagingConfig):#OBSOLETE
-    '''
-    '''
-    def _set_user_parameters(self):
-        self.root_folder = 'c:\\Data'
-        if not os.path.exists(self.root_folder):
-            self.root_folder = '/tmp'
-        LOG_PATH = os.path.join(self.root_folder, 'log')
-        if not os.path.exists(LOG_PATH):
-            os.mkdir(LOG_PATH)
-        DATA_PATH = self.root_folder
-        EXPERIMENT_DATA_PATH = self.root_folder
-        EXPERIMENT_LOG_PATH = LOG_PATH
-        
-        #=== screen ===
-        FULLSCREEN = True
-        SCREEN_RESOLUTION = utils.cr([960,540])
-        COORDINATE_SYSTEM='center'
-        
-        CONTEXT_PATH = self.root_folder
-        CAPTURE_PATH=os.path.join(self.root_folder, 'capture')
-        ENABLE_FRAME_CAPTURE = False
-        SCREEN_EXPECTED_FRAME_RATE = 60.0
-        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = 260.0#mm
-        SCREEN_PIXEL_WIDTH = 0.5#mm 200 pixels = 100 mm
-        
-        #=== hardware ===
-        ENABLE_PARALLEL_PORT = (os.name == 'nt')
-        ACQUISITION_TRIGGER_PIN = 0
-        BLOCK_TIMING_PIN = 2
-        FRAME_TIMING_PIN = 1
-        
-        ENABLE_UDP = True
-        self._create_parameters_from_locals(locals())
 
-class DebugSantiagoSetupConfig(SantiagoSetupConfig):#OBSOLETE
-    def _set_user_parameters(self):
-        SantiagoSetupConfig._set_user_parameters(self)
-#        SCREEN_UM_TO_PIXEL_SCALE = 1.0
-#        SCREEN_RESOLUTION = utils.cr([960,540])
-#        self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA_p.v = True
-        FULLSCREEN = False
-
-        self._create_parameters_from_locals(locals())
-        
 class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
@@ -189,4 +143,17 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         self.BLOCK_TIMING_PIN = 0
         self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
-
+        
+class SantiagoAnalysisConfig(ElphysRetinalCaImagingConfig):
+    def _set_user_parameters(self):
+        self.root_folder = '/tmp'
+        self.LOG_PATH = self.root_folder
+        self.EXPERIMENT_LOG_PATH = self.LOG_PATH        
+        self.EXPERIMENT_DATA_PATH = self.root_folder
+        self.CONTEXT_PATH = self.root_folder
+        self.COORDINATE_SYSTEM='center'
+        self.TIMG_SYNC_INDEX=1
+        self.TSTIM_SYNC_INDEX=2
+        ######################### Ca imaging specific ################################ 
+        self.GUI['SIZE'] =  utils.cr((1280,800))
+        self.DEFAULT_ROI_SIZE_ON_GUI=5

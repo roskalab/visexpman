@@ -233,7 +233,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         
     def _give_not_stimulus_selected_warning(self):
         QtGui.QMessageBox.question(self, 'Warning', 'No stimulus class selected. Please select one', QtGui.QMessageBox.Ok)        
-
+        
 class RoiShift(gui.ArrowButtons):
     def __init__(self,parent):
         gui.ArrowButtons.__init__(self, 'Shift Rois', parent)
@@ -250,12 +250,12 @@ class RoiShift(gui.ArrowButtons):
         elif direction == 'up':
             v += 1
         self.parent.parent.parent.to_engine.put({'function': 'roi_shift', 'args':[h,v]})
-                
+        
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
-        self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
-        self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
+        self.setMaximumWidth(parent.machine_config.GUI['SIZE']['col']/2)
+        self.setMaximumHeight(parent.machine_config.GUI['SIZE']['col']/2)
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
         self.connect(self, QtCore.SIGNAL('wheel_double_click'), parent.add_roi_action)
@@ -315,84 +315,6 @@ class DataFileBrowser(gui.FileTree):
         if hasattr(self, 'selected_filename'):
             self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.convert_filename(self.selected_filename)]})
             
-class TraceParameterPlots(QtGui.QWidget):
-    def __init__(self, distributions):
-        QtGui.QWidget.__init__(self)
-        self.setWindowIcon(gui.get_icon('main_ui'))
-        self.distributions = distributions
-        self.setWindowTitle('Parameter distributions')
-        self.tab = QtGui.QTabWidget(self)
-        self.plots = {}
-        plot_modes = ['1 axis', '2 axis']
-        parameter_names = [stringop.to_title(n) for n in distributions[distributions.keys()[0]].keys()]
-        for n,m in itertools.product(plot_modes, parameter_names):
-            self.plots[m+'@'+n]=gui.Plot(self)
-        for k in self.plots.keys():
-            self.tab.addTab(self.plots[k], k)
-        self.tab.setTabPosition(self.tab.South)
-        self.update_plots()
-        self.setGeometry(50,50,1000,500)
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.tab,0,0,3,4)
-        self.setLayout(self.layout)
-        
-    def _plotname2distributionname(self,plotname):
-        if self.distributions.has_key(plotname):
-                ki=plotname
-        else:
-            ki = plotname.split('@')
-            ki.reverse()
-            ki = '@'.join(ki)
-        return ki
-        
-    def update_plots(self):
-        for k in self.plots.keys():
-            naxis = int(k.split('@')[1].split(' ')[0])
-            pname=stringop.to_variable_name(k.split('@')[0])
-            stimnames = self.distributions.keys()
-            if naxis==2:
-                if len(stimnames)!=2:#When number of stimuli is not 2, this plotting is skipped
-                    continue
-                x=self.distributions[stimnames[0]][pname]
-                y=self.distributions[stimnames[1]][pname]
-                xfildered=[]
-                yfiltered=[]
-                self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
-                self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
-            elif naxis==1:
-                colors = [(0, 0, 255,150), (0, 255, 0,150), (255,0,0,100)]
-                self.plots[k]._clear_curves()
-                self.plots[k].plot.addLegend(size=(120,60))
-                self.plots[k].curves=[]
-                self.plots[k].plot.setLabels(bottom=pname)
-                for i in range(len(stimnames)):
-                    ncells = self.distributions[stimnames[i]][pname].shape[0]
-                    nbins=ncells/5
-                    values = numpy.array([v for v in self.distributions[stimnames[i]][pname] if not numpy.isnan(v)])
-                    distr1, bins1=numpy.histogram(values,nbins)
-                    self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
-                    self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
-                    plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : colors[i], 'name': stimnames[i]}
-                    self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
-                    self.plots[k].curves[-1].setData(self.bins1,self.distr1)
-        
-    def rescale(self):
-        plotname = self.plots.keys()[self.tab.currentIndex()]
-        plot = self.plots[plotname]
-        try:
-            n = float(self.nstd.input.text())
-        except:
-            return
-        x=self.distributions[self._plotname2distributionname(plotname)][0]
-        y=self.distributions[self._plotname2distributionname(plotname)][1]
-        axis2scale = str(self.axis2scale.input.currentText())
-        if axis2scale == 'x' or axis2scale == 'both':
-            mu,std = (x.mean(), n*x.std())
-            plot.plot.setXRange(mu-std, mu+std)
-        if axis2scale == 'y' or axis2scale == 'both':
-            mu,std = (y.mean(), n*y.std())
-            plot.plot.setYRange(mu-std, mu+std)
-
 class AnalysisHelper(QtGui.QWidget):
     def __init__(self, parent):
         self.parent = parent
@@ -441,6 +363,82 @@ class AnalysisHelper(QtGui.QWidget):
         if os.path.exists(folder):
             self.parent.parent.to_engine.put({'function': 'aggregate', 'args':[folder]})
 
+class TraceParameterPlots(QtGui.QWidget):
+    def __init__(self, distributions):
+        QtGui.QWidget.__init__(self)
+        self.setWindowIcon(gui.get_icon('main_ui'))
+        self.distributions = distributions
+        self.setWindowTitle('Parameter distributions')
+        self.tab = QtGui.QTabWidget(self)
+        self.plots = {}
+        plot_modes = ['1 axis', '2 axis']
+        parameter_names = [stringop.to_title(n) for n in distributions[distributions.keys()[0]].keys()]
+        for n,m in itertools.product(plot_modes, parameter_names):
+            self.plots[m+'@'+n]=gui.Plot(self)
+        for k in self.plots.keys():
+            self.tab.addTab(self.plots[k], k)
+        self.tab.setTabPosition(self.tab.South)
+        self.update_plots()
+        self.setGeometry(50,50,1000,500)
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.tab,0,0,3,4)
+        self.setLayout(self.layout)
+        
+    def _plotname2distributionname(self,plotname):
+        if self.distributions.has_key(plotname):
+                ki=plotname
+        else:
+            ki = plotname.split('@')
+            ki.reverse()
+            ki = '@'.join(ki)
+        return ki
+        
+    def update_plots(self):
+        for k in self.plots.keys():
+            naxis = int(k.split('@')[1].split(' ')[0])
+            pname=stringop.to_variable_name(k.split('@')[0])
+            stimnames = self.distributions.keys()
+            if naxis==2:
+                if len(stimnames)!=2:#When number of stimuli is not 2, this plotting is skipped
+                    continue
+                x=self.distributions[stimnames[0]][pname]
+                y=self.distributions[stimnames[1]][pname]
+                self.plots[k].update_curve(x, y, pen=None, plotparams = {'symbol' : 'o', 'symbolSize': 8, 'symbolBrush' : (0, 0, 0)})
+                self.plots[k].plot.setLabels(bottom=stimnames[0],left=stimnames[1])
+            elif naxis==1:
+                colors = [(0, 0, 255,150), (0, 255, 0,150), (255,0,0,100)]
+                self.plots[k]._clear_curves()
+                self.plots[k].plot.addLegend(size=(120,60))
+                self.plots[k].curves=[]
+                self.plots[k].plot.setLabels(bottom=pname)
+                for i in range(len(stimnames)):
+                    ncells = self.distributions[stimnames[i]][pname].shape[0]
+                    nbins=ncells/5
+                    values = numpy.array([v for v in self.distributions[stimnames[i]][pname] if not numpy.isnan(v)])
+                    distr1, bins1=numpy.histogram(values,nbins)
+                    self.distr1 = numpy.cast['float'](distr1)/float(distr1.sum())
+                    self.bins1 = numpy.diff(bins1)[0]*0.5+bins1
+                    plotparams={'stepMode': True, 'fillLevel' : 0, 'brush' : colors[i], 'name': stimnames[i]}
+                    self.plots[k].curves.append(self.plots[k].plot.plot(**plotparams))
+                    self.plots[k].curves[-1].setData(self.bins1,self.distr1)
+        
+    def rescale(self):
+        plotname = self.plots.keys()[self.tab.currentIndex()]
+        plot = self.plots[plotname]
+        try:
+            n = float(self.nstd.input.text())
+        except:
+            return
+        x=self.distributions[self._plotname2distributionname(plotname)][0]
+        y=self.distributions[self._plotname2distributionname(plotname)][1]
+        axis2scale = str(self.axis2scale.input.currentText())
+        if axis2scale == 'x' or axis2scale == 'both':
+            mu,std = (x.mean(), n*x.std())
+            plot.plot.setXRange(mu-std, mu+std)
+        if axis2scale == 'y' or axis2scale == 'both':
+            mu,std = (y.mean(), n*y.std())
+            plot.plot.setYRange(mu-std, mu+std)
+
 class MainUI(gui.VisexpmanMainWindow):
     def __init__(self, context):        
         if QtCore.QCoreApplication.instance() is None:
@@ -453,7 +451,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self._set_window_title()
         #Set up toobar
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
-            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
@@ -520,8 +518,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
-        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
-                self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca' and hasattr(self.analysis_helper, 'show_repetitions'):
+            self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
 
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
@@ -542,7 +540,13 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.set_scale(self.image_scale)
                 h=self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0])
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
-                self.image.setFixedHeight(h)
+                if h>self.image.height() and self.isMaximized():#when maximized and actual height is smaller then image width
+                    self.printc('WARNING: temporary user interface rescaling')
+                    w=self.image.height()*float(self.meanimage.shape[0])/float(self.meanimage.shape[1])
+                    self.image.setFixedWidth(w)
+                    #self.image.setFixedHeight(self.image.height())
+                else:
+                    self.image.setFixedHeight(h)
                 self.adjust_contrast()
                 if hasattr(boundaries, 'shape'):
                     self.image.add_linear_region(boundaries)
@@ -660,6 +664,11 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': '3d to 2d Image Function', 'type': 'list', 'values': ['mean', 'mip'], 'value': 'mean'},
                             ]
                             }])
+        if 'santiago' in self.machine_config.__class__.__name__.lower():
+            from visexpman.users.santiago import bouton_analysis
+            self.params_config[-1]['children'].append(bouton_analysis.settings)
+            self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
+            self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [

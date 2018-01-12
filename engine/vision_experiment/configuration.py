@@ -477,6 +477,16 @@ class BehavioralConfig(VisionExperimentConfig):
         STIM_RECORDS_ANALOG_SIGNALS = True
         COORDINATE_SYSTEM='center'
         self._create_parameters_from_locals(locals())
+       
+#TODO: this might not be necessary
+class AnalysisUIConfig(object):
+    '''
+    main_ui is customizable by the children of this class
+    TOOLBAR_BUTTONS
+    ANALYSIS_WIDGET_NAME
+    PARAMETERS
+    '''
+    
 
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

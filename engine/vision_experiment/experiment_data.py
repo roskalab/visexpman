@@ -25,7 +25,6 @@ FRAME_RATE_TOLERANCE=5
 
 #### Recording filename handling ####
 
-
 def add_mat_tag(fn):
     '''
     when hdf5 measurement files converted to mat, a "_mat" tag is appended to the filename
@@ -78,7 +77,7 @@ def parse_recording_filename(filename):
     items = {}
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
-    items['extension'] = os.path.explitext(filename)[1]
+    items['extension'] = os.path.splitext(filename)[1]
     fnp = items['file'].replace('.'+items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
@@ -396,7 +395,10 @@ class CaImagingData(hdf5io.Hdf5io):
             if hasattr(self, 'rois'):
                 from PIL import ImageFont
                 fontsize=15
-                font = ImageFont.truetype("arial.ttf", fontsize)
+                try:
+                    font = ImageFont.truetype("arial.ttf", fontsize)
+                except IOError:
+                    raise IOError('On linux type: sudo apt-get install ttf-mscorefonts-installer')
                 rescale_factor=500/max(mip2image.shape)+1
                 new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
                 mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
@@ -405,7 +407,7 @@ class CaImagingData(hdf5io.Hdf5io):
                 mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
                 csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_flash.csv'))
                 csvfn_stim=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_stim.csv'))
-                txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tsync'],3)))
+                txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tstim'],3)))
                 txtlines=[','.join(map(str,numpy.round(self.rois[0]['timg'],3)))]
                 plotpars=[]
                 for i in range(len(self.rois)):
@@ -634,8 +636,7 @@ def pack_configs(self):
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
-    if len([True for c in self.__class__.__bases__  if c.__name__=='Stimulus'])>0:
-        print self.config2dict()
+    if not configs.has_key('experiment_config'):
         configs['experiment_config']=self.config2dict()
     return configs
     
@@ -1535,11 +1536,14 @@ def roi_plot(pars):
     plot(roi['timg'], roi['raw'])
     xlabel('time [s]')
     ylabel('raw pixel')
-    for rect in range(roi['tsync'].shape[0]/2):
-        w=roi['tsync'][2*rect+1]-roi['tsync'][2*rect]
+    for rect in range(roi['tstim'].shape[0]/2):
+        w=roi['tstim'][2*rect+1]-roi['tstim'][2*rect]
         h=roi['raw'].max()-roi['raw'].min()
-        gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
+        gca().add_patch(Rectangle((roi['tstim'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
     savefig(outfile)
+
+def cm2um(cm, config):
+    return cm*config.SCREEN_SIZE_UM['col']/config.SCREEN_WIDTH
     
 def cpd2um(cpd,retina_scale=30):
     '''
