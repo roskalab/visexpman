@@ -5,11 +5,11 @@ from visexpman.engine.generic import utils
 class ObjectStim(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.OBJECTS=['grating','pizza 5 arms', 'concentric', 'hyperbolic','spiral', 'hyperbolic 20 degrees']
-        self.ON_TIME=4.0
-        self.OFF_TIME=1.0
-        self.REPEAT_PER_OBJECT=2
+        self.ON_TIME=2.0
+        self.OFF_TIME=5.0
+        self.REPEAT_PER_OBJECT=3
         self.SPATIAL_FREQUENCY=0.05#cycle per degree.
-        self.SIZE=1000.#um
+        self.SIZE=2000.#um
         self.COLOR_MIN=0.0
         self.COLOR_MAX=1.0
         self.GRAY=0.5
@@ -18,7 +18,7 @@ class ObjectStim(experiment.ExperimentConfig):
         random.shuffle(self.OBJECT_ORDER)
         self.runnable='ObjectExperiment'
         self._create_parameters_from_locals(locals())
-                
+            
 class ObjectExperiment(experiment.Experiment):
     '''
     Displays circular objects in a randomized order:
