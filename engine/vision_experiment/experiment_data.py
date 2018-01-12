@@ -1545,6 +1545,9 @@ def roi_plot(pars):
 def cm2um(cm, config):
     return cm*config.SCREEN_SIZE_UM['col']/config.SCREEN_WIDTH
     
+def um2cm(um, config):
+    return um*config.SCREEN_WIDTH/config.SCREEN_SIZE_UM['col']
+    
 def cpd2um(cpd,retina_scale=30):
     '''
     Converts cycle per degree to um on retina considering retina_scale

@@ -68,22 +68,30 @@ class GeorgGrating(experiment.Experiment):
             block_sig=(self.grating.__name__, spd)
             self.block_start(block_sig)
             duration=self.durations['grating'][i]
+            period=2*ec.BAR_WIDTH
+            starting_phase=-(ec.GRATING_MASK_SIZE/period-int(ec.GRATING_MASK_SIZE/period*2)*0.5)*360/2
+            if ec.GRATING_MASK_SIZE==None:
+                da=utils.rc((0,0))
+            else:
+                da=utils.rc((ec.GRATING_MASK_SIZE,ec.GRATING_MASK_SIZE))
             self.show_grating(orientation=self.orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
                                duration=ec.FREEZE_TIME,
-                               display_area=self.machine_config.SCREEN_SIZE_UM,
+                               display_area=da,
                                mask_size=ec.GRATING_MASK_SIZE,
                                mask_color=self.gray,
-                               velocity=0)
+                               velocity=0,
+                               starting_phase=starting_phase)
             self.show_grating(orientation=self.orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
                                duration=duration,
-                               display_area=self.machine_config.SCREEN_SIZE_UM,
+                               display_area=da,
                                mask_size=ec.GRATING_MASK_SIZE,
                                mask_color=self.gray,
-                               velocity=spd)
+                               velocity=spd,
+                               starting_phase=starting_phase)
             self.block_end(block_sig)
             
     def curtain(self):

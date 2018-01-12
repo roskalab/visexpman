@@ -143,7 +143,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
         thresholded = numpy.where(masked<th*threshold_factor, 0, 1)
         labeled, nsegments = scipy.ndimage.measurements.label(thresholded)
         central_segment = numpy.where(labeled==labeled[roi_center[0],roi_center[1]],1,0)
-        if numpy.nonzero(central_segment)[0].shape[0] < 0.95*numpy.nonzero(mask)[0].shape[0]:#Valid roi
+        if  numpy.nonzero(central_segment)[0].shape[0] < 0.95*numpy.nonzero(mask)[0].shape[0]:#Valid roi
             soma_rois.append(numpy.array(zip(*numpy.nonzero(central_segment))))
     return soma_rois
     

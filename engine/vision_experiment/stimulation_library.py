@@ -2216,6 +2216,7 @@ class AdvancedStimulation(StimulationHelpers):
             from visexpman.engine.hardware_interface.scanner_control import ScannerError
             raise ScannerError('Position(s) are beyond the scanner\'s operational range')
         daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
+
 if test_mode:
     class TestStimulationPatterns(unittest.TestCase):
         
