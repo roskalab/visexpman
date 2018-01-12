@@ -7,12 +7,12 @@ class SoundAndGratingC(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEEDS=[200,600,1200]
         self.CONDITIONS=['sound', 'grating', 'both']
-        self.RANDOMIZE=False #true
+        self.RANDOMIZE=True #true
         self.BLOCK_DURATION=8.0
         self.PAUSE=4.0
         self.SOUND_BASE_FREQUENCY=14000
         self.FREQUENCY_STEP=1000#Hz
-        self.MODULATION='am'#'fm'
+        self.MODULATION='fm'#'fm'
         self.BAR_WIDTH=300
         self.GRATING_DUTY_CYCLE=0.5
         self.GRAY=0.5

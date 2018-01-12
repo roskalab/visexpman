@@ -617,6 +617,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         spatial_period=experiment_data.cpd2um(spatial_frequency,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
         nframes=1 if duration==0 else int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)
         size_pixel=int(size*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        if size_pixel%2==1:
+            size_pixel+=1
         if color_min>color_max:
             raise ValueError('color_min cannot be greater than color_max')
         if size<spatial_period:
