@@ -340,8 +340,10 @@ def generate_frequency_modulated_waveform(duration, base_frequency, frequency_st
         return numpy.tile(numpy.concatenate((on_waveform, off_waveform)),nshift_periods)
     else:
         t=time_series(float(duration), fsample)
-        frequency_values=numpy.sin(t* 2* numpy.pi* switch_frequency)*0.5*abs(f2-f1)+f1
+        frequency_values=numpy.sin(t* 2* numpy.pi* switch_frequency)*0.5*abs(f2-f1)+0.5*abs(f2-f1)+f2
         #Reduce frequency levels
+  #      fround=int(fsample/100)
+#        frequency_values=(numpy.round(frequency_values/fround)*fround)
         frequency_values=numpy.round(frequency_values,-2)
         sig=numpy.sin(t*numpy.pi*2*frequency_values)
         return sig
