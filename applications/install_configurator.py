@@ -71,6 +71,7 @@ class InstallConfigurator(Qt.QMainWindow):
                 self.notify('Warning', 'At least {0} GB free space is required'.format(free_min))
                 self.close()
                 return
+        self.log('Is Python already installed?')
         fp=open('python_installed.txt')
         txt=fp.read()
         fp.close()
@@ -95,31 +96,37 @@ class InstallConfigurator(Qt.QMainWindow):
         else:
             visexpman_folder = visexpman_default_folder
         self.visexpmanfolder=self.ask4foldername('Please select visexpman package location', visexpman_folder)
+        self.log('{0} selected'.format(self.visexpmanfolder))
         if 'daqmx' in sys.argv:
             self.install_daqmx=True
         else:
             self.install_daqmx=self.ask4confirmation('Do you want to install PyDAQmx and NI DAQ?')
+        self.log('Install daqmx: {0}'.format(self.install_daqmx))
         #Check installers:
         if TEST:
             d=os.path.join('c:\\temp','modules')
         else:
             d=os.path.join(os.getcwd(),'modules')
+        self.log('Check installer files')
         self.installer_files=[os.path.join(d,f) for f in os.listdir(d)]
         if self.installer_checksum !=checksum(d):
             self.notify('Error', 'Invalid binari(es) in {0}'.format(self.d))
             self.close()
             return
         #unzip visexpman and offer shortcuts
+        self.log('Unzip visexpman')
         visexpman_zip=self.modulename2filename('visexpman')
         z=zipfile.ZipFile(visexpman_zip)
         z.extractall(self.visexpmanfolder)
         z.close()
         self.shortcutfolder=os.path.join(self.visexpmanfolder,'visexpman','shortcuts')
+        self.log('Create list of shortcuts')
         shortcut_files=[]
         for root, dirs, files in os.walk(self.shortcutfolder):            
             shortcut_files.extend( [(root + os.sep + file).replace(self.shortcutfolder+os.sep,'') for file in files if os.path.splitext(file)[1]=='.bat'])
         shortcut_files.extend(['Stim.bat', 'Vision Experiment Manager.bat'])
         shortcut_files.sort()
+        self.log('Offer shortcuts for selection')
         self.s=SelectShortcut(shortcut_files, self.install2)
         self.s.show()
         
@@ -134,7 +141,7 @@ class InstallConfigurator(Qt.QMainWindow):
         python c:\visexp\visexpman\engine\visexp_app.py -u tbd -a main_ui -c tbd
         pause
         '''
-        desktop=os.path.join('c:\\Users', getpass.getuser())
+        desktop=os.path.join('c:\\Users', getpass.getuser(), 'Desktop')
         for s in self.s.selection:
             fn=os.path.join(self.shortcutfolder, s)
             if os.path.exists(fn):
@@ -157,7 +164,8 @@ class InstallConfigurator(Qt.QMainWindow):
         for module in modules:
             fn=self.modulename2filename(module)
             #self.commands.append('msiexec \\i {0} \\qb'.format(fn))
-            self.commands.append('msiexec {0}'.format(fn))
+            #self.commands.append('msiexec {0}'.format(fn))
+            self.commands.append('{0}'.format(fn))
             self.log('Adding to bat file: {0} ...'.format(fn))
         python_module_folder='c:\\Anaconda\\Lib\\site-packages'
         self.log('Creating pth file')
@@ -206,15 +214,22 @@ class InstallConfigurator(Qt.QMainWindow):
             cscript /nologo %SCRIPT%
             del %SCRIPT%
         '''
-        self.log('Extract visexpman to {0}'.format(self.visexpmanfolder))
-        self.commands.append(create_shortcut)
-        fn=self.modulename2filename('visexpman')
-        folder=self.extract(fn)
-        self.log('1')
-        self.log(folder)
-        self.log(self.visexpmanfolder)
-        shutil.copytree(folder, self.visexpmanfolder)
-        self.log('2')
+#        self.log('Extract visexpman to {0}'.format(self.visexpmanfolder))
+#        self.commands.append(create_shortcut)
+#        fn=self.modulename2filename('visexpman')
+#        of=os.path.join(self.visexpmanfolder, 'visexpman')
+#        folder=self.extract(fn, outfolder=of)
+#        self.log('1')
+#        self.log(folder)
+#        self.log(self.visexpmanfolder)
+#        
+#        self.log((folder,of))
+#        try:
+#            shutil.copytree(folder, of)
+#        except:
+#            import traceback
+#            self.log(traceback.format_exc())
+#        self.log('2')
         #Verify installation
         self.commands.append('cd {0}'.format(self.visexpmanfolder))
         self.commands.append('call shortcuts\\verify_installation.bat')
@@ -260,7 +275,7 @@ class InstallConfigurator(Qt.QMainWindow):
         else:
             return fn[0]
             
-    def extract(self, zip,tag=None):
+    def extract(self, zip,tag=None, outfolder=None):
         if tag !=None:
             out=os.path.join(tempfile.gettempdir(), tag)
             if os.path.exists(out):
@@ -268,6 +283,8 @@ class InstallConfigurator(Qt.QMainWindow):
             os.mkdir(out)
         else:
             out=tempfile.gettempdir()
+        if outfolder!=None:
+            out=outfolder
         self.log('Extracting: {0}'.format(zip))
         z=zipfile.ZipFile(zip)
         z.extractall(out)
