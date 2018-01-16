@@ -148,13 +148,13 @@ class NaturalMovieExperiment(experiment.Experiment):
         files=os.listdir(self.fn)
         files.sort()
         if self.experiment_config.VIDEO_DURATION>0:
-            length_f=int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*self.experiment_config.VIDEO_DURATION)
-            offset_f=int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*self.experiment_config.VIDEO_OFFSET)
+            length_f=int(self.experiment_config.FRAME_RATE*self.experiment_config.VIDEO_DURATION)
+            offset_f=int(self.experiment_config.FRAME_RATE*self.experiment_config.VIDEO_OFFSET)
             files=files[offset_f:offset_f+length_f]
         self.nframes=len(files)
-        fps_factor=self.machine_config.SCREEN_EXPECTED_FRAME_RATE/float(self.experiment_config.FRAME_RATE)
-        self.fragment_durations = [fps_factor*len(files)/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]*self.experiment_config.REPEATS
-        self.printl((fps_factor, self.fragment_durations))
+        self.fps_factor=self.machine_config.SCREEN_EXPECTED_FRAME_RATE/float(self.experiment_config.FRAME_RATE)
+        self.fragment_durations = [self.fps_factor*len(files)/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]*self.experiment_config.REPEATS
+        self.printl((self.fps_factor, self.fragment_durations))
         #Calculate stretch
         from PIL import Image
         stretches=[]
@@ -195,9 +195,10 @@ class NaturalMovieExperiment(experiment.Experiment):
                              offset=self.experiment_config.VIDEO_OFFSET, 
                              length=self.experiment_config.VIDEO_DURATION)
             dt=time.time()-t0
-            self.printl((self.nframes, dt, self.nframes/dt))
-            dfps=abs(self.nframes/dt-self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+            measured_fps=self.fps_factor*self.nframes/dt
+            self.printl((self.nframes, dt, self.fps_factor, measured_fps))
+            dfps=abs(measured_fps-self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
             if dfps>5 and not self.abort:
                 raise RuntimeError('Frame rate error, expected: {0}, measured {1}, make sure that image frame resolution is not big'
-                            .format(self.machine_config.SCREEN_EXPECTED_FRAME_RATE,self.nframes/dt))
+                            .format(self.machine_config.SCREEN_EXPECTED_FRAME_RATE,measured_fps))
             #self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
