@@ -1495,16 +1495,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_moving_plaid(self,duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size=None, contrast=1.0, background_color=0.0,  sinusoid=False, bipolar_additive=False,save_frame_info=True):
-        '''
-        Contrast: relative to background
-        '''
-        if save_frame_info:
-            params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
-            self.log.info('show_moving_plaid({0})'.format(', '.join(params)), source = 'stim')
-            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-        lateral_speed=velocity/numpy.cos(numpy.radians(0.5*relative_angle))
-        #Generate texture:
+    def generate_paid_textute(self, relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive):
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         line_spacing_p=int(line_width_p*duty_cycle)
         if mask_size ==None:
@@ -1537,9 +1528,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         else:
             texture=texture1+texture2
         print 'm', texture.max(), texture1.max(), texture2.max(),profile.max()
-        #calculate pattern period in merged texture
-        #merged_period=float(texture.shape[1])/(abs(numpy.fft.rfft(texture[:,texture.shape[0]/2]))[1:].argmax()+1)
-        
         cut=int(texture_width*(1-1.0/extension_factor)/2)
         merged_period=line_spacing_p/numpy.sin(numpy.radians(relative_angle/2))
         nreps=int(0.5*self.config.SCREEN_RESOLUTION['col']/merged_period)#Texture is reassambled from half screen wide segments
@@ -1548,12 +1536,20 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         texture=numpy.zeros((segment.shape[0]*nsegments, segment.shape[1]))
         for i in range(nsegments):
             texture[i*segment.shape[0]:(i+1)*segment.shape[0]]=segment
-        
-#        length=int((texture_width-cut)/length)*length
-#        length=numpy.round(numpy.ceil(self.config.SCREEN_RESOLUTION['col']/merged_period)*merged_period)
-#        texture=texture[cut:cut+length]
-        #This has to be extended
         texture=numpy.rot90(texture)
+        return texture
+            
+    def show_moving_plaid(self,duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size=None, contrast=1.0, background_color=0.0,  sinusoid=False, bipolar_additive=False,texture=None,save_frame_info=True):
+        '''
+        Contrast: relative to background
+        '''
+        if save_frame_info:
+            params=map(str, [duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid]            )
+            self.log.info('show_moving_plaid({0})'.format(', '.join(params)), source = 'stim')
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        lateral_speed=velocity/numpy.cos(numpy.radians(0.5*relative_angle))
+        if texture==None:
+            texture=self.generate_paid_textute(relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive)
         texture_coordinates,v=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
         t0=time.time()
         tout=numpy.zeros((texture.shape[0],texture.shape[1],3))#Complicated solution but runs quicker on stim computer than rolling axis'

@@ -3475,10 +3475,23 @@ def string2objectreference(self, reference_string):
 class VerifyInstallation(object):
     def __init__(self):
         self.system=platform.system()
+        self.verify_modules()
         self.verify_pygame()
         self.verify_qt()
         self.verify_serial()
         self.verify_paramiko()
+        
+    def verify_modules(self):
+        expected_modules=['pygame', 'OpenGL', 'pyqtgraph', 'PyDAQmx', 'visexpman', 'zc.lockfile', 
+                    'serial', 'cv2', 'hdf5io', 'tables']
+        missing_modules=[]
+        for em in expected_modules:
+            try:
+                __import__(em)
+            except:
+                missing_modules.append(em)
+        if len(em)>0:
+            raise RuntimeError('Module(s) not installed: {0}'.format(', '.join(missing_modules)))
         
     def verify_serial(self):
         import serial
