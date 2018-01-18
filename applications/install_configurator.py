@@ -212,6 +212,7 @@ class InstallConfigurator(Qt.QMainWindow):
     #            self.log(traceback.format_exc())
     #        self.log('2')
             #Verify installation
+            self.commands.append(self.visexpmanfolder.split(os.sep)[0])
             self.commands.append('cd {0}'.format(os.path.join(self.visexpmanfolder,'visexpman')))
             self.commands.append('call shortcuts\\verify_installation.bat')
             self.notifications.append('change windows theme to classical')
