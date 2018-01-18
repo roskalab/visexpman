@@ -40,7 +40,8 @@ class InstallConfigurator(Qt.QMainWindow):
         Qt.QMainWindow.__init__(self)
         self.setWindowTitle('Vision Experiment Manager Installation Configurator')
         self.setGeometry(0,0,0,0)
-        self.installer_checksum=2501942519L
+        self.installer_checksum=543911012L
+        self.eric=True
         self.logfile = os.path.join('install_log_{0}.txt'.format(time.time()))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -79,11 +80,6 @@ class InstallConfigurator(Qt.QMainWindow):
             visexpman_folder='c:\\visexp'
             self.visexpmanfolder=self.ask4foldername('Please select visexpman package location', visexpman_folder)
             self.log('{0} selected'.format(self.visexpmanfolder))
-            if 'daqmx' in sys.argv:
-                self.install_daqmx=True
-            else:
-                self.install_daqmx=self.ask4confirmation('Do you want to install PyDAQmx and NI DAQ?')
-            self.log('Install daqmx: {0}'.format(self.install_daqmx))
             #Check installers:
             if TEST:
                 d=os.path.join('c:\\temp','modules')
@@ -146,13 +142,13 @@ class InstallConfigurator(Qt.QMainWindow):
                     fp.close()
                     self.log('{0} saved'.format(os.path.join(desktop, bfn)))
             #aggregate all files:
-            modules=['anaconda', 'opengl','pygame','opencv','pyqtgraph', 'pyserial', 'gedit', 'tcmd', 'meld']
+            modules=['anaconda',  'gedit', 'tcmd', 'meld', 'opengl','pygame','opencv','pyqtgraph', 'pyserial']
             self.commands=['title Vision Experiment Manager Installer', 'del python_installed.txt']
             for module in modules:
                 fn=self.modulename2filename(module)
                 #self.commands.append('msiexec \\i {0} \\qb'.format(fn))
                 #self.commands.append('msiexec {0}'.format(fn))
-                if 'anaconda' in modules:
+                if 'anaconda' in module:
                     self.commands.append('echo Select install for all users')
                 self.commands.append('start /wait {0}'.format(fn))
                 self.log('Adding to bat file: {0} ...'.format(fn))
@@ -168,43 +164,38 @@ class InstallConfigurator(Qt.QMainWindow):
                 self.log('hdf5io copied')
             self.install_ffmpeg()
             self.commands.append('setx path "%path%;{0};c:\\Program Files\\gedit\\bin"'.format(self.visexpmanfolder))
-            if self.install_daqmx:
-                fn=self.modulename2filename('nidaq')
-                folder=self.extract(fn, 'daq')
-                self.tmpdirs.append(folder)
-                self.commands.append(os.path.join(folder, 'setup.exe'))
-                self.log('Extracting daqmx')
-                fn=self.modulename2filename('pydaqmx')
-                folder=self.extract(fn)
-                self.tmpdirs.append(folder)
-                self.commands.append('cd {0}'.format(folder))
-                self.commands.append('c:\\Anaconda\\python.exe setup.py install')
             fn=self.modulename2filename('zc.lock')
             folder=self.extract(fn)
             self.tmpdirs.append(folder)
             self.commands.append('cd {0}'.format(folder))
             self.commands.append('c:\\Anaconda\\python.exe setup.py install')
-            fn=self.modulename2filename('eric')
+            fn=self.modulename2filename('pydaqmx')
             folder=self.extract(fn)
             self.tmpdirs.append(folder)
             self.commands.append('cd {0}'.format(folder))
-            self.commands.append('c:\\Anaconda\\python.exe install.py')
-            create_shortcut='''
-                @echo off
+            self.commands.append('c:\\Anaconda\\python.exe setup.py install')
+            if self.eric:
+                fn=self.modulename2filename('eric')
+                folder=self.extract(fn)
+                self.tmpdirs.append(folder)
+                self.commands.append('cd {0}'.format(folder))
+                self.commands.append('c:\\Anaconda\\python.exe install.py')
+                create_shortcut='''
+                    @echo off
 
-                set SCRIPT="%TEMP%\%RANDOM%-%RANDOM%-%RANDOM%-%RANDOM%.vbs"
+                    set SCRIPT="%TEMP%\%RANDOM%-%RANDOM%-%RANDOM%-%RANDOM%.vbs"
 
-                echo Set oWS = WScript.CreateObject("WScript.Shell") >> %SCRIPT%
-                echo sLinkFile = "%USERPROFILE%\Desktop\eric.lnk" >> %SCRIPT%
-                echo Set oLink = oWS.CreateShortcut(sLinkFile) >> %SCRIPT%
-                echo oLink.TargetPath = "c:\Anaconda\eric4.bat" >> %SCRIPT%
-                echo oLink.Save >> %SCRIPT%
+                    echo Set oWS = WScript.CreateObject("WScript.Shell") >> %SCRIPT%
+                    echo sLinkFile = "%USERPROFILE%\Desktop\eric.lnk" >> %SCRIPT%
+                    echo Set oLink = oWS.CreateShortcut(sLinkFile) >> %SCRIPT%
+                    echo oLink.TargetPath = "c:\Anaconda\eric4.bat" >> %SCRIPT%
+                    echo oLink.Save >> %SCRIPT%
 
-                cscript /nologo %SCRIPT%
-                del %SCRIPT%
-            '''
-    #        self.log('Extract visexpman to {0}'.format(self.visexpmanfolder))
-            self.commands.append(create_shortcut)
+                    cscript /nologo %SCRIPT%
+                    del %SCRIPT%
+                '''
+                self.commands.append(create_shortcut)
+                self.commands.append('call c:\\Anaconda\\eric4.bat')
     #        fn=self.modulename2filename('visexpman')
     #        of=os.path.join(self.visexpmanfolder, 'visexpman')
     #        folder=self.extract(fn, outfolder=of)
@@ -222,12 +213,12 @@ class InstallConfigurator(Qt.QMainWindow):
             #Verify installation
             self.commands.append('cd {0}'.format(os.path.join(self.visexpmanfolder,'visexpman')))
             self.commands.append('call shortcuts\\verify_installation.bat')
-            self.commands.append('call c:\\Anaconda\\eric4.bat')
             self.notifications.append('change windows theme to classical')
             self.commands.append('echo cleaning up')
             self.commands.extend(['rd /s /q {0}'.format(f) for f in self.tmpdirs])
             self.commands.append('echo Notifications:')
             self.commands.extend(['echo {0}'.format(n) for n in self.notifications])
+            self.commands.append('echo Install finished!')
             self.commands.append('pause')
             self.log('Writing commands to bat file')
             fn='installer2.bat'
