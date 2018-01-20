@@ -95,9 +95,10 @@ class InstallConfigurator(Qt.QMainWindow):
             #unzip visexpman and offer shortcuts
             self.log('Unzip visexpman')
             visexpman_zip=self.modulename2filename('visexpman')
-            z=zipfile.ZipFile(visexpman_zip)
-            z.extractall(self.visexpmanfolder)
-            z.close()
+            if not os.path.exists(os.path.join(self.visexpmanfolder, 'visexpman', '__init__.py')):#Selected folder points to a location where visexpman already exists, no overwrite
+                z=zipfile.ZipFile(visexpman_zip)
+                z.extractall(self.visexpmanfolder)
+                z.close()
             self.shortcutfolder=os.path.join(self.visexpmanfolder,'visexpman','shortcuts')
             self.log('Create list of shortcuts')
             shortcut_files=[]
@@ -211,6 +212,7 @@ class InstallConfigurator(Qt.QMainWindow):
     #            self.log(traceback.format_exc())
     #        self.log('2')
             #Verify installation
+            self.commands.append(self.visexpmanfolder.split(os.sep)[0])
             self.commands.append('cd {0}'.format(os.path.join(self.visexpmanfolder,'visexpman')))
             self.commands.append('call shortcuts\\verify_installation.bat')
             self.notifications.append('change windows theme to classical')
