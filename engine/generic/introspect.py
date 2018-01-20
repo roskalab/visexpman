@@ -3490,7 +3490,7 @@ class VerifyInstallation(object):
                 __import__(em)
             except:
                 missing_modules.append(em)
-        if len(em)>0:
+        if len(missing_modules)>0:
             raise RuntimeError('Module(s) not installed: {0}'.format(', '.join(missing_modules)))
         
     def verify_serial(self):
