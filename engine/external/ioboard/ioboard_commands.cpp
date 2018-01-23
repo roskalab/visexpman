@@ -18,6 +18,8 @@ IOBoardCommands::IOBoardCommands(void)
   TCCR2B = TIMER_PRESCALE;
   OCR2A = TIMER_COMPARE;
   TIMSK2 |= 1<<1;  
+  //initialize timer2 for waveform generation
+  TCCR1B=1<<3;
   sei();
 }
 
@@ -52,17 +54,22 @@ void IOBoardCommands::run(void)
       Serial.print(" ms pulse on pin ");
       Serial.println(par[0]);
     }
-    else if ((strcmp(command,"square_wave")==0)&&(nparams==1))
+    else if ((strcmp(command,"square_wave")==0)&&(nparams==2))
     {
-      Serial.print(par[0]);
-      Serial.println(" Hz square wave");
+      Serial.print(par[1]);
+      Serial.print(" Hz square wave on pin ");
+      Serial.println(par[0]);      
       waveform_state=SQUARE_WAVE;
-      frequency=par[0];
+      frequency=par[1];
+      set_timer_channel(par[0]);
+      TCCR1B|=4;
+      
     }
-    else if ((strcmp(command,"stop_waveform")==0)&&(nparams==0))
+    else if ((strcmp(command,"stop_waveform")==0)&&(nparams==1))
     {
       Serial.println("Stop wave");
       waveform_state=DISABLED;
+      stop_waveform(par[0]);       
     }
     else
     {
@@ -76,11 +83,11 @@ void IOBoardCommands::run(void)
 /*
 PortD 5,6,7 pins ara valid outputs, these values are accepted as channel
 */
-void IOBoardCommands::set_pin(float channel,float value)
+void IOBoardCommands::set_pin(float pin,float value)
 {
   uint8_t channel_bit;
-  channel_bit=(uint8_t)(channel);
-  if (channel<=7 && channel>=5)
+  channel_bit=(uint8_t)(pin);
+  if (pin<=7 && pin>=5)
   {
     if (value==0.0)
     {
@@ -118,5 +125,41 @@ void IOBoardCommands::isr(void)
       Serial.println(port&INPORT_MASK,HEX);
       port_last=port;
     }
+  }
+}
+
+void IOBoardCommands::set_timer_channel(float pin)
+{
+  static uint8_t reg;
+ //Calculate compare register value from frequency (par[1]):
+  if (waveform_state==SQUARE_WAVE)
+  {
+    reg =(unsigned char)(CPU_FRQ/(64*par[1])-1);
+  }
+  if (pin==5)//channel B
+  {
+    TIMSK1=1<<2;
+    TCCR1A=1<<6;
+    OCR2B=reg;
+  }
+  else if (pin==6)//channel A
+  {
+    TIMSK1=1<<1;
+    TCCR1A=1<<4;
+    OCR2A=reg;
+  }
+}
+
+void IOBoardCommands::stop_waveform(float pin)
+{
+  if (pin==5)//channel B
+  {
+    TIMSK1&=~(1<<2);
+    TCCR1A&=~(3<<6);
+  }
+  else if (pin==6)//channel A
+  {
+    TIMSK1&=~(1<<1);
+    TCCR1A&=~(3<<4);
   }
 }

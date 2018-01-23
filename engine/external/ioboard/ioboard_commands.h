@@ -25,11 +25,12 @@ class IOBoardCommands:public Comm {
         unsigned long time_ms;
         int port;
         int port_last;
-        void set_pin(float channel,float value);
-        void pulse(float channel,float duration);
-        void square_wave(float frequency);
-        void fm_waveform(float base_frequency, float frequency_range, float modulation_frequency);
+        void set_pin(float pin,float value);
+        void pulse(float pin,float duration);
+        void square_wave(float pin, float frequency);
+        void fm_waveform(float pin, float base_frequency, float frequency_range, float modulation_frequency);
         void start_read_pins(void);
         void stop_read_pins(void);        
-        void stop_waveform(void);
+        void stop_waveform(float pin);
+        void set_timer_channel(float pin);
 };
