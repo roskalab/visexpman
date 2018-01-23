@@ -5,7 +5,7 @@ typedef enum waveform_t {
     FREQUENCY_MODULATION,
     SQUARE_WAVE
     } waveform_t;
-    
+
 typedef enum read_state_t {
     ON,
     OFF
@@ -17,7 +17,7 @@ class IOBoardCommands:public Comm {
         void run(void);
         void isr(void);
     private:
-        read_state_t read_state;        
+        read_state_t read_state;
         waveform_t waveform_state;
         float frequency;
         float frequency_range;
@@ -30,7 +30,7 @@ class IOBoardCommands:public Comm {
         void square_wave(float pin, float frequency);
         void fm_waveform(float pin, float base_frequency, float frequency_range, float modulation_frequency);
         void start_read_pins(void);
-        void stop_read_pins(void);        
+        void stop_read_pins(void);
         void stop_waveform(float pin);
         void set_timer_channel(float pin);
 };

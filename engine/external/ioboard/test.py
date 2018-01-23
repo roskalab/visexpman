@@ -11,6 +11,59 @@ class TestIOboard(unittest.TestCase):
     def line2timestamp(self,l):
         return int(l.split(' ms:')[0])
         
+    def setUp(self):
+        self.s=serial.Serial('/dev/ttyACM0', 115200, timeout = 1)
+        
+    def tearDown(self):
+        self.s.close()
+        
+    def execute_command(self,cmd):
+        self.s.write(cmd+'\n')
+        
+    def test_01_digital_io(self):
+        print 'Connect pin 5 to pin 2 and pin 6 to pin 3'
+        self.execute_command('start_read_pins')
+        self.execute_command('set_pin,5,0')
+        self.execute_command('set_pin,6,0')
+        self.execute_command('set_pin,5,1')
+        time.sleep(1)
+        self.execute_command('set_pin,5,0')
+        time.sleep(0.5)
+        self.execute_command('set_pin,6,1')
+        time.sleep(1)
+        self.execute_command('set_pin,6,0')
+        time.sleep(0.5)
+        self.execute_command('pulse,5,100')
+        self.execute_command('stop_read_pins')
+        time.sleep(0.5)
+        response=self.s.read(10000)
+        #TODO: separate command responses from digital IO readout
+        
+    def test_02_square_wave(self):
+        self.execute_command('set_pin,6,0')
+        self.execute_command('set_pin,5,0')
+        print '10 Hz on Pin 5 '
+        self.execute_command('square_wave,5,10')
+        time.sleep(0.5)
+        self.execute_command('stop_waveform,5')
+        time.sleep(1)
+        response1=self.s.read(10000)
+        print '10 Hz on pin 6'
+        self.execute_command('square_wave,6,10')
+        time.sleep(0.5)
+        self.execute_command('stop_waveform,6')
+        time.sleep(0.5)
+        response2=self.s.read(10000)
+        print '2 and 10 Hz on both pins'
+        self.execute_command('square_wave,5,2')
+        self.execute_command('square_wave,6,10')
+        time.sleep(0.5)
+        self.execute_command('stop_waveform,6')
+        time.sleep(0.5)
+        self.execute_command('stop_waveform,5')
+        time.sleep(0.5)
+        response3=self.s.read(10000)
+    @unittest.skip('')
     def test_01(self):
         s=serial.Serial('/dev/ttyACM0', 115200, timeout = 1)
         npulses=20
@@ -44,6 +97,6 @@ class TestIOboard(unittest.TestCase):
         numpy.testing.assert_array_almost_equal(numpy.diff(numpy.array(t))[::2], numpy.array([int(1000*t1)]*npulses),-1)
         numpy.testing.assert_array_almost_equal(numpy.diff(numpy.array(t))[1::2], numpy.array([int(1000*t2)]*(npulses-1)),-1)
         s.close()
-        
+                
 if __name__=='__main__':
     unittest.main()
