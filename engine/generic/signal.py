@@ -203,7 +203,8 @@ def signal2binary(waveform):
     return numpy.where(waveform > numpy.histogram(waveform, bins = 10)[1][-2],  True,  False)
     
 def trigger_indexes(trigger,threshold=0.3):
-    return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>threshold*(trigger.max()-trigger.min()), 1, 0))[0]+1
+    #return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>threshold*(trigger.max()-trigger.min()), 1, 0))[0]+1
+    return numpy.nonzero(abs(numpy.diff(numpy.where(trigger-trigger.min()>threshold*(trigger.max()-trigger.min()),1,0))))[0]+1
 
 def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
