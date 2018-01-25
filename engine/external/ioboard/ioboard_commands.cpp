@@ -10,6 +10,7 @@ IOBoardCommands::IOBoardCommands(void)
   waveform_state=DISABLED;
   port=0;
   port_last=0;
+  debug=1;
   //initialize peripherals
   Serial.begin(115200);
   DDRD=OUTPORT_MASK;//port 2-4 input, port 5-7 output
@@ -31,34 +32,58 @@ void IOBoardCommands::run(void)
   {
     if ((strcmp(command,"set_pin")==0)&&(nparams==2))
     {
+      if (debug==1)
+      {
+        Serial.print(par[0]);
+        Serial.print(" pin set to ");
+        Serial.println(par[1]);
+      }
       set_pin(par[0], par[1]);
-      Serial.print(par[0]);
-      Serial.print(" pin set to ");
-      Serial.println(par[1]);
     }
     else if ((strcmp(command,"start_read_pins")==0)&&(nparams==0))
     {
-      Serial.println("Start reading pins");
-      isr();
-      read_state=ON;
+      if (read_state==OFF)
+      {
+        if (debug==1)
+        {
+          Serial.println("Start reading pins");
+        }
+        read_state=ON;
+      }
     }
     else if ((strcmp(command,"stop_read_pins")==0)&&(nparams==0))
     {
-      Serial.println("Stop reading pins");
+      if (debug==1)      
+      {
+        Serial.println("Stop reading pins");
+      }
       read_state=OFF;
+    }
+    else if ((strcmp(command,"read_pins")==0)&&(nparams==0))
+    {
+      if (read_state==OFF)
+      {
+        read_pins(1);
+      }
     }
     else if ((strcmp(command,"pulse")==0)&&(nparams==2))
     {
+      if (debug==1)
+      {
+        Serial.print(par[1]);
+        Serial.print(" ms pulse on pin ");
+        Serial.println(par[0]);
+      }
       pulse(par[0], par[1]);
-      Serial.print(par[1]);
-      Serial.print(" ms pulse on pin ");
-      Serial.println(par[0]);
     }
     else if ((strcmp(command,"square_wave")==0)&&(nparams==2))
     {
-      Serial.print(par[1]);
-      Serial.print(" Hz square wave on pin ");
-      Serial.println(par[0]);      
+      if (debug==1)      
+      {
+        Serial.print(par[1]);
+        Serial.print(" Hz square wave on pin ");
+        Serial.println(par[0]);
+      }
       waveform_state=SQUARE_WAVE;
       frequency=par[1];
       set_timer_channel(par[0]);
@@ -67,7 +92,10 @@ void IOBoardCommands::run(void)
     }
     else if ((strcmp(command,"stop_waveform")==0)&&(nparams==1))
     {
-      Serial.println("Stop wave");
+      if (debug==1)
+      {
+        Serial.println("Stop wave");
+      }
       waveform_state=DISABLED;
       stop_waveform(par[0]);       
     }
@@ -116,17 +144,22 @@ void IOBoardCommands::isr(void)
 {
   if (read_state==ON)
   {  
-    time_ms = millis();
-    port=PIND&INPORT_MASK;
-    if (port!=port_last)
-    {
-      Serial.print(time_ms);
-      Serial.print(" ms: ");
-      Serial.println(port&INPORT_MASK,HEX);
-      port_last=port;
-    }
+    read_pins(0);
   }
 }
+void IOBoardCommands::read_pins(unsigned char force)
+{
+  time_ms = millis();
+  port=PIND&INPORT_MASK;
+  if ((port!=port_last) || (force==1))
+  {
+    Serial.print(time_ms);
+    Serial.print(" ms: ");
+    Serial.println(port&INPORT_MASK,DEC);
+    port_last=port;
+  }
+}
+
 
 void IOBoardCommands::set_timer_channel(float pin)
 {
