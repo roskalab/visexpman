@@ -4,7 +4,7 @@ import unittest
 import os
 try:
     from visexpman.users.test import unittest_aggregator
-except IOError:
+except:
     pass
 
 class InvalidParameterValue(Exception):

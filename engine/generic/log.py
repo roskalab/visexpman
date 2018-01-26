@@ -10,7 +10,7 @@ import threading
 import copy
 try:
     from visexpman.users.test import unittest_aggregator
-except IOError:
+except:
     pass
 from visexpman.engine.generic import utils,fileop,stringop
 

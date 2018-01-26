@@ -15,7 +15,7 @@ from visexpman.engine.generic import utils
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
-except IOError:
+except:
     test_mode=False
 
 extract_goniometer_axis1 = re.compile('\rX(.+)\n')

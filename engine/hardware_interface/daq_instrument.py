@@ -19,7 +19,7 @@ from visexpman.engine.generic import configuration,utils,fileop
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
-except IOError:
+except:
     test_mode=False
 
 WAVEFORM_MIN_DURATION = 0.06 #measured with test 08 on usb-6259, 0.054-0.058 also works

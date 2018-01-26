@@ -42,7 +42,7 @@ import tempfile
 import unittest
 try:
     from visexpman.users.test import unittest_aggregator
-except IOError:
+except:
     pass
 
 class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
@@ -196,7 +196,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''        
         #== Paths ==
-        DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
+        #DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'        
     
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX

@@ -31,7 +31,7 @@ from visexpman.engine.generic.command_parser import ServerLoop
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
-except IOError:
+except:
     test_mode=False
 import unittest
 
@@ -586,7 +586,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 else:
                     self.parameters['stimclass']=self.experiment_config.__class__.__name__
                 from visexpman.engine.vision_experiment.experiment import get_experiment_duration
-                self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
+                #self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
             #Computational intensive precalculations for stimulus
             self.prepare()
@@ -679,7 +679,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
                 self.log.info(fri, source = 'stim')
                 expfr=self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD:
+                if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD and not self.abort:
                     raise RuntimeError('Mean frame rate {0} does not match with expected frame {1}'.format(self.frame_rates.mean(), expfr))
         except:
             exc_info = sys.exc_info()

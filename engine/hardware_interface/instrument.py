@@ -15,7 +15,7 @@ import visexpman
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
-except IOError:
+except:
     test_mode=False
     
 class InstrumentProcess(threading.Thread, log.LoggerHelper):
