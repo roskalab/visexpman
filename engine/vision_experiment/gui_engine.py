@@ -853,6 +853,21 @@ class Analysis(object):
         self.printc('DONE')
         self.notify('Info', 'ROI fixing is ready')
         
+    def readd_rois_folder(self,folder):
+        files=fileop.listdir_fullpath(folder)
+        files.sort()
+        self.abort=False
+        for f in files:
+            if 'hdf5' not in f: continue
+            self.open_datafile(f)
+            try:
+                self.readd_rois(f)
+            except:
+                pass
+            self.save_rois_and_export(ask_overwrite=False)
+            if self.abort:break
+        self.printc('DONE')
+        
     def check_files(self,folder):
         self.printc('Checking '+folder)
         files=fileop.listdir_fullpath(folder)

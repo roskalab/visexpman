@@ -291,7 +291,7 @@ class PhysTiff2Hdf5(object):
         #matfile[0]='20161020_C1#281.phys_MovingShapeParameters_1476953394_0.mat'
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot', 'LargeSpot10sec','Fullfield10min', 'Nostim', 'MovingRectangleParameters', 'SpotOnOffParameters']
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot', 'LargeSpot10sec','Fullfield10min', 'Nostim', 'MovingRectangleParameters', 'SpotOnOff']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
             print 'no stim metadata found'
@@ -327,9 +327,11 @@ class PhysTiff2Hdf5(object):
                     block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape']
                 elif stimdata['experiment_config_name'][0]=='Fullfield10min':
                     block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen' and item['parameters'][0][0]['color'][0][0]==1]
-                elif stimdata['experiment_config_name'][0]=='SpotOnOffParameters':
+                elif stimdata['experiment_config_name'][0]=='SpotOnOff':
                     spot_contrast_on=stimdata['config']['experiment_config'][0][0]['SPOT_CONTRAST_ON'][0][0][0]
                     block_startend = [sfi['counter'][0][0][0][0] for sfi in stimdata['stimulus_frame_info'][0] if sfi['parameters'][0][0]['color'][0][0][0][0] in spot_contrast_on]
+                block_startend=numpy.array(block_startend)
+                block_startend[1::2]+=1
                 boundaries=pulse_start[block_startend]
             for i in range(boundaries.shape[0]/2):
                 sig[boundaries[2*i]:boundaries[2*i+1]]=5
