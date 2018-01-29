@@ -23,8 +23,8 @@ class MEAConfig(HiMEAConfig):
         PLATFORM='standalone'
         COORDINATE_SYSTEM='center'
         DIGITAL_IO_PORT = 'COM4'
-        FRAME_TIMING_PIN = 1#TX pin (orange)
-        BLOCK_TIMING_PIN = 0#RTS pin (green)
+        FRAME_TIMING_PIN = 1#RTS pin (green)
+        BLOCK_TIMING_PIN = 0#TX pin (orange)
         self._create_parameters_from_locals(locals())
 
 class MEAConfigDebug(MEAConfig):
