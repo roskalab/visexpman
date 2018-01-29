@@ -7,6 +7,11 @@ Arduino pin 2-4: input: level changes are captured and timestamps are sent over 
 Arduino pin 5-7: output: level, pulse or pulse train waveform can be generated.
 
 Commands:
+set_pin,pinm 
+pulse,pin,duration
+square_wave,pin,frq: any output pin can be used, accuracy starts dropping at 40 Hz
+
+
 'o': set level, + 1byte binary packed pin values 
 'p': generate single pulse on pins determined by subsequent byte value. The lenght of the pulse is 2 ms (PULSE_WIDTH)
 'f': set frequency, subsequent byte is interpreted in Hz
@@ -40,7 +45,24 @@ ISR(TIMER2_COMPA_vect) {
 }
 
 void setup() {
+  //Serial.begin(115200);
   iobc=IOBoardCommands();
+  //DDRB|=(1<<1);
+  //DDRD|=(1<<5);
+  //TCCR1A|=(1<<4);
+  //TCCR1B|=(1<<3)|3;//1/256 prescale
+  //OCR1A=300;
+  //OCR1AL=200;
+  
+  
+  //pinMode(9, OUTPUT);
+  
+}
+
+void loop2()
+{
+  Serial.println(TCNT1);
+  delay(1000);
 }
 
 void loop()

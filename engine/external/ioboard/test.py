@@ -30,6 +30,7 @@ class TestIOboard(unittest.TestCase):
         values=numpy.concatenate((numpy.array([values[:,0]]).T, pins),axis=1)
         return values[:,0], pins
         
+    @unittest.skip('')
     def test_01_digital_io(self):
         ontime=0.2
         pulse_width=50
@@ -76,7 +77,7 @@ class TestIOboard(unittest.TestCase):
         self.assertTrue(all(p[:,1]==numpy.array([1,1,0,0])))
         self.assertTrue(all(p[:,0]==numpy.array([0,1,1,0])))
         
-    @unittest.skip('')
+    
     def test_02_square_wave(self):
         self.execute_command('set_pin,6,0')
         self.execute_command('set_pin,5,0')

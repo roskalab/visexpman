@@ -679,7 +679,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
                 self.log.info(fri, source = 'stim')
                 expfr=self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD:
+                if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD and not self.abort:
                     raise RuntimeError('Mean frame rate {0} does not match with expected frame {1}'.format(self.frame_rates.mean(), expfr))
         except:
             exc_info = sys.exc_info()

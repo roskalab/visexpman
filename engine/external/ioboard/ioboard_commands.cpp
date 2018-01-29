@@ -7,7 +7,8 @@ IOBoardCommands::IOBoardCommands(void)
 {
   //initialize variables
   read_state=OFF;
-  waveform_state=DISABLED;
+  square_state=OFF;
+  fm_state=OFF;
   port=0;
   port_last=0;
   debug=1;
@@ -19,8 +20,11 @@ IOBoardCommands::IOBoardCommands(void)
   TCCR2B = TIMER_PRESCALE;
   OCR2A = TIMER_COMPARE;
   TIMSK2 |= 1<<1;  
-  //initialize timer2 for waveform generation
-  TCCR1B=1<<3;
+  //initialize timer1 for waveform generation
+  DDRB|=1<<1;//pin 1 (pin 9 on arduino) enabled as outputs
+  TCCR1A = _BV(COM2A0);//TODO: move it to a separate location
+  TCCR1B = _BV(WGM12) | 3;
+  OCR1A = 1300;
   sei();
 }
 
@@ -84,20 +88,24 @@ void IOBoardCommands::run(void)
         Serial.print(" Hz square wave on pin ");
         Serial.println(par[0]);
       }
-      waveform_state=SQUARE_WAVE;
-      frequency=par[1];
-      set_timer_channel(par[0]);
-      TCCR1B|=4;
-      
+      square_state=ON;
+      sq_half_period_ms = (unsigned long)(0.5*1e3/par[1]);
+      if (sq_half_period_ms==0)
+      {
+        square_state=OFF;
+      }
+      sq_port=par[0];
+      sq_port_state=OFF;
+      last_state_change_ms=millis();
     }
-    else if ((strcmp(command,"stop_waveform")==0)&&(nparams==1))
+    else if ((strcmp(command,"stop_square")==0)&&(nparams==1))
     {
       if (debug==1)
       {
-        Serial.println("Stop wave");
+        Serial.println("Stop square");
       }
-      waveform_state=DISABLED;
-      stop_waveform(par[0]);       
+      square_state=OFF;
+      set_pin(sq_port, 0.0);
     }
     else
     {
@@ -142,14 +150,16 @@ Called by interrupt handler periodically. Handles reading data pins
 */
 void IOBoardCommands::isr(void)
 {
+  time_ms = millis();
+  square_wave_handler();  
   if (read_state==ON)
   {  
     read_pins(0);
   }
 }
+
 void IOBoardCommands::read_pins(unsigned char force)
 {
-  time_ms = millis();
   port=PIND&INPORT_MASK;
   if ((port!=port_last) || (force==1))
   {
@@ -159,40 +169,25 @@ void IOBoardCommands::read_pins(unsigned char force)
     port_last=port;
   }
 }
-
-
-void IOBoardCommands::set_timer_channel(float pin)
+void IOBoardCommands::square_wave_handler(void)
 {
-  static uint8_t reg;
- //Calculate compare register value from frequency (par[1]):
-  if (waveform_state==SQUARE_WAVE)
+  if (square_state==ON)
   {
-    reg =(unsigned char)(CPU_FRQ/(64*par[1])-1);
+    if (time_ms-last_state_change_ms>sq_half_period_ms)
+    {
+      
+      last_state_change_ms=time_ms;
+      if (sq_port_state==OFF)
+      {
+        sq_port_state=ON;
+        set_pin(sq_port, 1.0);
+      }
+      else
+      {
+        sq_port_state=OFF;
+        set_pin(sq_port, 0.0);
+      }
+    }
   }
-  if (pin==5)//channel B
-  {
-    TIMSK1=1<<2;
-    TCCR1A=1<<6;
-    OCR2B=reg;
-  }
-  else if (pin==6)//channel A
-  {
-    TIMSK1=1<<1;
-    TCCR1A=1<<4;
-    OCR2A=reg;
-  }
-}
-
-void IOBoardCommands::stop_waveform(float pin)
-{
-  if (pin==5)//channel B
-  {
-    TIMSK1&=~(1<<2);
-    TCCR1A&=~(3<<6);
-  }
-  else if (pin==6)//channel A
-  {
-    TIMSK1&=~(1<<1);
-    TCCR1A&=~(3<<4);
-  }
+  
 }
