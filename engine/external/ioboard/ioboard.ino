@@ -4,20 +4,16 @@
 /*
 Arduino pin 0-1: reserved
 Arduino pin 2-4: input: level changes are captured and timestamps are sent over usb/serial port
-Arduino pin 5-7: output: level, pulse or pulse train waveform can be generated.
+Arduino pin 5-7: output: level, pulse can be generated.
+Arduino pin 9: digital waveform generation
 
 Commands:
-set_pin,pinm 
-pulse,pin,duration
-square_wave,pin,frq: any output pin can be used, accuracy starts dropping at 40 Hz
+set_pin,pin,state: sets pin to state which cna be 0.0 or 1.0
+pulse,pin,duration: generates a pulse on pin with with of duration [ms]
+waveform,frequency,frequency_range,modulation_frequency: waveform is generated on D9 pin. If frequency_range and modulation_frequency are 0, it is a simple square wave at frequency.
+      In fm waveform mode the frequency is recalculated in every 4th call of 2 kHz timer ISR.
+stop: terminates waveform generation
 
-
-'o': set level, + 1byte binary packed pin values 
-'p': generate single pulse on pins determined by subsequent byte value. The lenght of the pulse is 2 ms (PULSE_WIDTH)
-'f': set frequency, subsequent byte is interpreted in Hz
-'w': toggle enable waveform state
-'e': enable send input pin state
-'d': disable send input pin state
 */
 
 #define IDLE_ST 0
@@ -43,6 +39,12 @@ ISR(TIMER2_COMPA_vect) {
    TCNT2=0;
    iobc.isr();
 }
+
+ISR(TIMER1_COMPA_vect)
+{
+  iobc.waveform_isr();
+}
+
 
 void setup() {
   //Serial.begin(115200);
@@ -74,7 +76,7 @@ void loop()
     c[1]=0;
     iobc.put(c);
   }
-  iobc.run(); 
+  iobc.run();
 }
 
 
