@@ -192,6 +192,61 @@ class DaqDio(object):
     def close(self):
         for d in self.daq:
             d.ClearTask()
+            
+class IOBoard(object):
+    def __init__(self,port):
+        self.s=serial.Serial(port, baudrate=115200,timeout=1)
+        self.t0=time.time()
+        self.wait_done=False
+        self._wait()
+        self.reset()
+        
+    def _wait(self):
+        '''
+        Wait before sending first commands to arduino to ensure that it is ready for receiving them
+        '''
+        if self.wait_done:
+            return
+        while True:
+            now=time.time()
+            if now-self.t0>0.5:
+                self.wait_done=True
+                break
+            time.sleep(0.1)
+            
+    def command(self, cmd):
+        self.s.write(cmd+'\r\n')
+        time.sleep(10e-3)
+        return self.s.read(1000)
+    
+    def set_pin(self,channel,value):
+        res=self.command('set_pin,{0},{1}'.format(float(channel), float(value)))
+        if 'pin set to' not in res:
+            raise IOError('Setting pin was not successfuly: {0}'.format(res))
+            
+    def reset(self):
+        res=self.command('reset')
+        if 'Reset' not in res:
+            raise IOError('IOBoard reset was not successful: {0}'.format(res))
+            
+    def set_waveform(self,base_frequency, frequency_step, modulation_frequency):
+        res=self.command('waveform,{0},{1},{2}'.format(float(base_frequency), float(frequency_step), float(modulation_frequency)))
+        if 'Hz signal on pin 9' not in res:
+            raise IOError('Setting waveform did not succeed: {0}'.format(res))
+        
+    def stop_waveform(self):
+        res=self.command('stop')
+        if 'Stop waveform' not in res:
+            raise IOError('Waveform was not stopped: {0}'.format(res))
+            
+    def pulse(self,pin,duration):
+        res=self.command('pulse,{0},{1}'.format(float(pin), float(1000*duration)))
+        if 'ms pulse on pin' not in res:
+            raise IOError('Pulse generation was not successfuly: {0}'.format(res))
+            
+    def close(self):
+        self.s.close()
+        
            
 class TestConfig(object):
     def __init__(self):
@@ -239,7 +294,7 @@ class TestDigitalIO(unittest.TestCase):
                 transition = pi.queues[id].get()
                 print transition[0] - pi.t0, transition[1]
     
-    @unittest.skip('')    
+    @unittest.skip('')
     def test_04_pwm(self):
         config = TestConfig()
         s = SerialPortDigitalIO(config)
@@ -258,6 +313,7 @@ class TestDigitalIO(unittest.TestCase):
                 time.sleep(toff)
         s.release_instrument()
         
+    @unittest.skip('')
     def test_05_AIO(self):
         a=ArduinoIO('COM11' if os.name=='nt' else '/dev/ttyACM0')
         #time.sleep(5e-3)
@@ -275,6 +331,15 @@ class TestDigitalIO(unittest.TestCase):
         time.sleep(1)
         a.disable_waveform()
         a.close()
+        
+    def test_06_ioboard(self):
+        io=IOBoard('COM11' if os.name=='nt' else '/dev/ttyACM0')
+        io.pulse(5,10e-3)
+        io.set_waveform(15e3,2e3,1)
+        time.sleep(1)
+        io.stop_waveform()
+        io.close()
+        
 
 if __name__ == '__main__':
     unittest.main()

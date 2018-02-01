@@ -13,6 +13,7 @@ pulse,pin,duration: generates a pulse on pin with with of duration [ms]
 waveform,frequency,frequency_range,modulation_frequency: waveform is generated on D9 pin. If frequency_range and modulation_frequency are 0, it is a simple square wave at frequency.
       In fm waveform mode the frequency is recalculated in every 4th call of 2 kHz timer ISR.
 stop: terminates waveform generation
+reset: stop all activity on iobaord
 
 */
 

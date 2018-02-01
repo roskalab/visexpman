@@ -1,6 +1,6 @@
 import itertools,random,numpy
 from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.hardware_interface import sound
+from visexpman.engine.hardware_interface import sound,digital_io
 from visexpman.engine.generic import signal
 
 class SoundAndGratingC(experiment.ExperimentConfig):
@@ -18,6 +18,8 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.GRAY=0.5
         self.MASK_SIZE=1500.0#um
         self.AUDIO_SAMPLING_RATE=44.1e3
+        self.ARDUINO_SOUND_GENERATOR=False
+        self.ARDUINO_SOUND_GENERATOR_PORT='/dev/ttyACM0'
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
         
@@ -36,19 +38,20 @@ class SoundAndGratingE(experiment.Experiment):
         self.experiment_config.PROTOCOL=self.protocol
         self.experiment_config.PROTOCOL1=[[p[0], int(p[1]=='grating' or p[1]=='both'), int(p[1]=='sound' or p[1]=='both')] for p in self.protocol]
         self.experiment_config.GRATING_FREQUENCY=1.0/(ec.BAR_WIDTH/ec.GRATING_DUTY_CYCLE/numpy.array(ec.SPEEDS))
-        self.sound_filenames={}
-        self.s=[]
-        for i in range(len(ec.GRATING_FREQUENCY)):
-            self.s.append(sound.SoundGenerator())
-            self.s[-1].sample_rate=ec.AUDIO_SAMPLING_RATE
-            if ec.MODULATION=='fm':
-                self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=True))
-            elif ec.MODULATION=='fmsmooth':
-                self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=False))
-            elif ec.MODULATION=='am':
-                self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
-            self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
-            #import shutil;shutil.copy(self.s[-1].mp3fn,'c:\\temp')
+        if not self.experiment_config.ARDUINO_SOUND_GENERATOR:
+            self.sound_filenames={}
+            self.s=[]
+            for i in range(len(ec.GRATING_FREQUENCY)):
+                self.s.append(sound.SoundGenerator())
+                self.s[-1].sample_rate=ec.AUDIO_SAMPLING_RATE
+                if ec.MODULATION=='fm':
+                    self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=True))
+                elif ec.MODULATION=='fmsmooth':
+                    self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=False))
+                elif ec.MODULATION=='am':
+                    self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
+                self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
+                #import shutil;shutil.copy(self.s[-1].mp3fn,'c:\\temp')
         self.orientation=0
         self.block_boundaries=[]
         
@@ -58,11 +61,14 @@ class SoundAndGratingE(experiment.Experiment):
         self.block_boundaries.append(self.frame_counter)
         ec=self.experiment_config
         if condition!='grating':
-            if hasattr(self, 'soundplayer'):
-                if self.soundplayer.is_alive():
-                    raise RuntimeError('Previous block\'s sound generator have not finished')
-            self.soundplayer=sound.SoundPlayer(self.sound_filenames[speed])
-            self.soundplayer.start()
+            if ec.ARDUINO_SOUND_GENERATOR:
+                self.ioboard.set_waveform(ec.SOUND_BASE_FREQUENCY, ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[ec.SPEEDS.index(speed)])
+            else:
+                if hasattr(self, 'soundplayer'):
+                    if self.soundplayer.is_alive():
+                        raise RuntimeError('Previous block\'s sound generator have not finished')
+                self.soundplayer=sound.SoundPlayer(self.sound_filenames[speed])
+                self.soundplayer.start()
         if condition=='sound':
             self.show_fullscreen(color=ec.GRAY, duration=ec.BLOCK_DURATION)
         else:
@@ -74,6 +80,8 @@ class SoundAndGratingE(experiment.Experiment):
                                velocity=speed,
                                mask_size=ec.MASK_SIZE,
                                mask_color=ec.GRAY)
+        if ec.ARDUINO_SOUND_GENERATOR:
+            self.ioboard.stop_waveform()
         self.block_boundaries.append(self.frame_counter-1)
         self.block_end(block_sig)
 #        if condition!='grating':
@@ -81,6 +89,7 @@ class SoundAndGratingE(experiment.Experiment):
         
     def run(self):
         ec=self.experiment_config
+        self.ioboard=digital_io.IOBoard(ec.ARDUINO_SOUND_GENERATOR_PORT)
         self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
         for p in self.protocol:
             print p
@@ -88,7 +97,8 @@ class SoundAndGratingE(experiment.Experiment):
             self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
             if self.abort:
                 break
-        if not self.abort:
+        self.ioboard.close()
+        if 0 and not self.abort:
             #save block boundaries
             for i in range(len(self.experiment_config.PROTOCOL1)):
                 self.experiment_config.PROTOCOL1[i].extend([self.block_boundaries[2*i],self.block_boundaries[2*i+1]])

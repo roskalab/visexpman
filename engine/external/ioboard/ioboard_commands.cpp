@@ -136,9 +136,16 @@ void IOBoardCommands::run(void)
       {
         Serial.println("Stop waveform");
       }
-      TCCR1B&=~7;
-      TIMSK1 &= ~(1<<1);      
-      waveform_state=OFF;
+      stop_waveform();
+    }
+    else if ((strcmp(command,"reset")==0)&&(nparams==0))
+    {
+      if (debug==1)
+      {
+        Serial.println("Reset");
+      }
+      read_state=OFF;
+      stop_waveform();
     }
     else
     {
@@ -216,4 +223,10 @@ void IOBoardCommands::read_pins(unsigned char force)
 void IOBoardCommands::waveform_isr(void)
 {
   OCR1A = waveform_frq_register;
+}
+void IOBoardCommands::stop_waveform(void)
+{
+  TCCR1B&=~7;
+  TIMSK1 &= ~(1<<1);
+  waveform_state=OFF;
 }

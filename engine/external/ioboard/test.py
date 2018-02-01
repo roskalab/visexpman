@@ -41,7 +41,7 @@ class TestIOboard(unittest.TestCase):
         pulse_tolerance=2
         pulse_width=50
         print 'Connect pin 5 to pin 2 and pin 6 to pin 3'
-        self.execute_command('stop_read_pins')
+        self.execute_command('reset')
         self.execute_command('read_pins')
         self.execute_command('set_pin,5,0')
         self.execute_command('set_pin,6,0')
@@ -84,9 +84,9 @@ class TestIOboard(unittest.TestCase):
         self.assertTrue(all(p[:,0]==numpy.array([0,1,1,0])))
 
     def test_03_waveform(self):
+        self.execute_command('reset')
         self.execute_command('set_pin,6,0')
         self.execute_command('set_pin,5,0')
-        self.execute_command('stop')
         #fixed frequency waveform
         self.execute_command('waveform,1000,0,0')
         time.sleep(0.3)
