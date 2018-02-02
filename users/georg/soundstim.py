@@ -18,7 +18,7 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.GRAY=0.5
         self.MASK_SIZE=1500.0#um
         self.AUDIO_SAMPLING_RATE=44.1e3
-        self.ARDUINO_SOUND_GENERATOR=False
+        self.ARDUINO_SOUND_GENERATOR=not False
         self.ARDUINO_SOUND_GENERATOR_PORT='/dev/ttyACM0'
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
@@ -89,7 +89,8 @@ class SoundAndGratingE(experiment.Experiment):
         
     def run(self):
         ec=self.experiment_config
-        self.ioboard=digital_io.IOBoard(ec.ARDUINO_SOUND_GENERATOR_PORT)
+        if ec.ARDUINO_SOUND_GENERATOR:
+            self.ioboard=digital_io.IOBoard(ec.ARDUINO_SOUND_GENERATOR_PORT,timeout=0.2)
         self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
         for p in self.protocol:
             print p
@@ -97,7 +98,8 @@ class SoundAndGratingE(experiment.Experiment):
             self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
             if self.abort:
                 break
-        self.ioboard.close()
+        if ec.ARDUINO_SOUND_GENERATOR:
+            self.ioboard.close()
         if 0 and not self.abort:
             #save block boundaries
             for i in range(len(self.experiment_config.PROTOCOL1)):

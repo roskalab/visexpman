@@ -194,8 +194,8 @@ class DaqDio(object):
             d.ClearTask()
             
 class IOBoard(object):
-    def __init__(self,port):
-        self.s=serial.Serial(port, baudrate=115200,timeout=1)
+    def __init__(self,port,timeout=1):
+        self.s=serial.Serial(port, baudrate=115200,timeout=timeout)
         self.t0=time.time()
         self.wait_done=False
         self._wait()
@@ -209,7 +209,7 @@ class IOBoard(object):
             return
         while True:
             now=time.time()
-            if now-self.t0>0.5:
+            if now-self.t0>1.5:
                 self.wait_done=True
                 break
             time.sleep(0.1)
@@ -236,6 +236,7 @@ class IOBoard(object):
         
     def stop_waveform(self):
         res=self.command('stop')
+        res=self.command('stop')#Issued twice just to make sure that it is terminated
         if 'Stop waveform' not in res:
             raise IOError('Waveform was not stopped: {0}'.format(res))
             

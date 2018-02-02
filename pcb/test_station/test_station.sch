@@ -29,6 +29,7 @@ LIBS:atmel
 LIBS:contrib
 LIBS:valves
 LIBS:test_station_components
+LIBS:test_station-cache
 EELAYER 25 0
 EELAYER END
 $Descr A3 16535 11693
@@ -44,7 +45,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L DELL_Precision_3620 Stimulus
+L DELL_Precision_3620 Stimulus~computer
 U 1 1 5A73450C
 P 2450 3200
 F 0 "Stimulus computer" H 2050 3950 60  0000 C CNN
@@ -55,7 +56,7 @@ F 3 "" H 2450 3200 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L DELL_Precision_3620 Imaging
+L DELL_Precision_3620 Imaging~computer
 U 1 1 5A7345F9
 P 2950 7750
 F 0 "Imaging computer" H 2550 8500 60  0000 C CNN
@@ -77,7 +78,7 @@ F 3 "" H 750 3350 60  0000 C CNN
 	-1   0    0    -1  
 $EndComp
 $Comp
-L camera Eye
+L camera Eye~Camera
 U 1 1 5A7347A2
 P 1100 7300
 F 0 "Eye Camera" H 950 7550 60  0000 C CNN
@@ -153,6 +154,30 @@ F 3 "" H 13900 3250 60  0000 C CNN
 	1    13950 3250
 	1    0    0    -1  
 $EndComp
+Text Notes 13650 10900 0    60   ~ 0
+Test Station Wiring Design
+Text Label 12300 7250 0    60   ~ 0
+DAC0
+Text Notes 6400 10150 0    60   ~ 0
+Stimulus Start TTL Trigger
+Text Notes 11400 7050 0    60   ~ 0
+IOBoard's digital input test
+Text Notes 7000 6750 0    60   ~ 0
+Imaging frame timing signal
+Text Notes 8350 1050 0    60   ~ 0
+Stimulus frame timing
+Text Notes 8600 1200 0    60   ~ 0
+Block timing
+Text Notes 9700 1050 0    60   ~ 0
+Stimulus frame timing
+Text Notes 10900 1300 0    60   ~ 0
+Block timing
+Text Notes 11100 6100 0    60   ~ 0
+Timing signals to test with arduino digital input
+Text Notes 8250 800  0    60   ~ 0
+Shutter control
+Text Notes 5500 8000 0    60   ~ 0
+FM Waveform
 Wire Wire Line
 	4700 5850 1700 5850
 Wire Wire Line
@@ -201,6 +226,183 @@ Wire Wire Line
 	1250 500  1250 2900
 Wire Wire Line
 	1250 2900 1800 2900
-Text Notes 13650 10900 0    60   ~ 0
-Test Station Wiring Design
+Wire Wire Line
+	5000 6500 5000 6900
+Wire Wire Line
+	5000 6900 5600 6900
+Wire Wire Line
+	5600 6900 5600 6500
+Wire Wire Line
+	5150 6500 5150 7000
+Wire Wire Line
+	5150 7000 5750 7000
+Wire Wire Line
+	5750 7000 5750 6500
+Wire Wire Line
+	13200 7050 13200 7500
+Wire Wire Line
+	13200 7250 11600 7250
+Connection ~ 13200 7250
+Wire Wire Line
+	5050 9950 5050 10200
+Wire Wire Line
+	5050 10200 8500 10200
+Wire Wire Line
+	8500 10200 8500 3850
+Wire Wire Line
+	8500 3850 8200 3850
+Wire Wire Line
+	5300 6500 5300 7100
+Wire Wire Line
+	5300 7100 12750 7100
+Wire Wire Line
+	12750 7100 12750 5850
+Wire Wire Line
+	12750 5850 13200 5850
+Wire Wire Line
+	5450 6500 5450 6800
+Wire Wire Line
+	5450 6800 8850 6800
+Wire Wire Line
+	8850 1400 9750 1400
+Wire Wire Line
+	8850 6800 8850 1400
+Wire Wire Line
+	8200 4150 8600 4150
+Wire Wire Line
+	8600 1250 8600 6000
+Wire Wire Line
+	8600 1250 9450 1250
+Wire Wire Line
+	8200 4450 8350 4450
+Wire Wire Line
+	8350 1100 8350 6150
+Wire Wire Line
+	8350 1100 9600 1100
+Wire Wire Line
+	13200 6300 11800 6300
+Wire Wire Line
+	11800 6300 11800 1100
+Wire Wire Line
+	11800 1100 10200 1100
+Wire Wire Line
+	13200 6450 11700 6450
+Wire Wire Line
+	11700 6450 11700 1200
+Wire Wire Line
+	11700 1200 10050 1200
+Wire Wire Line
+	9750 1400 9750 1550
+Wire Wire Line
+	9600 1100 9600 1550
+Wire Wire Line
+	9450 1250 9450 1550
+Wire Wire Line
+	8350 6150 13200 6150
+Connection ~ 8350 4450
+Wire Wire Line
+	8600 6000 13200 6000
+Connection ~ 8600 4150
+Wire Wire Line
+	9900 950  9900 1550
+Wire Wire Line
+	10050 1200 10050 1550
+Wire Wire Line
+	10200 1100 10200 1550
+Wire Wire Line
+	5000 5150 5000 850 
+Wire Wire Line
+	5000 850  10350 850 
+Wire Wire Line
+	10350 850  10350 1550
+Wire Wire Line
+	13200 6900 12950 6900
+Wire Wire Line
+	12950 6900 12950 8050
+Wire Wire Line
+	12950 8050 5500 8050
+Wire Wire Line
+	6050 6500 6050 7800
+Wire Wire Line
+	6050 7800 5200 7800
+Wire Wire Line
+	5200 7800 5200 8600
+Wire Wire Line
+	5900 6500 5900 7650
+Wire Wire Line
+	5900 7650 5050 7650
+Wire Wire Line
+	5050 7650 5050 8600
+Text Notes 5050 7600 0    60   ~ 0
+Emulated PMT signals
+Wire Wire Line
+	5200 9950 5200 10400
+Wire Wire Line
+	4550 10400 5200 10400
+Wire Wire Line
+	4550 700  4550 10400
+Wire Wire Line
+	4550 8250 5350 8250
+Wire Wire Line
+	5350 8250 5350 8600
+Text Notes 4550 8200 0    60   ~ 0
+Signal for syncronizing AI's of both USB 6003s
+Wire Wire Line
+	10500 1550 10500 700 
+Wire Wire Line
+	10500 700  4550 700 
+Connection ~ 4550 8250
+Wire Wire Line
+	5500 8050 5500 8600
+Wire Wire Line
+	9900 2900 9900 3100
+Wire Wire Line
+	5750 5150 5750 4900
+Wire Wire Line
+	12750 4900 5750 4900
+Wire Wire Line
+	12750 2800 12750 4900
+Wire Wire Line
+	12750 3250 13200 3250
+Wire Wire Line
+	9900 3100 13200 3100
+Wire Wire Line
+	5800 9950 5800 10000
+Wire Wire Line
+	5800 10000 12250 10000
+Wire Wire Line
+	12250 10000 12250 3400
+Wire Wire Line
+	12250 3400 13200 3400
+Wire Wire Line
+	13200 2650 12250 2650
+Wire Wire Line
+	12250 2650 12250 3100
+Connection ~ 12250 3100
+Wire Wire Line
+	12750 2800 13200 2800
+Connection ~ 12750 3250
+Wire Wire Line
+	13200 2950 12900 2950
+Wire Wire Line
+	12900 2950 12900 3400
+Connection ~ 12900 3400
+Text Notes 11100 3350 0    60   ~ 0
+Controlling PFI inputs of DAQ devices
+Wire Wire Line
+	5650 8600 5650 8250
+Wire Wire Line
+	5650 8250 11600 8250
+Wire Wire Line
+	11600 8250 11600 7250
+Wire Wire Line
+	9150 2900 9150 3150
+Wire Wire Line
+	9150 3150 8000 3150
+Wire Wire Line
+	8000 3150 8000 950 
+Wire Wire Line
+	8000 950  9900 950 
+Text Notes 5500 1600 0    60   ~ 0
+Timing signals generated by different devices: arduino, usb-uart, daq
 $EndSCHEMATC
