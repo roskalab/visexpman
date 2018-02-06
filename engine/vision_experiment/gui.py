@@ -38,7 +38,7 @@ BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following forma
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
 
 ENABLE_SCAN_REGION_SERIALIZATION= False
-STAGE= not True
+STAGE= False
 
 class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):

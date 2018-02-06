@@ -553,7 +553,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         IMAGE_PROJECTED_ON_RETINA = False
         FULLSCREEN =  not False
-        ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led']
+        ONLINE_ANALYSIS_STIMS=['movinggrating','movingdot','led', 'irlaser']
     
 
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  

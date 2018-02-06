@@ -26,14 +26,14 @@ def nostderr():
     yield
     sys.stderr = savestderr
 
-def hash_variables(variables):
+def hash_variables(variables, digest = None):
         import hashlib
         import cPickle
         myhash = hashlib.md5()
-        if not isinstance(variables, (list, tuple)): variables = [ variables]
+        if not isinstance(variables, (list, tuple)): variables = [variables]
         for v in variables:
             myhash.update(cPickle.dumps(v))
-        return myhash.digest()
+        return myhash.digest() if digest is None else myhash.hexdigest()
         
 def kill_child_processes(parent_pid, sig='SIGTERM'):
         ps_command = subprocess.Popen("ps -o pid --ppid %d --noheaders" % parent_pid, shell=True, stdout=subprocess.PIPE)
