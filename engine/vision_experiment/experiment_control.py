@@ -110,7 +110,7 @@ class ExperimentControl(object):
                 elif utils.is_graceful_stop_in_queue(self.queues['gui']['in'], False):
                     message_to_screen += self.printl('Graceful stop requested',  application_log = True) + '\n'
                     break
-                elif self._start_fragment(fragment_id):
+                elif self._start_fragment(fragment_id) and not self.abort:
                         if self.number_of_fragments == 1:
                             self.run()
                         else:

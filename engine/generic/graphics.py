@@ -325,7 +325,8 @@ class Screen(object):
             im = im.transpose(Image.FLIP_TOP_BOTTOM)
         im = im.convert('RGBX')
         self.image_size = im.size
-        ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)        
+        ix, iy, image = im.size[0], im.size[1], im.tobytes('raw', 'RGBX', 0, -1)  
+        #import pdb;pdb.set_trace()      
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, ix, iy, 0, GL_RGBA, GL_UNSIGNED_BYTE, image)
