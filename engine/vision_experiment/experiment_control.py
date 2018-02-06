@@ -110,7 +110,7 @@ class ExperimentControl(object):
                 elif utils.is_graceful_stop_in_queue(self.queues['gui']['in'], False):
                     message_to_screen += self.printl('Graceful stop requested',  application_log = True) + '\n'
                     break
-                elif self._start_fragment(fragment_id) and not self.abort:
+                elif not self.abort and self._start_fragment(fragment_id):
                         if self.number_of_fragments == 1:
                             self.run()
                         else:
@@ -295,6 +295,7 @@ class ExperimentControl(object):
                     value = None
                 if not value is None:
                     result, adjusted_value= getattr(self.mes_interface, 'set_'+parameter_name2set)(value)
+                    
                     if not result:
                         self.abort = True
                         self.printl('{0} is not set'.format(parameter_name2set.replace('_', ' ').capitalize()))
