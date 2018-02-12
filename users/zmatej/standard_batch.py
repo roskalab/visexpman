@@ -13,7 +13,7 @@ from visexpman.engine.vision_experiment import experiment
 class StBWhiteNoise(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
-        self.DURATION_MINS = 15.0
+        self.DURATION_MINS = 20.0
         self.PIXEL_SIZE = [40.0]
         #self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False
@@ -25,7 +25,7 @@ class StBWhiteNoise(experiment.ExperimentConfig):
 class StBMovingGrating(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingGratingStimulus'
-        self.REPEATS = 1
+        self.REPEATS = 8
         self.N_BAR_ADVANCES_OVER_POINT = 20
         self.MARCH_TIME = 0.0
         self.GREY_INSTEAD_OF_MARCHING = False
@@ -103,5 +103,21 @@ class StBFingerPrinting(experiment.ExperimentConfig):
         self.REPEATS = 15
         self._create_parameters_from_locals(locals())
 
-
-
+# -----------------------------------------------------------------------------
+# moving dots
+class StBMovingDots(experiment.ExperimentConfig): 
+    def _create_parameters(self):
+        self.runnable = 'RandomDotsStimulus'
+        self.REPEATS = 3
+        self.DURATION = 10*60 # time scale wrong at this point!
+        self.DIRECTIONS = []
+        self.DOTSIZES = [50]
+        self.DOTSIZES_MIN_MAX = []
+        self.DOTDURATIONS = [0.5]
+        self.DOTDURATIONS_MIN_MAX = []
+        self.SPEEDS = [6]
+        self.SPEEDS_MIN_MAX = []
+        self.COLORS = [[1,1,1], [0,0,0]]
+        self.BGCOLOR = [0.5, 0.5, 0.5]
+        self.SPARSITY_FACTOR = 0.05
+        self._create_parameters_from_locals(locals())
