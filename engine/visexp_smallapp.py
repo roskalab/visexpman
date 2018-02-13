@@ -797,11 +797,11 @@ def rotate_images(root='.'):
     Input: image folder, output folder
     Output: checksum/hash of all folders
     '''
-    from visexpman.engine.generic.gui import fileinput
+    from visexpman.engine.generic.gui import file_input
     from visexpman.engine.generic.imageop import rotate_folder
     from visexpman.engine.generic.fileop import folder_signature
-    image_folder=fileinput(title='Select image folder',root=root, mode='folder')
-    output_folder=fileinput(title='Select output folder',root=root, mode='folder')
+    image_folder=file_input(title='Select image folder',root=root, mode='folder')
+    output_folder=file_input(title='Select output folder',root=root, mode='folder')
     if image_folder==output_folder:
         raise RuntimeError('rotated files cannot be put to image folder')
     for rot in range(0,360,90):
