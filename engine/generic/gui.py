@@ -986,7 +986,7 @@ def text_input_popup(self, title, name, callback):
     self.w.show()
 
 class FileInput(Qt.QMainWindow):
-    def __init__(self, title,root='.',filter='*.*', mode='file'):
+    def __init__(self, title,root='.',filter='*.*', mode='file', default='',message=''):
         if QtCore.QCoreApplication.instance() is None:
             self.qt_app = Qt.QApplication([])
         Qt.QMainWindow.__init__(self)
@@ -995,6 +995,8 @@ class FileInput(Qt.QMainWindow):
         self.filter=filter
         self.root=root
         self.mode=mode
+        self.message=message
+        self.default=default
         self.setGeometry(50,50,400,100)
         self.timer=QtCore.QTimer()
         self.timer.singleShot(50, self.popup)#ms
@@ -1009,23 +1011,40 @@ class FileInput(Qt.QMainWindow):
             filename = map(str,QtGui.QFileDialog.getOpenFileNames(self, self.title, self.root, self.filter))
         elif self.mode=='folder':
             filename= str(QtGui.QFileDialog.getExistingDirectory(self, self.title, self.root))
-        if os.name=='nt':
-            if isinstance(filename,list):
-                filename=[f.replace('/','\\') for f in filename]
-            else:
-                filename=filename.replace('/','\\')
-        self.filename=filename
+        elif self.mode=='text':
+            text, ok = QtGui.QInputDialog.getText(self, self.title, '', QtGui.QLineEdit.Normal, self.default)
+            self.text=str(text)
+        elif self.mode=='message':
+            QtGui.QMessageBox.question(self, self.title, self.message, QtGui.QMessageBox.Ok)
+        if self.mode not in ['text','message']:
+            if os.name=='nt':
+                if isinstance(filename,list):
+                    filename=[f.replace('/','\\') for f in filename]
+                else:
+                    filename=filename.replace('/','\\')
+            self.filename=filename
         self.close()
         
-def fileinput(title='',root='.',filter='*.*', mode='file'):
+def file_input(title='',root='.',filter='*.*', mode='file'):
     g=FileInput(title, root, filter, mode)
     print g.filename
     return g.filename
+    
+def text_input(title='',default=''):
+    g=FileInput(title, mode='text',default=default)
+    print g.text
+    return g.text
+    
+def message(title,message):
+    g=FileInput(title, mode='message', message=message)
 
 class GuiTest(unittest.TestCase):
     def test_01_ask4filename(self):
         for m in ['files', 'file', 'folder']:
-            print fileinput('TEST', mode=m)
+            print file_input('TEST', mode=m)
+            
+    def test_02_ask4number(self):
+        print text_input('TEXT')
 
 if __name__=='__main__':
     unittest.main()
