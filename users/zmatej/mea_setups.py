@@ -21,7 +21,7 @@ class MEAConfig(HiMEAConfig):
         
         # Scale:
         self.ELECTRODE_PITCH=17.5
-        self.RETINA_ROOM_SCALE = 1.0/1.75
+        self.RETINA_ROOM_SCALE = 3.26 #previously: 1.0/1.75 -- changed after new optics & re-characterization
         SCREEN_UM_TO_PIXEL_SCALE = self.RETINA_ROOM_SCALE
         
         # Folders & paths:
@@ -72,7 +72,7 @@ class MEAConfigDebug(MEAConfig):
     def _set_user_parameters(self):
         MEAConfig._set_user_parameters(self)
         self.FULLSCREEN = False
-        folder = '/home/zmatej/tmp'       
+        #folder = '/home/zmatej/tmp'       
         self.ENABLE_MEA_START_COMMAND = not True # set True when stim software needs to start the recording
                 
         if not os.path.isdir(folder):
@@ -87,6 +87,26 @@ class MEAConfigDebug(MEAConfig):
         CAPTURE_PATH = self.root_folder
         self._create_parameters_from_locals(locals())
 
+class MEAActivityMap(MEAConfig):
+    def _set_user_parameters(self):
+        MEAConfig._set_user_parameters(self)
+        self.FULLSCREEN = True
+        folder = '/home/zmatej/tmp'       
+        self.ENABLE_MEA_START_COMMAND = not True # set True when stim software needs to start the recording
+        
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        self.root_folder = []#folder
+        LOG_PATH = self.root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH
+        ENABLE_PARALLEL_PORT = not True
+        EXPERIMENT_DATA_PATH = self.root_folder
+        CONTEXT_PATH = self.root_folder
+        CAPTURE_PATH = self.root_folder
+ 
+        delattr(self, 'GAMMA_CORRECTION')                
+        
+        self.SAVEFILE = False
 
 class MEAConfigLightChar(MEAConfig):
     def _set_user_parameters(self):
