@@ -1042,7 +1042,9 @@ def chunks(l, n):
         
 def file_to_binary_array(path):
     if os.path.exists(path):
-        return numpy.fromfile(str(path), dtype = numpy.uint8)        
+        return numpy.fromfile(str(path), dtype = numpy.uint8)  
+    else:     
+        raise NotImplementedError('')
     #else:
      #   return numpy.zeros(2)
     

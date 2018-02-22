@@ -484,7 +484,10 @@ def database_status(filename):
     try:
         h=tables.open_file(filename, mode = "r")
         r2=h.root.last_job_added[0]
-        unprocessed_jobs=len([1 for row in h.root.datafiles.where('(~is_analyzed | ~is_mesextractor | ~is_converted) & is_measurement_ready & ~is_error')])
+        if '--ignore_failed_files' not in sys.argv:
+            unprocessed_jobs=len([1 for row in h.root.datafiles.where('(~is_analyzed | ~is_mesextractor | ~is_converted) & is_measurement_ready & ~is_error')])
+        else:
+            unprocessed_jobs=len([1 for row in h.root.datafiles.where('(~is_analyzed | ~is_mesextractor | ~is_converted) & is_measurement_ready')])
     except:
         logging.error(traceback.format_exc())
         r2=None

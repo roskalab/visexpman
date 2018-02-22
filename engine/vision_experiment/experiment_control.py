@@ -668,6 +668,7 @@ class ExperimentControl(object):
             experiment_source = self.source_code
         else:
             experiment_source = utils.file_to_binary_array(inspect.getfile(self.__class__).replace('.pyc', '.py'))
+
         software_environment = self._pack_software_environment()
         data_to_file = {
                                     'sync_data' : analog_input_data, 
@@ -682,6 +683,7 @@ class ExperimentControl(object):
                                     'experiment_config': experiment_data.pickle_config(self.experiment_config), 
                                     'experiment_start_timestamp':self.experiment_start_timestamp
                                     }
+
         if self.user_data != {}:
             data_to_file['user_data'] = self.user_data
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
