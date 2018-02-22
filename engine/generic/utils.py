@@ -456,8 +456,10 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
       method resolution order tree (whole ancestor tree) or just the direct ancestors.
     '''
     import visexpman
-    bm=__import__(basemodule, fromlist='dummy')
-    class_list=[]
+    if basemodule is None:
+        raise ValueError('Basemodule must be specified when gathering classes')
+    bm = __import__(basemodule, fromlist='dummy')
+    class_list = []
     if not isinstance(required_ancestors, (list, tuple)): required_ancestors=[required_ancestors]
     if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
     for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
