@@ -13,8 +13,10 @@ try:
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
     default_aimode=DAQmxConstants.DAQmx_Val_RSE
+    daqmxtask=PyDAQmx.Task
 except:
     default_aimode=None
+    daqmxtask=object
 from visexpman.engine.generic import configuration,utils,fileop
 try:
     from visexpman.users.test import unittest_aggregator
@@ -29,7 +31,7 @@ class DaqInstrumentError(Exception):
     Raised when Daq related error detected
     '''
     
-class WaveformGenerator(multiprocessing.Process, PyDAQmx.Task):
+class WaveformGenerator(multiprocessing.Process, daqmxtask):
     def __init__(self,channel,waveform,fsample,update_time=1):
         multiprocessing.Process.__init__(self)
         PyDAQmx.Task.__init__(self)

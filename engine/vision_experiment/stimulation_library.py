@@ -589,7 +589,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=0.0, color_max=1.0, narms=4, background_color=0.5, save_frame_info=True):
+    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=0.0, color_max=1.0, 
+                                    narms=4, background_color=0.5, invert=False,save_frame_info=True):
         '''
         Shows an object defined by name parameter:
             concentric circles (name='concentric')
@@ -671,7 +672,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 end_angle=angles[2*arm+1]
                 draw.pieslice([0,0,2*size_pixel-1,2*size_pixel-1], start_angle, end_angle,fill=int(color_max*255))
             texture=numpy.asarray(im)/255.
-            #At half radius, 20 % of arm size
+            #At half radius, 15 % of arm size
             transition=int(size_pixel*numpy.pi/narms*0.15)
             texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
             texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
@@ -734,14 +735,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 pass
             angle=numpy.array(angle)
             max_angle=numpy.pi/2
-            t0=time.time()
             for o in numpy.linspace(-max_angle/2,max_angle/2,80):
                 for sign in [1,-1]:
                     r=sign*a*angle
                     coo=numpy.cast['int'](numpy.array([r*numpy.cos(angle+o)+size_pixel,r*numpy.sin(angle+o)+size_pixel]))
                     coo=[numpy.where(numpy.logical_and(coo[i]>2*size_pixel, coo[i]<0),0,coo[i]) for i in range(2)]
                     texture[coo[0],coo[1]]=numpy.cos(o/max_angle*numpy.pi)
-            print t0-time.time()    
             texture=signal.scale(texture,color_min,color_max)
             texture=texture[size_pixel/2:3*size_pixel/2,size_pixel/2:3*size_pixel/2]
             mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
@@ -752,6 +751,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 texture+=mask_inv
         else:
             raise NotImplementedError('{0} object is not supported'.format(name))
+        if invert:
+            texture=1.0-texture
         if hasattr(self.config, 'GAMMA_CORRECTION'):
 #            import pdb;pdb.set_trace()
             texture = self.config.GAMMA_CORRECTION(texture)
@@ -1495,7 +1496,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def generate_paid_textute(self, relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive):
+    def generate_paid_texture(self, relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive):
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         line_spacing_p=int(line_width_p*duty_cycle)
         if mask_size ==None:
@@ -1531,6 +1532,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         cut=int(texture_width*(1-1.0/extension_factor)/2)
         merged_period=line_spacing_p/numpy.sin(numpy.radians(relative_angle/2))
         nreps=int(0.5*self.config.SCREEN_RESOLUTION['col']/merged_period)#Texture is reassambled from half screen wide segments
+        if nreps==0:
+            raise RuntimeError('Plaid pattern cannot be generated, increase spatial frequency')
         segment=texture[cut:cut+int(round(merged_period*nreps))]
         nsegments=int(numpy.ceil(texture_width/segment.shape[0]))
         texture=numpy.zeros((segment.shape[0]*nsegments, segment.shape[1]))
