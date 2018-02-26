@@ -66,6 +66,7 @@ class WaveformGenerator(multiprocessing.Process, daqmxtask):
                 self.StartTask()
             if not self.abort.empty():
                 break
+            print u
         
 #        if 0:
 #            time.sleep(1)
@@ -2190,17 +2191,28 @@ if test_mode:
 class TestWaveformGenerator(unittest.TestCase):
     def test_01(self):
         fsample=1000.
-        ai=SimpleAnalogIn('Dev1/ai0:1', fsample, 3,timeout=15)
+        #ai=SimpleAnalogIn('Dev1/ai0:1', fsample, 3,timeout=15)
         wf=numpy.arange(fsample)/fsample
-        wf=numpy.random.random(fsample)
-        wf=numpy.tile(wf,2)
+        #wf=numpy.random.random(fsample)
+        wf=numpy.tile(wf,10)
         wf=wf[::-1]
         wg=WaveformGenerator('Dev1/ao0', wf, fsample)
         wg.run()
         #wg.join()
-        data=ai.finish()
+        #data=ai.finish()
         from pylab import plot,show
-        plot(data[:,1]);show()
+        #plot(data[:,1]);show()
+        
+    def test_02(self):
+        fsample=1000.
+        wf=numpy.arange(fsample)/fsample
+        wf=numpy.tile(wf,10)
+        wf=numpy.array([wf])
+        analog_output, wf_duration =set_waveform_start('Dev1/ao0',wf,sample_rate = fsample)
+        time.sleep(wf_duration/2)
+        analog_output.StopTask()                            
+        analog_output.ClearTask()
+    
      
 if __name__ == '__main__':
     unittest.main()
