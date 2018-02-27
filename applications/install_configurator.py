@@ -117,12 +117,12 @@ class InstallConfigurator(Qt.QMainWindow):
         try:
             stim_bat_content='''
             title Stim
-            python c:\visexp\visexpman\engine\visexp_app.py -u tbd -a stim -c tbd
+            python c:\\visexp\\visexpman\\engine\visexp_app.py -u tbd -a stim -c tbd
             pause
             '''
             visexpman_bat_content='''
             title Vision Experiment Manager
-            python c:\visexp\visexpman\engine\visexp_app.py -u tbd -a main_ui -c tbd
+            python c:\\visexp\\visexpman\\engine\\visexp_app.py -u tbd -a main_ui -c tbd
             pause
             '''
             desktop=os.path.join('c:\\Users', getpass.getuser(), 'Desktop')
@@ -143,7 +143,7 @@ class InstallConfigurator(Qt.QMainWindow):
                     fp.close()
                     self.log('{0} saved'.format(os.path.join(desktop, bfn)))
             #aggregate all files:
-            modules=['anaconda',  'gedit', 'tcmd', 'meld', 'opengl','pygame','opencv','pyqtgraph', 'pyserial']
+            modules=['anaconda',  'gedit', 'meld', 'opengl','pygame','opencv','pyqtgraph', 'pyserial']
             self.commands=['title Vision Experiment Manager Installer', 'del python_installed.txt']
             for module in modules:
                 fn=self.modulename2filename(module)
@@ -215,6 +215,7 @@ class InstallConfigurator(Qt.QMainWindow):
             self.commands.append(self.visexpmanfolder.split(os.sep)[0])
             self.commands.append('cd {0}'.format(os.path.join(self.visexpmanfolder,'visexpman')))
             self.commands.append('call shortcuts\\verify_installation.bat')
+            self.notifications.append('disable scrren saver, automatic sleep and hybernation')
             self.notifications.append('change windows theme to classical')
             self.commands.append('echo cleaning up')
             self.commands.extend(['rd /s /q {0}'.format(f) for f in self.tmpdirs])
