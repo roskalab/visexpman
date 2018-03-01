@@ -21,10 +21,10 @@ class WhiteNoiseLong(experiment.ExperimentConfig):
 
 # -----------------------------------------------------------------------------
 #5 min
-class WhiteNoiseShort(experiment.ExperimentConfig):
+class XXXWhiteNoiseShort(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
-        self.DURATION_MINS = 5.0
+        self.DURATION_MINS = 0.5
         self.PIXEL_SIZE = [40.0]
         #self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False

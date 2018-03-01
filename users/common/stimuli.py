@@ -141,6 +141,20 @@ class FullFieldFlashesStimulus(experiment.Experiment):
         self.stimulus_frame_info.append({'super_block':'FullFieldFlashesStimulus', 'is_last':1, 'counter':self.frame_counter})
             
 
+class FullFieldTestFlicker(experiment.Experiment):
+    '''
+    Expected parameters:
+    '''
+    def prepare(self):
+	print 'x'        
+	
+    def run(self):
+        for r in range(self.experiment_config.REPETITIONS):
+            self.show_fullscreen(duration=1.0/60.0,color=[1,1,1], frame_trigger=True)
+	    self.show_fullscreen(duration=1.0/60.0,color=[0,0,0], frame_trigger=True)
+
+
+
 class MovingGratingStimulus(experiment.Experiment):
     '''
     Mandatory configuration parameters:
