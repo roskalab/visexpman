@@ -4,12 +4,12 @@ from visexpman.engine.generic import utils
 
 class ObjectStim(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.OBJECTS=['grating','pizza 5 arms', 'concentric', 'hyperbolic','spiral', 'hyperbolic 20 degrees']
+        self.OBJECTS=['grating', 'pizza 3 arms','pizza 5 arms', 'pizza 11 arms','concentric', 'hyperbolic','spiral', 'hyperbolic 25 degrees', 'grating 25 degrees', 'spiral 25 degrees', 'grating 45 degrees', 'grating 90 degrees', 'grating 135 degrees', 'spiral 45 degrees', 'hyperbolic 45 degrees']
         self.ON_TIME=2.0
         self.OFF_TIME=5.0
-        self.REPEAT_PER_OBJECT=3
-        self.SPATIAL_FREQUENCY=0.05#cycle per degree.
-        self.SIZE=2000.#um
+        self.REPEAT_PER_OBJECT=1
+        self.SPATIAL_FREQUENCY=0.1#cycle per degree.
+        self.SIZE=2000.0#um
         self.COLOR_MIN=0.0
         self.COLOR_MAX=1.0
         self.GRAY=0.5
@@ -34,6 +34,7 @@ class ObjectExperiment(experiment.Experiment):
         ec=self.experiment_config
         self.show_fullscreen(color=ec.GRAY, duration=ec.OFF_TIME)
         for o in ec.OBJECT_ORDER:
+            self.printl(o)
             self.block_start((o,))
             words=o.split(' ')
             name=words[0]
@@ -54,7 +55,7 @@ class ObjectExperiment(experiment.Experiment):
                     starting_phase=-(ec.SIZE/period-int(ec.SIZE/period*2)*0.5-0.5)*360/2
                 else:
                     starting_phase=-(ec.SIZE/period-int(ec.SIZE/period*2)*0.5)*360/2
-                self.show_grating(duration=ec.ON_TIME*100, 
+                self.show_grating(duration=ec.ON_TIME, 
                                                 velocity=0, 
                                                 orientation=ori,
                                                 mask_size=ec.SIZE,

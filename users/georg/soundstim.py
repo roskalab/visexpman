@@ -9,14 +9,14 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.CONDITIONS=['sound', 'grating', 'both']
         self.RANDOMIZE=True #true
         self.BLOCK_DURATION=8.0
-        self.PAUSE=4.0
+        self.PAUSE=5.0
         self.SOUND_BASE_FREQUENCY=14000
         self.FREQUENCY_STEP=1000#Hz
         self.MODULATION='fm'#'fm'
         self.BAR_WIDTH=300
         self.GRATING_DUTY_CYCLE=0.5
         self.GRAY=0.5
-        self.MASK_SIZE=1500.0#um
+        self.MASK_SIZE=3000.0#um
         self.AUDIO_SAMPLING_RATE=44.1e3
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
