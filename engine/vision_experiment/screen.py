@@ -169,7 +169,7 @@ class StimulationScreen(graphics.Screen):
             elif self.bullseye_type == 'bullseye':
                 self.render_image(self.bullseye_image, position = self.stim_context['screen_center'], stretch = self.bullseye_stretch_factor*self.bullseye_size)
             elif self.bullseye_type == 'spot':
-                raise NotImplementedError('')
+                self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = self.stim_context['screen_center'])
             
     def refresh_non_experiment_screen(self, flip = True):
         '''

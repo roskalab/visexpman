@@ -28,7 +28,7 @@ class StimulusDevelopment(VisionExperimentConfig):
         #=== screen ===
         FULLSCREEN = False
         COORDINATE_SYSTEM='center'
-        ENABLE_FRAME_CAPTURE = False
+        ENABLE_FRAME_CAPTURE = not True
 #        SCREEN_EXPECTED_FRAME_RATE = 60.0
         STIM_RECORDS_ANALOG_SIGNALS = False
         EXPERIMENT_FILE_FORMAT = 'mat'
@@ -39,6 +39,7 @@ class StimulusDevelopment(VisionExperimentConfig):
         
         SCREEN_RESOLUTION = utils.cr((800, 600))
         SCREEN_RESOLUTION = utils.cr((800, 450))
+        SCREEN_RESOLUTION = utils.cr((800, 800))
         self.SCREEN_WIDTH=47.657#cm
         self.SCREEN_HEIGHT=26.876#cm
         #SCREEN_RESOLUTION = utils.cr([1280, 720])

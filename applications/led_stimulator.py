@@ -187,7 +187,10 @@ class LEDStimulator(gui.SimpleAppWindow):
         
         '''
         buffer_size=self.settings['Buffer Size']
-        trig=self.ai_trace[:, 0]
+        if self.settings['Left LED']:
+            trig=self.ai_trace[:, 0]
+        else:
+            trig=self.ai_trace[:, 1]
         edges=signal.detect_edges(trig,0.5*trig.max())
         if trig[0]>0.5*trig.max():
             edges=numpy.insert(edges, 0, 0)
@@ -247,15 +250,15 @@ class LEDStimulator(gui.SimpleAppWindow):
             pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(255,0,0), width=3)}, 
                     {'name': 'right', 'pen': pyqtgraph.mkPen(color=(0,0,255), width=3)}]
             maxamp=abs(self.signals[k]['elphys'].max())
-            left=self.signals['last']['left']/self.signals['last']['left'].max()*maxamp
-            right=self.signals['last']['right']/self.signals['last']['right'].max()*maxamp
-            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],left,  right],plotparams=pp)
+            self.left=self.signals['last']['left']/self.signals['last']['left'].max()*maxamp*self.settings['Left LED']
+            self.right=self.signals['last']['right']/self.signals['last']['right'].max()*maxamp*self.settings['Right LED']
+            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],self.left, self.right],plotparams=pp)
             self.cw.plotw.plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
             dt=(time.time()-self.t0)/60.
             self.cw.plotw.plot.setTitle('Raw {0:0.1f} minutes'.format(dt))
             if self.settings['Enable Filter']:
-                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,left,  right],plotparams=pp)
-                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,left,  right],plotparams=pp)
+                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.left, self.right],plotparams=pp)
+                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.left, self.right],plotparams=pp)
                 self.cw.plotfiltered['Field Potential'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
                 self.cw.plotfiltered['Spike'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
         

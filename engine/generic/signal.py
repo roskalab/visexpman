@@ -320,14 +320,17 @@ def shape2distance(im,iterations):
     The output is an image showing the distance of each pixel in the object 
     from the edge
     '''
+    import time
+    t0=time.time()
     import scipy.ndimage.morphology, scipy.ndimage.filters
     input=im.copy()
     stages=[input.copy()]
     output=numpy.zeros_like(im)
     for i in range(int(iterations)):
         input=scipy.ndimage.morphology.binary_erosion(input)
-        stages.append(input.copy())
+        stages.append(input.copy()*(i+1))
         output+=numpy.cast['uint8'](input.copy())*(i+1)
+    print t0-time.time()
     return output
     
 def generate_frequency_modulated_waveform(duration, base_frequency, frequency_step, switch_frequency, fsample,step=True):

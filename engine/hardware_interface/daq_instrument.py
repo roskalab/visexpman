@@ -13,8 +13,10 @@ try:
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
     default_aimode=DAQmxConstants.DAQmx_Val_RSE
+    daqmxtask=PyDAQmx.Task
 except:
     default_aimode=None
+    daqmxtask=object
 from visexpman.engine.generic import configuration,utils,fileop
 try:
     from visexpman.users.test import unittest_aggregator
@@ -28,6 +30,64 @@ class DaqInstrumentError(Exception):
     '''
     Raised when Daq related error detected
     '''
+    
+class WaveformGenerator(multiprocessing.Process, daqmxtask):
+    def __init__(self,channel,waveform,fsample,update_time=1):
+        multiprocessing.Process.__init__(self)
+        PyDAQmx.Task.__init__(self)
+        if len(waveform.shape)==1:
+            self.nsamples=waveform.shape[0]
+            self.nchannels=1
+        else:
+            raise NotImplementedError('')
+        self.channel=channel
+        self.duration=self.nsamples/fsample
+        self.waveform=waveform
+        self.fsample=fsample
+        self.update_time=update_time
+        self.buffer_size=int(self.update_time*fsample)
+        self.nupdates=int(numpy.ceil(float(self.nsamples)/self.buffer_size))
+        self.buffer_index=0
+        self.abort=multiprocessing.Queue()
+        
+    def run(self):
+        self.CreateAOVoltageChan(self.channel, 'ao', 0.0, 5.0,DAQmxConstants.DAQmx_Val_Volts,None)
+        self.CfgSampClkTiming("OnboardClock",self.fsample, DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_ContSamps,
+                                        self.buffer_size)
+        self.SetWriteRegenMode(DAQmxConstants.DAQmx_Val_DoNotAllowRegen)
+        write=numpy.copy(self.waveform[self.buffer_index:self.buffer_index+self.buffer_size])
+        for u in range(self.nupdates):
+            write=numpy.copy(self.waveform[self.buffer_index:self.buffer_index+self.buffer_size])
+            self.WriteAnalogF64(write.shape[0], False, self.update_time, DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    write, None, None)
+            self.buffer_index+=self.buffer_size
+            if u==0:
+                self.StartTask()
+            if not self.abort.empty():
+                break
+            print u
+        
+#        if 0:
+#            time.sleep(1)
+#        else:
+#            for u in range(self.nupdates):
+#                if not self.abort.empty():
+#                    break
+#                start=self.buffer_index
+#                end=self.buffer_index+self.buffer_size
+#                if end>self.nsamples:
+#                    end=self.nsamples
+#                write=numpy.copy(self.waveform[start:end])*0
+#                self.WriteAnalogF64(write.shape[0], False, self.update_time, DAQmxConstants.DAQmx_Val_GroupByChannel,
+#                                    write, None, None)
+#                print u
+#                self.buffer_index+=self.buffer_size
+        #self.WaitUntilTaskDone(self.update_time*4)
+        self.StopTask()
+        self.ClearTask()
+            
+        
 
 def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None, aimode=default_aimode, ailimit=5):
     try:
@@ -157,7 +217,10 @@ class SimpleAIO(object):
         
 class SimpleAnalogIn(object):
     def __init__(self,ai_channel,sample_rate,duration, timeout=1, finite=True):
-        self.n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+        try:
+            self.n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+        except IndexError:
+            raise NotImplementedError('Single channel not parsed')
         self.nsamples=int(duration*sample_rate)
         self.timeout=timeout
         self.finite=finite
@@ -2125,7 +2188,32 @@ if test_mode:
             analogio('Dev1/ai0:4','Dev1/ao0',1000,numpy.linspace(0,3,1000),timeout=1)
             numpy.testing.assert_almost_equal(numpy.roll(ai_data[:,0],-1),numpy.linspace(0,3,1000),2)
         
+class TestWaveformGenerator(unittest.TestCase):
+    def test_01(self):
+        fsample=1000.
+        #ai=SimpleAnalogIn('Dev1/ai0:1', fsample, 3,timeout=15)
+        wf=numpy.arange(fsample)/fsample
+        #wf=numpy.random.random(fsample)
+        wf=numpy.tile(wf,10)
+        wf=wf[::-1]
+        wg=WaveformGenerator('Dev1/ao0', wf, fsample)
+        wg.run()
+        #wg.join()
+        #data=ai.finish()
+        from pylab import plot,show
+        #plot(data[:,1]);show()
         
+    def test_02(self):
+        fsample=1000.
+        wf=numpy.arange(fsample)/fsample
+        wf=numpy.tile(wf,10)
+        wf=numpy.array([wf])
+        analog_output, wf_duration =set_waveform_start('Dev1/ao0',wf,sample_rate = fsample)
+        time.sleep(wf_duration/2)
+        analog_output.StopTask()                            
+        analog_output.ClearTask()
+    
+     
 if __name__ == '__main__':
     unittest.main()
     #analogio('Dev1/ai0:4','Dev1/ao0',1000,numpy.linspace(0,3,1000),timeout=1)

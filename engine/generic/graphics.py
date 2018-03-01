@@ -14,6 +14,7 @@ except ImportError:
 from PIL import Image
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
+from visexpman.engine.generic import geometry
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
@@ -530,6 +531,13 @@ class Screen(object):
         glVertexPointerf(vertices)
         glDrawArrays(GL_POLYGON,  0, 6)
         glDisableClientState(GL_VERTEX_ARRAY)
+        
+    def draw_circle(self, size, position):
+        vertices=geometry.circle_vertices(size,  resolution = 1.0, pos = (position['row'],position['col']))
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glDrawArrays(GL_POLYGON,  0, vertices.shape[0])
+        glDisableClientState(GL_VERTEX_ARRAY) 
         
     def draw_square(self, size,position):
         width = size

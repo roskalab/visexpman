@@ -1,22 +1,24 @@
+
+#include "ioboard_commands.h"
+#include "config.h"
 /*
 Arduino pin 0-1: reserved
 Arduino pin 2-4: input: level changes are captured and timestamps are sent over usb/serial port
-Arduino pin 5-7: output: level, pulse or pulse train waveform can be generated.
+Arduino pin 5-7: output: level, pulse can be generated.
+Arduino pin 9: digital waveform generation
 
 Commands:
-'o': set level, + 1byte binary packed pin values 
-'p': generate single pulse on pins determined by subsequent byte value. The lenght of the pulse is 2 ms (PULSE_WIDTH)
-'f': set frequency, subsequent byte is interpreted in Hz
-'w': toggle enable waveform state
-'e': enable send input pin state
-'d': disable send input pin state
+set_pin,pin,state: sets pin to state which cna be 0.0 or 1.0
+pulse,pin,duration: generates a pulse on pin with with of duration [ms]
+waveform,frequency,frequency_range,modulation_frequency: waveform is generated on D9 pin. If frequency_range and modulation_frequency are 0, it is a simple square wave at frequency.
+      In fm waveform mode the frequency is recalculated in every 4th call of 2 kHz timer ISR.
+stop: terminates waveform generation
+reset: stop all activity on iobaord
+
 */
-#define COMPARE 116//2 kHz, FCPU is 14.7456MHz, comp=FCPU/(f*prescale)+1
-#define PRESCALE 4 //64 prescale
+
 #define IDLE_ST 0
 #define WAIT_PAR_ST 1
-#define OUTPORT_MASK 0xe0
-#define INPORT_MASK 0x1C
 #define PULSE_WIDTH 2
 
 char b;
@@ -31,52 +33,55 @@ bool force_read_pin=false;
 bool enable_waveform=false;
 byte frequency;
 int period;
+IOBoardCommands iobc;
 
-ISR(TIMER1_COMPA_vect) {
-   PORTB |=(1<<2);//D10 output
-   TCNT1L=0;
-   TCNT1H=0;
-   time = millis();
-   port=PIND&INPORT_MASK;
-   if ((port!=port_prev) || force_read_pin)
-   {
-     if (send_data)
-     {
-       Serial.print(time);
-       Serial.print(" ms: ");
-       Serial.print(port,HEX);
-       Serial.print("\r\n");
-     }
-     force_read_pin=false;
-     port_prev=port;
-   }
-   PORTB &=~(1<<2);
+
+ISR(TIMER2_COMPA_vect) {
+   TCNT2=0;
+   iobc.isr();
 }
 
-void init_digital_input_timer()
+ISR(TIMER1_COMPA_vect)
 {
-   TCCR1B = PRESCALE;
-   OCR1AH = 0;
-   OCR1AL = COMPARE;
-   TIMSK1 |= 1<<1;
+  iobc.waveform_isr();
 }
+
 
 void setup() {
-  Serial.begin(115200);
-  DDRB|=1<<2;//D10 output for debugging
-  DDRD=OUTPORT_MASK;//port 2-4 input, port 5-7 output
-  PORTD=0x00;
-  state=IDLE_ST;
-  init_digital_input_timer();
-  port_prev=0;
-  port=0;
-  frequency=0;
-  pinMode(LED_BUILTIN, OUTPUT);
-  sei();
+  //Serial.begin(115200);
+  iobc=IOBoardCommands();
+  //DDRB|=(1<<1);
+  //DDRD|=(1<<5);
+  //TCCR1A|=(1<<4);
+  //TCCR1B|=(1<<3)|3;//1/256 prescale
+  //OCR1A=300;
+  //OCR1AL=200;
+  
+  
+  //pinMode(9, OUTPUT);
+  
+}
+
+void loop2()
+{
+  Serial.println(TCNT1);
+  delay(1000);
+}
+
+void loop()
+{
+  static char c[2];
+  if (Serial.available()>0)
+  {
+    c[0]=Serial.read();
+    c[1]=0;
+    iobc.put(c);
+  }
+  iobc.run();
 }
 
 
-void loop() {
+void loop1() {
   b = Serial.read();
   if (b!=-1) {
     switch (state)

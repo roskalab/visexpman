@@ -15,7 +15,7 @@ class ObjectStim(experiment.ExperimentConfig):
         self.GRAY=0.5
         #Object specific:
         self.OBJECT_ORDER=self.OBJECTS*self.REPEAT_PER_OBJECT
-        random.shuffle(self.OBJECT_ORDER)
+        #random.shuffle(self.OBJECT_ORDER)
         self.runnable='ObjectExperiment'
         self._create_parameters_from_locals(locals())
             
@@ -48,8 +48,14 @@ class ObjectExperiment(experiment.Experiment):
                 ori=float(words[ori_i[0]-1])
             else:
                 ori=0
+            spatial_frq_i=[i for i in range(len(words)) if 'cpd' in words[i]]
+            if len(spatial_frq_i)>0:
+                spatial_frq=float(words[spatial_frq_i[0]-1])
+            else:
+                spatial_frq=ec.SPATIAL_FREQUENCY
+            invert='invert' in words
             if name=='grating':
-                bw=0.5*experiment_data.cpd2um(ec.SPATIAL_FREQUENCY,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
+                bw=0.5*experiment_data.cpd2um(spatial_frq,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
                 period=2*bw
                 if int(ec.SIZE/period*2)%2==0:
                     starting_phase=-(ec.SIZE/period-int(ec.SIZE/period*2)*0.5-0.5)*360/2
@@ -66,12 +72,13 @@ class ObjectExperiment(experiment.Experiment):
             else:
                 self.show_object(name=name,
                                                 size=ec.SIZE,
-                                                spatial_frequency=ec.SPATIAL_FREQUENCY,
+                                                spatial_frequency=spatial_frq,
                                                 duration=ec.ON_TIME,
                                                 orientation=ori,
                                                 color_min=ec.COLOR_MIN,
                                                 color_max=ec.COLOR_MAX,
-                                                narms=narms)
+                                                narms=narms,
+                                                invert=invert)
             self.block_end((o,))
             self.show_fullscreen(color=ec.GRAY, duration=ec.OFF_TIME)
             if self.abort:

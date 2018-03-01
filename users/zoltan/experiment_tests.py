@@ -203,7 +203,13 @@ class TestStim(experiment.Stimulus):
                         self.abort=False
 
     def run(self):
-        self._plaid_stim()
+        self.screen.start_frame_capture=True
+        self.show_grating(white_bar_width =80,  duration=2, duty_cycle=3, velocity=100, orientation=45)
+        return
+        self.show_white_noise(10,70)
+        self.show_natural_bars(speed = 100, duration=10, minimal_spatial_period =20, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE)
+        
+        #self._plaid_stim()
 #        self._object()
         return
         #self.show_white_noise(10,100)
