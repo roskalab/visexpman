@@ -227,7 +227,9 @@ class IOBoard(object):
     def reset(self):
         res=self.command('reset')
         if 'Reset' not in res:
-            raise IOError('IOBoard reset was not successful: {0}'.format(res))
+            res=self.command('reset')
+            if 'Reset' not in res:
+                raise IOError('IOBoard reset was not successful: {0}'.format(res))
             
     def set_waveform(self,base_frequency, frequency_step, modulation_frequency):
         res=self.command('waveform,{0},{1},{2}'.format(float(base_frequency), float(frequency_step), float(modulation_frequency)))
@@ -235,8 +237,9 @@ class IOBoard(object):
             raise IOError('Setting waveform did not succeed: {0}'.format(res))
         
     def stop_waveform(self):
-        res=self.command('stop')
-        res=self.command('stop')#Issued twice just to make sure that it is terminated
+        res=''
+        for i in range(3):
+            res+=self.command('stop')
         if 'Stop waveform' not in res:
             raise IOError('Waveform was not stopped: {0}'.format(res))
             

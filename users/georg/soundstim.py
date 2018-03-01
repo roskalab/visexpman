@@ -19,7 +19,7 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.MASK_SIZE=3000.0#um
         self.AUDIO_SAMPLING_RATE=44.1e3
         self.ARDUINO_SOUND_GENERATOR=not False
-        self.ARDUINO_SOUND_GENERATOR_PORT='/dev/ttyACM0'
+        self.ARDUINO_SOUND_GENERATOR_PORT='COM5'
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
         
