@@ -121,3 +121,5 @@ class StBMovingDots(experiment.ExperimentConfig):
         self.BGCOLOR = [0.5, 0.5, 0.5]
         self.SPARSITY_FACTOR = 0.05
         self._create_parameters_from_locals(locals())
+
+
