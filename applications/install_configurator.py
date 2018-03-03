@@ -40,7 +40,7 @@ class InstallConfigurator(Qt.QMainWindow):
         Qt.QMainWindow.__init__(self)
         self.setWindowTitle('Vision Experiment Manager Installation Configurator')
         self.setGeometry(0,0,0,0)
-        self.installer_checksum=543911012L
+        self.installer_checksum=539462524L
         self.eric=True
         self.logfile = os.path.join('install_log_{0}.txt'.format(time.time()))
         logging.basicConfig(filename= self.logfile,

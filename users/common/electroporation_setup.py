@@ -31,7 +31,7 @@ class ElectroporationSetup228Config(ElectroporationConfig):
         #=== hardware ===
         DIGITAL_IO_PORT='COM3'
         CAMERA_TRIGGER_PORT='COM4'
-        self.CAMERA_TRIGGER_FRAME_RATE=23.256 #right now cant go above 12/13 hz
+        self.CAMERA_TRIGGER_FRAME_RATE=25 #right now cant go above 12/13 hz
         self.CAMERA_TRIGGER_PIN=5
         self.CAMERA_PRE_STIM_WAIT=5.0
         self.CAMERA_POST_STIM_WAIT=5.0
