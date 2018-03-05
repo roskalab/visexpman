@@ -11,7 +11,7 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.READ_ELECTRODE_COORDINATE =  False
         self.JUMPING = False
-        self.FILENAME = '../../LightStimuli/NaturalMovies/catmovie1'
+        self.FILENAME = '/home/zmatej/LightStimuli/NaturalMovies/catmovie1'
         self.FRAME_RATE= 30.0
         self.STRETCH = 4.573
         self.runnable = 'NaturalMovieExperiment'
