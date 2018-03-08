@@ -111,17 +111,6 @@ F 3 "" H 5150 9300 60  0000 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L USB_6003 U?
-U 1 1 5A735086
-P 9250 2250
-F 0 "U?" H 9600 2500 60  0000 C CNN
-F 1 "USB_6003" H 9250 550 60  0000 C CNN
-F 2 "" H 9250 2250 60  0000 C CNN
-F 3 "" H 9250 2250 60  0000 C CNN
-	1    9250 2250
-	0    -1   -1   0   
-$EndComp
-$Comp
 L usb-uart U?
 U 1 1 5A735D80
 P 7600 4200
@@ -130,17 +119,6 @@ F 1 "usb-uart" H 7550 3800 60  0000 C CNN
 F 2 "" H 7700 4200 60  0000 C CNN
 F 3 "" H 7700 4200 60  0000 C CNN
 	1    7600 4200
-	1    0    0    -1  
-$EndComp
-$Comp
-L Arduino_Uno U?
-U 1 1 5A736092
-P 13950 6450
-F 0 "U?" H 13350 7150 60  0000 C CNN
-F 1 "Arduino_Uno" H 13850 5250 60  0000 C CNN
-F 2 "" H 13900 6450 60  0000 C CNN
-F 3 "" H 13900 6450 60  0000 C CNN
-	1    13950 6450
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -156,30 +134,6 @@ F 3 "" H 13900 3250 60  0000 C CNN
 $EndComp
 Text Notes 13650 10900 0    60   ~ 0
 Test Station Wiring Design
-Text Label 12300 7250 0    60   ~ 0
-DAC0
-Text Notes 6400 10150 0    60   ~ 0
-Stimulus Start TTL Trigger
-Text Notes 11400 7050 0    60   ~ 0
-IOBoard's digital input test
-Text Notes 7000 6750 0    60   ~ 0
-Imaging frame timing signal
-Text Notes 8350 1050 0    60   ~ 0
-Stimulus frame timing
-Text Notes 8600 1200 0    60   ~ 0
-Block timing
-Text Notes 9700 1050 0    60   ~ 0
-Stimulus frame timing
-Text Notes 10900 1300 0    60   ~ 0
-Block timing
-Text Notes 11100 6100 0    60   ~ 0
-Timing signals to test with arduino digital input
-Text Notes 8250 800  0    60   ~ 0
-Shutter control
-Text Notes 5500 8000 0    60   ~ 0
-FM Waveform
-Wire Wire Line
-	4700 5850 1700 5850
 Wire Wire Line
 	1700 5850 1700 7150
 Wire Wire Line
@@ -201,8 +155,6 @@ Wire Wire Line
 Wire Wire Line
 	1800 3200 1350 3200
 Wire Wire Line
-	8850 2200 1500 2200
-Wire Wire Line
 	1500 2200 1500 2600
 Wire Wire Line
 	1500 2600 1800 2600
@@ -213,229 +165,216 @@ Wire Wire Line
 Wire Wire Line
 	1350 600  13850 600 
 Wire Wire Line
-	13850 600  13850 2350
-Wire Wire Line
-	13850 5550 13850 4950
-Wire Wire Line
-	13850 4950 14650 4950
-Wire Wire Line
-	14650 4950 14650 500 
-Wire Wire Line
 	14650 500  1250 500 
 Wire Wire Line
 	1250 500  1250 2900
 Wire Wire Line
 	1250 2900 1800 2900
 Wire Wire Line
-	5000 6500 5000 6900
+	4700 5850 1700 5850
 Wire Wire Line
-	5000 6900 5600 6900
+	13850 600  13850 2350
 Wire Wire Line
-	5600 6900 5600 6500
+	8850 2200 1500 2200
 Wire Wire Line
-	5150 6500 5150 7000
+	9150 2900 9150 10950
 Wire Wire Line
-	5150 7000 5750 7000
+	9150 10950 5050 10950
 Wire Wire Line
-	5750 7000 5750 6500
+	5050 10950 5050 9950
+Text Label 6450 10950 0    60   ~ 0
+Stim_trigger_to_microscope
 Wire Wire Line
-	13200 7050 13200 7500
+	5200 9950 5200 10800
 Wire Wire Line
-	13200 7250 11600 7250
-Connection ~ 13200 7250
+	4600 10800 8650 10800
 Wire Wire Line
-	5050 9950 5050 10200
+	8650 10800 8650 1300
 Wire Wire Line
-	5050 10200 8500 10200
+	8650 1300 9600 1300
 Wire Wire Line
-	8500 10200 8500 3850
+	9450 1550 9450 1400
 Wire Wire Line
-	8500 3850 8200 3850
+	9450 1400 8800 1400
 Wire Wire Line
-	5300 6500 5300 7100
+	8800 1400 8800 3050
 Wire Wire Line
-	5300 7100 12750 7100
+	8800 3050 9150 3050
+Connection ~ 9150 3050
 Wire Wire Line
-	12750 7100 12750 5850
+	9600 1300 9600 1550
+Text Label 6400 10800 0    60   ~ 0
+Simulated_microscope_frame_sync
 Wire Wire Line
-	12750 5850 13200 5850
+	9300 2900 9300 3150
 Wire Wire Line
-	5450 6500 5450 6800
+	9300 3150 8500 3150
 Wire Wire Line
-	5450 6800 8850 6800
+	8500 3150 8500 1150
 Wire Wire Line
-	8850 1400 9750 1400
+	8500 1150 9750 1150
 Wire Wire Line
-	8850 6800 8850 1400
+	9750 1150 9750 1550
+Text Label 8550 1150 0    60   ~ 0
+Stim_frame_timing
 Wire Wire Line
-	8200 4150 8600 4150
+	9450 2900 9450 3250
 Wire Wire Line
-	8600 1250 8600 6000
+	9450 3250 8350 3250
 Wire Wire Line
-	8600 1250 9450 1250
+	8350 3250 8350 1000
 Wire Wire Line
-	8200 4450 8350 4450
+	8350 1000 9900 1000
 Wire Wire Line
-	8350 1100 8350 6150
+	9900 1000 9900 1550
+Text Label 8700 1000 0    60   ~ 0
+Stim_block_timing
 Wire Wire Line
-	8350 1100 9600 1100
+	10200 9950 6100 9950
 Wire Wire Line
-	13200 6300 11800 6300
+	10200 2900 10200 9950
 Wire Wire Line
-	11800 6300 11800 1100
+	8200 3700 10200 3700
+Connection ~ 10200 3700
 Wire Wire Line
-	11800 1100 10200 1100
+	8200 4450 8400 4450
 Wire Wire Line
-	13200 6450 11700 6450
+	8400 4450 8400 8000
 Wire Wire Line
-	11700 6450 11700 1200
+	8400 8000 5350 8000
 Wire Wire Line
-	11700 1200 10050 1200
+	5350 8000 5350 8600
 Wire Wire Line
-	9750 1400 9750 1550
+	8200 4150 8500 4150
 Wire Wire Line
-	9600 1100 9600 1550
+	8500 4150 8500 8100
 Wire Wire Line
-	9450 1250 9450 1550
+	5500 8100 5500 8600
+Text Label 6000 8000 0    60   ~ 0
+Stim_frame_timing
+Text Label 6000 8100 0    60   ~ 0
+Stim_block_timing
+Text Notes 5600 7800 0    60   ~ 0
+Main_ui records timing signals
 Wire Wire Line
-	8350 6150 13200 6150
-Connection ~ 8350 4450
+	5650 8200 5650 8600
 Wire Wire Line
-	8600 6000 13200 6000
-Connection ~ 8600 4150
+	5800 8300 5800 8600
+Text Label 6000 8200 0    60   ~ 0
+Stim_frame_timing
+Text Label 6000 8300 0    60   ~ 0
+Stim_block_timing
+Text Notes 6100 10600 0    60   ~ 0
+MES signals simulated by Imaging computer
+Text Notes 8100 850  0    60   ~ 0
+Stim records timing signals including stimulus timing
 Wire Wire Line
-	9900 950  9900 1550
+	8500 8100 5500 8100
 Wire Wire Line
-	10050 1200 10050 1550
+	5650 8200 9600 8200
 Wire Wire Line
-	10200 1100 10200 1550
+	9600 8200 9600 2900
 Wire Wire Line
-	5000 5150 5000 4850
+	5800 8300 9750 8300
 Wire Wire Line
-	13200 6900 12950 6900
+	9750 8300 9750 2900
 Wire Wire Line
-	12950 6900 12950 8050
+	4600 10800 4600 8400
 Wire Wire Line
-	12950 8050 5500 8050
+	4600 8400 5950 8400
 Wire Wire Line
-	6050 6500 6050 7800
+	5950 8400 5950 8600
+Connection ~ 5200 10800
 Wire Wire Line
-	6050 7800 5200 7800
+	6100 8600 6100 8400
 Wire Wire Line
-	5200 7800 5200 8600
+	6100 8400 11800 8400
 Wire Wire Line
-	5900 6500 5900 7650
+	11800 8400 11800 3100
 Wire Wire Line
-	5900 7650 5050 7650
+	11800 3100 13200 3100
 Wire Wire Line
-	5050 7650 5050 8600
-Text Notes 5050 7600 0    60   ~ 0
-Emulated PMT signals
+	13200 3250 11950 3250
 Wire Wire Line
-	5200 9950 5200 10400
+	11950 3250 11950 8500
 Wire Wire Line
-	4550 10400 5200 10400
+	11950 8500 6250 8500
 Wire Wire Line
-	4550 700  4550 10400
+	6250 8500 6250 8600
+Text Label 6350 8400 0    60   ~ 0
+Stim_frame_timing
+Text Label 6350 8500 0    60   ~ 0
+Stim_block_timing
 Wire Wire Line
-	4550 8250 5350 8250
+	9300 1550 9300 1450
 Wire Wire Line
-	5350 8250 5350 8600
-Text Notes 4550 8200 0    60   ~ 0
-Signal for syncronizing AI's of both USB 6003s and USB 6259
+	9300 1450 8000 1450
 Wire Wire Line
-	10500 1550 10500 700 
+	8000 1450 8000 2950
 Wire Wire Line
-	10500 700  4550 700 
-Connection ~ 4550 8250
+	8000 2950 13200 2950
+Text Label 11050 2950 0    60   ~ 0
+IOboard_digital_input_timing_calibration
 Wire Wire Line
-	5500 8050 5500 8600
+	13200 3400 12950 3400
 Wire Wire Line
-	9900 2900 9900 3100
+	12950 3400 12950 2800
 Wire Wire Line
-	5750 5150 5750 4900
+	12950 2800 13200 2800
+Text Label 12300 2800 0    60   ~ 0
+Stim_block_timing
 Wire Wire Line
-	12750 4900 5750 4900
+	5000 6500 5000 6800
 Wire Wire Line
-	12750 2800 12750 4900
+	5000 6800 5600 6800
 Wire Wire Line
-	12750 3250 13200 3250
+	5600 6800 5600 6500
+Text Label 5050 6800 0    60   ~ 0
+scanner_x
 Wire Wire Line
-	9900 3100 13200 3100
+	5150 6500 5150 6700
 Wire Wire Line
-	5800 9950 5800 10000
+	5150 6700 5750 6700
 Wire Wire Line
-	5800 10000 12250 10000
+	5750 6700 5750 6500
+Text Label 5200 6700 0    60   ~ 0
+scanner_y
 Wire Wire Line
-	12250 10000 12250 3400
+	5300 6500 5300 6600
 Wire Wire Line
-	12250 3400 13200 3400
+	5900 6600 4500 6600
 Wire Wire Line
-	13200 2650 12250 2650
+	4500 6600 4500 700 
 Wire Wire Line
-	12250 2650 12250 3100
-Connection ~ 12250 3100
+	4500 700  10050 700 
+$Comp
+L USB_6003 U?
+U 1 1 5A735086
+P 9250 2250
+F 0 "U?" H 9600 2500 60  0000 C CNN
+F 1 "USB_6003" H 9250 550 60  0000 C CNN
+F 2 "" H 9250 2250 60  0000 C CNN
+F 3 "" H 9250 2250 60  0000 C CNN
+	1    9250 2250
+	0    -1   -1   0   
+$EndComp
 Wire Wire Line
-	12750 2800 13200 2800
-Connection ~ 12750 3250
+	10050 700  10050 1550
+Text Label 8550 700  0    60   ~ 0
+retinal_2p_frame_timing
 Wire Wire Line
-	13200 2950 12900 2950
+	5900 6500 5900 6600
+Connection ~ 5300 6600
+Text Notes 4950 5000 0    60   ~ 0
+Retinal two photon microscope
 Wire Wire Line
-	12900 2950 12900 3400
-Connection ~ 12900 3400
-Text Notes 11100 3350 0    60   ~ 0
-Controlling PFI inputs of DAQ devices
+	13200 3700 12550 3700
 Wire Wire Line
-	5650 8600 5650 8250
+	12550 3700 12550 6600
 Wire Wire Line
-	5650 8250 11600 8250
+	12550 6600 6650 6600
 Wire Wire Line
-	11600 8250 11600 7250
-Wire Wire Line
-	9150 2900 9150 3150
-Wire Wire Line
-	9150 3150 8000 3150
-Wire Wire Line
-	8000 3150 8000 950 
-Wire Wire Line
-	8000 950  9900 950 
-Text Notes 5500 1600 0    60   ~ 0
-Timing signals generated by different devices: arduino, usb-uart, daq
-Text Notes 4800 7100 0    60   ~ 0
-Scanner signals
-Wire Wire Line
-	6200 6500 6200 7350
-Wire Wire Line
-	6200 7350 4550 7350
-Connection ~ 4550 7350
-Wire Wire Line
-	13150 6600 9050 6600
-Wire Wire Line
-	9050 6600 9050 7500
-Wire Wire Line
-	9050 7500 4300 7500
-Wire Wire Line
-	4300 7500 4300 6600
-Wire Wire Line
-	4300 6600 1350 6600
-Wire Wire Line
-	1350 6600 1350 7200
-Text Notes 950  6550 0    60   ~ 0
-Camera trigger
-Wire Wire Line
-	5800 8600 5800 8450
-Wire Wire Line
-	5800 8450 4050 8450
-Wire Wire Line
-	4050 8450 4050 4850
-Wire Wire Line
-	4050 4850 5000 4850
-Wire Wire Line
-	10350 1550 10350 800 
-Wire Wire Line
-	10350 800  9150 800 
-Wire Wire Line
-	9150 800  9150 1550
-Text Notes 9200 800  0    60   ~ 0
-Laser/LED control signal
+	6650 6600 6650 6500
+Text Label 6900 6600 0    60   ~ 0
+IOBoard_waveform_generator
 $EndSCHEMATC
