@@ -1,5 +1,3 @@
-import random
-from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
 class WhiteNoise(experiment.Stimulus):

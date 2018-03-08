@@ -13,7 +13,7 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-except ImportError:
+except:
     pass
 
 import experiment_data

@@ -5,7 +5,7 @@ except:
 try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
-except ImportError:
+except:
     pass
 import os,numpy
 import time
