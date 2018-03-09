@@ -2,7 +2,7 @@ import os,sys
 import os.path
 import numpy,copy,hdf5io
 from visexpman.engine.generic import utils
-from visexpman.engine.vision_experiment.configuration import AoCorticalCaImagingConfig
+from visexpman.engine.vision_experiment.configuration import AoCorticalCaImagingConfig,ResonantBasicConfig
 
 class AOSetup(AoCorticalCaImagingConfig):
     def _set_user_parameters(self):
@@ -126,3 +126,41 @@ class CameronDev(CameronAoSetup):
     def _set_user_parameters(self):
         CameronAoSetup._set_user_parameters(self)
         self.SCREEN_EXPECTED_FRAME_RATE = 59
+        
+class ResonantSetup(ResonantBasicConfig):
+    def _set_user_parameters(self):
+        ResonantBasicConfig._set_user_parameters(self)
+        # Files
+        self.EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.LOG_PATH = 'v:\\log_res'
+        self.EXPERIMENT_DATA_PATH = 'v:\\experiment_data_res'
+        self.CONTEXT_PATH='v:\\context_res'
+        #Stimulus screen
+        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 190.0
+        self.SCREEN_RESOLUTION = utils.cr([1280, 720])
+        self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
+        self.SCREEN_EXPECTED_FRAME_RATE = 60.0
+        self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
+        self.FULLSCREEN=not '--nofullscreen' in sys.argv
+        self.COORDINATE_SYSTEM='center'
+        self.ENABLE_FRAME_CAPTURE = False
+        self.GUI['SIZE'] =  utils.cr((1024,768)) 
+        #Network
+        stim_computer_ip = 'TBD'
+        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
+        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
+        #Sync signal
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:3' #0: frame sync, 1: stim frame, 2: block, 3: mes start trigger
+        self.SYNC_RECORDER_SAMPLE_RATE=5000#mes sync pulses are very short
+        self.SYNC_RECORDING_BUFFER_TIME=5.0
+        self.TIMG_SYNC_INDEX=0
+        self.TSTIM_SYNC_INDEX=2
+        self.DIGITAL_IO_PORT='TBD'
+        self.MES_START_TRIGGER_PIN = 0
+        self.BLOCK_TIMING_PIN = 1
+        self.FRAME_TIMING_PIN = 0
+        self.IMAGING_START_DELAY=5
+        self.SYNC_RECORD_OVERHEAD=10
+        gammafn=os.path.join(self.CONTEXT_PATH, 'gamma_resonant_monitor.hdf5')
+        if os.path.exists(gammafn):
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
