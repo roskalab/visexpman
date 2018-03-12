@@ -15,7 +15,7 @@ class ObjectStim(experiment.ExperimentConfig):
         self.GRAY=0.5
         #Object specific:
         self.OBJECT_ORDER=self.OBJECTS*self.REPEAT_PER_OBJECT
-        #random.shuffle(self.OBJECT_ORDER)
+        random.shuffle(self.OBJECT_ORDER)
         self.runnable='ObjectExperiment'
         self._create_parameters_from_locals(locals())
             

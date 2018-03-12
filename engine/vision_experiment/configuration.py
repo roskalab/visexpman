@@ -4,9 +4,9 @@ VisionExperimentConfig:
 ElphysRetinalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with retinal ca imaging  and electrophisiology specific parameters that are not used on other platforms.
         Platform name: elphys_retinal_ca
-RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
+RcCorticalCaImagingConfig, AoCorticalCaImagingConfig, ResonantBasicConfig
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
-        Platform name: rc_cortical or ao_cortical
+        Platform name: rc_cortical or ao_cortical, resonant_basic
 UltrasoundConfig:
         TBD
 MCMEAConfig:
@@ -419,6 +419,12 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         if self.OS=='Windows':
             BACKUP_PATH='u:\\ao'
         DEFAULT_ROI_SIZE_ON_GUI=20
+        self._create_parameters_from_locals(locals())
+        
+class ResonantBasicConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'resonant_basic'
         self._create_parameters_from_locals(locals())
         
 class UltrasoundConfig(VisionExperimentConfig):

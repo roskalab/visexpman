@@ -6,9 +6,11 @@ from visexpman.engine.generic import signal
 class SoundAndGratingC(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEEDS=[200,600,1200]
+        self.ORIENTATION=90
         self.CONDITIONS=['sound', 'grating', 'both']
         self.RANDOMIZE=True #true
         self.BLOCK_DURATION=8.0
+        self.FLASH_DURATION=1.0
         self.PAUSE=5.0
         self.SOUND_BASE_FREQUENCY=14000
         self.FREQUENCY_STEP=1000#Hz
@@ -52,11 +54,11 @@ class SoundAndGratingE(experiment.Experiment):
                     self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
                 self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
                 #import shutil;shutil.copy(self.s[-1].mp3fn,'c:\\temp')
-        self.orientation=0
+        self.orientation=ec.ORIENTATION
         self.block_boundaries=[]
         
     def block(self, speed, condition):
-        block_sig=(condition, speed)
+        block_sig=(condition, speed, self.orientation)
         self.block_start(block_sig)
         self.block_boundaries.append(self.frame_counter)
         ec=self.experiment_config
@@ -72,10 +74,12 @@ class SoundAndGratingE(experiment.Experiment):
         if condition=='sound':
             self.show_fullscreen(color=ec.GRAY, duration=ec.BLOCK_DURATION)
         else:
+            if ec.FLASH_DURATION>0:
+                self.show_fullscreen(color=1.0, duration=ec.FLASH_DURATION)
             self.show_grating(orientation=self.orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
-                               duration=ec.BLOCK_DURATION,
+                               duration=ec.BLOCK_DURATION-ec.FLASH_DURATION,
                                display_area=self.machine_config.SCREEN_SIZE_UM,
                                velocity=speed,
                                mask_size=ec.MASK_SIZE,

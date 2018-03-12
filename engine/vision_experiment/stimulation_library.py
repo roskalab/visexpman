@@ -674,8 +674,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=numpy.asarray(im)/255.
             #At half radius, 15 % of arm size
             transition=int(size_pixel*numpy.pi/narms*0.15)
-            texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
-            texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
+            if 0:
+                texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
+                texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
+            else:
+                from scipy.ndimage.filters import gaussian_filter
+                from visexpman.engine.generic import introspect
+                with introspect.Timer(''):
+                    texture=gaussian_filter(texture,10)
             texture=signal.scale(texture,color_min,color_max)
             mask=geometry.circle_mask([size_pixel]*2,size_pixel/2,2*[2*size_pixel])
             texture*=mask
