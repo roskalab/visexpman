@@ -21,7 +21,7 @@ class MEAConfig(HiMEAConfig):
         
         # Scale:
         self.ELECTRODE_PITCH=17.5
-        self.RETINA_ROOM_SCALE = 3.26 #previously: 1.0/1.75 -- changed after new optics & re-characterization
+        self.RETINA_ROOM_SCALE = 1.0/3.26 #previously: 1.0/1.75 -- changed after new optics & re-characterization
         SCREEN_UM_TO_PIXEL_SCALE = self.RETINA_ROOM_SCALE
         
         # Folders & paths:

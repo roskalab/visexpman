@@ -50,7 +50,7 @@ class StBMarchingSquares(experiment.ExperimentConfig):
         self.ON_TIME = 1.0 
         self.OFF_TIME = 1.0
         self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 2
+        self.REPEATS = 1
         self.REPEAT_SEQUENCE = 2
         self.ENABLE_RANDOM_ORDER = True
         self._create_parameters_from_locals(locals())
