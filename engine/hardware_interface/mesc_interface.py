@@ -33,16 +33,19 @@ class MescapiInterface(object):
         try:
             self.clientsocket.connect(('localhost', port))
         except:
+            self.serverpp.kill()
             raise IOError('Cannot connect to MEScApiServer')
 
     def request(self,cmd):
         try:
             self.clientsocket.send(cmd)
         except:
+            self.serverpp.kill()
             raise IOError('Command cannot be sent to MEScApiServer')
         try:
             data = self.clientsocket.recv(self.command_buffer_size)
         except:
+            self.serverpp.kill()
             raise IOError('MEScApiServer does not respond')
         self.data=data
         try:
@@ -113,6 +116,24 @@ class TestMesc(unittest.TestCase):
         '''
         Multiple commands with lot of data
         '''
+        
+        m=MescapiInterface(debug=True)
+        import numpy
+        from pylab import imshow,show
+        from visexpman.engine.generic import introspect
+        nframes=3
+        frame=numpy.zeros((nframes,512,512),dtype=numpy.uint16)
+        nlines=32
+        with introspect.Timer():
+            for fr in range(nframes):
+                for i in range(0, 512, nlines):
+                    cmd='MEScFile.readRawChannelDataJSON(\'52,0,0,0\',\'0,{0},{2}\',\'512,{1},1\' );'.format(i,nlines,fr)
+                    res=m.request(cmd)
+                    frame[fr,:,i:i+nlines]=numpy.array(res).reshape(512,nlines, order='F')
+        m.close()
+        frame=65535-frame
+        imshow(frame[0])
+        show()
         
 if __name__=='__main__':
     unittest.main()
