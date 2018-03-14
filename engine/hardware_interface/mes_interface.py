@@ -26,6 +26,13 @@ from visexpman.users.zoltan.test import unit_test_runner
 parameter_extract = re.compile('EOC(.+)EOP')
 
 
+def is_imaging_timing_record_enabled(filename):
+    m=scipy.io.loadmat(filename)
+    try:
+        return m['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['inputcurves'][0][0][0][0][0]=='DI0'
+    except:
+        return False
+
 def generate_scan_points_mat(points, mat_file):
     '''
     Points shall be a struct array of numpy.float64 with x, y and z fields.
@@ -53,7 +60,7 @@ def read_objective_info(mat_file,  log=None):
 def set_mes_mesaurement_save_flag(mat_file, flag):
     m = matlabfile.MatData(reference_path, target_path)
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
-    m.flush()   
+    m.flush()
 
 def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False, channels = None):
     '''
