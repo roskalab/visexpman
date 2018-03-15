@@ -1,6 +1,7 @@
 #include "ioboard_commands.h"
 #include "config.h"
 #include "Arduino.h"
+#include <EEPROM.h>
 #include <string.h>
 
 IOBoardCommands::IOBoardCommands(void)
@@ -146,6 +147,23 @@ void IOBoardCommands::run(void)
       }
       read_state=OFF;
       stop_waveform();
+    }
+    else if ((strcmp(command,"set_id")==0)&&(nparams==1))
+    {
+      if (debug==1)
+      {
+        Serial.print("Set Device ID to ");
+        Serial.println(par[0]);        
+      }
+      EEPROM.write(ID_EEPROM_ADDRESS, (byte)(par[0]));
+    }
+    else if ((strcmp(command,"get_id")==0)&&(nparams==0))
+    {
+      if (debug==1)
+      {
+        Serial.print("Device ID ");
+        Serial.println(EEPROM.read(ID_EEPROM_ADDRESS));
+      }
     }
     else
     {

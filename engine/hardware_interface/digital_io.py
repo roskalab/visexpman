@@ -7,7 +7,7 @@ try:
     import PyDAQmx.DAQmxConstants as DAQmxConstants
 except ImportError:
     pass
-import os,numpy
+import os,numpy,sys,glob
 import time
 import unittest
 import instrument
@@ -112,6 +112,7 @@ class Photointerrupter(threading.Thread):
                     self.queues[id].put((now, self.state[id]))
             time.sleep(5e-3)
 
+#OBSOLETE
 class ArduinoIO(object):
     def __init__(self,port):
         self.s=serial.Serial(port, baudrate=115200,timeout=1)
@@ -194,12 +195,16 @@ class DaqDio(object):
             d.ClearTask()
             
 class IOBoard(object):
-    def __init__(self,port,timeout=1):
+    def __init__(self,port,timeout=1, id=None,initial_wait=1.0):
         self.s=serial.Serial(port, baudrate=115200,timeout=timeout)
+        self.initial_wait=initial_wait
         self.t0=time.time()
         self.wait_done=False
         self._wait()
         self.reset()
+        if id != None:
+            if self.id()!=id:
+                raise IOError('')
         
     def _wait(self):
         '''
@@ -209,7 +214,7 @@ class IOBoard(object):
             return
         while True:
             now=time.time()
-            if now-self.t0>1.5:
+            if now-self.t0>self.initial_wait:
                 self.wait_done=True
                 break
             time.sleep(0.1)
@@ -248,9 +253,69 @@ class IOBoard(object):
         if 'ms pulse on pin' not in res:
             raise IOError('Pulse generation was not successfuly: {0}'.format(res))
             
+    def id(self):
+        return int(self.command('get_id').split(' ')[-1])
+            
     def close(self):
         self.s.close()
         
+def set_ioboard_id(port, idn):
+    if idn<0 or idn>255:
+        raise ValueError('Invalid ioboard ID: {0}'.format(idn))
+    io=IOBoard(port)
+    res1=io.command('set_id,{0}'.format(idn))
+    res2=io.id()
+    io.close()
+    if float(res1.split(' ')[-1])!=idn or res2 != idn:
+        raise IOError('Could not set device ID, res1: {0}, res2: {1}'.format(res1,res2))
+        
+def serial_ports():
+    if sys.platform.startswith('win'):
+        ports = ['COM%s' % (i + 1) for i in range(256)]
+    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+        # this excludes your current terminal "/dev/tty"
+        ports = glob.glob('/dev/tty[A-Za-z]*')
+    elif sys.platform.startswith('darwin'):
+        ports = glob.glob('/dev/tty.*')
+    else:
+        raise EnvironmentError('Unsupported platform')
+
+    result = []
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            result.append(port)
+        except (OSError, serial.SerialException):
+            pass
+    return result
+    
+def find_devices():
+    devices={}
+    if 'linux' in sys.platform:
+        ports=serial_ports()
+        for port in ports:
+            if 'ACM' in port:
+                try:
+                    devices[port]='IOBoard {0}'. format(IOBoard(port).id())
+                except:
+                    devices[port]='Arduino'
+            elif 'USB' in port:
+                devices[port]='usb-uart'
+    elif 'win' in sys.platform:
+        import win32com.client
+        wmi = win32com.client.GetObject("winmgmts:")
+        port_info=[ser.Name for ser in wmi.InstancesOf("Win32_SerialPort")]
+        for p in port_info:
+            port=p.split('(')[1].split(')')[0]
+            if 'Arduino' in p:
+                try:
+                    devices[port]='IOBoard {0}'. format(IOBoard(port).id())
+                except:
+                    devices[port]='Arduino'
+            
+    
+    
            
 class TestConfig(object):
     def __init__(self):
@@ -338,12 +403,21 @@ class TestDigitalIO(unittest.TestCase):
         
     def test_06_ioboard(self):
         io=IOBoard('COM11' if os.name=='nt' else '/dev/ttyACM0')
+        self.assertTrue(isinstance(io.id(), int))
         io.pulse(5,10e-3)
         io.set_waveform(15e3,2e3,1)
         time.sleep(1)
         io.stop_waveform()
         io.close()
         
+    def test_07_ioboard_id(self):
+        port='COM11' if os.name=='nt' else '/dev/ttyACM0'
+        io=IOBoard(port)
+        idn_original=io.id()
+        io.close()
+        set_ioboard_id(port, 100)
+        self.assertRaises(ValueError, set_ioboard_id, port, 1000)
+        set_ioboard_id(port, idn_original)
 
 if __name__ == '__main__':
     unittest.main()

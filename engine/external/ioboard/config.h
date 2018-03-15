@@ -11,3 +11,5 @@
 
 #define OUTPORT_MASK 0xe0
 #define INPORT_MASK 0x1C
+
+#define ID_EEPROM_ADDRESS 0

@@ -1,6 +1,7 @@
 
 #include "ioboard_commands.h"
 #include "config.h"
+#include <EEPROM.h>
 /*
 Arduino pin 0-1: reserved
 Arduino pin 2-4: input: level changes are captured and timestamps are sent over usb/serial port
