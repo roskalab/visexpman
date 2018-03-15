@@ -607,7 +607,7 @@ class ElphysViewer(gui.SimpleAppWindow):
         data2save['fsample'] = self.fsample
         data2save['note'] = self.note
         data2save.update(self.filedata)
-        filename=self.filename.replace(os.path.splitext(self.filename)[1],'.mat')
+        filename=fileop.replace_extension(self.filename, '.mat')
         self.matsaver=multiprocessing.Process(target=scipy.io.savemat,kwargs={'file_name':filename,'mdict':data2save,'oned_as':'column','do_compression':True})
         self.matsaver.start()
         self.matsaver_started=True
