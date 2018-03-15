@@ -164,3 +164,13 @@ class ResonantSetup(ResonantBasicConfig):
         gammafn=os.path.join(self.CONTEXT_PATH, 'gamma_resonant_monitor.hdf5')
         if os.path.exists(gammafn):
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
+
+class ResonantDev(ResonantSetup):
+    def _set_user_parameters(self):
+        ResonantSetup._set_user_parameters(self)
+        self.LOG_PATH = 'v:\\zoli\\log_res'
+        self.EXPERIMENT_DATA_PATH = 'v:\\zoli\\experiment_data_res'
+        self.CONTEXT_PATH='v:\\zoli\\context_res'
+        stim_computer_ip = '172.27.27.188'
+        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
+        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
