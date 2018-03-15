@@ -195,6 +195,28 @@ class DaqDio(object):
             d.ClearTask()
             
 class IOBoard(object):
+    '''
+    Class for controlling IOBoard which is an Arduino Uno board with a firmware with the following features:
+        - toggle digital pin
+        - generate pulses
+        - generate square waves at fixed or modulated frequency
+        - read digital inputs and send timestamps upon level change
+    
+    Each ioboard has an ID which is stored in EEPROM. IOBoard class can be instantiated using this ID 
+    and the corresponding serial port will be searched for.
+    Support for both Linux and Windows platforms
+    
+    Pins:
+    Arduino pin 0-1: reserved
+    Arduino pin 2-4: input: level changes are captured and timestamps are sent over usb/serial port
+    Arduino pin 5-7: output: level, pulse can be generated.
+    Arduino pin 9: digital waveform generation
+    
+    Example usage:
+    io=IOBoard('COM3')
+    io.pulse(5,10)#10 ms pulse on pin5 
+    io.close()
+    '''
     def __init__(self,port,timeout=0.3, id=None,initial_wait=0.5):
         if port == None and id != None:
             #Find device by ID
