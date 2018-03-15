@@ -198,11 +198,7 @@ class IOBoard(object):
     def __init__(self,port,timeout=0.3, id=None,initial_wait=0.5):
         if port == None and id != None:
             #Find device by ID
-            devices=find_devices()
-            port=[port_ for port_,info in devices.items() if info.split(' ')[-1]==str(id) and info.split(' ')[0]=='IOBoard']
-            if len(port)==0:
-                raise ValueError('Unknown IOBoard id: {0}'.format(id))
-            port=port[0]
+            port=find_port(id)
         self.s=serial.Serial(port, baudrate=115200,timeout=timeout)
         self.initial_wait=initial_wait
         self.t0=time.time()
@@ -304,7 +300,7 @@ def find_devices():
         for port in ports:
             if 'ACM' in port:
                 try:
-                    devices[port]='IOBoard {0}'. format(IOBoard(port,timeout=0.1).id())
+                    devices[port]='IOBoard {0}'. format(IOBoard(port,timeout=0.1,).id())
                 except:
                     devices[port]='Arduino'
             elif 'USB' in port:
@@ -319,16 +315,30 @@ def find_devices():
                 devices[p]='unknown'
             elif 'Arduino' in portname[0]:
                 try:
-                    devices[port]='IOBoard {0}'. format(IOBoard(port).id())
+                    devices[p]='IOBoard {0}'. format(IOBoard(p, timeout=0.1).id())
                 except:
-                    devices[port]='Arduino'
+                    devices[p]='Arduino'
     return devices
+    
+def find_port(ioboard_id):
+    devices=find_devices()
+    if ioboard_id==None:
+        port=[port_ for port_,info in devices.items() if info.split(' ')[0]=='IOBoard']
+    else:
+        port=[port_ for port_,info in devices.items() if info.split(' ')[-1]==str(ioboard_id) and info.split(' ')[0]=='IOBoard']
+    if len(port)==0:
+        raise ValueError('Unknown IOBoard id: {0}'.format(id))
+    return port[0]
            
 class TestConfig(object):
     def __init__(self):
         self.SERIAL_DIO_PORT = 'COM4'
     
 class TestDigitalIO(unittest.TestCase):
+    
+    def setUp(self):
+        self.ioboardport=find_port(None)
+    
     @unittest.skip('')
     def test_01_pulse(self):
         config = TestConfig()
@@ -409,7 +419,7 @@ class TestDigitalIO(unittest.TestCase):
         a.close()
         
     def test_06_ioboard(self):
-        io=IOBoard('COM11' if os.name=='nt' else '/dev/ttyACM0')
+        io=IOBoard(self.ioboardport)
         self.assertTrue(isinstance(io.id(), int))
         io.pulse(5,10e-3)
         io.set_waveform(15e3,2e3,1)
@@ -419,7 +429,7 @@ class TestDigitalIO(unittest.TestCase):
         
     def test_07_ioboard_id(self):
         from visexpman.engine.generic import introspect
-        port='COM11' if os.name=='nt' else '/dev/ttyACM0'
+        port=self.ioboardport
         with introspect.Timer('opening ioboard using port id'):
             io=IOBoard(port)
         idn_original=io.id()
