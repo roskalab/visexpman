@@ -195,7 +195,14 @@ class DaqDio(object):
             d.ClearTask()
             
 class IOBoard(object):
-    def __init__(self,port,timeout=1, id=None,initial_wait=1.0):
+    def __init__(self,port,timeout=0.3, id=None,initial_wait=0.5):
+        if port == None and id != None:
+            #Find device by ID
+            devices=find_devices()
+            port=[port_ for port_,info in devices.items() if info.split(' ')[-1]==str(id) and info.split(' ')[0]=='IOBoard']
+            if len(port)==0:
+                raise ValueError('Unknown IOBoard id: {0}'.format(id))
+            port=port[0]
         self.s=serial.Serial(port, baudrate=115200,timeout=timeout)
         self.initial_wait=initial_wait
         self.t0=time.time()
@@ -292,12 +299,12 @@ def serial_ports():
     
 def find_devices():
     devices={}
+    ports=serial_ports()
     if 'linux' in sys.platform:
-        ports=serial_ports()
         for port in ports:
             if 'ACM' in port:
                 try:
-                    devices[port]='IOBoard {0}'. format(IOBoard(port).id())
+                    devices[port]='IOBoard {0}'. format(IOBoard(port,timeout=0.1).id())
                 except:
                     devices[port]='Arduino'
             elif 'USB' in port:
@@ -306,16 +313,16 @@ def find_devices():
         import win32com.client
         wmi = win32com.client.GetObject("winmgmts:")
         port_info=[ser.Name for ser in wmi.InstancesOf("Win32_SerialPort")]
-        for p in port_info:
-            port=p.split('(')[1].split(')')[0]
-            if 'Arduino' in p:
+        for p in ports:
+            portname=[pi for pi in port_info if p in pi]
+            if len(portname)==0:
+                devices[p]='unknown'
+            elif 'Arduino' in portname[0]:
                 try:
                     devices[port]='IOBoard {0}'. format(IOBoard(port).id())
                 except:
                     devices[port]='Arduino'
-            
-    
-    
+    return devices
            
 class TestConfig(object):
     def __init__(self):
@@ -411,13 +418,23 @@ class TestDigitalIO(unittest.TestCase):
         io.close()
         
     def test_07_ioboard_id(self):
+        from visexpman.engine.generic import introspect
         port='COM11' if os.name=='nt' else '/dev/ttyACM0'
-        io=IOBoard(port)
+        with introspect.Timer('opening ioboard using port id'):
+            io=IOBoard(port)
         idn_original=io.id()
         io.close()
         set_ioboard_id(port, 100)
         self.assertRaises(ValueError, set_ioboard_id, port, 1000)
         set_ioboard_id(port, idn_original)
+        with introspect.Timer('opening ioboard using device id'):
+            io2=IOBoard(port=None, id=idn_original)
+        io2.close()
+        
+    def test_08_find_devices(self):
+        from visexpman.engine.generic import introspect
+        with introspect.Timer('find serial port devices'):
+            print find_devices()
 
 if __name__ == '__main__':
     unittest.main()
