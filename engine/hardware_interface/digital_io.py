@@ -250,9 +250,11 @@ class IOBoard(object):
         return self.s.read(1000)
     
     def set_pin(self,channel,value):
+        if channel<5 or channel>7:
+            raise ValueError('Invalid pin: {0}'.format(channel))
         res=self.command('set_pin,{0},{1}'.format(float(channel), float(value)))
         if 'pin set to' not in res:
-            raise IOError('Setting pin was not successfuly: {0}'.format(res))
+            raise ValueError('Setting pin was not successfuly: {0}'.format(res))
             
     def reset(self):
         res=self.command('reset')
@@ -378,18 +380,20 @@ class DigitalIO(object):
         * ioboard: 5..7
         * usb-uart: 0..1
         '''
-        if type in ['daq', 'ioboard']:
+        if state!=0 and state!=1:
+            raise ValueError('Invalid state: {0}'.format(state))
+        if self.type in ['daq', 'ioboard']:
             self.hwhandler.set_pin(pin, state)
-        elif type=='usb-uart':
+        elif self.type=='usb-uart':
             if pin==0:
                 self.hwhandler.sendBreak(not bool(state))
             elif pin ==1:
                 self.hwhandler.setRTS(not bool(state))
+            else:
+                raise ValueError('Invalid pin: {0}'.format(pin))
             
     def close(self):
         self.hwhandler.close()
-        
-        
            
 class TestConfig(object):
     def __init__(self):
@@ -506,6 +510,22 @@ class TestDigitalIO(unittest.TestCase):
         from visexpman.engine.generic import introspect
         with introspect.Timer('find serial port devices'):
             print find_devices()
+            
+    def test_09_digital_io(self):
+        devices=find_devices()
+        for port, name in devices.items():
+            type=name.split()[0].lower()
+            d=DigitalIO(type, port)
+            self.assertRaises(ValueError, d.set_pin, 10,1)
+            self.assertRaises(ValueError, d.set_pin, 0,2)
+            if type=='ioboard':
+                d.set_pin(5,1)
+                d.set_pin(5,0)
+            elif type=='usb-uart':
+                d.set_pin(0,1)
+                d.set_pin(0,0)
+            d.close()
+            
 
 if __name__ == '__main__':
     unittest.main()
