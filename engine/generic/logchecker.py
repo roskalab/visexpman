@@ -59,7 +59,8 @@ class LogChecker(object):
                 entry_lines.append(i)
             except:
                 pass
-        error_indexes = numpy.array([i for i in entry_lines if 'error' in lines[i].lower()])
+        #Excluding two conditions that are not considered as errors:
+        error_indexes = numpy.array([i for i in entry_lines if 'error' in lines[i].lower() and 'Job cannot be selected' not in lines[i]] and 'Data acquisition stopped with error' not in lines[0])
         lines2report=[]
         for ei in error_indexes:
             start=ei-self.nlines_before_error-1
