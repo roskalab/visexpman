@@ -351,6 +351,45 @@ def find_port(ioboard_id):
     if len(port)==0:
         raise ValueError('Unknown IOBoard id: {0}'.format(id))
     return port[0]
+    
+class DigitalIO(object):
+    def __init__(self, type, port=None,id=None, timeout=1):
+        '''
+        Port values:
+        daq: ['Dev1/port0/line0','Dev1/port0/line1']
+        ioboard, usb-uart: COM5, /dev/ttyUSB0 ...
+        '''
+        self.type=type
+        if type=='daq':
+            self.hwhandler=DaqDio(port)
+        elif type=='ioboard':
+            self.hwhandler=IOBoard(port,timeout=timeout, id=id)
+        elif type=='usb-uart':
+            self.hwhandler=serial.Serial(port)
+            for i in range(2):
+                self.set_pin(i, 0)
+        else:
+            raise NotImplementedError(type)
+            
+    def set_pin(self, pin, state):
+        '''
+        pin ranges:
+        * daq: 0..7
+        * ioboard: 5..7
+        * usb-uart: 0..1
+        '''
+        if type in ['daq', 'ioboard']:
+            self.hwhandler.set_pin(pin, state)
+        elif type=='usb-uart':
+            if pin==0:
+                self.hwhandler.sendBreak(not bool(state))
+            elif pin ==1:
+                self.hwhandler.setRTS(not bool(state))
+            
+    def close(self):
+        self.hwhandler.close()
+        
+        
            
 class TestConfig(object):
     def __init__(self):
