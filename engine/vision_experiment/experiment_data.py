@@ -1399,7 +1399,7 @@ class TestExperimentData(unittest.TestCase):
         h.prepare4analysis()
         h.close()
         
-    #@unittest.skip("")
+    @unittest.skip("")
     def test_11_caimgfile_convert(self):
         fn='/home/rz/mysoftware/data/mipexport/data_707-18daypostinfect-animal1-slice1-region8_rep3_1sStim_LedConfig_201702241318216.hdf5'
         fn='e:\\Zoltan\\1\\data_706-mouse1-slice1-reg1-rep1-500ms-1000mA_LedConfig_201703020938240.hdf5'
@@ -1422,6 +1422,9 @@ class TestExperimentData(unittest.TestCase):
         f =  fileop.listdir_fullpath(unittest_aggregator.prepare_test_data('yscanner', '/tmp/wf'))[0]
         import scipy.io
         yscanner2sync(scipy.io.loadmat(f)['recorded'][:,3])
+        
+    def test_14_mes2mat(self):
+        mes2mat('/home/rz/mysoftware/data/2018_03_15_Ai148_Rbp4_E14embryo1_3.mes')
         
 def find_rois(meanimage):
     from skimage import filter
@@ -1613,6 +1616,11 @@ class RlvivoBackup(object):
             flinux='/'.join(f.replace('v:\\', '/mnt/datafast/').split('\\'))
             i,o,e=self.ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
             self.check_ssh_error(e)
+
+def mes2mat(filename):
+    mesdata=scipy.io.loadmat(filename)
+    
+    pass
 
 if __name__=='__main__':
     unittest.main()
