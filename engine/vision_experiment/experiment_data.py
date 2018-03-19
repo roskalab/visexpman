@@ -1618,9 +1618,33 @@ class RlvivoBackup(object):
             self.check_ssh_error(e)
 
 def mes2mat(filename):
-    mesdata=scipy.io.loadmat(filename)
+    from visexpA.engine.datahandlers import matlabfile
+    m=matlabfile.MatData(filename)
+    #Find the metadata field'd variable name
+    varnames=[k for k in m.raw_mat.keys() if 'D'==k[0]]
+    varnames.sort()
+    varname=varnames[0]
+    m.raw_mat['DATA']=m.raw_mat[varname]
+    if m.raw_mat['DATA'][0]['Context'][0][0].lower()=='zstack':
+        raise RuntimeError('Z stack not supported')
+    for ch in range(m.raw_mat['DATA'].shape[0]):
+        m.raw_mat['DATA'][ch]['IMAGE'][0]=m.raw_mat[m.raw_mat['DATA'][ch]['IMAGE'][0][0]]
+    rawdata=matlabfile.read_line_scan(m,read_red_channel=True)
+    pmt_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['UG'][0][0][0][0]
+    laser_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['IM'][0][0][0][0]
+    pixel_size_um=m.raw_mat['DATA'][0]['TransverseStep'][0][0][0]
+    frame_time_ms=m.raw_mat['DATA'][0]['FoldedFrameInfo'][0][0]['frameTimeLength'][0][0][0]
+    frame_rate=1000/frame_time_ms
+    dataout={}
+    dataout['data']=rawdata
+    dataout['pmt_percent']=pmt_percent
+    dataout['laser_percent']=laser_percent
+    dataout['frame_time_ms']=frame_time_ms
+    dataout['frame_rate']=frame_rate
+    dataout['pixel_size_um']=pixel_size_um
+    scipy.io.savemat(fileop.replace_extension(filename, '.mat'), dataout,do_compression=True)
     
-    pass
+
 
 if __name__=='__main__':
     unittest.main()

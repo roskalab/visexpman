@@ -123,9 +123,8 @@ level=logging.INFO)
     def mesextractor(self,filename):
         #Check if input files are valid
         files=[filename, filename.replace('.hdf5', '.mat')]
-        for i in range(5):
-            if os.path.exists(files[1].replace('.mat', '_{0}.mat'.format(i))):
-                raise RuntimeError('MES file error, data split to several files.')
+        if os.path.exists(files[1].replace('.mat', '_1.mat')):
+            raise RuntimeError('MES file error, data split to several files.')
         for f in files:
             if os.path.getsize(f)<1e6:
                 raise IOError('{0} is corrupt'.format(f))
