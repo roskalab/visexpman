@@ -390,7 +390,7 @@ class ExperimentControl(object):
                     elif self.scan_mode == 'xy':
                         if hasattr(self, 'scan_region'):
                             self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
-                            if 0 and not mes_interface.is_imaging_timing_record_enabled(self.filenames['mes_fragments'][fragment_id]):
+                            if not mes_interface.is_imaging_timing_record_enabled(self.filenames['mes_fragments'][fragment_id]):
                                 self.printl('MES scan config file problem: imaging timing signal won\'t be recorded. Make sure that DI0 is selected in MES->Line scan tab->edit protocols->input curves and update XYT in scan reqion')
                                 return False
                             file.wait4file_ready(self.filenames['mes_fragments'][fragment_id])

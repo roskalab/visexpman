@@ -276,6 +276,8 @@ class Jobhandler(object):
             error_msg= 'file acces error'
         elif os.path.exists(filename.replace('.hdf5', '_1.mat')):
             error_msg= 'Unknown MES format'
+        elif os.path.exists(filename.replace('.mat', '_1.mat')):
+            error_msg='MES file error, data split to several files.'
         else:
             error_msg=''
             file_info = os.stat(filename)
