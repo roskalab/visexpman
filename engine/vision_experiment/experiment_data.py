@@ -1424,7 +1424,11 @@ class TestExperimentData(unittest.TestCase):
         yscanner2sync(scipy.io.loadmat(f)['recorded'][:,3])
         
     def test_14_mes2mat(self):
-        mes2mat('/home/rz/mysoftware/data/2018_03_15_Ai148_Rbp4_E14embryo1_3.mes')
+        folder='/home/rz/mysoftware/data/mesfiles'
+        for f in os.listdir(folder):
+            if '.mes' in f:
+                print f
+                mes2mat(os.path.join(folder, f))
         
 def find_rois(meanimage):
     from skimage import filter
@@ -1625,24 +1629,44 @@ def mes2mat(filename):
     varnames.sort()
     varname=varnames[0]
     m.raw_mat['DATA']=m.raw_mat[varname]
-    if m.raw_mat['DATA'][0]['Context'][0][0].lower()=='zstack':
-        raise RuntimeError('Z stack not supported')
+    dataout={}
+    nchannels=len(set([i[0] for i in m.raw_mat['DATA'][:]['Channel'][:,0]]))
     for ch in range(m.raw_mat['DATA'].shape[0]):
         m.raw_mat['DATA'][ch]['IMAGE'][0]=m.raw_mat[m.raw_mat['DATA'][ch]['IMAGE'][0][0]]
-    rawdata=matlabfile.read_line_scan(m,read_red_channel=True)
-    pmt_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['UG'][0][0][0][0]
-    laser_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['IM'][0][0][0][0]
-    pixel_size_um=m.raw_mat['DATA'][0]['TransverseStep'][0][0][0]
-    frame_time_ms=m.raw_mat['DATA'][0]['FoldedFrameInfo'][0][0]['frameTimeLength'][0][0][0]
-    frame_rate=1000/frame_time_ms
-    dataout={}
-    dataout['data']=rawdata
-    dataout['pmt_percent']=pmt_percent
-    dataout['laser_percent']=laser_percent
-    dataout['frame_time_ms']=frame_time_ms
-    dataout['frame_rate']=frame_rate
-    dataout['pixel_size_um']=pixel_size_um
-    scipy.io.savemat(fileop.replace_extension(filename, '.mat'), dataout,do_compression=True)
+    if m.raw_mat['DATA'][0]['Context'][0][0].lower()=='zstack':
+        rawdata=[]
+        zpositions_um=[]
+        rawdata=numpy.zeros((nchannels,m.raw_mat['DATA'].shape[0]/nchannels, m.raw_mat['DATA'][ch]['IMAGE'][0].shape[0],m.raw_mat['DATA'][ch]['IMAGE'][0].shape[1]), dtype=numpy.uint16)
+        for lev in range(m.raw_mat['DATA'].shape[0]/nchannels):
+            for ch in range(nchannels):
+                rawdata[ch,lev,:,:]=m.raw_mat['DATA'][nchannels*lev+ch]['IMAGE'][0]
+            zpositions_um.append(m.raw_mat['DATA'][nchannels*lev]['Zlevel'][0][0][0])
+        rawdata=numpy.array(rawdata)
+        zpositions_um=numpy.array(zpositions_um)
+        pixel_size_um=m.raw_mat['DATA'][0]['HeightStep'][0][0][0]
+        zstep_um=numpy.diff(zpositions_um)[0]
+        import tifffile
+        for ch in range(nchannels):
+            tifffile.imsave(filename.replace('.mes', '_{0}.tiff'.format(ch)), rawdata[ch], 
+                software='visexpman', description='pixel size: {0} um, z step: {1} um'.format(pixel_size_um, zstep_um))
+        pass
+    else:
+        rawdata=matlabfile.read_line_scan(m,read_red_channel=True)
+        pmt_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['UG'][0][0][0][0]
+        laser_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['IM'][0][0][0][0]
+        pixel_size_um=m.raw_mat['DATA'][0]['TransverseStep'][0][0][0]
+        frame_time_ms=m.raw_mat['DATA'][0]['FoldedFrameInfo'][0][0]['frameTimeLength'][0][0][0]
+        frame_rate=1000/frame_time_ms
+        
+        dataout['data']=rawdata
+        dataout['pmt_percent']=pmt_percent
+        dataout['laser_percent']=laser_percent
+        dataout['frame_time_ms']=frame_time_ms
+        dataout['frame_rate']=frame_rate
+        dataout['pixel_size_um']=pixel_size_um
+        dataout['width_um']=pixel_size_um*rawdata.shape[0]*pixel_size_um
+        dataout['height_um']=pixel_size_um*rawdata.shape[1]*pixel_size_um
+        scipy.io.savemat(fileop.replace_extension(filename, '.mat'), dataout,do_compression=True)
     
 
 
