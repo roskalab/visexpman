@@ -25,6 +25,7 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
         else:
             raise NotImplementedError('Signature is not generated for this folder: {0}'.format(self.FILENAME))
         self.IMAGE_FOLDER_SIGNATURE= sig
+        self.pre_runnable='GrayPre'
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
 
