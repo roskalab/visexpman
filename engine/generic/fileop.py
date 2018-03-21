@@ -205,6 +205,9 @@ def folder_signature(folder):
     files=find_files_and_folders(folder)[1]
     return (len(files), sum([os.path.getsize(f) for f in files]), max([os.path.getmtime(f) for f in files]))
     
+def file_signature(filename):
+    return (filename, os.path.getsize(filename), int(os.path.getmtime(filename)))
+    
 ################# File/directory operations ####################
 
 def mkstemp(suffix=None, filename = None):

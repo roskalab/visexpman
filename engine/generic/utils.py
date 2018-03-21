@@ -1159,7 +1159,7 @@ def list_swap(l, i1, i2):
     return l
     
 def sendmail(to, subject, txt):
-    import subprocess,fileop
+    import subprocess
     message = 'Subject:{0}\n\n{1}\n'.format(subject, txt)
     fn='/tmp/email.txt'
     fileop.write_text_file(fn,message)
