@@ -22,7 +22,7 @@ IOBoardCommands::IOBoardCommands(void)
   OCR2A = TIMER_COMPARE;
   TIMSK2 |= 1<<1;  
   //initialize timer1 for waveform generation
-  DDRB|=1<<1;//pin 1 (pin 9 on arduino) enabled as output
+  DDRB|=1<<1|1<<5;//pin 1 (pin 9 on arduino) enabled as output, pin 5 led
   TCCR1A = _BV(COM2A0);
   TCCR1B = _BV(WGM12);
 //  OCR1A = 1300;*/
@@ -40,7 +40,22 @@ void IOBoardCommands::run(void)
     {
       Serial.println("ioboard");
     }
-
+    else if ((strcmp(command,"set_led")==0)&&(nparams==1))
+    {
+      if (debug==1)
+      {
+        Serial.print(" led set to ");
+        Serial.println(par[0]);
+      }
+      if (par[0]>0)
+      {
+        PORTB|=1<<5;
+      }
+      else
+      {
+        PORTB&=~(1<<5);
+      }
+    }
     else if ((strcmp(command,"set_pin")==0)&&(nparams==2))
     {
       if (debug==1)

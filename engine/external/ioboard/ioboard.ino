@@ -15,6 +15,8 @@ waveform,frequency,frequency_range,modulation_frequency: waveform is generated o
       In fm waveform mode the frequency is recalculated in every 4th call of 2 kHz timer ISR.
 stop: terminates waveform generation
 reset: stop all activity on iobaord
+start_read_pins: pin 2-4 will be sampled with 2 kHz (TIMER_FRQ), upon value change corresponding timestamp is sent via UART
+stop_read_pins: stop sampling pin 2-4.
 
 */
 

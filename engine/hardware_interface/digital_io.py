@@ -282,6 +282,18 @@ class IOBoard(object):
             
     def id(self):
         return int(self.command('get_id').split(' ')[-1])
+        
+    def read_waveform(self):
+        res=self.s.read(int(1e6))
+        vect= numpy.array([map(int, line.split(' ms: ')) for line in res.split('\r\n') if len(line)>0])
+        vect[:,0]-=vect[0,0]
+        t=vect[:,0]
+        ndigchannels=3
+        waveform=numpy.zeros((t.shape[0], ndigchannels), dtype=numpy.int)
+        for i in range(ndigchannels):
+            waveform[:,i]=numpy.where(vect[:,1]&(4<<i)==0,0,1)
+        return t, waveform
+            
             
     def close(self):
         self.s.close()
