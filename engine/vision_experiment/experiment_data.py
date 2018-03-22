@@ -584,18 +584,19 @@ class RlvivoBackup(object):
     def close(self):
         self.ssh.close()
         
-    def check_ssh_error(self,e):
+    def check_ssh_error(self,e,cmd=''):
         emsg=e.readline()
         if emsg!='':
-            raise RuntimeError(emsg)
+            raise RuntimeError(emsg+' '+cmd)
         
     def target_folder(self,root='/mnt/databig/backup'):
         if (self.user=='daniel' or self.user=='default_user')  and 'backup' not in root:
             self.target_dir='/'.join([root,self.id,str(self.animalid)])
         else:
             self.target_dir='/'.join([root,self.user,self.id,str(self.animalid)])
-        i,o,e1=self.ssh.exec_command('mkdir -p {0}'.format(self.target_dir))
-        self.check_ssh_error(e1)
+        cmd='mkdir -p {0}'.format(self.target_dir)
+        i,o,e1=self.ssh.exec_command(cmd)
+        self.check_ssh_error(e1,cmd)
         
     def copy(self):
         for f in self.files:

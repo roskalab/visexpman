@@ -17,7 +17,7 @@ from visexpA.engine.datahandlers import importers,hdf5io,matlabfile
 from visexpman.engine import backup_manager
 
 dbfilelock=threading.Lock()
-DAYS_SINCE_NO_RECORDING=30
+DAYS_SINCE_NO_RECORDING=30*2
 THREAD=True
 GUI_CONN=not False
 #TODO: check backup status, check files (mouse file too) on u:\data,
