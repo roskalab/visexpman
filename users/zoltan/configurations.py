@@ -29,8 +29,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ENABLE_ZIGZAG_CORRECTION = True
         #=== paths/data handling ===
         if os.name == 'nt':            
-            v_drive_folder = 'V:\\'
-            BACKUP_PATH='u:\\backup'
+            v_drive_folder = 'X:\\'
+            BACKUP_PATH='x:\\backup'
         else:            
             v_drive_folder = '/mnt/datafast'
             BACKUP_PATH='/mnt/databig/backup'
@@ -40,7 +40,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'experiment_data')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        MES_DATA_FOLDER = 'V:\\experiment_data'
+        MES_DATA_FOLDER = 'X:\\experiment_data'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.CONTEXT_NAME = 'gui.hdf5'
         CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
@@ -49,7 +49,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
             self.PROCESSED_FILES_PATH='/mnt/databig/processed'
         else:
-            DATABIG_PATH = 'u:\\data'
+            DATABIG_PATH = 'x:\\data'
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
 
         #=== screen ===
@@ -217,7 +217,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         
         #gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
         print gamma_corr_filename
-        if os.path.exists(gamma_corr_filename):
+        if 0 and os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))

@@ -39,7 +39,7 @@ class ExperimentConfig(Config):
                 expconfigs=[]
                 for u in ['common',self.machine_config.user]:
                     expconfigs.extend(utils.fetch_classes('visexpman.users.'+ u, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment, direct=False))
-                for pre_experiment_class in expconfigs: 
+                for pre_experiment_class in expconfigs:
                     if pre_experiment_class[1].__name__ == self.pre_runnable:
                         self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the pre experiment code
                         break

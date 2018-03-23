@@ -1101,20 +1101,28 @@ class MainPoller(Poller):
             h.close()
         
     def load_context(self):
-        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE,filelocking=False)
-        context_hdf5.load('stage_origin')
-        context_hdf5.load('stage_position')
-        if hasattr(context_hdf5, 'stage_position') and hasattr(context_hdf5, 'stage_origin') :
-            self.stage_origin = context_hdf5.stage_origin
-            self.stage_position = context_hdf5.stage_position
+        if os.path.exists(self.config.CONTEXT_FILE):
+            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE,filelocking=False)
+            context_hdf5.load('stage_origin')
+            context_hdf5.load('stage_position')
+            if hasattr(context_hdf5, 'stage_position') and hasattr(context_hdf5, 'stage_origin') :
+                self.stage_origin = context_hdf5.stage_origin
+                self.stage_position = context_hdf5.stage_position
+            else:
+                self.stage_position = numpy.zeros(3)
+                self.stage_origin = numpy.zeros(3)
+            self.xy_scan = context_hdf5.findvar('xy_scan')
+            self.xz_scan = context_hdf5.findvar('xz_scan')
+            self.last_region_name = context_hdf5.findvar('last_region_name')
+            self.last_mouse_file_name = context_hdf5.findvar('last_mouse_file_name')
+            context_hdf5.close()
         else:
             self.stage_position = numpy.zeros(3)
             self.stage_origin = numpy.zeros(3)
-        self.xy_scan = context_hdf5.findvar('xy_scan')
-        self.xz_scan = context_hdf5.findvar('xz_scan')
-        self.last_region_name = context_hdf5.findvar('last_region_name')
-        self.last_mouse_file_name = context_hdf5.findvar('last_mouse_file_name')
-        context_hdf5.close()
+            self.last_mouse_file_name = ''
+            self.last_region_name=''
+            self.xy_scan = None
+            self.xz_scan = None
         self.stage_position_valid = False
         self.scan_regions = {}
         

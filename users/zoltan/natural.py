@@ -8,10 +8,11 @@ import time
 class NaturalMovieSv1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.REPEATS=1
+	self.DURATION = 300.0
         self.FILENAME = 'c:\\Data\\rotated\\catcam17'
         #self.FILENAME = 'c:\\Data\\rotated\\movieincage_fiona'
         self.ROTATION=0
-        self.FRAME_RATE=20.0
+        self.FRAME_RATE=60.0
         self.VIDEO_OFFSET=0.0#seconds
         self.VIDEO_DURATION=0.0 #seconds
         sig_catcam17=  (19392, 911855977L, 1509011964.359375)
@@ -24,6 +25,7 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
         else:
             raise NotImplementedError('Signature is not generated for this folder: {0}'.format(self.FILENAME))
         self.IMAGE_FOLDER_SIGNATURE= sig
+        self.pre_runnable = 'GreyPre'
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
 
