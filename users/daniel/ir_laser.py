@@ -3,7 +3,7 @@ import numpy
 class IRLaser(stimuli.LaserPulseC):
     def _create_parameters(self):
         stimuli.LaserPulseC._create_parameters(self)
-        self.INITIAL_DELAY=1
+        self.INITIAL_DELAY=5 #
         self.PULSE_DURATION=[100E-3]
         self.PERIOD_TIME=[10.0]
         self.NPULSES=5
@@ -12,7 +12,7 @@ class IRLaser(stimuli.LaserPulseC):
 class IRLaser1Rep(stimuli.LaserPulseC):
     def _create_parameters(self):
         stimuli.LaserPulseC._create_parameters(self)
-        self.INITIAL_DELAY=1
+        self.INITIAL_DELAY=5 #
         self.PULSE_DURATION=[100E-3]
         self.PERIOD_TIME=[10.0]
         self.NPULSES=1
