@@ -1,6 +1,6 @@
 import  random
 from visexpman.engine.vision_experiment import experiment,experiment_data
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils,introspect
 
 class ObjectStim(experiment.ExperimentConfig):
     def _create_parameters(self):

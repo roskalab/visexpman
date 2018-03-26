@@ -19,6 +19,17 @@ import subprocess, os, signal
 import numpy
 import psutil
 
+def base_classes(obj):
+    ref=obj
+    chain=[]
+    while True:
+        ref=getattr(getattr(ref, '__class__'),'__base__')
+        chain.append(ref.__name__)
+        if ref.__name__=='object':
+            break
+    return chain
+        
+
 def visexpman2hash():
     from visexpman.engine.generic import fileop
     foldername=fileop.visexpman_package_path()

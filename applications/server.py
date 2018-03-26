@@ -19,7 +19,7 @@ def mdrive_checker(folders, signature_file, emailto):
         missing_files=[fn for fn in signature_p.keys() if not signatures.has_key(fn)]
         error_msg=''
         if len(missing_files)>0:
-            error_msg+='Missing files {0}\r\n'.format(','.join(error_msg))
+            error_msg+='Missing files {0}\r\n'.format(','.join(missing_files))
         else:
             #Compare signatures
             for fn in signature_p.keys():
@@ -27,7 +27,8 @@ def mdrive_checker(folders, signature_file, emailto):
                     error_msg+='{0} changed: {1}, {2}\r\n'.format(fn, signature_p[fn], signatures[fn])
         if len(error_msg):
             error_msg='Files did not change'
-        utils.sendmail(emailto,'m drive check', error_msg)
+        print error_msg
+        #utils.sendmail(emailto,'m drive check', error_msg)
     #Save current signature
     txt='\r\n'.join([','.join(map(str,[fn, s[0], s[1]])) for fn, s in signatures.items()])
     fileop.write_text_file(signature_file,txt)
