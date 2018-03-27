@@ -57,16 +57,19 @@ class MescapiInterface(object):
         '''
         Initiate recording
         '''
+        return self.request('MEScMicroscope.startResonantScanAsync()')
         
     def stop(self):
         '''
         Terminate running measurement
         '''
+        return self.request('MEScMicroscope.stopResonantScanAsync()')
         
     def microscope_state(self):
         '''
         get microscope state
         '''
+        return self.request('MEScMicroscope.getAcquisitionState()')
     
     def save(self, filename):
         '''
