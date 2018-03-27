@@ -15,6 +15,7 @@ import matplotlib
 matplotlib.use('Qt4Agg')
 from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
+import experiment
 try:
     import hdf5io
     hdf5io_available=True
@@ -638,6 +639,7 @@ def pack_configs(self):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
     if not configs.has_key('experiment_config'):
         configs['experiment_config']=self.config2dict()
+    configs['hash']=experiment.stimulus_parameters_hash(configs['experiment_config'])
     return configs
     
 def read_machine_config(h):

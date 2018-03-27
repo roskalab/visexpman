@@ -125,7 +125,8 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.parent.printc('Base classes: {0}'.format(' -> '.join(bases)))
         duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
         self.parent.printc('Duration: {0:0.0f} seconds'.format(duration))
-        
+        parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
+        self.parent.printc('Stimulus hash: {0}'.format(experiment.stimulus_parameters_hash(parameters)))
 
     def stimulus_par_action(self):
         parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)

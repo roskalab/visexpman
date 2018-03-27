@@ -311,12 +311,24 @@ def read_stimulus_parameters(stimname, filename,config):
     ec=getattr(em,stimname)(config,create_runnable=False)
     return introspect.cap_attributes2dict(ec)
     
+def stimulus_parameters_hash(pars):
+    '''
+    calculates sha256 hash of stimulus parameters
+    '''
+    import hashlib
+    return hashlib.sha256(utils.object2str(pars)).hexdigest()
+    
 def read_stimulus_base_classes(stimname,filename,config):
     source_code=fileop.read_text_file(filename)
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     em=__import__('experiment_module')
     ec=getattr(em,stimname)(config,create_runnable=False)
-    return introspect.base_classes(ec)[:-2]
+    chain=introspect.base_classes(ec)
+    try:
+        i=chain.index('ExperimentConfig')
+    except ValueError:
+        i=chain.index('Stimulus')
+    return chain[:i+1]
 
 def parse_stimulation_file(filename):
     '''

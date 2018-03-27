@@ -23,7 +23,7 @@ def base_classes(obj):
     chain=[ref.__name__]
     while True:
         ref=getattr(ref, '__bases__')
-        if len(ref)>1:
+        if len(ref)>1 and 0:
             raise NotImplementedError('Multiple inheratance detected')
         n=', '.join([ref[i].__name__ for i in range(len(ref))])
         ref=ref[0]
@@ -32,7 +32,6 @@ def base_classes(obj):
             break
     return chain
         
-
 def visexpman2hash():
     from visexpman.engine.generic import fileop
     foldername=fileop.visexpman_package_path()
