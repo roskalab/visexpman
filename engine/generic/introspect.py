@@ -16,15 +16,18 @@ import hashlib
 import weakref
 
 import subprocess, os, signal
-import numpy
 import psutil
 
 def base_classes(obj):
-    ref=obj
-    chain=[]
+    ref=obj.__class__
+    chain=[ref.__name__]
     while True:
-        ref=getattr(getattr(ref, '__class__'),'__base__')
-        chain.append(ref.__name__)
+        ref=getattr(ref, '__bases__')
+        if len(ref)>1:
+            raise NotImplementedError('Multiple inheratance detected')
+        n=', '.join([ref[i].__name__ for i in range(len(ref))])
+        ref=ref[0]
+        chain.append(n)
         if ref.__name__=='object':
             break
     return chain

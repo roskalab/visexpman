@@ -112,7 +112,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
 
     def open_menu(self, position):
         self.menu = QtGui.QMenu(self)
-        stimulus_info_action = QtGui.QAction('Stimulus duration', self)
+        stimulus_info_action = QtGui.QAction('Stimulus info', self)
         stimulus_info_action.triggered.connect(self.stimulus_info_action)
         self.menu.addAction(stimulus_info_action)
         stimulus_par_action = QtGui.QAction('Stimulus parameters', self)
@@ -121,8 +121,11 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.menu.exec_(self.viewport().mapToGlobal(position))
         
     def stimulus_info_action(self):
+        bases=experiment.read_stimulus_base_classes(self.classname, self.filename, self.parent.machine_config)
+        self.parent.printc('Base classes: {0}'.format(' -> '.join(bases)))
         duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
-        self.parent.printc('{0} stimulus takes {1:0.0f} seconds'.format(self.classname, duration))
+        self.parent.printc('Duration: {0:0.0f} seconds'.format(duration))
+        
 
     def stimulus_par_action(self):
         parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
