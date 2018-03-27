@@ -4,9 +4,9 @@ VisionExperimentConfig:
 ElphysRetinalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with retinal ca imaging  and electrophisiology specific parameters that are not used on other platforms.
         Platform name: elphys_retinal_ca
-RcCorticalCaImagingConfig, AoCorticalCaImagingConfig, ResonantBasicConfig
+RcCorticalCaImagingConfig, AoCorticalCaImagingConfig, ResonantConfig
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
-        Platform name: rc_cortical or ao_cortical, resonant_basic
+        Platform name: rc_cortical or ao_cortical, resonant
 UltrasoundConfig:
         TBD
 MCMEAConfig:
@@ -76,7 +76,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant_basic', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -421,10 +421,10 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         DEFAULT_ROI_SIZE_ON_GUI=20
         self._create_parameters_from_locals(locals())
         
-class ResonantBasicConfig(VisionExperimentConfig):
+class ResonantConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
-        PLATFORM = 'resonant_basic'
+        PLATFORM = 'resonant'
         self._create_parameters_from_locals(locals())
         
 class UltrasoundConfig(VisionExperimentConfig):

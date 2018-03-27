@@ -2,7 +2,7 @@ import os,sys
 import os.path
 import numpy,copy,hdf5io
 from visexpman.engine.generic import utils
-from visexpman.engine.vision_experiment.configuration import AoCorticalCaImagingConfig,ResonantBasicConfig
+from visexpman.engine.vision_experiment.configuration import AoCorticalCaImagingConfig,ResonantConfig
 
 class AOSetup(AoCorticalCaImagingConfig):
     def _set_user_parameters(self):
@@ -127,9 +127,9 @@ class CameronDev(CameronAoSetup):
         CameronAoSetup._set_user_parameters(self)
         self.SCREEN_EXPECTED_FRAME_RATE = 59
         
-class ResonantSetup(ResonantBasicConfig):
+class ResonantSetup(ResonantConfig):
     def _set_user_parameters(self):
-        ResonantBasicConfig._set_user_parameters(self)
+        ResonantConfig._set_user_parameters(self)
         # Files
         self.EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.LOG_PATH = 'v:\\log_res'
