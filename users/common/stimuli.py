@@ -169,6 +169,7 @@ class MovingGratingStimulus(experiment.Experiment):
         VELOCITIES
         DUTY_CYCLES
         PAUSE_BEFORE_AFTER
+        RANDOM_DIRECTIONS
     Optional configuration parameters:
         ENABLE_FLASH
         PROFILE
@@ -178,8 +179,16 @@ class MovingGratingStimulus(experiment.Experiment):
         self.stimulus_units = []
         self.overall_duration = 0
         orientations = copy.deepcopy(self.experiment_config.ORIENTATIONS)
+        velocities = copy.deepcopy(self.experiment_config.VELOCITIES)
+        
+        if self.experiment_config.RANDOM_ORDER:
+            import random
+            random.seed(0)
+            random.shuffle(orientations)  
+            random.shuffle(velocities)
+        
         for repeat in range(self.experiment_config.REPEATS):
-            for velocity in self.experiment_config.VELOCITIES:
+            for velocity in velocities:
                 for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
                     for duty_cycle in self.experiment_config.DUTY_CYCLES:
 #                        if repeat > 0:
@@ -198,6 +207,7 @@ class MovingGratingStimulus(experiment.Experiment):
                                         numpy.round(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE) / self.machine_config.SCREEN_EXPECTED_FRAME_RATE
                             self.overall_duration += stimulus_unit['move_time'] + self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME + self.experiment_config.GRATING_STAND_TIME
                             self.stimulus_units.append(stimulus_unit)
+                            
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
         if hasattr(self.machine_config, 'MAXIMUM_RECORDING_DURATION') and self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
             raise RuntimeError('Stimulus too long')
