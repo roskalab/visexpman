@@ -2058,9 +2058,9 @@ class AdvancedStimulation(StimulationHelpers):
             This stimulus flashes textures one after the other at the given 
             frame rate.
             Required:
-            - textures_red:  N x L x W object of grayscale values (N: time dimension)
+            - textures_red:    N x L x W object of grayscale values (N: time dimension)
             - textures_green:  N x L x W object of grayscale values (N: time dimension)
-            - textures_blue:  N x L x W object of grayscale values (N: time dimension)            
+            - textures_blue:   N x L x W object of grayscale values (N: time dimension)
             Optional:
             - save_frame_info: default to True
         '''
@@ -2144,7 +2144,7 @@ class AdvancedStimulation(StimulationHelpers):
     def chirp(self, stimulus_duration, contrast_range, frequency_range, color, save_frame_info = True):
         '''
             ...
-        '''               
+        '''
         nTimePoints =  stimulus_duration*self.config.SCREEN_EXPECTED_FRAME_RATE
         amplitudes = numpy.linspace(contrast_range[0], contrast_range[1], nTimePoints)
         frequencies = numpy.linspace(frequency_range[0], frequency_range[1], nTimePoints)
@@ -2193,7 +2193,73 @@ class AdvancedStimulation(StimulationHelpers):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True,
                                            info = {'contrasts': numpy.array(shown_contrasts), 'colors':  numpy.array(shown_colors)})
         # END OF chirp()        
-        
+
+    def new_chirp(self, stimulus_duration, contrast_range, frequency_range, save_frame_info=True):
+        '''
+            modulated_color:  e.g. [1, 0, 0] red is modulated while green and blue are constant
+            background_color: e.g. [0, 0.5, 0.5]
+        '''
+
+        nTimePoints = stimulus_duration * self.config.SCREEN_EXPECTED_FRAME_RATE
+        time_ = numpy.linspace(0, stimulus_duration, nTimePoints)
+        time = numpy.array([time_, time_, time_])
+
+        #
+        fr = numpy.linspace(frequency_range[0, 0], frequency_range[0, 1], nTimePoints)
+        fb = numpy.linspace(frequency_range[1, 0], frequency_range[1, 1], nTimePoints)
+        fg = numpy.linspace(frequency_range[2, 0], frequency_range[2, 1], nTimePoints)
+        frequencies = numpy.array([fr, fg, fb])
+
+        ar = numpy.linspace(contrast_range[0, 0], contrast_range[0, 1], nTimePoints)
+        ag = numpy.linspace(contrast_range[1, 0], contrast_range[1, 1], nTimePoints)
+        ab = numpy.linspace(contrast_range[2, 0], contrast_range[2, 1], nTimePoints)
+        amplitudes = numpy.array([ar, ag, ab])
+
+
+        contrast = (amplitudes * numpy.sin(2 * numpy.pi * frequencies * time) + 1.0) / 2.0
+
+        # print 'In stimulation_library.py chirp():'
+        # print self.config.SCREEN_EXPECTED_FRAME_RATE
+
+        if False:
+            import matplotlib.pyplot as p
+            p.plot(time.T, contrast.T)
+            p.show()
+
+            p.plot(time.T, amplitudes.T)
+            p.show()
+
+            p.plot(time, frequencies.T)
+            p.show()
+
+        # Enter stimulus loop:
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last=False)
+        idx = 0
+
+        shown_colors = []
+        shown_contrasts = []
+
+        while True:
+            if self.abort or idx >= nTimePoints:
+                break
+
+            color_to_set = colors.convert_color(color * contrast[idx], self.config)
+            self.screen.clear_screen(color_to_set)
+            self._flip(frame_trigger=True)
+
+            # print color*contrast[idx]
+            shown_contrasts.append(color * contrast[idx])
+            shown_colors.append(color_to_set)
+            idx += 1
+
+        # Finish up
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last=True,
+                                           info={'contrasts': numpy.array(shown_contrasts),
+                                                 'colors': numpy.array(shown_colors)})
+            # END OF new_chirp()
+
 class TestStimulationPatterns(unittest.TestCase):
     
     #    @unittest.skip('')

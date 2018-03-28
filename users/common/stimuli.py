@@ -619,6 +619,9 @@ class WhiteNoiseStimulus(experiment.Experiment):
 
 class ColoredNoiseStimulus(experiment.Experiment):
     '''
+        This stimulus creates a binary white noise pattern for each color
+        channel independently and superposes them to a colored noise stimulus.
+
         Required:
             DURATION_MINS: in minutes (!)
             PIXEL_SIZE
@@ -738,6 +741,7 @@ class ChirpSweep(experiment.Experiment):
             COLOR
     '''
     def prepare(self):
+
         self.repeats = self.experiment_config.REPEATS
         self.duration_freq = self.experiment_config.DURATION_FREQ
         self.duration_contrast = self.experiment_config.DURATION_CONTRAST
@@ -747,7 +751,7 @@ class ChirpSweep(experiment.Experiment):
         self.stimulus_duration = self.experiment_config.REPEATS*(self.duration_freq+self.duration_contrast+self.duration_fullfield+2*self.duration_breaks)
         self.contrast_range = numpy.array(self.experiment_config.CONTRAST_RANGE)
         self.frequency_range = numpy.array(self.experiment_config.FREQUENCY_RANGE)
-        self.static_frequency = self.experiment_config.STATIC_FREQUENCY        
+        self.static_frequency = self.experiment_config.STATIC_FREQUENCY
         
         if any(self.frequency_range > self.config.SCREEN_EXPECTED_FRAME_RATE):
             raise RuntimeError('This frequency range is not possible!')
