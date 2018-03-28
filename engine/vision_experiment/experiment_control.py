@@ -559,11 +559,20 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self._data2matfile_compatible()
             if self.machine_config.PLATFORM == 'hi_mea':
                 #the latest file's name with a specific format
-                latest_file = fileop.find_latest(os.path.split(fileop.get_user_experiment_data_folder(self.machine_config))[0],extension=None)#TODO: extension tbd
+                myfileop = fileop.get_user_experiment_data_folder(self.machine_config)
+                #print myfileop                
+                mypath = os.path.split(myfileop)
+                #print mypath
+                
+                latest_file = fileop.find_latest(mypath[0], extension='h5')#TODO: extension tbd
+                print "latest file: "
+                print latest_file
+                
                 if latest_file is None:
                     filename_prefix = ''
                 else:
-                    filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
+                    # filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
+                    filename_prefix = str(os.path.split(latest_file)[1].replace('raw.h5','')[:-1])
                 
                 #print "filename_prefix (in experiment_control, l568)"
                 #print filename_prefix
