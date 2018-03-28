@@ -76,14 +76,14 @@ class TestMesc(unittest.TestCase):
     def test_02_multiple_commands(self):
         m=MescapiInterface(debug=True)
         for i in range(10):
-            self.assertEqual(len(m.request('MEScFile.getMescState();').keys()),5)
+            self.assertEqual(m.request('MEScMicroscope.getAcquisitionState();').values(),['Ready'])
             self.assertEqual(m.request('MEScFile.echo(\'TEST\');'), 'MEScFile:TEST')
         m.close()
         
     def test_03_reinstantiate(self):
         for i in range(10):
             m=MescapiInterface(debug=True)
-            self.assertEqual(len(m.request('MEScFile.getMescState();').keys()),5)
+            self.assertEqual(m.request('MEScMicroscope.getAcquisitionState();').values(),['Ready'])
             m.close()
             m=MescapiInterface()
             self.assertEqual(m.request('MEScFile.echo(\'TEST\');'), 'MEScFile:TEST')
