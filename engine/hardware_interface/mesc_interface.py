@@ -36,19 +36,25 @@ class MescapiInterface(object):
         '''
         Initiate recording
         '''
+        state=self.get_state()
+        if state!='Ready':
+            raise IOError('Microscope is not ready for recording, current state: {0}'.format(state))
         return self.request('MEScMicroscope.startResonantScanAsync()')
         
     def stop(self):
         '''
         Terminate running measurement
         '''
+        state=self.get_state()
+        if state!='Working':
+            raise IOError('Acquisition is not running, current state: {0}'.format(state))
         return self.request('MEScMicroscope.stopResonantScanAsync()')
         
-    def microscope_state(self):
+    def get_state(self):
         '''
         get microscope state
         '''
-        return self.request('MEScMicroscope.getAcquisitionState()')
+        return self.request('MEScMicroscope.getAcquisitionState()').values()[0]
     
     def save(self, filename):
         '''
@@ -116,6 +122,14 @@ class TestMesc(unittest.TestCase):
         frame=65535-frame
         imshow(frame[0])
         show()
+        
+    def test_06_measurement_start(self):
+        m=MescapiInterface(debug=True)
+        self.assertRaises(IOError, m.stop)
+        self.assertTrue(m.start()['succeeded'])
+        self.assertTrue(m.stop()['succeeded'])
+        m.close()
+        
         
 if __name__=='__main__':
     unittest.main()

@@ -500,6 +500,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         if self.machine_config.PLATFORM=='epos':
             self.camera_trigger=digital_io.ArduinoIO(self.machine_config.CAMERA_TRIGGER_PORT)
+        if self.machine_config.PLATFORM=='resonant':
+            self.mesc=mesc_interface.MescapiInterface()
         self.user_data = {}
         self.abort = False
         
@@ -521,6 +523,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.analog_input = daq_instrument.AnalogIO(config)
         self.sync_recorder_started=time.time()
         self.abort=not self.analog_input.start_daq_activity()
+        self.printl('Sync signal recording started')
         
     def start_ao(self):
         if hasattr(self.machine_config,'TRIGGER_MES') and not self.machine_config.TRIGGER_MES:
@@ -595,7 +598,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='ao_cortical':
                 self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
                 self.start_sync_recording()
-                self.printl('Sync signal recording started')
                 self.start_ao()
             elif self.machine_config.PLATFORM=='hi_mea':
                 #send start signal
@@ -619,7 +621,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.PLATFORM=='behav':
                     self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
-                    self.printl('Sync signal recording started')
                 self.printl('Waiting for external trigger')
                 if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
                     import threading
@@ -630,6 +631,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.PLATFORM=='epos':
                     self.camera_trigger.enable_waveform(self.machine_config.CAMERA_TRIGGER_PIN, self.machine_config.CAMERA_TRIGGER_FRAME_RATE)
                     time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
+            elif self.machine_config.PLATFORM == 'resonant':
+                self.start_sync_recording()
+                self.mesc.start()
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
@@ -656,7 +660,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM=='epos':
                 time.sleep(self.machine_config.CAMERA_POST_STIM_WAIT)
                 self.camera_trigger.disable_waveform()
-            if self.machine_config.PLATFORM in ['behav', 'ao_cortical']:
+            elif self.machine_config.PLATFORM == 'resonant':
+                self.mesc.stop()
+            if self.machine_config.PLATFORM in ['behav', 'ao_cortical', 'resonant']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
             #Saving data
@@ -692,6 +698,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.digital_io.release_instrument()
         if hasattr(self, 'camera_trigger'):
             self.camera_trigger.close()
+        if hasattr(self, 'mesc'):
+            self.mesc.close()
 
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)
