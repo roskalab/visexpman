@@ -5,12 +5,12 @@ from visexpman.engine.generic import signal
 
 class SoundAndGratingC(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.SPEEDS=[200,600,1200]
-        self.ORIENTATION=90
-        self.CONDITIONS=['sound', 'grating', 'both']
+        self.SPEEDS=[200,1200]
+        self.ORIENTATION=[180, 0, 270, 90]
+        self.CONDITIONS=['grating'] # 'sound' 'both'
         self.RANDOMIZE=True #true
         self.BLOCK_DURATION=8.0
-        self.FLASH_DURATION=1.0
+        self.FLASH_DURATION=2.0
         self.PAUSE=5.0
         self.SOUND_BASE_FREQUENCY=14000
         self.FREQUENCY_STEP=1000#Hz
@@ -22,6 +22,8 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.AUDIO_SAMPLING_RATE=44.1e3
         self.ARDUINO_SOUND_GENERATOR=not False
         self.ARDUINO_SOUND_GENERATOR_PORT='COM5'
+        if not isinstance(self.ORIENTATION,list):
+            self.ORIENTATION=[self.ORIENTATION]
         self.runnable='SoundAndGratingE'
         self._create_parameters_from_locals(locals())
         
@@ -33,7 +35,7 @@ class SoundAndGratingShort(SoundAndGratingC):
 class SoundAndGratingE(experiment.Experiment):
     def prepare(self):
         ec=self.experiment_config
-        self.protocol=[[s,c] for s, c in itertools.product(ec.SPEEDS, ec.CONDITIONS)]
+        self.protocol=[[s,c,o] for s, c, o in itertools.product(ec.SPEEDS, ec.CONDITIONS, ec.ORIENTATION)]
         if ec.RANDOMIZE:
             random.shuffle(self.protocol)
         self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
@@ -54,11 +56,10 @@ class SoundAndGratingE(experiment.Experiment):
                     self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
                 self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
                 #import shutil;shutil.copy(self.s[-1].mp3fn,'c:\\temp')
-        self.orientation=ec.ORIENTATION
         self.block_boundaries=[]
         
-    def block(self, speed, condition):
-        block_sig=(condition, speed, self.orientation)
+    def block(self, speed, condition, orientation):
+        block_sig=(condition, speed, orientation)
         self.block_start(block_sig)
         self.block_boundaries.append(self.frame_counter)
         ec=self.experiment_config
@@ -75,8 +76,15 @@ class SoundAndGratingE(experiment.Experiment):
             self.show_fullscreen(color=ec.GRAY, duration=ec.BLOCK_DURATION)
         else:
             if ec.FLASH_DURATION>0:
-                self.show_fullscreen(color=1.0, duration=ec.FLASH_DURATION)
-            self.show_grating(orientation=self.orientation, 
+                self.show_grating(orientation=orientation, 
+                                white_bar_width =ec.BAR_WIDTH,
+                               duty_cycle=self.duty_cycle,
+                               duration=ec.BLOCK_DURATION-ec.FLASH_DURATION,
+                               display_area=self.machine_config.SCREEN_SIZE_UM,
+                               velocity=0,
+                               mask_size=ec.MASK_SIZE,
+                               mask_color=ec.GRAY)
+            self.show_grating(orientation=orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
                                duration=ec.BLOCK_DURATION-ec.FLASH_DURATION,
