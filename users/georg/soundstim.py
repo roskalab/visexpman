@@ -1,7 +1,7 @@
 import itertools,random,numpy
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import sound,digital_io
-from visexpman.engine.generic import signal
+from visexpman.engine.generic import signal,utils
 
 class SoundAndGratingC(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -75,12 +75,13 @@ class SoundAndGratingE(experiment.Experiment):
         if condition=='sound':
             self.show_fullscreen(color=ec.GRAY, duration=ec.BLOCK_DURATION)
         else:
+            size=max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col'])
             if ec.FLASH_DURATION>0:
                 self.show_grating(orientation=orientation, 
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
                                duration=ec.BLOCK_DURATION-ec.FLASH_DURATION,
-                               display_area=self.machine_config.SCREEN_SIZE_UM,
+                               display_area=utils.rc((size, size)),
                                velocity=0,
                                mask_size=ec.MASK_SIZE,
                                mask_color=ec.GRAY)
@@ -88,7 +89,7 @@ class SoundAndGratingE(experiment.Experiment):
                                 white_bar_width =ec.BAR_WIDTH,
                                duty_cycle=self.duty_cycle,
                                duration=ec.BLOCK_DURATION-ec.FLASH_DURATION,
-                               display_area=self.machine_config.SCREEN_SIZE_UM,
+                               display_area=utils.rc((size, size)),
                                velocity=speed,
                                mask_size=ec.MASK_SIZE,
                                mask_color=ec.GRAY)
