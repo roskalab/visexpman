@@ -51,15 +51,29 @@ class MovingShapeStimulus(experiment.Experiment):
         'DIRECTIONS' : range(0, 360, 45),
         }
         self.set_default_experiment_parameter_values(parameter_default_values)
-        #Calculate duration
-        trajectories, trajectory_directions, self.stimulus_duration = self.moving_shape_trajectory(\
+
+        # Randomize speeds and directions here:
+        nSpeeds = len(self.experiment_config.SPEEDS)
+        nDirections = len(self.experiment_config.DIRECTIONS)
+        speeds_ = numpy.repeat(self.experiment_config.SPEEDS, nDirections * self.experiment_config.REPETITIONS)
+        directions_ = numpy.tile(self.experiment_config.DIRECTIONS, nSpeeds * self.experiment_config.REPETITIONS)
+        speeds_directions = numpy.array([speeds_, directions_]).transpose()
+        if self.experiment_config.RANDOM_ORDER:
+            numpy.random.seed(1)
+            speeds_directions = numpy.random.permutation(sd)
+
+        self.trajectory_parameters = {'speeds': speeds_directions[:, 0], 'directions': speeds_directions[:, 1]}
+
+       #Calculate duration
+        trajectories, trajectory_directions, self.stimulus_duration = self.moving_shape_trajectory(
                                     size = self.experiment_config.SHAPE_SIZE,
-                                    speeds = self.experiment_config.SPEEDS,
-                                    directions = self.experiment_config.DIRECTIONS,
+                                    trajectory_parameters = self.trajectory_parameters,
+                                    #speeds = self.experiment_config.SPEEDS,
+                                    #directions = self.experiment_config.DIRECTIONS,
                                     pause = self.pause_between_directions,
-                                    repetition = self.experiment_config.REPETITIONS,
+                                    #repetition = self.experiment_config.REPETITIONS,
                                     shape_starts_from_edge = True,
-                                    random_order = self.experiment_config.RANDOM_ORDER)
+                                    #random_order = self.experiment_config.RANDOM_ORDER)
                                     #random_directions=self.experiment_config.RANDOM_DIRECTIONS,
                                     #random_speeds=self.experiment_config.RANDOM_SPEEDS)
         if hasattr(self.log, 'info'):
@@ -68,15 +82,16 @@ class MovingShapeStimulus(experiment.Experiment):
     def run(self):
         self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':0, 'counter':self.frame_counter})
         self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
-                          speeds = self.experiment_config.SPEEDS,
+                          trajectory_parameters = self.trajectory_parameters,
+                          #speeds = self.experiment_config.SPEEDS,
                           shape = self.shape,
                           color = self.shape_contrast,
                           background_color = self.shape_background,
-                          directions = self.experiment_config.DIRECTIONS,
+                          #directions = self.experiment_config.DIRECTIONS,
                           pause = self.pause_between_directions,
-                          repetition = self.experiment_config.REPETITIONS,
+                          #repetition = self.experiment_config.REPETITIONS,
                           shape_starts_from_edge = True,
-                          random_order = self.experiment_config.RANDOM_ORDER,
+                          #random_order = self.experiment_config.RANDOM_ORDER,
                           block_trigger = True)
         self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':1, 'counter':self.frame_counter})
         

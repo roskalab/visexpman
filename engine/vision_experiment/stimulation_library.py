@@ -93,7 +93,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         -parameters of stimulus
         '''
         args, _, _, values = inspect.getargvalues(caller_function_info)
-        caller_name =inspect.getframeinfo(caller_function_info)[2]
+        caller_name = inspect.getframeinfo(caller_function_info)[2]
         frame_info = {}
         frame_info['counter'] = self.frame_counter
         if is_last:
@@ -332,9 +332,24 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
 
-    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  
-                orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None, L_shape_config = None, X_shape_angle = None,
-                flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
+    def show_shape( self,
+                    shape = '',
+                    duration = 0.0,
+                    pos = utils.rc((0,  0)),
+                    color = [1.0,  1.0,  1.0],
+                    background_color = None,
+                    orientation = 0.0,
+                    size = utils.rc((0,  0)),
+                    ring_size = None,
+                    ncorners = None,
+                    inner_radius = None,
+                    L_shape_config = None,
+                    X_shape_angle = None,
+                    flip = True,
+                    is_block = False,
+                    save_frame_info = True,
+                    enable_centering = True,
+                    part_of_drawing_sequence = False):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -776,7 +791,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         raise NotImplementedError('block handling and trigger generation is not implemented')
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
                     
-    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, are_same_shapes_over_frames = False, colors_per_shape = True, save_frame_info = True):
+    def show_shapes(self, shape, shape_size, shape_positions, nshapes,
+                    duration = 0.0,
+                    color = (1.0,  1.0,  1.0),
+                    background_color = None,
+                    block_trigger = False,
+                    are_same_shapes_over_frames = False,
+                    colors_per_shape = True,
+                    save_frame_info = True):
         '''
         Shows a huge number (up to several hunders) of shapes.
         Parameters:
@@ -1373,15 +1395,15 @@ class AdvancedStimulation(StimulationHelpers):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'], kwargs['overlap'])
         return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
-    def moving_shape_trajectory(self, size, speeds, directions,repetition, \
+    def moving_shape_trajectory(self, size, trajectory_parameters,
         pause=0.0,
-        shape_starts_from_edge=False, 
-        random_order=True):
+        shape_starts_from_edge=False):
+        #random_order=True):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
-        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
-            speeds = [speeds]
+        #if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
+        #    speeds = [speeds]
         if hasattr(size, 'dtype'):
             shape_size = max(size['row'], size['col'])
         else:
@@ -1392,19 +1414,21 @@ class AdvancedStimulation(StimulationHelpers):
             self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
         trajectory_directions = []
         trajectories = []
+        #speeds = []
+        #directions = []
         nframes = 0
+
+#        nSpeeds = len(speeds)
+#        nDirections = len(directions)
+#        speeds_ = numpy.repeat(speeds, nDirections*repetition)
+#        directions_ = numpy.tile(directions, nSpeeds*repetition)
         
-        nSpeeds = len(speeds)
-        nDirections = len(directions)
-        speeds = numpy.repeat(speeds, nDirections*repetition)
-        directions = numpy.tile(directions, nSpeeds*repetition)
-        
-        sd = numpy.array([speeds, directions]).transpose()
+#        sd = numpy.array([speeds_, directions_]).transpose()
         
         #%% Randomize if necessary:
-        if random_order:
-            numpy.random.seed(1)
-            sd = numpy.random.permutation(sd) 
+#        if random_order:
+#            numpy.random.seed(1)
+#            sd = numpy.random.permutation(sd)
 
                 
         #%% Randomize if necessary:
@@ -1416,18 +1440,15 @@ class AdvancedStimulation(StimulationHelpers):
         
         #assert len(speeds) == len(directions), 'There must be the same number of speeds as directions at this point!'
         #%%
-        for spd, direction in sd:
-            #print spd
-            #print direction            
-            
+
+        for spd, direction in zip(trajectory_parameters['speeds'], trajectory_parameters['directions']):
+
             end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
             start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
             if spd == 0:
                 raise RuntimeError('Zero speed is not supported')
             spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-            t=utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
-            #for rep in range(repetition):
-                #print rep
+            t = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
             trajectories.append(t)
             nframes += trajectories[-1].shape[0]
             trajectory_directions.append(direction)
@@ -1436,16 +1457,18 @@ class AdvancedStimulation(StimulationHelpers):
         return trajectories, trajectory_directions, duration
         
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', \
-        color = 1.0, 
-        background_color = 0.0,
-        moving_range=utils.rc((0.0,0.0)), 
-        pause=0.0, 
-        repetition = 1, 
-        random_order = True,
-        block_trigger = False, 
-        shape_starts_from_edge=False,
-        save_frame_info =True):
+    def moving_shape(self, size, trajectory_parameters,
+                     #speeds, directions,
+                        shape = 'rect',
+                        color = 1.0,
+                        background_color = 0.0,
+                        moving_range = utils.rc((0.0,0.0)),
+                        pause=0.0,
+                        #repetition = 1,
+                        #random_order = True,
+                        block_trigger = False,
+                        shape_starts_from_edge=False,
+                        save_frame_info =True):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''
@@ -1456,21 +1479,29 @@ class AdvancedStimulation(StimulationHelpers):
 #        else:
 #            pos_with_offset = pos
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')', source='stim')
-        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(\
-            size = size, speeds = speeds, directions=directions, repetition = repetition,
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(
+            size = size,
+            parameters = trajectory_parameters,
+            #speeds = speeds,
+            #directions = directions,
+            #repetition = repetition,
             pause = pause,
-            shape_starts_from_edge = shape_starts_from_edge,
-            random_order=random_order)
+            shape_starts_from_edge = shape_starts_from_edge)
+            #random_order = random_order)
         
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         
         for block in range(len(trajectories)):
-            self.show_shape(shape = shape,  pos = trajectories[block], 
-                            color = color,  background_color = background_color, 
-                            orientation =self.vaf*trajectory_directions[block] , size = size,  
-                            is_block = block_trigger, save_frame_info = True,  #save_frame_info = True might confuse block/repeat detection
+            self.show_shape(shape = shape,
+                            pos = trajectories[block],
+                            color = color,
+                            background_color = background_color,
+                            orientation = self.vaf*trajectory_directions[block],
+                            size = size,
+                            is_block = block_trigger,
+                            save_frame_info = True,
                             enable_centering = False)
             if pause > 0:
                 self.show_fullscreen(duration = pause, color = background_color, save_frame_info = True, frame_trigger = True)
@@ -1525,7 +1556,7 @@ class AdvancedStimulation(StimulationHelpers):
         
         #print "maxTravelDist"
         #print maxTravelDistance_um
-        
+
         #print 'ndots'
         #print ndots        
         
@@ -1652,8 +1683,8 @@ class AdvancedStimulation(StimulationHelpers):
                     shape_position[shape_i][1] += numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
                 
                 glTranslatef(shape_position[shape_i][0], shape_position[shape_i][1],0)        
-                glColor3fv(converted_color[shape_i])
-                glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices)
+                glColor3fv(converted_color[shape_i]) #
+                glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices) # find out if all can be rendered together
                 
                 glPopMatrix()
                 
