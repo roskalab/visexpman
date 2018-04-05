@@ -20,7 +20,7 @@ import experiment_data
 import visexpman.engine
 from visexpman.engine.generic import utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
-from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket
+from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket,mesc_interface
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
 try:
     import hdf5io
@@ -500,8 +500,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         if self.machine_config.PLATFORM=='epos':
             self.camera_trigger=digital_io.ArduinoIO(self.machine_config.CAMERA_TRIGGER_PORT)
-        if self.machine_config.PLATFORM=='resonant':
-            self.mesc=mesc_interface.MescapiInterface()
         self.user_data = {}
         self.abort = False
         
@@ -581,6 +579,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         try:
+            if self.machine_config.PLATFORM=='resonant':
+                self.mesc=mesc_interface.MescapiInterface()
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH

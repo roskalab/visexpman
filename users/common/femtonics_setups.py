@@ -168,9 +168,11 @@ class ResonantSetup(ResonantConfig):
 class ResonantDev(ResonantSetup):
     def _set_user_parameters(self):
         ResonantSetup._set_user_parameters(self)
-        self.LOG_PATH = 'v:\\zoli\\log_res'
-        self.EXPERIMENT_DATA_PATH = 'v:\\zoli\\experiment_data_res'
-        self.CONTEXT_PATH='v:\\zoli\\context_res'
-        stim_computer_ip = '172.27.27.188'
+        self.LOG_PATH = 'c:\\zoli\\log'
+        self.EXPERIMENT_DATA_PATH = 'c:\\zoli\\experiment_data'
+        self.CONTEXT_PATH='c:\\zoli\\context'
+        stim_computer_ip = '172.27.27.187'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
+        self.FULLSCREEN=False
+        self.SCREEN_RESOLUTION = utils.cr([1280/2, 720/2])
