@@ -485,13 +485,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.machine_config = machine_config
         self.parameters = parameters
         self.log = log
-        if self.machine_config.DIGITAL_IO_PORT =='daq':
-            self.digital_io=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
-        elif self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
-            digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
-            self.digital_io = digital_output_class(self.machine_config, self.log)
-        else:
-            self.digital_io = None
+        self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
         Trigger.__init__(self, machine_config, queues, self.digital_io)
         if self.digital_io!=None:#Digital output is available
             self.clear_trigger(self.config.BLOCK_TIMING_PIN)
@@ -632,6 +626,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.camera_trigger.enable_waveform(self.machine_config.CAMERA_TRIGGER_PIN, self.machine_config.CAMERA_TRIGGER_FRAME_RATE)
                     time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
             elif self.machine_config.PLATFORM == 'resonant':
+                self.sync_recording_duration=self.parameters['duration']
                 self.start_sync_recording()
                 self.mesc.start()
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
@@ -694,8 +689,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.close()#If something goes wrong, close serial port
 
     def close(self):
-        if hasattr(self.digital_io, 'release_instrument'):
-                self.digital_io.release_instrument()
+        if hasattr(self.digital_io, 'close'):
+                self.digital_io.close()
         if hasattr(self, 'camera_trigger'):
             self.camera_trigger.close()
         if hasattr(self, 'mesc'):

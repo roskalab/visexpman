@@ -155,7 +155,8 @@ class ResonantSetup(ResonantConfig):
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         self.TIMG_SYNC_INDEX=0
         self.TSTIM_SYNC_INDEX=2
-        self.DIGITAL_IO_PORT='TBD'
+        self.DIGITAL_IO_PORT=['Dev1/port0/line0','Dev1/port0/line1']
+        self.DIGITAL_IO_PORT_TYPE='daq'
         self.MES_START_TRIGGER_PIN = 0
         self.BLOCK_TIMING_PIN = 1
         self.FRAME_TIMING_PIN = 0
