@@ -215,7 +215,7 @@ class InstallConfigurator(Qt.QMainWindow):
             self.commands.append(self.visexpmanfolder.split(os.sep)[0])
             self.commands.append('cd {0}'.format(os.path.join(self.visexpmanfolder,'visexpman')))
             self.commands.append('call shortcuts\\verify_installation.bat')
-            self.notifications.append('disable scrren saver, automatic sleep and hybernation')
+            self.notifications.append('disable screen saver, automatic sleep and hybernation')
             self.notifications.append('change windows theme to classical')
             self.commands.append('echo cleaning up')
             self.commands.extend(['rd /s /q {0}'.format(f) for f in self.tmpdirs])
