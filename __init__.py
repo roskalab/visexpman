@@ -237,7 +237,7 @@ import numpy
 
 version = 'v0.3.0'
 try:
-    from visexpman.engine.visexp_smallapp import rotate_images
+    from visexpman.applications.visexp_smallapp import rotate_images
 except:
     pass
 try:
