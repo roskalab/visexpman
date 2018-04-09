@@ -125,21 +125,7 @@ def free_space(path):
         return (s.f_bavail * s.f_frsize)
     else:
         raise NotImplementedError('')
-        
-def folder_size(path):
-    '''
-    Size of a folder is calculated, not supported on windows 
-    '''
-    if platform.system() == 'Linux' or platform.system()=='Darwin':
-        tmp='/tmp/o.txt'
-        if os.path.exists(tmp):
-            os.remove(tmp)
-        subprocess.call('du -sh {0}>>{1}'.format(path,tmp), shell=True)
-        return read_text_file(tmp).split('\t')[0]
-    else:
-        raise NotImplementedError('OS not supported')
             
-    
 def set_file_dates(path, file_info):
     '''
     Sets the timestamp of a file
@@ -163,16 +149,16 @@ def file_open_by_other_process(filename):
     if len(pids)<1: return False
     elif len(pids)>1 or pids[0]!=os.getpid():return True
 
-def total_size(source):
-        total_size_bytes = os.path.getsize(source)
-        if not os.path.isfile(source):
-            for item in os.listdir(source):
-                itempath = os.path.join(source, item)
-                if os.path.isfile(itempath):
-                    total_size_bytes += os.path.getsize(itempath)
-                elif os.path.isdir(itempath):
-                    total_size_bytes += total_size(itempath)
-        return total_size_bytes
+def folder_size(source):
+    total_size_bytes = os.path.getsize(source)
+    if not os.path.isfile(source):
+        for item in os.listdir(source):
+            itempath = os.path.join(source, item)
+            if os.path.isfile(itempath):
+                total_size_bytes += os.path.getsize(itempath)
+            elif os.path.isdir(itempath):
+                total_size_bytes += folder_size(itempath)
+    return total_size_bytes
         
 def wait4file_ready(f,timeout=60, min_size=0):
     '''
