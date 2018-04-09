@@ -485,11 +485,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.machine_config = machine_config
         self.parameters = parameters
         self.log = log
-        self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
-        Trigger.__init__(self, machine_config, queues, self.digital_io)
-        if self.digital_io!=None:#Digital output is available
-            self.clear_trigger(self.config.BLOCK_TIMING_PIN)
-            self.clear_trigger(self.config.FRAME_TIMING_PIN)
+        if hasattr(self.machine_config, 'DIGITAL_IO_PORT_TYPE'):
+            self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
+            Trigger.__init__(self, machine_config, queues, self.digital_io)
+            if self.digital_io!=None:#Digital output is available
+                self.clear_trigger(self.config.BLOCK_TIMING_PIN)
+                self.clear_trigger(self.config.FRAME_TIMING_PIN)
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         if self.machine_config.PLATFORM=='epos':

@@ -20,7 +20,7 @@ class SoundAndGratingC(experiment.ExperimentConfig):
         self.GRAY=0.5
         self.MASK_SIZE=3000.0#um
         self.AUDIO_SAMPLING_RATE=44.1e3
-        self.ARDUINO_SOUND_GENERATOR=not False
+        self.ARDUINO_SOUND_GENERATOR= not False
         self.ARDUINO_SOUND_GENERATOR_PORT='COM5'
         if not isinstance(self.ORIENTATION,list):
             self.ORIENTATION=[self.ORIENTATION]
@@ -112,14 +112,7 @@ class SoundAndGratingE(experiment.Experiment):
             if self.abort:
                 break
         if ec.ARDUINO_SOUND_GENERATOR:
-            self.ioboard.close()
-        if 0 and not self.abort:
-            #save block boundaries
-            for i in range(len(self.experiment_config.PROTOCOL1)):
-                self.experiment_config.PROTOCOL1[i].extend([self.block_boundaries[2*i],self.block_boundaries[2*i+1]])
-            self.experiment_config.PROTOCOL1=numpy.array(self.experiment_config.PROTOCOL1)
-            print self.experiment_config.PROTOCOL1
-        
+            self.ioboard.close()        
                 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester

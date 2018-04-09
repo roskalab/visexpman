@@ -1,13 +1,6 @@
-import pdb,copy
-import os.path
-import os
-import numpy
-import math
-import time
+import pdb
+import os,numpy,math,time,inspect,multiprocessing
 from PIL import Image,ImageDraw
-import inspect
-import re
-import multiprocessing
 try:
     from OpenGL.GL import *
     from OpenGL.GLUT import *
@@ -17,7 +10,6 @@ except ImportError:
     print 'opengl not installed'
 from contextlib import closing
 import tables
-
 import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
 from visexpman.engine.vision_experiment import screen,experiment_data
@@ -130,7 +122,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Generates trigger pulses
         '''
-        if hasattr(self.digital_io,'set_data_bit'):
+        if hasattr(self, 'digital_io'):
             self.digital_io.set_data_bit(pin, int(polarity), log = False)
             time.sleep(width)
             self.digital_io.set_data_bit(pin, int(not polarity), log = False)
@@ -143,7 +135,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.trigger_pulse(self.config.FRAME_TIMING_PIN, self.config.FRAME_TIMING_PULSE_WIDTH)
             
     def block_start(self, block_name = 'stimulus function'):
-        if hasattr(self.digital_io,'set_data_bit'):
+        if hasattr(self, 'digital_io'):
             self.digital_io.set_data_bit(self.config.BLOCK_TIMING_PIN, 1, log = False)
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
@@ -152,21 +144,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.log.info('{0} block started' .format(block_name), source='stim')
                 
     def block_end(self, block_name = 'stimulus function'):
-        if hasattr(self.digital_io,'set_data_bit'):
+        if hasattr(self, 'digital_io'):
             self.digital_io.set_data_bit(self.config.BLOCK_TIMING_PIN, 0, log = False)
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 0]})
         if hasattr(self.log, 'info'):
             self.log.info('{0} block ended' .format(block_name), source='stim')
-        
-    def _add_block_start(self, is_block, frame_i, nframes):
-        if frame_i == 0 and is_block:
-            self.block_start()
-            
-    def _add_block_end(self, is_block, frame_i, nframes):
-        if frame_i == nframes - 1 and is_block:
-            self.block_end()
             
     def draw(self):
         '''
@@ -236,7 +220,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     #== Various visual patterns ==
     
     def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, 
-                is_block = False, save_frame_info = True, frame_timing_pulse = True):
+                save_frame_info = True, frame_timing_pulse = True):
         '''
         Show a fullscreen simulus where color is the color of the screen. 
             duration: duration of stimulus, 0.0: one frame time, -1.0: forever, 
@@ -267,9 +251,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 if i == 1:
                     self.screen.clear_screen(color = color_to_set)
                 if flip:
-                    self._add_block_start(is_block, i, nframes)
                     self._flip(frame_timing_pulse = frame_timing_pulse, count = count)
-                    self._add_block_end(is_block, i, nframes)
                 if self.abort:
                     break
         #set background color to the original value
@@ -373,7 +355,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  
                 background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, 
                 ncorners = None, inner_radius = None, L_shape_config = None, X_shape_angle = None,
-                flip = True, is_block = False, save_frame_info = True, enable_centering = True, 
+                flip = True, save_frame_info = True, enable_centering = True, 
                 part_of_drawing_sequence = False,angle=None):
         '''
         Shows simple, individual shapes like rectangle, circle or ring.
@@ -571,9 +553,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     glColor3fv(colors.convert_color(color, self.config))
                 glDrawArrays(GL_POLYGON,  0, n)
             if flip:
-                self._add_block_start(is_block, frame_i, n_frames)
                 self._flip(frame_timing_pulse = True)
-                self._add_block_end(is_block, frame_i, n_frames)
             if self.abort:
                 break
             if self.machine_config.ENABLE_TIME_INDEXING:
@@ -779,8 +759,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], 
-            box_size = utils.cr((0,  0)), background_color = None, flip = True, save_frame_info = True,
-            block_trigger=False):
+            box_size = utils.cr((0,  0)), background_color = None, flip = True, save_frame_info = True):
         '''
         Shows checkerboard:
             n_checkers = (x dir (column), y dir (rows))
@@ -793,7 +772,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                             3. col
                             4. color channel
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log.info('show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) +', ' + str(box_size) +')',source='stim')
         first_flip = False
         if save_frame_info:
@@ -810,7 +788,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     duration = duration, 
                     color = numpy.reshape(color_adjusted.flatten(), (color_adjusted.shape[0], color_adjusted.shape[1]*color_adjusted.shape[2],color_adjusted.shape[3])), 
                     background_color = background_color,
-                    block_trigger = block_trigger, colors_per_shape = False, 
+                    colors_per_shape = False, 
                     are_same_shapes_over_frames = True, 
                     save_frame_info = False)
         if save_frame_info:
@@ -820,7 +798,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
                     duty_cycle = 1.0, mask_size=None, mask_color=0.0, flicker=None, phases=[],
-                    part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
+                    part_of_drawing_sequence = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -1022,9 +1000,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glDrawArrays(GL_POLYGON,  0, 4)
             glDisable(GL_TEXTURE_2D)
             if not part_of_drawing_sequence:
-                self._add_block_start(is_block, i, n_frames)
                 self._flip(frame_timing_pulse = True)
-                self._add_block_end(is_block, i, n_frames)
             if self.abort:
                 break
         glDisable(GL_TEXTURE_2D)
@@ -1033,16 +1009,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
-    def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0), 
-            block_trigger = False):
+    def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
         '''
         Maintains backward compatibility with old stimulations using show_dots. Use the show_shapes instead
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
-        self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
+        self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, colors_per_shape = False)
                     
     def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  
-                            color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, 
+                            color = (1.0,  1.0,  1.0), background_color = None,  
                             are_same_shapes_over_frames = False, colors_per_shape = True, save_frame_info = True):
         '''
         Shows a huge number (up to several hunders) of shapes.
@@ -1060,7 +1034,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, 
         these will be segmented to frames assuming that on each frame the number of shapes are equal.
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log_on_flip_message_initial = 'show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')'
         self.log_on_flip_message_continous = 'show_shapes'
         first_flip = False
@@ -1138,7 +1111,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     first_flip = True
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
-                self._flip_and_block_trigger(i, n_frames_per_pattern, True, block_trigger)
                 if self.abort:
                     break
             if self.abort:
@@ -1154,7 +1126,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, 
                             spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,
                             offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,
-                            duration_calc_only=False,save_frame_info =True, is_block = False):
+                            duration_calc_only=False,save_frame_info =True):
         '''
         Show vertical bars where the distribution of the color of the bar corresponds to the distribution of
         a natural scene which means that the spectra of the colors over spatial freuqency is 1/f
@@ -1233,7 +1205,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.t0=time.time()
         texture_pointer = 0
         frame_counter = 0
-        self._add_block_start(is_block, 0, 0)
         while True:
             start_index = int(texture_pointer)
             end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
@@ -1264,7 +1235,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
-        self._add_block_end(is_block, 0, 1)
         dt=(time.time()-self.t0)
         #print 'frame rate', frame_counter/dt,'dt', dt,'frame counter', frame_counter,'text pointer', texture_pointer,'all texture size', alltexture.shape[0], 'self.intensity_profile', self.intensity_profile.shape, 'ds', ds
         glDisable(GL_TEXTURE_2D)
@@ -1817,7 +1787,7 @@ class AdvancedStimulation(StimulationHelpers):
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
     
-    def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
+    def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, save_frame_info = True,  ring_sizes = None):
         '''
         Use cases:
         shape: like show_shape, ff = fullfield
@@ -1829,9 +1799,8 @@ class AdvancedStimulation(StimulationHelpers):
         sizes: 1. single size
                   2. 2d numpy array: series of different sizes
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
         if save_frame_info:
-            self.log.info('flash_stimulus(' + str(shape)+ ', ' + str(timing) +', ' + str(colors) +', ' + str(sizes)  +', ' + str(position)  + ', ' + str(background_color) + ', ' + str(repeats) + ', ' + str(block_trigger) + ')', source='stim')
+            self.log.info('flash_stimulus(' + str(shape)+ ', ' + str(timing) +', ' + str(colors) +', ' + str(sizes)  +', ' + str(position)  + ', ' + str(background_color) + ', ' + str(repeats) + ', ' + ')', source='stim')
             self._save_stimulus_frame_info(inspect.currentframe())
         if isinstance(timing, list) and len(timing) == 2 or hasattr(timing, 'dtype') and timing.shape[0] == 2:
             #find out number of flashes
@@ -1867,7 +1836,7 @@ class AdvancedStimulation(StimulationHelpers):
                     else:
                         color = colors
                     if shape == 'ff':
-                        self.show_fullscreen(color = color, duration = timing[i], save_frame_info = False, block_trigger = block_trigger)
+                        self.show_fullscreen(color = color, duration = timing[i], save_frame_info = False)
                     else:
                         if hasattr(sizes, '__iter__') and len(sizes.shape) > 0:
                             if len(sizes.dtype) == 2 : #row, col format
@@ -1880,15 +1849,15 @@ class AdvancedStimulation(StimulationHelpers):
                             ring_size = ring_sizes[(i-1)/2]
                         else:
                             ring_size = ring_sizes
-                        self.show_shape(shape = shape,  duration = timing[i],  pos = position,  color = color,  background_color = background_color,  size = size,  block_trigger = block_trigger, save_frame_info = False, ring_size = ring_size)
+                        self.show_shape(shape = shape,  duration = timing[i],  pos = position,  color = color,  background_color = background_color,  size = size, save_frame_info = False, ring_size = ring_size)
                 else:
-                    self.show_fullscreen(color = background_color, duration = timing[i], save_frame_info = False, block_trigger = False)
+                    self.show_fullscreen(color = background_color, duration = timing[i], save_frame_info = False)
                 state = not state
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, 
-                        background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
+                        background_color = 0.0, pos = utils.rc((0,  0))):
         '''
         Presents increasing spot stimulus.
             spot_sizes: list of spot sizes in um
@@ -1898,10 +1867,9 @@ class AdvancedStimulation(StimulationHelpers):
             background_color: background color of screen
             pos: position of spots in um,
         '''
-        raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
-        self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, block_trigger = block_trigger, save_frame_info = False)
+        self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def angle2screen_pos(self,angle,axis=None):
@@ -2127,7 +2095,7 @@ class AdvancedStimulation(StimulationHelpers):
         
     def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, 
                         moving_range=None, pause=0.0, repetition = 1, center = utils.rc((0,0)), 
-                        block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
+                        shape_starts_from_edge=False,save_frame_info =True):
         '''
         Present a moving simulus in different directions:
             shape: shape of moving object, see show_shapes()
@@ -2147,7 +2115,7 @@ class AdvancedStimulation(StimulationHelpers):
 #            pos_with_offset = utils.rc_add(pos, self.screen_center)
 #        else:
 #            pos_with_offset = pos
-        self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')', source='stim')
+        self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + ')', source='stim')
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories})
@@ -2156,7 +2124,7 @@ class AdvancedStimulation(StimulationHelpers):
             self.show_shape(shape = shape,  pos = trajectories[block], 
                             color = color,  background_color = background_color, 
                             orientation =self.vaf*trajectory_directions[block] , size = size,  
-                            is_block = block_trigger, save_frame_info = True,  #save_frame_info = True might confuse block/repeat detection
+                            save_frame_info = True,  #save_frame_info = True might confuse block/repeat detection
                             enable_centering = False)
             if pause > 0:
                 self.show_fullscreen(duration = pause, color = background_color, save_frame_info = True, frame_timing_pulse = True)
@@ -2170,8 +2138,8 @@ class AdvancedStimulation(StimulationHelpers):
     def sine_wave_shape(self):
         pass
         
-    def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0,block_trigger = False):
-        self.log.info('moving_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ', ' + str(block_trigger) +')',source='stim')
+    def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0):
+        self.log.info('moving_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ', ' +')',source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
         movement = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['col']**2+self.machine_config.SCREEN_SIZE_UM['row']**2)
         size = utils.rc((movement, movement))
@@ -2181,7 +2149,7 @@ class AdvancedStimulation(StimulationHelpers):
         if pause > 0:
             self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_timing_pulse = False)
         self.show_shape(shape = 'rect',  pos = pos,  
-                            color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  is_block = block_trigger, 
+                            color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,
                             save_frame_info = False, enable_centering = False)
         if pause > 0:
             self.show_fullscreen(duration = pause, color = color, save_frame_info = False, frame_timing_pulse = False)
