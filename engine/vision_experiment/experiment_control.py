@@ -20,7 +20,7 @@ import experiment_data
 import visexpman.engine
 from visexpman.engine.generic import utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
-from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket
+from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket,mesc_interface
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
 try:
     import hdf5io
@@ -485,13 +485,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.machine_config = machine_config
         self.parameters = parameters
         self.log = log
-        if self.machine_config.DIGITAL_IO_PORT =='daq':
-            self.digital_io=digital_io.DaqDio(self.machine_config.TIMING_CHANNELS)
-        elif self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
-            digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
-            self.digital_io = digital_output_class(self.machine_config, self.log)
-        else:
-            self.digital_io = None
+        self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
         Trigger.__init__(self, machine_config, queues, self.digital_io)
         if self.digital_io!=None:#Digital output is available
             self.clear_trigger(self.config.BLOCK_TIMING_PIN)
@@ -500,8 +494,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         if self.machine_config.PLATFORM=='epos':
             self.camera_trigger=digital_io.ArduinoIO(self.machine_config.CAMERA_TRIGGER_PORT)
-        if self.machine_config.PLATFORM=='resonant':
-            self.mesc=mesc_interface.MescapiInterface()
         self.user_data = {}
         self.abort = False
         
@@ -581,6 +573,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         try:
+            if self.machine_config.PLATFORM=='resonant':
+                self.mesc=mesc_interface.MescapiInterface()
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
@@ -632,6 +626,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.camera_trigger.enable_waveform(self.machine_config.CAMERA_TRIGGER_PIN, self.machine_config.CAMERA_TRIGGER_FRAME_RATE)
                     time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
             elif self.machine_config.PLATFORM == 'resonant':
+                self.sync_recording_duration=self.parameters['duration']
                 self.start_sync_recording()
                 self.mesc.start()
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
@@ -694,8 +689,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.close()#If something goes wrong, close serial port
 
     def close(self):
-        if hasattr(self.digital_io, 'release_instrument'):
-                self.digital_io.release_instrument()
+        if hasattr(self.digital_io, 'close'):
+                self.digital_io.close()
         if hasattr(self, 'camera_trigger'):
             self.camera_trigger.close()
         if hasattr(self, 'mesc'):

@@ -73,7 +73,7 @@ class InstallConfigurator(Qt.QMainWindow):
             fp=open('python_installed.txt')
             txt=fp.read()
             fp.close()
-            if 'usage: python [option] ... [-c cmd | -m mod | file | -] [arg] ...' in txt:
+            if 'usage: python [option] ... [-c cmd | -m mod | file | -] [arg] ...' in txt and not '--force_install' in sys.argv:
                 self.notify('Warning', 'Python is already installed')
                 self.close()
                 return
@@ -117,12 +117,12 @@ class InstallConfigurator(Qt.QMainWindow):
         try:
             stim_bat_content='''
             title Stim
-            python c:\\visexp\\visexpman\\engine\visexp_app.py -u tbd -a stim -c tbd
+            python c:\\visexp\\visexpman\\applications\\visexp_app.py -u tbd -a stim -c tbd
             pause
             '''
             visexpman_bat_content='''
             title Vision Experiment Manager
-            python c:\\visexp\\visexpman\\engine\\visexp_app.py -u tbd -a main_ui -c tbd
+            python c:\\visexp\\visexpman\\applications\\visexp_app.py -u tbd -a main_ui -c tbd
             pause
             '''
             desktop=os.path.join('c:\\Users', getpass.getuser(), 'Desktop')

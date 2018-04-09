@@ -30,7 +30,10 @@ def mdrive_checker(folders, signature_file, emailto):
         if len(error_msg)==0:
             error_msg='Files did not change'
         print error_msg
-        utils.sendmail(emailto,'m drive check', error_msg)
+        if not isinstance(emailto,list):
+             emailto=[emailto]
+        for e in emailto:
+            utils.sendmail(e,'m drive check', error_msg)
     #Save current signature
     txt='\r\n'.join([','.join(map(str,[fn, s[0], s[1]])) for fn, s in signatures.items()])
     fileop.write_text_file(signature_file,txt)

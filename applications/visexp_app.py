@@ -11,6 +11,7 @@ import time
 import os.path
 import numpy
 import warnings
+import visexpman
 import visexpman.engine
 from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.engine.vision_experiment.screen import StimulationScreen
