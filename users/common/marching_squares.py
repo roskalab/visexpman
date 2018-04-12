@@ -14,6 +14,7 @@ class MarchingSquare(experiment.Stimulus):
         self.OFFTIME=2#sec, blank screen is displayed between squares
         self.RANDOM_ORDER=not False#True: order of square positions is randomized
         self.WAIT=0.5#wait time in seconds at beginning and end of stimulus
+        self.REPEATS=6
 #Do not edit below this!
         
     def calculate_positions(self):
@@ -45,14 +46,15 @@ class MarchingSquare(experiment.Stimulus):
  
     def run(self):
         self.show_fullscreen(color=self.BACKGROUND, duration=self.WAIT)
-        for p in self.positions:
-            self.block_start(('on',))
-            self.show_shape(color=self.COLOR, shape='rect', duration=self.ONTIME,
-                                    pos=utils.rc((p['row'],p['col'])), 
-                                    size=utils.rc((self.spacing_height,  self.spacing_width)),
-                                    background_color=self.BACKGROUND)
-            self.block_end()
-            self.show_fullscreen(color=self.BACKGROUND, duration=self.OFFTIME)
-            if self.abort:
-                break
+        for r in range(self.REPEATS):
+            for p in self.positions:
+                self.block_start(('on',))
+                self.show_shape(color=self.COLOR, shape='rect', duration=self.ONTIME,
+                                        pos=utils.rc((p['row'],p['col'])), 
+                                        size=utils.rc((self.spacing_height,  self.spacing_width)),
+                                        background_color=self.BACKGROUND)
+                self.block_end()
+                self.show_fullscreen(color=self.BACKGROUND, duration=self.OFFTIME)
+                if self.abort:
+                    break
         self.show_fullscreen(color=self.BACKGROUND, duration=self.WAIT)
