@@ -601,7 +601,7 @@ class RlvivoBackup(object):
     def copy(self):
         for f in self.files:
             flinux='/'.join(f.replace('v:\\', '/mnt/datafast/').replace('V:\\', '/mnt/datafast/').split('\\'))
-            cmd='cp {0} {1}'.format(flinux,self.target_dir)
+            cmd='cp "{0}" "{1}"'.format(flinux,self.target_dir)
             i,o,e=self.ssh.exec_command(cmd)
             self.check_ssh_error(e,cmd=cmd)
    
