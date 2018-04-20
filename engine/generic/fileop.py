@@ -1,13 +1,19 @@
 '''
 Common file and filename operations
 '''
-import sys, os, re, ctypes, platform, shutil, numpy, tempfile, time, subprocess, multiprocessing,threading,Queue
+import sys, os, re, ctypes, platform, shutil, numpy, tempfile, time, subprocess, multiprocessing,threading
+try:
+    import Queue
+    import utils
+except ImportError:
+    import queue as Queue
+    from visexpman.engine.generic import utils
 from distutils import file_util,  dir_util
 try:
     import psutil
 except ImportError:
     pass
-import utils
+
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
@@ -702,7 +708,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                             self.logfile.write('nothing to do\n');self.logfile.flush()
                         continue
                     if debug and self.isthread:
-                        print file_list
+                        print(file_list)
                     for item in file_list:
                         try:
                             current_exception=''
@@ -722,7 +728,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                                     current_exception = '{0} has same size as {1}'.format(source, target)
                             except Exception as e:
                                 current_exception=str(e)
-                                print e
+                                print(e)
                                 self.postponed_list.append((source,target))
                             if item in self.postponed_list:
                                 self.postponed_list.remove(item)
@@ -869,10 +875,10 @@ class TestFileops(unittest.TestCase):
                 else:
                     while not message_list.empty():
                         msg= message_list.get()
-                        print msg
+                        print(msg)
                         if msg=='TERMINATE':
                             return
-        print os.getpid()
+        print(os.getpid())
         killit=1
         sourcedir = tempfile.mkdtemp()
         targetdir = tempfile.mkdtemp()

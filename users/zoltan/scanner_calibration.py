@@ -108,7 +108,7 @@ def scanner_calib():
     sc = ScannerCalibration(config)
     sc.run()
     sc.close()
-    print 'DONE'
+    print('DONE')
     
 def evaluate_calibdata():
     p = '/mnt/datafast/debug/20130503/calibs'
@@ -148,7 +148,7 @@ def evaluate_calibdata():
 #    plot(frq, p0[0]*frq+p0[1])
     plot(frq, coeff[0]*frq+coeff[1])
     legend(('gain', 'phase', 'fitted'))
-    print coeff#[ 0.00043265 -0.02486131]
+    print(coeff)#[ 0.00043265 -0.02486131]
     
     #    show()
     
@@ -488,9 +488,9 @@ def calculate_bead_size(folder):
         data.append([positions[0], resolution, sizes[0]])
         data.append([positions[1], resolution, sizes[1]])
         if False:
-            print sizes
-            print positions
-            print 1/resolution, sizes[0]/sizes[1]
+            print(sizes)
+            print(positions)
+            print(1/resolution, sizes[0]/sizes[1])
     pass
     data=numpy.array(data)
     positions_h, resolutions_h, values_h = data23dplot(data[0::2])
@@ -645,7 +645,7 @@ class ScannerIdentification(object):
             test_signal.append(numpy.ones(0.1 * self.ao_sample_rate)*param['offset'])
             test_signal.append(signal.wf_sin(param['voltage'], param['frequency'], duration, self.ao_sample_rate, offset = param['offset']))
             nsamples += test_signal[-1].shape[0]
-        print float(nsamples)/self.ao_sample_rate/60
+        print(float(nsamples)/self.ao_sample_rate/60)
         wf = numpy.concatenate(tuple(test_signal))
         t = numpy.arange(wf.shape[0],dtype= numpy.float)/self.ao_sample_rate
         measured = self.run_measurement(wf*self.voltage_correction_factor)
@@ -685,7 +685,7 @@ class ScannerIdentification(object):
         if aio.start_daq(ai_sample_rate = self.ao_sample_rate, ao_sample_rate = self.ao_sample_rate, 
                       ao_waveform = waveform.reshape((1,waveform.shape[0])),
                       timeout = 30) == 'timeout':
-                          print 'did not start correctly'
+                          print('did not start correctly')
                           self.stop_aio(aio)
                           return
                           
@@ -862,7 +862,7 @@ class ScannerIdentification(object):
             test_signal.append(signal.wf_triangle(param['voltage'], t_up, param['flyback_time'], periods/param['frame_rate'], self.ao_sample_rate, offset = param['offset']))
             nsamples += test_signal[-2].shape[0] + test_signal[-1].shape[0]
         wf = numpy.concatenate(tuple(test_signal))
-        print wf.shape[0]/self.ao_sample_rate
+        print(wf.shape[0]/self.ao_sample_rate)
         measured = self.run_measurement(wf*self.voltage_correction_factor)
         measured = measured[:wf.shape[0],0]
         data = {}
@@ -913,7 +913,7 @@ class ScannerIdentification(object):
             threshold = diff.max()*0.5
 #            shift = numpy.where(diff> threshold, 1, 0).sum()/(command.shape[0]/command_mean.shape[0])
 #            shift = signal.shift_between_signals(command_mean,measured_mean,1000)
-            print shift, param['offset'], param['frame_rate'], 1/param['flyback_time'], param['voltage']
+            print(shift, param['offset'], param['frame_rate'], 1/param['flyback_time'], param['voltage'])
             if not plots.has_key(param['offset']):
                 plots[param['offset']] = {}
             if not plots[param['offset']].has_key(param['frame_rate']):
@@ -1008,7 +1008,7 @@ def scanner_control_signal():
 #    plot(abs(xscanner-xlin))
 #    plot(numpy.ones_like(xscanner)*error)
     samples_per_x_period = 2*numpy.where(numpy.ones_like(xscanner)*error-abs(xscanner-xlin)>0,1,0).sum()
-    print samples_per_x_period
+    print(samples_per_x_period)
     show()
     pass   
     
@@ -1329,7 +1329,7 @@ def estimate_phase_and_gain_correction(folders, pref):
         t='phase estimation ' + name
         title(t)
         savefig(os.path.join('/tmp',t+'.png'))
-        print name,numpy.concatenate((gain_coeff,phase_coeff))
+        print(name,numpy.concatenate((gain_coeff,phase_coeff)))
         params.append(numpy.concatenate((gain_coeff,phase_coeff)))
         ct+=4
     figure(ct+1)
@@ -1371,7 +1371,7 @@ def read_test_snapshots():
         title(t)
         savefig(os.path.join(os.path.split(folder)[0],t+'.png'))
         ct+=1
-        print data['parameters']['scanning_range'],data['parameters']['resolution']
+        print(data['parameters']['scanning_range'],data['parameters']['resolution'])
     pass
     
     

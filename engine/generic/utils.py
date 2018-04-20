@@ -9,14 +9,17 @@ import datetime
 import unittest
 import pkgutil
 import inspect
-import unittest
-import tempfile
 import copy
 import select
 import subprocess
-import cPickle as pickle
-import zlib
-import urllib2
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+try:
+    import urllib2
+except ImportError:
+    import urllib as urllib2
 try:
     import blosc as compressor
 except ImportError:
@@ -28,8 +31,7 @@ if os.name == 'nt':
     except ImportError:
         pass
 ENABLE_COMPRESSION=False
-import fileop
-import introspect
+from visexpman.engine.generic import fileop,introspect
 import platform
 
 def is_network_available():
@@ -91,7 +93,7 @@ def get_window_title(config):
     from visexpman.engine import MachineConfigError
     if not hasattr(config, 'user_interface_name'):
         raise MachineConfigError('user_interface_name is missing from config')
-    if not config.USER_INTERFACE_NAMES.has_key(config.user_interface_name):
+    if not config.user_interface_name in config.USER_INTERFACE_NAMES:
         raise MachineConfigError('Unknown application name: {0}' .format(config.user_interface_name))
     return '{0} - {1} - {2}' .format(config.USER_INTERFACE_NAMES[config.user_interface_name], config.user, config.__class__.__name__)
 
@@ -424,9 +426,9 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
                     class_list.append((m, attr[1]))
                     # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run  
         except ImportError:
-            print modname
+            print(modname)
             import traceback
-            print traceback.format_exc()
+            print(traceback.format_exc())
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted
     filtered_class_list = []

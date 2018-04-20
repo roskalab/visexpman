@@ -347,7 +347,7 @@ class TestGratingExp(experiment.Experiment):
         vertices = vertices.transpose()+250
         vertices = numpy.tile(vertices,(2,1))
         vertices[4:]-=100
-        print vertices
+        print(vertices)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         #self._init_texture(utils.rc((100,100)))
@@ -436,7 +436,7 @@ class TestTimeIndexing(experiment.Stimulus):
         self.show_white_noise(duration, 100)
         t4=time.time()
         dts=numpy.array([moving_duration-(t1-t0),duration-(t2-t1),duration-(t4-t3),naturalbar_duration-(t3-t2)])
-        print dts*1000
+        print(dts*1000)
 
         if 0:
             self.show_image(framesfolder)

@@ -48,23 +48,23 @@ def raw2mat(id, folder, recording_duration,averaging, gain,exposure, frame_rate)
     data['recording_duration']=recording_duration
     data['fps']=frames.shape[0]/recording_duration
     data['data_fps']=averaged_frames.shape[0]/recording_duration
-    print data['fps'], '/', data['data_fps'], 'Hz'
+    print(data['fps'], '/', data['data_fps'], 'Hz')
     data['gain']=gain
     data['exposure']=exposure
     data['frame_rate']=frame_rate
     data['averaging']=averaging
     scipy.io.savemat(filename,data,do_compression=False)
-    print 'Saved to {0}'.format(filename)
+    print('Saved to {0}'.format(filename))
     Image.fromarray(numpy.cast['uint8'](signal.scale(mip)*255)).save(filenamemip)
     t2=time.time()
     if cleanup:
         log('Removing raw files')
         [os.remove(os.path.join(folder,f)) for f in files]
     t3=time.time()
-    print t1-t0,t2-t1,t3-t2
+    print(t1-t0,t2-t1,t3-t2)
     
 def log(msg):
-    print msg
+    print(msg)
     logging.info(msg)
     
     
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         fp=open(os.path.join(JOB_FOLDER, sys.argv[1]+'.txt'), 'wt')
         fp.write(','.join(pars2save))
         fp.close()
-        print 'Passed to converter'
+        print('Passed to converter')
         
     
      

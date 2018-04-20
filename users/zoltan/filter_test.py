@@ -14,7 +14,7 @@ def generate_sweep(f):
     t=numpy.arange(nsample, dtype=numpy.float)/fsample
     tf=[]
     for fi in f:
-        print fi
+        print(fi)
         wf=a*numpy.sin(numpy.pi*2*fi*t)+a
         aih=daq_instrument.SimpleAnalogIn(ai, fsample, duration)
         daq_instrument.set_waveform( ao,wf.reshape(1, wf.shape[0]),sample_rate = fsample)

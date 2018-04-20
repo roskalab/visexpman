@@ -15,17 +15,19 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
-
-import experiment_data
+try:
+    import experiment_data
+except ImportError:
+    from visexpman.engine.vision_experiment import experiment_data
 import visexpman.engine
 from visexpman.engine.generic import utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
-from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket,mesc_interface
+from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
 try:
     import hdf5io
 except ImportError:
-    print 'hdf5io not installed'
+    print('hdf5io not installed')
 
 from visexpman.engine.generic.command_parser import ServerLoop
 try:
@@ -92,7 +94,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):#OBSOLETE
                 else:
                     self.live_scan_start(self.imaging_parameters)
             else:
-                print key_pressed
+                print(key_pressed)
                 
         if self.abort:
             if self.imaging_started:
@@ -488,13 +490,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if hasattr(self.machine_config, 'DIGITAL_IO_PORT_TYPE'):
             self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
             Trigger.__init__(self, machine_config, queues, self.digital_io)
-            if self.digital_io!=None:#Digital output is available
+            if 0 and self.digital_io!=None:#Digital output is available
                 self.clear_trigger(self.config.BLOCK_TIMING_PIN)
                 self.clear_trigger(self.config.FRAME_TIMING_PIN)
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
-        if self.machine_config.PLATFORM=='epos':
-            self.camera_trigger=digital_io.ArduinoIO(self.machine_config.CAMERA_TRIGGER_PORT)
+        if self.machine_config.CAMERA_TRIGGER_ENABLE:
+            self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_TRIGGER_PORT)
         self.user_data = {}
         self.abort = False
         
@@ -574,8 +576,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         try:
-            if self.machine_config.PLATFORM=='resonant':
-                self.mesc=mesc_interface.MescapiInterface()
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
@@ -623,13 +623,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     t.start()
                 if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
                     self.abort=True
-                if self.machine_config.PLATFORM=='epos':
-                    self.camera_trigger.enable_waveform(self.machine_config.CAMERA_TRIGGER_PIN, self.machine_config.CAMERA_TRIGGER_FRAME_RATE)
-                    time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
             elif self.machine_config.PLATFORM == 'resonant':
                 self.sync_recording_duration=self.parameters['duration']
                 self.start_sync_recording()
-                self.mesc.start()
+                self.send({'mesc':'start'})
+            if self.machine_config.CAMERA_TRIGGER_ENABLE:
+                self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
+                time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
+                self.printl('Camera trigger enabled')
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
@@ -638,13 +639,16 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self._stop_frame_capture()
             except:
                 self.send({'trigger':'stim error'})
-                exc_info = sys.exc_info()
-                raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
+                raise RuntimeError(traceback.format_exc())
             self.log.resume()
             #Terminate recording devices
             if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            if self.machine_config.CAMERA_TRIGGER_ENABLE:
+                time.sleep(self.machine_config.CAMERA_POST_STIM_WAIT)
+                self.camera_trigger.stop_waveform()
+                self.printl('Camera trigger stopped')
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
@@ -653,11 +657,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.camera.join()
             elif self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
-            elif self.machine_config.PLATFORM=='epos':
-                time.sleep(self.machine_config.CAMERA_POST_STIM_WAIT)
-                self.camera_trigger.disable_waveform()
             elif self.machine_config.PLATFORM == 'resonant':
-                self.mesc.stop()
+                self.send({'mesc':'stop'})
             if self.machine_config.PLATFORM in ['behav', 'ao_cortical', 'resonant']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
@@ -684,8 +685,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD and not self.abort:
                     raise RuntimeError('Mean frame rate {0} does not match with expected frame {1}'.format(self.frame_rates.mean(), expfr))
         except:
-            exc_info = sys.exc_info()
-            raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
+            raise RuntimeError(traceback.format_exc())
         finally:
             self.close()#If something goes wrong, close serial port
 
@@ -694,8 +694,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.digital_io.close()
         if hasattr(self, 'camera_trigger'):
             self.camera_trigger.close()
-        if hasattr(self, 'mesc'):
-            self.mesc.close()
 
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)
@@ -778,13 +776,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = experiment_data.CaImagingData(self.outputfilename)
             self._prepare_data2save()
-            [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
-            self.datafile.save(variables2save)
+            [[setattr(self.datafile, v, getattr(self,v)),self.datafile.save(v)] for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
             if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
-                self.datafile.sync2time()
-                self.datafile.check_timing()
+                if self.machine_config.PLATFORM!='resonant':
+                    self.datafile.sync2time()
+                    self.datafile.check_timing()
+                else:
+                    self.printl('TODO: enable timing checks')
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
@@ -880,10 +880,8 @@ if test_mode:
             self._scanning_params()
             
         def tearDown(self):
-            print 1
             if hasattr(self, 'context'):
                 visexpman.engine.stop_application(self.context)
-                print 2
             introspect.kill_python_processes(self.dont_kill_processes)
             
         def _send_commands_to_stim(self, commands):
@@ -1073,7 +1071,7 @@ if test_mode:
             self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)
             #check content of datafiles
             for datafile in datafiles:
-                print datafile
+                print(datafile)
                 h=hdf5io.Hdf5io(datafile,filelocking=False)
                 saved_parameters = h.findvar('imaging_parameters')
                 nframes = h.findvar('imaging_run_info')['acquired_frames']

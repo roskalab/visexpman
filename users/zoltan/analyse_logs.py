@@ -6,7 +6,7 @@ def analyze_logs():
         database = []
         selected = []
         for fn in os.listdir(path):
-            print fn
+            print(fn)
             with open(os.path.join(path, fn)) as f:
                 while True:
                     content = f.readline()
@@ -27,7 +27,7 @@ def analyze_logs():
             unames[name] = 1
         else:
             unames[name] += 1
-    print [['_'.join(uname.split('_')[:-2]), len('_'.join(uname.split('_')[:-2])),  unames[uname]] for uname in unames.keys() if unames[uname] > 1]
+    print([['_'.join(uname.split('_')[:-2]), len('_'.join(uname.split('_')[:-2])),  unames[uname]] for uname in unames.keys() if unames[uname] > 1])
     
 if __name__=='__main__':
     pass

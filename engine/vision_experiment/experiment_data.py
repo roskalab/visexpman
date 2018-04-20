@@ -9,18 +9,20 @@ import unittest
 import shutil
 import tempfile
 import time,datetime
-import StringIO
+try:
+    import StringIO
+except ImportError:
+    pass
 from PIL import Image,ImageDraw
 import matplotlib
 matplotlib.use('Qt4Agg')
 from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
-import experiment
 try:
     import hdf5io
     hdf5io_available=True
 except ImportError:
-    print 'hdf5io not installed'
+    print('hdf5io not installed')
     hdf5io_available=False
 FRAME_RATE_TOLERANCE=5    
 
@@ -42,7 +44,7 @@ def add_mat_tag(fn):
 def get_recording_name(parameters, separator):
     name = ''
     for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
-        if parameters.has_key(k) and parameters[k]!='':
+        if k in parameters and parameters[k]!='':
             name += str(parameters[k])+separator
     return name[:-1]
     
@@ -162,7 +164,7 @@ def get_id(timestamp=None):
     version='v3'
     if timestamp is None:
         timestamp = time.time()
-    epoch = time.mktime((2014, 11, 01, 0,0,0,0,0,0))
+    epoch = time.mktime((2014, 11, 1, 0,0,0,0,0,0))
     if version=='v2':
         return str(int(numpy.round(timestamp-epoch, 1)*10))
     elif version=='v1':
@@ -523,7 +525,7 @@ def read_sync_rawdata(h):
         img_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
     else:
         elphys = numpy.zeros_like(sync[:,0])
-        print "TODO: remove constants from code"
+        print("TODO: remove constants from code")
         index=machine_config['TIMG_SYNC_INDEX'] if machine_config.has_key('TIMG_SYNC_INDEX') else 0
         index=3
         img_sync =  sync[:,index]
@@ -639,6 +641,7 @@ def pack_configs(self):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
     if not configs.has_key('experiment_config'):
         configs['experiment_config']=self.config2dict()
+    from visexpman.engine.vision_experiment import experiment
     configs['hash']=experiment.stimulus_parameters_hash(configs['experiment_config'])
     return configs
     
@@ -678,7 +681,7 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None, sync_signa
             except IndexError:
                 #less pulses detected
                 info['data_series_index'] = -1
-                print 'less trigger pulses were detected'
+                print('less trigger pulses were detected')
             stimulus_frame_info_with_data_series_index.append(info)
     return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
 
@@ -829,17 +832,17 @@ class SmrVideoAligner(object):
         filename, outfolder = folders
         self.filename = filename
         self.outfolder = outfolder
-        print 'read smr file'
+        print('read smr file')
         self.elphys_timeseries, self.elphys_signal = self.read_smr_file(filename, outfolder)
-        print 'reading video file'
+        print('reading video file')
         framefiles = self.read_video(filename, fps)
         if framefiles is not None:
             self.video_traces = numpy.array(map(self.process_frame, framefiles))
         if 0:
             self.detect_motion(framefiles)
-        print 'saving data'
+        print('saving data')
         self.save()
-        print 'deleting temporary files'
+        print('deleting temporary files')
         self.cleanup()
         
     def cleanup(self):
@@ -890,7 +893,7 @@ class SmrVideoAligner(object):
             self.video_time_series = numpy.arange(len(self.frame_files),dtype=numpy.float)/videofile.get_fps(avi_file[0])
             return self.frame_files
         else:
-            print 'No avi file found for ' + filename
+            print('No avi file found for ' + filename)
             
     def save(self):
         from pylab import plot,clf,savefig,legend,xlabel
@@ -997,10 +1000,10 @@ def detect_cells(rawdata, scale, cell_size):#This concept does not work
     background_mask = (gaussian_filtered==0)
     eroded_background_mask = binary_erosion(background_mask, structure=neighborhood, border_value=1)
     centers = numpy.array(numpy.nonzero(local_max - eroded_background_mask)).T
-    print 'Found {0} maximums'.format(centers.shape[0])
+    print('Found {0} maximums'.format(centers.shape[0]))
     cell_rois = []
     if centers.shape[0]>200 and mip.max()<200:
-        print 'the recording is probably just noise'
+        print('the recording is probably just noise')
         return mip, cell_rois
     for center in centers:
         distances = list(numpy.sqrt(((centers-center)**2).sum(axis=1)))
@@ -1067,7 +1070,7 @@ def get_data_timing(filename):
     imaging_time = imaging_time[:rawdata.shape[2]]
     block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
     if 'grating' not in filename.lower():
-        print 'Detect cells'
+        print('Detect cells')
         mip,cell_rois = detect_cells(rawdata, scale, 12)
         roi_curves = get_roi_curves(rawdata, cell_rois)
     h.quick_analysis = {}
@@ -1429,7 +1432,7 @@ class TestExperimentData(unittest.TestCase):
         folder='/home/rz/mysoftware/data/mesfiles'
         for f in os.listdir(folder):
             if '.mes' in f:
-                print f
+                print(f)
                 mes2mat(os.path.join(folder, f))
         
 def find_rois(meanimage):

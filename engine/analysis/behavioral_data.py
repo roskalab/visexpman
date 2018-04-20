@@ -118,7 +118,7 @@ class ProcessBehavioralData(object):
             speed_post= speed_post if speed_post>0 else 0
             speed_pre= speed_pre if speed_pre>0 else 0
             if speed_pre==0:
-                print speed_pre
+                print(speed_pre)
                 speed_change=0
             else:
                 speed_change=(speed_post-speed_pre)/speed_pre
@@ -196,14 +196,14 @@ def process_all(folder):
     for sig in animals.keys():
         for day in animals[sig]:
             signew=(sig[0], sig[1], os.path.basename(day))
-            print signew
+            print(signew)
             #if signew not in bp:continue
             p=ProcessBehavioralData(day,'StimStopReward')
             if hasattr(p, 'speed_change_vs_voltage'):
                 aggregated[signew]=p.speed_change_vs_voltage
                 aggregated_mean[signew]=numpy.array([[v, aggregated[signew][numpy.where(aggregated[signew]==v)[0],0].mean()] for v in list(set(aggregated[signew][:,1]))])
             else:
-                print 'ignored'
+                print('ignored')
     numpy.save('/tmp/aggregated.npy', utils.object2array(aggregated))
     numpy.save('/tmp/aggregated_mean.npy', utils.object2array(aggregated_mean))
 #TODO: nan in mean, ignore raw speed change value if it is nan
@@ -412,7 +412,7 @@ class LickSummary(object):
             latency=numpy.array([self.data[d][ti]['latency'] for ti in timestamps])
             if n==0:
                 successful_indexes=numpy.array([i for i in range(latency.shape[0]) if latency[i] !=numpy.inf])
-                print successful_indexes
+                print(successful_indexes)
                 if successful_indexes.shape[0]>0:
                     best_latencies=latency[successful_indexes]*1000
                     best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[successful_indexes]])
@@ -443,7 +443,7 @@ def check_hitmiss_files(filename):
         files=[filename]
     for f in files:
         if len(files)>1:
-            print f
+            print(f)
         ishitmiss='hitmiss' in os.path.basename(filename).split('_')[1].lower()
         h=hdf5io.Hdf5io(f)
         map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat'])
@@ -719,11 +719,11 @@ class TestBehavAnalysis(unittest.TestCase):
         for fn in fns:
             if fn[-4:]!='hdf5':
                 continue
-            print fn
+            print(fn)
             of=None#os.path.join(out,fn)
             with introspect.Timer():
                 airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
-                print is_blinked.sum()/float(is_blinked.shape[0])
+                print(is_blinked.sum()/float(is_blinked.shape[0]))
                 
     @unittest.skip('')
     def test_04_lick_summary(self):

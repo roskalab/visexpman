@@ -195,7 +195,7 @@ class TestStim(experiment.Stimulus):
             for o in orientation:
                 for s in sizes:
                     for sp in spatial_frequency:
-                        print ob,'orientation', o,'size', s,'spatial frq', sp
+                        print(ob,'orientation', o,'size', s,'spatial frq', sp)
                         try:
                             self.show_object(ob,s, sp, duration,orientation=o,background_color=0.5,narms=pizza_arms,color_min=0.5, color_max=1.0)
                         except:

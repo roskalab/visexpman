@@ -8,7 +8,7 @@ try:
     import pygame
     default_text=GLUT_BITMAP_TIMES_ROMAN_24
 except ImportError:
-    print 'opengl or pygame not intalled'
+    print('opengl or pygame not intalled')
     default_text=None
 
 from PIL import Image
@@ -97,7 +97,10 @@ class Screen(object):
                 glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
                 glEnable(GL_DEPTH_TEST)
                 self.scale_screen()
-        self.image_texture_id = glGenTextures(1)
+        try:
+            self.image_texture_id = glGenTextures(1)
+        except:
+            print('TODO: investigate ignoring opengl calls in non-screen mode')
         self.initialization()
         
     def init_flip_variables(self):
@@ -246,10 +249,10 @@ class Screen(object):
         self.frame_times.append(self.flip_time)
         
         if DISPLAY_FRAME_RATE:
-            print self.frame_rate
+            print(self.frame_rate)
         if DISPLAY_FRAME_DELAY:
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
-                print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
+                print(abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE))
         if self.config.ENABLE_FRAME_CAPTURE and self.start_frame_capture:
             if hasattr(self.config, 'CAPTURE_FORMAT'):
                 fileformat = self.config.CAPTURE_FORMAT
@@ -461,7 +464,7 @@ class Screen(object):
         
     #Additional helper functions
     def print_viewing_parameters(self):
-        print self.position,  self.heading,  self.roll, self.pitch
+        print(self.position,  self.heading,  self.roll, self.pitch)
         
     def keyboard_handler(self, key_pressed):
         '''
@@ -498,7 +501,7 @@ class Screen(object):
             self.scale = self.scale + self.scale_step
         elif key_pressed == '3':
             self.save_frame(fileop.generate_filename(self.config.CAPTURE_PATH + os.sep + 'capture.bmp'))
-            print 'frame saved'
+            print('frame saved')
         self.user_keyboard_handler(key_pressed)
         
     def user_keyboard_handler(self, key_pressed):

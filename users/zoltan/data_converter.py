@@ -37,7 +37,7 @@ def mat2hdf5(filename):
                 setattr(h, nodename, float(getattr(h, nodename)))
             nn2save.append(nodename)
         except:
-            print nodename
+            print(nodename)
     h.save(nn2save)
     h.close()
     
@@ -46,7 +46,7 @@ if __name__=='__main__':
     files = os.listdir(sys.argv[1])
     func=sys.argv[2]
     for f in files:
-        print files.index(f), len(files), f
+        print(files.index(f), len(files), f)
         getattr(sys.modules[__name__],func)(os.path.join(sys.argv[1],f))
 #    hdf52mat('/tmp/data_C1_annulus_130904850_0.hdf5')
 #    mat2hdf5('/tmp/1/data_C1_annulus_130904850_0.mat')

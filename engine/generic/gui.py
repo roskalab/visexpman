@@ -4,10 +4,17 @@ generic.gui module has generic gui widgets like labeled widgets. It also contain
 import os
 import numpy
 import time,unittest
-import copy,Queue,logging,tempfile
-import PyQt4.Qt as Qt
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
+import copy,logging,tempfile
+try:
+    import Queue
+    import PyQt4.Qt as Qt
+    import PyQt4.QtGui as QtGui
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import queue as Queue
+    import PyQt5.Qt as Qt
+    import PyQt5.QtGui as QtGui
+    import PyQt5.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal,introspect
@@ -16,7 +23,7 @@ import traceback,sys
 
 def excepthook(excType, excValue, tracebackobj):
     msg='\n'.join(traceback.format_tb(tracebackobj))+str(excType.__name__)+': '+str(excValue)
-    print msg
+    print(msg)
     error_messages.put(msg)
     
 sys.excepthook = excepthook
@@ -55,7 +62,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.error_timer.start(200)
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
-        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        self.timer.timeout.connect(self.check_queue)
         
     def check_queue(self):
         pass
@@ -621,7 +628,10 @@ class FileTree(QtGui.QTreeView):
         self.model = QtGui.QFileSystemModel(self)
         self.setModel(self.model)
         self.set_root(root)
-        self.model.setNameFilters(QtCore.QStringList(filterlist))
+        if hasattr(QtCore, 'QStringList'):
+            self.model.setNameFilters(QtCore.QStringList(filterlist))
+        else:
+            self.model.setNameFilters(filterlist)
         self.model.setNameFilterDisables(False)
         self.hideColumn(2)
         self.setColumnWidth(0,350)
@@ -631,7 +641,7 @@ class FileTree(QtGui.QTreeView):
 #        self.connect(self.selectionModel(), QtCore.SIGNAL('itemClicked(int)'), self.test)
         
     def test(self,i):
-        print self.model.filePath(self.currentIndex())
+        print(self.model.filePath(self.currentIndex()))
         
     def set_root(self,root):
         self.setRootIndex(self.model.setRootPath( root ))
@@ -1027,12 +1037,12 @@ class FileInput(Qt.QMainWindow):
         
 def file_input(title='',root='.',filter='*.*', mode='file'):
     g=FileInput(title, root, filter, mode)
-    print g.filename
+    print (g.filename)
     return g.filename
     
 def text_input(title='',default=''):
     g=FileInput(title, mode='text',default=default)
-    print g.text
+    print(g.text)
     return g.text
     
 def message(title,message):
@@ -1041,10 +1051,10 @@ def message(title,message):
 class GuiTest(unittest.TestCase):
     def test_01_ask4filename(self):
         for m in ['files', 'file', 'folder']:
-            print file_input('TEST', mode=m)
+            print(file_input('TEST', mode=m))
             
     def test_02_ask4number(self):
-        print text_input('TEXT')
+        print(text_input('TEXT'))
 
 if __name__=='__main__':
     unittest.main()

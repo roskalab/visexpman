@@ -17,6 +17,10 @@ stop: terminates waveform generation
 reset: stop all activity on iobaord
 start_read_pins: pin 2-4 will be sampled with 2 kHz (TIMER_FRQ), upon value change corresponding timestamp is sent via UART
 stop_read_pins: stop sampling pin 2-4.
+get_id: read device id stored in eeprom
+set_id: reprogram device id to eeprom
+set_led.state: set's the arduino board's led
+elongate,status,pin,width in us: elongates a short pulse detected on pin2 by INT0. pin 5-7 can be selected as output
 
 */
 
@@ -49,6 +53,10 @@ ISR(TIMER1_COMPA_vect)
   iobc.waveform_isr();
 }
 
+ISR(INT0_vect)
+{
+  iobc.elongate_isr();
+}
 
 void setup() {
   //Serial.begin(115200);

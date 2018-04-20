@@ -13,3 +13,5 @@
 #define INPORT_MASK 0x1C
 
 #define ID_EEPROM_ADDRESS 0
+
+#define INT0_LATENCY_US 24

@@ -1,5 +1,4 @@
 import sys,scipy.io
-import copy_reg
 import types
 import multiprocessing
 import pdb
@@ -85,11 +84,11 @@ class PhysTiff2Hdf5(object):
 #                        if id not in ids:# len([f for f in self.outfiles if id in f])==0
                             pairs.append([pf, found[0]])
         if len(pairs)>0:
-            print 'converting pairs'
+            print('converting pairs')
             for p in pairs:
-                print p[0]
-                print p[1]
-                print ''
+                print(p[0])
+                print(p[1])
+                print('')
                
 #        converted=[]
 #        for p in pairs:
@@ -106,7 +105,7 @@ class PhysTiff2Hdf5(object):
                 converted.append(res)
             except:
                 import traceback
-                print traceback.format_exc()
+                print(traceback.format_exc())
             
         return converted
         
@@ -114,13 +113,13 @@ class PhysTiff2Hdf5(object):
         self.match_files()
         if 1:
             for k,v in self.assignments.items():
-                print k
+                print(k)
                 self.build_hdf5(k, v[0], None)#self.folder)
         else:
             p=multiprocessing.Pool(processes=14)
             pars = [(k, v[0]) for k, v in self.assignments.items()]
             res = p.map(self.build_hdf5_2,pars)
-        print self.skipped_files
+        print(self.skipped_files)
         
     def match_files(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
@@ -181,11 +180,11 @@ class PhysTiff2Hdf5(object):
         if os.path.exists(coordsfn):
             try:
                 absolute_stage_coordinates=numpy.array(map(float, fileop.read_text_file(coordsfn).split('\r\n')[0].split('\t')))
-                print 'coords file processed'
+                print('coords file processed')
             except:
-                print 'coords file cannot be read'
+                print('coords file cannot be read')
         else:
-            print 'coords file not found', coordsfn
+            print('coords file not found', coordsfn)
             
         if self.use_tiff:
             tmptiff = os.path.join(tempfile.gettempdir(), 'temp.tiff')
@@ -239,7 +238,7 @@ class PhysTiff2Hdf5(object):
         #Up-down flip
         if VERTICAL_FLIP:
             raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
-        print 'rawdata ok', time.time()-t0
+        print('rawdata ok', time.time()-t0)
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
         recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+os.path.splitext(ftiff)[1], ''))
@@ -284,7 +283,7 @@ class PhysTiff2Hdf5(object):
             supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min', 'Nostim']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
-            print 'no stim metadata found'
+            print('no stim metadata found')
             if not NOMATFILE and not self.irlaser:
                 return
         if stiminfo_available:
@@ -312,7 +311,7 @@ class PhysTiff2Hdf5(object):
         sync_and_elphys[:,4] = sig
         #a=raw_data.mean(axis=2).mean(axis=2)[:,0]
         #plot(2*a);plot(data[1]);plot(data[2]);show()
-        print 'sync data ok', time.time()-t0
+        print('sync data ok', time.time()-t0)
         id = experiment_data.get_id(os.path.getmtime(fphys))
         if folder is None:
             folder = os.path.join(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
@@ -321,7 +320,7 @@ class PhysTiff2Hdf5(object):
             os.makedirs(folder)
         cellid=os.path.split(ftiff)[1].split('_')[0]
         filename = os.path.join(folder, 'data_{1}_{2}_{0}_0.hdf5'.format(id, cellid, experiment_name))
-        print utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename
+        print(utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename)
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
 
@@ -366,10 +365,10 @@ class PhysTiff2Hdf5(object):
             try:
                 sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
             except:
-                print 'sync signal recording was aborted'
+                print('sync signal recording was aborted')
             SR=(10000.0 if not FIX1KHZ else 1000.0)
             if indexes.shape[0]/(2*sig.shape[0]/SR)>66:
-                print 'sync signal not detected, assuming timing'
+                print('sync signal not detected, assuming timing')
                 sig2=numpy.zeros_like(sig)
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
             return sig2
@@ -639,7 +638,7 @@ def rewrite_hdf5(folder):
     '''
     files=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
     for f in files:
-        print f, files.index(f), len(files)
+        print(f, files.index(f), len(files))
         h=hdf5io.Hdf5io(f)
         rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' ]
         for rn in rootnodes:
@@ -698,10 +697,10 @@ if __name__ == '__main__':
         if fileop.free_space(sys.argv[1])<30e9:
             raise RuntimeError('{0} is running out of free space'.format(sys.argv[1]))
         elif fileop.free_space(sys.argv[1])<100e9:
-            print 'Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9))
+            print('Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9)))
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False
-        print 'Close window to exit program'
+        print('Close window to exit program')
         while True:
             try:
                 if os.name != 'nt' and utils.enter_hit():
@@ -709,14 +708,14 @@ if __name__ == '__main__':
                 t0=time.time()
                 r=p.detect_and_convert()
                 if len(r)>0:
-                    print 'runtime', time.time()-t0
-                    print 'New files', r
+                    print('runtime', time.time()-t0)
+                    print('New files', r)
             except:
                 import traceback
-                print traceback.format_exc()
+                print(traceback.format_exc())
 #                pdb.set_trace()
             time.sleep(1.0)
-        print 'DONE'
+        print('DONE')
     else:
         unittest.main()
 

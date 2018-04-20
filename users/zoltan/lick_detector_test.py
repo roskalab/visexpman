@@ -87,7 +87,7 @@ class TestLick(unittest.TestCase):
         failed=[]
         for s in selection:
             if s in ignore: continue
-            print selection.index(s), len(selection)
+            print(selection.index(s), len(selection))
             lickwf=lick[s]
             indexes=numpy.cast['int'](numpy.array(lick_indexes[s]))
             if indexes.shape[0]==0:
@@ -112,7 +112,7 @@ class TestLick(unittest.TestCase):
                 if not (dt>0 and dt<110):
                     pass
                     pass
-                    print i, s, dt
+                    print(i, s, dt)
                     failed.append(s)
                     break
                 self.assertTrue(dt>0)
@@ -126,7 +126,7 @@ class TestLick(unittest.TestCase):
                 legend(['water', 'test signal','laser','detector output',  'expected output'])
                 show()
                 pass
-        print failed
+        print(failed)
         
     def test_protocol(self):
         laser_voltage = 1.5
@@ -144,18 +144,18 @@ class TestLick(unittest.TestCase):
         for i in range(2):
             s.write('ping\r\n')
             #time.sleep(1)
-            print s.readline()
+            print(s.readline())
         s.write('reset_protocol\r\n')
-        print s.readline()
+        print(s.readline())
         s.write('protocol_state\r\n')
-        print s.readline()
+        print(s.readline())
         parstr=','.join(map(str, pars))
         s.write('start_protocol,{0}\r\n'.format(parstr))
-        print s.readline()
+        print(s.readline())
         time.sleep(pre_trial_interval)
-        print s.readline()
+        print(s.readline())
         time.sleep(4)
-        print s.read(300)
+        print(s.read(300))
         s.close()
     
     

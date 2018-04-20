@@ -32,19 +32,14 @@ import copy
 import os.path
 import scipy.optimize
 import traceback
-import daq_instrument
-import instrument
+from visexpman.engine.hardware_interface import daq_instrument,instrument
 import os
 if os.name=='nt':
     try:
         import PyDAQmx
     except ImportError:
         pass
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import log
-from visexpman.engine.generic import configuration
-from visexpman.engine.generic import command_parser
+from visexpman.engine.generic import utils,fileop,log,configuration,command_parser
 from visexpman.engine.vision_experiment import experiment_data
 
 try:
@@ -744,7 +739,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.queue_out.put(str(txt))
         self.log.info(txt)
         if local_print:
-            print txt
+            print(txt)
         
     def quit(self):
         self.run = False
@@ -1111,7 +1106,7 @@ def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
                 p0 = [1., signal.argmax(), 1.]
                 coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
                 mean = coeff[1]/(signal.shape[0])#phase characteristic
-                print coeff[1],frqs[frq_i]
+                print(coeff[1],frqs[frq_i])
                 sigma = coeff[2]/(signal.shape[0])#amplitude characteristic
             except RuntimeError:
                 mean = 0.5
@@ -1176,7 +1171,7 @@ def calculate_phase_shift(pos_x, scan_mask, config, debug = False):
         figure(3)
         plot(numpy.roll(pos_x_period, shift))
         plot(pos_x_est)
-        print shift, abs(error).max()
+        print(shift, abs(error).max())
     return shift, error
 
 class TestScannerControl(unittest.TestCase):
@@ -1269,8 +1264,8 @@ class TestScannerControl(unittest.TestCase):
         vmax = 5000
         pos_x, pos_y, speed_x, speed_y, accel_x, accel_y, scan_mask, period_time = generate_line_scan_series(lines, self.dt, setting_time, vmax, accmax, scanning_periods = 2, start_stop_scanner = True, start_stop_time = start_stop_time)
         if plot_enable:
-            print period_time
-            print abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max()
+            print(period_time)
+            print(abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max())
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
             figure(1)
             subplot(411)
@@ -1304,14 +1299,14 @@ class TestScannerControl(unittest.TestCase):
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         
-        print ' ', abs(abs(pos_x.max()-pos_x.min())- size['col']), abs(abs(pos_y.max()-pos_y.min())- size['row'])
+        print(' ', abs(abs(pos_x.max()-pos_x.min())- size['col']), abs(abs(pos_y.max()-pos_y.min())- size['row']))
         import scipy
         import scipy.fftpack
         spectrum = abs(scipy.fft(pos_x))
         fs = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         frq = scipy.fftpack.fftfreq(pos_x.size, 1.0/fs)
         bandwidth = numpy.nonzero(numpy.where(spectrum<spectrum.max()*1e-5, 0, spectrum)[:spectrum.shape[0]/2])[0].max()/float(spectrum.size)*fs
-        print bandwidth
+        print(bandwidth)
         if plot_enable:
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
             figure(1)
@@ -1490,10 +1485,10 @@ class TestScannerControl(unittest.TestCase):
         #Error
         x_error = abs(pos_x-x)*scan_mask
         y_error = abs(pos_y-y)*scan_mask
-        print x_error.max()#, numpy.histogram(x_error)
-        print y_error.max()#, numpy.histogram(y_error)
+        print(x_error.max())#, numpy.histogram(x_error)
+        print(y_error.max())#, numpy.histogram(y_error)
         #small rotation caused y signal:
-        print numpy.arctan(4*y_error.max()/size['col'])*180/numpy.pi 
+        print(numpy.arctan(4*y_error.max()/size['col'])*180/numpy.pi )
         figure(1)
         plot(t, pos_x)
         plot(t, x*scan_mask)
@@ -1537,7 +1532,7 @@ class TestScannerControl(unittest.TestCase):
         pmt = calibdata['pmt']
         mask = calibdata['mask']
         frqs = calibdata['parameters']['scanner_speed']
-        print scanner_bode_diagram(pmt, mask, frqs)
+        print(scanner_bode_diagram(pmt, mask, frqs))
         pass
     
     @unittest.skip('')
@@ -1630,9 +1625,9 @@ class TestScannerControl(unittest.TestCase):
             figure(i)
             plot(x)
             plot(y)
-            print x.max(), y.max()
+            print(x.max(), y.max())
             from scipy.signal import correlate
-            print correlate(y, x).argmax() - x.shape[0]+1
+            print(correlate(y, x).argmax() - x.shape[0]+1)
         show()
 
     @unittest.skip('Run only for debug purposes')
@@ -1648,7 +1643,7 @@ class TestScannerControl(unittest.TestCase):
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         with Timer(''):
             shift, error = calculate_phase_shift(pos_x, scan_mask, config,True)
-        print shift, abs(error).max()
+        print(shift, abs(error).max())
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
         figure(20)
         plot(pos_x)
@@ -1676,7 +1671,7 @@ class TestScannerControl(unittest.TestCase):
         tflash = times[1]/fs
         duty_cycle = tflash/tline
         frame_rate = fs/scan_mask.shape[0]
-        print size['row'],  1/spatial_resolution, round(fline), round(tline*1e6), round(tflash*1e6), round(duty_cycle*100), round(frame_rate, 1)        
+        print(size['row'],  1/spatial_resolution, round(fline), round(tline*1e6), round(tflash*1e6), round(duty_cycle*100), round(frame_rate, 1)        )
         #Generate screen sync signal
         frq = 200
         duty_cycle = 0.3
@@ -1773,7 +1768,7 @@ class TestScannerControl(unittest.TestCase):
             self.assertLess(constraints['sample_frequency']*constraints['ymirror_flyback_time'], 
                              frame_trigger_signal.shape[0]-frame_trigger_signal.sum())
             if False:
-                print ', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()])
+                print(', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()]))
             duty_cycle = 0.2
             delay = 10e-6
             stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(duty_cycle, delay, signal_attributes, constraints)
@@ -1822,7 +1817,7 @@ class TestScannerControl(unittest.TestCase):
         fns=os.listdir(folder)
         fns.sort()
         if len(fns)==0:
-            print 'No test data for testing signal2image'
+            print('No test data for testing signal2image')
         for fn in fns:
 #            print fn
             data = utils.array2object(numpy.load(os.path.join(folder,fn)))
@@ -1884,7 +1879,7 @@ def signal2image(ai_data, parameters, pmt_config):
             valid_x_lines = int(parameters['nxlines'] - parameters['yflyback_nperiods'])
             linelenght = parameters['valid_data_mask'].shape[0]
             if 0:
-                print binned[:linelenght*valid_x_lines,ch_i].shape,(valid_x_lines,linelenght)
+                print(binned[:linelenght*valid_x_lines,ch_i].shape,(valid_x_lines,linelenght))
             binned_without_flyback =  binned[:linelenght*valid_x_lines,ch_i].reshape((valid_x_lines,linelenght))
             if parameters.has_key('enable_flybackscan') and parameters['enable_flybackscan']:
                 frame=numpy.zeros((2*valid_x_lines,parameters['valid_data_mask'].sum()/2))

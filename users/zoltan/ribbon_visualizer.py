@@ -157,11 +157,11 @@ if __name__=='__main__':
     for f in files:
         if "fragment_xz" in f:
             try:
-                print f
+                print(f)
                 visualize_xz_scan(f)
                 break
             except Exception as e:
-                print  f
-                print e
+                print (f)
+                print(e)
                 pass
 #            break

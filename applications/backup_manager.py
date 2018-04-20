@@ -145,7 +145,7 @@ class BackupManager(object):
     def copy(self,copy):
         files=self.list_all_files(copy['src'])
         files=[f for f in files if os.path.splitext(f)[1] in copy['extensions']]#Filter expected extensions
-        if copy.has_key('filter'):
+        if 'filter' in copy:
             files=[f for f in files if copy['filter'] in os.path.basename(f)]
         files.sort()
         timeout = copy.get('timeout',self.config.last_file_access_timeout)

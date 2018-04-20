@@ -183,14 +183,14 @@ class TestProtocolHandler(unittest.TestCase):
             events=t[numpy.where(numpy.diff(numpy.where(d[:,4]>d[:,4].max()/2,1,0))==1)[0]]
             deltats.append((numpy.cast['int'](numpy.diff(events)*1000000))[2:-1])
             detect_events(d, fsample)
-            print deltats[-1]
+            print(deltats[-1])
             if reps==1:
-                print log
+                print(log)
                 [plot(t, d[:, i]+i*5) for i in range(5)];legend(['lick raw','lick out', 'stim', 'reward',  'debug'], loc='lower left');show()
         if hasattr(serialport,  'write'):
             serialport.close()
         deltats=numpy.array(deltats)
-        print 'timing std [us]',  deltats.std(axis=0)
+        print('timing std [us]',  deltats.std(axis=0))
     
     @unittest.skip('') 
     def test_02_lick_generated(self):
@@ -223,7 +223,7 @@ class TestProtocolHandler(unittest.TestCase):
             daq_instrument.set_waveform( 'Dev2/ao0',wf.reshape(1, wf.shape[0]),sample_rate = fs)
             d, log=lpr.finish()
             detect_events(d, fsample)
-            print log
+            print(log)
             t=numpy.arange(d[:, 0].shape[0], dtype=numpy.float)/fsample
             [plot(t, d[:, i]) for i in range(4)];plot(t, d[:,4]+5)
             plot(t, numpy.ones_like(t)*0.25)
@@ -255,7 +255,7 @@ class TestProtocolHandler(unittest.TestCase):
         files=fileop.find_files_and_folders(folder)[1]
         for f in files:
             if os.path.splitext(f)[1]=='.hdf5' and 'animal' not in f:
-                print f
+                print(f)
                 h=hdf5io.Hdf5io(f)
                 h.load('sync')
                 s=numpy.copy(h.sync)

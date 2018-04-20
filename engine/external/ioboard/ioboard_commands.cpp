@@ -9,6 +9,9 @@ IOBoardCommands::IOBoardCommands(void)
   //initialize variables
   read_state=OFF;
   waveform_state=OFF;
+  elongate_state=ON;
+  elongate_output_pin=5.0;
+  elongate_duration=1000.0;
   port=0;
   port_last=0;
   phase_counter=0;
@@ -26,6 +29,9 @@ IOBoardCommands::IOBoardCommands(void)
   TCCR1A = _BV(COM2A0);
   TCCR1B = _BV(WGM12);
 //  OCR1A = 1300;*/
+
+  EICRA|=3;//INT0/PIN2 rising edge
+  EIMSK|=1;
   sei();
 }
 
@@ -180,6 +186,41 @@ void IOBoardCommands::run(void)
         Serial.println(EEPROM.read(ID_EEPROM_ADDRESS));
       }
     }
+    else if ((strcmp(command,"elongate")==0)&&(nparams==3))
+    {
+      if (debug==1)
+      {
+        Serial.print("Elongate: ");
+        Serial.print(par[0]);
+        Serial.print(" on ");
+        Serial.print(par[1]);
+        Serial.print(" ");
+        Serial.print(par[2]);
+        Serial.println("us");
+      }
+      if (par[0]==0.0)
+      {
+        elongate_state=OFF;
+        EIMSK&=~1;
+      }
+      else
+      {
+        elongate_output_pin=par[1];
+        elongate_duration=par[2]-INT0_LATENCY_US;
+        Serial.println(elongate_duration);
+        if (elongate_duration<0)
+        {//TODO: This check does not work!!!!!!
+          Serial.println("Too short");
+        }
+        else
+        {
+          elongate_state=ON;
+          EIMSK|=1;
+          elongate_output_pin=par[1];
+          elongate_duration=par[2]-INT0_LATENCY_US;
+        }
+      }
+    }
     else
     {
       #if (PLATFORM==ARDUINO_UNO)
@@ -263,3 +304,14 @@ void IOBoardCommands::stop_waveform(void)
   TIMSK1 &= ~(1<<1);
   waveform_state=OFF;
 }
+void IOBoardCommands::elongate_isr(void)
+{
+  if (elongate_state==ON)
+  {
+    set_pin(elongate_output_pin,1.0);
+    delayMicroseconds((unsigned long)(elongate_duration));
+    set_pin(elongate_output_pin,0.0);
+  }
+  
+}
+

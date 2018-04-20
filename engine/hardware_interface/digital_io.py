@@ -10,9 +10,12 @@ except ImportError:
 import os,numpy,sys,glob
 import time
 import unittest
-import instrument
+from visexpman.engine.hardware_interface import instrument
 import threading
-import Queue
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
 
 class SerialPortDigitalIO(instrument.Instrument):
     '''
@@ -452,10 +455,10 @@ class TestDigitalIO(unittest.TestCase):
         pi.command_queue.put('TERMINATE')
         time.sleep(1.0)
         for id in pi.queues.keys():
-            print id
+            print(id)
             while not pi.queues[id].empty():
                 transition = pi.queues[id].get()
-                print transition[0] - pi.t0, transition[1]
+                print(transition[0] - pi.t0, transition[1])
     
     @unittest.skip('')
     def test_04_pwm(self):
@@ -466,7 +469,7 @@ class TestDigitalIO(unittest.TestCase):
         duration = 10.0
         ton = 1.0/frq*duty_cycle
         toff =1.0/frq*(1.0-duty_cycle)
-        print ton, toff,int(duration*frq)
+        print(ton, toff,int(duration*frq))
         from visexpman.engine.generic.introspect import Timer
         with Timer(''):
             for i in range(int(duration*frq)):
@@ -521,7 +524,7 @@ class TestDigitalIO(unittest.TestCase):
     def test_08_find_devices(self):
         from visexpman.engine.generic import introspect
         with introspect.Timer('find serial port devices'):
-            print find_devices()
+            print(find_devices())
             
     def test_09_digital_io(self):
         devices=find_devices()

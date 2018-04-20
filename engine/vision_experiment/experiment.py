@@ -1,16 +1,11 @@
-import sys, threading, time
+import sys, threading, time, inspect
 import logging
 import os
 import visexpman
-
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils,fileop,introspect
 from visexpman.engine import ExperimentConfigError
-import stimulation_library
-
-import inspect
-from visexpman.engine.vision_experiment import configuration
-
+from visexpman.engine.vision_experiment import stimulation_library
 import unittest
 
 class ExperimentConfig(Config):
@@ -338,8 +333,8 @@ def parse_stimulation_file(filename):
     if os.path.splitext(filename)[1] != '.py':
         raise RuntimeError('Files only with py extension can be selected: {0}'.format(filename))
     source_code = fileop.read_text_file(filename)
-    if 'import *' in source_code:
-        raise RuntimeError('Parsing {0} might freeze'.format(filename))
+#    if 'import *' in source_code:
+#        raise RuntimeError('Parsing {0} might freeze'.format(filename))
     try:
         introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     except Exception as e:

@@ -59,7 +59,7 @@ class LoggerHelper(object):
         entry = [time.time(), loglevel, source, msg]
         if not hasattr(self, 'sources'):
             q = self.queue
-        elif self.sources.has_key(source):
+        elif source in self.sources:
             q = self.sources[source]
         else:
             raise LoggingError('{0} logging source was not added to logger'.format(source))
@@ -83,7 +83,7 @@ class Logger(multiprocessing.Process,LoggerHelper):
         multiprocessing.Process.__init__(self)
         self.filename = kwargs['filename']
         self.logpath = os.path.split(self.filename)[0]
-        if kwargs.has_key('remote_logpath'):
+        if 'remote_logpath' in kwargs:
             self.remote_logpath = kwargs['remote_logpath']
         self.command = multiprocessing.Queue()
         self.sources = {}
@@ -94,7 +94,7 @@ class Logger(multiprocessing.Process,LoggerHelper):
         return self.sources
 
     def add_source(self, source_name):
-        if self.sources.has_key(source_name):#If source already added silently do nothing
+        if source_name in self.sources:#If source already added silently do nothing
             return
         if self.pid is not None:
             raise LoggingError('Logger process alread started, {0} source cannot be added'.format(source_name))
@@ -127,7 +127,7 @@ class Logger(multiprocessing.Process,LoggerHelper):
             self.file.flush()#Happens for unknown reason
         except:
             import traceback
-            print traceback.format_exc()
+            print(traceback.format_exc())
                 
     def _entry2text(self, entry):
         return '{0}.{4} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3],int(entry[0]*10)%10)

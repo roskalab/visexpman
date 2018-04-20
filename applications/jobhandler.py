@@ -16,7 +16,7 @@ class AoJobhandler(object):
 level=logging.INFO)
         self.minimum_free_space=15e9/10
         fs=fileop.free_space(experiment_data_path)
-        print '='*80#Indicate the beginning of jobhandler prints on console
+        print ('='*80)#Indicate the beginning of jobhandler prints on console
         self.printl('{0} GB free space is on {1}'.format(int(fs/2**30), experiment_data_path))
         if fs<self.minimum_free_space:
             raise RuntimeError('Less than {1} GB space on {0}'.format(experiment_data_path,int(self.minimum_free_space/2**30)))
@@ -29,7 +29,7 @@ level=logging.INFO)
         self.printl(utils.module_versions(utils.imported_modules()[0])[0])
     
     def printl(self,msg,loglevel='info'):
-        print msg
+        print (msg)
         getattr(logging,loglevel)(msg)
         
     def mesfile_ready(self,filename):
@@ -178,7 +178,7 @@ class DatafileDatabase(object):
             return False
         item = self.hdf5.root.datafiles.row
         for f,v in Datafile.columns.items():
-            if kwargs.has_key(f):
+            if f in kwargs:
                 item[f]=kwargs[f]
             else:
                 item[f]=Datafile.columns[f].dflt
@@ -187,7 +187,7 @@ class DatafileDatabase(object):
         return True
         
     def update(self, **kwargs):
-        if kwargs.has_key('filename'):
+        if 'filename' in kwargs:
             keyname='filename'
             key='"{0}"'.format(kwargs['filename'])
         rowsfound=len([1 for row in self.hdf5.root.datafiles.where('{0}=={1}'.format(keyname, key))])

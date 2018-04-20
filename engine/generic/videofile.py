@@ -1,7 +1,7 @@
 '''
 Contains video file related functions
 '''
-import fileop
+from visexpman.engine.generic import fileop
 import subprocess
 import platform
 import tempfile

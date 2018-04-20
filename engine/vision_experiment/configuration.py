@@ -156,6 +156,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ACQUISITION_TRIGGER_POLARITY = True
         ENABLE_SHUTTER = False
         WAIT4TRIGGER_ENABLED=False
+        CAMERA_TRIGGER_ENABLE=False
         
         ############# Graphical User Interface related ######################
         GUI = {}

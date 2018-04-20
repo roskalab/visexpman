@@ -542,7 +542,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         day=filename.split(os.sep)[-2]
         protocol_name=os.path.basename(filename).split('_')[1]
         sheet=str('{0}{1}{2}'.format(day, protocol_name, voltage))
-        if not self.xls_aggregate.has_key(sheet):
+        if not sheet in self.xls_aggregate:
             self.xls_aggregate[sheet]=[]
         self.xls_aggregate[sheet].append(lick_times-stimulus_t[0])
         
@@ -607,11 +607,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def day_summary(self, folder):
         summary = [self.read_file_summary(f) for f in [os.path.join(folder,fn) for fn in os.listdir(folder) if os.path.splitext(fn)[1]=='.hdf5']]
-        protocols=[s['protocol'] for s in summary if s.has_key('protocol')]
+        protocols=[s['protocol'] for s in summary if 'protocol' in s]
         protocol_names=list(set(protocols))
         success_rates = {}
         for pn in protocol_names:
-            success_rates[pn]=[si['Success Rate'] for si in summary if si.has_key('protocol') and si['protocol']==pn]
+            success_rates[pn]=[si['Success Rate'] for si in summary if 'protocol' in si and si['protocol']==pn]
         return success_rates
             
     def show_day_success_rate(self,folder):
@@ -679,7 +679,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                     msg = self.from_gui.get()
                     if msg == 'terminate':
                         return True#break
-                    if hasattr(msg, 'has_key') and msg.has_key('function'):#Functions are simply forwarded
+                    if isinstance(msg, dict) and 'function' in msg:#Functions are simply forwarded
                         #Format: {'function: function name, 'args': [], 'kwargs': {}}
                         if DEBUG:
                             logging.debug(msg)
@@ -842,11 +842,11 @@ class Behavioral(gui.SimpleAppWindow):
             
     def process_msg(self,msg,skip_main_image_display=False):
         self.msg=msg
-        if msg.has_key('notify'):
+        if 'notify' in msg:
             self.notify(msg['notify']['title'], msg['notify']['msg'])
-        elif msg.has_key('statusbar'):
+        elif 'statusbar' in msg:
             self.update_statusbar(msg=msg['statusbar'])
-        elif msg.has_key('update_weight_history'):
+        elif 'update_weight_history' in msg:
             x=msg['update_weight_history'][:,0]
             x/=86400
             x-=x[0]
@@ -854,14 +854,14 @@ class Behavioral(gui.SimpleAppWindow):
             self.plots.animal_weight.plot.setLabels(bottom='days, {0} = {1}, {3} = {2}'.format(int(numpy.round(x[0])), utils.timestamp2ymd(self.engine.weight[0,0]), utils.timestamp2ymd(self.engine.weight[-1,0]), int(numpy.round(x[-1]))))
             self.plots.animal_weight.plot.setYRange(min(msg['update_weight_history'][:,1]), max(msg['update_weight_history'][:,1]))
             self.plots.animal_weight.plot.setXRange(min(x), max(x))
-        elif msg.has_key('switch2_animal_weight_plot'):
+        elif 'switch2_animal_weight_plot' in msg:
             self.plots.tab.setCurrentIndex(1)
-        elif msg.has_key('update_main_image'):
+        elif 'update_main_image' in msg:
             if not skip_main_image_display:
                 self.cw.images.main.set_image(numpy.rot90(msg['update_main_image'],3),alpha=1.0)
-        elif msg.has_key('update_closeup_image'):
+        elif 'update_closeup_image' in msg:
             self.cw.images.closeup.set_image(numpy.rot90(numpy.dstack(tuple(3*[msg['update_closeup_image']])),3),alpha=1.0)
-        elif msg.has_key('update_events_plot'):
+        elif 'update_events_plot' in msg:
             plotparams=[]
             for tn in msg['update_events_plot']['trace_names']:
                 if tn =='lick raw':
@@ -879,18 +879,18 @@ class Behavioral(gui.SimpleAppWindow):
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
             self.plots.events.plot.setXRange(0,tmax)
-        elif msg.has_key('ask4confirmation'):
+        elif 'ask4confirmation' in msg:
             reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             self.to_engine.put(reply == QtGui.QMessageBox.Yes)
-        elif msg.has_key('set_recording_state'):
+        elif 'set_recording_state' in msg:
             self.cw.set_state(msg['set_recording_state'])
-        elif msg.has_key('switch2_event_plot'):
+        elif 'switch2_event_plot' in msg:
             self.plots.tab.setCurrentIndex(0)
-        elif msg.has_key('set_events_title'):
+        elif 'set_events_title' in msg:
             self.plots.events.plot.setTitle(msg['set_events_title'])
-        elif msg.has_key('update_protocol_description'):
+        elif 'update_protocol_description' in msg:
             self.cw.state.setToolTip(msg['update_protocol_description'])
-        elif msg.has_key('update_success_rate_plot'):
+        elif 'update_success_rate_plot' in msg:
             plotparams=[]
             if msg['update_success_rate_plot'].has_key('scatter') and msg['update_success_rate_plot']['scatter']:
                 alpha=100
@@ -909,19 +909,19 @@ class Behavioral(gui.SimpleAppWindow):
                         plotparams.append({'name': tn, 'pen':(0,255,0)})
                         
             self.plots.success_rate.update_curves(msg['update_success_rate_plot']['x'], msg['update_success_rate_plot']['y'], plotparams=plotparams)
-            if msg['update_success_rate_plot'].has_key('vertical_lines') and msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
+            if 'vertical_lines' in msg['update_success_rate_plot'] and msg['update_success_rate_plot']['vertical_lines'].shape[0]>0:
                 self.plots.success_rate.add_linear_region(msg['update_success_rate_plot']['vertical_lines'],color=(0,0,0,20))
             else:
                 self.plots.success_rate.add_linear_region([])
-        elif msg.has_key('set_success_rate_title'):
+        elif 'set_success_rate_title' in msg:
             self.plots.success_rate.plot.setTitle(msg['set_success_rate_title'])
-        elif msg.has_key('show_animal_statistics'):
+        elif 'show_animal_statistics' in msg:
             if hasattr(self, 'asp'):
                 del self.asp
             self.asp = AnimalStatisticsPlots(self, msg['show_animal_statistics'])
-        elif msg.has_key('update_reward_volume_plot'):
+        elif 'update_reward_volume_plot' in msg:
             pass
-        elif msg.has_key('show_global_statistics'):
+        elif 'show_global_statistics' in msg:
             gs=msg['show_global_statistics']
             self.w=QtGui.QWidget()
             self.w.setWindowIcon(gui.get_icon('behav'))

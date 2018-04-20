@@ -50,13 +50,13 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
             self.stim_context = utils.array2object(context_stream)
         else:
             self.stim_context = {}
-        if not self.stim_context.has_key('screen_center'):
+        if not 'screen_center' in self.stim_context:
             self.stim_context['screen_center'] = self.config.SCREEN_CENTER
-        if not self.stim_context.has_key('background_color'):
+        if not 'background_color' in self.stim_context:
             self.stim_context['background_color'] = self.config.BACKGROUND_COLOR
-        if not self.stim_context.has_key('user_background_color'):            
+        if not 'user_background_color' in self.stim_context:
             self.stim_context['user_background_color'] = 0.75
-        if not self.stim_context.has_key('bullseye_size'):            
+        if not 'bullseye_size' in self.stim_context:
             self.stim_context['bullseye_size'] = 100.0
 
     def save_stim_context(self):
@@ -538,7 +538,7 @@ class TestStim(unittest.TestCase):
             pars['experiment_name'] = experiment_name
             commands.append({'function': 'start_stimulus', 'args': [pars]})
         commands.append({'function': 'exit_application'})
-        print len(commands)
+        print(len(commands))
         client = self._send_commands_to_stim(commands)
         run_stim(self.context,timeout=None)
         client.terminate()

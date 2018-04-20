@@ -1,4 +1,5 @@
-import os, platform, copy, utils, parameter, unittest
+import os, platform, copy, unittest
+from visexpman.engine.generic import utils,parameter
 
 PRINT_PAR_NAMES = False
 
@@ -67,7 +68,7 @@ class Config(object):
                 self.set(k, v)
             elif k.isupper() and '_RANGE' not in k:
                 if PRINT_PAR_NAMES:
-                    print k, v
+                    print(k, v)
                 if self.ignore_range:
                     setattr(self, k + '_p',  parameter.Parameter(v,  check_range = False,name=k))
                 elif isinstance(v,  list):
@@ -148,7 +149,7 @@ class Config(object):
         class_variables = dir(self)
         parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper()] 
         for parameter_name in parameter_names:
-            print parameter_name + ' = ' + str(getattr(self,  parameter_name))
+            print(parameter_name + ' = ' + str(getattr(self,  parameter_name)))
             
     def get_all_parameters(self):
     #TODO: test case for this function

@@ -106,7 +106,7 @@ class SoundAndGratingE(experiment.Experiment):
             self.ioboard=digital_io.IOBoard(ec.ARDUINO_SOUND_GENERATOR_PORT,timeout=0.2)
         self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
         for p in self.protocol:
-            print p
+            print(p)
             self.block(*p)
             self.show_fullscreen(color=ec.GRAY, duration=ec.PAUSE)
             if self.abort:

@@ -3,8 +3,10 @@ try:
 except:
     pass
 import unittest
-
-import instrument
+try:
+    import instrument
+except ImportError:
+    from visexpman.engine.hardware_interface import instrument
 from visexpman.engine.generic.introspect import Timer
 import time
 
@@ -100,7 +102,7 @@ class TestLightMeter(unittest.TestCase):
         values = []
         import time
         st = time.time()
-        print 'started'
+        print('started')
         for i in range(3000):
 #            with Timer('readouttime'):
             try:
@@ -108,7 +110,7 @@ class TestLightMeter(unittest.TestCase):
 #                v = lm.read_frequency()
                 values.append([time.time()-st,  v])
             except:
-                print 'error'
+                print('error')
         lm.release_instrument()
         import pylab
         import numpy
@@ -117,7 +119,7 @@ class TestLightMeter(unittest.TestCase):
         import hdf5io
         hdf5io.save_item('c:\\_del\\data.hdf5', 'values',  values,  filelocking=False)
         
-        print 1/numpy.diff(values[:, 0]).mean()
+        print(1/numpy.diff(values[:, 0]).mean())
         pylab.show()
 
 if __name__ == "__main__":

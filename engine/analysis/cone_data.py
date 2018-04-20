@@ -15,7 +15,7 @@ try:
     from visexpA.engine.dataprocessors import roi
     from visexpA.engine.dataprocessors import signal as signal2
 except ImportError:
-    print 'cell detector not installed'
+    print('cell detector not installed')
 
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
@@ -276,14 +276,14 @@ def aggregate_cells(folder):
     aggregated_cells = []
     allhdf5files.sort()
     for hdf5file in allhdf5files:
-        print allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells)
+        print(allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells))
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
         fntags= experiment_data.parse_recording_filename(hdf5file)
         if fntags['id'] in skip_ids or not experiment_data.is_recording_filename(hdf5file):
             continue
         try:
             aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
-        except RuntimeError,e:
+        except RuntimeError as e:
             if 'does not contain rois' not in str(e):
                 raise e
             else:
@@ -500,7 +500,7 @@ class TestCA(unittest.TestCase):
         meanimage=roi['meanimage']
         area=roi_redetect(roi['rectangle'], meanimage, subimage_size=3)
         meanimage[area[:,0],area[:,1]]=meanimage.max()
-        print roi['rectangle']
+        print(roi['rectangle'])
         imshow(meanimage);show()
         pass
     

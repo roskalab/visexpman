@@ -2,11 +2,10 @@ import copy,visexpman
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
-import instrument
+from visexpman.engine.hardware_interface import instrument
 import time
 import ctypes
 import os
-import os.path
 import unittest
 try:
     import cv2
@@ -196,7 +195,7 @@ class OpenCVCamera(VideoCamera):
                     break
             h1.flush()
             if self.debug and len(h1.root.timestamps)>1:
-                print 'frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(h1.root.rawdata),(h1.root.timestamps[-1]-h1.root.timestamps[0]),1.0/numpy.diff(h1.root.timestamps.read().flatten()).mean())
+                print('frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(h1.root.rawdata),(h1.root.timestamps[-1]-h1.root.timestamps[0]),1.0/numpy.diff(h1.root.timestamps.read().flatten()).mean()))
         grabber_handle.release()
         cv2.destroyWindow('preview')
         
@@ -357,8 +356,8 @@ class TestCamera(unittest.TestCase):
         cam.stop()
         cam.close()
         
-        print len(cam.frames)/(time.time()-t0)
-        print cam.frames[0].shape
+        print(len(cam.frames)/(time.time()-t0))
+        print(cam.frames[0].shape)
         
     @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
@@ -382,7 +381,7 @@ def threaded_camera():
     config = TestCVCameraConfig()
 #        cam = OpenCVCamera(config, debug=False)
     for i in range(1):
-        print i
+        print(i)
         if os.path.exists(p):
             os.remove(p)
 #            if os.path.exists(p+'.zip'):

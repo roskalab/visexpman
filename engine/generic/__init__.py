@@ -111,7 +111,7 @@ class Test(unittest.TestCase):
 #            im.save('/home/zoltan/visexp/debug/scalebar.png')
 #    
     def test_03(self):
-        print expspace(0,  10,  4)
+        print(expspace(0,  10,  4))
     
 if __name__ == '__main__':
     unittest.main()

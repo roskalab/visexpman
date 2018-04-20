@@ -17,7 +17,7 @@ def mdrive_checker(folders, signature_file, emailto):
         #Compare current signature with previous one
         #print len(signature_p.keys()), len(signatures.keys())
         #Check for deleted files:
-        missing_files=[fn for fn in signature_p.keys() if not signatures.has_key(fn)]
+        missing_files=[fn for fn in signature_p.keys() if not fn in signatures]
 #        import pdb;pdb.set_trace()
         error_msg=''
         if len(missing_files)>0:
@@ -29,7 +29,7 @@ def mdrive_checker(folders, signature_file, emailto):
                     error_msg+='{0} changed: {1}, {2}\r\n'.format(fn, signature_p[fn], signatures[fn])
         if len(error_msg)==0:
             error_msg='Files did not change'
-        print error_msg
+        print(error_msg)
         if not isinstance(emailto,list):
              emailto=[emailto]
         for e in emailto:

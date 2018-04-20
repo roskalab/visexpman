@@ -1,11 +1,14 @@
 import time,tempfile,datetime
 import scipy.io
 import copy
-import cPickle as pickle
+try:
+    import Queue
+    import cPickle as pickle
+except ImportError:
+    import queue as Queue
+    import pickle
 import os,platform
-import os.path
 import threading,multiprocessing
-import Queue
 import unittest,traceback
 import numpy
 import shutil
@@ -19,7 +22,7 @@ from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
-from visexpman.engine.visexp_app import stimulation_tester
+from visexpman.applications.visexp_app import stimulation_tester
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):
@@ -74,6 +77,11 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.eye_camera_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
+        if self.machine_config.PLATFORM=='resonant' and 0:
+            from visexpman.engine.hardware_interface import mesc_interface
+            print (1)
+            self.mesc=mesc_interface.MescapiInterface()
+            print (2)
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -270,7 +278,7 @@ class ExperimentHandler(object):
             self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
-        if experiment_parameters.has_key('Enable Eye Camera') and experiment_parameters['Enable Eye Camera']:
+        if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
             self.eye_camera_filename=os.path.join(tempfile.gettempdir(), 'eye_cam_{0}.hdf5'.format(experiment_parameters['id']))
             self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename)
@@ -578,7 +586,13 @@ class ExperimentHandler(object):
                 self.enable_check_network_status=True
             self.finish_experiment()
             self.save_experiment_files(aborted=True)
-            self.printc('Experiment finished with error')
+            self.printc('Experiment finished with error')            
+            
+    def mesc_handler(self, command):
+        res=1#getattr(self.mesc,  command)()
+        self.printc('mesc command: {0}, {1}'.format(command,  res))
+        if not res:
+            self.stop_experiment()
                     
     def convert_stimulus_to_video(self):
         if hasattr(self.machine_config, 'SCREEN_MODE') and self.machine_config.SCREEN_MODE == 'psychopy':
@@ -1012,7 +1026,7 @@ class Analysis(object):
             return
         if self._any_unsaved_roi():
             if warning_only:
-                print 'Rois are not saved'
+                print('Rois are not saved')
             elif self.ask4confirmation('Do you want to save unsaved rois in {0}?'.format(os.path.basename(self.filename))):
                 self.save_rois_and_export()
                 
@@ -1433,7 +1447,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             meshash=introspect.mes2hash()
             saved_hash=self.guidata.read('mes_hash')
             if not numpy.array_equal(saved_hash, meshash):
-                print saved_hash, meshash
+                print(saved_hash, meshash)
                 self.notify('Warning', 'MES has changed, hashes do not match.')
             
     def save_context(self):
@@ -1496,13 +1510,16 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if msg is not None and 'ping' not in msg  and 'pong' not in msg:
                 if isinstance(msg,str):
                     self.printc('{0} {1}'.format(connname.upper(),msg))
-                elif msg.has_key('trigger'):
+                elif 'trigger' in msg:
                     if hasattr(self,'trigger_handler'):
                         self.trigger_handler(msg['trigger'])
-                elif msg.has_key('notify'):
+                elif 'notify' in msg:
                     self.notify(msg['notify'][0],msg['notify'][1])
-                elif msg.has_key('mes_connection_status'):
+                elif 'mes_connection_status' in msg:
                     self.mes_connection_status=msg['mes_connection_status']
+                elif 'mesc' in msg and hasattr(self,  'mesc_handler'):
+                    self.mesc_handler(msg['mesc'])
+                    
         
     def run(self):
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
@@ -1524,13 +1541,13 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 else:
                     continue
                 #parse message
-                if msg.has_key('data'):#expected format: {'data': value, 'path': gui path, 'name': name}
+                if 'data' in msg:#expected format: {'data': value, 'path': gui path, 'name': name}
                     self.guidata.add(msg['name'], msg['data'], msg['path'])#Storing gui data
                     [getattr(c,'check_parameter_changes')(self,msg['name']) for c in self.__class__.__bases__ if hasattr(c,'check_parameter_changes')]
-                elif msg.has_key('read'):#gui might need to read guidata database
+                elif 'read' in msg:#gui might need to read guidata database
                     value = self.guidata.read(**msg)
                     getattr(self, 'to_gui').put(value)
-                elif msg.has_key('function'):#Functions are simply forwarded
+                elif 'function' in msg:#Functions are simply forwarded
                     #Format: {'function: function name, 'args': [], 'kwargs': {}}
 #                    with introspect.Timer(str(msg)):
                     getattr(self, msg['function'])(*msg['args'])
@@ -1551,6 +1568,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def close(self):
         self.save_context()
+        if hasattr(self, 'mesc'):#TODO: this should be in ExperimentHandler class
+            self.mesc.close()
 
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
@@ -1715,7 +1734,7 @@ class CaImagingEngine(GUIEngine):
             #Wait till process terminates
             while self.daq_process.is_alive():
                 time.sleep(0.2)
-                print 'daq alive'
+                print('daq alive')
             #Set scanner voltages to 0V
             daq_instrument.set_voltage(self.machine_config.TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
             self.printc('Imaging stopped')
@@ -1884,9 +1903,9 @@ class TestMainUIEngineIF(unittest.TestCase):
                 if time.time()-tlast>60:#assuming that the execution of any function does not take longer than 30 sec
                     break
             printc_messages = [r['printc'] for r in resp if r.has_key('printc')]
-            print n
+            print(n)
             for p in printc_messages:
-                print p
+                print(p)
             self.assertEqual([p for p in printc_messages if 'error' in p], [])#No error in printc messages
             files = [p.split(' ')[-1] for p in printc_messages if 'ROIs are saved to ' in p]
             #Check if mat files are available
@@ -1921,7 +1940,7 @@ class TestMainUIEngineIF(unittest.TestCase):
                 self.assertEqual(abs(numpy.array([len(r['matches']) for r in self.engine.aggregated_rois])-1).sum(),0)
             except:
                 import traceback
-                print traceback.format_exc()
+                print(traceback.format_exc())
                 import pdb
                 pdb.set_trace()
         

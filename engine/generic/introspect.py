@@ -39,7 +39,7 @@ def visexpman2hash():
     for subfold in [os.path.join('users','common'), 'engine']:
         files.extend(fileop.find_files_and_folders(os.path.join(foldername, subfold))[1])
     sha=hashlib.sha256()
-    files=[sha.update(fileop.read_text_file(f)) for f in files if os.path.splitext(f)[1]=='.py']
+    files=[sha.update(fileop.read_text_file(f).encode('utf-8')) for f in files if os.path.splitext(f)[1]=='.py']
     return numpy.fromstring(sha.digest(), dtype=numpy.uint8)
     
 def mes2hash():
@@ -123,7 +123,7 @@ def dumpall(fn):
                 f.write(object2str(o) + '\r\n\r\n=================================================\r\n')
         except:
             errct += 1
-    print errct
+    print(errct)
     f.close()
     
 
@@ -432,8 +432,11 @@ except NameError:  # no unicode() in Python 3.0
 u = u.encode('unicode-internal')  # see .../Lib/test/test_sys.py
 _sizeof_Cunicode = len(u)
 del u
-if (1 << (_sizeof_Cunicode << 3)) <= sys.maxunicode:
-    raise AssertionError('sizeof(%s) bad: %d' % ('unicode', _sizeof_Cunicode))
+try:
+    if (1 << (_sizeof_Cunicode << 3)) <= sys.maxunicode:
+        raise AssertionError('sizeof(%s) bad: %d' % ('unicode', _sizeof_Cunicode))
+except:
+    pass
 
 if hasattr(sys, 'maxsize'):  # new in Python 2.6
     Z = calcsize('Z')  # check sizeof(size_t)
@@ -2952,9 +2955,9 @@ class TransactionExample(TransactionBase):
 
     def do_rollback(self, auto):
         if auto:
-            print "auto rollback", self
+            print("auto rollback", self)
         else:
-            print "manual rollback", self
+            print("manual rollback", self)
         self.resource.close()
 ## end of http://code.activestate.com/recipes/519621/ }}}
 ## {{{ http://code.activestate.com/recipes/502283/ (r1)
@@ -3235,22 +3238,22 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                 if seen: write = 'write' in lockregistry[i] # this lock has been acquired for writing
                 else: write = False
             if seen and write:
-                print mn+threadid + ' tries to relock '+str(i)+ ' for '+L[1]+' that is locked for writing'
+                print(mn+threadid + ' tries to relock '+str(i)+ ' for '+L[1]+' that is locked for writing')
                 with QtCore.QReadLocker(locklock):
-                    print lockregistry
+                    print(lockregistry)
                 L[0].lockForWrite()
                 with QtCore.QWriteLocker(locklock):
                     lockregistry[i].append(L[1])
                     #raise RuntimeError(threadid + ' tries to relock '+str(i)+ ' that is locked for writing')
-                print inspect.stack()[2][3]
+                print(inspect.stack()[2][3])
 
             elif seen and L[1]=='read' and not write:
-                if debug: print mn+threadid + " reacquires "+str(i)+" for reading"
+                if debug: print(mn+threadid + " reacquires "+str(i)+" for reading")
                 L[0].lockForRead()
                 with QtCore.QWriteLocker(locklock):
                     lockregistry[i].append(L[1])
             elif seen and L[1]=='write' and not write:
-                print mn+threadid + ' tries to relock '+str(i)+ ' for writing that is locked for reading. This would block forever.'
+                print(mn+threadid + ' tries to relock '+str(i)+ ' for writing that is locked for reading. This would block forever.')
                 raise RuntimeError(mn+threadid + ' tries to relock '+str(i)+' for writing that is locked for reading. This would block forever.')
             elif not seen:
                 with QtCore.QWriteLocker(locklock):
@@ -3259,7 +3262,7 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                     L[0].lockForRead()
                 else:
                     L[0].lockForWrite()
-                if debug: print mn+ threadid + " locked "+str(i)+ " for "+L[1]
+                if debug: print(mn+ threadid + " locked "+str(i)+ " for "+L[1])
         yield
     finally:
         for lock in reversed(locks):
@@ -3272,7 +3275,7 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                     else:
                         lockregistry[i].pop()
                     if debug:
-                        print mn+threadid + " unlocked "+str(i)+ " for "+lock[1]
+                        print(mn+threadid + " unlocked "+str(i)+ " for "+lock[1])
 
 def nameless_dummy_object_with_methods(*methods):
     d = {}
@@ -3333,8 +3336,8 @@ class Timer(object):
 
     def __exit__(self, type, value, traceback):
         if self.name:
-            print '[%s]' % self.name,
-        print 'Elapsed: %s' % (time.time() - self.tstart)
+            print('[%s]' % self.name,)
+        print('Elapsed: %s' % (time.time() - self.tstart))
 
 def celery_available():
     try:
@@ -3462,7 +3465,7 @@ def import_code(code,name,add_to_sys_modules=0):
 
     module = imp.new_module(name)
 
-    exec code in module.__dict__
+    exec(code, module.__dict__)
     if add_to_sys_modules:
         sys.modules[name] = module
     return module

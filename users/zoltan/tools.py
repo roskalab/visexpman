@@ -20,7 +20,7 @@ if __name__=='__main__':
     folder = '/home/rz/codes/data/Natural_Scene_Movies'
     folder = '/home/rz/rzws/dataslow/Natural_Scene_Movies'
     for f in os.listdir(folder):
-        print f
+        print(f)
         if 'mp4' in f:
             video2stimulus_frames(os.path.join(folder,f))
 #            break

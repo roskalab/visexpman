@@ -3,9 +3,14 @@ import time
 import numpy
 import os.path
 import itertools
-import PyQt4.Qt as Qt
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.Qt as Qt
+    import PyQt4.QtGui as QtGui
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.Qt as Qt
+    import PyQt5.QtGui as QtGui
+    import PyQt5.QtCore as QtCore
 import pyqtgraph
 
 from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect,colors
@@ -28,9 +33,8 @@ class Advanced(QtGui.QWidget):
         self.layout.addWidget(self.test, 1, 0)
         self.layout.addWidget(self.p, 2, 0)
         self.setLayout(self.layout)
-        self.connect(self.fix, QtCore.SIGNAL('clicked()'), self.fix_clicked)
-        self.connect(self.test, QtCore.SIGNAL('clicked()'), self.test_clicked)
-        
+        self.fix.clicked.connect(self.fix_clicked)
+        self.test.clicked.connect(self.test_clicked)
         
     def fix_clicked(self):
         folder = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select folder', self.parent.machine_config.EXPERIMENT_DATA_PATH))
@@ -55,7 +59,10 @@ class CellBrowser(pyqtgraph.TreeWidget):
         self.parent=parent
         pyqtgraph.TreeWidget.__init__(self,parent)
         self.setColumnCount(1)
-        self.setHeaderLabels(QtCore.QStringList(['']))
+        if hasattr(QtCore, 'QStringList'):
+            self.setHeaderLabels(QtCore.QStringList(['']))
+        else:
+            self.setHeaderLabels([''])
         self.setMaximumWidth(350)
         self.itemDoubleClicked.connect(self.item_selected)
         
@@ -99,7 +106,10 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.root=root
         pyqtgraph.TreeWidget.__init__(self,parent)
         self.setColumnCount(1)
-        self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
+        if hasattr(QtCore, 'QStringList'):
+            self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
+        else:
+            self.setHeaderLabels([''])#, 'Date Modified']))
         self.setMaximumWidth(350)
         self.setMinimumHeight(400)
         self.populate()
@@ -135,14 +145,14 @@ class StimulusTree(pyqtgraph.TreeWidget):
             self.parent.printc('{0} = {1}'.format(k,v))
         
     def populate(self):
-        subdirs=map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)
+        subdirs=[s for s in map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)]
         files = fileop.find_files_and_folders(self.root)[1]
         files = [f for f in files if os.path.splitext(f)[1] =='.py' and os.path.dirname(f) in subdirs]
         experiment_configs = []
         for f in files:
             try:
                 confnames = experiment.parse_stimulation_file(f).keys()
-                experiment_configs.extend(map(os.path.join, [f]*len(confnames), confnames))
+                experiment_configs.extend([i for i in map(os.path.join, [f]*len(confnames), confnames)])
             except:
                 pass#Ignoring py files with error
         #Clear tree view
@@ -153,7 +163,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         added_items = {}
         for branch in branches:
             for level in range(len(branch)):
-                if not added_items.has_key(level):
+                if not level in added_items:
                     added_items[level] = []
                 widgets = [w for w in added_items[level] if str(w.text(0)) == branch[level]]
                 if len(widgets)==0:
@@ -201,7 +211,10 @@ class StimulusTree(pyqtgraph.TreeWidget):
                     if not child_found:
                         return
         if widget_ref is not None:
-            self.setItemSelected(widget_ref, True)
+            if hasattr(self,  'setItemSelected'):
+                self.setItemSelected(widget_ref, True)
+            else:
+                print('TODO: fix select stimulus from context')
         
     def get_selected_stimulus(self):
         selected_widget = self.selectedItems()
@@ -212,7 +225,10 @@ class StimulusTree(pyqtgraph.TreeWidget):
             selected_widget = selected_widget[0]
             if self._is_experiment_class(selected_widget):
                 filename, classname = self.filename_from_widget(selected_widget)
-                self.setHeaderLabels(QtCore.QStringList([classname]))
+                if hasattr(QtCore, 'QStringList'):
+                    self.setHeaderLabels(QtCore.QStringList([classname]))
+                else:
+                    self.setHeaderLabels([classname])
                 self.parent.to_engine.put({'data': filename+os.sep+classname, 'path': 'stimulusbrowser/Selected experiment class', 'name': 'Selected experiment class'})
         
     def _is_experiment_class(self, widget):
@@ -524,8 +540,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
         if self.machine_config.PLATFORM == 'elphys_retinal_ca' and hasattr(self.analysis_helper, 'show_repetitions'):
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
-
-        self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
+        
+        self.main_tab.currentChanged.connect(self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -535,9 +551,9 @@ class MainUI(gui.VisexpmanMainWindow):
     def check_queue(self):
         while not self.from_engine.empty():
             msg = self.from_engine.get()
-            if msg.has_key('printc'):
+            if 'printc' in msg:
                 self.printc(msg['printc'])
-            elif msg.has_key('send_image_data'):
+            elif 'send_image_data' in msg:
                 self.meanimage, self.image_scale, boundaries = msg['send_image_data']
                 self.image.remove_all_rois()
                 self.image.set_image(self.meanimage, color_channel = 1)
@@ -554,17 +570,17 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.adjust_contrast()
                 if hasattr(boundaries, 'shape'):
                     self.image.add_linear_region(boundaries)
-            elif msg.has_key('image_title'):
+            elif 'image_title' in msg:
                 self.image.plot.setTitle(msg['image_title'])
-            elif msg.has_key('show_suggested_rois'):
+            elif 'show_suggested_rois' in msg:
                 self.image_w_rois = msg['show_suggested_rois']
                 self.image.set_image(self.image_w_rois)
                 self.adjust_contrast()
-            elif msg.has_key('display_roi_rectangles'):
+            elif 'display_roi_rectangles' in msg:
                 self.image.remove_all_rois()
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
                 self.printc('Displaying {0} rois'.format(len(msg['display_roi_rectangles'])))
-            elif msg.has_key('display_roi_curve'):
+            elif 'display_roi_curve' in msg:
                 timg, curve, index, tsync,options = msg['display_roi_curve']
                 self.timg=timg
                 self.curve=curve
@@ -577,38 +593,38 @@ class MainUI(gui.VisexpmanMainWindow):
                     #Update plot
                     self.plot.update_curve(timg, curve)
                 self.plot.add_linear_region(list(tsync))
-            elif msg.has_key('remove_roi_rectangle'):
+            elif 'remove_roi_rectangle' in msg:
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))
-            elif msg.has_key('fix_roi'):
+            elif 'fix_roi' in msg:
                 for r in self.image.rois:
                     r.translatable=False
-            elif msg.has_key('ask4confirmation'):
+            elif 'ask4confirmation' in msg:
                 reply = QtGui.QMessageBox.question(self, 'Confirm following action', msg['ask4confirmation'], QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
                 self.to_engine.put(reply == QtGui.QMessageBox.Yes)
-            elif msg.has_key('notify'):
+            elif 'notify' in msg:
                 QtGui.QMessageBox.question(self, msg['notify']['title'], msg['notify']['msg'], QtGui.QMessageBox.Ok)
-            elif msg.has_key('reset_datafile'):
+            elif 'reset_datafile' in msg:
                 self.image.remove_all_rois()
-            elif msg.has_key('display_trace_parameters'):
+            elif 'display_trace_parameters' in msg:
                 pass
 #                txt='\n'.join(['{0}: {1}'.format(stringop.to_title(k),'{0}'.format(v)[:4]) for k, v in msg['display_trace_parameters'].items()])
 #                self.analysis_helper.trace_parameters.setText(txt)
-            elif msg.has_key('display_trace_parameter_distributions'):
+            elif 'display_trace_parameter_distributions' in msg:
                 self.tpp = TraceParameterPlots(msg['display_trace_parameter_distributions'])
                 self.tpp.show()
-            elif msg.has_key('display_cell_tree'):
+            elif 'display_cell_tree' in msg:
                 self.cellbrowser.populate(msg['display_cell_tree'])
-            elif msg.has_key('update_network_status'):
+            elif 'update_network_status' in msg:
                 self.statusbar.showMessage(msg['update_network_status'])
-            elif msg.has_key('highlight_multiple_rois'):
+            elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
-            elif msg.has_key('eye_camera_image'):
+            elif 'eye_camera_image' in msg:
                 self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 1)
                 h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
                 self.eye_camera.setFixedHeight(h)
                 self.eye_camera.plot.setTitle(time.time())
-            elif msg.has_key('plot_sync'):
+            elif 'plot_sync' in msg:
                 x,y=msg['plot_sync']
                 self.p=gui.Plot(None)
                 pp=[]

@@ -1,5 +1,4 @@
 import os,sys
-import os.path
 import numpy,copy,hdf5io
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment.configuration import AoCorticalCaImagingConfig,ResonantConfig
@@ -132,9 +131,10 @@ class ResonantSetup(ResonantConfig):
         ResonantConfig._set_user_parameters(self)
         # Files
         self.EXPERIMENT_FILE_FORMAT = 'hdf5'
-        self.LOG_PATH = 'v:\\log_res'
-        self.EXPERIMENT_DATA_PATH = 'v:\\experiment_data_res'
-        self.CONTEXT_PATH='v:\\context_res'
+        root='x:\\resonant-setup'
+        self.LOG_PATH = os.path.join(root,'log')
+        self.EXPERIMENT_DATA_PATH = os.path.join(root,'processed')
+        self.CONTEXT_PATH= os.path.join(root, 'context')
         #Stimulus screen
         self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 190.0
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
@@ -146,16 +146,16 @@ class ResonantSetup(ResonantConfig):
         self.ENABLE_FRAME_CAPTURE = False
         self.GUI['SIZE'] =  utils.cr((1024,768)) 
         #Network
-        stim_computer_ip = 'TBD'
+        stim_computer_ip = '172.27.26.47'
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         #Sync signal
-        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:3' #0: frame sync, 1: stim frame, 2: block, 3: mes start trigger
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:5' #0: frame sync, 1: stim frame, 2: block, 3: mes start trigger
         self.SYNC_RECORDER_SAMPLE_RATE=5000#mes sync pulses are very short
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         self.TIMG_SYNC_INDEX=0
         self.TSTIM_SYNC_INDEX=2
-        self.DIGITAL_IO_PORT=['Dev1/port0/line0','Dev1/port0/line1']
+        self.DIGITAL_IO_PORT=['Dev1/port1/line0','Dev1/port1/line1']
         self.DIGITAL_IO_PORT_TYPE='daq'
         self.MES_START_TRIGGER_PIN = 0
         self.BLOCK_TIMING_PIN = 1
@@ -169,11 +169,16 @@ class ResonantSetup(ResonantConfig):
 class ResonantDev(ResonantSetup):
     def _set_user_parameters(self):
         ResonantSetup._set_user_parameters(self)
-        self.LOG_PATH = 'c:\\zoli\\log'
-        self.EXPERIMENT_DATA_PATH = 'c:\\zoli\\experiment_data'
-        self.CONTEXT_PATH='c:\\zoli\\context'
-        stim_computer_ip = '172.27.27.187'
-        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
-        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
+#        self.LOG_PATH = 'c:\\zoli\\log'
+#        self.EXPERIMENT_DATA_PATH = 'c:\\zoli\\experiment_data'
+#        self.CONTEXT_PATH='c:\\zoli\\context'
+#        stim_computer_ip = '172.27.27.187'
+#        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
+#        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         self.FULLSCREEN=False
+        self.CAMERA_TRIGGER_ENABLE=True
+        self.CAMERA_TRIGGER_PORT='COM3'
+        self.CAMERA_TRIGGER_FRAME_RATE=20
+        self.CAMERA_PRE_STIM_WAIT=0.5
+        self.CAMERA_POST_STIM_WAIT=0.5
         self.SCREEN_RESOLUTION = utils.cr([1280/2, 720/2])

@@ -49,7 +49,7 @@ class GeorgGrating(experiment.Experiment):
             fract_bg=0
         self.gray=(nfull_periods*ec.BAR_WIDTH+fract_bar_width)/self.machine_config.SCREEN_SIZE_UM['col']
         self.duty_cycle=1/ec.DUTY_CYCLE-1
-        print 'mean gray', self.gray
+        print ('mean gray', self.gray)
         #Calculate sweep durations
         self.durations={}
         for p in ec.PATTERN_ORDER:

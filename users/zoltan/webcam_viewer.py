@@ -1,6 +1,11 @@
-import PyQt4.Qt as Qt
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.Qt as Qt
+    import PyQt4.QtGui as QtGui
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.Qt as Qt
+    import PyQt5.QtGui as QtGui
+    import PyQt5.QtCore as QtCore
 from visexpman.engine.generic import gui
 import cv2,numpy
 

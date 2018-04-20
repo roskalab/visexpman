@@ -12,9 +12,11 @@ class IOBoardCommands:public Comm {
         void run(void);
         void isr(void);
         void waveform_isr(void);
+        void elongate_isr(void);
     private:
         state_t read_state;
         state_t waveform_state;
+        state_t elongate_state;
         float base_frequency;
         float frequency_range;
         float modulation_frequency;
@@ -26,6 +28,8 @@ class IOBoardCommands:public Comm {
         float tmp;
         float tmp_isr;
         unsigned char debug;
+        float elongate_output_pin;
+        float elongate_duration;
         void set_pin(float pin,float value);
         void pulse(float pin,float duration);
         void waveform(float base_frequency, float frequency_range, float modulation_frequency);

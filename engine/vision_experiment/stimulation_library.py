@@ -7,18 +7,19 @@ try:
     default_text=GLUT_BITMAP_TIMES_ROMAN_24
 except ImportError:
     default_text=None
-    print 'opengl not installed'
+    print('opengl not installed')
 from contextlib import closing
 import tables
-import experiment_control
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
-from visexpman.engine.vision_experiment import screen,experiment_data
+try:
+    import screen,experiment_control
+except ImportError:
+    from visexpman.engine.vision_experiment import screen,experiment_control
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
 except IOError:
     test_mode=False
-
 import unittest
 
 class Stimulations(experiment_control.StimulationControlHelper):#, screen.ScreenAndKeyboardHandler):
@@ -30,15 +31,18 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.config=machine_config#TODO: eliminate self.config
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
-        if hasattr(self, 'kwargs') and self.kwargs.has_key('screen') and self.kwargs['screen'] !=None:
+        if hasattr(self, 'kwargs') and 'screen' in self.kwargs and self.kwargs['screen'] !=None:
             self.screen=self.kwargs['screen']
         else:
             self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
         experiment_control.StimulationControlHelper.__init__(self, machine_config, parameters, queues, application_log)
         if self.config.SCREEN_MODE != 'psychopy':
-            self.grating_texture = glGenTextures(1)
-            glBindTexture(GL_TEXTURE_2D, self.grating_texture)
-            glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+            try:
+                self.grating_texture = glGenTextures(1)
+                glBindTexture(GL_TEXTURE_2D, self.grating_texture)
+                glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+            except:
+                print('TODO: investigate ignoring opengl calls in non-screen mode')
         #Calculate axis factors
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
@@ -123,9 +127,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         Generates trigger pulses
         '''
         if hasattr(self, 'digital_io'):
-            self.digital_io.set_data_bit(pin, int(polarity), log = False)
+            self.digital_io.set_pin(pin, int(polarity))
             time.sleep(width)
-            self.digital_io.set_data_bit(pin, int(not polarity), log = False)
+            self.digital_io.set_pin(pin, int(not polarity))
 
     def _frame_timing_pulse(self):
         '''
@@ -136,7 +140,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             
     def block_start(self, block_name = 'stimulus function'):
         if hasattr(self, 'digital_io'):
-            self.digital_io.set_data_bit(self.config.BLOCK_TIMING_PIN, 1, log = False)
+            self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 1)
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 1]})
@@ -145,7 +149,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 
     def block_end(self, block_name = 'stimulus function'):
         if hasattr(self, 'digital_io'):
-            self.digital_io.set_data_bit(self.config.BLOCK_TIMING_PIN, 0, log = False)
+            self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 0)
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 0]})
@@ -595,6 +599,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
             converted_background_color = colors.convert_color(background_color, self.config)
             glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        try:
+            import experiment_data
+        except ImportError:
+            from visexpman.engine.vision_experiment import experiment_data
         spatial_period=experiment_data.cpd2um(spatial_frequency,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
         nframes=1 if duration==0 else int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)
         size_pixel=int(size*self.config.SCREEN_UM_TO_PIXEL_SCALE)
@@ -1367,7 +1375,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._flip(False)
             if self.abort:
                 break
-        print i/(time.time()-t0)
+        print(i/(time.time()-t0))
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
@@ -1504,7 +1512,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=texture1+texture2+background_color
         else:
             texture=texture1+texture2
-        print 'm', texture.max(), texture1.max(), texture2.max(),profile.max()
+        print('m', texture.max(), texture1.max(), texture2.max(),profile.max())
         cut=int(texture_width*(1-1.0/extension_factor)/2)
         merged_period=line_spacing_p/numpy.sin(numpy.radians(relative_angle/2))
         nreps=int(0.5*self.config.SCREEN_RESOLUTION['col']/merged_period)#Texture is reassambled from half screen wide segments
@@ -1536,7 +1544,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             tout[:,:,i]=texture
         texture=tout
 #        texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
-        print t0-time.time()
+        print(t0-time.time())
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             texture = self.config.GAMMA_CORRECTION(texture)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
@@ -1996,12 +2004,12 @@ class AdvancedStimulation(StimulationHelpers):
         self.ncolumns=ncolumns
         self.shape_size=shape_size
         if 0:
-            print corners_um[:,0].min(), corners_um[:,0].max(), self.machine_config.SCREEN_SIZE_UM['row']
-            print corners_um[:,1].min(), corners_um[:,1].max(), self.machine_config.SCREEN_SIZE_UM['col']
+            print(corners_um[:,0].min(), corners_um[:,0].max(), self.machine_config.SCREEN_SIZE_UM['row'])
+            print(corners_um[:,1].min(), corners_um[:,1].max(), self.machine_config.SCREEN_SIZE_UM['col'])
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
             for angle,shape_size_i, color,p in positions_and_colors:
-                    print angle
+                    print(angle)
                     #print shape_size_i['row']
             #for p in positions:
              #   for color in shape_colors:
@@ -2304,9 +2312,9 @@ if test_mode:
             if 0:
                 for s in sfi:
                     if s.has_key('block_start') or s.has_key('block_end'):
-                        print s.keys()
+                        print(s.keys())
                     else:
-                        print s['stimulus_type']
+                        print(s['stimulus_type'])
             self.assertEqual(len([s for s in sfi if 'block_start' in s]), expected_number_of_blocks)
             self.assertEqual(len([s for s in sfi if 'block_end' in s]), expected_number_of_blocks)
             #block start and block end entries must be adjacent, no stimulus info should be in between

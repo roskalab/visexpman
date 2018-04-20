@@ -1,6 +1,6 @@
 import numpy
 import time
-import instrument
+from visexpman.engine.hardware_interface import instrument
 import unittest
 import copy
 import logging
@@ -66,7 +66,7 @@ class WaveformGenerator(multiprocessing.Process, daqmxtask):
                 self.StartTask()
             if not self.abort.empty():
                 break
-            print u
+            print(u)
         
 #        if 0:
 #            time.sleep(1)

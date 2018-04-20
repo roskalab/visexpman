@@ -4,8 +4,10 @@ Signal/Image manipulation/filtering functions
 import copy
 import numpy
 import scipy.interpolate
-
-import utils
+try:
+    import utils
+except ImportError:
+    from visexpman.engine.generic import utils
 
 import unittest
 
@@ -434,7 +436,7 @@ class TestSignal(unittest.TestCase):
         numpy.testing.assert_allclose(numpy.diff(sig[int(t_up*fs): int((t_up+t_down)*fs)]).std(), 0.0, 0.0, 1e-5)
         if False:
             from pylab import plot,show
-            print numpy.diff(sig)
+            print(numpy.diff(sig))
             plot(sig)
             show()
             
