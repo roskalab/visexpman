@@ -76,12 +76,7 @@ class ExperimentHandler(object):
             self.sync_recording_started=False
             self.batch_running=False
             self.eye_camera_running=False
-        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
-        if self.machine_config.PLATFORM=='resonant' and 0:
-            from visexpman.engine.hardware_interface import mesc_interface
-            print (1)
-            self.mesc=mesc_interface.MescapiInterface()
-            print (2)
+        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()            
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -175,7 +170,7 @@ class ExperimentHandler(object):
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        if self.machine_config.PLATFORM=='ao_cortical':
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
         else:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
@@ -396,7 +391,7 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-            if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
@@ -589,10 +584,20 @@ class ExperimentHandler(object):
             self.printc('Experiment finished with error')            
             
     def mesc_handler(self, command):
-        res=1#getattr(self.mesc,  command)()
-        self.printc('mesc command: {0}, {1}'.format(command,  res))
-        if not res:
-            self.stop_experiment()
+        if command=='init':
+            if self.machine_config.PLATFORM=='resonant':
+                from visexpman.engine.hardware_interface import mesc_interface
+                self.mesc=mesc_interface.MescapiInterface()
+                self.printc('mesc init')
+        elif command=='close':
+            if hasattr(self, 'mesc'):
+                self.mesc.close()
+                self.printc('mesc closed')
+        else:
+            res=getattr(self.mesc,  command)()
+            self.printc('mesc command: {0}, {1}'.format(command,  res))
+            if not res:
+                self.stop_experiment()
                     
     def convert_stimulus_to_video(self):
         if hasattr(self.machine_config, 'SCREEN_MODE') and self.machine_config.SCREEN_MODE == 'psychopy':
@@ -1277,7 +1282,7 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM=='ao_cortical' or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant'] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
@@ -1568,8 +1573,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def close(self):
         self.save_context()
-        if hasattr(self, 'mesc'):#TODO: this should be in ExperimentHandler class
-            self.mesc.close()
 
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):

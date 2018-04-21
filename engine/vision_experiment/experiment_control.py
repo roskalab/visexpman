@@ -495,8 +495,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.clear_trigger(self.config.FRAME_TIMING_PIN)
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
-        if self.machine_config.CAMERA_TRIGGER_ENABLE:
-            self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_TRIGGER_PORT)
         self.user_data = {}
         self.abort = False
         
@@ -576,6 +574,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         try:
+            if self.machine_config.CAMERA_TRIGGER_ENABLE:
+                self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_TRIGGER_PORT)
             prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
@@ -627,6 +627,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.sync_recording_duration=self.parameters['duration']
                 self.start_sync_recording()
                 self.send({'mesc':'start'})
+                time.sleep(1)
+                self.printl('TODO: make sure that stim is notified about MESc start')
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
                 self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
                 time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
@@ -642,7 +644,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 raise RuntimeError(traceback.format_exc())
             self.log.resume()
             #Terminate recording devices
-            if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
+            if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
@@ -666,7 +668,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if not self.abort:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical']:
+                if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant']:
                     self.send({'trigger':'stim data ready'})
                 if self.machine_config.PLATFORM in ['ao_cortical']:
                     self._backup(self.datafilename)
@@ -776,15 +778,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = experiment_data.CaImagingData(self.outputfilename)
             self._prepare_data2save()
-            [[setattr(self.datafile, v, getattr(self,v)),self.datafile.save(v)] for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
+            [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
+            [self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
             if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
-                if self.machine_config.PLATFORM!='resonant':
-                    self.datafile.sync2time()
-                    self.datafile.check_timing()
-                else:
-                    self.printl('TODO: enable timing checks')
+                self.datafile.sync2time()
+                self.datafile.check_timing()
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':

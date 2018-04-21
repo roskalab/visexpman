@@ -124,11 +124,11 @@ class Flash(experiment.Stimulus):
         self.duration=self.DURATION*3
         
     def run(self):
-        self.block_start()
+        self.block_start(('on',))
         self.show_fullscreen(color=0.5,duration=self.DURATION)
         self.block_end()
         self.show_fullscreen(color=0.5,duration=self.DURATION)
-        self.block_start()
+        self.block_start(('on',))
         self.show_fullscreen(color=1.0,duration=self.DURATION)
         self.block_end()
         

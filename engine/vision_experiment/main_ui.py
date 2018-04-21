@@ -507,7 +507,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
-            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
