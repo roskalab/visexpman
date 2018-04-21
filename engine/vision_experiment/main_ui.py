@@ -166,6 +166,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
                 if not level in added_items:
                     added_items[level] = []
                 widgets = [w for w in added_items[level] if str(w.text(0)) == branch[level]]
+                print((branch, level))#DEBUG
                 if len(widgets)==0:
                     newwidget=QtGui.QTreeWidgetItem([branch[level]])
                     if level==0:

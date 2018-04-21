@@ -593,7 +593,7 @@ class ExperimentHandler(object):
             if hasattr(self, 'mesc'):
                 self.mesc.close()
                 self.printc('mesc closed')
-        else:
+        elif hasattr(self, 'mesc'):
             res=getattr(self.mesc,  command)()
             self.printc('mesc command: {0}, {1}'.format(command,  res))
             if not res:

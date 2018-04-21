@@ -640,8 +640,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.run()
                 self._stop_frame_capture()
             except:
+                self.abort=True
                 self.send({'trigger':'stim error'})
-                raise RuntimeError(traceback.format_exc())
+                self.printl(traceback.format_exc())
             self.log.resume()
             #Terminate recording devices
             if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant']:

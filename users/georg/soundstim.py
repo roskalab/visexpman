@@ -30,12 +30,14 @@ class SoundAndGratingC(experiment.ExperimentConfig):
 class SoundAndGratingShort(SoundAndGratingC):
     def _create_parameters(self):
         SoundAndGratingC._create_parameters(self)
+        self.ARDUINO_SOUND_GENERATOR= False
         self.SPEEDS=[1200]
         
 class SoundAndGratingE(experiment.Experiment):
     def prepare(self):
         ec=self.experiment_config
         self.protocol=[[s,c,o] for s, c, o in itertools.product(ec.SPEEDS, ec.CONDITIONS, ec.ORIENTATION)]
+        self.duration=ec.PAUSE+len(self.protocol)*ec.BLOCK_DURATION
         if ec.RANDOMIZE:
             random.shuffle(self.protocol)
         self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
