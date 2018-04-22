@@ -658,7 +658,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             for arm in range(narms):
                 start_angle=angles[2*arm]
                 end_angle=angles[2*arm+1]
-                draw.pieslice([0,0,2*size_pixel-1,2*size_pixel-1], start_angle, end_angle,fill=int(color_max*255))
+                draw.pieslice([0,0,2*size_pixel-1,2*size_pixel-1], int(start_angle), int(end_angle),fill=int(color_max*255))                
             texture=numpy.asarray(im)/255.
             #At half radius, 15 % of arm size
             transition=int(size_pixel*numpy.pi/narms*0.15)
