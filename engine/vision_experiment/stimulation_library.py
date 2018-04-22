@@ -1038,12 +1038,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 where the dimensions are organized as above controlling the color of each shape individually
             duration: duration of each frame in s. When 0, frame is shown for one frame time.
             are_same_shapes_over_frames: if True, all frames show the same shapes with different colors
-
+            colors_per_shape: color of each shape does not change over time
         The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, 
         these will be segmented to frames assuming that on each frame the number of shapes are equal.
         '''
-        self.log_on_flip_message_initial = 'show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')'
-        self.log_on_flip_message_continous = 'show_shapes'
+        self.log.info('show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')')
         first_flip = False
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
@@ -1059,7 +1058,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             n_frames = color.shape[0]
         else:
             n_frames = len(shape_positions) / nshapes
-        self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
         n_vertices = len(vertices)        
         if are_same_shapes_over_frames:
             frames_vertices = numpy.zeros(( nshapes * n_vertices,  2))         
@@ -1115,10 +1113,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         break
                 #Make sure that at the first flip the parameters of the function call are logged
                 if not first_flip:
-                    self.log_on_flip_message = self.log_on_flip_message_initial
                     first_flip = True
-                else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
+                self._flip(frame_timing_pulse = True)
                 if self.abort:
                     break
             if self.abort:
