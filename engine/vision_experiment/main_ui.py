@@ -481,6 +481,9 @@ class MainUI(gui.VisexpmanMainWindow):
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
+        self.statusbar.status=QtGui.QLabel('Idle', self)
+        self.statusbar.addPermanentWidget(self.statusbar.status)
+        self.statusbar.status.setStyleSheet('background:gray;')
         #Add dockable widgets
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
@@ -616,6 +619,13 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.cellbrowser.populate(msg['display_cell_tree'])
             elif 'update_network_status' in msg:
                 self.statusbar.showMessage(msg['update_network_status'])
+            elif 'update_status' in msg:
+                if msg['update_status']=='idle':
+                    self.statusbar.status.setStyleSheet('background:gray;')
+                    self.statusbar.status.setText(msg['update_status'].capitalize())
+                elif msg['update_status']=='recording':
+                    self.statusbar.status.setStyleSheet('background:red;')
+                    self.statusbar.status.setText(msg['update_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'eye_camera_image' in msg:

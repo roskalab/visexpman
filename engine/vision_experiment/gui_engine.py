@@ -304,6 +304,7 @@ class ExperimentHandler(object):
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
+        self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
         self.printc('Finishing experiment...')
@@ -343,6 +344,7 @@ class ExperimentHandler(object):
                 self.eye_camera_running=False
                 self.start_eye_camera()
             self.experiment_running=False
+            self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
             
     def save_experiment_files(self, aborted=False):
@@ -557,6 +559,7 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         self.experiment_running=False
+        self.to_gui.put({'update_status':'idle'})
         self.printc('Experiment stopped')
         
     def check_mcd_recording_started(self):
