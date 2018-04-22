@@ -622,10 +622,11 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'update_status' in msg:
                 if msg['update_status']=='idle':
                     self.statusbar.status.setStyleSheet('background:gray;')
-                    self.statusbar.status.setText(msg['update_status'].capitalize())
                 elif msg['update_status']=='recording':
                     self.statusbar.status.setStyleSheet('background:red;')
-                    self.statusbar.status.setText(msg['update_status'].capitalize())
+                elif msg['update_status']=='busy':
+                    self.statusbar.status.setStyleSheet('background:yellow;')
+                self.statusbar.status.setText(msg['update_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'eye_camera_image' in msg:
