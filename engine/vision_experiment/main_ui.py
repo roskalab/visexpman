@@ -143,6 +143,16 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.parent.printc('{0} parameters'.format(self.classname))
         for k, v in parameters.items():
             self.parent.printc('{0} = {1}'.format(k,v))
+            
+    def roots(self,item):
+        roots=[str(item.text(0))]
+        while True:
+            item=item.parent()
+            if hasattr(item, 'text'):
+                roots.append(str(item.text(0)))
+            else:
+                break
+        return roots[::-1]
         
     def populate(self):
         subdirs=[s for s in map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)]
@@ -160,25 +170,30 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.clear()
         #Populate with files and stimulus classes
         branches = [list(e.replace(self.root, '')[1:].split(os.sep)) for e in experiment_configs]
-        added_items = {}
-        for branch in branches:
-            for level in range(len(branch)):
-                if not level in added_items:
-                    added_items[level] = []
-                widgets = [w for w in added_items[level] if str(w.text(0)) == branch[level]]
-                print((branch, level))#DEBUG
-                if len(widgets)==0:
-                    newwidget=QtGui.QTreeWidgetItem([branch[level]])
-                    if level==0:
-                        self.addTopLevelItem(newwidget)
-                    else:
-                        try:
-                            upper_widget = [w for w in added_items[level-1] if str(w.text(0)) == branch[level-1]][0]
-                        except:
-                            import pdb
-                            pdb.set_trace()
-                        upper_widget.addChild(newwidget)
-                    added_items[level].append(newwidget)
+        nlevels=[len(b) for b in branches]
+        if not all(nlevels):
+            raise ValueError('All branches shall have the same depth')
+        nlevels=nlevels[0]
+        tree_items=[]
+        for level in range(nlevels):
+            for i in [b[:level+1] for b in branches]:
+                if i not in tree_items:
+                    tree_items.append(i)
+        tree_items.sort()
+        added_items=[]
+        for tree_item in tree_items:
+            roots=[self.roots(w) for w in added_items]
+            newwidget=QtGui.QTreeWidgetItem([tree_item[-1]])
+            if len(tree_item)==1:
+                self.addTopLevelItem(newwidget)
+            else:
+                ref=[added_items[i] for i in range(len(roots)) if roots[i]==tree_item[:-1]]
+                if len(ref)==1:
+                    ref[0].addChild(newwidget)
+                else:
+                    raise
+                    
+            added_items.append(newwidget)
         self.blockSignals(False)
         
     def stimulus_selected_for_open(self,selected_widget):
