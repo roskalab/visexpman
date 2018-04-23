@@ -492,8 +492,10 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
             toolbar_buttons = ['start_experiment', 'start_batch', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
-        elif self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
+        elif self.machine_config.PLATFORM in ['ao_cortical']:
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
+        elif self.machine_config.PLATFORM =='resonant':
+            toolbar_buttons = ['start_experiment', 'stop', 'mesc_connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -802,6 +804,9 @@ class MainUI(gui.VisexpmanMainWindow):
 
     def convert_stimulus_to_video_action(self):
         self.to_engine.put({'function': 'convert_stimulus_to_video', 'args':[]})
+        
+    def mesc_connect_action(self):
+        self.to_engine.put({'function': 'mesc_connect', 'args':[]})
         
     def exit_action(self):
         if hasattr(self, 'tpp'):

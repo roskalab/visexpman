@@ -251,6 +251,9 @@ class ExperimentHandler(object):
                 self.printc('Starting next batch item, {0} left'.format(len(self.batch)))
                 self.start_experiment(experiment_parameters=self.batch[0])
                 self.batch=self.batch[1:]
+                
+    def mesc_connect(self):
+        self.mesc_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
@@ -591,7 +594,7 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM=='resonant':
                 from visexpman.engine.hardware_interface import mesc_interface
                 self.mesc=mesc_interface.MescapiInterface()
-                self.printc('mesc init')
+                self.printc('mesc init {0} successful'.format('not' if not self.mesc.connected else ''))
         elif command=='close':
             if hasattr(self, 'mesc'):
                 self.mesc.close()
