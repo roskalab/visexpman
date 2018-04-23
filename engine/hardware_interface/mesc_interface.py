@@ -25,15 +25,18 @@ class MescapiInterface(object):
                 self.serverpp.kill()
                 raise IOError('Cannot connect to MEScApiServer')
         else:
+            self.connected=False
             self.manager = mescapi.APIClientManager()
             done=self.manager.webSocketConnect(QtCore.QUrl('ws://{0}:8888'.format(mesc_address)))
-            if done == False:
+            if not done:
+                return#Subsequent exception is not raised and main_ui freezes
                 raise IOError('Cannot connect to MEScApiServer')
             self.client=self.manager.getClientListModel().getClient(0)
             loginParser=self.client.login('default','defaultpw')
             resultCode=loginParser.getResultCode()
             if resultCode > 0:
                 raise RuntimeError (loginParser.getErrorText())
+            self.connected=True
 
     def request(self,cmd):
         if use_proxy:
@@ -57,7 +60,7 @@ class MescapiInterface(object):
             else:	
                 data=parser.getJSEngineResult()
         self.data=data
-        if isinstance(data, bool):
+        if isinstance(data, bool) or isinstance(data, int):
             return data
         elif not isinstance(data, str):
             data=data.decode('utf-8')
@@ -65,6 +68,15 @@ class MescapiInterface(object):
             return json.loads(data.replace('\xb5','u'))#unicode is used for um
         except ValueError:
             return data
+            
+    def ping(self):
+        if not self.connected:
+            return False
+        try:
+            return self.request('a="123";')==123
+        except:
+            self.connected=False
+            return False
         
     def start(self):
         '''
@@ -106,7 +118,8 @@ class MescapiInterface(object):
             except psutil.NoSuchProcess:
                 pass
         else:
-            self.manager.closeConnection(self.client)
+            if self.connected:
+                self.manager.closeConnection(self.client)
         
 class TestMesc(unittest.TestCase):
     def test_01_simple_use(self):

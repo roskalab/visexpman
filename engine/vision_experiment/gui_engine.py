@@ -597,8 +597,12 @@ class ExperimentHandler(object):
                 self.mesc.close()
                 self.printc('mesc closed')
         elif hasattr(self, 'mesc'):
+            if not self.mesc.connected:
+                self.printc('No connection to MESc')
+                return
             res=getattr(self.mesc,  command)()
             self.printc('mesc command: {0}, {1}'.format(command,  res))
+            self.send({'mesc {0} command result'.format(command):res}, 'stim')
             if not res:
                 self.stop_experiment()
                     
@@ -630,6 +634,12 @@ class ExperimentHandler(object):
             self.sync_recorder.join()
             self.log.info('Sync recorder terminated')
         self.stop_eye_camera()
+
+    def init_experiment_handler(self):
+        self.mesc_handler('init')
+
+    def close_experiment_handler(self):
+        self.mesc_handler('close')
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -1510,6 +1520,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if self.mes_connection_status:
                 n_connected += 1
                 self.connected_nodes+='stim-mes '
+        elif self.machine_config.PLATFORM=='resonant':
+            n_connections+=1
+            if hasattr(self, 'mesc'):
+                if self.mesc.ping():
+                    n_connected += 1
+                    self.connected_nodes+='mesc '
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
@@ -1531,6 +1547,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def run(self):
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
+        for fn in dir(self):
+            if 'init_'==fn[:5] and callable(getattr(self, fn)):
+                getattr(self, fn)()
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
@@ -1576,6 +1595,10 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def close(self):
         self.save_context()
+        for fn in dir(self):
+            if 'close_'==fn[:6] and callable(getattr(self, fn)):
+                getattr(self, fn)()
+                
 
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):

@@ -628,7 +628,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.start_sync_recording()
                 self.send({'mesc':'start'})
                 time.sleep(1)
-                self.printl('TODO: make sure that stim is notified about MESc start')
+                response=self.recv()
+                if not hasattr(response, 'key') or not response['mesc start command result']:
+                    self.abort=True
+                    self.mesc_error=True
+                    self.printl('MESc did not start, aborting stimulus')
+                else:
+                    self.mesc_error=False
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
                 self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
                 time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
@@ -661,7 +667,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
             elif self.machine_config.PLATFORM == 'resonant':
-                self.send({'mesc':'stop'})
+                if not self.mesc_error:
+                    self.send({'mesc':'stop'})
             if self.machine_config.PLATFORM in ['behav', 'ao_cortical', 'resonant']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
