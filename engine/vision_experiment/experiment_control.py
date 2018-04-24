@@ -497,6 +497,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         self.user_data = {}
         self.abort = False
+        self.check_frame_rate=True
         
     def start_sync_recording(self):
         class Conf(object):
@@ -629,7 +630,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'mesc':'start'})
                 time.sleep(1)
                 response=self.recv()
-                if not hasattr(response, 'key') or not response['mesc start command result']:
+                if not hasattr(response, 'keys') or not response['mesc start command result']:
                     self.abort=True
                     self.mesc_error=True
                     self.printl('MESc did not start, aborting stimulus')
@@ -688,7 +689,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='mc_mea':
                 self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH,polarity=self.machine_config.ACQUISITION_TRIGGER_POLARITY)
             self.frame_rates = numpy.array(self.frame_rates)
-            if len(self.frame_rates)>0:
+            if len(self.frame_rates)>0 and self.check_frame_rate:
                 fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
                 self.log.info(fri, source = 'stim')
                 expfr=self.machine_config.SCREEN_EXPECTED_FRAME_RATE
@@ -792,7 +793,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
                 self.datafile.sync2time()
-                self.datafile.check_timing()
+                self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':

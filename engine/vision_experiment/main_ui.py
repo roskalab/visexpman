@@ -495,7 +495,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM in ['ao_cortical']:
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         elif self.machine_config.PLATFORM =='resonant':
-            toolbar_buttons = ['start_experiment', 'stop', 'mesc_connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'mesc_connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()

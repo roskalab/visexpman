@@ -38,27 +38,29 @@ class SoundAndGratingE(experiment.Experiment):
         ec=self.experiment_config
         self.protocol=[[s,c,o] for s, c, o in itertools.product(ec.SPEEDS, ec.CONDITIONS, ec.ORIENTATION)]
         self.duration=ec.PAUSE+len(self.protocol)*ec.BLOCK_DURATION
-        if ec.RANDOMIZE:
-            random.shuffle(self.protocol)
-        self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
-        self.experiment_config.PROTOCOL=self.protocol
-        self.experiment_config.PROTOCOL1=[[p[0], int(p[1]=='grating' or p[1]=='both'), int(p[1]=='sound' or p[1]=='both')] for p in self.protocol]
-        self.experiment_config.GRATING_FREQUENCY=1.0/(ec.BAR_WIDTH/ec.GRATING_DUTY_CYCLE/numpy.array(ec.SPEEDS))
-        if not self.experiment_config.ARDUINO_SOUND_GENERATOR:
-            self.sound_filenames={}
-            self.s=[]
-            for i in range(len(ec.GRATING_FREQUENCY)):
-                self.s.append(sound.SoundGenerator())
-                self.s[-1].sample_rate=ec.AUDIO_SAMPLING_RATE
-                if ec.MODULATION=='fm':
-                    self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=True))
-                elif ec.MODULATION=='fmsmooth':
-                    self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=False))
-                elif ec.MODULATION=='am':
-                    self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
-                self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
-                #import shutil;shutil.copy(self.s[-1].mp3fn,'c:\\temp')
-        self.block_boundaries=[]
+        if self.machine_config.user_interface_name=='stim':
+            self.printl('Generating sound tracks')
+            if ec.RANDOMIZE:
+                random.shuffle(self.protocol)
+            self.duty_cycle=1/ec.GRATING_DUTY_CYCLE-1
+            self.experiment_config.PROTOCOL=self.protocol
+            self.experiment_config.PROTOCOL1=[[p[0], int(p[1]=='grating' or p[1]=='both'), int(p[1]=='sound' or p[1]=='both')] for p in self.protocol]
+            self.experiment_config.GRATING_FREQUENCY=1.0/(ec.BAR_WIDTH/ec.GRATING_DUTY_CYCLE/numpy.array(ec.SPEEDS))
+            if not self.experiment_config.ARDUINO_SOUND_GENERATOR:
+                self.sound_filenames={}
+                self.s=[]
+                for i in range(len(ec.GRATING_FREQUENCY)):
+                    self.s.append(sound.SoundGenerator())
+                    self.s[-1].sample_rate=ec.AUDIO_SAMPLING_RATE
+                    if ec.MODULATION=='fm':
+                        self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=True))
+                    elif ec.MODULATION=='fmsmooth':
+                        self.s[-1].array2mp3(signal.generate_frequency_modulated_waveform(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.FREQUENCY_STEP, ec.GRATING_FREQUENCY[i],ec.AUDIO_SAMPLING_RATE, step=False))
+                    elif ec.MODULATION=='am':
+                        self.s[-1].generate_modulated_sound(ec.BLOCK_DURATION,ec.SOUND_BASE_FREQUENCY,ec.GRATING_FREQUENCY[i])
+                    self.sound_filenames[ec.SPEEDS[i]]=self.s[-1].mp3fn
+                    #import shutil;shutil.copy(self.s[-1].mp3fn,'c:\\temp')
+            self.block_boundaries=[]
         
     def block(self, speed, condition, orientation):
         block_sig=(condition, speed, orientation)

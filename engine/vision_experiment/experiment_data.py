@@ -274,7 +274,7 @@ class CaImagingData(hdf5io.Hdf5io):
                 measured_frame_rate=(bei-bsi)/measured_block_durations
                 error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
                 if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
-                    errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+                    errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
             else:
                 raise NotImplementedError()
         if len(errors)>0:

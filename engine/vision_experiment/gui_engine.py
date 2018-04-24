@@ -76,7 +76,7 @@ class ExperimentHandler(object):
             self.sync_recording_started=False
             self.batch_running=False
             self.eye_camera_running=False
-        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()            
+        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -1597,11 +1597,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.printc('{0} file is closed'.format(self.datafile.filename))
         
     def close(self):
-        self.save_context()
-        for fn in dir(self):
-            if 'close_'==fn[:6] and callable(getattr(self, fn)):
-                getattr(self, fn)()
-                
+        self.save_context()                
 
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
@@ -1612,6 +1608,9 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def close(self):
         self.on_exit()
         self.close_analysis()
+        print('analysis closed')
+        self.close_experiment_handler()
+        print('exphandler closed')
         GUIEngine.close(self)
 
 class CaImagingEngine(GUIEngine):

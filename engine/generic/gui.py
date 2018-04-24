@@ -142,6 +142,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         
     def closeEvent(self, e):
         e.accept()
+        print('close event')
         self.exit_action()
 
 class SimpleAppWindow(Qt.QMainWindow):
