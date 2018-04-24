@@ -143,6 +143,16 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.parent.printc('{0} parameters'.format(self.classname))
         for k, v in parameters.items():
             self.parent.printc('{0} = {1}'.format(k,v))
+            
+    def roots(self,item):
+        roots=[str(item.text(0))]
+        while True:
+            item=item.parent()
+            if hasattr(item, 'text'):
+                roots.append(str(item.text(0)))
+            else:
+                break
+        return roots[::-1]
         
     def populate(self):
         subdirs=[s for s in map(os.path.join,len(self.subdirs)*[self.root], self.subdirs)]
@@ -160,24 +170,30 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.clear()
         #Populate with files and stimulus classes
         branches = [list(e.replace(self.root, '')[1:].split(os.sep)) for e in experiment_configs]
-        added_items = {}
-        for branch in branches:
-            for level in range(len(branch)):
-                if not level in added_items:
-                    added_items[level] = []
-                widgets = [w for w in added_items[level] if str(w.text(0)) == branch[level]]
-                if len(widgets)==0:
-                    newwidget=QtGui.QTreeWidgetItem([branch[level]])
-                    if level==0:
-                        self.addTopLevelItem(newwidget)
-                    else:
-                        try:
-                            upper_widget = [w for w in added_items[level-1] if str(w.text(0)) == branch[level-1]][0]
-                        except:
-                            import pdb
-                            pdb.set_trace()
-                        upper_widget.addChild(newwidget)
-                    added_items[level].append(newwidget)
+        nlevels=[len(b) for b in branches]
+        if not all(nlevels):
+            raise ValueError('All branches shall have the same depth')
+        nlevels=nlevels[0]
+        tree_items=[]
+        for level in range(nlevels):
+            for i in [b[:level+1] for b in branches]:
+                if i not in tree_items:
+                    tree_items.append(i)
+        tree_items.sort()
+        added_items=[]
+        for tree_item in tree_items:
+            roots=[self.roots(w) for w in added_items]
+            newwidget=QtGui.QTreeWidgetItem([tree_item[-1]])
+            if len(tree_item)==1:
+                self.addTopLevelItem(newwidget)
+            else:
+                ref=[added_items[i] for i in range(len(roots)) if roots[i]==tree_item[:-1]]
+                if len(ref)==1:
+                    ref[0].addChild(newwidget)
+                else:
+                    raise
+                    
+            added_items.append(newwidget)
         self.blockSignals(False)
         
     def stimulus_selected_for_open(self,selected_widget):
@@ -476,11 +492,16 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
             toolbar_buttons = ['start_experiment', 'start_batch', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
-        elif self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
+        elif self.machine_config.PLATFORM in ['ao_cortical']:
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
+        elif self.machine_config.PLATFORM =='resonant':
+            toolbar_buttons = ['start_experiment', 'stop', 'mesc_connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
+        self.statusbar.status=QtGui.QLabel('Idle', self)
+        self.statusbar.addPermanentWidget(self.statusbar.status)
+        self.statusbar.status.setStyleSheet('background:gray;')
         #Add dockable widgets
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
@@ -507,7 +528,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM=='ao_cortical' else self.machine_config.EXPERIMENT_DATA_PATH
-            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
@@ -616,6 +637,14 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.cellbrowser.populate(msg['display_cell_tree'])
             elif 'update_network_status' in msg:
                 self.statusbar.showMessage(msg['update_network_status'])
+            elif 'update_status' in msg:
+                if msg['update_status']=='idle':
+                    self.statusbar.status.setStyleSheet('background:gray;')
+                elif msg['update_status']=='recording':
+                    self.statusbar.status.setStyleSheet('background:red;')
+                elif msg['update_status']=='busy':
+                    self.statusbar.status.setStyleSheet('background:yellow;')
+                self.statusbar.status.setText(msg['update_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'eye_camera_image' in msg:
@@ -775,6 +804,9 @@ class MainUI(gui.VisexpmanMainWindow):
 
     def convert_stimulus_to_video_action(self):
         self.to_engine.put({'function': 'convert_stimulus_to_video', 'args':[]})
+        
+    def mesc_connect_action(self):
+        self.to_engine.put({'function': 'mesc_connect', 'args':[]})
         
     def exit_action(self):
         if hasattr(self, 'tpp'):

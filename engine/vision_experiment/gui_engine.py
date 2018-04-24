@@ -76,12 +76,7 @@ class ExperimentHandler(object):
             self.sync_recording_started=False
             self.batch_running=False
             self.eye_camera_running=False
-        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
-        if self.machine_config.PLATFORM=='resonant' and 0:
-            from visexpman.engine.hardware_interface import mesc_interface
-            print (1)
-            self.mesc=mesc_interface.MescapiInterface()
-            print (2)
+        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()            
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -175,7 +170,7 @@ class ExperimentHandler(object):
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        if self.machine_config.PLATFORM=='ao_cortical':
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
         else:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
@@ -256,6 +251,9 @@ class ExperimentHandler(object):
                 self.printc('Starting next batch item, {0} left'.format(len(self.batch)))
                 self.start_experiment(experiment_parameters=self.batch[0])
                 self.batch=self.batch[1:]
+                
+    def mesc_connect(self):
+        self.mesc_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
@@ -304,6 +302,7 @@ class ExperimentHandler(object):
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
+        self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
         self.printc('Finishing experiment...')
@@ -343,6 +342,7 @@ class ExperimentHandler(object):
                 self.eye_camera_running=False
                 self.start_eye_camera()
             self.experiment_running=False
+            self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
             
     def save_experiment_files(self, aborted=False):
@@ -396,7 +396,7 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-            if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
@@ -557,6 +557,7 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         self.experiment_running=False
+        self.to_gui.put({'update_status':'idle'})
         self.printc('Experiment stopped')
         
     def check_mcd_recording_started(self):
@@ -589,10 +590,24 @@ class ExperimentHandler(object):
             self.printc('Experiment finished with error')            
             
     def mesc_handler(self, command):
-        res=1#getattr(self.mesc,  command)()
-        self.printc('mesc command: {0}, {1}'.format(command,  res))
-        if not res:
-            self.stop_experiment()
+        if command=='init':
+            if self.machine_config.PLATFORM=='resonant':
+                from visexpman.engine.hardware_interface import mesc_interface
+                self.mesc=mesc_interface.MescapiInterface()
+                self.printc('mesc init {0} successful'.format('not' if not self.mesc.connected else ''))
+        elif command=='close':
+            if hasattr(self, 'mesc'):
+                self.mesc.close()
+                self.printc('mesc closed')
+        elif hasattr(self, 'mesc'):
+            if not self.mesc.connected:
+                self.printc('No connection to MESc')
+                return
+            res=getattr(self.mesc,  command)()
+            self.printc('mesc command: {0}, {1}'.format(command,  res))
+            self.send({'mesc {0} command result'.format(command):res}, 'stim')
+            if not res:
+                self.stop_experiment()
                     
     def convert_stimulus_to_video(self):
         if hasattr(self.machine_config, 'SCREEN_MODE') and self.machine_config.SCREEN_MODE == 'psychopy':
@@ -622,6 +637,12 @@ class ExperimentHandler(object):
             self.sync_recorder.join()
             self.log.info('Sync recorder terminated')
         self.stop_eye_camera()
+
+    def init_experiment_handler(self):
+        self.mesc_handler('init')
+
+    def close_experiment_handler(self):
+        self.mesc_handler('close')
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -1277,7 +1298,7 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM=='ao_cortical' or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant'] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
@@ -1502,6 +1523,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if self.mes_connection_status:
                 n_connected += 1
                 self.connected_nodes+='stim-mes '
+        elif self.machine_config.PLATFORM=='resonant':
+            n_connections+=1
+            if hasattr(self, 'mesc'):
+                if self.mesc.ping():
+                    n_connected += 1
+                    self.connected_nodes+='mesc '
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
@@ -1523,6 +1550,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def run(self):
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
+        for fn in dir(self):
+            if 'init_'==fn[:5] and callable(getattr(self, fn)):
+                getattr(self, fn)()
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
@@ -1568,8 +1598,10 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def close(self):
         self.save_context()
-        if hasattr(self, 'mesc'):#TODO: this should be in ExperimentHandler class
-            self.mesc.close()
+        for fn in dir(self):
+            if 'close_'==fn[:6] and callable(getattr(self, fn)):
+                getattr(self, fn)()
+                
 
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):

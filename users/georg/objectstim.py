@@ -30,6 +30,10 @@ class ObjectExperiment(experiment.Experiment):
         
     Each is shown REPEAT_PER_OBJECT times, order is shuffled.
     '''
+    def prepare(self):
+        ec=self.experiment_config
+        self.duration=len(ec.OBJECTS)*(ec.ON_TIME+ec.OFF_TIME)+ec.OFF_TIME
+
     def run(self):
         ec=self.experiment_config
         self.show_fullscreen(color=ec.GRAY, duration=ec.OFF_TIME)

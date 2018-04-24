@@ -1,4 +1,4 @@
-import sys, threading, time, inspect
+import sys, threading, time, inspect,traceback
 import logging
 import os
 import visexpman
@@ -337,8 +337,8 @@ def parse_stimulation_file(filename):
 #        raise RuntimeError('Parsing {0} might freeze'.format(filename))
     try:
         introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
-    except Exception as e:
-        raise type(e)(e.message + '\r\nFile {0}, line {1}'.format(filename, sys.exc_info()[2].tb_lineno))
+    except :
+        raise RuntimeError('Error in {0}: {1}'.format(filename, traceback.format_exc()))
     experiment_module = __import__('experiment_module')
     experiment_config_classes = {}
     for c in inspect.getmembers(experiment_module,inspect.isclass):
