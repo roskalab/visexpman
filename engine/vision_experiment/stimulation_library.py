@@ -42,7 +42,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glBindTexture(GL_TEXTURE_2D, self.grating_texture)
                 glPixelStorei(GL_UNPACK_ALIGNMENT,1)
             except:
-                print('TODO: investigate ignoring opengl calls in non-screen mode')
+                print('TODO: opengl calls do not work')
         #Calculate axis factors
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1

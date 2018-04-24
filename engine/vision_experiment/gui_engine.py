@@ -585,6 +585,9 @@ class ExperimentHandler(object):
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
+            elif self.machine_config.PLATFORM=='resonant':
+                self.printc('Stop mesc recording, might still running')
+                self.mesc_handler('stop')
             self.finish_experiment()
             self.save_experiment_files(aborted=True)
             self.printc('Experiment finished with error')            
