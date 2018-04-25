@@ -44,6 +44,8 @@ class LogChecker(object):
         if self.t0!=0 and len(self.error_report)>msglen:#Ignore errors at very first run
             utils.sendmail(to, 'errors in {0}'.format(logfile_folder), self.error_report)
             logging.error(self.error_report)
+        else:
+            utils.sendmail(to, 'no error in {0}'.format(logfile_folder), 'No error')
         logging.info('Done')
         
     def _line2timestamp(self,line):
