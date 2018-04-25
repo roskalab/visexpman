@@ -166,6 +166,16 @@ class ResonantSetup(ResonantConfig):
         if os.path.exists(gammafn):
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
         self._create_parameters_from_locals(locals())
+        
+class GeorgResonantSetup(ResonantSetup):
+    def _set_user_parameters(self):
+        ResonantSetup._set_user_parameters(self)
+        self.FULLSCREEN=True
+        self.CAMERA_TRIGGER_ENABLE=True
+        self.CAMERA_TRIGGER_PORT='COM3'
+        self.CAMERA_TRIGGER_FRAME_RATE=20
+        self.CAMERA_PRE_STIM_WAIT=0.5
+        self.CAMERA_POST_STIM_WAIT=0.5
 
 class ResonantDev(ResonantSetup):
     def _set_user_parameters(self):

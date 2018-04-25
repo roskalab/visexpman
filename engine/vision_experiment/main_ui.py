@@ -338,7 +338,7 @@ class DataFileBrowser(gui.FileTree):
         delete_action = QtGui.QAction('Remove recording', self)
         delete_action.triggered.connect(self.delete_action)
         self.menu.addAction(delete_action)
-        plot_action = QtGui.QAction('Plot  sync signals', self)
+        plot_action = QtGui.QAction('Plot timing signals', self)
         plot_action.triggered.connect(self.plot_action)
         self.menu.addAction(plot_action)
         self.menu.exec_(self.viewport().mapToGlobal(position))
