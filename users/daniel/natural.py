@@ -1,6 +1,6 @@
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.generic import utils,signal
+from visexpman.engine.generic import utils,signalop
 import os
 import numpy
 import time
@@ -51,9 +51,9 @@ class NaturalLedStimulation(experiment.Experiment):
     Flashes externally connected blue led controller by generating analog control signals using daq analog output
     '''
     def prepare(self):
-        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(self.experiment_config.DURATION, 1.0, 
-                                                    1.0/self.experiment_config.MAX_FREQUENCY, 
-                                                    1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])*self.experiment_config.MAX_AMPLITUDE
+        self.intensity_profile = signalop.generate_natural_stimulus_intensity_profile(self.experiment_config.DURATION, 1.0,
+                                                                                      1.0 / self.experiment_config.MAX_FREQUENCY,
+                                                                                      1.0 / self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE']) * self.experiment_config.MAX_AMPLITUDE
         self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS]
         self.save_variables(['intensity_profile'])#Save to make it available for analysis
         self.intensity_profile = numpy.append(self.intensity_profile, 0.0)
@@ -104,10 +104,10 @@ class LedMorseStimulation(experiment.Experiment):
     Flashes externally connected blue led controller by generating analog control signals using daq analog output
     '''
     def prepare(self):
-        self.timing = signal.natural_distribution_morse(self.experiment_config.DURATION, 
-                        1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'],
-                        occurence_of_longest_period = 1.0, 
-                        n0 = int(self.experiment_config.SHORTEST_PULSE/( 1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])))[0]
+        self.timing = signalop.natural_distribution_morse(self.experiment_config.DURATION,
+                                                          1.0 / self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'],
+                                                          occurence_of_longest_period = 1.0,
+                                                          n0 = int(self.experiment_config.SHORTEST_PULSE/( 1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])))[0]
         self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS]
         timing_in_samples = numpy.array(self.timing)*self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE']
         state = False
