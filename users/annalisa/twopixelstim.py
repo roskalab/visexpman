@@ -4,11 +4,12 @@ from visexpman.engine.generic import utils
 
 class TwoPixelFullField(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.CONTRASTS=[0.625, 0.75, 0.87, 1.0]
+        self.CONTRASTS=[0.625, 0.75, 0.87, 0.999]
         self.ONTIME=2#seconds
         self.OFFTIME=2#seconds
         self.TIMESHIFT=-1.5#seconds
         self.PIXEL_RATIO=0.5
+        self.REPEATS=5
         self.runnable='TwoPixelFullFieldE'
         self._create_parameters_from_locals(locals())
         
@@ -40,7 +41,8 @@ class TwoPixelFullFieldE(experiment.Experiment):
         self.colors=numpy.array([self.left_contrasts,self.right_contrasts]).T
         
     def run(self):
-        self.show_shapes('rect', self.sizes, self.positions, 2, color = self.colors,
+        for r in range(self.experiment_config.REPEATS):
+            self.show_shapes('rect', self.sizes, self.positions, 2, color = self.colors,
                             are_same_shapes_over_frames = True, colors_per_shape = False)
         
 if __name__ == "__main__":
