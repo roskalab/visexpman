@@ -591,55 +591,60 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.prepare()
             #Control/synchronization with platform specific recording devices
             time.sleep(0.1)
-            if self.machine_config.PLATFORM=='ao_cortical':
-                self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
-                self.start_sync_recording()
-                self.start_ao()
-            elif self.machine_config.PLATFORM=='hi_mea':
-                #send start signal
-                self._send_himea_cmd("start")
-            elif self.machine_config.PLATFORM=='elphys_retinal_ca':
-                self.send({'trigger':'stim started'})
-            elif self.machine_config.PLATFORM=='mc_mea':
-                pass
-            elif self.machine_config.PLATFORM=='us_cortical' and self.machine_config.ENABLE_ULTRASOUND_TRIGGERING:
-                import serial
-                from contextlib import closing
-                with closing(serial.Serial(port='COM1',baudrate=9600)) as s:
-                    s.write('e')
-                self.send({'trigger':'stim started'})
-            elif self.machine_config.PLATFORM=='intrinsic':
-                from visexpA.engine.datahandlers.ximea_camera import XimeaCamera
-                self.camera = XimeaCamera(config=self.machine_config)
-                self.camera.start()
-                self.camera.trigger.set()  # starts acquisition
-            elif self.machine_config.PLATFORM in ['behav','epos']:
-                if self.machine_config.PLATFORM=='behav':
+            try:
+                if self.machine_config.PLATFORM=='ao_cortical':
+                    self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
+                    self.start_sync_recording()
+                    self.start_ao()
+                elif self.machine_config.PLATFORM=='hi_mea':
+                    #send start signal
+                    self._send_himea_cmd("start")
+                elif self.machine_config.PLATFORM=='elphys_retinal_ca':
+                    self.send({'trigger':'stim started'})
+                elif self.machine_config.PLATFORM=='mc_mea':
+                    pass
+                elif self.machine_config.PLATFORM=='us_cortical' and self.machine_config.ENABLE_ULTRASOUND_TRIGGERING:
+                    import serial
+                    from contextlib import closing
+                    with closing(serial.Serial(port='COM1',baudrate=9600)) as s:
+                        s.write('e')
+                    self.send({'trigger':'stim started'})
+                elif self.machine_config.PLATFORM=='intrinsic':
+                    from visexpA.engine.datahandlers.ximea_camera import XimeaCamera
+                    self.camera = XimeaCamera(config=self.machine_config)
+                    self.camera.start()
+                    self.camera.trigger.set()  # starts acquisition
+                elif self.machine_config.PLATFORM in ['behav','epos']:
+                    if self.machine_config.PLATFORM=='behav':
+                        self.sync_recording_duration=self.parameters['duration']
+                        self.start_sync_recording()
+                    self.printl('Waiting for external trigger')
+                    if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
+                        import threading
+                        t=threading.Thread(target=inject_trigger, args=('/dev/ttyACM1',5,2))
+                        t.start()
+                    if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
+                        self.abort=True
+                elif self.machine_config.PLATFORM == 'resonant':
                     self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
-                self.printl('Waiting for external trigger')
-                if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
-                    import threading
-                    t=threading.Thread(target=inject_trigger, args=('/dev/ttyACM1',5,2))
-                    t.start()
-                if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
-                    self.abort=True
-            elif self.machine_config.PLATFORM == 'resonant':
-                self.sync_recording_duration=self.parameters['duration']
-                self.start_sync_recording()
-                self.send({'mesc':'start'})
-                time.sleep(1)
-                response=self.recv()
-                if not hasattr(response, 'keys') or not response['mesc start command result']:
-                    self.abort=True
-                    self.mesc_error=True
-                    self.printl('MESc did not start, aborting stimulus')
-                else:
-                    self.mesc_error=False
-            if self.machine_config.CAMERA_TRIGGER_ENABLE:
-                self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
-                time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
-                self.printl('Camera trigger enabled')
+                    self.send({'mesc':'start'})
+                    time.sleep(1)
+                    response=self.recv()
+                    if not hasattr(response, 'keys') or not response['mesc start command result']:
+                        self.abort=True
+                        self.mesc_error=True
+                        self.printl('MESc did not start, aborting stimulus')
+                    else:
+                        self.mesc_error=False
+                if self.machine_config.CAMERA_TRIGGER_ENABLE:
+                    self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
+                    time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
+                    self.printl('Camera trigger enabled')
+            except:
+                self.abort=True
+                self.send({'trigger':'stim error'})
+                self.printl(traceback.format_exc())
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
@@ -793,7 +798,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
                 self.datafile.sync2time()
-                self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                try:
+                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                except:
+                    self.datafile.corrupt_timing=True
+                    self.datafile.save('corrupt_timing')
+                    self.datafile.close()
+                    self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
+                    raise RuntimeError(traceback.format_exc())
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':

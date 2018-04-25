@@ -708,7 +708,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=numpy.zeros((size_pixel*2,size_pixel*2))
             texture_orientation=90+orientation
             #Calculate angle range from spatial frequency
-            res=3600./2
+            res=3600./2*2
             nrev=round(nperiods/2)*2/4#Coming from paper
             overrun_factor=1.2
             one_degree_size=size_pixel*numpy.pi/360

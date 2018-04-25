@@ -136,11 +136,11 @@ class ResonantSetup(ResonantConfig):
         self.EXPERIMENT_DATA_PATH = os.path.join(root,'processed')
         self.CONTEXT_PATH= os.path.join(root, 'context')
         #Stimulus screen
-        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 190.0
+        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 300.0
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
         self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
-        self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
         self.FULLSCREEN=not '--nofullscreen' in sys.argv
         self.COORDINATE_SYSTEM='center'
         self.ENABLE_FRAME_CAPTURE = False
@@ -165,6 +165,7 @@ class ResonantSetup(ResonantConfig):
         gammafn=os.path.join(self.CONTEXT_PATH, 'gamma_resonant_monitor.hdf5')
         if os.path.exists(gammafn):
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gammafn, 'gamma_correction'))
+        self._create_parameters_from_locals(locals())
 
 class ResonantDev(ResonantSetup):
     def _set_user_parameters(self):
@@ -181,4 +182,4 @@ class ResonantDev(ResonantSetup):
         self.CAMERA_TRIGGER_FRAME_RATE=20
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
-        self.SCREEN_RESOLUTION = utils.cr([1280/2, 720/2])
+        self.SCREEN_RESOLUTION = utils.cr([1280, 720])

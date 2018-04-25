@@ -35,6 +35,7 @@ class ObjectExperiment(experiment.Experiment):
         self.duration=len(ec.OBJECTS)*(ec.ON_TIME+ec.OFF_TIME)+ec.OFF_TIME
 
     def run(self):
+        self.check_frame_rate=False
         ec=self.experiment_config
         self.show_fullscreen(color=ec.GRAY, duration=ec.OFF_TIME)
         for o in ec.OBJECT_ORDER:
