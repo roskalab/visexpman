@@ -110,7 +110,7 @@ class ExperimentHandler(object):
             self.notify('Warning', 'Common stimulus files cannot be opened for editing')
             return
         lines=fileop.read_text_file(filename).split('\n')
-        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+20#+20: beginning of class is on the middle of the screen
+        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+0*20#+20: beginning of class is on the middle of the screen
         self.printc('Opening {0}{3}{1} in gedit at line {2}'.format(filename, classname,line,os.sep))
         import subprocess
         process = subprocess.Popen(['gedit', filename, '+{0}'.format(line)], shell=self.machine_config.OS != 'Linux')
@@ -169,6 +169,8 @@ class ExperimentHandler(object):
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
+        experiment_parameters['user']=self.machine_config.user
+        experiment_parameters['machine_config']=self.machine_config.__class__.__name__
         #Outfolder is date+id. Later all the files will be merged from id this folder
         if self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
@@ -1449,12 +1451,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def save_software_hash(self):
         hash=introspect.visexpman2hash()
-        meshash=introspect.mes2hash()
         if self.guidata.read('software_hash')==None:
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
         if self.machine_config.PLATFORM=='ao_cortical':
+            meshash=introspect.mes2hash()
             if self.guidata.read('mes_hash')==None:
                 self.guidata.add('mes_hash', hash, 'hash/mes_hash')
             else:
