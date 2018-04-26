@@ -577,7 +577,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         try:
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
                 self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_TRIGGER_PORT)
-            prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
+            prefix='data' if self.machine_config.PLATFORM in  ['ao_cortical','resonant'] else 'stim'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
                 if hasattr(self, 'calculate_stimulus_duration'):

@@ -258,6 +258,11 @@ class ExperimentHandler(object):
         self.mesc_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
+        if self.machine_config.PLATFORM=='resonant':
+            if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
+                missing_connections=[conn for conn in ['mesc', 'stim'] if conn not in self.connected_nodes]
+                self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
+                return
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:
@@ -398,6 +403,11 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+            elif self.machine_config.PLATFORM=='resonant':
+                self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
+                #Convert to mat file
+                experiment_data.hdf52mat(self.outputfilename)
+                self.printc('{0} converted to mat'.format(self.outputfilename))
             if not (self.machine_config.PLATFORM in ['ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
@@ -584,6 +594,8 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM=='ao_cortical':
                 msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
+            elif self.machine_config.PLATFORM=='resonant':
+                self.notify('Info', 'Go to MESc processing window and add "{0}" to comment'.format(os.path.basename(self.outputfilename)))
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
