@@ -60,7 +60,7 @@ def get_user_experiment_data_folder(parameters):
     '''
     Returns path to folder where user's experiment data can be saved
     '''
-    if not parameters.has_key('outfolder'):
+    if not 'outfolder' in parameters:
         raise RuntimeError('outfolder is not available')
     user_experiment_data_folder = parameters['outfolder']
     if not os.path.exists(user_experiment_data_folder):
@@ -81,7 +81,7 @@ def parse_recording_filename(filename):
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
     items['extension'] = os.path.splitext(filename)[1]
-    fnp = items['file'].replace('.'+items['extension'],'').split('_')
+    fnp = items['file'].replace(items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
     offset = 2 if len(fnp[-1]) == 1 else 1
@@ -1523,12 +1523,12 @@ def hdf52mat(filename):
         else:
             rnt=rn
         mat_data[rnt]=h.findvar(rn)
-        if hasattr(mat_data[rnt], 'has_key') and len(mat_data[rnt].keys())==0:
+        if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
-    if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+    if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     h.close()
-    matfile=add_mat_tag(filename)
+    matfile=fileop.replace_extension(add_mat_tag(filename), '.mat')
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
     
 def read_sync(filename):

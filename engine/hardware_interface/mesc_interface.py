@@ -93,7 +93,7 @@ class MescapiInterface(object):
         '''
         state=self.get_state()
         if state!='Working':
-            raise IOError('Acquisition is not running, current state: {0}'.format(state))
+            raise IOError('Acquisition is not running, current state: {0}\r\nCheck MESc, error might have happened during recording'.format(state))
         return self.request('MEScMicroscope.stopResonantScanAsync()')
         
     def get_state(self):

@@ -577,7 +577,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         try:
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
                 self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_TRIGGER_PORT)
-            prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
+            prefix='data' if self.machine_config.PLATFORM in  ['ao_cortical','resonant'] else 'stim'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
                 if hasattr(self, 'calculate_stimulus_duration'):
@@ -586,6 +586,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.parameters['stimclass']=self.experiment_config.__class__.__name__
                 from visexpman.engine.vision_experiment.experiment import get_experiment_duration
                 self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
+            #Check if main_ui user and machine config class matches with stim's
+            if self.parameters['user']!=self.machine_config.user or \
+                self.parameters['machine_config']!=self.machine_config.__class__.__name__:
+                    self.send({'trigger':'stim error'})
+                    raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
+                        .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
             #Computational intensive precalculations for stimulus
             self.prepare()
