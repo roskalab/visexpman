@@ -29,8 +29,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ENABLE_ZIGZAG_CORRECTION = True
         #=== paths/data handling ===
         if os.name == 'nt':            
-            v_drive_folder = 'X:\\'
-            BACKUP_PATH='x:\\backup'
+            v_drive_folder = 'v:\\'
+            BACKUP_PATH='u:\\backup'
         else:            
             v_drive_folder = '/mnt/datafast'
             BACKUP_PATH='/mnt/databig/backup'
@@ -40,7 +40,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'experiment_data')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        MES_DATA_FOLDER = 'X:\\experiment_data'
+        MES_DATA_FOLDER = 'v:\\experiment_data'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.CONTEXT_NAME = 'gui.hdf5'
         CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
@@ -49,7 +49,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
             self.PROCESSED_FILES_PATH='/mnt/databig/processed'
         else:
-            DATABIG_PATH = 'x:\\data'
+            DATABIG_PATH = 'u:\\data'
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
 
         #=== screen ===
