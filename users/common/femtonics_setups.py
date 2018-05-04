@@ -50,6 +50,7 @@ class AOSetup(AoCorticalCaImagingConfig):
         self.TSTIM_SYNC_INDEX=2
         self.TSTIM_LASER_SYNC_INDEX=4
         self.DIGITAL_IO_PORT='COM4'
+        self.DIGITAL_IO_PORT_TYPE='usb-uart'
         self.BLOCK_TIMING_PIN = 1
         self.FRAME_TIMING_PIN = 0
         self.MES_RECORD_OVERHEAD=5
@@ -125,6 +126,7 @@ class CameronDev(CameronAoSetup):
     def _set_user_parameters(self):
         CameronAoSetup._set_user_parameters(self)
         self.SCREEN_EXPECTED_FRAME_RATE = 59
+        self.SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         
 class ResonantSetup(ResonantConfig):
     def _set_user_parameters(self):
