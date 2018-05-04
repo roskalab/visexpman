@@ -111,6 +111,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if arg != 'self':
                 if values[arg] is None:
                     frame_info['parameters'][arg] = ''
+                elif hasattr(values[arg], 'dtype') and len(values[arg].dtype)==2:
+                    frame_info['parameters'][arg]={}
+                    frame_info['parameters'][arg]['row']=values[arg]['row']
+                    frame_info['parameters'][arg]['col']=values[arg]['col']
                 else:
                     frame_info['parameters'][arg] = values[arg]
         if hasattr(parameters,'has_key'):

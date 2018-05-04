@@ -4,12 +4,20 @@ from visexpman.engine.generic import utils,introspect
 
 class ObjectStim(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.OBJECTS=['grating', 'pizza 3 arms','pizza 5 arms', 'pizza 11 arms','concentric', 'hyperbolic','spiral', 'hyperbolic 25 degrees', 'grating 25 degrees', 'spiral 25 degrees', 'grating 45 degrees', 'grating 90 degrees', 'grating 135 degrees', 'spiral 45 degrees', 'hyperbolic 45 degrees']
+        self.OBJECTS=['pizza 3 arms','pizza 3 arms invert',
+        'pizza 5 arms','pizza 5 arms invert',
+        'pizza 11 arms', 'pizza 11 arms invert'
+        'concentric','concentric invert', 
+         'concentric 0.05 cpd','concentric 0.05 cpd invert', 
+        'hyperbolic','hyperbolic invert', 
+        'hyperbolic 45 degrees','hyperbolic 45 degrees invert',
+        'spiral','spiral invert', 
+        'spiral 45 degrees','spiral 45 degrees invert']
         self.ON_TIME=2.0
         self.OFF_TIME=5.0
         self.REPEAT_PER_OBJECT=1
         self.SPATIAL_FREQUENCY=0.1#cycle per degree.
-        self.SIZE=2000.0#um
+        self.SIZE=3000.0#um
         self.COLOR_MIN=0.0
         self.COLOR_MAX=1.0
         self.GRAY=0.5

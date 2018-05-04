@@ -125,12 +125,16 @@ class Flash(experiment.Stimulus):
         
     def run(self):
         self.block_start(('on',))
+        self.printl(0)
         self.show_fullscreen(color=0.5,duration=self.DURATION)
+        self.printl(1)
         self.block_end()
         self.show_fullscreen(color=0.5,duration=self.DURATION)
+        self.printl(2)
         self.block_start(('on',))
         self.show_fullscreen(color=1.0,duration=self.DURATION)
         self.block_end()
+        self.printl(3)
         
 class TestStim(experiment.Stimulus):
     def configuration(self):
