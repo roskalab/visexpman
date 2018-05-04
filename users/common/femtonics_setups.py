@@ -136,9 +136,9 @@ class ResonantSetup(ResonantConfig):
         self.EXPERIMENT_DATA_PATH = os.path.join(root,'processed')
         self.CONTEXT_PATH= os.path.join(root, 'context')
         #Stimulus screen
-        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 300.0
+        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 135.0 # original at 300
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
-        self.SCREEN_PIXEL_WIDTH = 477.0/self.SCREEN_RESOLUTION ['col']
+        self.SCREEN_PIXEL_WIDTH = 540.0/self.SCREEN_RESOLUTION ['col'] # 		original at 477
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
         self.FULLSCREEN=not '--nofullscreen' in sys.argv
