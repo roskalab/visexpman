@@ -163,6 +163,8 @@ class ExperimentHandler(object):
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
+        experiment_parameters['animal']=self.guidata.read('Animal')
+        experiment_parameters['comment']=self.guidata.read('Comment')
         source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
         experiment_parameters[source_code_type]=stimulus_source_code
         experiment_parameters['stimclass']=classname
@@ -1344,6 +1346,25 @@ class Analysis(object):
             self.to_gui.put({'plot_sync':[x,y]})
         else:
             raise NotImplementedError()
+            
+    def add_comment(self,filename):
+        if os.path.splitext(filename)[1]!='.hdf5':
+            self.notify('Warning', 'Only hdf5 files can be opened!')
+            return
+        self.hcomment=hdf5io.Hdf5io(filename)
+        self.hcomment.load('comment')
+        if not hasattr(self.hcomment,'comment'):
+            self.hcomment.comment=''
+        self.to_gui.put({'add_comment':[self.hcomment.comment]})
+        
+    def save_comment(self,comment):
+        if hasattr(self, 'hcomment') and self.hcomment.h5f.isopen:
+            self.hcomment.comment=comment+'\r\nSaved on '+utils.timestamp2ymdhm(time.time())+'\r\n'
+            self.hcomment.save('comment')
+            self.printc('{0} comment saved to {1}'.format(comment, self.hcomment.filename))
+            self.hcomment.close()
+            
+        
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)

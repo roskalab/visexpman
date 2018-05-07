@@ -341,6 +341,9 @@ class DataFileBrowser(gui.FileTree):
         plot_action = QtGui.QAction('Plot timing signals', self)
         plot_action.triggered.connect(self.plot_action)
         self.menu.addAction(plot_action)
+        add_comment_action=QtGui.QAction('Comment', self)
+        add_comment_action.triggered.connect(self.add_comment_action)
+        self.menu.addAction(add_comment_action)
         self.menu.exec_(self.viewport().mapToGlobal(position))
         
     def delete_action(self):
@@ -350,6 +353,10 @@ class DataFileBrowser(gui.FileTree):
     def plot_action(self):
         if hasattr(self, 'selected_filename'):
             self.parent.parent.to_engine.put({'function': 'plot_sync', 'args':[self.convert_filename(self.selected_filename)]})
+            
+    def add_comment_action(self):
+        if hasattr(self, 'selected_filename'):
+            self.parent.parent.to_engine.put({'function': 'add_comment', 'args':[self.convert_filename(self.selected_filename)]})        
             
 class AnalysisHelper(QtGui.QWidget):
     def __init__(self, parent):
@@ -665,6 +672,11 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.p.show()
 #                self.pb = Progressbar(10)
 #                self.pb.show()
+            elif 'add_comment' in msg:
+                self.addnote=gui.AddNote(None,msg['add_comment'][0])
+                self.addnote.setWindowTitle('Comment')
+                self.addnote.text.setFixedWidth(350)
+                self.addnote.connect(self.addnote, QtCore.SIGNAL('addnote'),self.save_comment)
             
                 
     def _init_variables(self):
@@ -680,6 +692,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
                     {'name': 'Name', 'type': 'str', 'value': ''},
+                    {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
@@ -772,6 +785,9 @@ class MainUI(gui.VisexpmanMainWindow):
         
     def delete_roi_action(self):
         self.to_engine.put({'function': 'delete_roi', 'args':[]})
+        
+    def save_comment(self, comment):
+        self.to_engine.put({'function': 'save_comment', 'args':[comment]})
         
     def add_roi_action(self):
         '''
