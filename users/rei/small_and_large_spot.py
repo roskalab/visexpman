@@ -6,7 +6,7 @@ class SmallAndLargeSpotParameters(experiment.ExperimentConfig):
         self.LARGE_SPOT_SIZE=3900
         self.SMALL_SPOT_TIME=10
         self.LARGE_SPOT_TIME=2
-        self.INITIAL_WAIT=5
+        self.INITIAL_WAIT=10
         self.POST_WAIT=5
         self.runnable='SmallAndLargeSpotE'
         self._create_parameters_from_locals(locals())
