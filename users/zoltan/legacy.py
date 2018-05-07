@@ -331,8 +331,8 @@ class PhysTiff2Hdf5(object):
                     spot_contrast_on=stimdata['config']['experiment_config'][0][0]['SPOT_CONTRAST_ON'][0][0][0]
                     block_startend = [sfi['counter'][0][0][0][0] for sfi in stimdata['stimulus_frame_info'][0] if sfi['parameters'][0][0]['color'][0][0][0][0] in spot_contrast_on]
                 elif  stimdata['experiment_config_name'][0] =='SmallAndLargeSpotParameters':
-                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape' and item['parameters'][0][0]['color'][0][0]==1]
-                    block_startend[1]-=1
+                    largespot_size=stimdata['config']['experiment_config'][0][0]['LARGE_SPOT_SIZE'][0][0][0][0]
+                    block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape' and item['parameters'][0][0]['size'][0][0]==largespot_size]
                 block_startend=numpy.array(block_startend)
                 block_startend[1::2]+=1
                 boundaries=pulse_start[block_startend]
