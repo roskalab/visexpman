@@ -266,7 +266,7 @@ class Analysis(object):
     def open_datafile(self,filename):
         self._check_unsaved_rois()
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
-            self.notify('Warning', 'This file cannot be displayed')
+            self.notify('Warning', 'This file cannot be displayed: {0}'.format(filename))
             return
         if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
             self.notify('Warning', 'ROIS cannot be copied to a file itself')
@@ -423,7 +423,10 @@ class Analysis(object):
         if not hasattr(self, 'rois'):
             return
         baseline_length = self.guidata.read('Baseline lenght')
+        iii=0
         for r in self.rois:
+        #    self.printc(iii)
+            iii+=1
             r['normalized'] = signal.df_over_f(self.timg, r['raw']-self.background, self.tsync[0], baseline_length)
             r['baseline_length'] = baseline_length
             r['background'] = self.background
@@ -437,8 +440,11 @@ class Analysis(object):
             if self.red_stat!=0:
                 area=copy.deepcopy(r['area'])
                 area=numpy.array([area[i] for i in range(area.shape[0]) if area[i][0]<r['red']['roi_pixels']['nostim'].shape[1] and area[i][1]<r['red']['roi_pixels']['nostim'].shape[2]])
-                r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,area[:,0],area[:,1]].mean()
-                r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,area[:,0],area[:,1]].mean()
+                try:
+                    r['red']['roi_pixels']['nostim']=r['red']['roi_pixels']['nostim'][:,area[:,0],area[:,1]].mean()
+                    r['red']['roi_pixels']['withstim']=r['red']['roi_pixels']['withstim'][:,area[:,0],area[:,1]].mean()
+                except IndexError:
+                    self.printc('Warning: area of roi {0} is out of range'.format(iii))
             if r.has_key('matches'):
                 for fn in r['matches'].keys():
                     raw = r['matches'][fn]['raw']
@@ -844,13 +850,25 @@ class Analysis(object):
         files=fileop.listdir_fullpath(folder)
         files.sort()
         self.abort=False
+        problematic_files=[]
         for f in files:
             if 'hdf5' not in f: continue
-            self.open_datafile(f)
-            self._normalize_roi_curves()
-            self.save_rois_and_export(ask_overwrite=False)
+            try:
+                self.open_datafile(f)
+                self._normalize_roi_curves()
+                self.save_rois_and_export(ask_overwrite=False)
+            except:
+                import traceback
+                self.printc(traceback.format_exc())
+                problematic_files.append(f)
             if self.abort:break
         self.printc('DONE')
+        if len(problematic_files)>0:
+            self.printc('Problematic files: ')
+            problematic_files=[os.path.basename(f).split('_')[1] for f in problematic_files]
+            problematic_files.sort()
+            for f in problematic_files:
+                self.printc(f)
         self.notify('Info', 'ROI fixing is ready')
         
     def readd_rois_folder(self,folder):
@@ -867,7 +885,7 @@ class Analysis(object):
             self.save_rois_and_export(ask_overwrite=False)
             if self.abort:break
         self.printc('DONE')
-        
+                
     def check_files(self,folder):
         self.printc('Checking '+folder)
         files=fileop.listdir_fullpath(folder)
