@@ -487,7 +487,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.machine_config = machine_config
         self.parameters = parameters
         self.log = log
-        if hasattr(self.machine_config, 'DIGITAL_IO_PORT_TYPE'):
+        if hasattr(self.machine_config, 'DIGITAL_IO_PORT_TYPE') and self.machine_config.user_interface_name!='main_ui':
             self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
             Trigger.__init__(self, machine_config, queues, self.digital_io)
             if 0 and self.digital_io!=None:#Digital output is available
@@ -577,7 +577,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         try:
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
                 self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_TRIGGER_PORT)
-            prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
+            prefix='data' if self.machine_config.PLATFORM in  ['ao_cortical','resonant'] else 'stim'
             if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
                 if hasattr(self, 'calculate_stimulus_duration'):
@@ -586,6 +586,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.parameters['stimclass']=self.experiment_config.__class__.__name__
                 from visexpman.engine.vision_experiment.experiment import get_experiment_duration
                 self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
+            #Check if main_ui user and machine config class matches with stim's
+            if self.parameters['user']!=self.machine_config.user or \
+                self.parameters['machine_config']!=self.machine_config.__class__.__name__:
+                    self.send({'trigger':'stim error'})
+                    raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
+                        .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
             #Computational intensive precalculations for stimulus
             self.prepare()
@@ -706,7 +712,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.close()#If something goes wrong, close serial port
 
     def close(self):
-        if hasattr(self.digital_io, 'close'):
+        if hasattr(self, 'digital_io') and hasattr(self.digital_io, 'close'):
                 self.digital_io.close()
         if hasattr(self, 'camera_trigger'):
             self.camera_trigger.close()

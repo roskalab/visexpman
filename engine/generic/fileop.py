@@ -4,10 +4,8 @@ Common file and filename operations
 import sys, os, re, ctypes, platform, shutil, numpy, tempfile, time, subprocess, multiprocessing,threading
 try:
     import Queue
-    import utils
 except ImportError:
     import queue as Queue
-    from visexpman.engine.generic import utils
 from distutils import file_util,  dir_util
 try:
     import psutil
@@ -477,6 +475,10 @@ def get_log_filename(config):
         raise RuntimeError('LOG_PATH is not defined in machine config')
     import platform
     uiname=config.user_interface_name if hasattr(config, 'user_interface_name') else config.PLATFORM
+    try:
+        import utils
+    except ImportError:
+        from visexpman.engine.generic import utils
     dt=utils.timestamp2ymdhms(time.time(), filename=True)
     filename = 'log_{0}_{1}.txt'.format(uiname, dt)
     return os.path.join(config.LOG_PATH, filename)

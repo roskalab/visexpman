@@ -18,6 +18,7 @@ try:
 except ImportError:
     import queue as Queue
 
+#OBSOLETE
 class SerialPortDigitalIO(instrument.Instrument):
     '''
     Serial port lines are controlled as digital io lines
@@ -422,7 +423,7 @@ class DigitalIO(object):
             self.hwhandler.set_pin(pin, state)
         elif self.type=='usb-uart':
             if pin==0:
-                self.hwhandler.sendBreak(not bool(state))
+                self.hwhandler.setBreak(not bool(state))
             elif pin ==1:
                 self.hwhandler.setRTS(not bool(state))
             else:

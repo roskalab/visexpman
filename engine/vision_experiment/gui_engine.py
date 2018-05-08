@@ -110,7 +110,7 @@ class ExperimentHandler(object):
             self.notify('Warning', 'Common stimulus files cannot be opened for editing')
             return
         lines=fileop.read_text_file(filename).split('\n')
-        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+20#+20: beginning of class is on the middle of the screen
+        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+0*20#+20: beginning of class is on the middle of the screen
         self.printc('Opening {0}{3}{1} in gedit at line {2}'.format(filename, classname,line,os.sep))
         import subprocess
         process = subprocess.Popen(['gedit', filename, '+{0}'.format(line)], shell=self.machine_config.OS != 'Linux')
@@ -163,12 +163,16 @@ class ExperimentHandler(object):
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
+        experiment_parameters['animal']=self.guidata.read('Animal')
+        experiment_parameters['comment']=self.guidata.read('Comment')
         source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
         experiment_parameters[source_code_type]=stimulus_source_code
         experiment_parameters['stimclass']=classname
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
+        experiment_parameters['user']=self.machine_config.user
+        experiment_parameters['machine_config']=self.machine_config.__class__.__name__
         #Outfolder is date+id. Later all the files will be merged from id this folder
         if self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
@@ -256,6 +260,11 @@ class ExperimentHandler(object):
         self.mesc_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
+        if self.machine_config.PLATFORM=='resonant':
+            if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
+                missing_connections=[conn for conn in ['mesc', 'stim'] if conn not in self.connected_nodes]
+                self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
+                return
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:
@@ -396,6 +405,11 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+            elif self.machine_config.PLATFORM=='resonant':
+                self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
+                #Convert to mat file
+                experiment_data.hdf52mat(self.outputfilename)
+                self.printc('{0} converted to mat'.format(self.outputfilename))
             if not (self.machine_config.PLATFORM in ['ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
@@ -582,6 +596,8 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM=='ao_cortical':
                 msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
+            elif self.machine_config.PLATFORM=='resonant':
+                self.notify('Info', 'Go to MESc processing window and add "{0}" to comment'.format(os.path.basename(self.outputfilename)))
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
@@ -1330,6 +1346,25 @@ class Analysis(object):
             self.to_gui.put({'plot_sync':[x,y]})
         else:
             raise NotImplementedError()
+            
+    def add_comment(self,filename):
+        if os.path.splitext(filename)[1]!='.hdf5':
+            self.notify('Warning', 'Only hdf5 files can be opened!')
+            return
+        self.hcomment=hdf5io.Hdf5io(filename)
+        self.hcomment.load('comment')
+        if not hasattr(self.hcomment,'comment'):
+            self.hcomment.comment=''
+        self.to_gui.put({'add_comment':[self.hcomment.comment]})
+        
+    def save_comment(self,comment):
+        if hasattr(self, 'hcomment') and self.hcomment.h5f.isopen:
+            self.hcomment.comment=comment+'\r\nSaved on '+utils.timestamp2ymdhm(time.time())+'\r\n'
+            self.hcomment.save('comment')
+            self.printc('{0} comment saved to {1}'.format(comment, self.hcomment.filename))
+            self.hcomment.close()
+            
+        
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
@@ -1449,12 +1484,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def save_software_hash(self):
         hash=introspect.visexpman2hash()
-        meshash=introspect.mes2hash()
         if self.guidata.read('software_hash')==None:
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
         if self.machine_config.PLATFORM=='ao_cortical':
+            meshash=introspect.mes2hash()
             if self.guidata.read('mes_hash')==None:
                 self.guidata.add('mes_hash', hash, 'hash/mes_hash')
             else:
