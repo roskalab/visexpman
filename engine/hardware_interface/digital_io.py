@@ -5,6 +5,7 @@ except:
 try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
 import os,numpy,sys,glob
@@ -169,16 +170,25 @@ class ArduinoIO(object):
         self.s.close()
         
 class DaqDio(object):
-    def __init__(self,channels):
-        if not isinstance(channels, list):
-            channels=[channels]
-        self.daq=[]
-        for channel in channels:
-            daq = PyDAQmx.Task()
-            daq.CreateDOChan(channel,
-                                                    'do',
-                                                    DAQmxConstants.DAQmx_Val_ChanPerLine)    
-            self.daq.append(daq)
+    def __init__(self,channels, output=True):
+        self.input=not output
+        if output:
+            if not isinstance(channels, list):
+                channels=[channels]
+            self.daq=[]
+            for channel in channels:
+                daq = PyDAQmx.Task()
+                daq.CreateDOChan(channel,
+                                                        'do',
+                                                        DAQmxConstants.DAQmx_Val_ChanPerLine)    
+                self.daq.append(daq)
+        else:
+            self.daq=PyDAQmx.Task()
+            self.daq.CreateDIChan(channels,'di', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            self.data = numpy.zeros((1,), dtype=numpy.uint8 )
+            self.total_samps = DAQmxTypes.int32()
+            self.total_bytes = DAQmxTypes.int32()
+            
             
     def set_data_bit(self, pin, state, log=None):
         digital_values = numpy.array([int(state)], dtype=numpy.uint8)
@@ -192,10 +202,21 @@ class DaqDio(object):
 
     def set_pin(self, channel,value):
         self.set_data_bit(channel, value)
+        
+    def read(self):
+        self.daq.ReadDigitalU8(1,0.1,DAQmxConstants.DAQmx_Val_GroupByChannel,self.data,8,DAQmxTypes.byref(self.total_samps),None)
+        #self.daq.ReadDigitalU8(1,0.1,DAQmxConstants.DAQmx_Val_GroupByChannel,self.data,1,DAQmxTypes.byref(self.total_samps),DAQmxTypes.byref(self.total_bytes),None)
+        #nt32 DAQmxReadDigitalU8 (TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, uInt8 readArray[], uInt32 arraySizeInSamps, int32 *sampsPerChanRead, bool32 *reserved);
+
+
+        return self.data[0]
 
     def close(self):
-        for d in self.daq:
-            d.ClearTask()
+        if self.input:
+            self.daq.ClearTask()
+        else:
+            for d in self.daq:
+                d.ClearTask()
             
 class IOBoard(object):
     '''
@@ -540,7 +561,12 @@ class TestDigitalIO(unittest.TestCase):
                 d.set_pin(0,1)
                 d.set_pin(0,0)
             d.close()
-            
+
+    def test_10_digital_input(self):
+        d=DaqDio('Dev1/port0/line0:7',output=False)
+        print(d.read())
+        print(d.read())
+        d.close()
 
 if __name__ == '__main__':
     unittest.main()
