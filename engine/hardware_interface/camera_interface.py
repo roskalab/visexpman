@@ -1,4 +1,4 @@
-import copy,visexpman
+import copy,visexpman,sys
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
@@ -208,7 +208,7 @@ def opencv_camera_runner(filename, duration, config):
         
         
 class ImagingSourceCamera(VideoCamera):
-    def _init_camera(self):
+    def __init__(self,frame_rate, video_format='RGB24 (744x480)'):
         dllpath = os.path.join(os.path.dirname(visexpman.__file__),'engine', 'external','IC', 'tisgrabber_x64.dll')
         wd = os.getcwd()
         os.chdir(os.path.dirname(dllpath))
@@ -218,13 +218,14 @@ class ImagingSourceCamera(VideoCamera):
             raise RuntimeError('Initializing TIS library did not succeed')
         self.grabber_handle = self.dllref.IC_CreateGrabber()
         cam_name = 'DMK 22BUC03'
+        if sys.version_info.major==3:
+            cam_name=bytes(cam_name, 'utf-8')
         cam_name = ctypes.c_char_p(cam_name)
         if self.dllref.IC_OpenVideoCaptureDevice(self.grabber_handle, cam_name) != 1:
             raise RuntimeError('Opening video capture device did not succeed')
-        if hasattr(self.config, 'VIDEO_FORMAT'):
-            self.video_format = ctypes.c_char_p(self.config.VIDEO_FORMAT)
-        else:
-            self.video_format = ctypes.c_char_p('RGB24 (744x480)')
+        self.video_format = video_format
+        if sys.version_info.major==3:
+            self.video_format=bytes(self.video_format, 'utf-8')
         if self.dllref.IC_SetVideoFormat(self.grabber_handle,self.video_format) != 1:
             raise RuntimeError('Setting video format did not succeed')
         self.w = self.dllref.IC_GetVideoFormatWidth(self.grabber_handle)
@@ -232,10 +233,7 @@ class ImagingSourceCamera(VideoCamera):
         self.bytes_per_pixel = 3
         self.frame_size = self.h * self.w * self.bytes_per_pixel
         self.frame_shape = (self.h, self.w)
-        if hasattr(self.config, 'CAMERA_FRAME_RATE'):
-            self.frame_rate = self.config.CAMERA_FRAME_RATE
-        else:
-            self.frame_rate = 30.0
+        self.frame_rate = frame_rate
         self.set_framerate()
         self.snap_timeout = self.dllref.IC_GetFrameRate(self.grabber_handle)
 #        print self.dllref.IC_SetCameraProperty(self.grabber_handle, 4, ctypes.c_long(self.snap_timeout))#Exposure time
@@ -303,10 +301,8 @@ class ImagingSourceCamera(VideoCamera):
         self.dllref.IC_CloseLibrary()
         
 class ImagingSourceCameraSaver(ImagingSourceCamera):
-    def __init__(self,filename):
-        ImagingSourceCamera.__init__(self,None)
-        self.frame_rate=15.0
-        self.set_framerate()
+    def __init__(self,filename,frame_rate):
+        ImagingSourceCamera.__init__(self,frame_rate)
         self.filename=filename
         self.datafile=tables.open_file(filename, 'w')
         self.datafile.create_earray(self.datafile.root, 'ic_frames', tables.UInt8Atom((480, 744)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='blosc', shuffle = 1))
