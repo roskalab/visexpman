@@ -22,7 +22,7 @@ from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
-from visexpman.applications.visexp_app import stimulation_tester
+from visexpman.applications.visexpman_main import stimulation_tester
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):

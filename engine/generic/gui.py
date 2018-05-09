@@ -354,7 +354,8 @@ class ParameterTable(ParameterTree):
             return values, paths, refs
 
 class AddNote(QtGui.QWidget):
-    def __init__(self, parent,text):
+    def __init__(self, parent,text,togui_queue):
+        self.togui_queue=togui_queue
         QtGui.QWidget.__init__(self, parent)
         self.text=QtGui.QTextEdit(self)
         self.text.setPlainText(text)
@@ -369,11 +370,14 @@ class AddNote(QtGui.QWidget):
         self.l.addWidget(self.text, 0, 0, 1, 1)
         self.l.addWidget(self.save, 0, 1, 1, 1)
         self.setLayout(self.l)
-        self.connect(self.save, QtCore.SIGNAL('clicked()'), self.save_note)
+        self.save.clicked.connect(self.save_note)
         self.show()
         
     def save_note(self):
-        self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
+        if QtCore.QT_VERSION_STR[0]=='5':
+            self.togui_queue.put({'save_comment':str(self.text.toPlainText())})
+        else:
+            self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
         self.close()
             
 class TextOut(QtGui.QTextEdit):
