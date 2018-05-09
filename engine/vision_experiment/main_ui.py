@@ -673,10 +673,14 @@ class MainUI(gui.VisexpmanMainWindow):
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             elif 'add_comment' in msg:
-                self.addnote=gui.AddNote(None,msg['add_comment'][0])
+                self.printc('')#Don't know why it is needed but needed for comment widget to show up
+                self.addnote=gui.AddNote(None,msg['add_comment'][0],  self.from_engine)
                 self.addnote.setWindowTitle('Comment')
                 self.addnote.text.setFixedWidth(350)
-                self.addnote.connect(self.addnote, QtCore.SIGNAL('addnote'),self.save_comment)
+                if QtCore.QT_VERSION_STR[0]=='4':
+                    self.addnote.connect(self.addnote, QtCore.SIGNAL('addnote'),self.save_comment)
+            elif 'save_comment' in msg:
+                self.save_comment(msg['save_comment'])
             
                 
     def _init_variables(self):
