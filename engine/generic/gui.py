@@ -67,8 +67,8 @@ class VisexpmanMainWindow(Qt.QMainWindow):
     def check_queue(self):
         pass
 
-    def _set_window_title(self, animal_file=''):
-        self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
+    def _set_window_title(self, animal_file='', tag=''):
+        self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''+tag))
         
     def _add_dockable_widget(self, title, position, allowed_areas, widget):
         dock = QtGui.QDockWidget(title, self)

@@ -681,7 +681,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.addnote.connect(self.addnote, QtCore.SIGNAL('addnote'),self.save_comment)
             elif 'save_comment' in msg:
                 self.save_comment(msg['save_comment'])
-            
+            elif 'permanent_warning' in msg:
+                self._set_window_title(tag=' !'+msg['permanent_warning'])
                 
     def _init_variables(self):
         if hasattr(self.machine_config,'FILTERWHEEL'):
