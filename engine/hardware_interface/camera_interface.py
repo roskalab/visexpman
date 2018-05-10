@@ -256,6 +256,7 @@ class ImagingSourceCamera(VideoCamera):
             
     def save(self):
         if self.dllref.IC_SnapImage(self.grabber_handle, int(self.snap_timeout)) == 1:
+            print('save')
             addr = self.dllref.IC_GetImagePtr(self.grabber_handle)
             p = ctypes.cast(addr, ctypes.POINTER(ctypes.c_byte))
             buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(p.contents), self.frame_size)
@@ -340,13 +341,13 @@ class TestCVCameraConfig(configuration.Config):
 class TestCamera(unittest.TestCase):
     #@unittest.skip('')
     def test_01_record_some_frames(self):
-        cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())))
-        cam.start()
+        cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())),10)
         time.sleep(0.2)
         tacq=2.0
         t0=time.time()
         with Timer(''):
             while cam.frame_counter < 24*tacq: 
+                print(cam.frame_counter )
                 cam.save()
                 
         cam.stop()
