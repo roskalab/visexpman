@@ -15,9 +15,9 @@ class MEAConfig(HiMEAConfig):
         SCREEN_RESOLUTION = utils.cr([1280, 800])
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         BACKGROUND_COLOR=[0.0, 0.0, 0.0]
-        LOG_PATH = fileop.select_folder_exists(['e:\\log', '/tmp', 'c:\\Data'])
+        LOG_PATH = fileop.select_folder_exists(['e:\\stim_data\\log', '/tmp', 'c:\\stim_data\\log'])
         EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['e:\\Data', '/tmp', 'c:\\Data\\log'])
+        EXPERIMENT_DATA_PATH = fileop.select_folder_exists(['e:\\stim_data', '/tmp', 'c:\\stim_data'])
         CONTEXT_PATH = LOG_PATH
         EXPERIMENT_FILE_FORMAT = 'mat'
         PLATFORM='standalone'
