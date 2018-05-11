@@ -31,3 +31,7 @@ class MovingGrating(experiment.Stimulus):
                 self.block_end()
         self.show_fullscreen(color=self.BACKGROUND, duration=self.WAIT)                
 
+if __name__ == "__main__":
+    from visexpman.applications.visexpman_main import stimulation_tester
+    from visexpman.engine.generic import fileop
+    stimulation_tester('zoltan', 'StimulusDevelopment', 'MovingGrating',experiment_config_source_code=fileop.read_text_file(__file__))
