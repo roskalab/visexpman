@@ -736,7 +736,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[-1]['children'].append(bouton_analysis.settings)
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
+        elif self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
                                 {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
@@ -749,7 +749,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 {'name': 'ND filter', 'type': 'str', 'value': ''},
                 {'name': 'Comment', 'type': 'str', 'value': ''},
             ])
-        if self.machine_config.PLATFORM=='us_cortical':
+        elif self.machine_config.PLATFORM=='us_cortical':
             self.params_config.append(
             {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
                     {'name': 'Protocol', 'type': 'list', 'values': self.machine_config.ULTRASOUND_PROTOCOLS},
@@ -759,6 +759,10 @@ class MainUI(gui.VisexpmanMainWindow):
             )
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
+        elif self.machine_config.PLATFORM=='resonant':
+            self.params_config[0]['expanded']=True
+            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
+            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'int', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
                         
 
     ############# Actions #############

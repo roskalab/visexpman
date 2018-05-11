@@ -81,9 +81,7 @@ class ExperimentHandler(object):
     def start_eye_camera(self):
         if not self.eye_camera_running:
             self.printc('Start eye camera')
-            self.eye_camera=camera_interface.ImagingSourceCamera(None)
-            self.eye_camera.frame_rate=15.0
-            self.eye_camera.set_framerate()
+            self.eye_camera=camera_interface.ImagingSourceCamera(self.guidata.read('Eye Camera Frame Rate'))
             self.eye_camera.start()
             self.eye_camera_running=True
         
@@ -92,7 +90,6 @@ class ExperimentHandler(object):
             self.printc('Stop eye camera')
             self.eye_camera_running=False
             self.eye_camera.stop()
-            self.eye_camera.close()
         
     def eyecamera2screen(self):
         if self.eye_camera_running:
@@ -184,16 +181,19 @@ class ExperimentHandler(object):
             for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Eye Camera']:
                 experiment_parameters[pn]=self.guidata.read(pn)
             experiment_parameters['motor position']=0
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        elif self.machine_config.PLATFORM=='elphys_retinal_ca':
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
-        if self.machine_config.PLATFORM=='ao_cortical':
+        elif self.machine_config.PLATFORM=='ao_cortical':
             if experiment_parameters['duration']<self.machine_config.MES_LONG_RECORDING:
                 wt=self.machine_config.MES_RECORD_START_WAITTIME
             else:
                 wt=self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
+        elif self.machine_config.PLATFORM=='resonant':
+            for pn in ['Eye Camera Frame Rate', 'Enable Eye Camera']:
+                experiment_parameters[pn]=self.guidata.read(pn)
         return experiment_parameters
             
     def start_batch(self):
@@ -288,7 +288,7 @@ class ExperimentHandler(object):
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
             self.eye_camera_filename=os.path.join(tempfile.gettempdir(), 'eye_cam_{0}.hdf5'.format(experiment_parameters['id']))
-            self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename)
+            self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename, self.guidata.read('Eye Camera Frame Rate'))
             self.eye_camera_running=True
             self.printc('Saving eye video')
         if self.santiago_setup:
