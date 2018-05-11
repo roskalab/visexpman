@@ -257,6 +257,6 @@ def receptive_field_calculator():
 
 if __name__ == "__main__":
     #receptive_field_calculator()
-    from visexpman.engine.visexp_app import stimulation_tester
+    from visexpman.applications.visexpman_main import stimulation_tester
     #stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
-    stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')
+    stimulation_tester('zoltan', 'StimulusDevelopment', 'Flash')

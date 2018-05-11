@@ -179,8 +179,12 @@ def id2timestamp(id_str):
     
 
 ############### Preprocess measurement data ####################
+if hasattr(hdf5io, 'Hdf5io'):
+    supcl=hdf5io.Hdf5io
+else:
+    supcl=object
 
-class CaImagingData(hdf5io.Hdf5io):
+class CaImagingData(supcl):
     '''
     datatypes:
         ao: time,channel, roi, height, width
