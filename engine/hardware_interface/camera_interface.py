@@ -208,7 +208,7 @@ def opencv_camera_runner(filename, duration, config):
         
         
 class ImagingSourceCamera(VideoCamera):
-    def __init__(self,frame_rate, video_format='Y800 (744x480)'):
+    def __init__(self,frame_rate, video_format='RGB24 (744x480)'):
         dllpath = os.path.join(os.path.dirname(visexpman.__file__),'engine', 'external','IC', 'tisgrabber_x64.dll')
         wd = os.getcwd()
         os.chdir(os.path.dirname(dllpath))
