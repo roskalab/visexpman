@@ -134,13 +134,14 @@ level=logging.INFO)
         a.close()
         
     def convert(self,filename):
-        experiment_data.hdf52mat(filename)
+        outfilename=experiment_data.hdf52mat(filename)
+        self.printl('Converted {0} to {1}'.format(filename, outfilename))
     
     def copy(self,filename):
         dst=os.path.join(self.backup_path, 'processed', *filename.split(os.sep)[-3:-1])
         if not os.path.exists(dst):
             os.makedirs(dst)
-        files2copy=[filename, experiment_data.add_mat_tag(filename)]
+        files2copy=[filename, fileop.replace_extension(experiment_data.add_mat_tag(filename), '.mat')]
         for f in files2copy:
             shutil.copy(f, dst) 
             

@@ -1534,6 +1534,7 @@ def hdf52mat(filename):
     h.close()
     matfile=fileop.replace_extension(add_mat_tag(filename), '.mat')
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+    return matfile
     
 def read_sync(filename):
     h=hdf5io.Hdf5io(filename)
