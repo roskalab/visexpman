@@ -94,64 +94,62 @@ class WhiteNoise(experiment.ExperimentConfig):
 
 # -----------------------------------------------------------------------------
 class ColoredNoise(experiment.ExperimentConfig):
-def _create_parameters(self):
-    self.runnable = 'ColoredNoiseStimulus'
-    self.DURATION_MINS = 30.0  # 30 min
-    self.PIXEL_SIZE = [40.0]
-    self.RED = True
-    self.GREEN = True
-    self.BLUE = True
-    self._create_parameters_from_locals(locals())
+    def _create_parameters(self):
+        self.runnable = 'ColoredNoiseStimulus'
+        self.DURATION_MINS = 30.0  # 30 min
+        self.PIXEL_SIZE = [40.0]
+        self.RED = True
+        self.GREEN = True
+        self.BLUE = True
+        self._create_parameters_from_locals(locals())
 
 
 
 # ------------------------------------------------------------------------------
 class ChirpSweep(experiment.ExperimentConfig):
-def _create_parameters(self):
-    self.runnable = 'ChirpSweep'
-    self.DURATION_BREAKS = 1.5
-    self.DURATION_FULLFIELD = 4
-    self.DURATION_FREQ = 8
-    self.DURATION_CONTRAST = 8
-    self.CONTRAST_RANGE = [0.0, 1.0]
-    self.FREQUENCY_RANGE = [1.0, 4.0]
-    self.STATIC_FREQUENCY = 2.0
-    self.REPEATS = 5
-    self.COLOR = [0, 1, 1]
-
-    self._create_parameters_from_locals(locals())
+    def _create_parameters(self):
+        self.runnable = 'ChirpSweep'
+        self.DURATION_BREAKS = 1.5
+        self.DURATION_FULLFIELD = 4
+        self.DURATION_FREQ = 8
+        self.DURATION_CONTRAST = 8
+        self.CONTRAST_RANGE = [0.0, 1.0]
+        self.FREQUENCY_RANGE = [1.0, 4.0]
+        self.STATIC_FREQUENCY = 2.0
+        self.REPEATS = 5
+        self.COLOR = [0, 1, 1]
+    
+        self._create_parameters_from_locals(locals())
 
 # ------------------------------------------------------------------------------
 class MovingGrating(experiment.ExperimentConfig):
-
-def _create_parameters(self):
-    self.runnable = 'MovingGratingStimulus'
-    self.REPEATS = 2
-    self.N_BAR_ADVANCES_OVER_POINT = 20
-    self.MARCH_TIME = 0.0
-    self.GREY_INSTEAD_OF_MARCHING = False
-    self.NUMBER_OF_MARCHING_PHASES = 1.0
-    self.GRATING_STAND_TIME = 1.0
-    self.ORIENTATIONS = range(0,360, 45)
-    self.WHITE_BAR_WIDTHS = [100]
-    self.VELOCITIES = [300, 1500]
-    self.DUTY_CYCLES = [1]
-    self.PAUSE_BEFORE_AFTER = 1.0
-
-    self._create_parameters_from_locals(locals())
+    def _create_parameters(self):
+        self.runnable = 'MovingGratingStimulus'
+        self.REPEATS = 2
+        self.N_BAR_ADVANCES_OVER_POINT = 20
+        self.MARCH_TIME = 0.0
+        self.GREY_INSTEAD_OF_MARCHING = False
+        self.NUMBER_OF_MARCHING_PHASES = 1.0
+        self.GRATING_STAND_TIME = 1.0
+        self.ORIENTATIONS = range(0,360, 45)
+        self.WHITE_BAR_WIDTHS = [100]
+        self.VELOCITIES = [300, 1500]
+        self.DUTY_CYCLES = [1]
+        self.PAUSE_BEFORE_AFTER = 1.0
+    
+        self._create_parameters_from_locals(locals())
 
 # ------------------------------------------------------------------------------
 class FingerPrinting(experiment.ExperimentConfig):
-
-def _create_parameters(self):
-    self.runnable = 'FingerPrintingStimulus'
-
-    self.FF_PAUSE_DURATION = 1.0
-    self.FF_PAUSE_COLOR = 0.5
-    self.DIRECTIONS = [0.0, 90.0]
-    self.SPEEDS = [300.0]
-    self.DURATION = 15.0
-    self.INTENSITY_LEVELS = 255
-    self.REPEATS = 15
-    self._create_parameters_from_locals(locals())
-
+    def _create_parameters(self):
+        self.runnable = 'FingerPrintingStimulus'
+    
+        self.FF_PAUSE_DURATION = 1.0
+        self.FF_PAUSE_COLOR = 0.5
+        self.DIRECTIONS = [0.0, 90.0]
+        self.SPEEDS = [300.0]
+        self.DURATION = 15.0
+        self.INTENSITY_LEVELS = 255
+        self.REPEATS = 15
+        self._create_parameters_from_locals(locals())
+    

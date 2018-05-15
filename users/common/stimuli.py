@@ -76,6 +76,7 @@ class MovingShapeStimulus(experiment.Experiment):
                                     #random_order = self.experiment_config.RANDOM_ORDER)
                                     #random_directions=self.experiment_config.RANDOM_DIRECTIONS,
                                     #random_speeds=self.experiment_config.RANDOM_SPEEDS)
+                                    )
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
     
