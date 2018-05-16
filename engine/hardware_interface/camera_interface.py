@@ -222,7 +222,7 @@ class ImagingSourceCamera(object):
             cam_name=bytes(cam_name, 'utf-8')
         cam_name = ctypes.c_char_p(cam_name)
         if self.dllref.IC_OpenVideoCaptureDevice(self.grabber_handle, cam_name) != 1:
-            raise RuntimeError('Opening video capture device did not succeed')
+            raise RuntimeError('Opening camera did not succeed')
         self.video_format = video_format
         if sys.version_info.major==3:
             self.video_format=bytes(self.video_format, 'utf-8')

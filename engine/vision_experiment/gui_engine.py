@@ -287,7 +287,8 @@ class ExperimentHandler(object):
             self.sync_recording_started=True
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
-            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), 'eye_cam_{0}.hdf5'.format(experiment_parameters['id']))
+            eyefn=os.path.basename(experiment_data.get_recording_filename(self.machine_config, experiment_parameters, prefix = 'eyecam'))
+            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), eyefn)
             self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename, self.guidata.read('Eye Camera Frame Rate'))
             self.eye_camera_running=True
             self.printc('Saving eye video')
@@ -314,6 +315,7 @@ class ExperimentHandler(object):
         self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
+        self.to_gui.put({'update_status':'busy'})   
         self.printc('Finishing experiment...')
         if self.machine_config.PLATFORM=='mc_mea':
             if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
@@ -351,10 +353,11 @@ class ExperimentHandler(object):
                 self.eye_camera_running=False
                 self.start_eye_camera()
             self.experiment_running=False
-            self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
+        self.to_gui.put({'update_status':'idle'}) 
             
     def save_experiment_files(self, aborted=False):
+        self.to_gui.put({'update_status':'busy'})   
         fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
         if aborted:
             if hasattr(self, 'daqdatafile'):
@@ -377,12 +380,12 @@ class ExperimentHandler(object):
                 except:
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
-            if  'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera'] and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
+            if  'Enable Eye Camera' in self.current_experiment_parameters and self.current_experiment_parameters['Enable Eye Camera'] and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
                 #Converting eye camera file:
-                self.printc('Converting eye camera file to mat')
-                mat_eye_camera_file=experiment_data.hdf52mat(self.eye_camera_filename)
+                self.printc('Saving eye camera file')
+                #mat_eye_camera_file=experiment_data.hdf52mat(self.eye_camera_filename)
                 shutil.move(self.eye_camera_filename, os.path.dirname(fn))
-                shutil.move(mat_eye_camera_file, os.path.dirname(fn))
+                #shutil.move(mat_eye_camera_file, os.path.dirname(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -426,6 +429,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
+        self.to_gui.put({'update_status':'idle'})   
                 
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:
