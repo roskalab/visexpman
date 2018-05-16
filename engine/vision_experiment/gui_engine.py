@@ -377,9 +377,12 @@ class ExperimentHandler(object):
                 except:
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
-            if hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
-                self.printc('TODO: save tmp eye camera image')
+            if  'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera'] and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
+                #Converting eye camera file:
+                self.printc('Converting eye camera file to mat')
+                mat_eye_camera_file=experiment_data.hdf52mat(self.eye_camera_filename)
                 shutil.move(self.eye_camera_filename, os.path.dirname(fn))
+                shutil.move(mat_eye_camera_file, os.path.dirname(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')

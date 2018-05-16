@@ -551,7 +551,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.analysis, 'Analysis')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.PLATFORM in ['us_cortical']:
+        if self.machine_config.PLATFORM in ['us_cortical', 'resonant']:
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
@@ -762,7 +762,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM=='resonant':
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'int', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
+            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
                         
 
     ############# Actions #############

@@ -241,6 +241,9 @@ class ImagingSourceCamera(object):
         self.frame_counter = 0
         self.framep = []
         self.frames = []
+        #disable triggering
+        if self.dllref.IC_EnableTrigger(self.grabber_handle,  0)!=1:
+            raise RuntimeError('Could not disable camera triggering')
         self.get_frame_rates()
 #        self.video = numpy.zeros((1, self.h, self.w), numpy.uint8)
 
