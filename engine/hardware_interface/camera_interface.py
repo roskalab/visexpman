@@ -274,6 +274,9 @@ class ImagingSourceCamera(object):
             self.frames.append(frame)
             self.frame_counter += 1
             time.sleep(1e-3)
+            return True
+        else:
+            return False
         
     def stop(self):
         if self.isrunning:
@@ -305,16 +308,23 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         self.start()
         
     def save(self):
-        ImagingSourceCamera.save(self)
-        if  len(self.frames)>0:
+        if  ImagingSourceCamera.save(self):
             self.datafile.root.ic_timestamps.append(numpy.array([[time.time()]]))
             self.datafile.root.ic_frames.append(numpy.expand_dims(self.frames[-1],0))
             
     def stop(self):
         ImagingSourceCamera.stop(self)
+        res=self.mark_dropped_frames()
         self.datafile.close()
         self.close()
+        return res
         
+    def mark_dropped_frames(self):
+        expected_frame_time=1000.0/self.frame_rate
+        dt=numpy.diff(self.datafile.root.ic_timestamps.read().flatten())*1000
+        ic_frame_steps=numpy.cast['uint8'](numpy.round(dt/expected_frame_time))
+        self.datafile.create_array(self.datafile.root, 'ic_frame_steps',ic_frame_steps, 'Frame steps')
+        return numpy.where(ic_frame_steps>1)[0].shape[0], dt.shape[0]+1
 
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):
@@ -338,13 +348,13 @@ class TestCamera(unittest.TestCase):
         fr=15
         cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())),fr)
         time.sleep(0.2)
-        tacq=5
+        tacq=50
         t0=time.time()
         with Timer(''):
             while cam.frame_counter < fr*tacq: 
                 cam.save()
                 
-        cam.stop()
+        print(cam.stop())
         
         print(('frame rate',  len(cam.frames)/(time.time()-t0)))
         print(cam.frames[0].shape)

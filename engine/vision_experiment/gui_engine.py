@@ -349,7 +349,8 @@ class ExperimentHandler(object):
                     time.sleep(1)
             self._stop_sync_recorder()
             if hasattr(self, 'eye_camera') and self.eye_camera.isrunning:
-                self.eye_camera.stop()
+                res=self.eye_camera.stop()
+                self.printc('{0} frames were dropped frames in eyecamera video'.format(res))
                 self.eye_camera_running=False
                 self.start_eye_camera()
             self.experiment_running=False

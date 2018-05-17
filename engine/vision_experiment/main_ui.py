@@ -655,11 +655,12 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'eye_camera_image' in msg:
-                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 1)
+                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 'all')
                 h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
                 self.eye_camera.setFixedHeight(h)
                 self.eye_camera.plot.setTitle(time.time())
+                #self.eye_camera.img.setLevels([0,255])
             elif 'plot_sync' in msg:
                 x,y=msg['plot_sync']
                 self.p=gui.Plot(None)
