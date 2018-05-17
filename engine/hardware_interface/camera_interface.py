@@ -324,6 +324,7 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         dt=numpy.diff(self.datafile.root.ic_timestamps.read().flatten())*1000
         ic_frame_steps=numpy.cast['uint8'](numpy.round(dt/expected_frame_time))
         self.datafile.create_array(self.datafile.root, 'ic_frame_steps',ic_frame_steps, 'Frame steps')
+        self.ic_frame_steps=ic_frame_steps
         return numpy.where(ic_frame_steps>1)[0].shape[0], dt.shape[0]+1
 
 class TestISConfig(configuration.Config):
@@ -345,17 +346,21 @@ class TestCVCameraConfig(configuration.Config):
 class TestCamera(unittest.TestCase):
     #@unittest.skip('')
     def test_01_record_some_frames(self):
-        fr=15
+        fr=30
         cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())),fr)
         time.sleep(0.2)
-        tacq=50
+        tacq=10
         t0=time.time()
         with Timer(''):
             while cam.frame_counter < fr*tacq: 
+                t1=time.time()
                 cam.save()
+                t2=time.time()
+                #tleft=1.0/fr-(t0-t1)
+                #time.sleep(tleft)
                 
         print(cam.stop())
-        
+        print([ cam.ic_frame_steps])
         print(('frame rate',  len(cam.frames)/(time.time()-t0)))
         print(cam.frames[0].shape)
         
