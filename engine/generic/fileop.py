@@ -58,8 +58,8 @@ def generate_foldername(path):
             raise RuntimeError('Foldername cannot be generated')
     return testable_path
 
-#OBSOLETE
 def get_tmp_file(suffix, delay = 0.0):
+    '''OBSOLETE'''
     path = os.path.join(tempfile.gettempdir(), 'tmp.' + suffix)
     remove_if_exists(path)
     time.sleep(delay)
@@ -154,6 +154,9 @@ def file_open_by_other_process(filename):
     elif len(pids)>1 or pids[0]!=os.getpid():return True
 
 def folder_size(source):
+    '''
+    Return the overall size of files in a folder in bytes.
+    '''
     total_size_bytes = os.path.getsize(source)
     if not os.path.isfile(source):
         for item in os.listdir(source):
@@ -196,6 +199,9 @@ def folder_signature(folder):
     return (len(files), sum([os.path.getsize(f) for f in files]), max([os.path.getmtime(f) for f in files]))
     
 def file_signature(filename):
+    '''
+    Signature of a file is generated from filename, size and last modification data
+    '''
     return (filename, os.path.getsize(filename), int(os.path.getmtime(filename)))
     
 ################# File/directory operations ####################
@@ -239,6 +245,7 @@ def recreate_dir(folder):
     os.makedirs(folder)
 
 def copy(src, dst, update=1):
+    '''OBSOLETE'''
     if not os.path.exists(src):
         raise OSError('File or directory to be copied does not exist')
     if os.path.isfile(src): 
@@ -429,12 +436,18 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
 ################# Text file related ####################
 
 def read_text_file(path):
+    '''
+    Read content of a file to string
+    '''
     f = open(path,  'rt')
     txt =  f.read(os.path.getsize(path))
     f.close()
     return txt
     
 def write_text_file(filename, content):
+    '''
+    Write string data to a file
+    '''
     f = open(filename,  'wt')
     f.write(content)
     f.close()
@@ -442,10 +455,15 @@ def write_text_file(filename, content):
 ################# Vision experiment manager related ####################
 #TODO: This should go to experiment_data
 def visexpman_package_path():
-    import visexpman
+    '''
+    Returns the absolute path of visexpman module
+    '''
     return os.path.split(sys.modules['visexpman'].__file__)[0]
     
 def visexpA_package_path():
+    '''
+    Returns the absolute path of visexpA module
+    '''
     try:
         import visexpA
         return os.path.split(sys.modules['visexpA'].__file__)[0]
@@ -471,6 +489,7 @@ def get_context_filename(config,extension=' npy'):
     return os.path.join(config.CONTEXT_PATH, filename)
     
 def get_log_filename(config):
+    '''OBSOLETE'''
     if not hasattr(config, 'LOG_PATH'):
         raise RuntimeError('LOG_PATH is not defined in machine config')
     import platform
@@ -484,6 +503,9 @@ def get_log_filename(config):
     return os.path.join(config.LOG_PATH, filename)
 
 def cleanup_files(config):
+    '''
+    Cleanup files residing in the folders that are contained by the provided configuration
+    '''
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
     if os.path.exists(get_context_filename(config)):
         os.remove(get_context_filename(config))
@@ -493,7 +515,7 @@ def cleanup_files(config):
 
 class DataAcquisitionFile(object):
     '''
-    Opens an hdf5 file and data can be saved sequentally
+    Opens an hdf5 file and provides an interface for saving data sequentally
     '''
     def __init__(self,nchannels,dataname, datarange,filename=None,compression_level=5):
         self.nchannels=nchannels
@@ -560,22 +582,30 @@ def parse_animal_filename(filename):
     return animal_parameters
     
 def is_animal_file(filename):
+    '''
+    Check if file is an animal file
+    '''
     fn = os.path.split(filename)[1]
     if is_first_tag(fn, 'animal_') and os.path.splitext(fn)[1] == '.hdf5':
         return True
     else:
         return False
-    
+
 def copy_reference_fragment_files(reference_folder, target_folder):
+    '''OBSOLETE'''
     if os.path.exists(target_folder):
         shutil.rmtree(target_folder)
     shutil.copytree(reference_folder, target_folder)
     return find_files_and_folders(target_folder, extension = 'hdf5',filter='fragment')[1]
     
 def get_id_node_name_from_path(path):#Using similar function from component guesser may result segmentation error.
+    '''
+    Parse out id node name from filename
+    '''
     return '_'.join(os.path.split(path)[1].split('.')[-2].split('_')[-3:])
-#OBSOLETE
+    
 def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5', subfolders =  False):
+    '''OBSOLETE'''
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
         folder = config.EXPERIMENT_DATA_PATH
     else:
@@ -589,8 +619,9 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
-#OBSOLETE
+            
 def find_file_from_timestamp(dir, timestamp):
+    '''OBSOLETE'''
     #from visexpman.engine.generic.fileop import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
     files = dirListing(dir, ['.hdf5'], dir)
@@ -601,15 +632,16 @@ def find_file_from_timestamp(dir, timestamp):
     if len(matching)==0: return None
     else: return matching[0]
 
-#OBSOLETE
 def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, remote_win_path = True):
+    '''OBSOLETE'''
     filename = os.path.split(local_file_path)[-1]
     remote_file_path = os.path.join(remote_machine_folder, filename)
     if remote_win_path:
         remote_file_path = remote_file_path.replace('/',  '\\')
     return remote_file_path
-#OBSOLETE    
+
 def parse_fragment_filename(path):
+    '''OBSOLETE'''
     fields = {}
     filename = os.path.split(path)[1]
     if '.hdf5' in path:
@@ -632,12 +664,11 @@ def parse_fragment_filename(path):
 ################# Not fileop related ####################
 
 def compare_timestamps(string1, string2):
-        '''Finds timestamps in the strings and returns true if the timestamps are the same'''
-        ts1 = timestamp_re.findall(str(string1))[0]
-        ts2 = timestamp_re.findall(str(string2))[0]
-        if int(ts1)==int(ts2): return True
-        else: return False
-
+    '''Finds timestamps in the strings and returns true if the timestamps are the same'''
+    ts1 = timestamp_re.findall(str(string1))[0]
+    ts2 = timestamp_re.findall(str(string2))[0]
+    if int(ts1)==int(ts2): return True
+    else: return False
 
 ################# Others ####################
 
@@ -809,6 +840,9 @@ def pngsave(im, file):
     im.save(file, "PNG", pnginfo=meta)
     
 def download_folder(server, user, src,dst,port=22,password=None):
+    '''
+    Download a folder from a remote server using ssh connection
+    '''
     import paramiko,zipfile
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

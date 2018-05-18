@@ -249,14 +249,14 @@ class ImagingSourceCamera(object):
             raise RuntimeError('Setting frame rate did not succeed')
         fr=round(1000.0/self.dllref.IC_GetFrameRate(self.grabber_handle))
         if fr !=self.frame_rate:
-            raise RuntimeError('{0} Hz requested,  {1} Hz is possible'.format(self.frame_rate,  fr))
+            raise RuntimeError('{0} Hz requested, {1} Hz is possible'.format(self.frame_rate,  fr))
         
     def start(self, show=False):
         if not self.isrunning:
             if self.dllref.IC_StartLive(self.grabber_handle, int(show)) == 1:
                 self.isrunning = True
         else:
-            raise RuntimeError('Camera is alredy recording')
+            raise RuntimeError('Camera is already recording')
             
     def save(self):
         if self.dllref.IC_SnapImage(self.grabber_handle, int(self.snap_timeout)) == 1:
