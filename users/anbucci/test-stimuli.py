@@ -132,7 +132,7 @@ class AB_TwoPixelFullField(experiment.ExperimentConfig):
         self.ONTIME=2#seconds
         self.OFFTIME=2#seconds
         self.TIMESHIFT=-1.5#seconds
-        self.PIXEL_RATIO=0.5
+        self.PIXEL_RATIO=0.7
         self.REPEATS=5
         self.runnable='TwoPixelFullFieldE'
         self._create_parameters_from_locals(locals())
@@ -140,17 +140,17 @@ class AB_TwoPixelFullField(experiment.ExperimentConfig):
 # -----------------------------------------------------------------------------
 # Contrast steps
 
-class AB_SpotOnOffParameters(experiment.ExperimentConfig):
+class AB_ContrastStepsParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPOT_SIZE = 4000  # fullfield 2500
         self.ON_TIME = 2 #s
         self.OFF_TIME = 2 #s
         self.BACKGROUND_TIME = 2
-        self.SPOT_CONTRAST_ON = [0.625, 0.75, 0.87, 0.999] #[0.625, 0.75, 0.87, 0.999]  #N [0.999]
-        self.REPETITIONS_ALL = 5
+        self.SPOT_CONTRAST_ON = [0.5, 0.65, 0.375, 0.75, 0.25, 0.875,  0.125, 0.999, 0.01]#[0.625, 0.75, 0.87, 0.999]  #N [0.999]
+        self.SPOT_CONTRAST_OFF = 0.5
+        self.REPETITIONS_ALL = 1
         self.BACKGROUND_COLOR = 0.5
-        self.DRUG_CONC = 0.0  
         self.BLACK = 0.01
         self.WHITE = 0.999
-        self.runnable = 'SpotExperiment'
+        self.runnable = 'ContrastExperiment'
         self._create_parameters_from_locals(locals())        
