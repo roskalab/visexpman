@@ -806,7 +806,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     filename_prefix = 'stim'
                 fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
             self.datafilename=fn
-            scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
+            scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=not True) 
             
     def _backup(self, filename):
         dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))

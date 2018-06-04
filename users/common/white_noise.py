@@ -10,6 +10,8 @@ class WhiteNoise(experiment.Stimulus):
 #Do not edit below this!
  
     def run(self):
+        import numpy
+        numpy.random.seed(0)
         self.show_fullscreen(color=self.BACKGROUND, duration=self.WAIT)
         self.show_white_noise(duration = self.DURATION*60,
                 square_size = self.PIXEL_SIZE)
