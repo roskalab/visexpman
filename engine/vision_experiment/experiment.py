@@ -311,7 +311,10 @@ def stimulus_parameters_hash(pars):
     calculates sha256 hash of stimulus parameters
     '''
     import hashlib
-    return hashlib.sha256(utils.object2str(pars)).hexdigest()
+    values=[i for i in pars.values()]#this ensures that comparison across python 2 and 3 works
+    values.sort()
+    values=str(values).encode('utf-8')
+    return hashlib.sha256(values).hexdigest()
     
 def read_stimulus_base_classes(stimname,filename,config):
     source_code=fileop.read_text_file(filename)

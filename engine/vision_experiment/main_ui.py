@@ -551,7 +551,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.analysis, 'Analysis')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.PLATFORM in ['us_cortical']:
+        if self.machine_config.PLATFORM in ['us_cortical', 'resonant']:
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
@@ -655,11 +655,12 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'eye_camera_image' in msg:
-                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 1)
+                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 'all')
                 h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
                 self.eye_camera.setFixedHeight(h)
                 self.eye_camera.plot.setTitle(time.time())
+                #self.eye_camera.img.setLevels([0,255])
             elif 'plot_sync' in msg:
                 x,y=msg['plot_sync']
                 self.p=gui.Plot(None)
@@ -673,11 +674,16 @@ class MainUI(gui.VisexpmanMainWindow):
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             elif 'add_comment' in msg:
-                self.addnote=gui.AddNote(None,msg['add_comment'][0])
+                self.printc('')#Don't know why it is needed but needed for comment widget to show up
+                self.addnote=gui.AddNote(None,msg['add_comment'][0],  self.from_engine)
                 self.addnote.setWindowTitle('Comment')
                 self.addnote.text.setFixedWidth(350)
-                self.addnote.connect(self.addnote, QtCore.SIGNAL('addnote'),self.save_comment)
-            
+                if QtCore.QT_VERSION_STR[0]=='4':
+                    self.addnote.connect(self.addnote, QtCore.SIGNAL('addnote'),self.save_comment)
+            elif 'save_comment' in msg:
+                self.save_comment(msg['save_comment'])
+            elif 'permanent_warning' in msg:
+                self._set_window_title(tag=' !'+msg['permanent_warning'])
                 
     def _init_variables(self):
         if hasattr(self.machine_config,'FILTERWHEEL'):
@@ -731,7 +737,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[-1]['children'].append(bouton_analysis.settings)
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
+        elif self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
                                 {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
@@ -744,7 +750,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 {'name': 'ND filter', 'type': 'str', 'value': ''},
                 {'name': 'Comment', 'type': 'str', 'value': ''},
             ])
-        if self.machine_config.PLATFORM=='us_cortical':
+        elif self.machine_config.PLATFORM=='us_cortical':
             self.params_config.append(
             {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
                     {'name': 'Protocol', 'type': 'list', 'values': self.machine_config.ULTRASOUND_PROTOCOLS},
@@ -754,6 +760,10 @@ class MainUI(gui.VisexpmanMainWindow):
             )
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
+        elif self.machine_config.PLATFORM=='resonant':
+            self.params_config[0]['expanded']=True
+            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
+            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
                         
 
     ############# Actions #############
