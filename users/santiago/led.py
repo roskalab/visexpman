@@ -11,11 +11,11 @@ import time
 class LedConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
 #### EDIT FROM HERE
-        self.PAUSE_BETWEEN_FLASHES = 10
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 0.5
-        self.LED_CURRENT = 950#mA
-        self.DELAY_BEFORE_FIRST_FLASH = 10
+        self.PAUSE_BETWEEN_FLASHES = 30#s, 30
+        self.NUMBER_OF_FLASHES = 1.0#1.0
+        self.FLASH_DURATION = 0.5#s, 0.5
+        self.LED_CURRENT = 950#mA, 950 for exp but for test check that does not saturate PMT
+        self.DELAY_BEFORE_FIRST_FLASH = 30#s, 30
         self.SCREEN_COLOR=0.0#1.0=white, max intensity, 0.0=black
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
@@ -57,7 +57,7 @@ class LedStimulation(experiment.Experiment):
             daq_instrument.set_waveform('Dev1/ao0',numpy.array([self.waveform]),sample_rate = self.fsample)
         else:
             self.analog_output = PyDAQmx.Task()
-            self.analog_output.CreateAOVoltageChan('Dev1/ao0',
+            self.analog_output.CreateAOVoltageChan('Dev1/ao1',
                                         'ao',
                                         0, 
                                         5, 

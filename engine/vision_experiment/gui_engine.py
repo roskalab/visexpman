@@ -396,7 +396,7 @@ class ExperimentHandler(object):
                 #Check for dropped frames
                 dropped_frames=legacy.get_dropped_frames(filename)
                 if dropped_frames>2:
-                    raise RuntimeError('{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
+                    self.notify('Error', '{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
                 elif dropped_frames==2:
                     self.printc('No dropped frames detected')
                 else:
@@ -496,6 +496,14 @@ class ExperimentHandler(object):
                 Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
         h.load('timg')
+        
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
         if 'Led2' in filename:
             h.load('generated_data')
             channels = utils.array2object(h.generated_data)#,len(utils.array2object(h.generated_data))
@@ -507,6 +515,7 @@ class ExperimentHandler(object):
         h.close()        
         if 'Led2' in filename:
             self.printc(['led stim', numpy.round(tstim_sep['led'])])
+            self.printc(['stim', numpy.round(tstim_sep['stim'])])
             txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
             txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
             #Calculate image index for stim events
@@ -519,11 +528,11 @@ class ExperimentHandler(object):
             led_indexes=[self.indexofsmallestpositive(h.timg-s) for s in h.tstim]
             txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
-        csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
-        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
-        csvfn2a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled_index.csv'))
-        csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
-        csvfn1a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim_index.csv'))
+        csvfn3=os.path.join(output_folder,'_img.csv')
+        csvfn2=os.path.join(output_folder, '_lgnled.csv')
+        csvfn2a=os.path.join(output_folder, '_lgnled_index.csv')
+        csvfn1=os.path.join(output_folder,  '_stim.csv')
+        csvfn1a=os.path.join(output_folder,  '_stim_index.csv')
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         if 'Led2' in filename:
@@ -710,8 +719,22 @@ class Analysis(object):
         self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
-        self.datafile.sync2time()
+        self.datafile.sync2time(recreate=self.santiago_setup)
         self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+        if self.santiago_setup:
+            h=self.datafile
+            h.load('dropped_frames')
+            if hasattr(h, 'dropped_frames'):
+                h.dropped_frames=numpy.array(h.dropped_frames)
+                if h.dropped_frames.sum()>0:
+                    self.printc('dropped frames in file')
+                    h.load('timg')
+                    #self.printc(h.timg.shape)
+                    #self.printc(h.dropped_frames.shape)
+                    h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                    h.timg=h.timg[:self.datafile.raw_data.shape[0]]
+                    #self.printc(h.timg.shape)
+                    h.save('timg')
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
         self.image_scale=self.datafile.scale
