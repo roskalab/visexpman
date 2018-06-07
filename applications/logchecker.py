@@ -45,7 +45,7 @@ class LogChecker(object):
             utils.sendmail(to, 'errors in {0}'.format(logfile_folder), self.error_report)
             logging.error(self.error_report)
         else:
-            utils.sendmail(to, 'no error in {0}'.format(logfile_folder), 'No error')
+            pass#utils.sendmail(to, 'no error in {0}'.format(logfile_folder), 'No error')
         logging.info('Done')
         
     def _line2timestamp(self,line):

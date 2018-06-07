@@ -451,7 +451,16 @@ def merge_ca_data(folder,**kwargs):
         raise RuntimeError('Imaging datafiles are missing')
     recording_name=os.path.basename(imaging_folder)
     if os.path.splitext(os.listdir(imaging_folder)[0])[1]=='.csv':
-        fn=os.path.join(imaging_folder, (os.listdir(imaging_folder)[0]))
+        files1=os.listdir(imaging_folder)
+        #Extract dropped frames
+        dfn=[f for f in files1 if '__dropped' in f]
+        if len(dfn)>0:
+            dropped_frames_txt=fileop.read_text_file(os.path.join(imaging_folder, dfn[0]))
+            dropped_frames=[bool(int(i)) for i in dropped_frames_txt.split('\t')]
+            import shutil
+            shutil.move(os.path.join(imaging_folder,dfn[0]), os.path.join(imaging_folder,dfn[0].replace('.csv', '.txt')))
+        files1.sort()
+        fn=os.path.join(imaging_folder, files1[-1])
         frame_fn=fn
         sizex, sizey, a,b, res = map(float, os.path.split(fn)[1].replace('.csv','').split('_')[-6:-1])
         nchannels=2 if fn.split('_')[-1].split('.')[0]=='both' else 1
@@ -557,6 +566,8 @@ def merge_ca_data(folder,**kwargs):
     #Save everything to final file
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
     h=hdf5io.Hdf5io(filename)
+    h.dropped_frames=dropped_frames
+    h.save('dropped_frames')
     h.parameters=recording_parameters
     h.sync= sync_and_elphys
     h.fsync=syncfile
