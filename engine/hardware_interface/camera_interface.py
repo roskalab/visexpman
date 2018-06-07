@@ -305,10 +305,15 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         self.datafile=tables.open_file(filename, 'w')
         self.datafile.create_earray(self.datafile.root, 'ic_frames', tables.UInt8Atom((480, 744)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='blosc', shuffle = 1))
         self.datafile.create_earray(self.datafile.root, 'ic_timestamps', tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
+#        self.codec=self.dllref.IC_Codec_Create("MJPEG Compressor")
+#        self.dllref.IC_SetCodec(self.grabber_handle,self.codec)
+#        print(self.dllref.IC_SetAVIFileName(self.grabber_handle, filename+'.avi'))
+#IC_SetPropertySwitch(hGrabber,"Exposure","Auto",0);
         self.start()
         
     def save(self):
         if  ImagingSourceCamera.save(self):
+            return
             self.datafile.root.ic_timestamps.append(numpy.array([[time.time()]]))
             self.datafile.root.ic_frames.append(numpy.expand_dims(self.frames[-1],0))
             
@@ -344,7 +349,7 @@ class TestCVCameraConfig(configuration.Config):
 
                 
 class TestCamera(unittest.TestCase):
-    #@unittest.skip('')
+   #@unittest.skip('')
     def test_01_record_some_frames(self):
         fr=30
         cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())),fr)
@@ -363,10 +368,32 @@ class TestCamera(unittest.TestCase):
         print([ cam.ic_frame_steps])
         print(('frame rate',  len(cam.frames)/(time.time()-t0)))
         print(cam.frames[0].shape)
+        pass
         
     @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
         simple_camera()
+
+    @unittest.skip('')      
+    def test_03_set_camera_exposure(self):
+        dllpath = os.path.join(os.path.dirname(visexpman.__file__),'engine', 'external','IC', 'tisgrabber_x64.dll')
+        wd = os.getcwd()
+        os.chdir(os.path.dirname(dllpath))
+        self.dllref = ctypes.windll.LoadLibrary(dllpath)
+        os.chdir(wd)
+        if self.dllref.IC_InitLibrary(None) != 1:
+            raise RuntimeError('Initializing TIS library did not succeed')
+        self.grabber_handle = self.dllref.IC_CreateGrabber()
+        cam_name = 'DMK 22BUC03'
+        if sys.version_info.major==3:
+            cam_name=bytes(cam_name, 'utf-8')
+        cam_name = ctypes.c_char_p(cam_name)
+        if self.dllref.IC_OpenVideoCaptureDevice(self.grabber_handle, cam_name) != 1:
+            raise RuntimeError('Opening camera did not succeed')
+        print(self.dllref.IC_StartLive(self.grabber_handle, int(0)))
+        self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
+        self.dllref.IC_CloseLibrary()
+        
         
 def simple_camera():
     import os

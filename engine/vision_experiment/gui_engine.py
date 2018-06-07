@@ -396,7 +396,7 @@ class ExperimentHandler(object):
                 #Check for dropped frames
                 dropped_frames=legacy.get_dropped_frames(filename)
                 if dropped_frames>2:
-                    raise RuntimeError('{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
+                    raise RuntimeError('{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames-2))
                 elif dropped_frames==2:
                     self.printc('No dropped frames detected')
                 else:
@@ -605,7 +605,7 @@ class ExperimentHandler(object):
                 msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
             elif self.machine_config.PLATFORM=='resonant':
-                self.notify('Info', 'Go to MESc processing window and add "{0}" to comment'.format(os.path.basename(self.outputfilename)))
+                self.printc('Go to MESc processing window and add "{0}" to comment'.format(os.path.basename(self.outputfilename)))
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True

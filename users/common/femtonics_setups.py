@@ -138,7 +138,7 @@ class ResonantSetup(ResonantConfig):
         self.EXPERIMENT_DATA_PATH = os.path.join(root,'processed')
         self.CONTEXT_PATH= os.path.join(root, 'context')
         #Stimulus screen
-        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 135.0 # original at 300
+        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 145.0 # original at 300
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
         self.SCREEN_PIXEL_WIDTH = 540.0/self.SCREEN_RESOLUTION ['col'] # 		original at 477
         self.SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -175,7 +175,7 @@ class GeorgResonantSetup(ResonantSetup):
         self.FULLSCREEN=True
         self.CAMERA_TRIGGER_ENABLE=True
         self.CAMERA_TRIGGER_PORT='COM3'
-        self.CAMERA_TRIGGER_FRAME_RATE=20
+        self.CAMERA_TRIGGER_FRAME_RATE=15
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
 
@@ -191,7 +191,7 @@ class ResonantDev(ResonantSetup):
         self.FULLSCREEN=False
         self.CAMERA_TRIGGER_ENABLE=True
         self.CAMERA_TRIGGER_PORT='COM3'
-        self.CAMERA_TRIGGER_FRAME_RATE=20
+        self.CAMERA_TRIGGER_FRAME_RATE=15
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])

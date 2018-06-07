@@ -300,7 +300,10 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         raise ExperimentConfigError('Stimulus duration is unknown')
         
 def read_stimulus_parameters(stimname, filename,config):
-    source_code=fileop.read_text_file(filename)
+    if os.path.exists(filename):
+        source_code=fileop.read_text_file(filename)
+    else:
+        source_code=filename
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     em=__import__('experiment_module')
     ec=getattr(em,stimname)(config,create_runnable=False)
@@ -311,9 +314,9 @@ def stimulus_parameters_hash(pars):
     calculates sha256 hash of stimulus parameters
     '''
     import hashlib
-    values=[i for i in pars.values()]#this ensures that comparison across python 2 and 3 works
-    values.sort()
-    values=str(values).encode('utf-8')
+    parnames=[i for i in pars.keys()]#this ensures that comparison across python 2 and 3 works
+    parnames.sort()
+    values=str([pars[k] for k in parnames]).encode('utf-8') 
     return hashlib.sha256(values).hexdigest()
     
 def read_stimulus_base_classes(stimname,filename,config):
