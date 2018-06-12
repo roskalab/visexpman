@@ -646,7 +646,14 @@ def pack_configs(self):
     if not configs.has_key('experiment_config'):
         configs['experiment_config']=self.config2dict()
     from visexpman.engine.vision_experiment import experiment
-    configs['hash']=experiment.stimulus_parameters_hash(configs['experiment_config'])
+    if hasattr(self,  'experiment_config') :
+        sc=self.parameters['experiment_config_source_code']
+        cn=self.experiment_config.__class__.__name__
+    else:
+        sc=self.parameters['stimulus_source_code']
+        cn=self.__class__.__name__
+    parameters=experiment.read_stimulus_parameters(cn, sc, self.machine_config)
+    configs['hash']=experiment.stimulus_parameters_hash(parameters)
     return configs
     
 def read_machine_config(h):
@@ -1534,6 +1541,7 @@ def hdf52mat(filename):
     h.close()
     matfile=fileop.replace_extension(add_mat_tag(filename), '.mat')
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+    return matfile
     
 def read_sync(filename):
     h=hdf5io.Hdf5io(filename)

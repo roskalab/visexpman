@@ -123,7 +123,7 @@ level=logging.INFO)
     def mesextractor(self,filename):
         #Check if input files are valid
         files=[filename, filename.replace('.hdf5', '.mat')]
-        if os.path.exists(files[1].replace('.mat', '_1.mat')):
+        if os.path.exists(files[1].replace('.mat', '_1.mat')) or os.path.exists(files[1].replace('.mat', '_0.mat')):
             raise RuntimeError('MES file error, data split to several files.')
         for f in files:
             if os.path.getsize(f)<1e6:
@@ -134,13 +134,14 @@ level=logging.INFO)
         a.close()
         
     def convert(self,filename):
-        experiment_data.hdf52mat(filename)
+        outfilename=experiment_data.hdf52mat(filename)
+        self.printl('Converted {0} to {1}'.format(filename, outfilename))
     
     def copy(self,filename):
         dst=os.path.join(self.backup_path, 'processed', *filename.split(os.sep)[-3:-1])
         if not os.path.exists(dst):
             os.makedirs(dst)
-        files2copy=[filename, experiment_data.add_mat_tag(filename)]
+        files2copy=[filename, fileop.replace_extension(experiment_data.add_mat_tag(filename), '.mat')]
         for f in files2copy:
             shutil.copy(f, dst) 
             

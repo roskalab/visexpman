@@ -635,7 +635,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
                     self.send({'mesc':'start'})
-                    time.sleep(1)
+                    time.sleep(1.5)
                     response=self.recv()
                     if not hasattr(response, 'keys') or not response['mesc start command result']:
                         self.abort=True

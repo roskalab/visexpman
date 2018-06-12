@@ -119,6 +119,7 @@ class NaturalBarsTest(experiment.Stimulus):
 class Flash(experiment.Stimulus):
     def configuration(self):
         self.DURATION=8
+        self.CONFIG=[1,2,[1,2]]
         
     def calculate_stimulus_duration(self):
         self.duration=self.DURATION*3

@@ -551,7 +551,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.analysis, 'Analysis')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.PLATFORM in ['us_cortical']:
+        if self.machine_config.PLATFORM in ['us_cortical', 'resonant']:
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
@@ -655,11 +655,12 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'eye_camera_image' in msg:
-                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 1)
+                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 'all')
                 h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
                 if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
                 self.eye_camera.setFixedHeight(h)
                 self.eye_camera.plot.setTitle(time.time())
+                #self.eye_camera.img.setLevels([0,255])
             elif 'plot_sync' in msg:
                 x,y=msg['plot_sync']
                 self.p=gui.Plot(None)
@@ -762,7 +763,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM=='resonant':
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'int', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
+            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
                         
 
     ############# Actions #############

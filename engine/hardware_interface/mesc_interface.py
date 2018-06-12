@@ -100,7 +100,7 @@ class MescapiInterface(object):
         '''
         get microscope state
         '''
-        return self.request('MEScMicroscope.getAcquisitionState()')['microscopeState']
+        return self.request('MEScMicroscope.getAcquisitionState()')['Common']['microscopeState']
     
     def save(self, filename):
         '''

@@ -287,7 +287,8 @@ class ExperimentHandler(object):
             self.sync_recording_started=True
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
-            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), 'eye_cam_{0}.hdf5'.format(experiment_parameters['id']))
+            eyefn=os.path.basename(experiment_data.get_recording_filename(self.machine_config, experiment_parameters, prefix = 'eyecam'))
+            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), eyefn)
             self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename, self.guidata.read('Eye Camera Frame Rate'))
             self.eye_camera_running=True
             self.printc('Saving eye video')
@@ -314,6 +315,7 @@ class ExperimentHandler(object):
         self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
+        self.to_gui.put({'update_status':'busy'})   
         self.printc('Finishing experiment...')
         if self.machine_config.PLATFORM=='mc_mea':
             if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
@@ -347,14 +349,16 @@ class ExperimentHandler(object):
                     time.sleep(1)
             self._stop_sync_recorder()
             if hasattr(self, 'eye_camera') and self.eye_camera.isrunning:
-                self.eye_camera.stop()
+                res=self.eye_camera.stop()
+                self.printc('{0} frames were dropped frames in eyecamera video'.format(res))
                 self.eye_camera_running=False
                 self.start_eye_camera()
             self.experiment_running=False
-            self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
+        self.to_gui.put({'update_status':'idle'}) 
             
     def save_experiment_files(self, aborted=False):
+        self.to_gui.put({'update_status':'busy'})   
         fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
         if aborted:
             if hasattr(self, 'daqdatafile'):
@@ -377,9 +381,12 @@ class ExperimentHandler(object):
                 except:
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
-            if hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
-                self.printc('TODO: save tmp eye camera image')
+            if  'Enable Eye Camera' in self.current_experiment_parameters and self.current_experiment_parameters['Enable Eye Camera'] and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
+                #Converting eye camera file:
+                self.printc('Saving eye camera file')
+                #mat_eye_camera_file=experiment_data.hdf52mat(self.eye_camera_filename)
                 shutil.move(self.eye_camera_filename, os.path.dirname(fn))
+                #shutil.move(mat_eye_camera_file, os.path.dirname(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -389,7 +396,7 @@ class ExperimentHandler(object):
                 #Check for dropped frames
                 dropped_frames=legacy.get_dropped_frames(filename)
                 if dropped_frames>2:
-                    raise RuntimeError('{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
+                    self.notify('Error', '{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
                 elif dropped_frames==2:
                     self.printc('No dropped frames detected')
                 else:
@@ -423,6 +430,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
+        self.to_gui.put({'update_status':'idle'})   
                 
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:
@@ -488,6 +496,14 @@ class ExperimentHandler(object):
                 Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
         h.load('timg')
+        
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
         if 'Led2' in filename:
             h.load('generated_data')
             channels = utils.array2object(h.generated_data)#,len(utils.array2object(h.generated_data))
@@ -499,6 +515,7 @@ class ExperimentHandler(object):
         h.close()        
         if 'Led2' in filename:
             self.printc(['led stim', numpy.round(tstim_sep['led'])])
+            self.printc(['stim', numpy.round(tstim_sep['stim'])])
             txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
             txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
             #Calculate image index for stim events
@@ -511,11 +528,11 @@ class ExperimentHandler(object):
             led_indexes=[self.indexofsmallestpositive(h.timg-s) for s in h.tstim]
             txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
-        csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
-        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
-        csvfn2a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled_index.csv'))
-        csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
-        csvfn1a=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim_index.csv'))
+        csvfn3=os.path.join(output_folder,'_img.csv')
+        csvfn2=os.path.join(output_folder, '_lgnled.csv')
+        csvfn2a=os.path.join(output_folder, '_lgnled_index.csv')
+        csvfn1=os.path.join(output_folder,  '_stim.csv')
+        csvfn1a=os.path.join(output_folder,  '_stim_index.csv')
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         if 'Led2' in filename:
@@ -597,7 +614,7 @@ class ExperimentHandler(object):
                 msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
             elif self.machine_config.PLATFORM=='resonant':
-                self.notify('Info', 'Go to MESc processing window and add "{0}" to comment'.format(os.path.basename(self.outputfilename)))
+                self.printc('Go to MESc processing window and add "{0}" to comment'.format(os.path.basename(self.outputfilename)))
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
@@ -702,8 +719,22 @@ class Analysis(object):
         self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
-        self.datafile.sync2time()
+        self.datafile.sync2time(recreate=self.santiago_setup)
         self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+        if self.santiago_setup:
+            h=self.datafile
+            h.load('dropped_frames')
+            if hasattr(h, 'dropped_frames'):
+                h.dropped_frames=numpy.array(h.dropped_frames)
+                if h.dropped_frames.sum()>0:
+                    self.printc('dropped frames in file')
+                    h.load('timg')
+                    #self.printc(h.timg.shape)
+                    #self.printc(h.dropped_frames.shape)
+                    h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                    h.timg=h.timg[:self.datafile.raw_data.shape[0]]
+                    #self.printc(h.timg.shape)
+                    h.save('timg')
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
         self.image_scale=self.datafile.scale
