@@ -1480,7 +1480,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def generate_paid_texture(self, relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive):
+    def generate_plaid_texture(self, relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive):
         line_width_p=int(line_width*self.config.SCREEN_UM_TO_PIXEL_SCALE)
         line_spacing_p=int(line_width_p*duty_cycle)
         if mask_size ==None:
@@ -1536,7 +1536,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         lateral_speed=velocity/numpy.cos(numpy.radians(0.5*relative_angle))
         if texture==None:
-            texture=self.generate_paid_textute(relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive)
+            texture=self.generate_plaid_texture(relative_angle, line_width, duty_cycle, mask_size, contrast, background_color, sinusoid, bipolar_additive)
         texture_coordinates,v=self._init_texture(utils.rc((texture.shape[0], texture.shape[1])),direction,set_vertices=(mask_size == None))
         t0=time.time()
         tout=numpy.zeros((texture.shape[0],texture.shape[1],3))#Complicated solution but runs quicker on stim computer than rolling axis'
