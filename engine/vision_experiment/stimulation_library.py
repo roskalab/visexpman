@@ -1875,7 +1875,7 @@ class AdvancedStimulation(StimulationHelpers):
             background_color: background color of screen
             pos: position of spots in um,
         '''
-        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')', source='stim')
+        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) +  ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
         self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
