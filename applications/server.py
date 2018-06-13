@@ -5,6 +5,8 @@ import unittest,os
 from visexpman.engine.generic import fileop,utils
 
 def mdrive_checker(folders, signature_file, emailto):
+    drive_folders=[os.path.exists(os.path.sep.join(f.split(os.path.sep)[:2])) for f in folders]
+    drive_mounted= all(drive_folders)
     files=[]
     for folder in folders:
         files.extend(fileop.find_files_and_folders(folder)[1])
@@ -29,6 +31,8 @@ def mdrive_checker(folders, signature_file, emailto):
                     error_msg+='{0} changed: {1}, {2}\r\n'.format(fn, signature_p[fn], signatures[fn])
         if len(error_msg)==0:
             error_msg='Files did not change'
+        if not drive_mounted:
+            error_msg='Storage drive not mounted'
         print(error_msg)
         if not isinstance(emailto,list):
              emailto=[emailto]
@@ -36,7 +40,8 @@ def mdrive_checker(folders, signature_file, emailto):
             utils.sendmail(e,'m drive check', error_msg)
     #Save current signature
     txt='\r\n'.join([','.join(map(str,[fn, s[0], s[1]])) for fn, s in signatures.items()])
-    fileop.write_text_file(signature_file,txt)
+    if drive_mounted:
+        fileop.write_text_file(signature_file,txt)
     
         
     pass
