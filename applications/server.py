@@ -5,7 +5,7 @@ import unittest,os
 from visexpman.engine.generic import fileop,utils
 
 def mdrive_checker(folders, signature_file, emailto):
-    drive_folders=[os.path.exists(os.path.sep.join(f.split(os.path.sep)[:2])) for f in folders]
+    drive_folders=[os.path.exists(os.path.sep.join(f.split(os.path.sep)[:3])) for f in folders]
     drive_mounted= all(drive_folders)
     files=[]
     for folder in folders:

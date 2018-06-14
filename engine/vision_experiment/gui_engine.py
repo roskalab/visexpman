@@ -422,6 +422,7 @@ class ExperimentHandler(object):
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
                 if self.santiago_setup:
+                    self._remove_dropped_frame_timestamps(h)
                     h.crop_timg()
                 self.tstim=h.tstim
                 self.timg=h.timg
@@ -721,20 +722,8 @@ class Analysis(object):
         self.datafile = experiment_data.CaImagingData(filename)
         self.datafile.sync2time(recreate=self.santiago_setup)
         self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
-        if self.santiago_setup:
-            h=self.datafile
-            h.load('dropped_frames')
-            if hasattr(h, 'dropped_frames'):
-                h.dropped_frames=numpy.array(h.dropped_frames)
-                if h.dropped_frames.sum()>0:
-                    self.printc('dropped frames in file')
-                    h.load('timg')
-                    #self.printc(h.timg.shape)
-                    #self.printc(h.dropped_frames.shape)
-                    h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
-                    h.timg=h.timg[:self.datafile.raw_data.shape[0]]
-                    #self.printc(h.timg.shape)
-                    h.save('timg')
+        if self.santiago_setup and 0:
+            self._remove_dropped_frame_timestamps()
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
         self.image_scale=self.datafile.scale
@@ -778,6 +767,22 @@ class Analysis(object):
             self._roi_area2image()
         self.datafile.close()
         self._bouton_analysis()
+
+    def _remove_dropped_frame_timestamps(self,h=None):
+        if h == None:
+            h=self.datafile
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.load('timg')
+                #self.printc(h.timg.shape)
+                #self.printc(h.dropped_frames.shape)
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
+                #self.printc(h.timg.shape)
+                h.save('timg')
         
     def _init_meanimge_w_rois(self):
         self.image_w_rois = numpy.ones((self.meanimage.shape[0], self.meanimage.shape[1], 3))*self.meanimage.min()
