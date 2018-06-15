@@ -428,7 +428,7 @@ class ExperimentHandler(object):
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
                 if self.santiago_setup:
-                    self._remove_dropped_frame_timestamps()
+                    self._remove_dropped_frame_timestamps(h)
                     h.crop_timg()
                 self.tstim=h.tstim
                 self.timg=h.timg
@@ -773,6 +773,22 @@ class Analysis(object):
             self._roi_area2image()
         self.datafile.close()
         self._bouton_analysis()
+
+    def _remove_dropped_frame_timestamps(self,h=None):
+        if h == None:
+            h=self.datafile
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.load('timg')
+                #self.printc(h.timg.shape)
+                #self.printc(h.dropped_frames.shape)
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
+                #self.printc(h.timg.shape)
+                h.save('timg')
         
     def _remove_dropped_frame_timestamps(self):
         h=self.datafile

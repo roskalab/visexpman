@@ -40,7 +40,7 @@ class InstallConfigurator(Qt.QMainWindow):
         Qt.QMainWindow.__init__(self)
         self.setWindowTitle('Vision Experiment Manager Installation Configurator')
         self.setGeometry(0,0,0,0)
-        self.installer_checksum=539462524L
+        self.installer_checksum=539462471L
         self.eric=True
         self.logfile = os.path.join('install_log_{0}.txt'.format(time.time()))
         logging.basicConfig(filename= self.logfile,
@@ -64,7 +64,7 @@ class InstallConfigurator(Qt.QMainWindow):
             free_bytes = ctypes.c_ulonglong(0)
             if os.name=='nt':
                 ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p('c:\\'), None, None, ctypes.pointer(free_bytes))
-                free_min=10
+                free_min=5
                 if free_bytes.value*1e-9 < free_min:
                     self.notify('Warning', 'At least {0} GB free space is required'.format(free_min))
                     self.close()
@@ -281,6 +281,7 @@ class InstallConfigurator(Qt.QMainWindow):
         return out
         
 def checksum(folder):
+    print(os.listdir(folder))
     return sum([os.path.getsize(os.path.join(folder,f)) for f in os.listdir(folder)])
 
 if __name__=='__main__':
