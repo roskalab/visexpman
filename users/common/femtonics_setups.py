@@ -191,7 +191,7 @@ class ResonantDev(ResonantSetup):
         self.FULLSCREEN=False
         self.CAMERA_TRIGGER_ENABLE=True
         self.CAMERA_TRIGGER_PORT='COM3'
-        self.CAMERA_TRIGGER_FRAME_RATE=15
+        self.CAMERA_TRIGGER_FRAME_RATE=30
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
