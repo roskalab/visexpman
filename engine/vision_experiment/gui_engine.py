@@ -97,6 +97,7 @@ class ExperimentHandler(object):
             if len(self.eye_camera.frames)>0:
                 if self.to_gui.qsize()<5:#To avoid data congestion
                     self.to_gui.put({'eye_camera_image':self.eye_camera.frames[-1][::2,::2].T})
+                if not self.experiment_running:
                     self.eye_camera.frames=[]
     
     def open_stimulus_file(self, filename, classname):
@@ -287,10 +288,11 @@ class ExperimentHandler(object):
             self.sync_recording_started=True
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
-            eyefn=os.path.basename(experiment_data.get_recording_filename(self.machine_config, experiment_parameters, prefix = 'eyecam'))
-            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), eyefn)
-            self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename, self.guidata.read('Eye Camera Frame Rate'))
-            self.eye_camera_running=True
+            self.start_eye_camera()
+            #eyefn=os.path.basename(experiment_data.get_recording_filename(self.machine_config, experiment_parameters, prefix = 'eyecam'))
+            #self.eye_camera_filename=os.path.join(tempfile.gettempdir(), eyefn)
+            #self.eye_camera=camera_interface.ImagingSourceCamera(self.guidata.read('Eye Camera Frame Rate'))
+            #self.eye_camera_running=True
             self.printc('Saving eye video')
         if self.santiago_setup:
             time.sleep(1)
@@ -348,10 +350,14 @@ class ExperimentHandler(object):
                         break
                     time.sleep(1)
             self._stop_sync_recorder()
-            if hasattr(self, 'eye_camera') and self.eye_camera.isrunning:
-                res=self.eye_camera.stop()
-                self.printc('{0} frames were dropped frames in eyecamera video'.format(res))
-                self.eye_camera_running=False
+            if hasattr(self, 'eye_camera'):# and self.eye_camera.isrunning:
+                self.stop_eye_camera()
+                self.printc('Saving eye camera recording')
+                self.printc(len(self.eye_camera.frames))
+                self.printc(self.eye_camera.timestamps[0]-self.eye_camera.timestamps[-1])
+                #res=self.eye_camera.stop()
+                #self.printc('{0} frames were dropped frames in eyecamera video'.format(res))
+                #self.eye_camera_running=False
                 self.start_eye_camera()
             self.experiment_running=False
             self.experiment_finish_time=time.time()
@@ -381,11 +387,11 @@ class ExperimentHandler(object):
                 except:
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
-            if  'Enable Eye Camera' in self.current_experiment_parameters and self.current_experiment_parameters['Enable Eye Camera'] and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
+            if  'Enable Eye Camera' in self.current_experiment_parameters and self.current_experiment_parameters['Enable Eye Camera']:# and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
                 #Converting eye camera file:
                 self.printc('Saving eye camera file')
                 #mat_eye_camera_file=experiment_data.hdf52mat(self.eye_camera_filename)
-                shutil.move(self.eye_camera_filename, os.path.dirname(fn))
+                #shutil.move(self.eye_camera_filename, os.path.dirname(fn))
                 #shutil.move(mat_eye_camera_file, os.path.dirname(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
@@ -422,6 +428,7 @@ class ExperimentHandler(object):
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
                 if self.santiago_setup:
+                    self._remove_dropped_frame_timestamps(h)
                     h.crop_timg()
                 self.tstim=h.tstim
                 self.timg=h.timg
@@ -721,20 +728,8 @@ class Analysis(object):
         self.datafile = experiment_data.CaImagingData(filename)
         self.datafile.sync2time(recreate=self.santiago_setup)
         self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
-        if self.santiago_setup:
-            h=self.datafile
-            h.load('dropped_frames')
-            if hasattr(h, 'dropped_frames'):
-                h.dropped_frames=numpy.array(h.dropped_frames)
-                if h.dropped_frames.sum()>0:
-                    self.printc('dropped frames in file')
-                    h.load('timg')
-                    #self.printc(h.timg.shape)
-                    #self.printc(h.dropped_frames.shape)
-                    h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
-                    h.timg=h.timg[:self.datafile.raw_data.shape[0]]
-                    #self.printc(h.timg.shape)
-                    h.save('timg')
+        if self.santiago_setup and 0:
+            self._remove_dropped_frame_timestamps()
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
         self.image_scale=self.datafile.scale
@@ -778,6 +773,37 @@ class Analysis(object):
             self._roi_area2image()
         self.datafile.close()
         self._bouton_analysis()
+
+    def _remove_dropped_frame_timestamps(self,h=None):
+        if h == None:
+            h=self.datafile
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.load('timg')
+                #self.printc(h.timg.shape)
+                #self.printc(h.dropped_frames.shape)
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
+                #self.printc(h.timg.shape)
+                h.save('timg')
+        
+    def _remove_dropped_frame_timestamps(self):
+        h=self.datafile
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.load('timg')
+                #self.printc(h.timg.shape)
+                #self.printc(h.dropped_frames.shape)
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
+                #self.printc(h.timg.shape)
+                h.save('timg')
         
     def _init_meanimge_w_rois(self):
         self.image_w_rois = numpy.ones((self.meanimage.shape[0], self.meanimage.shape[1], 3))*self.meanimage.min()
