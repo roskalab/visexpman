@@ -310,16 +310,17 @@ class PhysTiff2Hdf5(object):
                 if stimdata['experiment_config_name'][0] in ['MovingShapeParameters','MovingRectangleParameters']:
                     if 'DS_new.py' in metadata['Stimulus file'] or 'DS_rectangle.py' in metadata['Stimulus file']:
                         block_startend=numpy.array([item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='moving_shape'])
-                        pause=stimdata['config']['experiment_config'][0][0]['PAUSE_BETWEEN_DIRECTIONS'][0][0][0][0]
-                        frame_rate=stimdata['config']['machine_config'][0][0]['SCREEN_EXPECTED_FRAME_RATE'][0][0][0][0]
-                        gap=pause*float(metadata['Sample Rate'])
-                        block_end_boundaries=pulse_start[numpy.where(numpy.diff(pulse_start)>gap)[0]]
-                        block_start_boundaries=pulse_start[numpy.where(numpy.diff(pulse_start)>gap)[0]+1]
-                        block_start_boundaries = numpy.roll(block_start_boundaries,1)
-                        block_start_boundaries[0]=pulse_start[block_startend[0]]
-                        indexes=numpy.array([[block_start_boundaries[i], block_end_boundaries[i]] for i in range(block_start_boundaries.shape[0])]).flatten()
-                        #Correspond these to closest pulses
-                        block_startend=[abs(pulse_start-i).argmin() for i in indexes]
+#                        pause=stimdata['config']['experiment_config'][0][0]['PAUSE_BETWEEN_DIRECTIONS'][0][0][0][0]
+#                        pause=min(pause, stimdata['config']['experiment_config'][0][0]['DELAY_BEFORE_REPETITION'][0][0][0][0])
+#                        frame_rate=stimdata['config']['machine_config'][0][0]['SCREEN_EXPECTED_FRAME_RATE'][0][0][0][0]
+#                        gap=pause*float(metadata['Sample Rate'])
+#                        block_end_boundaries=pulse_start[numpy.where(numpy.diff(pulse_start)>gap)[0]]
+#                        block_start_boundaries=pulse_start[numpy.where(numpy.diff(pulse_start)>gap)[0]+1]
+#                        block_start_boundaries = numpy.roll(block_start_boundaries,1)
+#                        block_start_boundaries[0]=pulse_start[block_startend[0]]
+#                        indexes=numpy.array([[block_start_boundaries[i], block_end_boundaries[i]] for i in range(block_start_boundaries.shape[0])]).flatten()
+#                        #Correspond these to closest pulses
+#                        block_startend=[abs(pulse_start-i).argmin() for i in indexes]
                     else:#Cameron's stimfile
                         block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_fullscreen'][1:-1]
                         block_startend+=numpy.append(numpy.where(numpy.diff(block_startend)==0,-1,0),0)
