@@ -251,7 +251,7 @@ class RoiShift(gui.ArrowButtons):
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
-        self.setFixedWidth(parent.machine_config.GUI['SIZE']['col']/2)
+        self.setMinimumWidth(parent.machine_config.GUI['SIZE']['col']/2)
         self.setFixedHeight(parent.machine_config.GUI['SIZE']['col']/2)
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
@@ -481,13 +481,13 @@ class MainUI(gui.VisexpmanMainWindow):
         self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
         self.analysis.setLayout(self.analysis.layout)
         
-        
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.advanced=Advanced(self)
         
         self.main_tab = QtGui.QTabWidget(self)
+        self.main_tab.setMaximumWidth(600)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         self.main_tab.addTab(self.params, 'Parameters')
         if self.machine_config.PLATFORM=='elphys_retinal_ca':
@@ -523,6 +523,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
                 self.image.setFixedHeight(self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0]))
+                self.image.setFixedWidth(self.image.plot.width())
                 self.adjust_contrast()
             elif msg.has_key('image_title'):
                 self.image.plot.setTitle(msg['image_title'])
