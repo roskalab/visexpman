@@ -345,9 +345,9 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         
 class CameraRecorderProcess(multiprocessing.Process):
     def __init__(self, frame_rate):
-        self.command=multiprocessing.Queue()
-        self.data=multiprocessing.Queue()
-        self.frame=multiprocessing.Queue()
+        self.command=multiprocessing.Queue(5)
+        self.data=multiprocessing.Queue(2)
+        self.frame=multiprocessing.Queue(10)
         self.frame_rate=frame_rate
         multiprocessing.Process.__init__(self)
         
