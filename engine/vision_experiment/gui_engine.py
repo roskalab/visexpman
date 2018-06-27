@@ -981,6 +981,9 @@ class Analysis(object):
                 rois=self.rois
                 raw_data=self.raw_data
                 stimulus_parameters=hdf5io.read_item(self.datafile.filename, 'stimulus_parameters')
+                if not hasattr(stimulus_parameters, 'keys') or 'NUMBER_OF_FLASHES' not in stimulus_parameters:
+                    self.printc('Button analysis failed')
+                    return
             else:
                 raise NotImplementedError('')
             res=bouton_analysis.extract_bouton_increase(raw_data, rois, stimulus_parameters, self.guidata.read('Baseline'),

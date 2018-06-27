@@ -9,7 +9,7 @@ Arduino pin 5-7: output: level, pulse can be generated.
 Arduino pin 9: digital waveform generation
 
 Commands:
-set_pin,pin,state: sets pin to state which cna be 0.0 or 1.0
+set_pin,pin,state: sets pin to state which can be 0.0 or 1.0
 pulse,pin,duration: generates a pulse on pin with with of duration [ms]
 waveform,frequency,frequency_range,modulation_frequency: waveform is generated on D9 pin. If frequency_range and modulation_frequency are 0, it is a simple square wave at frequency.
       In fm waveform mode the frequency is recalculated in every 4th call of 2 kHz timer ISR.
@@ -57,6 +57,12 @@ ISR(INT0_vect)
 {
   iobc.elongate_isr();
 }
+
+ISR(INT1_vect)
+{
+  Serial.println("INT1");
+}
+
 
 void setup() {
   //Serial.begin(115200);
