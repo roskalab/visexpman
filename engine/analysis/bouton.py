@@ -52,9 +52,13 @@ class Test(unittest.TestCase):
             print f
             h=experiment_data.CaImagingData(f)
             h.load('raw_data')
-            before=numpy.copy(h.get_image(image_type='mean')[0])
-            h.raw_data[:,0]=motion_correction(h.raw_data[:,0])
-            after=h.get_image(image_type='mip')[0]
+            before=numpy.copy(h.get_image(image_type='mip')[0])
+            raw1=numpy.copy(h.raw_data[:,0])
+            r1=numpy.copy(h.raw_data[:,0][:,0,0])
+            raw2=motion_correction(h.raw_data[:,0])
+            h.raw_data[:,0]=raw2
+            r2=numpy.copy(h.raw_data[:,0][:,0,0])
+            after=h.get_image(image_type='mip', load_raw=False)[0]
             from pylab import *
 #            figure(1);imshow(h.raw_data[:,0].mean(axis=0));figure(2);imshow(corrected.mean(axis=0));show()
             #figure(1);imshow(before);
@@ -62,9 +66,8 @@ class Test(unittest.TestCase):
             from skimage import filters
             thr=filters.threshold_otsu(after)
             bw=numpy.where(after>thr,1,0)
-            import scipy.ndimage.measurements
+            import skimage.segmentation, scipy.ndimage.morphology, scipy.ndimage.measurements
             labeled, n = scipy.ndimage.measurements.label(bw)
-            import skimage.segmentation, scipy.ndimage.morphology
             labeled=skimage.segmentation.clear_border(labeled)
             labeled=scipy.ndimage.morphology.binary_fill_holes(labeled)
             
