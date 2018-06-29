@@ -117,8 +117,9 @@ level=logging.INFO)
         shutil.copy(mesfilename, dst)
         self.printl('{0} copied to {1}'.format(mesfilename, dst))
         #Check hdf5 file
-        if not os.path.exists(os.path.join(dst, os.path.basename(filename))):
-            raise RuntimeError('{0} not backed up'.format(filename))
+        dstfn=os.path.join(dst, os.path.basename(filename))
+        if not os.path.exists(dstfn):
+            raise RuntimeError('{0} not backed up, {1} does not exists'.format(filename, dstfn))
         
     def mesextractor(self,filename):
         #Check if input files are valid
