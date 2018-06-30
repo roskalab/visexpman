@@ -410,17 +410,7 @@ class ExperimentHandler(object):
                 h=hdf5io.Hdf5io(fn)
                 h.cam=self.eyecamdata
                 h.save('cam')
-#                for k, v in self.eyecamdata.items():
-#                    setattr(h,  k, v)
-#                    h.save(k)
-#                    self.printc(k)
                 h.close()
-#            if  'Enable Eye Camera' in self.current_experiment_parameters and self.current_experiment_parameters['Enable Eye Camera']:# and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
-#                #Converting eye camera file:
-#                self.printc('Saving eye camera file')
-                #mat_eye_camera_file=experiment_data.hdf52mat(self.eye_camera_filename)
-                #shutil.move(self.eye_camera_filename, os.path.dirname(fn))
-                #shutil.move(mat_eye_camera_file, os.path.dirname(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -468,12 +458,15 @@ class ExperimentHandler(object):
         self.to_gui.put({'update_status':'idle'})   
                 
     def eyecam2video(self):
-        if not hasattr(self,  'eyecamfile'): return
-        h=hdf5io.Hdf5io(self.eyecamfile)
-        frames=numpy.array(h.findvar('cam')['frames'])
-        from visexpman.engine.generic import videofile
-        self.printc('exporting to {0}'.format(self.eyecamfile.replace('.hdf5',  '.mp4')))
-        videofile.array2mp4(frames,  self.eyecamfile.replace('.hdf5',  '.mp4'),  fps=self.guidata.read('Eye Camera Frame Rate'))
+        dirname=os.path.dirname(experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam'))
+        for fn in fileop.listdir(dirname): 
+            if 'eyecam' not in os.path.basename(fn): continue
+            h=hdf5io.Hdf5io(fn)
+            frames=numpy.array(h.findvar('cam')['frames'])
+            videofn=fn.replace('.hdf5',  '.mp4')
+            if not os.path.exists(videofn):
+                self.printc('exporting to {0}'.format(videofn))
+                videofile.array2mp4(frames, videofn,  fps=self.guidata.read('Eye Camera Frame Rate'))
         self.printc('Done')
         h.close()
         

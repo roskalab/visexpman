@@ -634,6 +634,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         t.start()
                     if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
                         self.abort=True
+                        self.send({'trigger':'stim error'})
                 elif self.machine_config.PLATFORM == 'resonant':
                     self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
@@ -644,6 +645,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.abort=True
                         self.mesc_error=True
                         self.printl('MESc did not start, aborting stimulus')
+                        self.send({'trigger':'stim error'})
                     else:
                         self.mesc_error=False
                 if self.machine_config.CAMERA_TRIGGER_ENABLE:
