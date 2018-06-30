@@ -284,12 +284,15 @@ class CaImagingData(supcl):
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
         
-    def get_image(self, image_type='mip'):
+    def get_image(self, image_type='mip', load_raw=True):
         '''
         loads 2d representation of ca imaging data with scaling information
         self.image and self.image_scale
         '''
-        map(self.load, ['parameters', 'configs', 'raw_data'])
+        vns=['parameters', 'configs']
+        if load_raw:
+            vns.append('raw_data')
+        map(self.load, vns)
         if not hasattr(self, 'configs'):#For older files
             self.load('machine_config')
             self.configs=self.machine_config

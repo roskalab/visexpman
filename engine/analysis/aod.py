@@ -64,6 +64,7 @@ class TestAODData(unittest.TestCase):
         folder='/tmp/processed'
         folder='c:\\temp\\1'
         #folder='v:\\debug\\0'
+        folder='/tmp'
         for fn in os.listdir(folder):
             if os.path.splitext(fn)[1]=='.hdf5':
                 with introspect.Timer(1):
