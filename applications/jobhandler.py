@@ -1,4 +1,4 @@
-import os,tables,unittest,sys,shutil,time,traceback,logging,getpass
+import os,tables,unittest,sys,shutil,time,traceback,logging,getpass,hdf5io,numpy
 from visexpman.engine.generic import fileop,utils,introspect
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.analysis import aod
@@ -275,6 +275,57 @@ class TestJobhandler(unittest.TestCase):
             for kw in jobstates:
                 ct+=len([1 for l in lines2vf if kw+' job done' in l])
             self.assertEqual(ct, len(jobstates))
+    
+class ResonantJobhandler(object):
+    '''
+    Runs as a cron job, converts hdf5 files to mp4
+    Starting it:
+        python -c "folders={'log':'/data/resonant-setup/log', 'experiment_data': '/data/resonant-setup/processed'};import sys;sys.path.insert(0, '/data/software/resonant-setup');from visexpman.applications import jobhandler;jobhandler.ResonantJobhandler(folders).run()"
+    '''
+    def __init__(self, folders, lock_timeout=60):
+        self.folders=folders
+        self.lockfile='/tmp/resonant-jobhandler-lock.txt'
+        self.logfile = os.path.join(folders['log'], 'jobhandler_resonant.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
+        if os.path.exists(self.logfile):
+            self.prev_log=fileop.read_text_file(self.logfile)
+        logging.basicConfig(filename= self.logfile,
+                    format='%(asctime)s %(levelname)s\t%(message)s',
+level=logging.INFO)
+        self.locked= os.path.exists(self.lockfile) and fileop.file_age(self.lockfile)<lock_timeout*60
+        if not self.locked:
+            fileop.write_text_file(self.lockfile, 'locked')
+        else:
+            logging.warning('Locked')
+            
+    def run(self):
+        logging.info('Conversion started')
+        try:
+            files=[f for f in fileop.find_files_and_folders(self.folders['experiment_data'])[1] if os.path.splitext(f)[1]=='.hdf5' and 'eyecam'==os.path.basename(f)[:6]]
+            #import pdb;pdb.set_trace()
+            from visexpman.engine.generic import videofile
+            for f in files:
+                try:
+                    videofilename=fileop.replace_extension(f, '.mp4')
+                    if os.path.exists(videofilename): continue
+                    if f in self.prev_log: continue
+                    if fileop.file_age(f)<60: continue
+                    logging.info('Converting {0} to {1}'.format(f, videofilename))
+                    hh=hdf5io.Hdf5io(f)
+                    hh.load('cam')
+                    fps=hh.cam['fps']
+                    logging.info('fps is {0}'.format(fps))
+                    videofile.array2mp4(numpy.array(hh.cam['frames'],dtype=numpy.uint8), videofilename, fps, tempdir=os.path.expanduser('~'))
+                    hh.close()
+                except:
+                    logging.error(traceback.format_exc())
+                    import pdb;pdb.set_trace()
+        except:
+            logging.error(traceback.format_exc())
+        logging.info('Removing lock file')
+        os.remove(self.lockfile)
+        logging.info('Done')
+    
+        
     
 if __name__=='__main__':
     if len(sys.argv)==1:

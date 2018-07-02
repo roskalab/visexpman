@@ -363,6 +363,8 @@ class ExperimentHandler(object):
             if hasattr(self,  'cam') and self.cam.is_alive():#Terminate camera if still running (abort experiment might have already stopped it.
                 self.printc('Terminating eye camera recording')
                 self.eyecamdata=self.cam.stop()
+                self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
+                self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
                 self.cam.terminate()
                 self.printc('Restarting eye camera live display')
                 self.start_eye_camera()
@@ -814,21 +816,6 @@ class Analysis(object):
     def _remove_dropped_frame_timestamps(self,h=None):
         if h == None:
             h=self.datafile
-        h.load('dropped_frames')
-        if hasattr(h, 'dropped_frames'):
-            h.dropped_frames=numpy.array(h.dropped_frames)
-            if h.dropped_frames.sum()>0:
-                self.printc('dropped frames in file')
-                h.load('timg')
-                #self.printc(h.timg.shape)
-                #self.printc(h.dropped_frames.shape)
-                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
-                h.timg=h.timg[:h.raw_data.shape[0]]
-                #self.printc(h.timg.shape)
-                h.save('timg')
-        
-    def _remove_dropped_frame_timestamps(self):
-        h=self.datafile
         h.load('dropped_frames')
         if hasattr(h, 'dropped_frames'):
             h.dropped_frames=numpy.array(h.dropped_frames)
