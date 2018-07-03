@@ -16,7 +16,6 @@ timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
    
-    
 def is_first_tag(fn, tag):
     '''
     is tag the first characters of fn?
@@ -141,6 +140,12 @@ def set_file_dates(path, file_info):
             os.utime(path, (file_info, file_info))
     except:
         pass
+        
+def file_age(path):
+    '''
+    returns the time elapsed since last modification of file in seconds
+    '''
+    return time.time()-os.path.getmtime(path)
         
 def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
