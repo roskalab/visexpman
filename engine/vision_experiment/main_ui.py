@@ -507,8 +507,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
         self.statusbar.status=QtGui.QLabel('Idle', self)
+        self.statusbar.camera_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.camera_status)
         self.statusbar.addPermanentWidget(self.statusbar.status)
         self.statusbar.status.setStyleSheet('background:gray;')
+        self.statusbar.camera_status.setStyleSheet('background:gray;')
         #Add dockable widgets
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
@@ -652,6 +655,12 @@ class MainUI(gui.VisexpmanMainWindow):
                 elif msg['update_status']=='busy':
                     self.statusbar.status.setStyleSheet('background:yellow;')
                 self.statusbar.status.setText(msg['update_status'].capitalize())
+            elif 'update_camera_status' in msg:
+                if msg['update_camera_status']=='camera off':
+                    self.statusbar.camera_status.setStyleSheet('background:gray;')
+                elif msg['update_camera_status']=='camera on':
+                    self.statusbar.camera_status.setStyleSheet('background:orange;')
+                self.statusbar.camera_status.setText(msg['update_camera_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'eye_camera_image' in msg:

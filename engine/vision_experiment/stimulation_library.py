@@ -560,6 +560,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     glColor3fv(colors.convert_color(color, self.config))
                 glDrawArrays(GL_POLYGON,  0, n)
+            self.draw()#Allow user to draw something on top of shape
             if flip:
                 self._flip(frame_timing_pulse = True)
             if self.abort:

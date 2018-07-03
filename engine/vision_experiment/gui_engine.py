@@ -82,6 +82,7 @@ class ExperimentHandler(object):
     def start_eye_camera(self):
         if not self.eye_camera_running:
             self.printc('Start eye camera')
+            self.to_gui.put({'update_camera_status':'camera on'})
             self.eye_camera=camera_interface.ImagingSourceCamera(self.guidata.read('Eye Camera Frame Rate'))
             self.eye_camera.start()
             self.eye_camera_running=True
@@ -89,6 +90,7 @@ class ExperimentHandler(object):
     def stop_eye_camera(self):
         if self.eye_camera_running:
             self.printc('Stop eye camera')
+            self.to_gui.put({'update_camera_status':'camera off'})
             self.eye_camera_running=False
             self.eye_camera.stop()
         
@@ -303,6 +305,7 @@ class ExperimentHandler(object):
             self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'))
             #if hasattr(self,  'start_cam') and self.start_cam:
             self.printc('Starting eye camera recording')
+            self.to_gui.put({'update_camera_status':'camera on'})
             self.cam.start()
         if self.santiago_setup:
             time.sleep(1)
@@ -364,6 +367,7 @@ class ExperimentHandler(object):
                 self.printc('Terminating eye camera recording')
                 self.eyecamdata=self.cam.stop()
                 self.cam.terminate()
+                self.to_gui.put({'update_camera_status':'camera off'})
                 self.printc('Restarting eye camera live display')
                 self.start_eye_camera()
 #            if hasattr(self, 'eye_camera'):# and self.eye_camera.isrunning:
@@ -635,6 +639,7 @@ class ExperimentHandler(object):
             self.printc('Terminating camera recording')
             self.cam.stop()
             self.cam.terminate()
+            self.to_gui.put({'update_camera_status':'camera off'})
             self.start_eye_camera()
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
