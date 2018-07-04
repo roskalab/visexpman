@@ -77,10 +77,12 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.eye_camera_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
+        self.start_cam=not False
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
             self.printc('Start eye camera')
+            self.to_gui.put({'update_camera_status':'camera on'})
             self.eye_camera=camera_interface.ImagingSourceCamera(self.guidata.read('Eye Camera Frame Rate'))
             self.eye_camera.start()
             self.eye_camera_running=True
@@ -88,15 +90,27 @@ class ExperimentHandler(object):
     def stop_eye_camera(self):
         if self.eye_camera_running:
             self.printc('Stop eye camera')
+            self.to_gui.put({'update_camera_status':'camera off'})
             self.eye_camera_running=False
             self.eye_camera.stop()
         
     def eyecamera2screen(self):
-        if self.eye_camera_running:
+        if not hasattr(self,  'eyecamupdate_counter'):
+            self.eyecamupdate_counter=0
+        self.eyecamupdate_counter+=1
+        if self.eyecamupdate_counter%3!=0:
+            return
+        if hasattr(self, 'cam') and self.cam.is_alive():
+            if not self.cam.frame.empty():
+                if self.cam.frame.qsize()>3:
+                    self.printc('{0} frames in queue'.format(self.cam.frame.qsize()))
+                self.to_gui.put({'eye_camera_image':self.cam.frame.get()[::2,::2].T})
+        elif self.eye_camera_running:
             self.eye_camera.save()
             if len(self.eye_camera.frames)>0:
                 if self.to_gui.qsize()<5:#To avoid data congestion
                     self.to_gui.put({'eye_camera_image':self.eye_camera.frames[-1][::2,::2].T})
+                if not self.experiment_running:
                     self.eye_camera.frames=[]
     
     def open_stimulus_file(self, filename, classname):
@@ -287,11 +301,12 @@ class ExperimentHandler(object):
             self.sync_recording_started=True
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
-            eyefn=os.path.basename(experiment_data.get_recording_filename(self.machine_config, experiment_parameters, prefix = 'eyecam'))
-            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), eyefn)
-            self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename, self.guidata.read('Eye Camera Frame Rate'))
-            self.eye_camera_running=True
             self.printc('Saving eye video')
+            self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'))
+            #if hasattr(self,  'start_cam') and self.start_cam:
+            self.printc('Starting eye camera recording')
+            self.to_gui.put({'update_camera_status':'camera on'})
+            self.cam.start()
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -348,11 +363,24 @@ class ExperimentHandler(object):
                         break
                     time.sleep(1)
             self._stop_sync_recorder()
-            if hasattr(self, 'eye_camera') and self.eye_camera.isrunning:
-                res=self.eye_camera.stop()
-                self.printc('{0} frames were dropped frames in eyecamera video'.format(res))
-                self.eye_camera_running=False
+            if hasattr(self,  'cam') and self.cam.is_alive():#Terminate camera if still running (abort experiment might have already stopped it.
+                self.printc('Terminating eye camera recording')
+                self.eyecamdata=self.cam.stop()
+                self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
+                self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
+                self.cam.terminate()
+                self.to_gui.put({'update_camera_status':'camera off'})
+                self.printc('Restarting eye camera live display')
                 self.start_eye_camera()
+#            if hasattr(self, 'eye_camera'):# and self.eye_camera.isrunning:
+#                self.stop_eye_camera()
+#                self.printc('Saving eye camera recording')
+#                self.printc(len(self.eye_camera.frames))
+#                self.printc(self.eye_camera.timestamps[0]-self.eye_camera.timestamps[-1])
+                #res=self.eye_camera.stop()
+                #self.printc('{0} frames were dropped frames in eyecamera video'.format(res))
+                #self.eye_camera_running=False
+                
             self.experiment_running=False
             self.experiment_finish_time=time.time()
         self.to_gui.put({'update_status':'idle'}) 
@@ -381,12 +409,14 @@ class ExperimentHandler(object):
                 except:
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
-            if  'Enable Eye Camera' in self.current_experiment_parameters and self.current_experiment_parameters['Enable Eye Camera'] and hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
-                #Converting eye camera file:
-                self.printc('Saving eye camera file')
-                #mat_eye_camera_file=experiment_data.hdf52mat(self.eye_camera_filename)
-                shutil.move(self.eye_camera_filename, os.path.dirname(fn))
-                #shutil.move(mat_eye_camera_file, os.path.dirname(fn))
+            if hasattr(self,  'eyecamdata'):
+                fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
+                self.eyecamfile=fn
+                self.printc('Saving eye camera data to {0}'.format(fn))
+                h=hdf5io.Hdf5io(fn)
+                h.cam=self.eyecamdata
+                h.save('cam')
+                h.close()
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -433,6 +463,20 @@ class ExperimentHandler(object):
                 self._timing2csv(filename)
         self.to_gui.put({'update_status':'idle'})   
                 
+    def eyecam2video(self):
+        dirname=os.path.dirname(experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam'))
+        for fn in fileop.listdir(dirname): 
+            if 'eyecam' not in os.path.basename(fn): continue
+            h=hdf5io.Hdf5io(fn)
+            frames=numpy.array(h.findvar('cam')['frames'])
+            videofn=fn.replace('.hdf5',  '.mp4')
+            if not os.path.exists(videofn):
+                self.printc('exporting to {0}'.format(videofn))
+                videofile.array2mp4(frames, videofn,  fps=self.guidata.read('Eye Camera Frame Rate'))
+        self.printc('Done')
+        h.close()
+        
+
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:
             return
@@ -586,6 +630,12 @@ class ExperimentHandler(object):
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         self.send({'function': 'stop_all','args':[]},'stim')
         self.enable_check_network_status=True
+        if hasattr(self,  'cam') and self.cam.is_alive():
+            self.printc('Terminating camera recording')
+            self.cam.stop()
+            self.cam.terminate()
+            self.to_gui.put({'update_camera_status':'camera off'})
+            self.start_eye_camera()
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         self.experiment_running=False
@@ -934,6 +984,9 @@ class Analysis(object):
                 rois=self.rois
                 raw_data=self.raw_data
                 stimulus_parameters=hdf5io.read_item(self.datafile.filename, 'stimulus_parameters')
+                if not hasattr(stimulus_parameters, 'keys') or 'NUMBER_OF_FLASHES' not in stimulus_parameters:
+                    self.printc('Button analysis failed')
+                    return
             else:
                 raise NotImplementedError('')
             res=bouton_analysis.extract_bouton_increase(raw_data, rois, stimulus_parameters, self.guidata.read('Baseline'),

@@ -10,6 +10,7 @@ import random
 class MovingShapeParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.DELAY_BEFORE_START = 10.0
+        self.DELAY_BEFORE_REPETITION = 3.0
         self.BACKGROUND_COLOR = 0.0
         self.SHAPE = 'spot'#spot
         self.SHAPE_CONTRAST = 0.999
@@ -43,6 +44,7 @@ class MovExperiment(experiment.Experiment):
     def run(self):
         self.show_fullscreen(duration = self.experiment_config.DELAY_BEFORE_START, color =  self.experiment_config.BACKGROUND_COLOR)
         for repetitions in range(self.experiment_config.REPETITIONS):
+            self.show_fullscreen(duration = self.experiment_config.DELAY_BEFORE_REPETITION, color =  self.experiment_config.BACKGROUND_COLOR)
             for d in self.experiment_config.DIRECTIONS:
                 self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
                           speeds = self.experiment_config.SPEED,
@@ -50,7 +52,8 @@ class MovExperiment(experiment.Experiment):
                           shape = self.experiment_config.SHAPE,
                           color = self.experiment_config.SHAPE_CONTRAST,
                           background_color = self.experiment_config.SHAPE_BACKGROUND,
-                          pause = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS)
+                          pause = 0)
+                self.show_fullscreen(duration = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS, color =  self.experiment_config.BACKGROUND_COLOR)
             #self.show_fullscreen(duration = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS,  color = self.experiment_config.SHAPE_BACKGROUND)
 #             for i in range(len(self.trajectories)):
 #                 for position in self.trajectories[i]:

@@ -29,8 +29,10 @@ def images2mpeg4(folder, video_path,  fps):
     command = '{3} -y -r {0} -i {1} -map 0 -c:v libx264 -b 5M {2}'.format(fps, os.path.join(folder, '{0}%5d.png'.format(tag)), video_path,cmd)
     subprocess.call(command, shell=True)
     
-def array2mp4(array, videofile, fps):
-    folder=os.path.join(tempfile.gettempdir(), 'vf')
+def array2mp4(array, videofile, fps, tempdir=None):
+    if tempdir==None:
+        tempdir=tempfile.gettempdir()
+    folder=os.path.join(tempdir, 'vf')
     if os.path.exists(folder):
         shutil.rmtree(folder)
     os.mkdir(folder)

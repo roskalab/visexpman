@@ -1,4 +1,4 @@
-import copy,visexpman,sys
+import copy,visexpman,sys, multiprocessing
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
@@ -241,6 +241,7 @@ class ImagingSourceCamera(object):
         self.frame_counter = 0
         self.framep = []
         self.frames = []
+        self.timestamps=[]
         #disable triggering
         if self.dllref.IC_EnableTrigger(self.grabber_handle,  0)!=1:
             raise RuntimeError('Could not disable camera triggering')
@@ -273,6 +274,7 @@ class ImagingSourceCamera(object):
             frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
             self.frames.append(frame)
             self.frame_counter += 1
+            self.timestamps.append(time.time())
             time.sleep(1e-3)
             return True
         else:
@@ -297,6 +299,15 @@ class ImagingSourceCamera(object):
                 break
             frame_rates.append(val.value)
         pass
+        
+    def mark_dropped_frames(self):
+        '''
+        Returns indexes of frames where there was a more than one frame shift in timestamps. Also returns the number of frames in the recording
+        '''
+        expected_frame_time=1000.0/self.frame_rate
+        dt=numpy.diff(self.timestamps)*1000
+        frame_steps=numpy.cast['uint8'](numpy.round(dt/expected_frame_time))
+        return numpy.where(frame_steps>1)[0].shape[0], dt.shape[0]+1
         
 class ImagingSourceCameraSaver(ImagingSourceCamera):
     def __init__(self,filename,frame_rate):
@@ -331,7 +342,42 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         self.datafile.create_array(self.datafile.root, 'ic_frame_steps',ic_frame_steps, 'Frame steps')
         self.ic_frame_steps=ic_frame_steps
         return numpy.where(ic_frame_steps>1)[0].shape[0], dt.shape[0]+1
-
+        
+class CameraRecorderProcess(multiprocessing.Process):
+    def __init__(self, frame_rate):
+        self.command=multiprocessing.Queue(5)
+        self.data=multiprocessing.Queue(2)
+        self.frame=multiprocessing.Queue(10)
+        self.frame_rate=frame_rate
+        multiprocessing.Process.__init__(self)
+        
+    def run(self):
+        try:
+            self.cam=ImagingSourceCamera(self.frame_rate)
+            self.cam.start()
+            while True:
+                time.sleep(0.5/self.frame_rate)
+                self.cam.save()
+                if len(self.cam.frames)>0:
+                    self.frame.put(self.cam.frames[-1])
+                if not self.command.empty():
+                    if self.command.get()=='stop':
+                        self.cam.stop()
+                        break
+            dropped_frames=self.cam.mark_dropped_frames()
+            data={'frames': self.cam.frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
+            self.data.put(data)
+            self.cam.close()
+        except:
+            import traceback
+            self.data.put(traceback.format_exc())
+        
+    def stop(self):
+        self.command.put('stop')
+        while self.data.empty():
+            pass
+        return self.data.get()
+        
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):
 #        self.CAMERA_FRAME_RATE = 30.0
@@ -349,7 +395,7 @@ class TestCVCameraConfig(configuration.Config):
 
                 
 class TestCamera(unittest.TestCase):
-   #@unittest.skip('')
+    @unittest.skip('')
     def test_01_record_some_frames(self):
         fr=30
         cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())),fr)
@@ -393,6 +439,24 @@ class TestCamera(unittest.TestCase):
         print(self.dllref.IC_StartLive(self.grabber_handle, int(0)))
         self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
         self.dllref.IC_CloseLibrary()
+        
+    def test_04_camera_process(self):
+        for i in range(3):
+            print(i)
+            c=CameraRecorderProcess(30)
+            c.start()
+            time.sleep(10)
+            res=c.stop()
+            print(res)
+            time.sleep(5)
+            while not c.frame.empty():
+                resf=c.frame.get()
+            print(c.frame.empty())
+            c.terminate()
+            c.join()
+        print('done')
+        import pdb
+        pdb.set_trace()
         
         
 def simple_camera():

@@ -16,7 +16,7 @@ class ExperimentConfig(Config):
     socket queues
     log
     '''
-    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, screen=None, create_runnable=True):
+    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, screen=None, create_runnable=True, **kwargs):
         Config.__init__(self, machine_config=machine_config,ignore_range = True)
         check_experiment_config(self)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI

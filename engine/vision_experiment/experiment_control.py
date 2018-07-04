@@ -488,6 +488,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.parameters = parameters
         self.log = log
         if hasattr(self.machine_config, 'DIGITAL_IO_PORT_TYPE') and self.machine_config.user_interface_name!='main_ui':
+            skip_hw_init= hasattr(self, 'kwargs') and 'create_runnable' in self.kwargs and not self.kwargs['create_runnable']
+            if skip_hw_init:
+                return
             self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
             Trigger.__init__(self, machine_config, queues, self.digital_io)
             if 0 and self.digital_io!=None:#Digital output is available
@@ -631,6 +634,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         t.start()
                     if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
                         self.abort=True
+                        self.send({'trigger':'stim error'})
                 elif self.machine_config.PLATFORM == 'resonant':
                     self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
@@ -641,6 +645,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.abort=True
                         self.mesc_error=True
                         self.printl('MESc did not start, aborting stimulus')
+                        self.send({'trigger':'stim error'})
                     else:
                         self.mesc_error=False
                 if self.machine_config.CAMERA_TRIGGER_ENABLE:

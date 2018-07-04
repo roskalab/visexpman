@@ -57,9 +57,10 @@ def cap_attributes2dict(obj):
     All attributes which are capitalized are returned as a dict
     '''
     values= dict([(vn, getattr(obj, vn)) for vn in dir(obj) if vn.isupper()])
-    for k,  v in values.items():
-        if isinstance(v,  range):#In python3 range expressions are handled as iterators
-            values[k]=[i for i in v]
+    if sys.version_info.major==3:
+        for k,  v in values.items():
+            if isinstance(v,  range):#In python3 range expressions are handled as iterators
+                values[k]=[i for i in v]
     return values
 
 def get_available_process_cores():
