@@ -19,7 +19,7 @@ start_read_pins: pin 2-4 will be sampled with 2 kHz (TIMER_FRQ), upon value chan
 stop_read_pins: stop sampling pin 2-4.
 get_id: read device id stored in eeprom
 set_id: reprogram device id to eeprom
-set_led.state: set's the arduino board's led
+set_led,state: set's the arduino board's led
 elongate,status,pin,width in us: elongates a short pulse detected on pin2 by INT0. pin 5-7 can be selected as output
 
 */
