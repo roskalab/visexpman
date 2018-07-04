@@ -660,6 +660,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.statusbar.camera_status.setStyleSheet('background:gray;')
                 elif msg['update_camera_status']=='camera on':
                     self.statusbar.camera_status.setStyleSheet('background:orange;')
+                elif msg['update_camera_status']=='camera recording':
+                    self.statusbar.camera_status.setStyleSheet('background:red;')
                 self.statusbar.camera_status.setText(msg['update_camera_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])

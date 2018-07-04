@@ -152,7 +152,7 @@ class ResonantSetup(ResonantConfig):
         self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
         self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         #Sync signal
-        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:5' #0: frame sync, 1: stim frame, 2: block, 3: mes start trigger
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:6' #0: frame sync, 1: stim frame, 2: block, 3, 4, 5, 6: camera trigger from MESc computer
         self.SYNC_RECORDER_SAMPLE_RATE=5000#mes sync pulses are very short
         self.SYNC_RECORDING_BUFFER_TIME=5.0
         self.TIMG_SYNC_INDEX=0
@@ -174,10 +174,16 @@ class GeorgResonantSetup(ResonantSetup):
         ResonantSetup._set_user_parameters(self)
         self.FULLSCREEN=True
         self.CAMERA_TRIGGER_ENABLE=True
-        self.CAMERA_TRIGGER_PORT='COM3'
+        
         self.CAMERA_TRIGGER_FRAME_RATE=15
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
+        self.CAMERA_TIMING_ON_STIM=True
+        self.CAMERA_TIMING_PIN=5
+        if self.CAMERA_TIMING_ON_STIM:
+            self.CAMERA_IO_PORT='COM3'
+        else:
+            self.CAMERA_IO_PORT='COM9'
 
 class ResonantDev(ResonantSetup):
     def _set_user_parameters(self):
@@ -190,8 +196,11 @@ class ResonantDev(ResonantSetup):
 #        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         self.FULLSCREEN=False
         self.CAMERA_TRIGGER_ENABLE=True
-        self.CAMERA_TRIGGER_PORT='COM3'
+        self.CAMERA_IO_PORT='COM3'
         self.CAMERA_TRIGGER_FRAME_RATE=30
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
+        self.CAMERA_TIMING_PIN=5
+        self.CAMERA_TIMING_ON_STIM=False
+        self.CAMERA_IO_PORT='COM9'

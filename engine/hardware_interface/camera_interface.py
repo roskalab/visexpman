@@ -2,7 +2,7 @@ import copy,visexpman,sys, multiprocessing
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
-from visexpman.engine.hardware_interface import instrument
+from visexpman.engine.hardware_interface import instrument, digital_io
 import time
 import ctypes
 import os
@@ -344,17 +344,24 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         return numpy.where(ic_frame_steps>1)[0].shape[0], dt.shape[0]+1
         
 class CameraRecorderProcess(multiprocessing.Process):
-    def __init__(self, frame_rate):
+    def __init__(self, frame_rate, io_config=None):
         self.command=multiprocessing.Queue(5)
         self.data=multiprocessing.Queue(2)
         self.frame=multiprocessing.Queue(10)
+        self.error=multiprocessing.Queue(2)
         self.frame_rate=frame_rate
+        self.io_config=io_config
         multiprocessing.Process.__init__(self)
         
     def run(self):
         try:
+            if hasattr(self.io_config, 'keys'):
+                self.ioboard=digital_io.IOBoard(self.io_config['port'])
+                self.ioboard.set_pin(self.io_config['timing_pin'], 0)
             self.cam=ImagingSourceCamera(self.frame_rate)
             self.cam.start()
+            if hasattr(self, 'ioboard'):
+                self.ioboard.set_pin(self.io_config['timing_pin'], 1)
             while True:
                 time.sleep(0.5/self.frame_rate)
                 self.cam.save()
@@ -364,19 +371,26 @@ class CameraRecorderProcess(multiprocessing.Process):
                     if self.command.get()=='stop':
                         self.cam.stop()
                         break
+            if hasattr(self, 'ioboard'):
+                self.ioboard.set_pin(self.io_config['timing_pin'], 0)
             dropped_frames=self.cam.mark_dropped_frames()
             data={'frames': self.cam.frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
             self.data.put(data)
             self.cam.close()
+            if hasattr(self, 'ioboard'):
+                self.ioboard.close()
         except:
             import traceback
-            self.data.put(traceback.format_exc())
+            self.error.put(traceback.format_exc())
         
     def stop(self):
         self.command.put('stop')
         while self.data.empty():
             pass
-        return self.data.get()
+        d=self.data.get()
+        if not self.error.empty():
+            return self.error.get()
+        return d
         
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):

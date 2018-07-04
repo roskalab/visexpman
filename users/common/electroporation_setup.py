@@ -30,7 +30,7 @@ class ElectroporationSetup228Config(ElectroporationConfig):
         
         #=== hardware ===
         DIGITAL_IO_PORT='COM3'
-        CAMERA_TRIGGER_PORT='COM4'
+        CAMERA_IO_PORT='COM4'
         self.CAMERA_TRIGGER_FRAME_RATE=25 #right now cant go above 12/13 hz
         self.CAMERA_TRIGGER_PIN=5
         self.CAMERA_PRE_STIM_WAIT=5.0
@@ -56,7 +56,7 @@ class DevelopEposLinuxConfig(ElectroporationSetup228Config):
         self.WAIT4TRIGGER_ENABLED=False
         self.CAMERA_TRIGGER_FRAME_RATE=10
         self.DIGITAL_IO_PORT='/dev/ttyUSB0'
-        self.CAMERA_TRIGGER_PORT='/dev/ttyACM0'
+        self.CAMERA_IO_PORT='/dev/ttyACM0'
         self.INJECT_START_TRIGGER=True
         
 class DevelopEposConfig(ElectroporationSetup228Config):

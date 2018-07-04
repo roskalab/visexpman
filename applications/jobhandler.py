@@ -240,6 +240,7 @@ level=logging.INFO)
             files=[f for f in fileop.find_files_and_folders(self.folders['experiment_data'])[1] if os.path.splitext(f)[1]=='.hdf5' and 'eyecam'==os.path.basename(f)[:6]]
             #import pdb;pdb.set_trace()
             from visexpman.engine.generic import videofile
+            logging.info(len(files))
             for f in files:
                 try:
                     videofilename=fileop.replace_extension(f, '.mp4')
