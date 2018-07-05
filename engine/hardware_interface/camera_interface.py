@@ -344,24 +344,20 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         return numpy.where(ic_frame_steps>1)[0].shape[0], dt.shape[0]+1
         
 class CameraRecorderProcess(multiprocessing.Process):
-    def __init__(self, frame_rate, io_config=None):
+    def __init__(self, frame_rate):
         self.command=multiprocessing.Queue(5)
         self.data=multiprocessing.Queue(2)
         self.frame=multiprocessing.Queue(10)
         self.error=multiprocessing.Queue(2)
+        self.started=multiprocessing.Queue(1)
         self.frame_rate=frame_rate
-        self.io_config=io_config
         multiprocessing.Process.__init__(self)
         
     def run(self):
         try:
-            if hasattr(self.io_config, 'keys'):
-                self.ioboard=digital_io.IOBoard(self.io_config['port'])
-                self.ioboard.set_pin(self.io_config['timing_pin'], 0)
             self.cam=ImagingSourceCamera(self.frame_rate)
             self.cam.start()
-            if hasattr(self, 'ioboard'):
-                self.ioboard.set_pin(self.io_config['timing_pin'], 1)
+            self.started.put(True)
             while True:
                 time.sleep(0.5/self.frame_rate)
                 self.cam.save()
@@ -371,14 +367,10 @@ class CameraRecorderProcess(multiprocessing.Process):
                     if self.command.get()=='stop':
                         self.cam.stop()
                         break
-            if hasattr(self, 'ioboard'):
-                self.ioboard.set_pin(self.io_config['timing_pin'], 0)
             dropped_frames=self.cam.mark_dropped_frames()
             data={'frames': self.cam.frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
             self.data.put(data)
             self.cam.close()
-            if hasattr(self, 'ioboard'):
-                self.ioboard.close()
         except:
             import traceback
             self.error.put(traceback.format_exc())
@@ -391,6 +383,22 @@ class CameraRecorderProcess(multiprocessing.Process):
         if not self.error.empty():
             return self.error.get()
         return d
+        
+    def wait(self,  timeout=10):
+        '''
+        Waits for camera to start
+        '''
+        t0=time.time()
+        while True:
+            if not self.started.empty():
+                res=True
+                break
+            time.sleep(0.1)
+            if time.time()-t0>timeout:
+                res=False
+                break
+        return res
+                
         
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):

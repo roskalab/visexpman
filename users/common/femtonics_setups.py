@@ -180,10 +180,8 @@ class GeorgResonantSetup(ResonantSetup):
         self.CAMERA_POST_STIM_WAIT=0.5
         self.CAMERA_TIMING_ON_STIM=True
         self.CAMERA_TIMING_PIN=5
-        if self.CAMERA_TIMING_ON_STIM:
-            self.CAMERA_IO_PORT='COM3'
-        else:
-            self.CAMERA_IO_PORT='COM9'
+        self.CAMERA_IO_PORT_STIM='COM3'
+        self.CAMERA_IO_PORT='COM10'
 
 class ResonantDev(ResonantSetup):
     def _set_user_parameters(self):
@@ -196,11 +194,11 @@ class ResonantDev(ResonantSetup):
 #        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
         self.FULLSCREEN=False
         self.CAMERA_TRIGGER_ENABLE=True
-        self.CAMERA_IO_PORT='COM3'
+        self.CAMERA_IO_PORT_STIM='COM3'
         self.CAMERA_TRIGGER_FRAME_RATE=30
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
         self.SCREEN_RESOLUTION = utils.cr([1280, 720])
         self.CAMERA_TIMING_PIN=5
         self.CAMERA_TIMING_ON_STIM=False
-        self.CAMERA_IO_PORT='COM9'
+        self.CAMERA_IO_PORT='COM10'

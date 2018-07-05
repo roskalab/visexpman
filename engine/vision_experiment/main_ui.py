@@ -846,6 +846,10 @@ class MainUI(gui.VisexpmanMainWindow):
         self.to_engine.put({'function': 'mesc_connect', 'args':[]})
         
     def exit_action(self):
+        if hasattr(self,  'exit_action_called'):
+            return
+        else:
+            self.exit_action_called=True
         if hasattr(self, 'tpp'):
             self.tpp.close()
         self.send_all_parameters2engine()

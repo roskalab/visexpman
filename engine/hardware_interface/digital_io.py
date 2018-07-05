@@ -306,7 +306,7 @@ class IOBoard(object):
             raise IOError('Waveform was not stopped: {0}'.format(res))
             
     def pulse(self,pin,duration):
-        res=self.command('pulse,{0},{1}'.format(float(pin), float(1000*duration)))
+        res=self.command('pulse,{0},{1}'.format(float(pin), float(1000*duration))).decode()
         if 'ms pulse on pin' not in res:
             raise IOError('Pulse generation was not successfuly: {0}'.format(res))
             

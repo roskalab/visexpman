@@ -22,7 +22,7 @@ try:
     context_file_type='hdf5'
 except ImportError:
     import scipy.io
-    context_file_type='mat'
+    context_file_type='mat'#TODO: this might be obsolete because context file is saved as npy
 
 class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be moved to stim.py
     def __init__(self, machine_config, socket_queues, command, log,context={}):
