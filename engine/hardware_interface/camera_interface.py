@@ -2,7 +2,7 @@ import copy,visexpman,sys, multiprocessing
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
-from visexpman.engine.hardware_interface import instrument
+from visexpman.engine.hardware_interface import instrument, digital_io
 import time
 import ctypes
 import os
@@ -348,6 +348,8 @@ class CameraRecorderProcess(multiprocessing.Process):
         self.command=multiprocessing.Queue(5)
         self.data=multiprocessing.Queue(2)
         self.frame=multiprocessing.Queue(10)
+        self.error=multiprocessing.Queue(2)
+        self.started=multiprocessing.Queue(1)
         self.frame_rate=frame_rate
         multiprocessing.Process.__init__(self)
         
@@ -355,6 +357,7 @@ class CameraRecorderProcess(multiprocessing.Process):
         try:
             self.cam=ImagingSourceCamera(self.frame_rate)
             self.cam.start()
+            self.started.put(True)
             while True:
                 time.sleep(0.5/self.frame_rate)
                 self.cam.save()
@@ -370,13 +373,32 @@ class CameraRecorderProcess(multiprocessing.Process):
             self.cam.close()
         except:
             import traceback
-            self.data.put(traceback.format_exc())
+            self.error.put(traceback.format_exc())
         
     def stop(self):
         self.command.put('stop')
         while self.data.empty():
             pass
-        return self.data.get()
+        d=self.data.get()
+        if not self.error.empty():
+            return self.error.get()
+        return d
+        
+    def wait(self,  timeout=10):
+        '''
+        Waits for camera to start
+        '''
+        t0=time.time()
+        while True:
+            if not self.started.empty():
+                res=True
+                break
+            time.sleep(0.1)
+            if time.time()-t0>timeout:
+                res=False
+                break
+        return res
+                
         
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):

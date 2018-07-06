@@ -270,21 +270,26 @@ class IOBoard(object):
             time.sleep(0.1)
             
     def command(self, cmd):
-        self.s.write(cmd+'\r\n')
+        if sys.version_info.major==3:
+            self.s.write(bytes(cmd+'\r\n', 'utf-8'))
+        else:
+            self.s.write(cmd+'\r\n')
         time.sleep(10e-3)
         return self.s.read(1000)
     
     def set_pin(self,channel,value):
         if channel<5 or channel>7:
             raise ValueError('Invalid pin: {0}'.format(channel))
-        res=self.command('set_pin,{0},{1}'.format(float(channel), float(value)))
+        res=self.command('set_pin,{0},{1}'.format(float(channel), float(value))).decode()
         if 'pin set to' not in res:
             raise ValueError('Setting pin was not successfuly: {0}'.format(res))
             
     def reset(self):
         res=self.command('reset')
+        res=res.decode()#Compatible with python3 bytes
         if 'Reset' not in res:
             res=self.command('reset')
+            res=res.decode()
             if 'Reset' not in res:
                 raise IOError('IOBoard reset was not successful: {0}'.format(res))
             
@@ -301,7 +306,7 @@ class IOBoard(object):
             raise IOError('Waveform was not stopped: {0}'.format(res))
             
     def pulse(self,pin,duration):
-        res=self.command('pulse,{0},{1}'.format(float(pin), float(1000*duration)))
+        res=self.command('pulse,{0},{1}'.format(float(pin), float(1000*duration))).decode()
         if 'ms pulse on pin' not in res:
             raise IOError('Pulse generation was not successfuly: {0}'.format(res))
             

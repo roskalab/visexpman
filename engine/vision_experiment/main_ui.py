@@ -660,6 +660,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.statusbar.camera_status.setStyleSheet('background:gray;')
                 elif msg['update_camera_status']=='camera on':
                     self.statusbar.camera_status.setStyleSheet('background:orange;')
+                elif msg['update_camera_status']=='camera recording':
+                    self.statusbar.camera_status.setStyleSheet('background:red;')
                 self.statusbar.camera_status.setText(msg['update_camera_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
@@ -844,6 +846,10 @@ class MainUI(gui.VisexpmanMainWindow):
         self.to_engine.put({'function': 'mesc_connect', 'args':[]})
         
     def exit_action(self):
+        if hasattr(self,  'exit_action_called'):
+            return
+        else:
+            self.exit_action_called=True
         if hasattr(self, 'tpp'):
             self.tpp.close()
         self.send_all_parameters2engine()

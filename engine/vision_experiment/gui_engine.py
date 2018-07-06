@@ -20,7 +20,7 @@ except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
 from visexpman.applications.visexpman_main import stimulation_tester
 
@@ -77,7 +77,6 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.eye_camera_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
-        self.start_cam=not False
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -274,6 +273,9 @@ class ExperimentHandler(object):
         self.mesc_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
+        if not self.machine_config.CAMERA_TIMING_ON_STIM:
+            self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT)
+            self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
         if self.machine_config.PLATFORM=='resonant':
             if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
                 missing_connections=[conn for conn in ['mesc', 'stim'] if conn not in self.connected_nodes]
@@ -303,10 +305,13 @@ class ExperimentHandler(object):
             self.stop_eye_camera()
             self.printc('Saving eye video')
             self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'))
-            #if hasattr(self,  'start_cam') and self.start_cam:
             self.printc('Starting eye camera recording')
-            self.to_gui.put({'update_camera_status':'camera on'})
+            self.to_gui.put({'update_camera_status':'camera recording'})
             self.cam.start()
+            if not self.cam.wait():
+                raise RuntimeError('Camera did not start')
+            if hasattr(self,  'io'):
+                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  1)
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -366,21 +371,19 @@ class ExperimentHandler(object):
             if hasattr(self,  'cam') and self.cam.is_alive():#Terminate camera if still running (abort experiment might have already stopped it.
                 self.printc('Terminating eye camera recording')
                 self.eyecamdata=self.cam.stop()
-                self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
-                self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
+                if hasattr(self,  'io'):
+                    self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
+                if hasattr(self,  'io'):
+                    self.io.close()
+                if hasattr(self.eyecamdata, 'keys'):
+                    self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
+                    self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
+                else:
+                    self.printc(self.eyecamdata)
                 self.cam.terminate()
                 self.to_gui.put({'update_camera_status':'camera off'})
                 self.printc('Restarting eye camera live display')
                 self.start_eye_camera()
-#            if hasattr(self, 'eye_camera'):# and self.eye_camera.isrunning:
-#                self.stop_eye_camera()
-#                self.printc('Saving eye camera recording')
-#                self.printc(len(self.eye_camera.frames))
-#                self.printc(self.eye_camera.timestamps[0]-self.eye_camera.timestamps[-1])
-                #res=self.eye_camera.stop()
-                #self.printc('{0} frames were dropped frames in eyecamera video'.format(res))
-                #self.eye_camera_running=False
-                
             self.experiment_running=False
             self.experiment_finish_time=time.time()
         self.to_gui.put({'update_status':'idle'}) 
@@ -412,11 +415,14 @@ class ExperimentHandler(object):
             if hasattr(self,  'eyecamdata'):
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
                 self.eyecamfile=fn
-                self.printc('Saving eye camera data to {0}'.format(fn))
-                h=hdf5io.Hdf5io(fn)
-                h.cam=self.eyecamdata
-                h.save('cam')
-                h.close()
+                if hasattr(self.eyecamdata, 'keys'):
+                    self.printc('Saving eye camera data to {0}'.format(fn))
+                    h=hdf5io.Hdf5io(fn)
+                    h.cam=self.eyecamdata
+                    h.save('cam')
+                    h.close()
+                else:
+                    self.printc('Camera data cannot be saved because of error')
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -1724,7 +1730,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.printc('{0} file is closed'.format(self.datafile.filename))
         
     def close(self):
-        self.save_context()                
+        self.save_context()   
 
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
