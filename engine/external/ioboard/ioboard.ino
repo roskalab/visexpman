@@ -79,12 +79,6 @@ void setup() {
   
 }
 
-void loop2()
-{
-  Serial.println(TCNT1);
-  delay(1000);
-}
-
 void loop()
 {
   static char c[2];
@@ -95,94 +89,4 @@ void loop()
     iobc.put(c);
   }
   iobc.run();
-}
-
-
-void loop1() {
-  b = Serial.read();
-  if (b!=-1) {
-    switch (state)
-    {
-      case IDLE_ST:
-        switch (b)
-        {
-          case 'o'://output
-          case 'p'://pulse
-            cmd=b;
-            state=WAIT_PAR_ST;
-            break;
-          case 'r'://read pins
-            force_read_pin=true;
-            state=IDLE_ST;
-            break;
-          case 'e'://enable send data
-            send_data=true;
-            state=IDLE_ST;
-            break;
-          case 'd'://disable send data
-            send_data=false;
-            state=IDLE_ST;
-            break;
-          case 'f'://set frequency
-            state=WAIT_PAR_ST;
-            cmd=b;
-          case 'w': //enable pulse train waveform
-            cmd=b;
-            state=WAIT_PAR_ST;
-            break;
-          default:
-            state=IDLE_ST;
-            break;
-        }
-        break;
-      case WAIT_PAR_ST:
-        par = b;
-        switch (cmd) {
-          case 'o':
-              PORTD = par&OUTPORT_MASK;
-              break;
-          case 'p':
-              PORTD |= par&OUTPORT_MASK;
-              delay(PULSE_WIDTH);
-              PORTD &= ~(par&OUTPORT_MASK);
-              break;
-          case 'f':
-              frequency=par;
-              period=1000/par/2;
-              break;
-          case 'w':
-              waveform_pin=par;
-              if (enable_waveform)
-              {
-                enable_waveform=false;
-              }
-              else
-              {
-                enable_waveform=true;
-              }
-              
-              //enable_waveform=~enable_waveform;
-              break;
-          case 'a':
-              break;
-        }
-        state=IDLE_ST;
-        break;
-      default:
-        break;
-    }  
-  }
-  if (enable_waveform)
-  {
-    PORTD |= waveform_pin&OUTPORT_MASK;
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(period);
-    PORTD &= ~(waveform_pin&OUTPORT_MASK);
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(period);
-  }
-  /*PORTD |= (1<<5)&OUTPORT_MASK;
-  delay(50);
-  PORTD &= ~((1<<5)&OUTPORT_MASK);
-  delay(50);*/
 }
