@@ -712,6 +712,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD and not self.abort:
                     raise RuntimeError('Mean frame rate {0} does not match with expected frame {1}'.format(self.frame_rates.mean(), expfr))
         except:
+            self.send({'trigger':'stim error'})
             raise RuntimeError(traceback.format_exc())
         finally:
             self.close()#If something goes wrong, close serial port
