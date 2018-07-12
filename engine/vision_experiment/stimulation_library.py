@@ -514,15 +514,17 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 vertices = packed_vertices
         #Set color
         if hasattr(color,  'shape') and len(color.shape) ==2:
-            glColor3fv(colors.convert_color(color[0], self.config))
+            self.shape_color=colors.convert_color(color[0], self.config)
         else:
-            glColor3fv(colors.convert_color(color, self.config))
+            self.shape_color=colors.convert_color(color, self.config)
+        glColor3fv(self.shape_color)
         if background_color != None:
             background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
             converted_background_color = colors.convert_color(background_color, self.config)
             glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
         else:
             converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
+        self.shape_vertices=vertices
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         frame_i = 0
@@ -530,6 +532,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         while True:
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.draw()#Allow user to draw something on top of shape
             if shape_type != 'annulus':
                 if hasattr(color,  'shape') and len(color.shape) == 2:
                     glColor3fv(colors.convert_color(color[frame_i], self.config))
@@ -560,7 +563,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     glColor3fv(colors.convert_color(color, self.config))
                 glDrawArrays(GL_POLYGON,  0, n)
-            self.draw()#Allow user to draw something on top of shape
             if flip:
                 self._flip(frame_timing_pulse = True)
             if self.abort:
@@ -2081,7 +2083,7 @@ class AdvancedStimulation(StimulationHelpers):
             self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
         if moving_range is not None:
             self.movement = moving_range+ shape_size
-#        print self.movement,directions,speeds
+        
         trajectory_directions = []
         trajectories = []
         nframes = 0
