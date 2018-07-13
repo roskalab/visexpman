@@ -62,7 +62,7 @@ class LogChecker(object):
             except:
                 pass
         #Excluding two conditions that are not considered as errors:
-        error_indexes = numpy.array([i for i in entry_lines if 'error' in lines[i].lower() and 'Job cannot be selected' not in lines[i] and 'Data acquisition stopped with error' not in lines[i] and 'experiment_config_source_code' not in lines[i]])
+        error_indexes = numpy.array([i for i in entry_lines if 'error' in lines[i].lower() and 'Job cannot be selected' not in lines[i] and 'Data acquisition stopped with error' not in lines[i] and 'experiment_config_source_code' not in lines[i] and 'stimulus_source_code' not in lines[i]])
         lines2report=[]
         for ei in error_indexes:
             start=ei-self.nlines_before_error-1
@@ -79,7 +79,7 @@ class LogChecker(object):
             return ''
         error_report=30*'='+'\nErrors in {0}\n'.format(filename)+30*'='+'\n'
         for i in lines2report:
-                error_report+=lines[i]
+                error_report+=lines[i][:5000]
         return error_report
         
 class Usage(object):
