@@ -103,7 +103,7 @@ class ExperimentHandler(object):
             if not self.cam.frame.empty():
                 if self.cam.frame.qsize()>3:
                     self.printc('{0} frames in queue'.format(self.cam.frame.qsize()))
-                self.to_gui.put({'eye_camera_image':self.cam.frame.get()[::2,::2].T})
+                self.to_gui.put({'eye_camera_image':self.cam.frame.get()[::3,::3].T})
         elif self.eye_camera_running:
             self.eye_camera.save()
             if len(self.eye_camera.frames)>0:
@@ -273,9 +273,6 @@ class ExperimentHandler(object):
         self.mesc_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
-        if not self.machine_config.CAMERA_TIMING_ON_STIM:
-            self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT)
-            self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
         if self.machine_config.PLATFORM=='resonant':
             if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
                 missing_connections=[conn for conn in ['mesc', 'stim'] if conn not in self.connected_nodes]
@@ -304,14 +301,12 @@ class ExperimentHandler(object):
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
             self.printc('Saving eye video')
-            self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'))
+            self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'),  self.machine_config)
             self.printc('Starting eye camera recording')
             self.to_gui.put({'update_camera_status':'camera recording'})
             self.cam.start()
             if not self.cam.wait():
                 raise RuntimeError('Camera did not start')
-            if hasattr(self,  'io'):
-                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  1)
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -371,10 +366,6 @@ class ExperimentHandler(object):
             if hasattr(self,  'cam') and self.cam.is_alive():#Terminate camera if still running (abort experiment might have already stopped it.
                 self.printc('Terminating eye camera recording')
                 self.eyecamdata=self.cam.stop()
-                if hasattr(self,  'io'):
-                    self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
-                if hasattr(self,  'io'):
-                    self.io.close()
                 if hasattr(self.eyecamdata, 'keys'):
                     self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
                     self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
