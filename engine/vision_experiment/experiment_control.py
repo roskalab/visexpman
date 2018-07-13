@@ -590,8 +590,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 from visexpman.engine.vision_experiment.experiment import get_experiment_duration
                 self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
             #Check if main_ui user and machine config class matches with stim's
-            if self.parameters['user']!=self.machine_config.user or \
-                self.parameters['machine_config']!=self.machine_config.__class__.__name__:
+            if 'user' in self.parameters and (self.parameters['user']!=self.machine_config.user or \
+                self.parameters['machine_config']!=self.machine_config.__class__.__name__):
                     self.send({'trigger':'stim error'})
                     raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
                         .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))

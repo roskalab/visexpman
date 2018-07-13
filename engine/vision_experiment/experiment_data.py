@@ -650,12 +650,18 @@ def pack_configs(self):
         configs['experiment_config']=self.config2dict()
     from visexpman.engine.vision_experiment import experiment
     if hasattr(self,  'experiment_config') :
-        sc=self.parameters['experiment_config_source_code']
+        if 'experiment_config_source_code' not in self.parameters:
+            sc=None
+        else:
+            sc=self.parameters['experiment_config_source_code']
         cn=self.experiment_config.__class__.__name__
     else:
         sc=self.parameters['stimulus_source_code']
         cn=self.__class__.__name__
-    parameters=experiment.read_stimulus_parameters(cn, sc, self.machine_config)
+    if sc ==None:
+        parameters=self.experiment_config.get_all_parameters()
+    else:
+        parameters=experiment.read_stimulus_parameters(cn, sc, self.machine_config)
     configs['hash']=experiment.stimulus_parameters_hash(parameters)
     return configs
     
