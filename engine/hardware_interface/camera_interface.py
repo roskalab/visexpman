@@ -344,29 +344,41 @@ class ImagingSourceCameraSaver(ImagingSourceCamera):
         return numpy.where(ic_frame_steps>1)[0].shape[0], dt.shape[0]+1
         
 class CameraRecorderProcess(multiprocessing.Process):
-    def __init__(self, frame_rate):
+    def __init__(self, frame_rate,  config=None):
         self.command=multiprocessing.Queue(5)
         self.data=multiprocessing.Queue(2)
         self.frame=multiprocessing.Queue(10)
         self.error=multiprocessing.Queue(2)
         self.started=multiprocessing.Queue(1)
         self.frame_rate=frame_rate
+        self.machine_config=config
         multiprocessing.Process.__init__(self)
         
     def run(self):
         try:
+            if self.machine_config!=None and not self.machine_config.CAMERA_TIMING_ON_STIM:
+                self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT)
+                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
             self.cam=ImagingSourceCamera(self.frame_rate)
             self.cam.start()
+            if 0 and hasattr(self,  'io'):
+                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  1)
             self.started.put(True)
             while True:
                 time.sleep(0.5/self.frame_rate)
                 self.cam.save()
+                if hasattr(self,  'io'):
+                    self.io.pulse(self.machine_config.CAMERA_TIMING_PIN,  5e-3)
                 if len(self.cam.frames)>0:
                     self.frame.put(self.cam.frames[-1])
                 if not self.command.empty():
                     if self.command.get()=='stop':
                         self.cam.stop()
                         break
+            if hasattr(self,  'io'):
+                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
+            if hasattr(self,  'io'):
+                self.io.close()
             dropped_frames=self.cam.mark_dropped_frames()
             data={'frames': self.cam.frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
             self.data.put(data)
