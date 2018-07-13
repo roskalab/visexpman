@@ -346,6 +346,7 @@ class LaserPulse(experiment.Stimulus):
         self.duration = self.combined_waveform.shape[1]/float(self.SAMPLE_RATE)
         
     def run(self):
+        self.check_frame_rate=False
         from visexpman.engine.hardware_interface import daq_instrument
         self.show_fullscreen(color=0.0,duration=0)
         self.block_start('laser')
