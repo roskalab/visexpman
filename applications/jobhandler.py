@@ -257,7 +257,7 @@ level=logging.INFO)
                     hh.close()
                 except:
                     logging.error(traceback.format_exc())
-                    import pdb;pdb.set_trace()
+                    #import pdb;pdb.set_trace()
         except:
             logging.error(traceback.format_exc())
         logging.info('Removing lock file')
