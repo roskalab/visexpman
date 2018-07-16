@@ -29,7 +29,7 @@ class MEAConfig(HiMEAConfig):
         username = getpass.getuser()
         
         recordingMachineName = 'bs-dw100' # retina room
-        folder = ‘/net3/‘ + recordingMachineName + '/local1.data/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
+        folder = ‘/net3/‘ + recordingMachineName + '/local1/data/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
         
         if not os.path.isdir(folder):
             os.makedirs(folder)
