@@ -245,8 +245,9 @@ level=logging.INFO)
                 try:
                     videofilename=fileop.replace_extension(f, '.mp4')
                     if os.path.exists(videofilename): continue
-                    logging.info((f, f in self.prev_log, fileop.file_age(f)))
-                    if f in self.prev_log: continue
+                    if hasattr(self, 'prev_log'):
+                        logging.info((f, f in self.prev_log, fileop.file_age(f)))
+                        if f in self.prev_log: continue
                     if fileop.file_age(f)<60: continue
                     logging.info('Converting {0} to {1}'.format(f, videofilename))
                     hh=hdf5io.Hdf5io(f)

@@ -1,8 +1,8 @@
 from skimage.feature import register_translation
 from PIL import Image
 import numpy,os,unittest
-from visexpman.engine.generic import fileop
-from visexpman.engine.vision_experiment import experiment_data
+#from visexpman.engine.generic import fileop
+#from visexpman.engine.vision_experiment import experiment_data
             
 def motion_correction(images):
     corrected=numpy.copy(images)
@@ -45,11 +45,12 @@ class Test(unittest.TestCase):
         ylim([-10,10])
         legend(['no smear x', 'no smear y', 'little smear x', 'little smear y', 'more smear x', 'more smear y'])
         show()
-        
+
+    @unittest.skip("")        
     def test_02_detect_cell(self):
         for f in fileop.listdir('/tmp'):
             if f[-5:]!='.hdf5':continue
-            print f
+            print(f)
             h=experiment_data.CaImagingData(f)
             h.load('raw_data')
             before=numpy.copy(h.get_image(image_type='mip')[0])
@@ -59,7 +60,7 @@ class Test(unittest.TestCase):
             h.raw_data[:,0]=raw2
             r2=numpy.copy(h.raw_data[:,0][:,0,0])
             after=h.get_image(image_type='mip', load_raw=False)[0]
-            from pylab import *
+            from pylab import figure, imshow,show
 #            figure(1);imshow(h.raw_data[:,0].mean(axis=0));figure(2);imshow(corrected.mean(axis=0));show()
             #figure(1);imshow(before);
             #figure(2);imshow(after);
@@ -77,6 +78,45 @@ class Test(unittest.TestCase):
             
             show()
             h.close()
+
+    def test_03_detect_cell_caiman(self):
+        folder='D:\\Santiago\\716-18d-vivo-m1-reg4-rep1-LGN'
+        import caiman
+        from caiman.source_extraction import cnmf as cnmf
+        frames=[]
+        for f in os.listdir(folder):
+            try:
+                frame=numpy.asarray(Image.open(os.path.join(folder, f)))
+                frames.append(frame)
+            except:
+                pass
+        Y=numpy.array(frames, dtype=numpy.float)
+        K = 100
+        tau = 3
+        p = 1
+        merge_thr = 0.8
+        n_processes=7
+        options = cnmf.utilities.CNMFSetParms(Y, n_processes, p=p, gSig=[tau], K=K,
+                method_init='dilate',thr=merge_thr)
+        options['spatial_params']['dist']=3
+        options['temporal_params']['fudge_factor']=0.98
+
+        res=cnmf.pre_processing.preprocess_data(Y, p)
+        Y=res[0]
+        P=res[1]
+        res=cnmf.initialization.initialize_components(Y,K,[tau, tau],options_total=options,sn=P)
+        center=numpy.cast['int'](res[4])
+        ca=res[1]
+        mi=Y.mean(axis=0)
+        mii=numpy.zeros((mi.shape[0]+20, mi.shape[1]+20))
+        mii[:mi.shape[0], :mi.shape[1]]=mi
+        mii[center[:,1], center[:,0]]=0
+        from pylab import imshow, show
+        imshow(mii);show()
+        import pdb;pdb.set_trace()
+
+        
+        
         
 if __name__ == "__main__":
     unittest.main()
