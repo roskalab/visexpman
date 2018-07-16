@@ -32,6 +32,9 @@ class fingerPrint2P(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 class fingerPrint2Experiment(experiment.Experiment):
+    def prepare(self):
+        self.duration=self.experiment_config.GRATING_DURATION * self.experiment_config.REP * len(self.experiment_config.SPATIAL_FREQUENCY) * len(self.experiment_config.TEMPORAL_FREQUENCY)
+
     def run(self):
         screen_width = self.machine_config.SCREEN_RESOLUTION['col'] / self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         for rep_all_size in range(self.experiment_config.REP):  
