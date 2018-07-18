@@ -57,8 +57,8 @@ class GeorgGrating(experiment.Experiment):
                 self.durations[p]=(self.machine_config.SCREEN_SIZE_UM['row'])/numpy.array(ec.SPEEDS)*ec.REPEATS
             else:
                 self.durations[p]=(self.machine_config.SCREEN_SIZE_UM['col']+ec.BAR_WIDTH)/numpy.array(ec.SPEEDS)*ec.REPEATS
-        self.fragment_duration=[float(sum([d.sum() for d in self.durations.values()])+len(self.durations)*ec.FREEZE_TIME+ec.INITIAL_WAIT)]
-        self.duration=self.fragment_duration[0]
+        #self.fragment_duration=[self.durations.sum()+self.durations.shape[0]*ec.FREEZE_TIME+ec.INITIAL_WAIT]
+        #self.duration=self.fragment_duration[0]
         
         
     def grating(self):

@@ -10,10 +10,6 @@ except ImportError:
     from PIL import ImageFont
 
 import os
-try:
-    from visexpA.engine.dataprocessors import generic
-except ImportError:
-    pass
 import unittest
 import itertools
     

@@ -255,7 +255,7 @@ class CaImagingData(supcl):
             #Ignore last frames
             self.timg=self.timg[:self.raw_data.shape[0]]
         if self.timg.shape[0]!=self.raw_data.shape[0]:
-            raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
+            raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match in {2}'.format(self.timg.shape[0],self.raw_data.shape[0], self.filename))
         self.save(['timg'])
             
     def check_timing(self, check_frame_rate=True):
@@ -493,8 +493,8 @@ class CaImagingData(supcl):
         if not os.path.exists(os.path.dirname(dst)):
             os.makedirs(os.path.dirname(dst))
         shutil.copy2(self.filename,dst)
-        if os.path.exists(add_mat_tag(self.filename)):
-            shutil.copy2(add_mat_tag(self.filename),os.path.dirname(dst))
+        if os.path.exists(fileop.replace_extension(add_mat_tag(filename), '.mat')):
+            shutil.copy2(fileop.replace_extension(add_mat_tag(filename), '.mat'),os.path.dirname(dst))
         return dst
         
 def timing_from_file(filename):
@@ -650,12 +650,18 @@ def pack_configs(self):
         configs['experiment_config']=self.config2dict()
     from visexpman.engine.vision_experiment import experiment
     if hasattr(self,  'experiment_config') :
-        sc=self.parameters['experiment_config_source_code']
+        if 'experiment_config_source_code' not in self.parameters:
+            sc=None
+        else:
+            sc=self.parameters['experiment_config_source_code']
         cn=self.experiment_config.__class__.__name__
     else:
         sc=self.parameters['stimulus_source_code']
         cn=self.__class__.__name__
-    parameters=experiment.read_stimulus_parameters(cn, sc, self.machine_config)
+    if sc ==None:
+        parameters=self.experiment_config.get_all_parameters()
+    else:
+        parameters=experiment.read_stimulus_parameters(cn, sc, self.machine_config)
     configs['hash']=experiment.stimulus_parameters_hash(parameters)
     return configs
     

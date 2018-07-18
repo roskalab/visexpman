@@ -7,6 +7,9 @@ class GrayBackgndOnly5min(experiment.ExperimentConfig):
         self.runnable = 'GrayBackgndOnly'
         self._create_parameters_from_locals(locals())
         
-class GrayBackgndOnly(experiment.Experiment):        
+class GrayBackgndOnly(experiment.Experiment):    
+    def prepare(self):
+        self.duration=self.experiment_config.FULLSCREEN_TIME
+
     def run(self):
         self.show_fullscreen(duration = self.experiment_config.FULLSCREEN_TIME, color = self.experiment_config.FULLSCREEN_COLOR)

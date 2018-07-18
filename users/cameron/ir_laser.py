@@ -8,7 +8,8 @@ class IRLaser(stimuli.LaserPulse):
         self.PULSE_DURATION=[100E-3]
         self.PERIOD_TIME=[5.0]
         self.NPULSES=5
-        self.LASER_AMPLITUDE=[5.0]
+        self.LASER_AMPLITUDE=[4.0]
+        self.ZERO_VOLTAGE=-0.1
 
 class LEDVoltageSeries(IRLaser):
     def configuration(self):
@@ -35,7 +36,7 @@ class LEDVoltageLongDelay(IRLaser):
 class IRLaserVoltageSeries(IRLaser):
     def configuration(self):
         IRLaser.configuration(self)
-        self.LASER_AMPLITUDE=[ 0.01563, 0.06, 0.08, 0.1, 0.4, .6, .9, 1.1, 2]
+        self.LASER_AMPLITUDE=[ 0.01563, 0.06, 0.08, 0.1, 0.4, .6, .75, .9, 1.1, 2]
         self.ZERO_VOLTAGE=-0.1
 
 
