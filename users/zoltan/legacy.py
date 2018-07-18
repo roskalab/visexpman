@@ -666,6 +666,23 @@ def find_peak(frqs,fft):
     weight=selection[peak_index-window:peak_index+window+1]/selection[peak_index]
     return (frq_selection[peak_index-window:peak_index+window+1]*weight).sum()/weight.sum()
     #return frqs[indexes][fft[indexes].argmax()]
+    
+def v0p3tov0p4(folder):
+    files=fileop.listdir(folder)
+    for f in files:
+        hh=hdf5io.Hdf5io(f)
+        hh.load('configs')
+        if not hasattr(hh,'configs'):
+            hh.load('machine_config')
+            import copy
+            hh.configs=copy.deepcopy(hh.machine_config)
+            hh.configs['machine_config']['TIMG_SYNC_INDEX']=4
+            hh.configs['machine_config']['TSTIM_SYNC_INDEX']=2
+            hh.load('recording_parameters')
+            hh.parameters=copy.deepcopy(hh.recording_parameters)
+            hh.save('configs')
+            hh.save('parameters')
+        hh.close()
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')

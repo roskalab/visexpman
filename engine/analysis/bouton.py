@@ -1,6 +1,6 @@
 from skimage.feature import register_translation
 from PIL import Image
-import numpy,os,unittest
+import numpy,os,unittest, time
 from visexpman.engine.generic import fileop
 from visexpman.engine.vision_experiment import experiment_data
             
@@ -52,6 +52,27 @@ class Test(unittest.TestCase):
             print f
             h=experiment_data.CaImagingData(f)
             h.load('raw_data')
+            rd=numpy.array([i for i in h.raw_data if numpy.where(i.sum(axis=1)==255*i.shape[1])[0].shape[0]==0])
+            import cone_data
+            t0=time.time()
+            mc=motion_correction(rd)
+            print time.time()-t0
+            mi=mc.max(axis=0)[0]
+            minsomaradius=2*2
+            maxsomaradius=2*4
+            rois=cone_data.find_rois(mi, minsomaradius, maxsomaradius, 0.2*maxsomaradius,1)
+            rois=[cone_data.area2edges(r) for r in rois]
+            minew=numpy.zeros((mi.shape[0], mi.shape[1], 3))
+            minew[:,:,1]=mi
+            c=100
+            for r in rois:
+                minew[r[:,0], r[:,1],0]=255
+                c+=1
+            from pylab import imshow,show
+            o=numpy.cast['uint8'](minew/minew.max()*255)
+            Image.fromarray(o).save(fileop.replace_extension(f, '.png'))
+            continue
+            imshow(o);show()
             before=numpy.copy(h.get_image(image_type='mip')[0])
             raw1=numpy.copy(h.raw_data[:,0])
             r1=numpy.copy(h.raw_data[:,0][:,0,0])
