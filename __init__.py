@@ -4,7 +4,7 @@ import os
 import numpy
 
 
-version = 'v0.3.0'
+version = 'v0.4.0'
 try:
     from visexpman.applications.visexp_smallapp import rotate_images
 except:

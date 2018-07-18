@@ -284,7 +284,7 @@ class CaImagingData(supcl):
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
         
-    def get_image(self, image_type='mip', load_raw=True):
+    def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
         loads 2d representation of ca imaging data with scaling information
         self.image and self.image_scale
@@ -300,6 +300,9 @@ class CaImagingData(supcl):
             self.scale = 1.0/self.parameters['pixel_size']
         else:
             raise NotImplementedError('')
+        if motion_correction:
+            from visexpman.engine.analysis import bouton
+            self.raw_data=bouton.motion_correction(self.raw_data)
         if image_type=='mean':
             self.image = self.raw_data.mean(axis=0)[0]
         elif image_type=='mip': 

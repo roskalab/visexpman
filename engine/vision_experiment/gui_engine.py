@@ -768,14 +768,19 @@ class Analysis(object):
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
         self.datafile.sync2time(recreate=self.santiago_setup)
-        self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+        self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
         if self.santiago_setup and 0:
             self._remove_dropped_frame_timestamps()
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
+        if self.santiago_setup:
+            self.timg=self.timg[1:]
         self.image_scale=self.datafile.scale
         self.meanimage=self.datafile.image
         self.raw_data=self.datafile.raw_data
+        self.printc(self.timg.shape)
+        self.printc(self.tstim.shape)
+        self.printc(self.raw_data.shape)
         if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
             msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
             self.notify('Error', msg)
