@@ -146,7 +146,7 @@ class SantiagoSetupMainConfig(ElphysRetinalCaImagingConfig):
         
 class SantiagoAnalysisConfig(ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
-        self.root_folder = '/tmp'
+        self.root_folder = 'D:\\Desktop\\Chiara\\Acute Slice Recordings'
         self.LOG_PATH = self.root_folder
         self.EXPERIMENT_LOG_PATH = self.LOG_PATH        
         self.EXPERIMENT_DATA_PATH = self.root_folder

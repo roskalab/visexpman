@@ -774,7 +774,7 @@ class Analysis(object):
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
         if self.santiago_setup:
-            self.timg=self.timg[1:]
+            self.timg=self.timg[:self.datafile.raw_data.shape[0]]
         self.image_scale=self.datafile.scale
         self.meanimage=self.datafile.image
         self.raw_data=self.datafile.raw_data
@@ -841,6 +841,7 @@ class Analysis(object):
         self.image_w_rois[:,:,1] = self.meanimage
         
     def _recalculate_background(self):
+        if self.guidata.read('Background threshold')==None: return
         background_threshold = self.guidata.read('Background threshold')*1e-2
         self.background = cone_data.calculate_background(self.raw_data[:,0],threshold=background_threshold)
         if any(numpy.isnan(self.background)):

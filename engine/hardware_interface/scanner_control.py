@@ -37,8 +37,8 @@ import os
 if os.name=='nt':
     try:
         import PyDAQmx
-    except ImportError:
-        pass
+    except:
+        print ('no pydaqmx')
 from visexpman.engine.generic import utils,fileop,log,configuration,command_parser
 from visexpman.engine.vision_experiment import experiment_data
 
