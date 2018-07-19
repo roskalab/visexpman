@@ -18,7 +18,7 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
     saturated_frame_indexes=list(set(numpy.concatenate((saturated_frames_1,saturated_frames_2))))
     expected_nflashes=stimulus_parameters['NUMBER_OF_FLASHES']
     detected_nflashes=numpy.where(numpy.diff(saturated_frame_indexes)>1)[0].shape[0]+1
-    if expected_nflashes != detected_nflashes:
+    if expected_nflashes < detected_nflashes:
         raise RuntimeError('Number of expected ({0}) and detected ({1}) flashes do not match'.format(expected_nflashes, detected_nflashes))
     mask=numpy.zeros(raw_data.shape[0])
     mask[saturated_frame_indexes]=1
@@ -33,6 +33,7 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
         dfoverF=(rois[roii]['raw']-baseline)/baseline
         preflash=numpy.zeros(preflash_nframes)
         postflash=numpy.zeros(postflash_nframes)
+        print boundaries
         for flashi in range(detected_nflashes):
             preflash_end=boundaries[flashi*2]
             preflash_start=preflash_end-preflash_nframes
