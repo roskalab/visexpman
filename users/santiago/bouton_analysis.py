@@ -2,7 +2,7 @@ import numpy,unittest,os
 from visexpman.engine.generic import fileop
 from visexpman.engine.vision_experiment import experiment_data
 
-settings= {'name': 'Bouton Analysis', 'type': 'group', 'expanded' : True, 'children': [
+settings= {'name': 'Bouton Analysis', 'type': 'group', 'expanded' : False, 'children': [
                                 {'name': 'Baseline', 'type': 'int', 'value': 3, 'siPrefix': True, 'suffix': 'frames'},
                                 {'name': 'Preflash', 'type': 'int', 'value': 3, 'siPrefix': True, 'suffix': 'frames'},
                                 {'name': 'Postflash', 'type': 'int', 'value': 3, 'siPrefix': True, 'suffix': 'frames'},

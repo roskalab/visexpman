@@ -6,8 +6,8 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-except ImportError:
-    pass
+except:
+    print ('No PyDAQmx')
 import os,numpy,sys,glob
 import time
 import unittest

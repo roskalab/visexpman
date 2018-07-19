@@ -13,8 +13,8 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-except ImportError:
-    pass
+except:
+    print ('No PyDAQmx')
 try:
     import experiment_data
 except ImportError:

@@ -668,8 +668,9 @@ def find_peak(frqs,fft):
     #return frqs[indexes][fft[indexes].argmax()]
     
 def v0p3tov0p4(folder):
-    files=fileop.listdir(folder)
+    files=fileop.find_files_and_folders(folder)[1]
     for f in files:
+        print(f)
         hh=hdf5io.Hdf5io(f)
         hh.load('configs')
         if not hasattr(hh,'configs'):
