@@ -33,7 +33,7 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
         dfoverF=(rois[roii]['raw']-baseline)/baseline
         preflash=numpy.zeros(preflash_nframes)
         postflash=numpy.zeros(postflash_nframes)
-        print boundaries
+        #print boundaries
         for flashi in range(detected_nflashes):
             preflash_end=boundaries[flashi*2]
             preflash_start=preflash_end-preflash_nframes
@@ -42,6 +42,7 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
             preflash+=dfoverF[preflash_start:preflash_end]/detected_nflashes
             postflash+=dfoverF[postflash_start:postflash_end]/detected_nflashes
         preflash_std=preflash.std()
+        postflash_std=postflash.std()
         #Signal increase:
         preflash=getattr(numpy,mean_method)(preflash)
         postflash=getattr(numpy,mean_method)(postflash)
@@ -52,6 +53,7 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
                                                                 'postflash_start':postflash_start,
                                                                 'postflash_end':postflash_end,
                                                                 'preflash_std':preflash_std,
+                                                                'postflash_std':postflash_std,
                                                                 'postflash':postflash,
                                                                 'preflash':preflash,
                                                                 'increase':increase,

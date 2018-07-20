@@ -749,6 +749,8 @@ class Analysis(object):
                 del self.reference_roi_filename
 
     def open_datafile(self,filename):
+        if hasattr(self, 'bouton_stat_text'):
+            del self.bouton_stat_text
         if self.experiment_running:
             self.printc('Try again after recording')
             return
@@ -999,6 +1001,21 @@ class Analysis(object):
                                                                                             self.guidata.read('Mean Method'))
             if res!=None:
                 self.rois=res[0]
+                vns=['preflash','postflash','increase','is_significant','preflash_std', 'postflash_std', 'preflash_start','preflash_end','postflash_start','postflash_end']
+                self.bouton_stat_text='roi index,{0}\n'.format(','.join(vns))
+                roi_index=0
+                for roi in self.rois:
+                    if not 'bouton_analysis' in roi:
+                        break
+                    self.bouton_stat_text+='{0},'.format(roi_index)
+                    for k in vns:
+                        if isinstance(roi['bouton_analysis'][k], float):
+                            self.bouton_stat_text+='{0:0.3f},'.format(roi['bouton_analysis'][k])
+                        else:
+                            self.bouton_stat_text+='{0},'.format(roi['bouton_analysis'][k])
+                    self.bouton_stat_text=self.bouton_stat_text[:-1]
+                    self.bouton_stat_text+='\n'
+                    roi_index+=1
                 self.printc(res[1])
         
     def display_roi_rectangles(self):
@@ -1191,6 +1208,10 @@ class Analysis(object):
         if self.santiago_setup:
             self.datafile.convert('rois')
             self.printc('Roi plots are exported to {0}'.format(self.datafile.rois_output_folder))
+            if hasattr(self, 'bouton_stat_text'):
+                fn=os.path.join(self.datafile.rois_output_folder, 'bouton_stat.csv')
+                fileop.write_text_file(fn, self.bouton_stat_text)
+                self.printc('Bouton stats are exported to {0}'.format(fn))
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
