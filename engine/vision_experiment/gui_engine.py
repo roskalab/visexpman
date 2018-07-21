@@ -1597,10 +1597,10 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def save_software_hash(self):
         hash=introspect.visexpman2hash()
-        if self.guidata.read('software_hash')==None:
-            self.guidata.add('software_hash', hash, 'hash/software_hash')
-        else:
+        if hasattr(self.guidata.read('software_hash'),  'dtype'):
             self.guidata.software_hash.v=hash
+        else:
+            self.guidata.add('software_hash', hash, 'hash/software_hash')
         if self.machine_config.PLATFORM=='ao_cortical':
             meshash=introspect.mes2hash()
             if self.guidata.read('mes_hash')==None:
@@ -1615,12 +1615,14 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
             self.to_gui.put({'permanent_warning':'Software hashes do not match, make sure that the correct software version is used!'})
+            self.printc('Software hashes do not match, make sure that the correct software version is used!')
         if self.machine_config.PLATFORM=='ao_cortical':
             meshash=introspect.mes2hash()
             saved_hash=self.guidata.read('mes_hash')
             if not numpy.array_equal(saved_hash, meshash):
                 print(saved_hash, meshash)
                 self.to_gui.put({'permanent_warning':'MES has changed, hashes do not match.'})
+                self.printc('MES has changed, hashes do not match.')
 
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())

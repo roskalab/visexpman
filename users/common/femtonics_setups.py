@@ -179,7 +179,7 @@ class GeorgResonantSetup(ResonantSetup):
         self.CAMERA_TRIGGER_FRAME_RATE=15
         self.CAMERA_PRE_STIM_WAIT=0.5
         self.CAMERA_POST_STIM_WAIT=0.5
-        self.CAMERA_TIMING_ON_STIM=True
+        self.CAMERA_TIMING_ON_STIM=False
         self.CAMERA_TIMING_PIN=5
         self.CAMERA_IO_PORT_STIM='COM3'
         self.CAMERA_IO_PORT='COM10'
