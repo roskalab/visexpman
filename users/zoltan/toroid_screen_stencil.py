@@ -239,5 +239,5 @@ if __name__ == "__main__":
     #ts.goosneck_mapping()
     ts.screen_stencil(path = '/home/zoltan/screen_stencil.bmp')
     #ts.printer_scaling_test(3.50874, path = '/home/zoltan/printer_test.bmp')
-    print ts.depth
-    print 2*ts.vertical_radius
+    print(ts.depth)
+    print(2*ts.vertical_radius)

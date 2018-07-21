@@ -140,7 +140,7 @@ def application_init(**kwargs):
     return context
     
 def stop_application(context):
-    if context.has_key('command_relay_server'):
+    if 'command_relay_server' in context:
         context['mes_command'].put('stop_client')
         context['command_relay_server'].shutdown_servers()
     #Terminate sockets

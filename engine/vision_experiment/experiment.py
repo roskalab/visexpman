@@ -1,16 +1,11 @@
-import sys, threading, time
+import sys, threading, time, inspect,traceback
 import logging
 import os
 import visexpman
-
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils,fileop,introspect
 from visexpman.engine import ExperimentConfigError
-import stimulation_library
-
-import inspect
-from visexpman.engine.vision_experiment import configuration
-
+from visexpman.engine.vision_experiment import stimulation_library
 import unittest
 
 class ExperimentConfig(Config):
@@ -21,8 +16,9 @@ class ExperimentConfig(Config):
     socket queues
     log
     '''
-    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, screen=None, create_runnable=True):
+    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None, screen=None, create_runnable=True, **kwargs):
         Config.__init__(self, machine_config=machine_config,ignore_range = True)
+        check_experiment_config(self)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         self.name=self.__class__.__name__
         if machine_config != None and create_runnable:
@@ -62,6 +58,18 @@ class ExperimentConfig(Config):
             else:
                 self.runnable.run()
         self.runnable.cleanup()
+        
+def check_experiment_config(config):
+    timing_keywords=['duration', 'time', 'delay', 'pause']
+    second_millisecond_warning_threshold=200
+    for vn in dir(config):
+        if vn.isupper():
+            #Variable names with timing_keywords and woutout _MS tag considered as timing parameters in seconds
+            if any([kw.upper() in vn and '_MS' not in vn for kw in timing_keywords]):
+                v=getattr(config, vn)
+                if v >second_millisecond_warning_threshold:
+                    import warnings
+                    warnings.warn('{0} ({1}) parameter might be in milliseconds'.format(vn,v))
 
 class Experiment(stimulation_library.AdvancedStimulation):
     '''
@@ -146,17 +154,18 @@ class Stimulus(stimulation_library.AdvancedStimulation):
         self.kwargs=kwargs
         if init_hardware:
             stimulation_library.Stimulations.__init__(self, machine_config, parameters, queues, log)
-        self.default_stimulus_configuration()
-        self.stimulus_configuration()
+        self.default_configuration()
+        self.configuration()
+        check_experiment_config(self)
         self.calculate_stimulus_duration()
         self.name=self.__class__.__name__
         
-    def default_stimulus_configuration(self):
+    def default_configuration(self):
         '''
         Shall be used by Stimulus superclasses
         '''
         
-    def stimulus_configuration(self):
+    def configuration(self):
         '''
         This method needs to be overdefined by subclasses. The experiment configuration parameters are defined here
         '''
@@ -257,7 +266,10 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         if len(stimulus_class)==1:
             experiment_class_object=stimulus_class[0][1]
         else:
-            experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+            try:
+                experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+            except IndexError:
+                experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
             experiment_class_object = experiment_class(config).runnable
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
@@ -274,7 +286,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
                 experiment_class_object = experiment_class(config, experiment_config_class_object)
     if hasattr(experiment_class_object,'calculate_stimulus_duration'):
         ec=experiment_class_object(config)
-        ec.stimulus_configuration()
+        ec.configuration()
         ec.calculate_stimulus_duration()
     else:
         ec=None
@@ -288,26 +300,51 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         raise ExperimentConfigError('Stimulus duration is unknown')
         
 def read_stimulus_parameters(stimname, filename,config):
-    source_code=fileop.read_text_file(filename)
+    if os.path.exists(filename):
+        source_code=fileop.read_text_file(filename)
+    else:
+        source_code=filename
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     em=__import__('experiment_module')
     ec=getattr(em,stimname)(config,create_runnable=False)
     return introspect.cap_attributes2dict(ec)
+    
+def stimulus_parameters_hash(pars):
+    '''
+    calculates sha256 hash of stimulus parameters
+    '''
+    import hashlib
+    parnames=[i for i in pars.keys()]#this ensures that comparison across python 2 and 3 works
+    parnames.sort()
+    values=str([pars[k] for k in parnames]).encode('utf-8') 
+    return hashlib.sha256(values).hexdigest()
+    
+def read_stimulus_base_classes(stimname,filename,config):
+    source_code=fileop.read_text_file(filename)
+    introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
+    em=__import__('experiment_module')
+    ec=getattr(em,stimname)(config,create_runnable=False)
+    chain=introspect.base_classes(ec)
+    try:
+        i=chain.index('ExperimentConfig')
+    except ValueError:
+        i=chain.index('Stimulus')
+    return chain[:i+1]
 
 def parse_stimulation_file(filename):
     '''
     From a stimulation file get the names of experiment classes and the parameter values for each
     Only the values defined in the class itself are fetched, parameters from ancestors are ignored
     '''
-    if fileop.file_extension(filename) != 'py':
+    if os.path.splitext(filename)[1] != '.py':
         raise RuntimeError('Files only with py extension can be selected: {0}'.format(filename))
     source_code = fileop.read_text_file(filename)
-    if 'import *' in source_code:
-        raise RuntimeError('Parsing {0} might freeze'.format(filename))
+#    if 'import *' in source_code:
+#        raise RuntimeError('Parsing {0} might freeze'.format(filename))
     try:
         introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
-    except Exception as e:
-        raise type(e)(e.message + '\r\nFile {0}, line {1}'.format(filename, sys.exc_info()[2].tb_lineno))
+    except :
+        raise RuntimeError('Error in {0}: {1}'.format(filename, traceback.format_exc()))
     experiment_module = __import__('experiment_module')
     experiment_config_classes = {}
     for c in inspect.getmembers(experiment_module,inspect.isclass):

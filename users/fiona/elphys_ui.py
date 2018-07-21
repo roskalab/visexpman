@@ -9,9 +9,7 @@ from visexpman.engine.hardware_interface import daq_instrument
 
 class ElphysConfig(object):
     def __init__(self):
-        self.INITIAL_RECORDING_DELAY=5.0
-        self.POST_RECORD_TIME=5.0
-        self.IMAGING_IP = '172.27.26.40'#'127.0.0.1'
+        self.IMAGING_IP = '192.168.1.101'#'127.0.0.1'
 
 class CWidget(QtGui.QWidget):
     def __init__(self,parent):
@@ -29,6 +27,11 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Voltage Clamp Gain', 'type': 'float', 'value': 100, 'suffix': ' mV/V' },
                     {'name': 'Current Clamp Gain', 'type': 'float', 'value': 400.0, 'suffix': ' pA/V' },
                     {'name': 'Imaging IP Address', 'type': 'str', 'value': parent.config.IMAGING_IP},
+                    {'name': 'Analog output', 'type': 'str', 'value': 'Dev1/ao0'},
+                    {'name': 'Analog input', 'type': 'str', 'value': 'Dev1/ai10:14'},
+                    {'name': 'Imaging trigger', 'type': 'bool', 'value': False},
+                    {'name': 'Initial recording delay', 'type': 'float', 'value': 5.0,  'suffix': ' s'},
+                    {'name': 'Post recording delay', 'type': 'float', 'value': 5.0,  'suffix': ' s'},
                     #{'name': 'Enable Imaging', 'type': 'bool', 'value': True},
                     {'name': 'Square Signal', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Amplitude', 'type': 'float', 'value': 1,  'suffix': ' mV or pA'},
@@ -50,10 +53,10 @@ class CWidget(QtGui.QWidget):
         self.l.addWidget(self.parametersw, 0, 4, 2, 2)
         self.l.addWidget(self.select_folder, 2, 0, 1, 1)
         self.l.addWidget(self.selected_folder, 3, 0, 1, 1)
-        self.l.addWidget(self.load_waveform, 2, 1, 1, 1)
-        self.l.addWidget(self.recording_name, 2, 2, 1, 1)
-        self.l.addWidget(self.start_experiment, 2, 3, 1, 1)
-        self.l.addWidget(self.open_recording, 2, 4, 1, 1)
+        self.l.addWidget(self.load_waveform, 2, 4, 1, 1)
+        self.l.addWidget(self.recording_name, 2, 1, 1, 1)
+        self.l.addWidget(self.start_experiment, 2, 2, 1, 1)
+        self.l.addWidget(self.open_recording, 2, 3, 1, 1)
         self.setLayout(self.l)
         
 class DaqRecorder(threading.Thread):
@@ -68,13 +71,14 @@ class DaqRecorder(threading.Thread):
         self.result=result
         
     def run(self):
+        if (self.trigger_message)>0:
+            self.trigger_imaging()
         recording=daq_instrument.analogio(self.ai_channel,self.ao_channel,self.sample_rate,self.waveform,timeout=1)
         self.result.put(recording)
         
     def trigger_imaging(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.sendto(self.trigger_message, (self.imaging_ip, 446))
-        
 
 class ElphysUI(gui.SimpleAppWindow):
     def init_gui(self):
@@ -90,7 +94,7 @@ class ElphysUI(gui.SimpleAppWindow):
         self.connect(self.cw.open_recording, QtCore.SIGNAL('clicked()'), self.open_recording)
         
         self.calculate_clamp_signal(self.cw.parameters)
-        self.default_folder='c:\\' if os.name=='nt' else '/'
+        self.default_folder='c:\\Data\\Fiona' if os.name=='nt' else '/'
         self.output_folder=self.default_folder
         self.cw.selected_folder.setText(self.output_folder)
 
@@ -101,6 +105,9 @@ class ElphysUI(gui.SimpleAppWindow):
 
     def parameter_changed(self, param, changes):
         self.calculate_clamp_signal(param)
+        
+    def read_par(self,parname):
+        return [p for p in self.cw.parameters.children() if p.name()==parname][0].value()
         
     def calculate_clamp_signal(self, param):
         self.signal_name=[p for p in param.children() if p.name()=='Waveform'][0].value()
@@ -122,7 +129,7 @@ class ElphysUI(gui.SimpleAppWindow):
                 factor=[p for p in param.children() if p.name()=='Voltage Clamp Gain'][0].value()*1e-3
             #factor=1
             self.clamp_signal_command = self.clamp_signal/factor
-            self.clamp_signal_command=numpy.concatenate((numpy.zeros(self.config.INITIAL_RECORDING_DELAY*sr),self.clamp_signal_command, numpy.zeros(self.config.POST_RECORD_TIME*sr)))
+            self.clamp_signal_command=numpy.concatenate((numpy.zeros(self.read_par('Initial recording delay')*sr),self.clamp_signal_command, numpy.zeros(self.read_par('Post recording delay')*sr)))
             self.clamp_signal_t = numpy.arange(self.clamp_signal.shape[0])/sr
             self.cw.plotw.update_curve(self.clamp_signal_t,self.clamp_signal, pen=(0,150,0))
         elif self.signal_name == 'from file':
@@ -138,7 +145,7 @@ class ElphysUI(gui.SimpleAppWindow):
         
     def open_recording(self):
         self.openfile=self.ask4filename('Select recording', self.default_folder, '*.mat')
-        self.log('{0} file opened'.format(self.openfile))
+        self.log('NOT IMPLEMENTED {0} file opened'.format(self.openfile))
         
     def start_experiment(self):
         '''
@@ -149,16 +156,21 @@ class ElphysUI(gui.SimpleAppWindow):
         5) Save to datafile and display results
         '''
         recording_name=str(self.cw.recording_name.input.text())
+        if len(recording_name)==0:
+            recording_name='data'
         fileformat='mat'
         self.recording_filename=os.path.join(self.output_folder, '{0}_{1}.{2}'.format(recording_name, utils.timestamp2ymdhms(time.time(), filename=True), fileformat))
         self.calculate_clamp_signal(self.cw.parameters)
         imaging_ip=[p for p in self.cw.parameters.children() if p.name()=='Imaging IP Address'][0].value()
-        imaging_duration=self.clamp_signal.shape[0]/self.sample_rate+self.config.INITIAL_RECORDING_DELAY
+        init_delay=[p for p in self.cw.parameters.children() if p.name()=='Initial recording delay'][0].value()
+        imaging_duration=self.clamp_signal.shape[0]/self.sample_rate+init_delay
         self.imaging_filename = self.recording_filename.replace('.'+fileformat,'')
-        trigger_message='sec {0} filename {1}'.format(imaging_duration,self.imaging_filename)
+        trigger_message='sec {0} filename {1}'.format(imaging_duration,self.imaging_filename) if self.read_par('Imaging trigger') else ''
         self.recordingq=Queue.Queue()
         #ai5: y sacnner signal
-        self.daq=DaqRecorder(self.clamp_signal_command, self.sample_rate, 'Dev1/ai10:14','Dev1/ao0',trigger_message, imaging_ip,self.recordingq)
+        ai=[p for p in self.cw.parameters.children() if p.name()=='Analog input'][0].value()
+        ao=[p for p in self.cw.parameters.children() if p.name()=='Analog output'][0].value()
+        self.daq=DaqRecorder(self.clamp_signal_command, self.sample_rate, ai,ao,trigger_message, imaging_ip,self.recordingq)
         self.daq.start()
         self.running=True
         self.log('Recording started, trigger message: {0}'.format(trigger_message))

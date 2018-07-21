@@ -39,7 +39,6 @@ class IntrinsicDevelopment(IntrinsicConfig):
         COORDINATE_SYSTEM = 'center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        #        SCREEN_MAX_FRAME_RATE = 60.0
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         STIM_RECORDS_ANALOG_SIGNALS = False
         EXPERIMENT_FILE_FORMAT = 'hdf5'

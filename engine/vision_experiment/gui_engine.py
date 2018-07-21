@@ -1,11 +1,14 @@
 import time,tempfile,datetime
 import scipy.io
 import copy
-import cPickle as pickle
+try:
+    import Queue
+    import cPickle as pickle
+except ImportError:
+    import queue as Queue
+    import pickle
 import os,platform
-import os.path
 import threading,multiprocessing
-import Queue
 import unittest,traceback
 import numpy
 import shutil
@@ -17,9 +20,9 @@ except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
-from visexpman.engine.visexp_app import stimulation_tester
+from visexpman.applications.visexpman_main import stimulation_tester
 
 class GUIDataItem(object):
     def __init__(self,name,value,path):
@@ -60,44 +63,53 @@ class ExperimentHandler(object):
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
-            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical']:
+            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical', 'resonant']:
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
                 self.sync_recorder.start()
             self.sync_recording_started=False
             self.experiment_running=False
             self.experiment_finish_time=time.time()
             self.batch_running=False
-            self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             self.eye_camera_running=False
         else:
             self.experiment_running=False
             self.sync_recording_started=False
             self.batch_running=False
-            self.santiago_setup=False
             self.eye_camera_running=False
+        self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
             self.printc('Start eye camera')
-            self.eye_camera=camera_interface.ImagingSourceCamera(None)
-            self.eye_camera.frame_rate=15.0
-            self.eye_camera.set_framerate()
+            self.to_gui.put({'update_camera_status':'camera on'})
+            self.eye_camera=camera_interface.ImagingSourceCamera(self.guidata.read('Eye Camera Frame Rate'))
             self.eye_camera.start()
             self.eye_camera_running=True
         
     def stop_eye_camera(self):
         if self.eye_camera_running:
             self.printc('Stop eye camera')
+            self.to_gui.put({'update_camera_status':'camera off'})
             self.eye_camera_running=False
             self.eye_camera.stop()
-            self.eye_camera.close()
         
     def eyecamera2screen(self):
-        if self.eye_camera_running:
+        if not hasattr(self,  'eyecamupdate_counter'):
+            self.eyecamupdate_counter=0
+        self.eyecamupdate_counter+=1
+        if self.eyecamupdate_counter%3!=0:
+            return
+        if hasattr(self, 'cam') and self.cam.is_alive():
+            if not self.cam.frame.empty():
+                if self.cam.frame.qsize()>3:
+                    self.printc('{0} frames in queue'.format(self.cam.frame.qsize()))
+                self.to_gui.put({'eye_camera_image':self.cam.frame.get()[::3,::3].T})
+        elif self.eye_camera_running:
             self.eye_camera.save()
             if len(self.eye_camera.frames)>0:
                 if self.to_gui.qsize()<5:#To avoid data congestion
                     self.to_gui.put({'eye_camera_image':self.eye_camera.frames[-1][::2,::2].T})
+                if not self.experiment_running:
                     self.eye_camera.frames=[]
     
     def open_stimulus_file(self, filename, classname):
@@ -108,7 +120,7 @@ class ExperimentHandler(object):
             self.notify('Warning', 'Common stimulus files cannot be opened for editing')
             return
         lines=fileop.read_text_file(filename).split('\n')
-        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+20#+20: beginning of class is on the middle of the screen
+        line=[i for i in range(len(lines)) if 'class '+classname in lines[i]][0]+1+0*20#+20: beginning of class is on the middle of the screen
         self.printc('Opening {0}{3}{1} in gedit at line {2}'.format(filename, classname,line,os.sep))
         import subprocess
         process = subprocess.Popen(['gedit', filename, '+{0}'.format(line)], shell=self.machine_config.OS != 'Linux')
@@ -161,14 +173,18 @@ class ExperimentHandler(object):
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
+        experiment_parameters['animal']=self.guidata.read('Animal')
+        experiment_parameters['comment']=self.guidata.read('Comment')
         source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
         experiment_parameters[source_code_type]=stimulus_source_code
         experiment_parameters['stimclass']=classname
         experiment_parameters['duration']=experiment_duration
         experiment_parameters['status']='waiting'
         experiment_parameters['id']=experiment_data.get_id()
+        experiment_parameters['user']=self.machine_config.user
+        experiment_parameters['machine_config']=self.machine_config.__class__.__name__
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        if self.machine_config.PLATFORM=='ao_cortical':
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
         else:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
@@ -178,16 +194,19 @@ class ExperimentHandler(object):
             for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Eye Camera']:
                 experiment_parameters[pn]=self.guidata.read(pn)
             experiment_parameters['motor position']=0
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        elif self.machine_config.PLATFORM=='elphys_retinal_ca':
             if not self.santiago_setup:
                 self.send({'function': 'start_imaging','args':[experiment_parameters]},'ca_imaging')
-        if self.machine_config.PLATFORM=='ao_cortical':
+        elif self.machine_config.PLATFORM=='ao_cortical':
             if experiment_parameters['duration']<self.machine_config.MES_LONG_RECORDING:
                 wt=self.machine_config.MES_RECORD_START_WAITTIME
             else:
                 wt=self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
+        elif self.machine_config.PLATFORM=='resonant':
+            for pn in ['Eye Camera Frame Rate', 'Enable Eye Camera']:
+                experiment_parameters[pn]=self.guidata.read(pn)
         return experiment_parameters
             
     def start_batch(self):
@@ -249,8 +268,16 @@ class ExperimentHandler(object):
                 self.printc('Starting next batch item, {0} left'.format(len(self.batch)))
                 self.start_experiment(experiment_parameters=self.batch[0])
                 self.batch=self.batch[1:]
+                
+    def mesc_connect(self):
+        self.mesc_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
+        if self.machine_config.PLATFORM=='resonant':
+            if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
+                missing_connections=[conn for conn in ['mesc', 'stim'] if conn not in self.connected_nodes]
+                self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
+                return
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:
@@ -271,12 +298,15 @@ class ExperimentHandler(object):
             self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
-        if experiment_parameters.has_key('Enable Eye Camera') and experiment_parameters['Enable Eye Camera']:
+        if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
-            self.eye_camera_filename=os.path.join(tempfile.gettempdir(), 'eye_cam_{0}.hdf5'.format(experiment_parameters['id']))
-            self.eye_camera=camera_interface.ImagingSourceCameraSaver(self.eye_camera_filename)
-            self.eye_camera_running=True
             self.printc('Saving eye video')
+            self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'),  self.machine_config)
+            self.printc('Starting eye camera recording')
+            self.to_gui.put({'update_camera_status':'camera recording'})
+            self.cam.start()
+            if not self.cam.wait():
+                raise RuntimeError('Camera did not start')
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -297,13 +327,15 @@ class ExperimentHandler(object):
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
+        self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
+        self.to_gui.put({'update_status':'busy'})   
         self.printc('Finishing experiment...')
         if self.machine_config.PLATFORM=='mc_mea':
             if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
                 #Find latest mcd file and save experiment metadata to the same folder
-                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd')
+                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
                 txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
                         .format(\
                         self.guidata.read('name'),
@@ -331,14 +363,24 @@ class ExperimentHandler(object):
                         break
                     time.sleep(1)
             self._stop_sync_recorder()
-            if hasattr(self, 'eye_camera') and self.eye_camera.isrunning:
-                self.eye_camera.stop()
-                self.eye_camera_running=False
+            if hasattr(self,  'cam') and self.cam.is_alive():#Terminate camera if still running (abort experiment might have already stopped it.
+                self.printc('Terminating eye camera recording')
+                self.eyecamdata=self.cam.stop()
+                if hasattr(self.eyecamdata, 'keys'):
+                    self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
+                    self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
+                else:
+                    self.printc(self.eyecamdata)
+                self.cam.terminate()
+                self.to_gui.put({'update_camera_status':'camera off'})
+                self.printc('Restarting eye camera live display')
                 self.start_eye_camera()
             self.experiment_running=False
             self.experiment_finish_time=time.time()
+        self.to_gui.put({'update_status':'idle'}) 
             
     def save_experiment_files(self, aborted=False):
+        self.to_gui.put({'update_status':'busy'})   
         fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
         if aborted:
             if hasattr(self, 'daqdatafile'):
@@ -361,15 +403,31 @@ class ExperimentHandler(object):
                 except:
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
-            if hasattr(self, 'eye_camera_filename') and os.path.exists(self.eye_camera_filename):
-                self.printc('TODO: save tmp eye camera image')
-                shutil.move(self.eye_camera_filename, os.path.dirname(fn))
+            if hasattr(self,  'eyecamdata'):
+                fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
+                self.eyecamfile=fn
+                if hasattr(self.eyecamdata, 'keys'):
+                    self.printc('Saving eye camera data to {0}'.format(fn))
+                    h=hdf5io.Hdf5io(fn)
+                    h.cam=self.eyecamdata
+                    h.save('cam')
+                    h.close()
+                else:
+                    self.printc('Camera data cannot be saved because of error')
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
                 filename=legacy.merge_ca_data(self.current_experiment_parameters['outfolder'],**self.current_experiment_parameters)
                 fn=filename
                 self.printc('Data saved to {0}'.format(filename))
+                #Check for dropped frames
+                dropped_frames=legacy.get_dropped_frames(filename)
+                if dropped_frames>2:
+                    self.notify('Error', '{0} dropped frames were detected, close unused applications on Imaging computer or reboot it'.format(dropped_frames))
+                elif dropped_frames==2:
+                    self.printc('No dropped frames detected')
+                else:
+                    self.printc('Warning: more frames than timing pulses were detected.')
                 dst=os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH),'raw', filename.split(os.sep)[-2], os.path.basename(filename.replace('.hdf5','.zip')))
                 fileop.move2zip(self.current_experiment_parameters['outfolder'],dst,delete=True)
                 current_folder=os.path.dirname(self.current_experiment_parameters['outfolder'])
@@ -381,11 +439,17 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
-            if self.machine_config.PLATFORM!='ao_cortical':#On ao_cortical sync signal calculation and check is done by stim
+            elif self.machine_config.PLATFORM=='resonant':
+                self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
+                #Convert to mat file
+                experiment_data.hdf52mat(self.outputfilename)
+                self.printc('{0} converted to mat'.format(self.outputfilename))
+            if not (self.machine_config.PLATFORM in ['ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
                 if self.santiago_setup:
+                    self._remove_dropped_frame_timestamps(h)
                     h.crop_timg()
                 self.tstim=h.tstim
                 self.timg=h.timg
@@ -394,10 +458,72 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
+        self.to_gui.put({'update_status':'idle'})   
                 
+    def eyecam2video(self):
+        dirname=os.path.dirname(experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam'))
+        for fn in fileop.listdir(dirname): 
+            if 'eyecam' not in os.path.basename(fn): continue
+            h=hdf5io.Hdf5io(fn)
+            frames=numpy.array(h.findvar('cam')['frames'])
+            videofn=fn.replace('.hdf5',  '.mp4')
+            if not os.path.exists(videofn):
+                self.printc('exporting to {0}'.format(videofn))
+                videofile.array2mp4(frames, videofn,  fps=self.guidata.read('Eye Camera Frame Rate'))
+        self.printc('Done')
+        h.close()
+        
+
+    def _remerge_files(self,folder,hdf5fold):
+        if not self.santiago_setup:
+            return
+        from visexpman.users.zoltan import legacy
+        self.printc('Warning, not tested')
+        for fold in fileop.listdir_fullpath(folder):
+            import tempfile,zipfile
+            zip_ref = zipfile.ZipFile(fold, 'r')
+            
+            dst=os.path.join(tempfile.gettempdir(),'z')
+            if os.path.exists(dst):
+                shutil.rmtree(dst)
+            os.mkdir(dst)
+            zip_ref.extractall(dst)
+            zip_ref.close()
+    
+            self.printc(fold)
+            fn=[f for f in fileop.listdir_fullpath(hdf5fold) if os.path.splitext(os.path.basename(fold))[0] in f][0]
+            pars=hdf5io.read_item(fn, 'parameters')
+            filename=legacy.merge_ca_data(dst,**pars)
+            shutil.copy(filename,folder)
+            self._timing2csv(os.path.join(folder, os.path.basename(filename)))
+            
+    def fix_timg(self,folder):
+        for fn in fileop.listdir_fullpath(folder):
+            h=hdf5io.Hdf5io(fn)
+            h.load('timg')
+            h.timg+=numpy.diff(h.timg)[0]
+            h.save('timg')
+            h.close()
+            self._timing2csv(fn)
+            
+    def indexofsmallestpositive(self,a):
+        m=numpy.where(a<0, 0, a)
+        return numpy.where(a==a[numpy.nonzero(m)[0]].min())[0][0]
+        
+    def _folder2csv(self,folder):
+        for f in fileop.listdir_fullpath(folder):
+            if os.path.splitext(f)[1]=='.hdf5':
+                try:
+                    self._timing2csv(f)
+                except:
+                    import traceback
+                    self.printc(traceback.format_exc())
+                    
     def _timing2csv(self,filename):
         h = experiment_data.CaImagingData(filename)
         output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
         from PIL import Image
         h.load('raw_data')
         h.load('parameters')
@@ -412,6 +538,14 @@ class ExperimentHandler(object):
                 Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
         h.load('timg')
+        
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
         if 'Led2' in filename:
             h.load('generated_data')
             channels = utils.array2object(h.generated_data)#,len(utils.array2object(h.generated_data))
@@ -420,20 +554,33 @@ class ExperimentHandler(object):
             tstim_sep={}
             for ch in ['stim','led']:
                 tstim_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
-        h.close()
+        h.close()        
         if 'Led2' in filename:
+            self.printc(['led stim', numpy.round(tstim_sep['led'])])
+            self.printc(['stim', numpy.round(tstim_sep['stim'])])
             txtlines1=','.join(map(str,numpy.round(tstim_sep['stim'],3)))
             txtlines2=','.join(map(str,numpy.round(tstim_sep['led'],3)))
+            #Calculate image index for stim events
+            stim_indexes=[self.indexofsmallestpositive(h.timg-s) for s in tstim_sep['stim']]
+            led_indexes=[self.indexofsmallestpositive(h.timg-s) for s in tstim_sep['led']]
+            txtlines1a=','.join(map(str,stim_indexes))+'\n'+txtlines1
+            txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         else:
             txtlines2=','.join(map(str,numpy.round(h.tstim,3)))
+            led_indexes=[self.indexofsmallestpositive(h.timg-s) for s in h.tstim]
+            txtlines2a=','.join(map(str,led_indexes))+'\n'+txtlines2
         txtlines3 =','.join(map(str,numpy.round(h.timg,3)))
-        csvfn3=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_img.csv'))
-        csvfn2=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_lgnled.csv'))
-        csvfn1=os.path.join(output_folder, os.path.basename(filename).replace('.hdf5', '_stim.csv'))
+        csvfn3=os.path.join(output_folder,'_img.csv')
+        csvfn2=os.path.join(output_folder, '_lgnled.csv')
+        csvfn2a=os.path.join(output_folder, '_lgnled_index.csv')
+        csvfn1=os.path.join(output_folder,  '_stim.csv')
+        csvfn1a=os.path.join(output_folder,  '_stim_index.csv')
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         if 'Led2' in filename:
             fileop.write_text_file(csvfn1, txtlines1)
+            fileop.write_text_file(csvfn1a, txtlines1a)
+        fileop.write_text_file(csvfn2a, txtlines2a)
         fileop.write_text_file(csvfn2, txtlines2)
         fileop.write_text_file(csvfn3, txtlines3)
         self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))
@@ -480,15 +627,22 @@ class ExperimentHandler(object):
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         self.send({'function': 'stop_all','args':[]},'stim')
         self.enable_check_network_status=True
+        if hasattr(self,  'cam') and self.cam.is_alive():
+            self.printc('Terminating camera recording')
+            self.cam.stop()
+            self.cam.terminate()
+            self.to_gui.put({'update_camera_status':'camera off'})
+            self.start_eye_camera()
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         self.experiment_running=False
+        self.to_gui.put({'update_status':'idle'})
         self.printc('Experiment stopped')
         
     def check_mcd_recording_started(self):
         if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
             #Find latest mcd file and save experiment metadata to the same folder
-            dt=time.time()-os.path.getmtime(fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'mcd'))
+            dt=time.time()-os.path.getmtime(fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd'))
             res=True
             if dt>5:
                 res= self.ask4confirmation('MEA recording may not be started, do you want to continue?')
@@ -507,12 +661,37 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM=='ao_cortical':
                 msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
+            elif self.machine_config.PLATFORM=='resonant':
+                self.printc('Go to MESc processing window and add "{0}" to comment'.format(os.path.basename(self.outputfilename)))
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
                 self.enable_check_network_status=True
+            elif self.machine_config.PLATFORM=='resonant':
+                self.printc('Stop mesc recording, might still running')
+                self.mesc_handler('stop')
             self.finish_experiment()
             self.save_experiment_files(aborted=True)
-            self.printc('Experiment finished with error')
+            self.printc('Experiment finished with error')            
+            
+    def mesc_handler(self, command):
+        if command=='init':
+            if self.machine_config.PLATFORM=='resonant':
+                from visexpman.engine.hardware_interface import mesc_interface
+                self.mesc=mesc_interface.MescapiInterface()
+                self.printc('mesc init {0} successful'.format('not' if not self.mesc.connected else ''))
+        elif command=='close':
+            if hasattr(self, 'mesc'):
+                self.mesc.close()
+                self.printc('mesc closed')
+        elif hasattr(self, 'mesc'):
+            if not self.mesc.connected:
+                self.printc('No connection to MESc')
+                return
+            res=getattr(self.mesc,  command)()
+            self.printc('mesc command: {0}, {1}'.format(command,  res))
+            self.send({'mesc {0} command result'.format(command):res}, 'stim')
+            if not res:
+                self.stop_experiment()
                     
     def convert_stimulus_to_video(self):
         if hasattr(self.machine_config, 'SCREEN_MODE') and self.machine_config.SCREEN_MODE == 'psychopy':
@@ -543,6 +722,12 @@ class ExperimentHandler(object):
             self.log.info('Sync recorder terminated')
         self.stop_eye_camera()
 
+    def init_experiment_handler(self):
+        self.mesc_handler('init')
+
+    def close_experiment_handler(self):
+        self.mesc_handler('close')
+
 class Analysis(object):
     def __init__(self,machine_config):
         self.machine_config = machine_config
@@ -564,6 +749,8 @@ class Analysis(object):
                 del self.reference_roi_filename
 
     def open_datafile(self,filename):
+        if hasattr(self, 'bouton_stat_text'):
+            del self.bouton_stat_text
         if self.experiment_running:
             self.printc('Try again after recording')
             return
@@ -571,7 +758,7 @@ class Analysis(object):
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
-        if self.machine_config.PLATFORM=='ao_cortical' and not os.path.exists(filename.replace('.hdf5', '_mat.mat')):
+        if self.machine_config.PLATFORM=='ao_cortical' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(filename), '.mat')):
             self.notify('Warning', 'File is not yet completely processed by jobhandler. Try opening it a bit later')
             return
         if hasattr(self, 'reference_roi_filename') and experiment_data.parse_recording_filename(self.reference_roi_filename)['id'] == experiment_data.parse_recording_filename(filename)['id']:
@@ -582,13 +769,20 @@ class Analysis(object):
         self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
-        self.datafile.sync2time()
-        self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'))
+        self.datafile.sync2time(recreate=self.santiago_setup)
+        self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
+        if self.santiago_setup and 0:
+            self._remove_dropped_frame_timestamps()
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
+        if self.santiago_setup:
+            self.timg=self.timg[:self.datafile.raw_data.shape[0]]
         self.image_scale=self.datafile.scale
         self.meanimage=self.datafile.image
         self.raw_data=self.datafile.raw_data
+        self.printc(self.timg.shape)
+        self.printc(self.tstim.shape)
+        self.printc(self.raw_data.shape)
         if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
             msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
             self.notify('Error', msg)
@@ -626,12 +820,30 @@ class Analysis(object):
             self.display_roi_curve()
             self._roi_area2image()
         self.datafile.close()
+        self._bouton_analysis()
+
+    def _remove_dropped_frame_timestamps(self,h=None):
+        if h == None:
+            h=self.datafile
+        h.load('dropped_frames')
+        if hasattr(h, 'dropped_frames'):
+            h.dropped_frames=numpy.array(h.dropped_frames)
+            if h.dropped_frames.sum()>0:
+                self.printc('dropped frames in file')
+                h.load('timg')
+                #self.printc(h.timg.shape)
+                #self.printc(h.dropped_frames.shape)
+                h.timg=h.timg[numpy.where(h.dropped_frames==False)[0]]
+                h.timg=h.timg[:h.raw_data.shape[0]]
+                #self.printc(h.timg.shape)
+                h.save('timg')
         
     def _init_meanimge_w_rois(self):
         self.image_w_rois = numpy.ones((self.meanimage.shape[0], self.meanimage.shape[1], 3))*self.meanimage.min()
         self.image_w_rois[:,:,1] = self.meanimage
         
     def _recalculate_background(self):
+        if self.guidata.read('Background threshold')==None: return
         background_threshold = self.guidata.read('Background threshold')*1e-2
         self.background = cone_data.calculate_background(self.raw_data[:,0],threshold=background_threshold)
         if any(numpy.isnan(self.background)):
@@ -673,6 +885,7 @@ class Analysis(object):
         self.current_roi_index = 0
         self.display_roi_rectangles()
         self.display_roi_curve()
+        self._bouton_analysis()
         
     def _roi_area2image(self, recalculate_contours = True, shiftx = 0, shifty = 0):
         areas = [self._clip_area(copy.deepcopy(r['area'])) for r in self.rois if r.has_key('area') and hasattr(r['area'], 'dtype')]
@@ -769,6 +982,42 @@ class Analysis(object):
                     t0=r['matches'][fn]['tstim'][0]
                     r['matches'][fn]['normalized'] = signal.df_over_f(timg, raw, t0, baseline_length)
         
+    def _bouton_analysis(self):
+        if self.santiago_setup:
+            from visexpman.users.santiago import bouton_analysis
+            if self.datafile.h5f.isopen==0:
+                rois=self.rois
+                raw_data=self.raw_data
+                stimulus_parameters=hdf5io.read_item(self.datafile.filename, 'stimulus_parameters')
+                if not hasattr(stimulus_parameters, 'keys') or 'NUMBER_OF_FLASHES' not in stimulus_parameters:
+                    stimulus_parameters={}
+                    stimulus_parameters['NUMBER_OF_FLASHES']=self.tstim.shape[0]/2
+            else:
+                raise NotImplementedError('')
+            res=bouton_analysis.extract_bouton_increase(raw_data, rois, stimulus_parameters, self.guidata.read('Baseline'),
+                                                                                            self.guidata.read('Preflash'),
+                                                                                            self.guidata.read('Postflash'),
+                                                                                            self.guidata.read('Significance Threshold'),
+                                                                                            self.guidata.read('Mean Method'))
+            if res!=None:
+                self.rois=res[0]
+                vns=['preflash','postflash','increase','is_significant','preflash_std', 'postflash_std', 'preflash_start','preflash_end','postflash_start','postflash_end']
+                self.bouton_stat_text='roi index,{0}\n'.format(','.join(vns))
+                roi_index=0
+                for roi in self.rois:
+                    if not 'bouton_analysis' in roi:
+                        break
+                    self.bouton_stat_text+='{0},'.format(roi_index)
+                    for k in vns:
+                        if isinstance(roi['bouton_analysis'][k], float):
+                            self.bouton_stat_text+='{0:0.3f},'.format(roi['bouton_analysis'][k])
+                        else:
+                            self.bouton_stat_text+='{0},'.format(roi['bouton_analysis'][k])
+                    self.bouton_stat_text=self.bouton_stat_text[:-1]
+                    self.bouton_stat_text+='\n'
+                    roi_index+=1
+                self.printc(res[1])
+        
     def display_roi_rectangles(self):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
@@ -780,6 +1029,10 @@ class Analysis(object):
                 x=x[0]
                 y=y[0]
             self.to_gui.put({'display_roi_curve': [x, y, self.current_roi_index, self.tstim, {}]})
+            if self.santiago_setup and self.rois[self.current_roi_index].has_key('bouton_analysis'):
+                ba=self.rois[self.current_roi_index]['bouton_analysis']
+                self.printc('Preflash [df/F]: {0}, postflash: {1}, std: {3}, significant change: {2}'
+                                .format(ba['preflash'], ba['postflash'], ba['is_significant'], ba['preflash_std']))
 #            self.to_gui.put({'display_trace_parameters':parameters[0]})
         
     def remove_roi_rectangle(self):
@@ -843,6 +1096,7 @@ class Analysis(object):
             self.current_roi_index = len(self.rois)-1
         self.display_roi_curve()
         self._roi_area2image()
+        self._bouton_analysis()
         
     def reset_datafile(self):
         if not hasattr(self, 'current_roi_index'):
@@ -892,6 +1146,9 @@ class Analysis(object):
         self.display_roi_curve()
         self._roi_area2image()
         self.printc('Roi added, {0}'.format(rectangle))
+        self.printc(len(self.rois))
+        self._bouton_analysis()
+        self.printc(len(self.rois))
         
     def readd_rois(self, filename):
         rois=hdf5io.read_item(filename,'rois',filelocking=False)
@@ -918,7 +1175,7 @@ class Analysis(object):
             return
         if self._any_unsaved_roi():
             if warning_only:
-                print 'Rois are not saved'
+                print('Rois are not saved')
             elif self.ask4confirmation('Do you want to save unsaved rois in {0}?'.format(os.path.basename(self.filename))):
                 self.save_rois_and_export()
                 
@@ -951,6 +1208,10 @@ class Analysis(object):
         if self.santiago_setup:
             self.datafile.convert('rois')
             self.printc('Roi plots are exported to {0}'.format(self.datafile.rois_output_folder))
+            if hasattr(self, 'bouton_stat_text'):
+                fn=os.path.join(self.datafile.rois_output_folder, 'bouton_stat.csv')
+                fileop.write_text_file(fn, self.bouton_stat_text)
+                self.printc('Bouton stats are exported to {0}'.format(fn))
         self.datafile.close()
         fileop.set_file_dates(self.filename, file_info)
         self.printc('ROIs are saved to {0}'.format(self.filename))
@@ -1025,26 +1286,29 @@ class Analysis(object):
         self.display_roi_curve()
         
     def aggregate(self, folder):
-        self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
-        self.cells = cone_data.aggregate_cells(folder)
-        self.printc('Calculating parameter distributions')
-        self.parameter_distributions = cone_data.quantify_cells(self.cells)
-        self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
-        if len(self.cells)==0:
-            self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
-            return
-        self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
-        aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
-        h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
-        h.cells=self.cells
-        h.stage_coordinates=self.stage_coordinates
-        h.parameter_distributions=self.parameter_distributions
-        h.save(['stage_coordinates','cells', 'parameter_distributions'])
-        h.close()
-        scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
-        self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
-        self.to_gui.put({'display_cell_tree':self.cells})
-        self.display_trace_parameter_distribution()
+        if self.santiago_setup:
+            pass
+        else:
+            self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
+            self.cells = cone_data.aggregate_cells(folder)
+            self.printc('Calculating parameter distributions')
+            self.parameter_distributions = cone_data.quantify_cells(self.cells)
+            self.stage_coordinates = cone_data.aggregate_stage_coordinates(folder)
+            if len(self.cells)==0:
+                self.notify('Warning', '0 cells aggregated, check if selected folder contains any measurement file')
+                return
+            self.printc('Aggregated {0} cells. Saving to file...'.format(len(self.cells)))
+            aggregate_filename = os.path.join(folder, 'aggregated_cells_{0}.'.format(os.path.basename(folder)))
+            h=hdf5io.Hdf5io(aggregate_filename+'hdf5', filelocking=False)
+            h.cells=self.cells
+            h.stage_coordinates=self.stage_coordinates
+            h.parameter_distributions=self.parameter_distributions
+            h.save(['stage_coordinates','cells', 'parameter_distributions'])
+            h.close()
+            scipy.io.savemat(aggregate_filename+'mat', {'cells':self.cells, 'parameter_distributions': self.parameter_distributions, 'stage_coordinates': 'not found' if self.stage_coordinates=={} else self.stage_coordinates}, oned_as = 'row', long_field_names=True,do_compression=True)
+            self.printc('Aggregated cells are saved to {0}mat and {0}hdf5'.format(aggregate_filename))
+            self.to_gui.put({'display_cell_tree':self.cells})
+            self.display_trace_parameter_distribution()
         
     def display_trace_parameter_distribution(self):
         if not hasattr(self, 'parameter_distributions'):
@@ -1135,7 +1399,7 @@ class Analysis(object):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(roi['rectangle'])*roi['image_scale']) ]})
         
     def remove_recording(self,filename):
-        if not experiment_data.is_recording_filename(filename) or fileop.file_extension(filename)!='hdf5':
+        if not experiment_data.is_recording_filename(filename) or os.path.splitext(filename)[1]!='.hdf5':
             self.notify('Info', '{0} is not a recording file'.format(filename))
             return
         #Figure out which files will be removed
@@ -1166,11 +1430,11 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM=='ao_cortical' or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant'] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
-            if not os.path.exists(filename.replace('.hdf5', '_mat.mat')) and not self.santiago_setup:
+            if not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(filename), '.mat')) and not self.santiago_setup:
                 if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
                     return
             self.fn=filename
@@ -1195,6 +1459,25 @@ class Analysis(object):
             self.to_gui.put({'plot_sync':[x,y]})
         else:
             raise NotImplementedError()
+            
+    def add_comment(self,filename):
+        if os.path.splitext(filename)[1]!='.hdf5':
+            self.notify('Warning', 'Only hdf5 files can be opened!')
+            return
+        self.hcomment=hdf5io.Hdf5io(filename)
+        self.hcomment.load('comment')
+        if not hasattr(self.hcomment,'comment'):
+            self.hcomment.comment=''
+        self.to_gui.put({'add_comment':[self.hcomment.comment]})
+        
+    def save_comment(self,comment):
+        if hasattr(self, 'hcomment') and self.hcomment.h5f.isopen:
+            self.hcomment.comment=comment+'\r\nSaved on '+utils.timestamp2ymdhm(time.time())+'\r\n'
+            self.hcomment.save('comment')
+            self.printc('{0} comment saved to {1}'.format(comment, self.hcomment.filename))
+            self.hcomment.close()
+            
+        
         
     def fix_files(self,folder):
         self.printc('Fixing '+folder)
@@ -1314,12 +1597,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         
     def save_software_hash(self):
         hash=introspect.visexpman2hash()
-        meshash=introspect.mes2hash()
         if self.guidata.read('software_hash')==None:
             self.guidata.add('software_hash', hash, 'hash/software_hash')
         else:
             self.guidata.software_hash.v=hash
         if self.machine_config.PLATFORM=='ao_cortical':
+            meshash=introspect.mes2hash()
             if self.guidata.read('mes_hash')==None:
                 self.guidata.add('mes_hash', hash, 'hash/mes_hash')
             else:
@@ -1331,14 +1614,14 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         current_hash=introspect.visexpman2hash()
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
-            self.notify('Warning', 'Software has changed, hashes do not match.\r\nMake sure that the correct software version is used!')
+            self.to_gui.put({'permanent_warning':'Software hashes do not match, make sure that the correct software version is used!'})
         if self.machine_config.PLATFORM=='ao_cortical':
             meshash=introspect.mes2hash()
             saved_hash=self.guidata.read('mes_hash')
             if not numpy.array_equal(saved_hash, meshash):
-                print saved_hash, meshash
-                self.notify('Warning', 'MES has changed, hashes do not match.')
-            
+                print(saved_hash, meshash)
+                self.to_gui.put({'permanent_warning':'MES has changed, hashes do not match.'})
+
     def save_context(self):
         context_stream=utils.object2array(self.guidata.to_dict())
         numpy.save(self.context_filename,context_stream)
@@ -1391,6 +1674,12 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if self.mes_connection_status:
                 n_connected += 1
                 self.connected_nodes+='stim-mes '
+        elif self.machine_config.PLATFORM=='resonant':
+            n_connections+=1
+            if hasattr(self, 'mesc'):
+                if self.mesc.ping():
+                    n_connected += 1
+                    self.connected_nodes+='mesc '
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
@@ -1399,16 +1688,22 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if msg is not None and 'ping' not in msg  and 'pong' not in msg:
                 if isinstance(msg,str):
                     self.printc('{0} {1}'.format(connname.upper(),msg))
-                elif msg.has_key('trigger'):
+                elif 'trigger' in msg:
                     if hasattr(self,'trigger_handler'):
                         self.trigger_handler(msg['trigger'])
-                elif msg.has_key('notify'):
+                elif 'notify' in msg:
                     self.notify(msg['notify'][0],msg['notify'][1])
-                elif msg.has_key('mes_connection_status'):
+                elif 'mes_connection_status' in msg:
                     self.mes_connection_status=msg['mes_connection_status']
+                elif 'mesc' in msg and hasattr(self,  'mesc_handler'):
+                    self.mesc_handler(msg['mesc'])
+                    
         
     def run(self):
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
+        for fn in dir(self):
+            if 'init_'==fn[:5] and callable(getattr(self, fn)):
+                getattr(self, fn)()
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
@@ -1427,13 +1722,13 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 else:
                     continue
                 #parse message
-                if msg.has_key('data'):#expected format: {'data': value, 'path': gui path, 'name': name}
+                if 'data' in msg:#expected format: {'data': value, 'path': gui path, 'name': name}
                     self.guidata.add(msg['name'], msg['data'], msg['path'])#Storing gui data
                     [getattr(c,'check_parameter_changes')(self,msg['name']) for c in self.__class__.__bases__ if hasattr(c,'check_parameter_changes')]
-                elif msg.has_key('read'):#gui might need to read guidata database
+                elif 'read' in msg:#gui might need to read guidata database
                     value = self.guidata.read(**msg)
                     getattr(self, 'to_gui').put(value)
-                elif msg.has_key('function'):#Functions are simply forwarded
+                elif 'function' in msg:#Functions are simply forwarded
                     #Format: {'function: function name, 'args': [], 'kwargs': {}}
 #                    with introspect.Timer(str(msg)):
                     getattr(self, msg['function'])(*msg['args'])
@@ -1453,7 +1748,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.printc('{0} file is closed'.format(self.datafile.filename))
         
     def close(self):
-        self.save_context()
+        self.save_context()   
 
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def __init__(self, machine_config, log, socket_queues, unittest=False):
@@ -1464,6 +1759,9 @@ class MainUIEngine(GUIEngine,Analysis,ExperimentHandler):
     def close(self):
         self.on_exit()
         self.close_analysis()
+        print('analysis closed')
+        self.close_experiment_handler()
+        print('exphandler closed')
         GUIEngine.close(self)
 
 class CaImagingEngine(GUIEngine):
@@ -1618,7 +1916,7 @@ class CaImagingEngine(GUIEngine):
             #Wait till process terminates
             while self.daq_process.is_alive():
                 time.sleep(0.2)
-                print 'daq alive'
+                print('daq alive')
             #Set scanner voltages to 0V
             daq_instrument.set_voltage(self.machine_config.TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
             self.printc('Imaging stopped')
@@ -1653,7 +1951,7 @@ class CaImagingEngine(GUIEngine):
         waveforms = numpy.array([parameters['x'], 
                                 parameters['y'],
                                 parameters['stim_sync']*self.machine_config.STIMULATION_TRIGGER_AMPLITUDE,
-                                parameters['frame_sync']*self.machine_config.FRAME_TRIGGER_AMPLITUDE])
+                                parameters['frame_sync']*self.machine_config.FRAME_TIMING_AMPLITUDE])
         if xy_scanner_only:
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms
@@ -1773,7 +2071,7 @@ class TestMainUIEngineIF(unittest.TestCase):
         self.engine.machine_config.EXPERIMENT_DATA_PATH = self.working_folder
         shutil.copytree(ref_folder, self.working_folder)
         files = fileop.listdir_fullpath(self.working_folder)
-        protocol_files = [f for f in files if fileop.file_extension(f) == 'txt']
+        protocol_files = [f for f in files if os.path.splitext(f)[1] == '.txt']
         protocols = dict(map(self._parse_protocol_files, protocol_files))
         for n in protocols.keys():
             protocol = protocols[n]
@@ -1787,9 +2085,9 @@ class TestMainUIEngineIF(unittest.TestCase):
                 if time.time()-tlast>60:#assuming that the execution of any function does not take longer than 30 sec
                     break
             printc_messages = [r['printc'] for r in resp if r.has_key('printc')]
-            print n
+            print(n)
             for p in printc_messages:
-                print p
+                print(p)
             self.assertEqual([p for p in printc_messages if 'error' in p], [])#No error in printc messages
             files = [p.split(' ')[-1] for p in printc_messages if 'ROIs are saved to ' in p]
             #Check if mat files are available
@@ -1824,7 +2122,7 @@ class TestMainUIEngineIF(unittest.TestCase):
                 self.assertEqual(abs(numpy.array([len(r['matches']) for r in self.engine.aggregated_rois])-1).sum(),0)
             except:
                 import traceback
-                print traceback.format_exc()
+                print(traceback.format_exc())
                 import pdb
                 pdb.set_trace()
         

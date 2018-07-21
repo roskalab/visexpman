@@ -9,18 +9,18 @@ import time
 class Led2Config(experiment.ExperimentConfig):
     def _create_parameters(self):
 #### EDIT FROM HERE
-        self.REPEATS=3# how many repetitions of stim
+        self.REPEATS=6# how many repetitions of stim
         self.SCREEN_COLOR=0.0
-        self.MAIN_LED_CURRENT_RANGE=[0, 500]#Change this to limit max led current
+        self.MAIN_LED_CURRENT_RANGE=[0, 10]#Change this to limit max led current ie [0, 10] for 10mA
         self.PRE_TIME=10.0
         self.OFFTIME=5.0 #visual LED off time
         self.ONTIME=5.0	#visual LED on time
         self.NFLASHES = 1 #number of steps between current_range above
         self.ENABLE_LED= True #False, this is to enable LGN LED blue one
         self.FLASH_DURATION=0.5 # for LGN LED
-        self.LED_CURRENT = 950 #mA also for LGN LED
-        self.LED_FLASH_DELAY=0 #if negative, led flashes start earlier than screen
-        self.LED_FLASH_RATE=1#1=led in all repetition, 2: led flash in every second repetition
+        self.LED_CURRENT = 500 #mA also for LGN LED
+        self.LED_FLASH_DELAY=.100 #if negative, led flashes start earlier than screen (in Seconds NOT MS)
+        self.LED_FLASH_RATE=2#1=led in all repetition, 2: led flash in every second repetition
 #### EDIT UNTIL HERE
         self.LED_CURRENT2VOLTAGE=0.005
         self.OUTPATH='#OUTPATH'
@@ -33,6 +33,9 @@ class Led2Stimulation(experiment.Experiment):
     '''
     def prepare(self):
         if 1:
+            for vn in ['LED_FLASH_DELAY', 'FLASH_DURATION']:
+                if abs(getattr(self.experiment_config, vn))>50:
+                    raise RuntimeError('{1} must be in s dimension, not ms. Current value is {0}'.format(getattr(self.experiment_config, vn), vn))
             self.duration=self.experiment_config.PRE_TIME+self.experiment_config.REPEATS*(self.experiment_config.NFLASHES*(self.experiment_config.ONTIME+self.experiment_config.OFFTIME)+self.experiment_config.OFFTIME)
             self.mid=numpy.array(self.experiment_config.MAIN_LED_CURRENT_RANGE).mean()
             ontime=self.experiment_config.ONTIME
@@ -96,7 +99,7 @@ class Led2Stimulation(experiment.Experiment):
                                         DAQmxConstants.DAQmx_Val_Volts,
                                         None)
         self._set_voltage(0,0)
-        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+        self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
         self.show_fullscreen(color=self.experiment_config.SCREEN_COLOR,duration=self.experiment_config.PRE_TIME)
         intensity_index=0
         val1=0
@@ -117,7 +120,7 @@ class Led2Stimulation(experiment.Experiment):
                 elif 'ledoff'==cmd:
                     val1=0
             if val2prev==0 and val1prev==0 and (val1!=0 or val2!=0):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 if val1!=0 and val2!=0:
                     self.block_trigger_order.append('both')
                 elif val1!=0:
@@ -125,7 +128,7 @@ class Led2Stimulation(experiment.Experiment):
                 elif val2!=0:
                     self.block_trigger_order.append('stim')
             elif val2==0 and val1==0 and (val1prev!=0 or val2prev!=0):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 if val1prev!=0 and val2prev!=0:
                     self.block_trigger_order.append('both')
                 elif val1prev!=0:
@@ -133,9 +136,9 @@ class Led2Stimulation(experiment.Experiment):
                 elif val2prev!=0:
                     self.block_trigger_order.append('stim')
             elif (val1!=0 or val2!=0) and (val1prev!=0 or val2prev!=0):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 time.sleep(self.trigger_pulse_width)
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 if val1!=val1prev:
                     self.block_trigger_order.append('led')
                 elif val2!=val2prev:

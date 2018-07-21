@@ -5,11 +5,10 @@ import os
 try:
     import serial
 except:
-    print 'pyserial not installed'
+    print('pyserial not installed')
 
 import unittest
-
-import instrument
+from visexpman.engine.hardware_interface import instrument
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils
 try:
@@ -130,7 +129,7 @@ class AllegraStage(StageControl):
                     if hasattr(self,'queue') and hasattr(self.queue,  'empty'):
                         if not self.queue.empty():
                             if 'stop' in parameter_extract.findall(self.queue.get())[0]:
-                                print 'stop stage'
+                                print('stop stage')
                                 self.stop()
                                 break
                 self.read_position()
@@ -154,7 +153,7 @@ class AllegraStage(StageControl):
                             if 'Stopping' not in line and 'Done' not in line:
                                 position.append(int(line[1:]))
                         except ValueError:
-                            print response
+                            print(response)
                             raise RuntimeError('No valid response from motion controller ' + line)
                             
                 self.position_ustep = numpy.array(position)
@@ -162,7 +161,7 @@ class AllegraStage(StageControl):
                     self.position = self.position_ustep * self.config.STAGE[self.id]['UM_PER_USTEP']
                 except ValueError:
                     self.position = numpy.zeros(3, dtype = float)
-                    print 'position in ustep: {0}' .format(self.position_ustep)
+                    print('position in ustep: {0}' .format(self.position_ustep))
                     
             else:
                 self.position = numpy.zeros(3, dtype = float)
@@ -210,7 +209,7 @@ def stage_calibration(side_usteps, folder):
     import visexpA.engine.dataprocessors.signal as signal
     frames = utils.listdir_fullpath(folder)
     frames.sort()
-    print frames
+    print(frames)
     for i in range(len(frames)):
         f2 = numpy.array(Image.open(frames[i]))[:, :, 1]
         
@@ -257,12 +256,12 @@ class MotorizedGoniometer(StageControl):
             except:
                 if print_position:
                     import traceback
-                    print traceback.format_exc()
-                    print response
+                    print(traceback.format_exc())
+                    print(response)
         if not hasattr(self, 'position'):
             self.position = numpy.zeros(2)
         if print_position:
-            print self.position
+            print(self.position)
         return self.position, result
         
     def move(self, angle):
@@ -331,7 +330,7 @@ class RemoteFocus(object):
             try:
                 return float(response.split(':A')[1])*self.scale
             except:
-                print response
+                print(response)
                 return False
         return False
                 
@@ -496,7 +495,7 @@ if test_mode:
             pos = [10.0,100.,-201.,0., -15]
             for p in pos:
                 self.rf.move(p)
-                print p,self.rf.read_position()
+                print(p,self.rf.read_position())
                 self.assertEqual(self.rf.read_position(),p)
         
 if __name__ == "__main__":

@@ -1,28 +1,25 @@
-import sys,filecmp,logging
-import os, re
-import os.path
-import ctypes
-import platform
-import shutil
-import numpy
-import tempfile
-import time
-import subprocess
-import multiprocessing,threading,Queue
+'''
+Common file and filename operations
+'''
+import sys, os, re, ctypes, platform, shutil, numpy, tempfile, time, subprocess, multiprocessing,threading
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
 from distutils import file_util,  dir_util
 try:
     import psutil
 except ImportError:
     pass
-import utils
+
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
-
-def file_extension(filename):#TODO: use os.path.splitext
-    return os.path.split(filename)[1].split('.')[-1]
-    
+   
 def is_first_tag(fn, tag):
+    '''
+    is tag the first characters of fn?
+    '''
     return tag == os.path.split(fn)[1][:len(tag)]
 
 def generate_filename(path, insert_timestamp = False, last_tag = ''):
@@ -61,13 +58,25 @@ def generate_foldername(path):
     return testable_path
 
 def get_tmp_file(suffix, delay = 0.0):
+    '''OBSOLETE'''
     path = os.path.join(tempfile.gettempdir(), 'tmp.' + suffix)
     remove_if_exists(path)
     time.sleep(delay)
     return path
     
+def replace_extension(fn,ext):
+    '''
+    Replaces fn's extension to ext
+    '''
+    return fn.replace(os.path.splitext(fn)[1], ext)
+    
 def get_convert_filename(filename, extension, tag='', outfolder = None):
-    fn=filename.replace(os.path.splitext(filename)[1], extension)
+    '''
+    Generate a filename at dataconversion:
+    original base name is kept but replaced to provided extension. If tag is not '', it is inserted between filename and extension
+    If outfolder is provided, it is inserted to the basename of the provided filename
+    '''
+    fn=replace_extension(filename, extension)
     if len(tag)>0:
         fn=fn.replace(extension, tag+extension)
     if outfolder is not None:
@@ -97,6 +106,9 @@ def parsefilename(filename, regexdict):
     return regexdict
     
 def select_folder_exists(folders):
+    '''
+    Return the first folder from the provided folder names which exists
+    '''
     for folder in folders:
         if os.path.exists(folder) and os.path.isdir(folder):
             return folder
@@ -104,6 +116,9 @@ def select_folder_exists(folders):
 ################# File system ####################
 
 def free_space(path):
+    '''
+    Calculates the free space on the provided location. Windows, OSX and Linux platforms are all supported
+    '''
     if platform.system() == 'Windows':
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(path), None, None, ctypes.pointer(free_bytes))
@@ -113,16 +128,11 @@ def free_space(path):
         return (s.f_bavail * s.f_frsize)
     else:
         raise NotImplementedError('')
-        
-def folder_size(path):
-    if platform.system() == 'Linux' or platform.system()=='Darwin':
-        tmp='/tmp/o.txt'
-        if os.path.exists(tmp):
-            os.remove(tmp)
-        subprocess.call('du -sh {0}>>{1}'.format(path,tmp), shell=True)
-        return read_text_file(tmp).split('\t')[0]
-    
+            
 def set_file_dates(path, file_info):
+    '''
+    Sets the timestamp of a file
+    '''
     try:
         if hasattr(file_info,'st_atime') and hasattr(file_info,'st_mtime'):
             os.utime(path, (file_info.st_atime, file_info.st_mtime))
@@ -131,8 +141,16 @@ def set_file_dates(path, file_info):
     except:
         pass
         
+def file_age(path):
+    '''
+    returns the time elapsed since last modification of file in seconds
+    '''
+    return time.time()-os.path.getmtime(path)
+        
 def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
+    if platform.system() == 'Windows':
+        raise NotImplementedError('')
     ccmd = 'lsof -Fp '+filename
     p=subprocess.Popen(ccmd, shell=True)
     res= p.communicate()
@@ -140,18 +158,25 @@ def file_open_by_other_process(filename):
     if len(pids)<1: return False
     elif len(pids)>1 or pids[0]!=os.getpid():return True
 
-def total_size(source):
-        total_size_bytes = os.path.getsize(source)
-        if not os.path.isfile(source):
-            for item in os.listdir(source):
-                itempath = os.path.join(source, item)
-                if os.path.isfile(itempath):
-                    total_size_bytes += os.path.getsize(itempath)
-                elif os.path.isdir(itempath):
-                    total_size_bytes += total_size(itempath)
-        return total_size_bytes
+def folder_size(source):
+    '''
+    Return the overall size of files in a folder in bytes.
+    '''
+    total_size_bytes = os.path.getsize(source)
+    if not os.path.isfile(source):
+        for item in os.listdir(source):
+            itempath = os.path.join(source, item)
+            if os.path.isfile(itempath):
+                total_size_bytes += os.path.getsize(itempath)
+            elif os.path.isdir(itempath):
+                total_size_bytes += folder_size(itempath)
+    return total_size_bytes
         
 def wait4file_ready(f,timeout=60, min_size=0):
+    '''
+    Waits until f file is ready by checking size periodically. This can be used when a big file is being written by an other process
+    or computer on a fileshare
+    '''
     if os.path.exists(f):
         filesize_prev=os.path.getsize(f)
     else:
@@ -171,7 +196,19 @@ def wait4file_ready(f,timeout=60, min_size=0):
         if time.time()-t0>timeout:
             raise RuntimeError('Wait for {} file timeout'.format(f))
 
-
+def folder_signature(folder):
+    '''
+    Signature consist of: number of files, overall file size, latest modification date
+    '''
+    files=find_files_and_folders(folder)[1]
+    return (len(files), sum([os.path.getsize(f) for f in files]), max([os.path.getmtime(f) for f in files]))
+    
+def file_signature(filename):
+    '''
+    Signature of a file is generated from filename, size and last modification data
+    '''
+    return (filename, os.path.getsize(filename), int(os.path.getmtime(filename)))
+    
 ################# File/directory operations ####################
 
 def mkstemp(suffix=None, filename = None):
@@ -185,6 +222,9 @@ def mkstemp(suffix=None, filename = None):
         return filename
         
 def remove_if_exists(filename):
+    '''
+    Removes a file if exists
+    '''
     if os.path.exists(filename):
         os.remove(filename)
 
@@ -202,11 +242,15 @@ def mkdir_notexists(folder, remove_if_exists=False):
             os.makedirs(f)
         
 def recreate_dir(folder):
+    '''
+    If folder exists, all of its contents are removed and then the folder is recreated
+    '''
     if os.path.exists(folder):
         shutil.rmtree(folder)
     os.makedirs(folder)
 
 def copy(src, dst, update=1):
+    '''OBSOLETE'''
     if not os.path.exists(src):
         raise OSError('File or directory to be copied does not exist')
     if os.path.isfile(src): 
@@ -244,8 +288,15 @@ def move2zip(src,dst,delete=False):
 
 ################# File finders ####################
 
-def listdir_fullpath(folder):
+def listdir_fullpath(folder):#Legacy
+    return listdir(folder)
+    
+def listdir(folder):
+    '''
+    Return lfull path of files in folder in alphabetical order
+    '''
     files = os.listdir(folder)
+    files.sort()
     return map(os.path.join, len(files)*[folder],files)
     
 def find_latest(path, extension=None):
@@ -254,7 +305,7 @@ def find_latest(path, extension=None):
     '''
     if not os.path.isdir(path):
         raise RuntimeError('Foldername expected not filename: {0}'.format(path))
-    fns = [fn for fn in listdir_fullpath(path) if file_extension(fn)==extension or extension is None and not os.path.isdir(fn)]
+    fns = [fn for fn in listdir_fullpath(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
     fns_dates = map(os.path.getmtime, fns)
@@ -390,12 +441,18 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
 ################# Text file related ####################
 
 def read_text_file(path):
+    '''
+    Read content of a file to string
+    '''
     f = open(path,  'rt')
     txt =  f.read(os.path.getsize(path))
     f.close()
     return txt
     
 def write_text_file(filename, content):
+    '''
+    Write string data to a file
+    '''
     f = open(filename,  'wt')
     f.write(content)
     f.close()
@@ -403,10 +460,15 @@ def write_text_file(filename, content):
 ################# Vision experiment manager related ####################
 #TODO: This should go to experiment_data
 def visexpman_package_path():
-    import visexpman
+    '''
+    Returns the absolute path of visexpman module
+    '''
     return os.path.split(sys.modules['visexpman'].__file__)[0]
     
 def visexpA_package_path():
+    '''
+    Returns the absolute path of visexpA module
+    '''
     try:
         import visexpA
         return os.path.split(sys.modules['visexpA'].__file__)[0]
@@ -432,36 +494,33 @@ def get_context_filename(config,extension=' npy'):
     return os.path.join(config.CONTEXT_PATH, filename)
     
 def get_log_filename(config):
+    '''OBSOLETE'''
     if not hasattr(config, 'LOG_PATH'):
         raise RuntimeError('LOG_PATH is not defined in machine config')
     import platform
     uiname=config.user_interface_name if hasattr(config, 'user_interface_name') else config.PLATFORM
+    try:
+        import utils
+    except ImportError:
+        from visexpman.engine.generic import utils
     dt=utils.timestamp2ymdhms(time.time(), filename=True)
     filename = 'log_{0}_{1}.txt'.format(uiname, dt)
     return os.path.join(config.LOG_PATH, filename)
 
 def cleanup_files(config):
+    '''
+    Cleanup files residing in the folders that are contained by the provided configuration
+    '''
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
     if os.path.exists(get_context_filename(config)):
         os.remove(get_context_filename(config))
-        
-def _mat(filename):
-    '''
-    Inserts _mat tag at the end of filename if hdf5 or mat without _mat tag provided. Else hdf5 is generated from filename with _mat
-    '''
-    ext=os.path.splitext(filename)[1]
-    if '_mat' == os.path.splitext(filename)[0][-4:]:
-        return os.path.splitext(filename)[0][:-4]+'.hdf5'
-    else:
-        return filename.replace(ext, '_mat.mat')
-    
         
 ################# Experiment file related ####################
 
 
 class DataAcquisitionFile(object):
     '''
-    Opens an hdf5 file and data can be saved sequentally
+    Opens an hdf5 file and provides an interface for saving data sequentally
     '''
     def __init__(self,nchannels,dataname, datarange,filename=None,compression_level=5):
         self.nchannels=nchannels
@@ -528,22 +587,30 @@ def parse_animal_filename(filename):
     return animal_parameters
     
 def is_animal_file(filename):
+    '''
+    Check if file is an animal file
+    '''
     fn = os.path.split(filename)[1]
-    if is_first_tag(fn, 'animal_') and file_extension(fn) == 'hdf5':
+    if is_first_tag(fn, 'animal_') and os.path.splitext(fn)[1] == '.hdf5':
         return True
     else:
         return False
-    
+
 def copy_reference_fragment_files(reference_folder, target_folder):
+    '''OBSOLETE'''
     if os.path.exists(target_folder):
         shutil.rmtree(target_folder)
     shutil.copytree(reference_folder, target_folder)
     return find_files_and_folders(target_folder, extension = 'hdf5',filter='fragment')[1]
     
 def get_id_node_name_from_path(path):#Using similar function from component guesser may result segmentation error.
+    '''
+    Parse out id node name from filename
+    '''
     return '_'.join(os.path.split(path)[1].split('.')[-2].split('_')[-3:])
-#OBSOLETE
+    
 def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5', subfolders =  False):
+    '''OBSOLETE'''
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
         folder = config.EXPERIMENT_DATA_PATH
     else:
@@ -557,8 +624,9 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
-#OBSOLETE
+            
 def find_file_from_timestamp(dir, timestamp):
+    '''OBSOLETE'''
     #from visexpman.engine.generic.fileop import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
     files = dirListing(dir, ['.hdf5'], dir)
@@ -569,15 +637,16 @@ def find_file_from_timestamp(dir, timestamp):
     if len(matching)==0: return None
     else: return matching[0]
 
-#OBSOLETE
 def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, remote_win_path = True):
+    '''OBSOLETE'''
     filename = os.path.split(local_file_path)[-1]
     remote_file_path = os.path.join(remote_machine_folder, filename)
     if remote_win_path:
         remote_file_path = remote_file_path.replace('/',  '\\')
     return remote_file_path
-#OBSOLETE    
+
 def parse_fragment_filename(path):
+    '''OBSOLETE'''
     fields = {}
     filename = os.path.split(path)[1]
     if '.hdf5' in path:
@@ -600,12 +669,11 @@ def parse_fragment_filename(path):
 ################# Not fileop related ####################
 
 def compare_timestamps(string1, string2):
-        '''Finds timestamps in the strings and returns true if the timestamps are the same'''
-        ts1 = timestamp_re.findall(str(string1))[0]
-        ts2 = timestamp_re.findall(str(string2))[0]
-        if int(ts1)==int(ts2): return True
-        else: return False
-
+    '''Finds timestamps in the strings and returns true if the timestamps are the same'''
+    ts1 = timestamp_re.findall(str(string1))[0]
+    ts2 = timestamp_re.findall(str(string2))[0]
+    if int(ts1)==int(ts2): return True
+    else: return False
 
 ################# Others ####################
 
@@ -678,7 +746,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                             self.logfile.write('nothing to do\n');self.logfile.flush()
                         continue
                     if debug and self.isthread:
-                        print file_list
+                        print(file_list)
                     for item in file_list:
                         try:
                             current_exception=''
@@ -698,7 +766,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                                     current_exception = '{0} has same size as {1}'.format(source, target)
                             except Exception as e:
                                 current_exception=str(e)
-                                print e
+                                print(e)
                                 self.postponed_list.append((source,target))
                             if item in self.postponed_list:
                                 self.postponed_list.remove(item)
@@ -777,6 +845,9 @@ def pngsave(im, file):
     im.save(file, "PNG", pnginfo=meta)
     
 def download_folder(server, user, src,dst,port=22,password=None):
+    '''
+    Download a folder from a remote server using ssh connection
+    '''
     import paramiko,zipfile
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -845,10 +916,10 @@ class TestFileops(unittest.TestCase):
                 else:
                     while not message_list.empty():
                         msg= message_list.get()
-                        print msg
+                        print(msg)
                         if msg=='TERMINATE':
                             return
-        print os.getpid()
+        print(os.getpid())
         killit=1
         sourcedir = tempfile.mkdtemp()
         targetdir = tempfile.mkdtemp()

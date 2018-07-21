@@ -1,10 +1,8 @@
-import traceback
-import Queue
-import re
-import unittest
-import sys
-import time
-import multiprocessing
+import traceback, re, unittest, time, multiprocessing
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
 from visexpman.engine.generic import utils, introspect
 from visexpman.engine.hardware_interface import queued_socket
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
@@ -82,7 +80,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
             except:
                 self.printl(traceback.format_exc())
         self.at_process_end()
-        print 'Server loop ends'#TMP
+        print('Server loop ends')
 #        self.command.put('terminated')
         
     def exit_application(self):
@@ -132,6 +130,7 @@ class ProcessLoop(multiprocessing.Process):
         Subclass should overdefine this function
         '''
 
+#OBSOLETE
 class CommandParser(object):
     '''
     generic class that parses the content of incoming queue(s) and calls the corresponding functions
@@ -199,7 +198,7 @@ class CommandParser(object):
                 if hasattr(self.log, 'info'):
                     self.log.info(function)
             else:
-                print function
+                print(function)
         self.function_call_list = []
         if len(self.function_call_results) > 0:            
             return self.function_call_results

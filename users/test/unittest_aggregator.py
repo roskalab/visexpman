@@ -165,7 +165,7 @@ def kill_python_processes(dont_kill_pids):
             p = psutil.Process(pid)
             name = p.name
             p.kill()
-            print '{0}/{1} process killed'.format(name, pid)
+            print('{0}/{1} process killed'.format(name, pid))
             
 def generate_filename(path):
     '''
@@ -196,7 +196,7 @@ def prepare_test_data(modulename, working_folder=None, clean_working_dir = True,
         working_folder = select_path_exists(TEST_working_folder)
     elif not os.path.exists(working_folder):
         os.mkdir(working_folder)
-    print 'preparing test data for {0}'.format(modulename)
+    print('preparing test data for {0}'.format(modulename))
     if clean_working_dir and os.path.exists(working_folder):
         shutil.rmtree(working_folder)
         os.mkdir(working_folder)
@@ -348,13 +348,13 @@ class UnitTestRunner(object):
         f.write('\n' + str(datetime.datetime.now())+'\n')
         f.close()
         f = open(self.test_log)
-        print f.read()
+        print(f.read())
         f.close()
         #Save tested source files
         if TEST_single_unittest == '':#Do not save source code and test log if single test is run. One test is only run for debug purposes
             self.save_source_and_results()
         if TEST_delete_files:
-            print TEST_working_folder
+            print(TEST_working_folder)
 
         if TEST_delete_files:
             time.sleep(2.0)

@@ -31,13 +31,12 @@ class MVSSA(ElphysRetinalCaImagingConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 1
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False#(self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -102,13 +101,12 @@ class MVS(ElphysRetinalCaImagingConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 0.45
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 3
+        FRAME_TIMING_PIN = 3
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -173,7 +171,7 @@ class KamillSetup(MVS):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SERIAL_DIO_PORT = 'COM3'
         ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         FULLSCREEN = True
         ENABLE_FILTERWHEEL = True
         FILTERWHEEL_SERIAL_PORT = [{

@@ -41,8 +41,8 @@ def measure():
         aio.start()
         logger.start()
         aio.start_daq(ai_sample_rate = ai_sample_rate,ai_record_time = 3.0, timeout = 10) 
-        print 'recording...'
-        print 'press enter to terminate'
+        print('recording...')
+        print('press enter to terminate')
         data = []
         i=0
         t0=time.time()
@@ -50,7 +50,7 @@ def measure():
             while True:
                 r=aio.read_ai()
                 if r is not None:
-                    print r[-1,:]
+                    print(r[-1,:])
                     raw_data.append(numpy.cast['float32'](r))
                 i+=1
 #                if time.time()-t0>10.0:
@@ -58,7 +58,7 @@ def measure():
                 time.sleep(ai_record_time*0.5)
                 if is_key_pressed('return'):
                     break
-        print 'stopping...'
+        print('stopping...')
 
         data1 = aio.stop_daq()
         for r in data1[0]:
@@ -67,19 +67,19 @@ def measure():
         logger.terminate()
         h.close()
         if 0:
-            print 'zipping'
+            print('zipping')
             zipfile_handler = zipfile.ZipFile(h.filename.replace('.hdf5','.zip'), 'a',compression=zipfile.ZIP_DEFLATED)
             zipfile_handler.write(h.filename, os.path.split(h.filename)[1])
             zipfile_handler.close()
         if time.time()-t0<100.0:
-            print 'check file'
+            print('check file')
             h=Hdf5io(h.filename,filelocking=False)
             h.load('raw_data')
-            print h.raw_data.shape[0]/float(ai_sample_rate)
+            print (h.raw_data.shape[0]/float(ai_sample_rate))
             plot(h.raw_data,'-')
             h.close()
         pygame.quit()
-        print 'done'
+        print('done')
         show()
         pass
 
@@ -103,7 +103,7 @@ def evaluate():
     for f in fs:
         if 'zip' not in f and zipped:
             continue
-        print f
+        print(f)
         f=os.path.join(folder,f)
         if zipped:
             z = zipfile.ZipFile(f)
@@ -145,7 +145,7 @@ def evaluate():
                 on_pulses.append([current_interval,current_interval_voltage])
         results = []
         removable_items = []
-        print 'analyse pulses'
+        print('analyse pulses')
         for i in range(len(on_pulses)):
             on_pulse = on_pulses[i]
             boundaries = on_pulse[0]
@@ -166,7 +166,7 @@ def evaluate():
                 if voltage*0.5>results[i-1][0] and results[i-1][0]<0.5*results[i-2][0]:
                     removable_items.append(i-1)
             results.append([voltage,current,temperature_,resistance,current_baseline])
-        print 'pulse analysis done'
+        print('pulse analysis done')
         results = [results[i] for i in range(len(results)) if i not in removable_items]
         results = numpy.array(results)
         if '006' in f:
@@ -338,7 +338,7 @@ def evaluate1():
     print -numpy.array(coeffs)[:,1]* scipy.constants.R/scipy.constants.calorie/1e3
     Ea = -coeff_[1] * scipy.constants.R
     Ea_cal = Ea/scipy.constants.calorie/1e3
-    print Ea_cal
+    print(Ea_cal)
     figure(0)
     t=scipy.constants.C2K(numpy.arange(20,50,1))
     plot(1/t,poly(1/t,*coeff_),'x-')
@@ -430,7 +430,7 @@ def plot_rawdata():
     for f in fs:
         if 'zip' not in f and zipped:
             continue
-        print f
+        print(f)
         f=os.path.join(folder,f)
         if zipped:
             z = zipfile.ZipFile(f)
@@ -716,7 +716,7 @@ def activation_energy_vs_pipettes():
         plot(temps[-1])
     legend(list(data[:,1]))
     temps = numpy.array(temps)
-    print 'max variation', (temps.max(axis=0)-temps.min(axis=0)).max()
+    print('max variation', (temps.max(axis=0)-temps.min(axis=0)).max())
     show()
     
 def read_csv(fn,rawdata_only=False):
@@ -763,7 +763,7 @@ def eval_20141204():
         files = os.listdir(subfolder)
         files.sort()
         for fn in files:
-            print fn
+            print(fn)
             if len([s for s in skip if s in fn])>0:
                 continue
 #            check = ['4-01-41', '3-59-16', '3-50-10', '3-48-11', '3-44-31', '3-33-51', '3-32-31', '3-31-15', '3-25-50','3-16-08', '3-14-33', '4-47-31', '4-46-18', '4-44-56']
@@ -823,7 +823,7 @@ def eval_20141204():
             cla()
             if abs(laser_pulse.max()-sig[1])>sig[1]*3e-2:
                 raise RuntimeError('')
-        print 'done'
+        print('done')
         h=Hdf5io('/tmp/aggregated.hdf5',filelocking=False)
         h.aggregated = utils.object2array(aggregated)
         h.save('aggregated')
@@ -877,7 +877,7 @@ def eval_20141204():
         plot(tj, poly(tj, *coeff1))
         plot(tj, poly(tj, *coeff2))
         #print table
-        print str(numpy.array([tj, numpy.round(poly(tj, *coeff2),4)]).T).replace('[', '').replace(']', '').replace('     ',',').replace(' ','').replace('.,','.0,')
+        print(str(numpy.array([tj, numpy.round(poly(tj, *coeff2),4)]).T).replace('[', '').replace(']', '').replace('     ',',').replace(' ','').replace('.,','.0,'))
         legend(['pulse width based on measured temp jump', 'pulse width based on estimated temp jump', 'pulse width based on measured temp fit', 'pulse width based on est temp fit'])
         ylabel('pulse width [s]')
         xlabel('temperatrue jump [K]')
@@ -962,7 +962,7 @@ def compare_cell_nocell():
         for lp in laserpowers:
             d=numpy.array([[eai[1], eai[2]] for eai in ea if eai[0] ==lp])
             plot(1000*d[:,0],d[:,1],'.')
-            print d[:,1]
+            print(d[:,1])
         legend(laserpowers)
         ylabel('Ea [J/mol]')
         xlabel('pulse width [ms]')
@@ -999,7 +999,7 @@ def compare_cell_nocell():
     h=Hdf5io(os.path.join(os.path.split(folders[0])[0],aggfn),filelocking=False)
     aggregated=utils.array2object(h.findvar('aggregated'))
     h.close()
-    print 'aggregation done'
+    print('aggregation done')
     #plot each cell recording along with no-cell current
     if 0:
         for day in aggregated.keys():
@@ -1062,7 +1062,7 @@ def evaluate_ea_and_current_calibration():
     for fn  in fns:
         if os.path.isdir(fn):
             continue
-        print fn
+        print(fn)
         if '_.' in fn:
             rawdata = read_csv(fn,rawdata_only=True)
             current = rawdata[2]*2000#pA
@@ -1093,7 +1093,7 @@ def evaluate_ea_and_current_calibration():
             trg=numpy.zeros_like(t)
             trg[1]=1
             Ea,Eacal=calculate_activation_energy(ii,ti, trg)
-            print Ea,Eacal
+            print(Ea,Eacal)
             tt, it = variable_transformation(i, t, (t.max()-t.min())/10.0)
             
         pass
@@ -1109,7 +1109,7 @@ def evaluate_ea_and_current_calibration():
         data['ea'] = {}
         data['jump'] = {}
         for fn in fns:
-            print fn
+            print(fn)
             pipette = os.path.split(fn)[1][:2]
             if '_.' in fn:
                 if csv2hdf5:
@@ -1178,7 +1178,7 @@ def evaluate_ea_and_current_calibration():
                         Ea,Eacal=calculate_activation_energy(i,t, trg)
                         tt, it = variable_transformation(i, t, (t.max()-t.min())/10.0)
                         plot(tt,it,'x-', color=plotcolors[len(leg)])
-                        print leg[-1],Ea,Eacal
+                        print(leg[-1],Ea,Eacal)
             legend(leg)
             ylabel('pA')
             xlabel('K')
@@ -1227,7 +1227,7 @@ def evaluate_ea_and_current_calibration():
         tjump_vs_power[p]=[]
         traces_vs_powers[p]={}
         for sig in aggregated[p]:
-            print sig
+            print(sig)
             trg=aggregated[p][sig][0][0]
             t=aggregated[p][sig][0][1]
             plot(t,trg)

@@ -60,7 +60,6 @@ class IntrinsicSetup(VisionExperimentConfig):
         INSERT_FLIP_DELAY = True
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-#        SCREEN_MAX_FRAME_RATE = 60.0
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         STIM_RECORDS_ANALOG_SIGNALS = False
         EXPERIMENT_FILE_FORMAT = 'hdf5'
@@ -83,7 +82,7 @@ class BehavioralSetup(IntrinsicSetup):
         self.SCREEN_UM_TO_PIXEL_SCALE = self.SCREEN_RESOLUTION['col']/self.SCREEN_SIZE['col']
 #        self.SERIAL_DIO_PORT = '/dev/ttyUSB0'
         self.ACQUISITION_TRIGGER_PIN=1
-        self.FRAME_TRIGGER_PIN=0
+        self.FRAME_TIMING_PIN=0
 
 class GenVideoConf(BehavioralSetup):
     def _set_user_parameters(self):

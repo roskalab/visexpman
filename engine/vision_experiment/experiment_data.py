@@ -9,25 +9,42 @@ import unittest
 import shutil
 import tempfile
 import time,datetime
-import StringIO
+try:
+    import StringIO
+except ImportError:
+    pass
 from PIL import Image,ImageDraw
-
+import matplotlib
+matplotlib.use('Qt4Agg')
 from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
 try:
     import hdf5io
     hdf5io_available=True
 except ImportError:
-    print 'hdf5io not installed'
+    print('hdf5io not installed')
     hdf5io_available=False
 FRAME_RATE_TOLERANCE=5    
 
 #### Recording filename handling ####
 
+def add_mat_tag(fn):
+    '''
+    when hdf5 measurement files converted to mat, a "_mat" tag is appended to the filename
+    '''
+    if os.path.splitext(fn)[0][-4:]=='_mat':#No modification when already appended
+        return fn
+    ext=os.path.splitext(fn)[1] 
+    if ext in ['.hdf5']:
+        return fn.replace(ext, '_mat'+ext)
+    else:
+        raise NotImplementedError('')
+    
+
 def get_recording_name(parameters, separator):
     name = ''
     for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
-        if parameters.has_key(k) and parameters[k]!='':
+        if k in parameters and parameters[k]!='':
             name += str(parameters[k])+separator
     return name[:-1]
     
@@ -43,7 +60,7 @@ def get_user_experiment_data_folder(parameters):
     '''
     Returns path to folder where user's experiment data can be saved
     '''
-    if not parameters.has_key('outfolder'):
+    if not 'outfolder' in parameters:
         raise RuntimeError('outfolder is not available')
     user_experiment_data_folder = parameters['outfolder']
     if not os.path.exists(user_experiment_data_folder):
@@ -63,8 +80,8 @@ def parse_recording_filename(filename):
     items = {}
     items['folder'] = os.path.split(filename)[0]
     items['file'] = os.path.split(filename)[1]
-    items['extension'] = fileop.file_extension(filename)
-    fnp = items['file'].replace('.'+items['extension'],'').split('_')
+    items['extension'] = os.path.splitext(filename)[1]
+    fnp = items['file'].replace(items['extension'],'').split('_')
     items['type'] = fnp[0]
     #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
     offset = 2 if len(fnp[-1]) == 1 else 1
@@ -147,7 +164,7 @@ def get_id(timestamp=None):
     version='v3'
     if timestamp is None:
         timestamp = time.time()
-    epoch = time.mktime((2014, 11, 01, 0,0,0,0,0,0))
+    epoch = time.mktime((2014, 11, 1, 0,0,0,0,0,0))
     if version=='v2':
         return str(int(numpy.round(timestamp-epoch, 1)*10))
     elif version=='v1':
@@ -162,8 +179,12 @@ def id2timestamp(id_str):
     
 
 ############### Preprocess measurement data ####################
+if hasattr(hdf5io, 'Hdf5io'):
+    supcl=hdf5io.Hdf5io
+else:
+    supcl=object
 
-class CaImagingData(hdf5io.Hdf5io):
+class CaImagingData(supcl):
     '''
     datatypes:
         ao: time,channel, roi, height, width
@@ -203,7 +224,7 @@ class CaImagingData(hdf5io.Hdf5io):
                 return
         for vn in ['sync', 'configs', 'sync_scaling', 'parameters']:
             self.load(vn)
-        if self.sync.dtype.name not in ['float', 'uint8', 'uint16']:
+        if self.sync.dtype.name not in ['float', 'uint8', 'uint16', 'float64']:
             raise NotImplementedError()
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         sync=signal.from_16bit(self.sync,self.sync_scaling)
@@ -227,12 +248,14 @@ class CaImagingData(hdf5io.Hdf5io):
         #Crop timg
         if self.configs['machine_config']['PLATFORM']=='elphys_retinal_ca':
             self.timg=self.timg[:self.raw_data.shape[0]]
+            dt=numpy.diff(self.timg)[0]
+            self.timg+=dt#Not yet understood why this is necessary
         elif self.configs['machine_config']['PLATFORM']=='ao_cortical':
             self.timg=self.timg[int(self.findvar('sync_pulses_to_skip')):]
             #Ignore last frames
             self.timg=self.timg[:self.raw_data.shape[0]]
         if self.timg.shape[0]!=self.raw_data.shape[0]:
-            raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match'.format(self.timg.shape[0],self.raw_data.shape[0]))
+            raise RuntimeError('Number of imaging timestamps ({0}) and number of frames ({1}) do not match in {2}'.format(self.timg.shape[0],self.raw_data.shape[0], self.filename))
         self.save(['timg'])
             
     def check_timing(self, check_frame_rate=True):
@@ -255,22 +278,35 @@ class CaImagingData(hdf5io.Hdf5io):
                 measured_frame_rate=(bei-bsi)/measured_block_durations
                 error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
                 if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
-                    errors.append('Measured frame rate(s): {0} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']))
+                    errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
             else:
                 raise NotImplementedError()
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
         
-    def get_image(self, image_type='mip'):
+    def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
         loads 2d representation of ca imaging data with scaling information
         self.image and self.image_scale
         '''
-        map(self.load, ['parameters', 'configs', 'raw_data'])
+        vns=['parameters', 'configs']
+        if load_raw:
+            vns.append('raw_data')
+        map(self.load, vns)
+        if not hasattr(self, 'configs'):#For older files
+            self.load('machine_config')
+            self.configs=self.machine_config
         if self.parameters['resolution_unit']=='pixel/um':
             self.scale = 1.0/self.parameters['pixel_size']
         else:
             raise NotImplementedError('')
+        
+        if motion_correction and self.findvar('motion_correction')==True:
+            from visexpman.engine.analysis import bouton
+            self.raw_data=bouton.motion_correction(self.raw_data)
+            self.motion_correction=True
+            self.save('motion_correction')
+            self.save('raw_data')
         if image_type=='mean':
             self.image = self.raw_data.mean(axis=0)[0]
         elif image_type=='mip': 
@@ -376,7 +412,10 @@ class CaImagingData(hdf5io.Hdf5io):
             if hasattr(self, 'rois'):
                 from PIL import ImageFont
                 fontsize=15
-                font = ImageFont.truetype("arial.ttf", fontsize)
+                try:
+                    font = ImageFont.truetype("arial.ttf", fontsize)
+                except IOError:
+                    raise IOError('On linux type: sudo apt-get install ttf-mscorefonts-installer')
                 rescale_factor=500/max(mip2image.shape)+1
                 new_size=(numpy.array(list(mip2image.shape)[:2])*rescale_factor)[::-1]
                 mip2image_with_rectangles=Image.fromarray(mip2image).resize(new_size)
@@ -385,7 +424,7 @@ class CaImagingData(hdf5io.Hdf5io):
                 mip2image_with_rectangles_and_indexesd=ImageDraw.Draw(mip2image_with_rectangles_and_indexes)
                 csvfn=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_flash.csv'))
                 csvfn_stim=os.path.join(output_folder, os.path.basename(self.filename).replace('.hdf5', '_stim.csv'))
-                txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tsync'],3)))
+                txtlines_stim=','.join(map(str,numpy.round(self.rois[0]['tstim'],3)))
                 txtlines=[','.join(map(str,numpy.round(self.rois[0]['timg'],3)))]
                 plotpars=[]
                 for i in range(len(self.rois)):
@@ -461,8 +500,8 @@ class CaImagingData(hdf5io.Hdf5io):
         if not os.path.exists(os.path.dirname(dst)):
             os.makedirs(os.path.dirname(dst))
         shutil.copy2(self.filename,dst)
-        if os.path.exists(fileop._mat(self.filename)):
-            shutil.copy2(fileop._mat(self.filename),os.path.dirname(dst))
+        if os.path.exists(fileop.replace_extension(add_mat_tag(filename), '.mat')):
+            shutil.copy2(fileop.replace_extension(add_mat_tag(filename), '.mat'),os.path.dirname(dst))
         return dst
         
 def timing_from_file(filename):
@@ -500,7 +539,7 @@ def read_sync_rawdata(h):
         img_sync =  sync[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
     else:
         elphys = numpy.zeros_like(sync[:,0])
-        print "TODO: remove constants from code"
+        print("TODO: remove constants from code")
         index=machine_config['TIMG_SYNC_INDEX'] if machine_config.has_key('TIMG_SYNC_INDEX') else 0
         index=3
         img_sync =  sync[:,index]
@@ -614,11 +653,23 @@ def pack_configs(self):
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
-#    if len([True for c in self.__class__.__bases__  if c.__name__=='Stimulus'])>0:
-#        print self.config2dict()
-#        configs['experiment_config']=self.config2dict()
     if not configs.has_key('experiment_config'):
         configs['experiment_config']=self.config2dict()
+    from visexpman.engine.vision_experiment import experiment
+    if hasattr(self,  'experiment_config') :
+        if 'experiment_config_source_code' not in self.parameters:
+            sc=None
+        else:
+            sc=self.parameters['experiment_config_source_code']
+        cn=self.experiment_config.__class__.__name__
+    else:
+        sc=self.parameters['stimulus_source_code']
+        cn=self.__class__.__name__
+    if sc ==None:
+        parameters=self.experiment_config.get_all_parameters()
+    else:
+        parameters=experiment.read_stimulus_parameters(cn, sc, self.machine_config)
+    configs['hash']=experiment.stimulus_parameters_hash(parameters)
     return configs
     
 def read_machine_config(h):
@@ -657,7 +708,7 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None, sync_signa
             except IndexError:
                 #less pulses detected
                 info['data_series_index'] = -1
-                print 'less trigger pulses were detected'
+                print('less trigger pulses were detected')
             stimulus_frame_info_with_data_series_index.append(info)
     return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
 
@@ -808,17 +859,17 @@ class SmrVideoAligner(object):
         filename, outfolder = folders
         self.filename = filename
         self.outfolder = outfolder
-        print 'read smr file'
+        print('read smr file')
         self.elphys_timeseries, self.elphys_signal = self.read_smr_file(filename, outfolder)
-        print 'reading video file'
+        print('reading video file')
         framefiles = self.read_video(filename, fps)
         if framefiles is not None:
             self.video_traces = numpy.array(map(self.process_frame, framefiles))
         if 0:
             self.detect_motion(framefiles)
-        print 'saving data'
+        print('saving data')
         self.save()
-        print 'deleting temporary files'
+        print('deleting temporary files')
         self.cleanup()
         
     def cleanup(self):
@@ -869,7 +920,7 @@ class SmrVideoAligner(object):
             self.video_time_series = numpy.arange(len(self.frame_files),dtype=numpy.float)/videofile.get_fps(avi_file[0])
             return self.frame_files
         else:
-            print 'No avi file found for ' + filename
+            print('No avi file found for ' + filename)
             
     def save(self):
         from pylab import plot,clf,savefig,legend,xlabel
@@ -976,10 +1027,10 @@ def detect_cells(rawdata, scale, cell_size):#This concept does not work
     background_mask = (gaussian_filtered==0)
     eroded_background_mask = binary_erosion(background_mask, structure=neighborhood, border_value=1)
     centers = numpy.array(numpy.nonzero(local_max - eroded_background_mask)).T
-    print 'Found {0} maximums'.format(centers.shape[0])
+    print('Found {0} maximums'.format(centers.shape[0]))
     cell_rois = []
     if centers.shape[0]>200 and mip.max()<200:
-        print 'the recording is probably just noise'
+        print('the recording is probably just noise')
         return mip, cell_rois
     for center in centers:
         distances = list(numpy.sqrt(((centers-center)**2).sum(axis=1)))
@@ -1046,7 +1097,7 @@ def get_data_timing(filename):
     imaging_time = imaging_time[:rawdata.shape[2]]
     block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
     if 'grating' not in filename.lower():
-        print 'Detect cells'
+        print('Detect cells')
         mip,cell_rois = detect_cells(rawdata, scale, 12)
         roi_curves = get_roi_curves(rawdata, cell_rois)
     h.quick_analysis = {}
@@ -1380,7 +1431,7 @@ class TestExperimentData(unittest.TestCase):
         h.prepare4analysis()
         h.close()
         
-    #@unittest.skip("")
+    @unittest.skip("")
     def test_11_caimgfile_convert(self):
         fn='/home/rz/mysoftware/data/mipexport/data_707-18daypostinfect-animal1-slice1-region8_rep3_1sStim_LedConfig_201702241318216.hdf5'
         fn='e:\\Zoltan\\1\\data_706-mouse1-slice1-reg1-rep1-500ms-1000mA_LedConfig_201703020938240.hdf5'
@@ -1403,6 +1454,13 @@ class TestExperimentData(unittest.TestCase):
         f =  fileop.listdir_fullpath(unittest_aggregator.prepare_test_data('yscanner', '/tmp/wf'))[0]
         import scipy.io
         yscanner2sync(scipy.io.loadmat(f)['recorded'][:,3])
+        
+    def test_14_mes2mat(self):
+        folder='/home/rz/mysoftware/data/mesfiles'
+        for f in os.listdir(folder):
+            if '.mes' in f:
+                print(f)
+                mes2mat(os.path.join(folder, f))
         
 def find_rois(meanimage):
     from skimage import filter
@@ -1492,13 +1550,14 @@ def hdf52mat(filename):
         else:
             rnt=rn
         mat_data[rnt]=h.findvar(rn)
-        if hasattr(mat_data[rnt], 'has_key') and len(mat_data[rnt].keys())==0:
+        if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
-    if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+    if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     h.close()
-    matfile=filename.replace('.hdf5', '_mat.mat')
+    matfile=fileop.replace_extension(add_mat_tag(filename), '.mat')
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
+    return matfile
     
 def read_sync(filename):
     h=hdf5io.Hdf5io(filename)
@@ -1517,11 +1576,29 @@ def roi_plot(pars):
     plot(roi['timg'], roi['raw'])
     xlabel('time [s]')
     ylabel('raw pixel')
-    for rect in range(roi['tsync'].shape[0]/2):
-        w=roi['tsync'][2*rect+1]-roi['tsync'][2*rect]
+    for rect in range(roi['tstim'].shape[0]/2):
+        w=roi['tstim'][2*rect+1]-roi['tstim'][2*rect]
         h=roi['raw'].max()-roi['raw'].min()
-        gca().add_patch(Rectangle((roi['tsync'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
+        gca().add_patch(Rectangle((roi['tstim'][rect*2], roi['raw'].min()), w, h,alpha=0.7, color=(0.9, 0.9, 0.9)))
     savefig(outfile)
+
+def cm2um(cm, config):
+    return cm*config.SCREEN_SIZE_UM['col']/config.SCREEN_WIDTH
+    
+def um2cm(um, config):
+    return um*config.SCREEN_WIDTH/config.SCREEN_SIZE_UM['col']
+    
+def cpd2um(cpd,retina_scale=30):
+    '''
+    Converts cycle per degree to um on retina considering retina_scale
+    retina_scale is in um (on retina) per degree
+    Output: spatial period in um
+    '''
+    return retina_scale/cpd
+    
+def um2cpd(um, retina_scale=30):
+    raise NotImplementedError('to be fixed')
+    return um/(360.*retina_scale)
 
 try:
     import paramiko
@@ -1576,6 +1653,55 @@ class RlvivoBackup(object):
             flinux='/'.join(f.replace('v:\\', '/mnt/datafast/').split('\\'))
             i,o,e=self.ssh.exec_command('cp {0} {1}'.format(flinux,self.target_dir))
             self.check_ssh_error(e)
+
+def mes2mat(filename):
+    from visexpA.engine.datahandlers import matlabfile
+    m=matlabfile.MatData(filename)
+    #Find the metadata field'd variable name
+    varnames=[k for k in m.raw_mat.keys() if 'D'==k[0]]
+    varnames.sort()
+    varname=varnames[0]
+    m.raw_mat['DATA']=m.raw_mat[varname]
+    dataout={}
+    nchannels=len(set([i[0] for i in m.raw_mat['DATA'][:]['Channel'][:,0]]))
+    for ch in range(m.raw_mat['DATA'].shape[0]):
+        m.raw_mat['DATA'][ch]['IMAGE'][0]=m.raw_mat[m.raw_mat['DATA'][ch]['IMAGE'][0][0]]
+    if m.raw_mat['DATA'][0]['Context'][0][0].lower()=='zstack':
+        rawdata=[]
+        zpositions_um=[]
+        rawdata=numpy.zeros((nchannels,m.raw_mat['DATA'].shape[0]/nchannels, m.raw_mat['DATA'][ch]['IMAGE'][0].shape[0],m.raw_mat['DATA'][ch]['IMAGE'][0].shape[1]), dtype=numpy.uint16)
+        for lev in range(m.raw_mat['DATA'].shape[0]/nchannels):
+            for ch in range(nchannels):
+                rawdata[ch,lev,:,:]=m.raw_mat['DATA'][nchannels*lev+ch]['IMAGE'][0]
+            zpositions_um.append(m.raw_mat['DATA'][nchannels*lev]['Zlevel'][0][0][0])
+        rawdata=numpy.array(rawdata)
+        zpositions_um=numpy.array(zpositions_um)
+        pixel_size_um=m.raw_mat['DATA'][0]['HeightStep'][0][0][0]
+        zstep_um=numpy.diff(zpositions_um)[0]
+        import tifffile
+        for ch in range(nchannels):
+            tifffile.imsave(filename.replace('.mes', '_{0}.tiff'.format(ch)), rawdata[ch], 
+                software='visexpman', description='pixel size: {0} um, z step: {1} um'.format(pixel_size_um, zstep_um))
+        pass
+    else:
+        rawdata=matlabfile.read_line_scan(m,read_red_channel=True)
+        pmt_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['UG'][0][0][0][0]
+        laser_percent = m.raw_mat['DATA'][0][0]['DevicePosition']['IM'][0][0][0][0]
+        pixel_size_um=m.raw_mat['DATA'][0]['TransverseStep'][0][0][0]
+        frame_time_ms=m.raw_mat['DATA'][0]['FoldedFrameInfo'][0][0]['frameTimeLength'][0][0][0]
+        frame_rate=1000/frame_time_ms
+        
+        dataout['data']=rawdata
+        dataout['pmt_percent']=pmt_percent
+        dataout['laser_percent']=laser_percent
+        dataout['frame_time_ms']=frame_time_ms
+        dataout['frame_rate']=frame_rate
+        dataout['pixel_size_um']=pixel_size_um
+        dataout['width_um']=pixel_size_um*rawdata.shape[0]*pixel_size_um
+        dataout['height_um']=pixel_size_um*rawdata.shape[1]*pixel_size_um
+        scipy.io.savemat(fileop.replace_extension(filename, '.mat'), dataout,do_compression=True)
+    
+
 
 if __name__=='__main__':
     unittest.main()

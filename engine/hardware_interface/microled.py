@@ -15,7 +15,7 @@ class MicroLEDArray(instrument.Instrument):
         s.prepare_stimulus(numpy.array(self.stimulus_bitmaps))
         while True:
             islast = s.update_uled(1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-            self._frame_trigger_pulse()
+            self._frame_timing_pulse()
             if islast:
                 break
         s.release_instrument()

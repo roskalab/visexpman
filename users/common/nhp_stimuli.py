@@ -160,7 +160,7 @@ class NHPBatch(experiment.Experiment):
     def run(self):
         block_names=['adaptation','moving_grating','moving_bar','marching_square']
         for bn in block_names:
-            print bn
+            print(bn)
             getattr(self, bn)()
             if self.abort:
                 break

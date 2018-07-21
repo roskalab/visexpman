@@ -36,7 +36,6 @@ class ProtocolDevelopment(VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE =  False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         
         #=== experiment specific ===
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
@@ -55,8 +54,8 @@ class ProtocolDevelopment(VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         
         #=== stage ===
         motor_serial_port = {
@@ -124,7 +123,6 @@ class LizardBehavioral(VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE =  False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         
         #=== experiment specific ===
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
@@ -136,8 +134,8 @@ class LizardBehavioral(VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         
         self.LASER_BEAM_CONTROL = {}
         self.LASER_BEAM_CONTROL['CHANNELS'] = '/Dev1/ao0:1'

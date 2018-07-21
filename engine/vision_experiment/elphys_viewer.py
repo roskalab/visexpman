@@ -498,9 +498,9 @@ class ElphysViewer(gui.SimpleAppWindow):
     def open_file(self, index):
         self.filename = gui.index2filename(index).replace('\\\\','\\')
         if os.path.isdir(self.filename): return#Double click on folder is ignored
-        ext = fileop.file_extension(self.filename)
+        ext = os.path.splitext(self.filename)[1]
         params=self.cw.params.get_parameter_tree(True)
-        if ext == 'raw':
+        if ext == '.raw':
             self.stimulus_name,self.stimulus_parameters=filename2stimulusname(self.filename)
             self.is_movingbar='movingbar' == self.stimulus_name
             self.ndirections=self.stimulus_parameters.get('ndirections',None)
@@ -607,7 +607,7 @@ class ElphysViewer(gui.SimpleAppWindow):
         data2save['fsample'] = self.fsample
         data2save['note'] = self.note
         data2save.update(self.filedata)
-        filename=self.filename.replace(fileop.file_extension(self.filename),'mat')
+        filename=fileop.replace_extension(self.filename, '.mat')
         self.matsaver=multiprocessing.Process(target=scipy.io.savemat,kwargs={'file_name':filename,'mdict':data2save,'oned_as':'column','do_compression':True})
         self.matsaver.start()
         self.matsaver_started=True

@@ -36,8 +36,6 @@ class ScreenTestSetup(VisionExperimentConfig):
         SCREEN_RESOLUTION = utils.cr([1920, 1080])
         ENABLE_FRAME_CAPTURE = True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
-        
         
         #=== Network ===
         ENABLE_UDP = False

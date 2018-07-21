@@ -135,7 +135,7 @@ class MovingGrating3(experiment.Experiment):
                                     starting_phase = phase+stimulus_unit['starting_phase'],
                                     color_contrast = stimulus_unit['color_contrast'])
                 #Show moving grating
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
                             orientation = orientation, 
@@ -144,7 +144,7 @@ class MovingGrating3(experiment.Experiment):
                             starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
                             color_contrast = stimulus_unit['color_contrast']
                             )
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 #Show static grating
                 if self.experiment_config.GRATING_STAND_TIME>0:
                     self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
@@ -178,7 +178,7 @@ class MovingGrating3(experiment.Experiment):
             s = MicroLEDArray(self.machine_config)
             for frame_i in range(len(self.stimulus_bitmaps)):
                 pixels = self.stimulus_bitmaps[frame_i]
-                s.display_pixels(pixels, 1/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-self.machine_config.FRAME_TRIGGER_PULSE_WIDTH)
+                s.display_pixels(pixels, 1/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-self.machine_config.FRAME_TIMING_PULSE_WIDTH)
                 self._frame_trigger_pulse()
             s.release_instrument()
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)

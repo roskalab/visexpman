@@ -118,7 +118,7 @@ class ProcessBehavioralData(object):
             speed_post= speed_post if speed_post>0 else 0
             speed_pre= speed_pre if speed_pre>0 else 0
             if speed_pre==0:
-                print speed_pre
+                print(speed_pre)
                 speed_change=0
             else:
                 speed_change=(speed_post-speed_pre)/speed_pre
@@ -196,14 +196,14 @@ def process_all(folder):
     for sig in animals.keys():
         for day in animals[sig]:
             signew=(sig[0], sig[1], os.path.basename(day))
-            print signew
+            print(signew)
             #if signew not in bp:continue
             p=ProcessBehavioralData(day,'StimStopReward')
             if hasattr(p, 'speed_change_vs_voltage'):
                 aggregated[signew]=p.speed_change_vs_voltage
                 aggregated_mean[signew]=numpy.array([[v, aggregated[signew][numpy.where(aggregated[signew]==v)[0],0].mean()] for v in list(set(aggregated[signew][:,1]))])
             else:
-                print 'ignored'
+                print('ignored')
     numpy.save('/tmp/aggregated.npy', utils.object2array(aggregated))
     numpy.save('/tmp/aggregated_mean.npy', utils.object2array(aggregated_mean))
 #TODO: nan in mean, ignore raw speed change value if it is nan
@@ -412,7 +412,7 @@ class LickSummary(object):
             latency=numpy.array([self.data[d][ti]['latency'] for ti in timestamps])
             if n==0:
                 successful_indexes=numpy.array([i for i in range(latency.shape[0]) if latency[i] !=numpy.inf])
-                print successful_indexes
+                print(successful_indexes)
                 if successful_indexes.shape[0]>0:
                     best_latencies=latency[successful_indexes]*1000
                     best_licks=numpy.array([[self.data[d][i]['Number of licks'], self.data[d][i]['Successful licks']] for i in timestamps[successful_indexes]])
@@ -443,7 +443,7 @@ def check_hitmiss_files(filename):
         files=[filename]
     for f in files:
         if len(files)>1:
-            print f
+            print(f)
         ishitmiss='hitmiss' in os.path.basename(filename).split('_')[1].lower()
         h=hdf5io.Hdf5io(f)
         map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat'])
@@ -493,7 +493,7 @@ class HitmissAnalysis(object):
         self.folder=folder
         self.filter=filter
         self.histogram_bin_time=histogram_bin_time*1e3
-        items_in_folder=fileop.listdir_fullpath(folder)
+        items_in_folder=[f for f in fileop.listdir_fullpath(folder) if os.path.splitext(f)[1]=='.hdf5' or os.path.isdir(f)]
         nsubfolders=len([f for f in items_in_folder if os.path.isdir(f)])
         nitems=len(items_in_folder)
         nfiles=nitems-nsubfolders
@@ -507,7 +507,7 @@ class HitmissAnalysis(object):
             self.analysis_type='all'
             self.all_animals()
         else:
-            raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}'.format(nfiles, nitems, nsubfolders))
+            raise RuntimeError('Unknown analysis, nfiles: {0}, nitems: {1}, nsubfolders: {2}, folder: {3}'.format(nfiles, nitems, nsubfolders, self.folder))
         
     def day_analysis(self,folder=None, filter=None):
         if isinstance(folder,str) and os.path.exists(folder):
@@ -640,88 +640,125 @@ class HitmissAnalysis(object):
             animal_success_rate[animal]=[days,success_rates]
         self.animal_success_rate=animal_success_rate
         return animal_success_rate
+        
+def extract_mouse_position(im, channel,threshold=100):
+    from pylab import imshow,show
+    import scipy.ndimage.measurements
+    #green channel seems the best for extracting brightest white point.
+#    from skimage.filters import threshold_otsu
+    green=im[:,:,channel]
+#    th=threshold_otsu(green)
+    mask=numpy.where(green>threshold,1,0)
+    if 0:
+        #Find biggest object
+        l,n=scipy.ndimage.measurements.label(mask)
+        if n==0:
+            return
+        biggest_object=numpy.array([numpy.where(l==i)[0].shape[0] for i in range(1,n+1)]).argmax()+1
+        mask=numpy.where(l==biggest_object,1,0)
+        
+    
+    x,y=numpy.nonzero(mask)
+    return x.mean(), y.mean()
 
 class TestBehavAnalysis(unittest.TestCase):
-        @unittest.skip('')
-        def test_01_lick_detection(self):
-            
-            folder='/tmp/behav'
-            
-            fns=[os.path.join(folder,f) for f in os.listdir(folder) if 'hdf5' in f]
-            fns.sort()
-            licks=hdf5io.read_item('/tmp/traces.hdf5','licks')
-            pp=not True
-            fsample=1000
-            threshold=0.25
-            max_width=0.1
-            min_width=0.01
-            mean_threshold=0.07
-            lick_wait_time=1
-            result=lick_detection_folder(folder,fsample,lick_wait_time,threshold,max_width,min_width,mean_threshold)
-            
+    @unittest.skip('')
+    def test_01_lick_detection(self):
+        
+        folder='/tmp/behav'
+        
+        fns=[os.path.join(folder,f) for f in os.listdir(folder) if 'hdf5' in f]
+        fns.sort()
+        licks=hdf5io.read_item('/tmp/traces.hdf5','licks')
+        pp=not True
+        fsample=1000
+        threshold=0.25
+        max_width=0.1
+        min_width=0.01
+        mean_threshold=0.07
+        lick_wait_time=1
+        result=lick_detection_folder(folder,fsample,lick_wait_time,threshold,max_width,min_width,mean_threshold)
+        
 
 
-            
+        
 
-    
-        @unittest.skip('')
-        def test_02_extract_speedchnage(self):
-            if 1:
-                process_all('/tmp/setup1')
-            #else:
-                plot_aggregated()
-            #s=ProcessBehavioralData('/mnt/data/behavioral/dasha/setup1/Rat465+910/m23_rplp_RE/20160802','StimStopReward')
-    
-        @unittest.skip('')
-        def test_03_blink_detect(self):
-            fn='/tmp/fear/data_FearResponse_1466414204.hdf5'
-            annotated = {
-                    'data_FearResponse_1466413859.hdf5': [582],
-                    'data_FearResponse_1466413981.hdf5': [233],
-                    'data_FearResponse_1466414084.hdf5': [59, 146, 299],#, 450, 590, 756, 895, 1049],
-                    'data_FearResponse_1466414204.hdf5': [41, 148, 271, 448, 743, 1056, 1272, 1303],
-                    'data_FearResponse_1466414305.hdf5': [130, 408, 436, 697, 738, 1028],
-                    'data_FearResponse_1466414405.hdf5': [6, 131, 338, 414, 430, 589, 681, 740, 781, 982, 1028, 1055, 1180, 1332, 1474],
-                    'data_FearResponse_1466414505.hdf5': [130, 253, 429, 727, 1027, 1147],
-                    'data_FearResponse_1466414606.hdf5': [123, 421, 727, 1018],
-                    'data_FearResponse_1466414706.hdf5': [138, 430, 731, 1040],
-                    'data_FearResponse_1466414806.hdf5': [134, 430, 730, 1034],
-                    'data_FearResponse_1466414907.hdf5': [129, 429, 727, 1034],
-                    'data_FearResponse_1466415007.hdf5': [120, 430, 720],
-                    'data_FearResponse_1466415107.hdf5': [175],
-                    }
 
-            folder='/tmp/fear'
-            #folder='/home/rz/temp/'
-            out='/tmp/out/'
-            fns=os.listdir(folder)
-            fns.sort()
-            for fn in fns:
-                if fn[-4:]!='hdf5':
-                    continue
-                print fn
-                of=None#os.path.join(out,fn)
-                with introspect.Timer():
-                    airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
-                    print is_blinked.sum()/float(is_blinked.shape[0])
-                    
-        @unittest.skip('')
-        def test_04_lick_summary(self):
-            folder='c:\\Users\\mouse\\Desktop\\Lick BL6\\October 2016\\m2_BL6_lp'
-            ls=LickSummary(folder,15)
-            
-        @unittest.skip('')
-        def test_05_check_hitmissfiles(self):
-            check_hitmiss_files('c:\\Data\\mouse\\test2\\20170114')
-            
-        #@unittest.skip('')
-        def test_06_hitmiss_analysis(self):
-            folder='c:\\Data\\raicszol\\data4plotdev'
-            folder='/tmp/data4plotdev'
-            h=HitmissAnalysis(folder)
-            h.add2day_analysis(h.alldatafiles[0])
-            #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
-            #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
+    @unittest.skip('')
+    def test_02_extract_speedchnage(self):
+        if 1:
+            process_all('/tmp/setup1')
+        #else:
+            plot_aggregated()
+        #s=ProcessBehavioralData('/mnt/data/behavioral/dasha/setup1/Rat465+910/m23_rplp_RE/20160802','StimStopReward')
+
+    @unittest.skip('')
+    def test_03_blink_detect(self):
+        fn='/tmp/fear/data_FearResponse_1466414204.hdf5'
+        annotated = {
+                'data_FearResponse_1466413859.hdf5': [582],
+                'data_FearResponse_1466413981.hdf5': [233],
+                'data_FearResponse_1466414084.hdf5': [59, 146, 299],#, 450, 590, 756, 895, 1049],
+                'data_FearResponse_1466414204.hdf5': [41, 148, 271, 448, 743, 1056, 1272, 1303],
+                'data_FearResponse_1466414305.hdf5': [130, 408, 436, 697, 738, 1028],
+                'data_FearResponse_1466414405.hdf5': [6, 131, 338, 414, 430, 589, 681, 740, 781, 982, 1028, 1055, 1180, 1332, 1474],
+                'data_FearResponse_1466414505.hdf5': [130, 253, 429, 727, 1027, 1147],
+                'data_FearResponse_1466414606.hdf5': [123, 421, 727, 1018],
+                'data_FearResponse_1466414706.hdf5': [138, 430, 731, 1040],
+                'data_FearResponse_1466414806.hdf5': [134, 430, 730, 1034],
+                'data_FearResponse_1466414907.hdf5': [129, 429, 727, 1034],
+                'data_FearResponse_1466415007.hdf5': [120, 430, 720],
+                'data_FearResponse_1466415107.hdf5': [175],
+                }
+
+        folder='/tmp/fear'
+        #folder='/home/rz/temp/'
+        out='/tmp/out/'
+        fns=os.listdir(folder)
+        fns.sort()
+        for fn in fns:
+            if fn[-4:]!='hdf5':
+                continue
+            print(fn)
+            of=None#os.path.join(out,fn)
+            with introspect.Timer():
+                airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
+                print(is_blinked.sum()/float(is_blinked.shape[0]))
+                
+    @unittest.skip('')
+    def test_04_lick_summary(self):
+        folder='c:\\Users\\mouse\\Desktop\\Lick BL6\\October 2016\\m2_BL6_lp'
+        ls=LickSummary(folder,15)
+        
+    @unittest.skip('')
+    def test_05_check_hitmissfiles(self):
+        check_hitmiss_files('c:\\Data\\mouse\\test2\\20170114')
+        
+    #@unittest.skip('')
+    def test_06_hitmiss_analysis(self):
+        folder='c:\\Data\\raicszol\\data4plotdev'
+        folder='/tmp/data4plotdev'
+        h=HitmissAnalysis(folder)
+        h.add2day_analysis(h.alldatafiles[0])
+        #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
+        #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
+        
+    def test_07_extract_mouse_position(self):
+        files=fileop.listdir_fullpath('/tmp/b')
+        from PIL import Image
+        coo=[]
+        files.sort()
+        for f in files:
+            with introspect.Timer():
+                res= extract_mouse_position(numpy.asarray(Image.open(f)))
+            if res!=None:
+                coo.append(res)
+        from pylab import plot,show
+        coo=numpy.array(coo)
+        plot(coo[:,0])
+        plot(coo[:,1])
+        show()
+        pass
 
 if __name__ == "__main__":
     unittest.main()

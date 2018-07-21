@@ -70,7 +70,6 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
         SCREEN_UM_TO_PIXEL_SCALE = 0.3
         MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #100
@@ -92,8 +91,8 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         #=== stage ===
         motor_serial_port = {
                                     'port' :  'COM1',
@@ -350,7 +349,6 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
         SCREEN_UM_TO_PIXEL_SCALE = 0.3
         MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #100
@@ -359,8 +357,8 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         #=== DAQ ===
         STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [

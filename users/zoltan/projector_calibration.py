@@ -38,7 +38,6 @@ class ProjectorCalibrationSetup(VisionExperimentConfig):
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
 
         #=== Network ===
         ENABLE_UDP = False

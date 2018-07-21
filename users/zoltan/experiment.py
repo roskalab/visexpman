@@ -16,3 +16,4 @@ class GratingExperiment(experiment.Experiment):
        self.show_grating(duration=self.experiment_config.DURATION,
            velocity=self.experiment_config.SPEED,
            white_bar_width=self.experiment_config.WHITE_BAR_WIDTH)
+

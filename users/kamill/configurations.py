@@ -31,13 +31,12 @@ class StimDev(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 1.65
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False#(self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'

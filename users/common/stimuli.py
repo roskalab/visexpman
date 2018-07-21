@@ -10,7 +10,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
 class MovingBarTemplate(experiment.Stimulus):
-    def default_stimulus_configuration(self):
+    def default_configuration(self):
         self.BAR_WIDTH=5.0
         self.BAR_HEIGHT=5.0
         self.SPEED=100
@@ -304,7 +304,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
 
 class LaserPulse(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.INITIAL_DELAY=10.0
         self.PULSE_DURATION=[20e-3]
         self.PERIOD_TIME=[10.0]
@@ -346,8 +346,19 @@ class LaserPulse(experiment.Stimulus):
         self.duration = self.combined_waveform.shape[1]/float(self.SAMPLE_RATE)
         
     def run(self):
+        self.check_frame_rate=False
         from visexpman.engine.hardware_interface import daq_instrument
         self.show_fullscreen(color=0.0,duration=0)
         self.block_start('laser')
         daq_instrument.set_waveform('Dev1/ao0:1',self.combined_waveform,sample_rate = self.SAMPLE_RATE)
         self.block_end('laser')
+
+class ShortTestStimulus(experiment.Stimulus):
+    def default_configuration(self):
+        self.DURATION=1.0
+        
+    def calculate_stimulus_duration(self):
+        self.duration = self.DURATION
+
+    def run(self):
+        self.show_fullscreen(duration=self.DURATION, color=0.5)

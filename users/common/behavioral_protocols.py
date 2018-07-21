@@ -94,7 +94,6 @@ class LickRandomLaser(HitMiss):
     ENABLE_RANDOM_LASER_INTENSITIES=True
     RANDOM_LASER_INTENSITIES=[0.9,1.1,1.3]
 
-
     
 class LickResponse(BehavioralProtocol):
     '''

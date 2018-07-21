@@ -8,11 +8,10 @@ class KarlWindowsConfig(Configuration.PresentinatorConfig):
         FULLSCR = True
         SCREEN_RESOLUTION = [1024,  768]
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0        
+        FRAME_TIMING_PIN = 0        
         EXPERIMENT_DATA_PATH = self.BASE_PATH + os.sep + 'data'
         LOG_PATH = self.BASE_PATH + os.sep + 'data'
         SCREEN_EXPECTED_FRAME_RATE = 75.0
-        SCREEN_MAX_FRAME_RATE = 75.0
         FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  'COM1',
                                     'baudrate' : 9600,

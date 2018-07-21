@@ -1,7 +1,10 @@
 import logging,platform
 import logging.handlers
 log = logging.getLogger('introspect')
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 from contextlib import contextmanager
 import inspect
 import time
@@ -13,9 +16,22 @@ import hashlib
 import weakref
 
 import subprocess, os, signal
-import numpy
 import psutil
 
+def base_classes(obj):
+    ref=obj.__class__
+    chain=[ref.__name__]
+    while True:
+        ref=getattr(ref, '__bases__')
+        if len(ref)>1 and 0:
+            raise NotImplementedError('Multiple inheratance detected')
+        n=', '.join([ref[i].__name__ for i in range(len(ref))])
+        ref=ref[0]
+        chain.append(n)
+        if ref.__name__=='object':
+            break
+    return chain
+        
 def visexpman2hash():
     from visexpman.engine.generic import fileop
     foldername=fileop.visexpman_package_path()
@@ -23,7 +39,7 @@ def visexpman2hash():
     for subfold in [os.path.join('users','common'), 'engine']:
         files.extend(fileop.find_files_and_folders(os.path.join(foldername, subfold))[1])
     sha=hashlib.sha256()
-    files=[sha.update(fileop.read_text_file(f)) for f in files if os.path.splitext(f)[1]=='.py']
+    files=[sha.update(fileop.read_text_file(f).encode('utf-8')) for f in files if os.path.splitext(f)[1]=='.py']
     return numpy.fromstring(sha.digest(), dtype=numpy.uint8)
     
 def mes2hash():
@@ -40,7 +56,12 @@ def cap_attributes2dict(obj):
     '''
     All attributes which are capitalized are returned as a dict
     '''
-    return dict([(vn, getattr(obj, vn)) for vn in dir(obj) if vn.isupper()])
+    values= dict([(vn, getattr(obj, vn)) for vn in dir(obj) if vn.isupper()])
+    if sys.version_info.major==3:
+        for k,  v in values.items():
+            if isinstance(v,  range):#In python3 range expressions are handled as iterators
+                values[k]=[i for i in v]
+    return values
 
 def get_available_process_cores():
     '''
@@ -107,7 +128,7 @@ def dumpall(fn):
                 f.write(object2str(o) + '\r\n\r\n=================================================\r\n')
         except:
             errct += 1
-    print errct
+    print(errct)
     f.close()
     
 
@@ -416,8 +437,11 @@ except NameError:  # no unicode() in Python 3.0
 u = u.encode('unicode-internal')  # see .../Lib/test/test_sys.py
 _sizeof_Cunicode = len(u)
 del u
-if (1 << (_sizeof_Cunicode << 3)) <= sys.maxunicode:
-    raise AssertionError('sizeof(%s) bad: %d' % ('unicode', _sizeof_Cunicode))
+try:
+    if (1 << (_sizeof_Cunicode << 3)) <= sys.maxunicode:
+        raise AssertionError('sizeof(%s) bad: %d' % ('unicode', _sizeof_Cunicode))
+except:
+    pass
 
 if hasattr(sys, 'maxsize'):  # new in Python 2.6
     Z = calcsize('Z')  # check sizeof(size_t)
@@ -2936,9 +2960,9 @@ class TransactionExample(TransactionBase):
 
     def do_rollback(self, auto):
         if auto:
-            print "auto rollback", self
+            print("auto rollback", self)
         else:
-            print "manual rollback", self
+            print("manual rollback", self)
         self.resource.close()
 ## end of http://code.activestate.com/recipes/519621/ }}}
 ## {{{ http://code.activestate.com/recipes/502283/ (r1)
@@ -3219,22 +3243,22 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                 if seen: write = 'write' in lockregistry[i] # this lock has been acquired for writing
                 else: write = False
             if seen and write:
-                print mn+threadid + ' tries to relock '+str(i)+ ' for '+L[1]+' that is locked for writing'
+                print(mn+threadid + ' tries to relock '+str(i)+ ' for '+L[1]+' that is locked for writing')
                 with QtCore.QReadLocker(locklock):
-                    print lockregistry
+                    print(lockregistry)
                 L[0].lockForWrite()
                 with QtCore.QWriteLocker(locklock):
                     lockregistry[i].append(L[1])
                     #raise RuntimeError(threadid + ' tries to relock '+str(i)+ ' that is locked for writing')
-                print inspect.stack()[2][3]
+                print(inspect.stack()[2][3])
 
             elif seen and L[1]=='read' and not write:
-                if debug: print mn+threadid + " reacquires "+str(i)+" for reading"
+                if debug: print(mn+threadid + " reacquires "+str(i)+" for reading")
                 L[0].lockForRead()
                 with QtCore.QWriteLocker(locklock):
                     lockregistry[i].append(L[1])
             elif seen and L[1]=='write' and not write:
-                print mn+threadid + ' tries to relock '+str(i)+ ' for writing that is locked for reading. This would block forever.'
+                print(mn+threadid + ' tries to relock '+str(i)+ ' for writing that is locked for reading. This would block forever.')
                 raise RuntimeError(mn+threadid + ' tries to relock '+str(i)+' for writing that is locked for reading. This would block forever.')
             elif not seen:
                 with QtCore.QWriteLocker(locklock):
@@ -3243,7 +3267,7 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                     L[0].lockForRead()
                 else:
                     L[0].lockForWrite()
-                if debug: print mn+ threadid + " locked "+str(i)+ " for "+L[1]
+                if debug: print(mn+ threadid + " locked "+str(i)+ " for "+L[1])
         yield
     finally:
         for lock in reversed(locks):
@@ -3256,7 +3280,7 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                     else:
                         lockregistry[i].pop()
                     if debug:
-                        print mn+threadid + " unlocked "+str(i)+ " for "+lock[1]
+                        print(mn+threadid + " unlocked "+str(i)+ " for "+lock[1])
 
 def nameless_dummy_object_with_methods(*methods):
     d = {}
@@ -3317,8 +3341,8 @@ class Timer(object):
 
     def __exit__(self, type, value, traceback):
         if self.name:
-            print '[%s]' % self.name,
-        print 'Elapsed: %s' % (time.time() - self.tstart)
+            print('[%s]' % self.name,)
+        print('Elapsed: %s' % (time.time() - self.tstart))
 
 def celery_available():
     try:
@@ -3446,7 +3470,7 @@ def import_code(code,name,add_to_sys_modules=0):
 
     module = imp.new_module(name)
 
-    exec code in module.__dict__
+    exec(code, module.__dict__)
     if add_to_sys_modules:
         sys.modules[name] = module
     return module
@@ -3469,6 +3493,52 @@ def string2objectreference(self, reference_string):
     else:
         return None
     
+class VerifyInstallation(object):
+    def __init__(self):
+        self.system=platform.system()
+        self.verify_modules()
+        self.verify_pygame()
+        self.verify_qt()
+        self.verify_serial()
+        self.verify_paramiko()
+        
+    def verify_modules(self):
+        expected_modules=['pygame', 'OpenGL', 'pyqtgraph', 'PyDAQmx', 'visexpman', 'zc.lockfile', 
+                    'serial', 'cv2', 'hdf5io', 'tables']
+        missing_modules=[]
+        for em in expected_modules:
+            try:
+                __import__(em)
+            except:
+                missing_modules.append(em)
+        if len(missing_modules)>0:
+            raise RuntimeError('Module(s) not installed: {0}'.format(', '.join(missing_modules)))
+        
+    def verify_serial(self):
+        import serial
+        if self.system=='Linux':
+            port='/dev/ttyUSB0'
+            return
+        elif self.system=='Windows':
+            port='COM1'
+        s=serial.Serial(port,timeout=1)
+        s.write('test')
+        time.sleep(0.3)
+        s.close()
+        
+    def verify_paramiko(self):
+        import fileop,tempfile
+        path='v:\\' if self.system=='Windows' else '/mnt/datafast'
+        pw=fileop.read_text_file(os.path.join(path, 'codes','jobhandler','pw.txt')).title()
+        fileop.download_folder('rldata.fmi.ch', 'mouse', '/data/software/rldata/visexpman', tempfile.gettempdir(), password=pw)
+        
+    def verify_pygame(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        stimulation_tester('zoltan', 'StimulusDevelopment', 'ShortTestStimulus')
+
+    def verify_qt(self):
+        from visexpman.engine.generic import gui
+        gui=gui.SimpleAppWindow()
   
 import unittest
 class TestUtils(unittest.TestCase):
@@ -3490,6 +3560,13 @@ class TestUtils(unittest.TestCase):
                 alist.list = [1,3,4,5]
             result.append(item)
         self.assertEqual(result,[1,2,1,3,4,5])
+        
+    def test_03_installation_tester(self):
+        VerifyInstallation()
+        
+        
+        
+        pass
         
     def test_flatten(self):
         a = []

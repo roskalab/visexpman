@@ -1,6 +1,4 @@
 import os
-import os.path
-import numpy
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment.configuration import ElectroporationConfig
 
@@ -9,48 +7,64 @@ class ElectroporationSetup228Config(ElectroporationConfig):
     '''
     def _set_user_parameters(self):
         root_folder = 'o:\\'
+        if not  os.path.exists(root_folder):
+            import tempfile
+            root_folder=tempfile.gettempdir()
         LOG_PATH = os.path.join(root_folder, 'log')
         if not os.path.exists(LOG_PATH):
             os.mkdir(LOG_PATH)
         DATA_PATH = root_folder
+        CONTEXT_PATH=root_folder
         EXPERIMENT_DATA_PATH = root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         
         #=== screen ===
         FULLSCREEN = True
-        SCREEN_RESOLUTION = utils.cr([1024,768])
-        COORDINATE_SYSTEM='ulcorner'
-        gamma_values= numpy.array([0.000707026,0.0007070262,0.001148917,0.003137428,0.007821476,0.017366328,0.026336721,
-            0.036632788,0.045338047,0.059080866,0.079982324,0.101634998,0.130799823,0.165709236,
-            0.205921343,0.250110473,0.302695537,0.365444101,0.432611578,0.507291206,0.599646487,
-            0.702165267,0.807777287,0.926646045,1,1.0000000001,1.000000002])
-        x_axis = numpy.arange(0,  255, 10)
-        x_axis = x_axis.tolist()
-        x_axis.append(255)
-        GAMMA_CORRECTION = numpy.array([x_axis, gamma_values]).T
+        SCREEN_RESOLUTION = utils.cr([1280,768])
+        COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0      
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = 340.0#mm
-        SCREEN_PIXEL_WIDTH = 0.46#50 pixels = 23 mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = 135.0#mm
+        SCREEN_PIXEL_WIDTH = 0.38#50 pixels = 19 mm
         
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = (os.name == 'nt')
+        DIGITAL_IO_PORT='COM3'
+        CAMERA_IO_PORT='COM4'
+        self.CAMERA_TRIGGER_FRAME_RATE=25 #right now cant go above 12/13 hz
+        self.CAMERA_TRIGGER_PIN=5
+        self.CAMERA_PRE_STIM_WAIT=5.0
+        self.CAMERA_POST_STIM_WAIT=5.0
         ACQUISITION_TRIGGER_PIN = 0
-        BLOCK_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 2
-        EXPERIMENT_START_TRIGGER = 11
+        BLOCK_TIMING_PIN = 0
+        FRAME_TIMING_PIN = 1
+        STIM_START_TRIGGER_PIN = 0
+        WAIT4TRIGGER_ENABLED = True
         self._create_parameters_from_locals(locals())
 
-class DebugElectroporationSetup228Config(ElectroporationSetup228Config):
+class DebugEposConfig(ElectroporationSetup228Config):
     def _set_user_parameters(self):
         ElectroporationSetup228Config._set_user_parameters(self)
-#        SCREEN_UM_TO_PIXEL_SCALE = 1.0
-#        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = True
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
-                                    'next': {'key': 'n', 'domain': ['running experiment']},}
+        self.FULLSCREEN = False
+        self.WAIT4TRIGGER_ENABLED=False
+        self.CAMERA_TRIGGER_FRAME_RATE=10.0
+        
+class DevelopEposLinuxConfig(ElectroporationSetup228Config):
+    def _set_user_parameters(self):
+        ElectroporationSetup228Config._set_user_parameters(self)
+        self.FULLSCREEN = False
+        self.WAIT4TRIGGER_ENABLED=False
+        self.CAMERA_TRIGGER_FRAME_RATE=10
+        self.DIGITAL_IO_PORT='/dev/ttyUSB0'
+        self.CAMERA_IO_PORT='/dev/ttyACM0'
+        self.INJECT_START_TRIGGER=True
+        
+class DevelopEposConfig(ElectroporationSetup228Config):
+    def _set_user_parameters(self):
+        ElectroporationSetup228Config._set_user_parameters(self)
+        self.FULLSCREEN = False
+        self.CAMERA_TRIGGER_FRAME_RATE=10
+        self.SCREEN_RESOLUTION = utils.cr([1280/2,768/2])
+        self.WAIT4TRIGGER_ENABLED=False
+        
 
-#        FULLSCREEN = False
-#        self.EXPERIMENT_START_TRIGGER_TIMEOUT = 1.0
-        self._create_parameters_from_locals(locals())

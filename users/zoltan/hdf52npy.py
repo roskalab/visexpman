@@ -44,7 +44,7 @@ def tree2npy(src,dst):
     files=fileop.find_files_and_folders(src)[1]
     files.sort()
     for f in files:
-        print f
+        print(f)
         dfolder=os.path.dirname(f.replace(src,dst))
         if not os.path.exists(dfolder):
             os.makedirs(dfolder)
@@ -57,7 +57,7 @@ def npy2tree(src,dst):
     files=fileop.find_files_and_folders(src)[1]
     files.sort()
     for f in files:
-        print f
+        print(f)
         dfolder=os.path.dirname(f.replace(src,dst))
         if not os.path.exists(dfolder):
             os.makedirs(dfolder)

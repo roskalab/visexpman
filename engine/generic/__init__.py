@@ -1,3 +1,4 @@
+#TODO: Functions obsolete or has to be reworked
 import numpy
 try:
     import Image
@@ -9,8 +10,6 @@ except ImportError:
     from PIL import ImageFont
 
 import os
-if 0:
-    from visexpA.engine.dataprocessors import generic
 import unittest
 import itertools
     
@@ -110,7 +109,7 @@ class Test(unittest.TestCase):
 #            im.save('/home/zoltan/visexp/debug/scalebar.png')
 #    
     def test_03(self):
-        print expspace(0,  10,  4)
+        print(expspace(0,  10,  4))
     
 if __name__ == '__main__':
     unittest.main()

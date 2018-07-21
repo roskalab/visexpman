@@ -13,7 +13,6 @@ class MEASetup(HiMEAConfig):#Hierlemann machine config
         SCREEN_RESOLUTION = [1680,   1050]
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 30.0
-        SCREEN_MAX_FRAME_RATE = 30.0
 
         PLATFORM = 'smallapp'
         SMALLAPP = {'NAME': 'Flowmeter logger',  'POLLER':'FlowmeterPoller'}
@@ -51,7 +50,7 @@ class MEASetup(HiMEAConfig):#Hierlemann machine config
         
         ENABLE_PARALLEL_PORT = True
         #ACQUISITION_TRIGGER_PIN = 4 # we have to start the measurements by hand
-        FRAME_TRIGGER_PIN = 6
+        FRAME_TIMING_PIN = 6
         GAMMA = 1.0
         ENABLE_FILTERWHEEL = True
 
@@ -85,7 +84,6 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 0.384 #how much u is one px; if 1 micron is 1 pixel, TO USE PIXELS
         
         #=== hardware === SETTING TTL 
@@ -94,7 +92,7 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
         ACQUISITION_START_PIN = [0, [0,8]]
         # ACQUISITION_TRIGGER_PIN = 5 # THIS IS FOR STARTING RECORDING; not physical pin but data port # not used: we have to start recordings by hand
         ACQUISITION_STOP_PIN = 1 # THIS IS FOR STOP THE RECORDING; not physical pin but data port
-        FRAME_TRIGGER_PIN = 3 # THIS IS IMPORTANT FOR STIM OPTICS; not physical pin but data port
+        FRAME_TIMING_PIN = 3 # THIS IS IMPORTANT FOR STIM OPTICS; not physical pin but data port
         USER_PIN = [2, [0,8]]
         # valt user pin 5 frame trigger 6 aztan vissza
         # classical parallel port pin numbering
@@ -142,7 +140,7 @@ class PetersConfig(HiMEAConfig):
     
     def _set_user_specific_parameters(self):
         # ACQUISITION_TRIGGER_PIN = 4 # we have to start the measurements by hand
-        FRAME_TRIGGER_PIN = 6
+        FRAME_TIMING_PIN = 6
         RUN_MODE = 'user interface'
         LOG_PATH = '../data'
         EXPERIMENT_DATA_PATH = '../data'
@@ -154,7 +152,6 @@ class PetersConfig(HiMEAConfig):
         SCREEN_RESOLUTION = [1680,   1050]
         ENABLE_FRAME_CAPTURE = False
         
-        SCREEN_EXPECTED_FRAME_RATE = 30.0
         SCREEN_MAX_FRAME_RATE = 30.0
         FRAME_WAIT_FACTOR = 0.7
 

@@ -1,12 +1,12 @@
 from __future__ import generators
 import numpy
 import unittest
-import utils
+
 from PIL import Image
 from visexpman.engine.generic.utils import nan2value
 from scipy.ndimage.interpolation import shift, rotate
 from visexpman.engine.generic.utils import nd, rc, cr
-
+from visexpman.engine import utils
 ## {{{ http://code.activestate.com/recipes/117225/ (r2)
 # convex hull (Graham scan by x-coordinate) and diameter of a set of points
 # David Eppstein, UC Irvine, 7 Mar 2002
@@ -69,15 +69,15 @@ def Haffine_from_points(fp,tp):
     fp=numpy.array(fp)
     tp=numpy.array(tp)
     if fp.shape != tp.shape:
-        raise RuntimeError, 'number of points do not match'
+        raise RuntimeError('number of points do not match')
     if fp.shape[0]!=2 and fp.shape[1]==2:
         fp = fp.T
     if fp.shape[0]!=2:
-        raise RuntimeError,'points must be given as a 2,n array'
+        raise RuntimeError('points must be given as a 2,n array')
     if tp.shape[0]!=2 and tp.shape[1]==2:
         tp = tp.T
     if tp.shape[0]!=2:
-        raise RuntimeError,'points must be given as a 2,n array'
+        raise RuntimeError('points must be given as a 2,n array')
     fp = numpy.r_[fp,numpy.ones((1,fp.shape[1],))]
     tp = numpy.r_[tp,numpy.ones((1,tp.shape[1],))]
     #condition points
@@ -301,7 +301,7 @@ def is_point_in_polygon(point, polygon):
     Assuming that the point and the polygon are in the same plane
     '''
     debug = False
-    if debug: print '---------------------------'
+    if debug: print('---------------------------')
     testing_ray_starting_point = point
     testing_ray_direction = polygon[0] - point
     testing_ray_directions = [testing_ray_direction, -testing_ray_direction]
@@ -321,8 +321,8 @@ def is_point_in_polygon(point, polygon):
             #intersection is appended if that value is not yet in the list. This is necessary because ray points to one of the vertexes and that vertex is 
             #the endpoint of two line segments and therefore that would result a redundant intersection
             
-            if debug: print polygon[i], polygon[index], testing_ray_direction, testing_ray_starting_point, intersection
-            if debug: print '\n'
+            if debug: print(polygon[i], polygon[index], testing_ray_direction, testing_ray_starting_point, intersection)
+            if debug: print('\n')
             if len(intersections) == 0 and intersection_exists:
                 intersections.append(intersection)
             elif len(intersections) != 0 and intersection_exists:
@@ -491,10 +491,10 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
             intersection_exists = True
 
         if debug:
-            print line1_closest_point
-            print line2_closest_point
-            print distance_between_lines
-            print intersection
+            print(line1_closest_point)
+            print(line2_closest_point)
+            print(distance_between_lines)
+            print(intersection)
         
     return intersection_exists, intersection
         
@@ -516,7 +516,7 @@ def line_intersection_old(line1_point, line1_direction, line2_point, line2_direc
     # distance = (a-c) dot (bxd) / |bxd| where a and c are arbitrary points of the lines, b and d are the direction vectors
     dir_cross = numpy.cross(line1_direction, line2_direction)
     distance_between_lines = numpy.dot((line1_point - line2_point), dir_cross) / numpy.sqrt((dir_cross ** 2).sum())
-    print distance_between_lines
+    print(distance_between_lines)
     
     if are_vectors_parallel(line1_direction, line2_direction):
         intersection_exists = False
@@ -529,7 +529,7 @@ def line_intersection_old(line1_point, line1_direction, line2_point, line2_direc
             result = numpy.asarray(result).reshape(-1)
             z1 = line1_point[2] + line1_direction[2] * result[0]
             z2 = line2_point[2] + line2_direction[2] * result[1]
-            if debug: print 'z: %f,%f'%(z1, z2)
+            if debug: print('z: %f,%f'%(z1, z2))
             if abs(z1 - z2) > tolerance:
                 intersection_exists = False
             else:
@@ -547,7 +547,7 @@ def line_intersection_old(line1_point, line1_direction, line2_point, line2_direc
                 result = numpy.asarray(result).reshape(-1)
                 y1 = line1_point[1] + line1_direction[1] * result[0]
                 y2 = line2_point[1] + line2_direction[1] * result[1]
-                if debug: print 'y: %f,%f'%(y1, y2)
+                if debug: print('y: %f,%f'%(y1, y2))
                 if abs(y1 - y2) > tolerance:
                     intersection_exists = False
                 else:
@@ -564,7 +564,7 @@ def line_intersection_old(line1_point, line1_direction, line2_point, line2_direc
                     result = numpy.asarray(result).reshape(-1)
                     x1 = line1_point[0] + line1_direction[0] * result[0]
                     x2 = line2_point[0] + line2_direction[0] * result[1]
-                    if debug: print 'x: %f,%f'%(x1, x2)
+                    if debug: print('x: %f,%f'%(x1, x2))
                     if abs(x1 - x2) > tolerance:
                         intersection_exists = False
                     else:
@@ -910,7 +910,7 @@ def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100))
     for i in range(len(active_pixel_mask)):
         if active_pixel_mask[i] == 1:
             circle[coords[0][i], coords[1][i]] = color
-    return circle 
+    return circle
     
 def numpy_circles(radii,  centers,  array_size,  colors = None):
     if 0:
@@ -1625,7 +1625,7 @@ if __name__ == "__main__":
 #    print line_intersection(test_data[index]['line1_point'], test_data[index]['line1_direction'], test_data[index]['line2_point'], test_data[index]['line2_direction'])
     vector = numpy.array([0, 0, 1])
     angle = numpy.array([45, 45, 0])
-    print rotate_vector(vector, angle * numpy.pi/180.0)
+    print(rotate_vector(vector, angle * numpy.pi/180.0))
     
 
 if __name__ == '__main__':

@@ -1,22 +1,29 @@
 '''
 generic.gui module has generic gui widgets like labeled widgets. It also contains some gui helper function
 '''
-import os.path
+import os
 import numpy
-import time
-import copy,Queue,logging,tempfile
-import PyQt4.Qt as Qt
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
+import time,unittest
+import copy,logging,tempfile
+try:
+    import Queue
+    import PyQt4.Qt as Qt
+    import PyQt4.QtGui as QtGui
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import queue as Queue
+    import PyQt5.Qt as Qt
+    import PyQt5.QtGui as QtGui
+    import PyQt5.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal,introspect
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import traceback,sys,Queue
+import traceback,sys
 
 def excepthook(excType, excValue, tracebackobj):
     msg='\n'.join(traceback.format_tb(tracebackobj))+str(excType.__name__)+': '+str(excValue)
-    print msg
+    print(msg)
     error_messages.put(msg)
     
 sys.excepthook = excepthook
@@ -55,13 +62,13 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.error_timer.start(200)
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
-        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        self.timer.timeout.connect(self.check_queue)
         
     def check_queue(self):
         pass
 
-    def _set_window_title(self, animal_file=''):
-        self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''))
+    def _set_window_title(self, animal_file='', tag=''):
+        self.setWindowTitle('{0}{1}' .format(utils.get_window_title(self.machine_config), ' - ' + animal_file if len(animal_file)>0 else ''+tag))
         
     def _add_dockable_widget(self, title, position, allowed_areas, widget):
         dock = QtGui.QDockWidget(title, self)
@@ -135,6 +142,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         
     def closeEvent(self, e):
         e.accept()
+        print('close event')
         self.exit_action()
 
 class SimpleAppWindow(Qt.QMainWindow):
@@ -299,7 +307,7 @@ class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
             selfw = parent.parent
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy}, text = 'self: main gui widget, numpy, utils, fileop, signal')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os}, text = 'self: main gui widget, numpy, utils, fileop, signal, os')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
@@ -346,7 +354,8 @@ class ParameterTable(ParameterTree):
             return values, paths, refs
 
 class AddNote(QtGui.QWidget):
-    def __init__(self, parent,text):
+    def __init__(self, parent,text,togui_queue):
+        self.togui_queue=togui_queue
         QtGui.QWidget.__init__(self, parent)
         self.text=QtGui.QTextEdit(self)
         self.text.setPlainText(text)
@@ -361,11 +370,14 @@ class AddNote(QtGui.QWidget):
         self.l.addWidget(self.text, 0, 0, 1, 1)
         self.l.addWidget(self.save, 0, 1, 1, 1)
         self.setLayout(self.l)
-        self.connect(self.save, QtCore.SIGNAL('clicked()'), self.save_note)
+        self.save.clicked.connect(self.save_note)
         self.show()
         
     def save_note(self):
-        self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
+        if QtCore.QT_VERSION_STR[0]=='5':
+            self.togui_queue.put({'save_comment':str(self.text.toPlainText())})
+        else:
+            self.emit(QtCore.SIGNAL('addnote'),str(self.text.toPlainText()))
         self.close()
             
 class TextOut(QtGui.QTextEdit):
@@ -621,7 +633,10 @@ class FileTree(QtGui.QTreeView):
         self.model = QtGui.QFileSystemModel(self)
         self.setModel(self.model)
         self.set_root(root)
-        self.model.setNameFilters(QtCore.QStringList(filterlist))
+        if hasattr(QtCore, 'QStringList'):
+            self.model.setNameFilters(QtCore.QStringList(filterlist))
+        else:
+            self.model.setNameFilters(filterlist)
         self.model.setNameFilterDisables(False)
         self.hideColumn(2)
         self.setColumnWidth(0,350)
@@ -631,7 +646,7 @@ class FileTree(QtGui.QTreeView):
 #        self.connect(self.selectionModel(), QtCore.SIGNAL('itemClicked(int)'), self.test)
         
     def test(self,i):
-        print self.model.filePath(self.currentIndex())
+        print(self.model.filePath(self.currentIndex()))
         
     def set_root(self,root):
         self.setRootIndex(self.model.setRootPath( root ))
@@ -738,10 +753,12 @@ class LabeledComboBox(QtGui.QWidget):
     Default value in input field:
         self.input.setText(TEXT)
     '''
-    def __init__(self, parent, label,items=None):
+    def __init__(self, parent, label,items=None,editable=False):
         QtGui.QWidget.__init__(self, parent)
         self.label = label
         self.create_widgets()
+        if editable:
+            self.input.setEditable(editable)
         self.create_layout()
         if items is not None:
             self.update_items(items)
@@ -969,3 +986,80 @@ def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_
 
 def get_combobox_items(combobox):
     return [str(combobox.itemText(i)) for i in range(combobox.count())]
+    
+def text_input_popup(self, title, name, callback):
+    self.w=QtGui.QWidget(None)
+    self.w.setWindowTitle(title)
+    self.w.setGeometry(50,50,400,100)
+    self.w.input=LabeledInput(self.w,name)
+    self.w.okbtn=QtGui.QPushButton('OK', parent=self.w)
+    self.w.l = QtGui.QGridLayout()
+    self.w.l.addWidget(self.w.input, 0, 0, 1, 1)
+    self.w.l.addWidget(self.w.okbtn, 1, 0, 1, 1)
+    self.w.setLayout(self.w.l)
+    self.w.connect(self.w.okbtn, QtCore.SIGNAL('clicked()'), callback)
+    self.w.show()
+
+class FileInput(Qt.QMainWindow):
+    def __init__(self, title,root='.',filter='*.*', mode='file', default='',message=''):
+        if QtCore.QCoreApplication.instance() is None:
+            self.qt_app = Qt.QApplication([])
+        Qt.QMainWindow.__init__(self)
+        self.setWindowTitle(title)
+        self.title=title
+        self.filter=filter
+        self.root=root
+        self.mode=mode
+        self.message=message
+        self.default=default
+        self.setGeometry(50,50,400,100)
+        self.timer=QtCore.QTimer()
+        self.timer.singleShot(50, self.popup)#ms
+        self.show()
+        if QtCore.QCoreApplication.instance() is not None:
+            QtCore.QCoreApplication.instance().exec_()
+            
+    def popup(self):
+        if self.mode=='file':
+            filename = str(QtGui.QFileDialog.getOpenFileName(self, self.title, self.root, self.filter))
+        elif self.mode=='files':
+            filename = map(str,QtGui.QFileDialog.getOpenFileNames(self, self.title, self.root, self.filter))
+        elif self.mode=='folder':
+            filename= str(QtGui.QFileDialog.getExistingDirectory(self, self.title, self.root))
+        elif self.mode=='text':
+            text, ok = QtGui.QInputDialog.getText(self, self.title, '', QtGui.QLineEdit.Normal, self.default)
+            self.text=str(text)
+        elif self.mode=='message':
+            QtGui.QMessageBox.question(self, self.title, self.message, QtGui.QMessageBox.Ok)
+        if self.mode not in ['text','message']:
+            if os.name=='nt':
+                if isinstance(filename,list):
+                    filename=[f.replace('/','\\') for f in filename]
+                else:
+                    filename=filename.replace('/','\\')
+            self.filename=filename
+        self.close()
+        
+def file_input(title='',root='.',filter='*.*', mode='file'):
+    g=FileInput(title, root, filter, mode)
+    print (g.filename)
+    return g.filename
+    
+def text_input(title='',default=''):
+    g=FileInput(title, mode='text',default=default)
+    print(g.text)
+    return g.text
+    
+def message(title,message):
+    g=FileInput(title, mode='message', message=message)
+
+class GuiTest(unittest.TestCase):
+    def test_01_ask4filename(self):
+        for m in ['files', 'file', 'folder']:
+            print(file_input('TEST', mode=m))
+            
+    def test_02_ask4number(self):
+        print(text_input('TEXT'))
+
+if __name__=='__main__':
+    unittest.main()

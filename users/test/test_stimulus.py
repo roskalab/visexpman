@@ -284,7 +284,7 @@ class TestStimulusBlocks(experiment.Experiment):
         for flipi, is_blocki, counti, frame_triggeri, color in itertools.product(*[flip, is_block, count, frame_trigger, self.experiment_config.COLORS]):
             if is_blocki and flipi:
                 ct+=1
-            self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flipi, count = counti, is_block = is_blocki, frame_trigger = frame_triggeri)
+            self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flipi, count = counti, is_block = is_blocki, frame_timing_pulse = frame_triggeri)
         params = [self.experiment_config.IMAGE_FOLDERS, self.experiment_config.IMAGE_STRETCHES, is_block]
         for path, stretch, is_block_i in itertools.product(*params):
             if is_block_i:
@@ -347,7 +347,7 @@ class TestGratingExp(experiment.Experiment):
         vertices = vertices.transpose()+250
         vertices = numpy.tile(vertices,(2,1))
         vertices[4:]-=100
-        print vertices
+        print(vertices)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         #self._init_texture(utils.rc((100,100)))
@@ -381,7 +381,7 @@ class TestGratingExp(experiment.Experiment):
 #            glBindTexture(GL_TEXTURE_2D, self.grating_texture)
 
 
-            self._flip(frame_trigger = True)
+            self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
         #self._deinit_texture()
@@ -391,7 +391,7 @@ class TestGratingExp(experiment.Experiment):
         #self.show_grating(duration = 10.0,  white_bar_width =1,velocity = 1.0,  color_contrast = 1.0,  color_offset = 0.5)
 
 class TestStim(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.DURATION=0.2
         
     def calculate_stimulus_duration(self):
@@ -401,7 +401,7 @@ class TestStim(experiment.Stimulus):
         self.show_fullscreen(color=1.0,duration=self.DURATION)
         
 class TestStim1(TestStim):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.DURATION=0.3
         
 class TestTimeIndexing(experiment.Stimulus):
@@ -436,7 +436,7 @@ class TestTimeIndexing(experiment.Stimulus):
         self.show_white_noise(duration, 100)
         t4=time.time()
         dts=numpy.array([moving_duration-(t1-t0),duration-(t2-t1),duration-(t4-t3),naturalbar_duration-(t3-t2)])
-        print dts*1000
+        print(dts*1000)
 
         if 0:
             self.show_image(framesfolder)

@@ -8,16 +8,16 @@ try:
     import pygame
     default_text=GLUT_BITMAP_TIMES_ROMAN_24
 except ImportError:
-    print 'opengl or pygame not intalled'
+    print('opengl or pygame not intalled')
     default_text=None
 
 from PIL import Image
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
+from visexpman.engine.generic import geometry
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
-ALTERNATIVE_TIMING = False
 
 def get_screen_size():
     import platform
@@ -97,7 +97,10 @@ class Screen(object):
                 glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
                 glEnable(GL_DEPTH_TEST)
                 self.scale_screen()
-        self.image_texture_id = glGenTextures(1)
+        try:
+            self.image_texture_id = glGenTextures(1)
+        except:
+            print('TODO: opengl calls do not work')
         self.initialization()
         
     def init_flip_variables(self):
@@ -205,7 +208,7 @@ class Screen(object):
         self.before_flip()
         #TODO: mac needs the delay
         if hasattr(self.config, 'INSERT_FLIP_DELAY') and self.config.INSERT_FLIP_DELAY:
-           if ALTERNATIVE_TIMING:
+           if self.config.ALTERNATIVE_TIMING:
                next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
                while True:
                    if next_flip_time <= time.time():
@@ -246,10 +249,10 @@ class Screen(object):
         self.frame_times.append(self.flip_time)
         
         if DISPLAY_FRAME_RATE:
-            print self.frame_rate
+            print(self.frame_rate)
         if DISPLAY_FRAME_DELAY:
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
-                print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
+                print(abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE))
         if self.config.ENABLE_FRAME_CAPTURE and self.start_frame_capture:
             if hasattr(self.config, 'CAPTURE_FORMAT'):
                 fileformat = self.config.CAPTURE_FORMAT
@@ -361,8 +364,12 @@ class Screen(object):
         im = Image.open(path)
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
             im = im.transpose(Image.FLIP_TOP_BOTTOM)
-        image = (numpy.cast['float'](numpy.asarray(im))/255.0)[:,:,:3]
+        image = (numpy.cast['float'](numpy.asarray(im))/255.0)
+        if image.shape[2]>3:
+            mask=numpy.where(image[:,:,3]>0, True, False)[:,:,numpy.newaxis]
+            image=image[:,:,:3]* mask
         self.render_image(image, position = position, stretch=stretch,position_in_pixel=False)
+        return image
         
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
@@ -405,7 +412,11 @@ class Screen(object):
         Saves actual frame in frame buffer to an image file
         '''
         pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
-        frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        try:
+            frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        except:
+            frame = Image.frombytes('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+            
         frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
         frame.save(path)
         
@@ -453,7 +464,7 @@ class Screen(object):
         
     #Additional helper functions
     def print_viewing_parameters(self):
-        print self.position,  self.heading,  self.roll, self.pitch
+        print(self.position,  self.heading,  self.roll, self.pitch)
         
     def keyboard_handler(self, key_pressed):
         '''
@@ -490,7 +501,7 @@ class Screen(object):
             self.scale = self.scale + self.scale_step
         elif key_pressed == '3':
             self.save_frame(fileop.generate_filename(self.config.CAPTURE_PATH + os.sep + 'capture.bmp'))
-            print 'frame saved'
+            print('frame saved')
         self.user_keyboard_handler(key_pressed)
         
     def user_keyboard_handler(self, key_pressed):
@@ -523,6 +534,13 @@ class Screen(object):
         glVertexPointerf(vertices)
         glDrawArrays(GL_POLYGON,  0, 6)
         glDisableClientState(GL_VERTEX_ARRAY)
+        
+    def draw_circle(self, size, position):
+        vertices=geometry.circle_vertices(size,  resolution = 1.0, pos = (position['row'],position['col']))
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glDrawArrays(GL_POLYGON,  0, vertices.shape[0])
+        glDisableClientState(GL_VERTEX_ARRAY) 
         
     def draw_square(self, size,position):
         width = size
@@ -562,6 +580,14 @@ def check_keyboard():
     
 def is_key_pressed(key):
     return key in check_keyboard()
+    
+def is_valid_frame_rate(fps_requested, fps_machine,threshold=0.1):
+    trequested=1.0/fps_requested
+    tmachine=1.0/fps_machine
+    frac=numpy.modf(trequested/tmachine)[0]
+    if frac>0.5:
+        frac=1-frac
+    return frac<threshold
 
 if __name__ == "__main__": 
     pass

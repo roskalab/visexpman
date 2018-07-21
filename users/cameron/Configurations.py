@@ -53,13 +53,12 @@ class Debug(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 1.5
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  (self.OS == 'win')
         ACQUISITON_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -148,13 +147,12 @@ class AEPHVS(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 1.5
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -230,7 +228,6 @@ class MEASetup(AEPHVS):
         SCREEN_RESOLUTION = utils.cr((1024, 768))
 #         SCREEN_RESOLUTION = utils.cr((1600, 1200))
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         SCREEN_UM_TO_PIXEL_SCALE = 1/2.47#Has to be adjusted
         ENABLE_UDP = False
         BACKGROUND_COLOR = [0.5,0.5,0.5]#[0.0,0.0,0.0]#[0.5,0.5,0.5]
@@ -243,7 +240,7 @@ class MEASetup(AEPHVS):
         EXPERIMENT_LOG_PATH = LOG_PATH
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 0
+        FRAME_TIMING_PIN = 0
         self.DAQ_CONFIG[0]['ENABLE'] = False
         self.DAQ_CONFIG[1]['ENABLE'] = False
         COLOR_MASK = numpy.array([1.0,  1.0,  1.0])

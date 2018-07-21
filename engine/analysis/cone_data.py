@@ -15,7 +15,7 @@ try:
     from visexpA.engine.dataprocessors import roi
     from visexpA.engine.dataprocessors import signal as signal2
 except ImportError:
-    print 'cell detector not installed'
+    print('cell detector not installed')
 
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
@@ -129,7 +129,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
     wrange = range(minsomaradius, maxsomaradius,stepsize)
     ims=signal.scale(im, 0.0, 1.0)
     res = roi.ratio_center_perimeter(ims, centers,  wrange)
-    maskcum = numpy.zeros_like(im1)
+    maskcum = numpy.zeros_like(im1,dtype=numpy.float)
     c=numpy.zeros_like(im1)
     soma_rois = []
     for i in range(res[1].shape[0]):
@@ -143,7 +143,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
         thresholded = numpy.where(masked<th*threshold_factor, 0, 1)
         labeled, nsegments = scipy.ndimage.measurements.label(thresholded)
         central_segment = numpy.where(labeled==labeled[roi_center[0],roi_center[1]],1,0)
-        if numpy.nonzero(central_segment)[0].shape[0] < 0.95*numpy.nonzero(mask)[0].shape[0]:#Valid roi
+        if  numpy.nonzero(central_segment)[0].shape[0] < 0.95*numpy.nonzero(mask)[0].shape[0]:#Valid roi
             soma_rois.append(numpy.array(zip(*numpy.nonzero(central_segment))))
     return soma_rois
     
@@ -276,14 +276,14 @@ def aggregate_cells(folder):
     aggregated_cells = []
     allhdf5files.sort()
     for hdf5file in allhdf5files:
-        print allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells)
+        print(allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells))
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
         fntags= experiment_data.parse_recording_filename(hdf5file)
         if fntags['id'] in skip_ids or not experiment_data.is_recording_filename(hdf5file):
             continue
         try:
             aggregated_rois = find_repetitions(hdf5file, folder, filter_by_stimulus_type = False)
-        except RuntimeError,e:
+        except RuntimeError as e:
             if 'does not contain rois' not in str(e):
                 raise e
             else:
@@ -364,8 +364,8 @@ def roi_redetect(rectangle, meanimage, subimage_size=3):
     #Take item in the center
     area=numpy.where(labeled==labeled[binary.shape[0]/2,binary.shape[1]/2])
     area=numpy.copy(area)
-    area[0]+=rectangle[0]-rectangle[2]*0.5*subimage_size
-    area[1]+=rectangle[1]-rectangle[3]*0.5*subimage_size
+    area[0]+=numpy.cast['int'](rectangle[0]-rectangle[2]*subimage_size*0.5)
+    area[1]+=numpy.cast['int'](rectangle[1]-rectangle[3]*subimage_size*0.5)
     return numpy.array(area).T
     
 class TestCA(unittest.TestCase):
@@ -500,7 +500,7 @@ class TestCA(unittest.TestCase):
         meanimage=roi['meanimage']
         area=roi_redetect(roi['rectangle'], meanimage, subimage_size=3)
         meanimage[area[:,0],area[:,1]]=meanimage.max()
-        print roi['rectangle']
+        print(roi['rectangle'])
         imshow(meanimage);show()
         pass
     

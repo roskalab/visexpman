@@ -1,15 +1,15 @@
-#This modules contains all the (stimulus) color related conversion, manipulation function
-#From utils all the color related functions shall be moved to here
+'''
+This modules contains all the (stimulus) color related conversion, manipulation function
+'''
 import numpy,random
-from PIL import Image
-    
-def imsave(imarray, filename):
-    imshow(imarray, False).save(filename)
 
 #== Computer graphics colors ==
 def convert_color(color, config = None):
     '''
-    Any color format (rgb, greyscale, 8 bit grayscale) is converted to visexpman rgb format
+    Any color format (rgb, greyscale, 8 bit grayscale) is converted to visexpman rgb format:
+    When integer value provided, it is assumed that max intensity is 255
+    Gamma correction is applied if config.GAMMA_CORRECTION exists
+    If config.COLOR_MASK exists, rgb values are multiplied with this parameters
     '''
     if (isinstance(color, list) and len(color) == 1) or (isinstance(color, numpy.ndarray) and color.shape[0] == 1):
         converted_color = [color[0], color[0], color[0]]
@@ -25,6 +25,7 @@ def convert_color(color, config = None):
         converted_color =config.GAMMA_CORRECTION(converted_color).tolist()
     return converted_color
 
+#OBSOLETE
 def convert_color_from_pp(color_pp):
     '''
     convert color from psychopy format to Presentinator default format (0...1 range)
@@ -33,7 +34,8 @@ def convert_color_from_pp(color_pp):
     for color_pp_channel in color_pp:
         color.append(0.5 * (color_pp_channel + 1.0))
     return color
-    
+
+#NOT USED, OBSOLETE
 def convert_int_color(color):
     '''
     Rgb color is converted to 8 bit rgb
@@ -45,7 +47,14 @@ def convert_int_color(color):
         
 def get_color(index):
     '''
-    
+    Generate a color:
+    index   color
+    0           red
+    1           green
+    2           blue
+    3           yellow
+    4           magenta
+    5           cyna
     '''
     c=numpy.array([1,0,0,
           0,1,0,
@@ -61,7 +70,8 @@ def get_color(index):
         
 def random_colors(n,  frames = 1,  greyscale = False,  inital_seed = 0):
     '''
-    Renerates random colors
+    Renerates random colors.
+    An array of rgb values are generated if frames>1
     '''    
     random.seed(inital_seed)
     col = []
@@ -145,6 +155,9 @@ def colorstr2channel(color_str):
     return color_strings.index(color_str.lower())
     
 def addframe(im, frame_color, width=1):
+    '''
+    Add frame to image represented by im in numpy.array format. The width of the frame is one pixel by default
+    '''
     im[:width,:,:]=frame_color
     im[-width,:,:]=frame_color
     im[:,:width,:]=frame_color

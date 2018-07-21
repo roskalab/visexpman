@@ -1,12 +1,11 @@
-import copy,visexpman
+import copy,visexpman,sys, multiprocessing
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
-import instrument
+from visexpman.engine.hardware_interface import instrument, digital_io
 import time
 import ctypes
 import os
-import os.path
 import unittest
 try:
     import cv2
@@ -196,7 +195,7 @@ class OpenCVCamera(VideoCamera):
                     break
             h1.flush()
             if self.debug and len(h1.root.timestamps)>1:
-                print 'frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(h1.root.rawdata),(h1.root.timestamps[-1]-h1.root.timestamps[0]),1.0/numpy.diff(h1.root.timestamps.read().flatten()).mean())
+                print('frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(h1.root.rawdata),(h1.root.timestamps[-1]-h1.root.timestamps[0]),1.0/numpy.diff(h1.root.timestamps.read().flatten()).mean()))
         grabber_handle.release()
         cv2.destroyWindow('preview')
         
@@ -208,8 +207,8 @@ def opencv_camera_runner(filename, duration, config):
     cam.close()
         
         
-class ImagingSourceCamera(VideoCamera):
-    def _init_camera(self):
+class ImagingSourceCamera(object):
+    def __init__(self,frame_rate, video_format='RGB24 (744x480)'):
         dllpath = os.path.join(os.path.dirname(visexpman.__file__),'engine', 'external','IC', 'tisgrabber_x64.dll')
         wd = os.getcwd()
         os.chdir(os.path.dirname(dllpath))
@@ -219,13 +218,14 @@ class ImagingSourceCamera(VideoCamera):
             raise RuntimeError('Initializing TIS library did not succeed')
         self.grabber_handle = self.dllref.IC_CreateGrabber()
         cam_name = 'DMK 22BUC03'
+        if sys.version_info.major==3:
+            cam_name=bytes(cam_name, 'utf-8')
         cam_name = ctypes.c_char_p(cam_name)
         if self.dllref.IC_OpenVideoCaptureDevice(self.grabber_handle, cam_name) != 1:
-            raise RuntimeError('Opening video capture device did not succeed')
-        if hasattr(self.config, 'VIDEO_FORMAT'):
-            self.video_format = ctypes.c_char_p(self.config.VIDEO_FORMAT)
-        else:
-            self.video_format = ctypes.c_char_p('RGB24 (744x480)')
+            raise RuntimeError('Opening camera did not succeed')
+        self.video_format = video_format
+        if sys.version_info.major==3:
+            self.video_format=bytes(self.video_format, 'utf-8')
         if self.dllref.IC_SetVideoFormat(self.grabber_handle,self.video_format) != 1:
             raise RuntimeError('Setting video format did not succeed')
         self.w = self.dllref.IC_GetVideoFormatWidth(self.grabber_handle)
@@ -233,10 +233,7 @@ class ImagingSourceCamera(VideoCamera):
         self.bytes_per_pixel = 3
         self.frame_size = self.h * self.w * self.bytes_per_pixel
         self.frame_shape = (self.h, self.w)
-        if hasattr(self.config, 'CAMERA_FRAME_RATE'):
-            self.frame_rate = self.config.CAMERA_FRAME_RATE
-        else:
-            self.frame_rate = 30.0
+        self.frame_rate = frame_rate
         self.set_framerate()
         self.snap_timeout = self.dllref.IC_GetFrameRate(self.grabber_handle)
 #        print self.dllref.IC_SetCameraProperty(self.grabber_handle, 4, ctypes.c_long(self.snap_timeout))#Exposure time
@@ -244,88 +241,177 @@ class ImagingSourceCamera(VideoCamera):
         self.frame_counter = 0
         self.framep = []
         self.frames = []
+        self.timestamps=[]
+        #disable triggering
+        if self.dllref.IC_EnableTrigger(self.grabber_handle,  0)!=1:
+            raise RuntimeError('Could not disable camera triggering')
+        self.get_frame_rates()
 #        self.video = numpy.zeros((1, self.h, self.w), numpy.uint8)
 
     def set_framerate(self):
         if self.dllref.IC_SetFrameRate(self.grabber_handle,  ctypes.c_float(self.frame_rate)) != 1:
             raise RuntimeError('Setting frame rate did not succeed')
+        fr=round(1000.0/self.dllref.IC_GetFrameRate(self.grabber_handle))
+        if fr !=self.frame_rate:
+            raise RuntimeError('{0} Hz requested, {1} Hz is possible'.format(self.frame_rate,  fr))
         
     def start(self, show=False):
         if not self.isrunning:
             if self.dllref.IC_StartLive(self.grabber_handle, int(show)) == 1:
                 self.isrunning = True
         else:
-            raise RuntimeError('Camera is alredy recording')
+            raise RuntimeError('Camera is already recording')
             
     def save(self):
         if self.dllref.IC_SnapImage(self.grabber_handle, int(self.snap_timeout)) == 1:
             addr = self.dllref.IC_GetImagePtr(self.grabber_handle)
-            p = ctypes.cast(addr, ctypes.POINTER(ctypes.c_byte))
-            buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(p.contents), self.frame_size)
+            if 0:
+                p = ctypes.cast(addr, ctypes.POINTER(ctypes.c_byte))
+                buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(p.contents), self.frame_size)
+            else:
+                a=self.frame_size*ctypes.c_byte
+                buffer=numpy.ctypeslib.as_array(a.from_address(addr))
             frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
             self.frames.append(frame)
-#            self.framep.append(p)
-
-            if False or (False and self.frame_rate <= 7.5):
-                image_path = ctypes.c_char_p('c:\\_del\\frame\\d{0}.jpeg'.format(self.frame_counter+1000))
-                self.dllref.IC_SaveImage(self.grabber_handle, image_path, 1, 90)
             self.frame_counter += 1
-#            import gc
-#            gc.collect
+            self.timestamps.append(time.time())
             time.sleep(1e-3)
+            return True
+        else:
+            return False
         
     def stop(self):
         if self.isrunning:
             self.isrunning = False
             self.dllref.IC_StopLive(self.grabber_handle)
             self.video = numpy.array(self.frames)
-#            if len(self.frames)>200:
-#                self.video = numpy.array(self.frames)
-#            else:
-#                self.video = numpy.concatenate(tuple(self.frames))
-#            self.video = numpy.array(self.frames)
-#            self.video = numpy.zeros((len(self.framep), self.h, self.w), numpy.uint8)
-#            for i in range(len(self.framep)):
-#                buffer = numpy.core.multiarray.int_asbuffer(ctypes.addressof(self.framep[i].contents), self.frame_size)
-#                self.video[i, :, :] = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
-#                self.video[i, :, :] = numpy.reshape(numpy.array(self.framep[i][0:frame_size])[::3], frame_shape)
-            return
-            import tiffile
-            from visexpman.engine.generic import fileop
-            tiffile.imsave(fileop.generate_filename('c:\\_del\\calib.tiff'), self.video, software = 'visexpman')
-            try:
-                import Image
-            except ImportError:
-                from PIL import Image
-            Image.fromarray(numpy.cast['uint8'](self.video.mean(axis=0))).show()
-            
+
     def close(self):
         self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
         self.dllref.IC_CloseLibrary()
         
+    def get_frame_rates(self):
+        val=ctypes.c_float()
+        p=ctypes.POINTER(ctypes.c_float)
+        frame_rates=[]
+        for i in range(10):
+            if self.dllref.IC_GetAvailableFrameRates(self.grabber_handle, int(i),  ctypes.byref(val))!=1:
+                break
+            frame_rates.append(val.value)
+        pass
+        
+    def mark_dropped_frames(self):
+        '''
+        Returns indexes of frames where there was a more than one frame shift in timestamps. Also returns the number of frames in the recording
+        '''
+        expected_frame_time=1000.0/self.frame_rate
+        dt=numpy.diff(self.timestamps)*1000
+        frame_steps=numpy.cast['uint8'](numpy.round(dt/expected_frame_time))
+        return numpy.where(frame_steps>1)[0].shape[0], dt.shape[0]+1
+        
 class ImagingSourceCameraSaver(ImagingSourceCamera):
-    def __init__(self,filename):
-        ImagingSourceCamera.__init__(self,None)
-        self.frame_rate=15.0
-        self.set_framerate()
+    def __init__(self,filename,frame_rate):
+        ImagingSourceCamera.__init__(self,frame_rate)
         self.filename=filename
         self.datafile=tables.open_file(filename, 'w')
         self.datafile.create_earray(self.datafile.root, 'ic_frames', tables.UInt8Atom((480, 744)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='blosc', shuffle = 1))
         self.datafile.create_earray(self.datafile.root, 'ic_timestamps', tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
+#        self.codec=self.dllref.IC_Codec_Create("MJPEG Compressor")
+#        self.dllref.IC_SetCodec(self.grabber_handle,self.codec)
+#        print(self.dllref.IC_SetAVIFileName(self.grabber_handle, filename+'.avi'))
+#IC_SetPropertySwitch(hGrabber,"Exposure","Auto",0);
         self.start()
         
     def save(self):
-        ImagingSourceCamera.save(self)
-        if  len(self.frames)>0:
+        if  ImagingSourceCamera.save(self):
+            return
             self.datafile.root.ic_timestamps.append(numpy.array([[time.time()]]))
             self.datafile.root.ic_frames.append(numpy.expand_dims(self.frames[-1],0))
             
     def stop(self):
         ImagingSourceCamera.stop(self)
+        res=self.mark_dropped_frames()
         self.datafile.close()
         self.close()
+        return res
         
-
+    def mark_dropped_frames(self):
+        expected_frame_time=1000.0/self.frame_rate
+        dt=numpy.diff(self.datafile.root.ic_timestamps.read().flatten())*1000
+        ic_frame_steps=numpy.cast['uint8'](numpy.round(dt/expected_frame_time))
+        self.datafile.create_array(self.datafile.root, 'ic_frame_steps',ic_frame_steps, 'Frame steps')
+        self.ic_frame_steps=ic_frame_steps
+        return numpy.where(ic_frame_steps>1)[0].shape[0], dt.shape[0]+1
+        
+class CameraRecorderProcess(multiprocessing.Process):
+    def __init__(self, frame_rate,  config=None):
+        self.command=multiprocessing.Queue(5)
+        self.data=multiprocessing.Queue(2)
+        self.frame=multiprocessing.Queue(10)
+        self.error=multiprocessing.Queue(2)
+        self.started=multiprocessing.Queue(1)
+        self.frame_rate=frame_rate
+        self.machine_config=config
+        multiprocessing.Process.__init__(self)
+        
+    def run(self):
+        try:
+            if self.machine_config!=None and not self.machine_config.CAMERA_TIMING_ON_STIM:
+                self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT)
+                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
+            self.cam=ImagingSourceCamera(self.frame_rate)
+            self.cam.start()
+            if 0 and hasattr(self,  'io'):
+                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  1)
+            self.started.put(True)
+            while True:
+                time.sleep(0.5/self.frame_rate)
+                self.cam.save()
+                if hasattr(self,  'io'):
+                    self.io.pulse(self.machine_config.CAMERA_TIMING_PIN,  5e-3)
+                if len(self.cam.frames)>0:
+                    self.frame.put(self.cam.frames[-1])
+                if not self.command.empty():
+                    if self.command.get()=='stop':
+                        self.cam.stop()
+                        break
+            if hasattr(self,  'io'):
+                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
+            if hasattr(self,  'io'):
+                self.io.close()
+            dropped_frames=self.cam.mark_dropped_frames()
+            data={'frames': self.cam.frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
+            self.data.put(data)
+            self.cam.close()
+        except:
+            import traceback
+            self.error.put(traceback.format_exc())
+        
+    def stop(self):
+        self.command.put('stop')
+        while self.data.empty():
+            pass
+        d=self.data.get()
+        if not self.error.empty():
+            return self.error.get()
+        return d
+        
+    def wait(self,  timeout=10):
+        '''
+        Waits for camera to start
+        '''
+        t0=time.time()
+        while True:
+            if not self.started.empty():
+                res=True
+                break
+            time.sleep(0.1)
+            if time.time()-t0>timeout:
+                res=False
+                break
+        return res
+                
+        
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):
 #        self.CAMERA_FRAME_RATE = 30.0
@@ -343,26 +429,69 @@ class TestCVCameraConfig(configuration.Config):
 
                 
 class TestCamera(unittest.TestCase):
-    #@unittest.skip('')
+    @unittest.skip('')
     def test_01_record_some_frames(self):
-        cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())))
-        cam.start()
+        fr=30
+        cam = ImagingSourceCameraSaver('c:\\temp\\{0}.hdf5'.format(int(time.time())),fr)
         time.sleep(0.2)
-        tacq=2.0
+        tacq=10
         t0=time.time()
         with Timer(''):
-            while cam.frame_counter < 24*tacq: 
+            while cam.frame_counter < fr*tacq: 
+                t1=time.time()
                 cam.save()
+                t2=time.time()
+                #tleft=1.0/fr-(t0-t1)
+                #time.sleep(tleft)
                 
-        cam.stop()
-        cam.close()
-        
-        print len(cam.frames)/(time.time()-t0)
-        print cam.frames[0].shape
+        print(cam.stop())
+        print([ cam.ic_frame_steps])
+        print(('frame rate',  len(cam.frames)/(time.time()-t0)))
+        print(cam.frames[0].shape)
+        pass
         
     @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
         simple_camera()
+
+    @unittest.skip('')      
+    def test_03_set_camera_exposure(self):
+        dllpath = os.path.join(os.path.dirname(visexpman.__file__),'engine', 'external','IC', 'tisgrabber_x64.dll')
+        wd = os.getcwd()
+        os.chdir(os.path.dirname(dllpath))
+        self.dllref = ctypes.windll.LoadLibrary(dllpath)
+        os.chdir(wd)
+        if self.dllref.IC_InitLibrary(None) != 1:
+            raise RuntimeError('Initializing TIS library did not succeed')
+        self.grabber_handle = self.dllref.IC_CreateGrabber()
+        cam_name = 'DMK 22BUC03'
+        if sys.version_info.major==3:
+            cam_name=bytes(cam_name, 'utf-8')
+        cam_name = ctypes.c_char_p(cam_name)
+        if self.dllref.IC_OpenVideoCaptureDevice(self.grabber_handle, cam_name) != 1:
+            raise RuntimeError('Opening camera did not succeed')
+        print(self.dllref.IC_StartLive(self.grabber_handle, int(0)))
+        self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
+        self.dllref.IC_CloseLibrary()
+        
+    def test_04_camera_process(self):
+        for i in range(3):
+            print(i)
+            c=CameraRecorderProcess(30)
+            c.start()
+            time.sleep(10)
+            res=c.stop()
+            print(res)
+            time.sleep(5)
+            while not c.frame.empty():
+                resf=c.frame.get()
+            print(c.frame.empty())
+            c.terminate()
+            c.join()
+        print('done')
+        import pdb
+        pdb.set_trace()
+        
         
 def simple_camera():
     import os
@@ -382,7 +511,7 @@ def threaded_camera():
     config = TestCVCameraConfig()
 #        cam = OpenCVCamera(config, debug=False)
     for i in range(1):
-        print i
+        print(i)
         if os.path.exists(p):
             os.remove(p)
 #            if os.path.exists(p+'.zip'):

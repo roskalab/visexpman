@@ -119,7 +119,7 @@ class StimulationScreen(graphics.Screen):
         commands.sort()
         for k in commands:
             self.menu_text+= '\n{0} - {1} '.format(self.config.KEYS[k], k)
-        if self.config.PLATFORM in ['hi_mea', 'standalone', 'intrinsic']:
+        if self.config.PLATFORM in ['behav', 'epos', 'hi_mea', 'standalone', 'intrinsic']:
             ct = 0
             for ec in self.experiment_configs:
                 self.menu_text+= '\n{0} - {1} '.format(ct, ec)
@@ -169,7 +169,7 @@ class StimulationScreen(graphics.Screen):
             elif self.bullseye_type == 'bullseye':
                 self.render_image(self.bullseye_image, position = self.stim_context['screen_center'], stretch = self.bullseye_stretch_factor*self.bullseye_size)
             elif self.bullseye_type == 'spot':
-                raise NotImplementedError('')
+                self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = self.stim_context['screen_center'])
             
     def refresh_non_experiment_screen(self, flip = True):
         '''

@@ -1,11 +1,17 @@
 #OBSOLETE
 import socket
-import Queue
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
 import sys
 import time
 import unittest
 import visexpman.engine.generic.configuration
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 import os
 import numpy
 try:
@@ -14,14 +20,13 @@ try:
     import simplejson
 except:
     pass
-import os.path
-import sys
 import threading
-import SocketServer
+try:
+    import SocketServer
+except ImportError:
+    import socketserver as SocketServer
 import random
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import log
-from visexpman.engine.generic import fileop
+from visexpman.engine.generic import utils,log,fileop
 import traceback
 try:
     from visexpman.users.test import unittest_aggregator
@@ -108,7 +113,7 @@ def ZeroMQPuller( port, queue=None, type='PULL', serializer='json', maxiter=floa
                             else:
                                 msg = self.client.recv()
                             if self.debug and self.threaded:
-                                print 'Poller received message:{0}'.format(msg)
+                                print('Poller received message:{0}'.format(msg))
                             if msg=='TERMINATE': # exit process via network 
                                 self.client.close()
                                 self.context.term()
@@ -134,7 +139,7 @@ def ZeroMQPuller( port, queue=None, type='PULL', serializer='json', maxiter=floa
             
             
         def close(self): #exit process if spawned on the same machine
-            print "Shutdown initiated"
+            print("Shutdown initiated")
             self.debug=1
             self.exit.set()
         
@@ -195,7 +200,7 @@ class CallableViaZeroMQ(threading.Thread, multiprocessing.Process):
         
     def run(self):
         if self.port is None:
-            print 'callable via zmq did not get a port number'
+            print('callable via zmq did not get a port number')
             return
         self.context=zmq.Context(1)
         self.server = self.context.socket(zmq.REP)
@@ -224,7 +229,7 @@ class CallableViaZeroMQ(threading.Thread, multiprocessing.Process):
                     cargo=blosc.pack_array(value)
                 self.server.send(cargo) 
             except Exception as e:
-                print e
+                print(e)
                 self.server.send('ERROR:'+ str(e))
                 
 class CallViaZeroMQ(object):
@@ -235,7 +240,7 @@ class CallViaZeroMQ(object):
         self.request_retries = request_retries
         
     def connect(self):
-        print "I: Connecting to server"
+        print("I: Connecting to server")
         self.client = self.context.socket(zmq.REQ)
         self.client.connect(self.server_endpoint)
         self.poll = zmq.Poller()
@@ -246,8 +251,8 @@ class CallViaZeroMQ(object):
         retries_left = self.request_retries
         request = [method_name, args, kwargs]
         while retries_left:
-            print "I: Sending request"
-            print request
+            print("I: Sending request")
+            print(request)
             self.client.send_json(request)
             expect_reply = True
             while expect_reply:
@@ -256,7 +261,7 @@ class CallViaZeroMQ(object):
                     reply = self.client.recv()
                     if not reply:
                         break
-                    print "I: Server replied "
+                    print("I: Server replied ")
                     if reply=='TERMINATED' or reply=='NONE': 
                         return
                     if 'ERROR' in reply: return reply
@@ -270,16 +275,16 @@ class CallViaZeroMQ(object):
                                 data=data[1]
                         return data
                 else:
-                    print "W: No response from server, retrying"
+                    print("W: No response from server, retrying")
                     # Socket is confused. Close and remove it.
                     self.client.setsockopt(zmq.LINGER, 0)
                     self.client.close()
                     self.poll.unregister(self.client)
                     retries_left -= 1
                     if retries_left == 0:
-                        print "E: Server seems to be offline, abandoning"
+                        print("E: Server seems to be offline, abandoning")
                         break
-                    print "I: Reconnecting and resending request"
+                    print("I: Reconnecting and resending request")
                     self.connect()
                     self.client.send_json(request)
 
@@ -304,7 +309,7 @@ class SockServer(SocketServer.TCPServer):
     def printl(self, message):        
         debug_message = self.name + ': ' + str(message)
         if DISPLAY_MESSAGE:
-            print time.time()-self.start_time, debug_message
+            print(time.time()-self.start_time, debug_message)
         if self.log_queue != None:
             self.log_queue.put([time.time(), debug_message], True)
         
@@ -483,7 +488,7 @@ class CommandRelayServer(object):
                 try:
                     self.log.info(packet)
                 except:
-                    print 'network: log error'
+                    print('network: log error')
                 debug_info.append(packet)
         return debug_info
         
@@ -517,7 +522,7 @@ class QueuedClient(QtCore.QThread):
     def printl(self, message):
         debug_message = str(message)
         if DISPLAY_MESSAGE:
-            print time.time()-self.start_time, debug_message
+            print(time.time()-self.start_time, debug_message)
         self.log_queue.put([time.time(), debug_message], True)
         
     def run(self):   
@@ -821,7 +826,7 @@ class NetworkListener(QtCore.QThread):
                             self.command_queue.put(data)
                             break
                 except Exception as e:
-                    print e
+                    print(e)
                 finally:
                     # Clean up the connection
                     connection.close()
@@ -912,7 +917,7 @@ class testRunner():
         self.setDaemon(False)
 
     def run(self):
-        print 'test runner started'        
+        print('test runner started')
         config = NetworkInterfaceTestConfig()
         listener = NetworkListener(config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         sender1 = NetworkSender(config, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT, self.config.MSG_LENGTH)
@@ -925,7 +930,7 @@ class testRunner():
         self.response = ''
         while not self.command_queue.empty():
             self.response += self.command_queue.get()
-        print self.response
+        print(self.response)
         listener.close()
 
 class TestNetworkInterface(unittest.TestCase):
@@ -1082,7 +1087,7 @@ class TestZMQInterface(unittest.TestCase):
         
     def test_push_without_listeners(self):
         pusher = ZeroMQPusher()
-        print pusher.port
+        print(pusher.port)
         returncode = pusher.send(1, False)
         pusher.close()
         self.assertTrue(returncode==0)
@@ -1120,7 +1125,7 @@ class TestZMQInterface(unittest.TestCase):
         puller2.join()
         result=list(puller1.queue)+list(puller2.queue)
         pusher.close()
-        print 'pubsubtest:'+str(result)
+        print('pubsubtest:'+str(result))
         self.assertEqual(sum(list(result)),  2*sum([1, 2]))
         
     def test_push_pull_queue(self):
@@ -1154,7 +1159,7 @@ class TestZMQInterface(unittest.TestCase):
             if hasattr(broker.launcher, 'pid'):
                 broker.launcher.terminate()
             result =list(puller1.queue)
-            print list(monitor.queue)
+            print(list(monitor.queue))
             del pusher1
             del puller1
             monitor.close()
@@ -1164,5 +1169,5 @@ class TestZMQInterface(unittest.TestCase):
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(TestZMQInterface)
     unittest.TextTestRunner().run(suite)
-    print 'all done'
+    print('all done')
     

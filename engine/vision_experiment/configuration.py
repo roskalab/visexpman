@@ -4,9 +4,9 @@ VisionExperimentConfig:
 ElphysRetinalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with retinal ca imaging  and electrophisiology specific parameters that are not used on other platforms.
         Platform name: elphys_retinal_ca
-RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
+RcCorticalCaImagingConfig, AoCorticalCaImagingConfig, ResonantConfig
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
-        Platform name: rc_cortical or ao_cortical
+        Platform name: rc_cortical or ao_cortical, resonant
 UltrasoundConfig:
         TBD
 MCMEAConfig:
@@ -73,10 +73,10 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ############## Ranges ###############
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
-        PARALLEL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
+        DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -98,8 +98,10 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_RESOLUTION = utils.rc([600, 800])
         SCREEN_POSITION = utils.rc([0, 0])
         FULLSCREEN = False
+        ALTERNATIVE_TIMING=False
         ENABLE_TIME_INDEXING=False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
+        FRAME_RATE_ERROR_THRESHOLD=[0.1, [0.01,0.5]]
         FRAME_RATE_TOLERANCE = [4.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
@@ -144,14 +146,17 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 
         ############# External hardware ######################
         DIGITAL_IO_PORT = False#'parallel port, or comport expected
-        ACQUISITION_TRIGGER_PIN = [0,  PARALLEL_PORT_PIN_RANGE]
-        ACQUISITION_STOP_PIN = [1,  PARALLEL_PORT_PIN_RANGE]
-        FRAME_TRIGGER_PIN = [2,  PARALLEL_PORT_PIN_RANGE]
-        BLOCK_TRIGGER_PIN = [3,  PARALLEL_PORT_PIN_RANGE]
-        FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        ACQUISITION_TRIGGER_PIN = [0,  DIGITAL_PORT_PIN_RANGE]
+        ACQUISITION_STOP_PIN = [1,  DIGITAL_PORT_PIN_RANGE]
+        FRAME_TIMING_PIN = [2,  DIGITAL_PORT_PIN_RANGE]
+        BLOCK_TIMING_PIN = [3,  DIGITAL_PORT_PIN_RANGE]
+        STIM_START_TRIGGER_PIN = [0,  DIGITAL_PORT_PIN_RANGE]
+        FRAME_TIMING_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         ACQUISITION_TRIGGER_POLARITY = True
         ENABLE_SHUTTER = False
+        WAIT4TRIGGER_ENABLED=False
+        CAMERA_TRIGGER_ENABLE=False
         
         ############# Graphical User Interface related ######################
         GUI = {}
@@ -262,8 +267,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import hdf5io
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
-    
-        
+
 class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
     '''
         FILTERWHEEL = [{
@@ -297,7 +301,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         XMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]#Offset of scanner signal cannot exceed 2 V
         YMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]
         STIMULATION_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging stimulus trigger signals
-        FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
+        FRAME_TIMING_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
         TWO_PHOTON = {}
@@ -418,6 +422,12 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         DEFAULT_ROI_SIZE_ON_GUI=20
         self._create_parameters_from_locals(locals())
         
+class ResonantConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'resonant'
+        self._create_parameters_from_locals(locals())
+        
 class UltrasoundConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
@@ -451,6 +461,7 @@ class ElectroporationConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'epos'
         EXPERIMENT_FILE_FORMAT = 'mat'
+        self.KEYS['start stimulus'] = 'e'
         EXPERIMENT_START_TRIGGER = [10, [10, 15]]
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
@@ -464,8 +475,25 @@ class IntrinsicConfig(VisionExperimentConfig):
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 
-class BehavioralConfig(object):
+class BehavioralConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'behav'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.KEYS['start stimulus'] = 'e'
+        STIM_RECORDS_ANALOG_SIGNALS = True
+        COORDINATE_SYSTEM='center'
+        self._create_parameters_from_locals(locals())
+       
+#TODO: this might not be necessary
+class AnalysisUIConfig(object):
+    '''
+    main_ui is customizable by the children of this class
+    TOOLBAR_BUTTONS
+    ANALYSIS_WIDGET_NAME
+    PARAMETERS
+    '''
+    
 
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

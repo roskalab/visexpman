@@ -83,10 +83,10 @@ class RepositoryChecker(object):
         for i in range(starti, len(lines)):
             if 'error' in lines[i].lower() or 'warning' in lines[i].lower():
                 notifications+=lines[i]
-        print notifications
+        print(notifications)
         if len(notifications)>0:
             import subprocess
-            message = 'Subject:{0}\n\n{1}\n'.format('rc setup repository change', notifications)
+            message = 'Subject:{0}\n\n{1}\n'.format('{0} setup repository change'.format(sys.argv[1]), notifications)
             fn='/tmp/email.txt'
             fp=open(fn,'w')
             fp.write(message)

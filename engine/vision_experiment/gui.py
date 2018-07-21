@@ -18,10 +18,6 @@ import pyqtgraph.console
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-try:
-    import PyQt4.Qwt5 as Qwt
-except ImportError:
-    pass
 
 import visexpman
 import hdf5io

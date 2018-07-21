@@ -116,44 +116,44 @@ class Parameter(object):
             if not os.path.exists(self.v):
                 raise IOError('Path '+self.v+' does not exist')
             elif range_ != None:
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
         elif self._type == 'file':
             if not os.path.isfile(self.v):
                 raise IOError('Path to file '+self.v+' does not exist')
             elif range_ != None:
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
         elif self._type == 'dict':
             if range_ != None:
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
         elif self._type == 'string':
             if range_ != None:
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
         elif self._type == 'array':            
             if range_ != None:
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
         elif self._type == 'switch':
             if range_ != None:
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
         elif self._type == 'enumerated':
             in_range = False
             if not self.v in range_:
-                print self.v
+                print(self.v)
                 raise OutOfRangeParameterValue
         elif self._type == 'numeric':            
             if range_ == None:
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v,self.name))
             elif len(range_) != 2:                
-                raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
             elif not ((isinstance(range_[0],  int) or isinstance(range_[0],  float)) and (isinstance(range_[1],  int) or isinstance(range_[1],  float))) and (isinstance(self.v,  int) or isinstance(self.v,  float)):
                 if not isinstance(self.v,  list):
-                    raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                    raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
             elif isinstance(self.v,  list):                
                 if len(range_[0]) != len(self.v) or len(range_[1]) != len(self.v):
-                    raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                    raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
                 for range_item in range_:
                     for range_item_item in range_item:
                         if (not isinstance(range_item_item,  int)) and (not isinstance(range_item_item,  float)):
-                            raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+                            raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
                 for item in self.v:
                     if (not isinstance(range_item_item,  int)) and (not isinstance(range_item_item,  float)):
                         raise InvalidParameterValue
@@ -163,9 +163,9 @@ class Parameter(object):
                         raise OutOfRangeParameterValue
             else:
                 if not(range_[0] <= self.v and range_[1] >= self.v):
-                    raise OutOfRangeParameterValue('range {0}, value: {1}'.format(range_, self.v))
+                    raise OutOfRangeParameterValue('range {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
         else:
-            raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
+            raise RuntimeError('Invalid parameter range: {0}, value: {1}, name: {2}'.format(range_, self.v, self.name))
                 
 
     def set(self,  new_value):

@@ -42,7 +42,6 @@ class GraphicsTestConfig(config.Config):
         SCREEN_RESOLUTION = utils.rc([768, 1024])        
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
-        SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]        
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         FRAME_WAIT_FACTOR = [1.0,  [0.0,  1.0]]
         FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
@@ -125,7 +124,6 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE =  not True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         gamma_corr_filename = 'c:\\visexp\\data\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
             import hdf5io
@@ -138,8 +136,8 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        FRAME_TIMING_PIN = 0
+        FRAME_TIMING_PULSE_WIDTH = 1e-3
         
         GUI_SIZE =  utils.cr((1280,1024))
         
@@ -252,7 +250,6 @@ class JobhandlerTestConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
         self._create_parameters_from_locals(locals())
         

@@ -24,7 +24,7 @@ class Flicker(experiment.Experiment):
                 self.show_fullscreen(duration=on_duration,  color=1.0)
                 self.show_fullscreen(duration=off_duration,  color=0.0)
             if len(os.listdir(self.machine_config.CAPTURE_PATH)) != self.experiment_config.DURATION * self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
-                print 'Incorrect number of frames generated: {0}, {1}' .format(len(os.listdir(self.machine_config.CAPTURE_PATH)), self.experiment_config.DURATION * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+                print('Incorrect number of frames generated: {0}, {1}' .format(len(os.listdir(self.machine_config.CAPTURE_PATH)), self.experiment_config.DURATION * self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
             videofilename = '/mnt/datafast/debug/flicker_{0}_Hz.mp4'.format(int(frq))
             if os.path.exists(videofilename):
                 os.remove(videofilename)
@@ -53,7 +53,6 @@ class Config(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE =  not False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True

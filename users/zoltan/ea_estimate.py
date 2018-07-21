@@ -35,6 +35,6 @@ if __name__ == "__main__":
     for r in range(int(repetitions)):
         Eas.append(electrode_current_temperature_factor.calculate_activation_energy(current[r*chunksize:(r+1)*chunksize], temperature[r*chunksize:(r+1)*chunksize], laser_pulse[r*chunksize:(r+1)*chunksize]))
     Eas_mean=numpy.array(Eas).mean(axis=0)
-    print 'Ea, Ea cal', list(Eas_mean)
-    print Eas
-    print most_recent_file
+    print('Ea, Ea cal', list(Eas_mean))
+    print(Eas)
+    print(most_recent_file)

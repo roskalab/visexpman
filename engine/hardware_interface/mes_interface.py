@@ -1,9 +1,10 @@
-import network_interface
+from visexpman.engine.hardware_interface import network_interface
 import unittest
 import time
-import socket
-import Queue
-import sys
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
 import scipy.io
 import numpy
 import os.path
@@ -12,9 +13,10 @@ import os
 import os.path
 import shutil
 import tempfile
-import traceback
-
-import PyQt4.QtCore as QtCore
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 
 import visexpman.engine.generic.configuration
 if 0:
@@ -118,7 +120,7 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
     try:
         os.remove(target_path_local)
     except:
-        print 'os.remove({0}) did not succeed'.format(target_path_local)
+        print('os.remove({0}) did not succeed'.format(target_path_local))
 #        raise RuntimeError('copyfile problem: {0}, {1}\n{2}'.format(target_path_local, target_path,  traceback.format_exc()))
 #    shutil.copyfile(target_path_local, 'V:\\debug\\data\\pars.mat')
 
@@ -387,9 +389,9 @@ class MesInterface(object):
         scanned_trajectory = {}
         #Send trajectory points to mes
         set_trajectory_success = self.set_points(cell_centers, timeout = timeout)
-        print 'set_trajectory_success',  set_trajectory_success
+        print('set_trajectory_success',  set_trajectory_success)
         prepare_rc_scan_success = self.prepare_rc_scan(timeout = timeout)
-        print 'prepare_rc_scan_success',  prepare_rc_scan_success
+        print('prepare_rc_scan_success',  prepare_rc_scan_success)
         rc_scan_path, rc_scan_path_on_mes = self._generate_mes_file_paths('rc_scan.mat')
         utils.empty_queue(self.queues['mes']['in'])
         if self.rc_runnability_test(cell_centers,  timeout = timeout) and self.connection.connected_to_remote_client():

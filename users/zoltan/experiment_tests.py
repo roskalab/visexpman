@@ -69,8 +69,8 @@ class ReceptiveFieldTest(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 class IRLaserTest(stimuli.LaserPulse):
-    def stimulus_configuration(self):
-        stimuli.LaserPulse.stimulus_configuration(self)
+    def configuration(self):
+        stimuli.LaserPulse.configuration(self)
         self.INITIAL_DELAY=1
         self.PULSE_DURATION=[100E-3]
         self.PERIOD_TIME=[5.0]
@@ -122,7 +122,7 @@ class ReceptiveFieldExploreZ(experiment.Experiment):
         self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
 
 class NaturalBarsTest(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.SPEED = [800, 400,1500.0]#um/s
         self.SPEED = [400]
         self.REPEATS = 2 #5
@@ -144,23 +144,28 @@ class NaturalBarsTest(experiment.Stimulus):
             self.show_fullscreen(duration = self.DURATION/2, color =  self.BACKGROUND_COLOR)
 
 class Flash(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.DURATION=8
+        self.CONFIG=[1,2,[1,2]]
         
     def calculate_stimulus_duration(self):
         self.duration=self.DURATION*3
         
     def run(self):
-        self.block_start()
+        self.block_start(('on',))
+        self.printl(0)
         self.show_fullscreen(color=0.5,duration=self.DURATION)
+        self.printl(1)
         self.block_end()
         self.show_fullscreen(color=0.5,duration=self.DURATION)
-        self.block_start()
+        self.printl(2)
+        self.block_start(('on',))
         self.show_fullscreen(color=1.0,duration=self.DURATION)
         self.block_end()
+        self.printl(3)
         
 class TestStim(experiment.Stimulus):
-    def stimulus_configuration(self):
+    def configuration(self):
         self.DURATION=3
         
     def calculate_stimulus_duration(self):
@@ -196,26 +201,68 @@ class TestStim(experiment.Stimulus):
         self.show_rolling_image(fn,pixel_size,speed,shift,yrange,axis='vertical')
             
     def _plaid_stim(self):
-        duration=10
+        duration=100
         direction=90
-        relative_angle=50
+        relative_angle=120
         velocity=100
         line_width=50
-        duty_cycle=10
+        duty_cycle=5
         mask_size=600
-        contrast=0.7
-        background_color=0.5
-        sinusoid=True
+        contrast=0.2
+        background_color=0.1
+        sinusoid= True
         self.show_moving_plaid(duration, direction, relative_angle, velocity,line_width, duty_cycle, mask_size, contrast, background_color,  sinusoid)
         
+    def _object(self):
+        objects=['concentric','pizza',  'hyperbolic','spiral']
+        pizza_arms=5
+        duration=40
+        orientation=[90,0,10,45]
+        orientation=[0]
+        sizes=[100,200,400,800,1500,3000]
+        sizes=[300]
+        spatial_frequency=[0.001, 0.004,0.01]
+        spatial_frequency=[0.002]
+        for ob in objects:
+            for o in orientation:
+                for s in sizes:
+                    for sp in spatial_frequency:
+                        print(ob,'orientation', o,'size', s,'spatial frq', sp)
+                        try:
+                            self.show_object(ob,s, sp, duration,orientation=o,background_color=0.5,narms=pizza_arms,color_min=0.5, color_max=1.0)
+                        except:
+                            pass
+                        self.abort=False
+
     def run(self):
+        self.screen.start_frame_capture=True
+        self.show_grating(white_bar_width =80,  duration=2, duty_cycle=3, velocity=100, orientation=45)
+        return
+        self.show_white_noise(10,70)
+        self.show_natural_bars(speed = 100, duration=10, minimal_spatial_period =20, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE)
+        
+        #self._plaid_stim()
+#        self._object()
+        return
+        #self.show_white_noise(10,100)
+        duration=4
+        o=90
+        size=1000
+       # self.show_object('pizza',size, 0.004, duration,orientation=o,background_color=0.5)#30 um
+        self.show_object('concentric',size, 0.004, duration,orientation=o,background_color=0.5)#30 um
+      #  self.show_object('hyperbolic',size, 0.004, duration,orientation=o,background_color=0.5)#30 um
+        self.show_object('spiral',size, 0.01, duration,orientation=o,background_color=0.5)
+
+#        return
+        #self.show_image('/tmp/1.png',duration=10)
+        self.show_grating(duration=4,velocity=30, mask_size=200,mask_color=0.5,white_bar_width=40)
+        #return
         #self._approach()
-        self._plaid_stim()
+        #self._plaid_stim()
         return
         
         self._rolling_image()
         self._moving_grating()
-        
 
 def receptive_field_calculator():
     height=265
@@ -235,11 +282,9 @@ def receptive_field_calculator():
     xd=numpy.tan(numpy.radians(angles_h))*distance
     yd=numpy.tan(numpy.radians(angles_v))*distance
     x, y = numpy.meshgrid(xd, yd)
-    pass
-    
 
 if __name__ == "__main__":
     #receptive_field_calculator()
-    from visexpman.engine.visexp_app import stimulation_tester
+    from visexpman.applications.visexpman_main import stimulation_tester
     #stimulation_tester('zoltan', 'StimulusDevelopment', 'ReceptiveFieldTest')
-    stimulation_tester('zoltan', 'StimulusDevelopment', 'TestStim')
+    stimulation_tester('zoltan', 'StimulusDevelopment', 'Flash')

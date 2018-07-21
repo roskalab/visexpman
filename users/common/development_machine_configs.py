@@ -28,9 +28,8 @@ class StimulusDevelopment(VisionExperimentConfig):
         #=== screen ===
         FULLSCREEN = False
         COORDINATE_SYSTEM='center'
-        ENABLE_FRAME_CAPTURE = False
+        ENABLE_FRAME_CAPTURE = not True
 #        SCREEN_EXPECTED_FRAME_RATE = 60.0
-#        SCREEN_MAX_FRAME_RATE = 60.0
         STIM_RECORDS_ANALOG_SIGNALS = False
         EXPERIMENT_FILE_FORMAT = 'mat'
         
@@ -38,14 +37,17 @@ class StimulusDevelopment(VisionExperimentConfig):
         ENABLE_PARALLEL_PORT = False
         
         
-        SCREEN_RESOLUTION = utils.cr((1024, 576))#TMP febr 09
-        SCREEN_RESOLUTION = utils.cr([1280, 720])
+        SCREEN_RESOLUTION = utils.cr((800, 600))
+        SCREEN_RESOLUTION = utils.cr((800, 450))
+        SCREEN_RESOLUTION = utils.cr((800/2, 800/2))
+        self.SCREEN_WIDTH=47.657#cm
+        self.SCREEN_HEIGHT=26.876#cm
+        #SCREEN_RESOLUTION = utils.cr([1280, 720])
         SCREEN_DISTANCE_FROM_MOUSE_EYE=230
         SCREEN_PIXEL_WIDTH=477.0/1280
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
-        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE/SCREEN_PIXEL_WIDTH
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0#numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE/SCREEN_PIXEL_WIDTH
         BACKGROUND_COLOR = 3*[0.0]#TMP febr 09
-        
         
         self._create_parameters_from_locals(locals())
 

@@ -1,20 +1,11 @@
 import time,pdb
 import os.path
 import tempfile
-import uuid
-import hashlib
 import scipy.io
-import io
-import StringIO
-import zipfile
 import numpy
-import inspect
-import cPickle as pickle
 import traceback
-import gc
 import shutil
 import copy
-import multiprocessing
 import tables
 import sys
 import zmq
@@ -22,19 +13,21 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
+except:
+    print ('No PyDAQmx')
+try:
+    import experiment_data
 except ImportError:
-    pass
-
-import experiment_data
+    from visexpman.engine.vision_experiment import experiment_data
 import visexpman.engine
-from visexpman.engine.generic import log,utils,fileop,introspect,signal
+from visexpman.engine.generic import utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
 from visexpman.engine.hardware_interface import mes_interface,daq_instrument,stage_control,digital_io,queued_socket
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
 try:
     import hdf5io
 except ImportError:
-    print 'hdf5io not installed'
+    print('hdf5io not installed')
 
 from visexpman.engine.generic.command_parser import ServerLoop
 try:
@@ -101,7 +94,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):#OBSOLETE
                 else:
                     self.live_scan_start(self.imaging_parameters)
             else:
-                print key_pressed
+                print(key_pressed)
                 
         if self.abort:
             if self.imaging_started:
@@ -172,7 +165,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):#OBSOLETE
         waveforms = numpy.array([parameters['xsignal'], 
                                 parameters['ysignal'],
                                 parameters['stimulus_flash_trigger_signal']*parameters['enable_scanner_synchronization']*self.config.STIMULATION_TRIGGER_AMPLITUDE,
-                                parameters['frame_trigger_signal']*self.config.FRAME_TRIGGER_AMPLITUDE])
+                                parameters['frame_trigger_signal']*self.config.FRAME_TIMING_AMPLITUDE])
         if xy_scanner_only:
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms
@@ -418,7 +411,7 @@ class Trigger(object):
     def __init__(self,machine_config, queues, digital_output):
         self.machine_config=machine_config
         self.queues = queues
-        self.digital_output = digital_output
+        self.digital_io = digital_output
         
     def _wait4trigger(self, timeout, wait_method, args=[], kwargs={}):
         '''
@@ -440,7 +433,31 @@ class Trigger(object):
         return self._wait4trigger(is_key_pressed, (self.machine_config.KEYS[key]), {})
         
     def wait4digital_input_trigger(self, pin):
-        pass
+        result=False
+        if isinstance(pin,str) and 'Dev' in pin:
+            digital_input = PyDAQmx.Task()
+            digital_input.CreateDIChan(pin,'di', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            data = numpy.zeros((1,), dtype=numpy.uint8 )
+            total_samps = DAQmxTypes.int32()
+            total_bytes = DAQmxTypes.int32()
+            while True:
+                digital_input.ReadDigitalLines(1,0.1,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+                if data[0]==True:
+                    result=True
+                    break
+                self.check_abort()
+                if self.abort:
+                    break
+            digital_input.ClearTask()
+        else:
+            while True:
+                if self.digital_io.read_pin(self.machine_config.STIM_START_TRIGGER_PIN, inverted=self.machine_config.PLATFORM=='epos'):
+                    result = True
+                    break
+                self.check_abort()
+                if self.abort:
+                    break
+        return result
     
     def wait4newfiletrigger(self):
         files = os.listdir(self.machine_config.TRIGGER_PATH)
@@ -449,10 +466,10 @@ class Trigger(object):
         return self._wait4trigger(is_new_file, (files), {})
             
     def set_trigger(self, pin):
-        self.digital_output.set_pin(pin, True)
+        self.digital_io.set_pin(pin, True)
         
     def clear_trigger(self,pin):
-        self.digital_output.set_pin(pin, False)
+        self.digital_io.set_pin(pin, False)
         
 class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
     '''
@@ -470,19 +487,20 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.machine_config = machine_config
         self.parameters = parameters
         self.log = log
-        if self.machine_config.DIGITAL_IO_PORT != False and parameters!=None:#parameters = None if experiment duration is calculated
-            digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
-            self.digital_output = digital_output_class(self.machine_config, self.log)
-        else:
-            self.digital_output = None
-        Trigger.__init__(self, machine_config, queues, self.digital_output)
-        if self.digital_output!=None:#Digital output is available
-            self.clear_trigger(self.config.BLOCK_TRIGGER_PIN)
-            self.clear_trigger(self.config.FRAME_TRIGGER_PIN)
+        if hasattr(self.machine_config, 'DIGITAL_IO_PORT_TYPE') and self.machine_config.user_interface_name!='main_ui':
+            skip_hw_init= hasattr(self, 'kwargs') and 'create_runnable' in self.kwargs and not self.kwargs['create_runnable']
+            if skip_hw_init:
+                return
+            self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
+            Trigger.__init__(self, machine_config, queues, self.digital_io)
+            if 0 and self.digital_io!=None:#Digital output is available
+                self.clear_trigger(self.config.BLOCK_TIMING_PIN)
+                self.clear_trigger(self.config.FRAME_TIMING_PIN)
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         self.user_data = {}
         self.abort = False
+        self.check_frame_rate=True
         
     def start_sync_recording(self):
         class Conf(object):
@@ -502,6 +520,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.analog_input = daq_instrument.AnalogIO(config)
         self.sync_recorder_started=time.time()
         self.abort=not self.analog_input.start_daq_activity()
+        self.printl('Sync signal recording started')
         
     def start_ao(self):
         if hasattr(self.machine_config,'TRIGGER_MES') and not self.machine_config.TRIGGER_MES:
@@ -538,7 +557,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         else:
             time.sleep(self.machine_config.MES_RECORD_START_WAITTIME)
         
-            
     def wait4ao(self):
         if self.abort:
             return
@@ -560,37 +578,84 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         try:
-            prefix='stim' if self.machine_config.PLATFORM != 'ao_cortical' else 'data'
-            if self.machine_config.PLATFORM in ['standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
+            if self.machine_config.CAMERA_TRIGGER_ENABLE:
+                self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT_STIM)
+            prefix='data' if self.machine_config.PLATFORM in  ['ao_cortical','resonant'] else 'stim'
+            if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
+                if hasattr(self, 'calculate_stimulus_duration'):
+                    self.parameters['stimclass']=self.__class__.__name__
+                else:
+                    self.parameters['stimclass']=self.experiment_config.__class__.__name__
+                from visexpman.engine.vision_experiment.experiment import get_experiment_duration
+                self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
+            #Check if main_ui user and machine config class matches with stim's
+            if 'user' in self.parameters and (self.parameters['user']!=self.machine_config.user or \
+                self.parameters['machine_config']!=self.machine_config.__class__.__name__):
+                    self.send({'trigger':'stim error'})
+                    raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
+                        .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))
             self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
-            
-            self.prepare()#Computational intensive precalculations for stimulus
-            #import pdb;pdb.set_trace()
-            if self.machine_config.PLATFORM=='ao_cortical':
-                self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
-                self.start_sync_recording()
-                self.printl('Sync signal recording started')
-                self.start_ao()
+            #Computational intensive precalculations for stimulus
+            self.prepare()
+            #Control/synchronization with platform specific recording devices
             time.sleep(0.1)
-            if self.machine_config.PLATFORM=='hi_mea':
-                #send start signal
-                self._send_himea_cmd("start")
-            elif self.machine_config.PLATFORM=='elphys_retinal_ca':
-                self.send({'trigger':'stim started'})
-            elif self.machine_config.PLATFORM=='mc_mea':
-                pass
-            elif self.machine_config.PLATFORM=='us_cortical' and self.machine_config.ENABLE_ULTRASOUND_TRIGGERING:
-                import serial
-                from contextlib import closing
-                with closing(serial.Serial(port='COM1',baudrate=9600)) as s:
-                    s.write('e')
-                self.send({'trigger':'stim started'})
-            elif self.machine_config.PLATFORM=='intrinsic':
-                from visexpA.engine.datahandlers.ximea_camera import XimeaCamera
-                self.camera = XimeaCamera(config=self.machine_config)
-                self.camera.start()
-                self.camera.trigger.set()  # starts acquisition
+            try:
+                if self.machine_config.PLATFORM=='ao_cortical':
+                    self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
+                    self.start_sync_recording()
+                    self.start_ao()
+                elif self.machine_config.PLATFORM=='hi_mea':
+                    #send start signal
+                    self._send_himea_cmd("start")
+                elif self.machine_config.PLATFORM=='elphys_retinal_ca':
+                    self.send({'trigger':'stim started'})
+                elif self.machine_config.PLATFORM=='mc_mea':
+                    pass
+                elif self.machine_config.PLATFORM=='us_cortical' and self.machine_config.ENABLE_ULTRASOUND_TRIGGERING:
+                    import serial
+                    from contextlib import closing
+                    with closing(serial.Serial(port='COM1',baudrate=9600)) as s:
+                        s.write('e')
+                    self.send({'trigger':'stim started'})
+                elif self.machine_config.PLATFORM=='intrinsic':
+                    from visexpA.engine.datahandlers.ximea_camera import XimeaCamera
+                    self.camera = XimeaCamera(config=self.machine_config)
+                    self.camera.start()
+                    self.camera.trigger.set()  # starts acquisition
+                elif self.machine_config.PLATFORM in ['behav','epos']:
+                    if self.machine_config.PLATFORM=='behav':
+                        self.sync_recording_duration=self.parameters['duration']
+                        self.start_sync_recording()
+                    self.printl('Waiting for external trigger')
+                    if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
+                        import threading
+                        t=threading.Thread(target=inject_trigger, args=('/dev/ttyACM1',5,2))
+                        t.start()
+                    if self.machine_config.WAIT4TRIGGER_ENABLED and not self.wait4digital_input_trigger(self.machine_config.STIM_START_TRIGGER_PIN):
+                        self.abort=True
+                        self.send({'trigger':'stim error'})
+                elif self.machine_config.PLATFORM == 'resonant':
+                    self.sync_recording_duration=self.parameters['duration']
+                    self.start_sync_recording()
+                    self.send({'mesc':'start'})
+                    time.sleep(1.5)
+                    response=self.recv()
+                    if not hasattr(response, 'keys') or not response['mesc start command result']:
+                        self.abort=True
+                        self.mesc_error=True
+                        self.printl('MESc did not start, aborting stimulus')
+                        self.send({'trigger':'stim error'})
+                    else:
+                        self.mesc_error=False
+                if self.machine_config.CAMERA_TRIGGER_ENABLE:
+                    self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
+                    time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
+                    self.printl('Camera trigger enabled')
+            except:
+                self.abort=True
+                self.send({'trigger':'stim error'})
+                self.printl(traceback.format_exc())
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
@@ -598,48 +663,65 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.run()
                 self._stop_frame_capture()
             except:
+                self.abort=True
                 self.send({'trigger':'stim error'})
-                exc_info = sys.exc_info()
-                raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
+                self.printl(traceback.format_exc())
             self.log.resume()
+            #Terminate recording devices
+            if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant']:
+                self.printl('Stimulation ended')
+                self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            if self.machine_config.CAMERA_TRIGGER_ENABLE:
+                time.sleep(self.machine_config.CAMERA_POST_STIM_WAIT)
+                self.camera_trigger.stop_waveform()
+                self.printl('Camera trigger stopped')
             if self.machine_config.PLATFORM=='hi_mea':
                 #send stop signal
                 self._send_himea_cmd("stop")
-            elif self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical']:
-                self.printl('Stimulation ended')
-                self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             elif self.machine_config.PLATFORM=='intrinsic':
                 self.camera.trigger.clear()
                 self.camera.join()
-            if self.machine_config.PLATFORM=='ao_cortical':
+            elif self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
+            elif self.machine_config.PLATFORM == 'resonant':
+                if not self.mesc_error:
+                    self.send({'mesc':'stop'})
+            if self.machine_config.PLATFORM in ['behav', 'ao_cortical', 'resonant']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
+            #Saving data
             if not self.abort:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical']:
+                if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant']:
                     self.send({'trigger':'stim data ready'})
                 if self.machine_config.PLATFORM in ['ao_cortical']:
                     self._backup(self.datafilename)
                     self.printl('{0} backed up'.format(self.datafilename))
+                elif self.machine_config.PLATFORM in ['behav']:
+                    experiment_data.hdf52mat(self.outputfilename)
             else:
                 self.printl('Stimulation stopped')
             if self.machine_config.PLATFORM=='mc_mea':
                 self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH,polarity=self.machine_config.ACQUISITION_TRIGGER_POLARITY)
             self.frame_rates = numpy.array(self.frame_rates)
-            if len(self.frame_rates)>0:
+            if len(self.frame_rates)>0 and self.check_frame_rate:
                 fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
                 self.log.info(fri, source = 'stim')
+                expfr=self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD and not self.abort:
+                    raise RuntimeError('Mean frame rate {0} does not match with expected frame {1}'.format(self.frame_rates.mean(), expfr))
         except:
-            exc_info = sys.exc_info()
-            raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
+            self.send({'trigger':'stim error'})
+            raise RuntimeError(traceback.format_exc())
         finally:
             self.close()#If something goes wrong, close serial port
 
     def close(self):
-        if hasattr(self.digital_output, 'release_instrument'):
-                self.digital_output.release_instrument()
+        if hasattr(self, 'digital_io') and hasattr(self.digital_io, 'close'):
+                self.digital_io.close()
+        if hasattr(self, 'camera_trigger'):
+            self.camera_trigger.close()
 
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)
@@ -658,7 +740,48 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
            
     def _stop_frame_capture(self):
         self.screen.start_frame_capture=False
-
+        
+    def _blocks2table(self):
+        '''
+        Prepare stimulus block table
+        '''
+        block_info=[sfi for sfi in self.stimulus_frame_info if sfi.has_key('block_name')]
+        if len(block_info)==0: return
+        #convert block names to column headers
+        signatures=[b['block_name'] for b in block_info]
+        if not isinstance(signatures[0],tuple):
+            self.printl('Block info cannot be converted to table, block names must be tuples')
+            return
+        if any(numpy.array(map(len, signatures))-len(signatures[0])):
+            self.printl('Block info cannot be converted to a table')
+            return
+        if isinstance(signatures[0][0],str):
+            #Assume, that first item in signature is always an enumerated string
+            #none, all and both are reserved keywords
+            enum_values=list(set([s[0] for s in signatures if s[0] not in ['none', 'all','both']]))
+            enum_values.sort()
+            nblocks=len(block_info)/2
+            block_table=numpy.zeros((nblocks, len(enum_values)+2+len(signatures[0])-1))
+            for bi in range(nblocks):
+                start=block_info[2*bi]
+                end=block_info[2*bi+1]
+                if start['block_name']!=end['block_name']:
+                    self.printl('Block info cannot be converted to a table')
+                    return
+                pars=start['block_name'][1:]
+                parnames=['par{0}'.format(i) for i in range(len(pars))]
+                block_table[bi,:len(pars)]=pars
+                block_table[bi,len(pars):len(pars)+len(enum_values)]=numpy.array([int(start['block_name'][0]== e) for e in enum_values])
+                if start['block_name'][0] in ['all', 'both']:
+                    block_table[bi,len(pars):len(pars)+len(enum_values)]=1
+                block_table[bi,len(pars)+len(enum_values):]=numpy.array([start['block_start'],end['block_end']-1])
+        else:
+            raise NotImplementedError('Block signatures without string/enumerated')
+        block_table_header=parnames
+        block_table_header.extend(enum_values)
+        block_table_header.extend(['start counter', 'end counter'])
+        self.block={'table':block_table, 'column_names': block_table_header}
+        
     def _prepare_data2save(self):
         '''
         Pack software enviroment and configs
@@ -666,26 +789,35 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             setattr(self.datafile, 'software_environment',experiment_data.pack_software_environment())
             setattr(self.datafile, 'configs', experiment_data.pack_configs(self))
+            self.datafile.frame_times=self.screen.frame_times
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.datafile['software_environment'] = experiment_data.pack_software_environment()
             self.datafile['configs'] = experiment_data.pack_configs(self)
-        self.datafile.frame_times=self.screen.frame_times
+            self.datafile['frame_times']=self.screen.frame_times
         
     def _save2file(self):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment']#['experiment_name', 'experiment_config_name', 'frame_times']
+        self._blocks2table()
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block']#['experiment_name', 'experiment_config_name', 'frame_times']
         if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             self.datafile = experiment_data.CaImagingData(self.outputfilename)
             self._prepare_data2save()
             [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
-            self.datafile.save(variables2save)
+            [self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
             if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
                 self.datafile.sync2time()
-                self.datafile.check_timing()
+                try:
+                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                except:
+                    self.datafile.corrupt_timing=True
+                    self.datafile.save('corrupt_timing')
+                    self.datafile.close()
+                    self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
+                    raise RuntimeError(traceback.format_exc())
             self.datafile.close()
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
@@ -701,12 +833,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if latest_file is None:
                     filename_prefix = ''
                 else:
-                    filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
-                fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                    filename_prefix = str(os.path.split(latest_file)[1].replace(os.path.splitext(latest_file)[1],'')[:-1])
+                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
                 fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
             else:
-                filename_prefix = 'stim'
-                fn = experiment_data.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                if self.machine_config.PLATFORM == 'epos':
+                    filename_prefix = ''
+                else:
+                    filename_prefix = 'stim'
+                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
             self.datafilename=fn
             scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
@@ -751,6 +886,17 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             socket.send(cmd)
             socket.recv()#This is blocking!!!
         
+def inject_trigger(port,pin,delay):
+    d=digital_io.ArduinoIO(port)
+    d.set_pin(pin,1)
+    time.sleep(delay)
+    d.set_pin(pin,1)
+    time.sleep(1.0)
+    d.set_pin(pin,1)
+    d.close()
+    
+    
+        
         
 if test_mode:        
     class TestCaImaging(unittest.TestCase):
@@ -767,10 +913,8 @@ if test_mode:
             self._scanning_params()
             
         def tearDown(self):
-            print 1
             if hasattr(self, 'context'):
                 visexpman.engine.stop_application(self.context)
-                print 2
             introspect.kill_python_processes(self.dont_kill_processes)
             
         def _send_commands_to_stim(self, commands):
@@ -960,7 +1104,7 @@ if test_mode:
             self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)
             #check content of datafiles
             for datafile in datafiles:
-                print datafile
+                print(datafile)
                 h=hdf5io.Hdf5io(datafile,filelocking=False)
                 saved_parameters = h.findvar('imaging_parameters')
                 nframes = h.findvar('imaging_run_info')['acquired_frames']

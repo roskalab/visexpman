@@ -1,5 +1,4 @@
 import sys,scipy.io
-import copy_reg
 import types
 import multiprocessing
 import pdb
@@ -43,22 +42,22 @@ class PhysTiff2Hdf5(object):
             self.allfiles.extend(fileop.find_files_and_folders(folder)[1])
         if self.outfolder==self.folder:
             self.outfiles=self.allfiles
-            self.outfiles = [f for f in self.outfiles if fileop.file_extension(f)=='hdf5']
+            self.outfiles = [f for f in self.outfiles if os.path.splitext(f)[1]=='.hdf5']
         else:
-            self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if fileop.file_extension(f)=='hdf5']
+            self.outfiles = [f for f in fileop.find_files_and_folders(self.outfolder)[1] if os.path.splitext(f)[1]=='.hdf5']
         
-        excluded_extensions=['txt','hdf5','tif' if not self.use_tiff else 'csv']
-        self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and fileop.file_extension(f) not in excluded_extensions]
+        excluded_extensions=['.txt','.hdf5','.tif' if not self.use_tiff else '.csv']
+        self.allfiles = [f for f in self.allfiles if not 'timestamp' in f and os.path.splitext(f)[1] not in excluded_extensions]
         #self.allfiles = [f for f in self.allfiles if now - os.path.getmtime(f)<2*168*3600]#Considering files not older than 2 weeks
         #Exclude unclosed files
         now=time.time()
         self.allfiles = [f for f in self.allfiles if now-os.path.getctime(f)>10 and now-os.path.getmtime(f)>10]
         
         if self.irlaser:
-            physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='csv' and 'rect' not in f and 'timestamps' not in f]
+            physfiles = [f for f in self.allfiles if os.path.splitext(f)[1]=='.csv' and 'rect' not in f and 'timestamps' not in f]
         else:
-            physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='phys']
-        tiffiles = [f for f in self.allfiles if fileop.file_extension(f)==('tif' if self.use_tiff else 'csv')]
+            physfiles = [f for f in self.allfiles if os.path.splitext(f)[1]=='.phys']
+        tiffiles = [f for f in self.allfiles if os.path.splitext(f)[1]==('.tif' if self.use_tiff else '.csv')]
         if self.irlaser:
             tiffiles = [tf for tf in tiffiles if tf not in physfiles]
         #if not self.use_tiff:
@@ -75,7 +74,7 @@ class PhysTiff2Hdf5(object):
             if 1:
                 regexp = pf
                 tiffiles_current_folder=[tf for tf in tiffiles if os.path.dirname(pf) in tf]
-                found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(fileop.file_extension(pf),''))[:-1] in tf]
+                found = [tf for tf in tiffiles_current_folder if os.path.basename(regexp.replace(os.path.splitext(pf)[1],''))[:-1] in tf]
                 foundmat=[f for f in self.allfiles if f[-4:]=='.mat' and os.path.basename(pf) in f or NOMATFILE or self.irlaser]
                 
             if 1:
@@ -85,11 +84,11 @@ class PhysTiff2Hdf5(object):
 #                        if id not in ids:# len([f for f in self.outfiles if id in f])==0
                             pairs.append([pf, found[0]])
         if len(pairs)>0:
-            print 'converting pairs'
+            print('converting pairs')
             for p in pairs:
-                print p[0]
-                print p[1]
-                print ''
+                print(p[0])
+                print(p[1])
+                print('')
                
 #        converted=[]
 #        for p in pairs:
@@ -106,7 +105,7 @@ class PhysTiff2Hdf5(object):
                 converted.append(res)
             except:
                 import traceback
-                print traceback.format_exc()
+                print(traceback.format_exc())
             
         return converted
         
@@ -114,20 +113,20 @@ class PhysTiff2Hdf5(object):
         self.match_files()
         if 1:
             for k,v in self.assignments.items():
-                print k
+                print(k)
                 self.build_hdf5(k, v[0], None)#self.folder)
         else:
             p=multiprocessing.Pool(processes=14)
             pars = [(k, v[0]) for k, v in self.assignments.items()]
             res = p.map(self.build_hdf5_2,pars)
-        print self.skipped_files
+        print(self.skipped_files)
         
     def match_files(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
         self.filetimes = [[f, os.path.getmtime(f)] for f in self.allfiles]
         self.files = {}
-        for filetype in ['phys', 'tif']:
-            self.files[filetype] = [f for f in self.filetimes if fileop.file_extension(f[0]) == filetype]
+        for filetype in ['.phys', '.tif']:
+            self.files[filetype] = [f for f in self.filetimes if os.path.splitext(f[0])[1] == filetype]
         assignments = {}
         for fphys, tphys in self.files['phys']:
             for ftif, ttif in self.files['tif']:
@@ -181,11 +180,11 @@ class PhysTiff2Hdf5(object):
         if os.path.exists(coordsfn):
             try:
                 absolute_stage_coordinates=numpy.array(map(float, fileop.read_text_file(coordsfn).split('\r\n')[0].split('\t')))
-                print 'coords file processed'
+                print('coords file processed')
             except:
-                print 'coords file cannot be read'
+                print('coords file cannot be read')
         else:
-            print 'coords file not found', coordsfn
+            print('coords file not found', coordsfn)
             
         if self.use_tiff:
             tmptiff = os.path.join(tempfile.gettempdir(), 'temp.tiff')
@@ -239,10 +238,10 @@ class PhysTiff2Hdf5(object):
         #Up-down flip
         if VERTICAL_FLIP:
             raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
-        print 'rawdata ok', time.time()-t0
+        print('rawdata ok', time.time()-t0)
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
-        recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+fileop.file_extension(ftiff), ''))
+        recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+os.path.splitext(ftiff)[1], ''))
         recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
         recording_parameters['elphys_sync_sample_rate'] = 10000 if not FIX1KHZ else 1000
         if self.irlaser:
@@ -284,7 +283,7 @@ class PhysTiff2Hdf5(object):
             supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot10sec','Fullfield10min', 'Nostim']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
-            print 'no stim metadata found'
+            print('no stim metadata found')
             if not NOMATFILE and not self.irlaser:
                 return
         if stiminfo_available:
@@ -312,7 +311,7 @@ class PhysTiff2Hdf5(object):
         sync_and_elphys[:,4] = sig
         #a=raw_data.mean(axis=2).mean(axis=2)[:,0]
         #plot(2*a);plot(data[1]);plot(data[2]);show()
-        print 'sync data ok', time.time()-t0
+        print('sync data ok', time.time()-t0)
         id = experiment_data.get_id(os.path.getmtime(fphys))
         if folder is None:
             folder = os.path.join(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
@@ -321,7 +320,7 @@ class PhysTiff2Hdf5(object):
             os.makedirs(folder)
         cellid=os.path.split(ftiff)[1].split('_')[0]
         filename = os.path.join(folder, 'data_{1}_{2}_{0}_0.hdf5'.format(id, cellid, experiment_name))
-        print utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename
+        print(utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename)
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
 
@@ -366,10 +365,10 @@ class PhysTiff2Hdf5(object):
             try:
                 sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
             except:
-                print 'sync signal recording was aborted'
+                print('sync signal recording was aborted')
             SR=(10000.0 if not FIX1KHZ else 1000.0)
             if indexes.shape[0]/(2*sig.shape[0]/SR)>66:
-                print 'sync signal not detected, assuming timing'
+                print('sync signal not detected, assuming timing')
                 sig2=numpy.zeros_like(sig)
                 sig2[delay_before_start*SR:(delay_before_start+ontime)*SR]=5
             return sig2
@@ -437,7 +436,10 @@ def phys2mat(filename):
 def merge_ca_data(folder,**kwargs):
     files=os.listdir(folder)
     #Stimulus info
-    stimdatafile=os.path.join(folder,[f for f in files if os.path.splitext(f)[1]=='.mat'][0])
+    try:
+        stimdatafile=os.path.join(folder,[f for f in files if os.path.splitext(f)[1]=='.mat'][0])
+    except IndexError:
+        raise RuntimeError('.mat metadata file generated by stim cannot be found')
     #    raise RuntimeError('Stimulus datafile is missing')
     stimulus = utils.array2object(scipy.io.loadmat(stimdatafile)['serialized'])
     keep_keys=['experiment_config_name', 'stimulus_frame_info', 'generated_data', 'experiment_name', 'experiment_source', 'config', 'software_environment']
@@ -449,7 +451,16 @@ def merge_ca_data(folder,**kwargs):
         raise RuntimeError('Imaging datafiles are missing')
     recording_name=os.path.basename(imaging_folder)
     if os.path.splitext(os.listdir(imaging_folder)[0])[1]=='.csv':
-        fn=os.path.join(imaging_folder, (os.listdir(imaging_folder)[0]))
+        files1=os.listdir(imaging_folder)
+        #Extract dropped frames
+        dfn=[f for f in files1 if '__dropped' in f]
+        if len(dfn)>0:
+            dropped_frames_txt=fileop.read_text_file(os.path.join(imaging_folder, dfn[0]))
+            dropped_frames=[bool(int(i)) for i in dropped_frames_txt.split('\t')]
+            import shutil
+            shutil.move(os.path.join(imaging_folder,dfn[0]), os.path.join(imaging_folder,dfn[0].replace('.csv', '.txt')))
+        files1.sort()
+        fn=os.path.join(imaging_folder, files1[-1])
         frame_fn=fn
         sizex, sizey, a,b, res = map(float, os.path.split(fn)[1].replace('.csv','').split('_')[-6:-1])
         nchannels=2 if fn.split('_')[-1].split('.')[0]=='both' else 1
@@ -555,6 +566,8 @@ def merge_ca_data(folder,**kwargs):
     #Save everything to final file
     filename=os.path.join(os.path.dirname(folder), os.path.basename(syncfile).replace('sync', 'data_' + recording_name))
     h=hdf5io.Hdf5io(filename)
+    h.dropped_frames=dropped_frames
+    h.save('dropped_frames')
     h.parameters=recording_parameters
     h.sync= sync_and_elphys
     h.fsync=syncfile
@@ -565,12 +578,13 @@ def merge_ca_data(folder,**kwargs):
     h.configs=machine_config
     h.generated_data=stimulus['generated_data']
     h.stimulus_frame_info=stimulus['stimulus_frame_info']
+    h.software_environment= experiment_data.pack_software_environment()
     h.datatype='ca'
     h.save('raw_data')
     del h.raw_data
     h.save('sync')
     del h.sync
-    h.save(['fsync', 'fimg', 'fstim', 'parameters', 'sync_scaling',  'configs', 'datatype', 'generated_data', 'stimulus_frame_info'])
+    h.save(['fsync', 'fimg', 'fstim', 'parameters', 'sync_scaling',  'configs', 'datatype', 'generated_data', 'stimulus_frame_info', 'software_environment'])
     h.close()
     #Copy raw pngs to output folder
     output_folder=os.path.join(os.path.dirname(filename), 'output', os.path.basename(filename))
@@ -580,6 +594,18 @@ def merge_ca_data(folder,**kwargs):
     if os.path.splitext(frame_fn)[1]=='.png':
         [shutil.copy(f, output_folder) for f in frames]
     return filename
+    
+def get_dropped_frames(filename):
+    h=hdf5io.Hdf5io(filename)
+    h.load('sync')
+    h.load('raw_data')
+    h.load('configs')
+    nframes=h.raw_data.shape[0]
+    fsample=float(h.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
+    npulses=(signal.trigger_indexes(h.sync[:,1])[::2]/fsample).shape[0]
+    h.close()
+    d=npulses-nframes
+    return d
     
 def yscanner2sync(sig,fsample,nframes):
     indexes=numpy.where(abs(numpy.diff(sig))>0.01)[0]
@@ -623,7 +649,7 @@ def rewrite_hdf5(folder):
     '''
     files=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
     for f in files:
-        print f, files.index(f), len(files)
+        print(f, files.index(f), len(files))
         h=hdf5io.Hdf5io(f)
         rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' ]
         for rn in rootnodes:
@@ -640,6 +666,24 @@ def find_peak(frqs,fft):
     weight=selection[peak_index-window:peak_index+window+1]/selection[peak_index]
     return (frq_selection[peak_index-window:peak_index+window+1]*weight).sum()/weight.sum()
     #return frqs[indexes][fft[indexes].argmax()]
+    
+def v0p3tov0p4(folder):
+    files=fileop.find_files_and_folders(folder)[1]
+    for f in files:
+        print(f)
+        hh=hdf5io.Hdf5io(f)
+        hh.load('configs')
+        if not hasattr(hh,'configs'):
+            hh.load('machine_config')
+            import copy
+            hh.configs=copy.deepcopy(hh.machine_config)
+            hh.configs['machine_config']['TIMG_SYNC_INDEX']=4
+            hh.configs['machine_config']['TSTIM_SYNC_INDEX']=2
+            hh.load('recording_parameters')
+            hh.parameters=copy.deepcopy(hh.recording_parameters)
+            hh.save('configs')
+            hh.save('parameters')
+        hh.close()
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')
@@ -660,9 +704,11 @@ class TestConverter(unittest.TestCase):
         folder='e:\\Zoltan\\1\\zip'
         folder='e:\\Zoltan\\0'
         folder='x:\\santiago-setup\\debug\\bin1'
+        folder='/tmp/1'
         filename=merge_ca_data(folder,stimulus_source_code='',stimfile='')
         h=experiment_data.CaImagingData(filename)
         h.sync2time()
+        h.crop_timg()
         h.close()
         
     @unittest.skip('')  
@@ -680,10 +726,10 @@ if __name__ == '__main__':
         if fileop.free_space(sys.argv[1])<30e9:
             raise RuntimeError('{0} is running out of free space'.format(sys.argv[1]))
         elif fileop.free_space(sys.argv[1])<100e9:
-            print 'Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9))
+            print('Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9)))
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False
-        print 'Close window to exit program'
+        print('Close window to exit program')
         while True:
             try:
                 if os.name != 'nt' and utils.enter_hit():
@@ -691,14 +737,14 @@ if __name__ == '__main__':
                 t0=time.time()
                 r=p.detect_and_convert()
                 if len(r)>0:
-                    print 'runtime', time.time()-t0
-                    print 'New files', r
+                    print('runtime', time.time()-t0)
+                    print('New files', r)
             except:
                 import traceback
-                print traceback.format_exc()
+                print(traceback.format_exc())
 #                pdb.set_trace()
             time.sleep(1.0)
-        print 'DONE'
+        print('DONE')
     else:
         unittest.main()
 

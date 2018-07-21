@@ -4,8 +4,10 @@ Signal/Image manipulation/filtering functions
 import copy
 import numpy
 import scipy.interpolate
-
-import utils
+try:
+    import utils
+except ImportError:
+    from visexpman.engine.generic import utils
 
 import unittest
 
@@ -59,7 +61,10 @@ def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
        
 ############## Waveform generation ##############
 def time_series(duration, fs):
-    return numpy.linspace(0, duration, int(numpy.round(duration*fs))+1)
+    if isinstance(duration, float):
+        return numpy.linspace(0, duration, int(numpy.round(duration*fs))+1)
+    elif isinstance(duration, int):
+        return numpy.arange(duration,dtype=numpy.float)/fs
 
 def wf_sin(a, f, duration, fs, phase = 0, offset = 0):
     t = time_series(duration, fs)
@@ -214,6 +219,21 @@ def trigger_indexes(trigger,threshold=0.3, abs_threshold=None):
         return numpy.array([])
     return numpy.nonzero(abs(numpy.diff(numpy.where(trigger-trigger.min()>threshold*(trigger.max()-trigger.min()),1,0))))[0]+1
     #return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>threshold*(trigger.max()-trigger.min()), 1, 0))[0]+1
+    
+def detect_edges(signal, threshold):
+    return numpy.nonzero(numpy.diff(numpy.where(signal>threshold,1,0)))[0]+1
+    
+def generate_bins(signal, binsize):
+    '''
+    generate bins such that it is aligned to binsize
+    '''
+    nsteps_lower=signal.min()/binsize
+    range_min=numpy.ceil(abs(nsteps_lower))*numpy.sign(nsteps_lower)*binsize
+    nsteps_upper=numpy.ceil(signal.max()/binsize)
+    range_max=nsteps_upper*binsize
+    bins=numpy.arange(range_min,range_max,binsize)
+    bins=numpy.append(bins, range_max)
+    return bins
 
 def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
@@ -306,12 +326,29 @@ def shape2distance(im,iterations):
     input=im.copy()
     stages=[input.copy()]
     output=numpy.zeros_like(im)
-    for i in range(iterations):
+    for i in range(int(iterations)):
         input=scipy.ndimage.morphology.binary_erosion(input)
         stages.append(input.copy())
         output+=numpy.cast['uint8'](input.copy())*(i+1)
     return output
-
+    
+def generate_frequency_modulated_waveform(duration, base_frequency, frequency_step, switch_frequency, fsample,step=True):
+    f1=base_frequency+frequency_step
+    f2=base_frequency-frequency_step
+    if step:
+        on_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f1)
+        off_waveform=numpy.sin(numpy.arange(fsample*0.5/switch_frequency)/fsample*2*numpy.pi*f2)
+        nshift_periods=int(duration*switch_frequency)
+        return numpy.tile(numpy.concatenate((on_waveform, off_waveform)),nshift_periods)
+    else:
+        t=time_series(float(duration), fsample)
+        frequency_values=numpy.sin(t* 2* numpy.pi* switch_frequency)*0.5*abs(f2-f1)+0.5*abs(f2-f1)+f2
+        #Reduce frequency levels
+  #      fround=int(fsample/100)
+#        frequency_values=(numpy.round(frequency_values/fround)*fround)
+        frequency_values=numpy.round(frequency_values,-2)
+        sig=numpy.sin(t*numpy.pi*2*frequency_values)
+        return sig
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -399,7 +436,7 @@ class TestSignal(unittest.TestCase):
         numpy.testing.assert_allclose(numpy.diff(sig[int(t_up*fs): int((t_up+t_down)*fs)]).std(), 0.0, 0.0, 1e-5)
         if False:
             from pylab import plot,show
-            print numpy.diff(sig)
+            print(numpy.diff(sig))
             plot(sig)
             show()
             
@@ -501,7 +538,9 @@ class TestSignal(unittest.TestCase):
         #im[2:14, 2:14]=1
         #d=shape2distance(im, 5)
         
-
+    def test_19_fm(self):
+        generate_frequency_modulated_waveform(10, 15e3, 1e3, 10,48e3)
+        generate_frequency_modulated_waveform(10, 15e3, 1e3, 1,48e3,False)
         
         
     

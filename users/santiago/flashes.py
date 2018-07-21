@@ -66,28 +66,28 @@ class FlashStimulation(experiment.Experiment):
                 self._set_voltage(self.amplitude)
                 led_state=True
                 if color_values[frame_i]>0:
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                     time.sleep(self.trig_time)
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
             elif frame_i==led_end_indexes[led_flash_index] and led_flash_duration>0:
                 self._set_voltage(0)
                 led_state=False
                 led_flash_index+=1
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                 if color_values[frame_i]>0:
                     time.sleep(self.trig_time)
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
             if frame_i>0:
                 if color_values[frame_i]>0 and color_values[frame_i-1]==0:
                     if led_state:
-                        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                        self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                         time.sleep(self.trig_time)
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
                 elif color_values[frame_i-1]>0 and color_values[frame_i]==0:
-                    self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
+                    self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 0)
                     if  led_state:
                         time.sleep(self.trig_time)
-                        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
+                        self.parallel_port.set_data_bit(self.config.BLOCK_TIMING_PIN, 1)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def run(self, fragment_id = 0):
