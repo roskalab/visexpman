@@ -95,6 +95,42 @@ class TestFileops(unittest.TestCase):
             e.close()
             print s
             
+    def indexofsmallestpositive(self,a):
+        m=numpy.where(a<0, 0, a)
+        return numpy.where(a==a[numpy.nonzero(m)[0]].min())[0][0]
+            
+    def test_dropped_frames(self):
+        folder='x:\\santiago-setup\\Acute Slice Recordings'
+        import hdf5io
+        fs=fileop.find_files_and_folders(folder)[1]
+        for f in fs:
+            if f[-5:]!='.hdf5': continue
+            #if 'region18_LedConfig_201806302032023' not in f: continue
+            try:
+                hh=hdf5io.Hdf5io(f)
+                hh.load('raw_data')
+                hh.load('dropped_frames')
+                hh.load('tstim')
+                hh.load('timg')
+                if not hasattr(hh, 'raw_data') or (not hasattr(hh, 'tstim') and all(hh.raw_data.mean(axis=2).mean(axis=2)[100:110].flatten()==0)):
+                    hh.close()
+                    continue
+                indexes=[self.indexofsmallestpositive(hh.timg-s) for s in hh.tstim]
+                if any(hh.raw_data.mean(axis=2).mean(axis=2)[indexes[0]-2:indexes[0]-1,0]>200):
+                    print('Dropped frame, {0}'.format(f))
+                    if hasattr(hh, 'dropped_frames'):
+                        print(hh.dropped_frames)
+                msg=[fs.index(f), len(fs)]
+                if hasattr(hh, 'dropped_frames'):
+                    msg.append(any(hh.dropped_frames))
+                msg.append(hh.tstim.shape)
+                print msg
+                hh.close()
+            except:
+                pass
+            
+            
+            
 
 if __name__=='__main__':
         unittest.main()
