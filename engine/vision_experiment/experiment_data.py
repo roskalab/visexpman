@@ -300,13 +300,12 @@ class CaImagingData(supcl):
             self.scale = 1.0/self.parameters['pixel_size']
         else:
             raise NotImplementedError('')
-        
-        if motion_correction and self.findvar('motion_correction')==True:
+        if motion_correction:# and self.findvar('motion_correction')==None:
             from visexpman.engine.analysis import bouton
             self.raw_data=bouton.motion_correction(self.raw_data)
-            self.motion_correction=True
-            self.save('motion_correction')
-            self.save('raw_data')
+#            self.motion_correction=True
+#            self.save('motion_correction')
+#            self.save('raw_data')
         if image_type=='mean':
             self.image = self.raw_data.mean(axis=0)[0]
         elif image_type=='mip': 
