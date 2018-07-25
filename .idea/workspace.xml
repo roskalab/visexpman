@@ -18,7 +18,7 @@
         <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="0">
-              <caret line="11" column="17" lean-forward="false" selection-start-line="11" selection-start-column="17" selection-end-line="11" selection-end-column="17" />
+              <caret line="27" column="62" lean-forward="false" selection-start-line="27" selection-start-column="62" selection-end-line="27" selection-end-column="62" />
               <folding>
                 <element signature="e#0#42#0" expanded="true" />
               </folding>
@@ -26,11 +26,21 @@
           </provider>
         </entry>
       </file>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/users/daniel/__init__.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="0">
+              <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file leaf-file-name="stage_control.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/engine/hardware_interface/stage_control.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="358">
-              <caret line="65" column="26" lean-forward="true" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
+            <state relative-caret-position="1054">
+              <caret line="65" column="26" lean-forward="false" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -38,13 +48,15 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="gui.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="gui.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/engine/vision_experiment/gui.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="289">
-              <caret line="1433" column="92" lean-forward="false" selection-start-line="1433" selection-start-column="92" selection-end-line="1433" selection-end-column="92" />
+            <state relative-caret-position="23970">
+              <caret line="1441" column="17" lean-forward="false" selection-start-line="1441" selection-start-column="17" selection-end-line="1441" selection-end-column="17" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
+                <marker date="1523981851451" expanded="true" signature="58266:58275" ph="..." />
+                <marker date="1523981851451" expanded="true" signature="88252:88444" ph="..." />
               </folding>
             </state>
           </provider>
@@ -53,8 +65,8 @@
       <file leaf-file-name="jobhandler1.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/engine/jobhandler1.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="5168">
-              <caret line="305" column="62" lean-forward="false" selection-start-line="305" selection-start-column="41" selection-end-line="305" selection-end-column="62" />
+            <state relative-caret-position="5219">
+              <caret line="308" column="62" lean-forward="false" selection-start-line="308" selection-start-column="41" selection-end-line="308" selection-end-column="62" />
               <folding />
             </state>
           </provider>
@@ -85,12 +97,12 @@
       <list>
         <option value="$PROJECT_DIR$/../visexpA/engine/datahandlers/hdf5io.py" />
         <option value="$PROJECT_DIR$/users/daniel/configurations.py" />
-        <option value="$PROJECT_DIR$/users/daniel/ir_laser.py" />
         <option value="$PROJECT_DIR$/engine/vision_experiment/gui.py" />
+        <option value="$PROJECT_DIR$/users/daniel/ir_laser.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="1">
+  <component name="ProjectFrameBounds">
     <option name="x" value="37" />
     <option name="y" value="24" />
     <option name="width" value="1883" />
@@ -145,7 +157,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="37" y="24" width="1883" height="1056" extended-state="1" />
+    <frame x="37" y="24" width="1883" height="1056" extended-state="0" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -175,6 +187,198 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#42#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/vision_experiment/gui.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="24497">
+          <caret line="1441" column="17" lean-forward="false" selection-start-line="1441" selection-start-column="17" selection-end-line="1441" selection-end-column="17" />
+          <folding>
+            <element signature="e#0#13#0" expanded="true" />
+            <marker date="1523981851451" expanded="true" signature="58266:58275" ph="..." />
+            <marker date="1523981851451" expanded="true" signature="88252:88444" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/hardware_interface/stage_control.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1054">
+          <caret line="65" column="26" lean-forward="false" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/jobhandler1.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5219">
+          <caret line="308" column="62" lean-forward="false" selection-start-line="308" selection-start-column="41" selection-end-line="308" selection-end-column="62" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/configurations.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9163">
+          <caret line="548" column="60" lean-forward="false" selection-start-line="548" selection-start-column="60" selection-end-line="548" selection-end-column="60" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#42#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/hardware_interface/stage_control.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1054">
+          <caret line="65" column="26" lean-forward="false" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/vision_experiment/gui.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="24497">
+          <caret line="1441" column="17" lean-forward="false" selection-start-line="1441" selection-start-column="17" selection-end-line="1441" selection-end-column="17" />
+          <folding>
+            <element signature="e#0#13#0" expanded="true" />
+            <marker date="1523981851451" expanded="true" signature="58266:58275" ph="..." />
+            <marker date="1523981851451" expanded="true" signature="88252:88444" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/jobhandler1.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5219">
+          <caret line="308" column="62" lean-forward="false" selection-start-line="308" selection-start-column="41" selection-end-line="308" selection-end-column="62" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/configurations.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9163">
+          <caret line="548" column="60" lean-forward="false" selection-start-line="548" selection-start-column="60" selection-end-line="548" selection-end-column="60" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#42#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/hardware_interface/stage_control.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1054">
+          <caret line="65" column="26" lean-forward="false" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/jobhandler1.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5219">
+          <caret line="308" column="62" lean-forward="false" selection-start-line="308" selection-start-column="41" selection-end-line="308" selection-end-column="62" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/vision_experiment/gui.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="24497">
+          <caret line="1441" column="17" lean-forward="false" selection-start-line="1441" selection-start-column="17" selection-end-line="1441" selection-end-column="17" />
+          <folding>
+            <element signature="e#0#13#0" expanded="true" />
+            <marker date="1523981851451" expanded="true" signature="58266:58275" ph="..." />
+            <marker date="1523981851451" expanded="true" signature="88252:88444" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/configurations.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9163">
+          <caret line="548" column="60" lean-forward="false" selection-start-line="548" selection-start-column="60" selection-end-line="548" selection-end-column="60" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="170">
+          <caret line="11" column="17" lean-forward="false" selection-start-line="11" selection-start-column="17" selection-end-line="11" selection-end-column="17" />
+          <folding>
+            <element signature="e#0#42#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/hardware_interface/stage_control.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1054">
+          <caret line="65" column="26" lean-forward="true" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/jobhandler1.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5168">
+          <caret line="305" column="62" lean-forward="false" selection-start-line="305" selection-start-column="41" selection-end-line="305" selection-end-column="62" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/configurations.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="9163">
+          <caret line="548" column="60" lean-forward="false" selection-start-line="548" selection-start-column="60" selection-end-line="548" selection-end-column="60" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/engine/vision_experiment/gui.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="24361">
+          <caret line="1433" column="17" lean-forward="true" selection-start-line="1433" selection-start-column="17" selection-end-line="1433" selection-end-column="17" />
+          <folding>
+            <element signature="e#0#13#0" expanded="true" />
+            <marker date="1523981851451" expanded="true" signature="58266:58275" ph="..." />
+            <marker date="1523981851451" expanded="true" signature="88252:88444" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -282,8 +486,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/engine/jobhandler1.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="5168">
-          <caret line="305" column="62" lean-forward="false" selection-start-line="305" selection-start-column="41" selection-end-line="305" selection-end-column="62" />
+        <state relative-caret-position="5219">
+          <caret line="308" column="62" lean-forward="false" selection-start-line="308" selection-start-column="41" selection-end-line="308" selection-end-column="62" />
           <folding />
         </state>
       </provider>
@@ -296,20 +500,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="11" column="17" lean-forward="false" selection-start-line="11" selection-start-column="17" selection-end-line="11" selection-end-column="17" />
-          <folding>
-            <element signature="e#0#42#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/engine/hardware_interface/stage_control.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="358">
-          <caret line="65" column="26" lean-forward="true" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
+        <state relative-caret-position="1054">
+          <caret line="65" column="26" lean-forward="false" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="26" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>
@@ -318,11 +512,31 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/engine/vision_experiment/gui.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="1433" column="92" lean-forward="false" selection-start-line="1433" selection-start-column="92" selection-end-line="1433" selection-end-column="92" />
+        <state relative-caret-position="23970">
+          <caret line="1441" column="17" lean-forward="false" selection-start-line="1441" selection-start-column="17" selection-end-line="1441" selection-end-column="17" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
+            <marker date="1523981851451" expanded="true" signature="58266:58275" ph="..." />
+            <marker date="1523981851451" expanded="true" signature="88252:88444" ph="..." />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/ir_laser.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="27" column="62" lean-forward="false" selection-start-line="27" selection-start-column="62" selection-end-line="27" selection-end-column="62" />
+          <folding>
+            <element signature="e#0#42#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/users/daniel/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>

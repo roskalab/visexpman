@@ -14,7 +14,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 import visexpman
-from visexpman.engine.generic import utils,signal
+from visexpman.engine.generic import utils,signalop
 from visexpman.engine.generic import file as fileop
 from visexpman.engine.generic import log
 from visexpman.engine.vision_experiment import configuration
@@ -311,9 +311,9 @@ class ReceptiveFieldPlotter(SmallApp):
         self.machine_config = utils.array2object(idnode['machine_config'])
         sd = copy.deepcopy(idnode['sync_data'])
         self.sync_sample_rate = float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE'])
-        stimulus_time = signal.trigger_indexes(sd[:,1])[::2]/self.sync_sample_rate
+        stimulus_time = signalop.trigger_indexes(sd[:, 1])[::2] / self.sync_sample_rate
         sfi = copy.deepcopy(idnode['stimulus_frame_info'])
-        imaging_time = signal.trigger_indexes(sd[:,0])[::2]/self.sync_sample_rate
+        imaging_time = signalop.trigger_indexes(sd[:, 0])[::2] / self.sync_sample_rate
         block_times, stimulus_parameter_times,block_info, self.organized_blocks = experiment_data.process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
         try:
             positions = [o[0]['sig'][2]['angle'] for o in self.organized_blocks]

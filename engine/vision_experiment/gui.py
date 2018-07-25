@@ -1658,6 +1658,7 @@ class MainPoller(Poller):
             parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xz_scan_region_parameters.mat')
             if not self.create_parameterfile_from_region_info(parameter_file_path, 'xz'):
                 return False
+            self.printc(mes_interface.is_imaging_timing_record_enabled(parameter_file_path))
             self.xz_scan, result = self.mes_interface.vertical_line_scan(parameter_file = parameter_file_path, channels =channels)
             self.files_to_delete.append(parameter_file_path)
         else:

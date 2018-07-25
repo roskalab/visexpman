@@ -15,7 +15,7 @@ from OpenGL.GLUT import *
 import command_handler
 import experiment_control
 from visexpman.engine.generic import graphics #Not used
-from visexpman.engine.generic import utils,signal, geometry
+from visexpman.engine.generic import utils,signalop, geometry
 from visexpman.engine.generic import colors
 from visexpman.engine.vision_experiment import screen
 
@@ -1057,7 +1057,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             minimal_spatial_period = 10 * spatial_resolution
         self.log_on_flip_message_initial = 'show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')'
         self.log_on_flip_message_continous = 'show_natural_bars'
-        self.intensity_profile = offset+scale*signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        self.intensity_profile = offset + scale * signalop.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
         if 0:#For testing only
             self.intensity_profile = numpy.linspace(0,1,self.intensity_profile.shape[0])
             self.intensity_profile[:0.1*self.intensity_profile.shape[0]]=0.0

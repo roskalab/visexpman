@@ -1,6 +1,6 @@
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.generic import utils,signal
+from visexpman.engine.generic import utils,signalop
 import os
 import numpy
 import time
