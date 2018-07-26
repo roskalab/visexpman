@@ -412,6 +412,8 @@ class DigitalIO(object):
             self.hwhandler=serial.Serial(port)
             for i in range(2):
                 self.set_pin(i, 0)
+        elif type==None:
+            pass
         else:
             raise NotImplementedError(type)
             
@@ -422,6 +424,8 @@ class DigitalIO(object):
         * ioboard: 5..7
         * usb-uart: 0..1
         '''
+        if self.type==None:
+            return
         if state!=0 and state!=1:
             raise ValueError('Invalid state: {0}'.format(state))
         if self.type in ['daq', 'ioboard']:
@@ -435,6 +439,8 @@ class DigitalIO(object):
                 raise ValueError('Invalid pin: {0}'.format(pin))
             
     def close(self):
+        if self.type==None:
+            return
         self.hwhandler.close()
            
 class TestConfig(object):

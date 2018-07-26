@@ -173,7 +173,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         nlevels=[len(b) for b in branches]
         if not all(nlevels):
             raise ValueError('All branches shall have the same depth')
-        nlevels=nlevels[0]
+        nlevels=0 if len(nlevels)==0 else nlevels[0]
         tree_items=[]
         for level in range(nlevels):
             for i in [b[:level+1] for b in branches]:
@@ -503,6 +503,8 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         elif self.machine_config.PLATFORM =='resonant':
             toolbar_buttons = ['start_experiment', 'stop', 'mesc_connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
+        elif self.machine_config.PLATFORM =='behav':
+            toolbar_buttons = ['start_experiment', 'stop', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -549,7 +551,6 @@ class MainUI(gui.VisexpmanMainWindow):
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
-        self.advanced=Advanced(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical', 'resonant']:
@@ -560,7 +561,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
-        self.main_tab.addTab(self.advanced, 'Advanced')
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+            self.advanced=Advanced(self)
+            self.main_tab.addTab(self.advanced, 'Advanced')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
@@ -780,7 +783,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
-                        
+        if hasattr(self.machine_config, 'SETUP_SETTINGS'):
+            self.params_config.append(self.machine_config.SETUP_SETTINGS)
 
     ############# Actions #############
     def start_experiment_action(self):

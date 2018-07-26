@@ -1,13 +1,6 @@
-import argparse
-import warnings
-import platform
-import sys
-import multiprocessing
+import argparse, warnings, platform, sys, multiprocessing
 
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import log
-from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils,fileop,log,introspect
 from visexpman.engine.hardware_interface import queued_socket
 
 class FreeSpaceError(Exception):
@@ -63,6 +56,7 @@ def application_init(**kwargs):
         argparser.add_argument('--testmode', help = 'Test mode')
         argparser.add_argument('--kill', help = 'Kill other python processes before software starts')
         argparser.add_argument('--nofullscreen', help = '')
+        argparser.add_argument('--visexpu', help = 'Use visexpu module instead of visexpman.users for loading machine configs and stimuli')
         parsed_args = argparser.parse_args()
         for parname in parnames:
             if getattr(parsed_args,parname) is None:
@@ -73,9 +67,10 @@ def application_init(**kwargs):
             args[parname] = kwargs[parname]
     #Instantiate machine config
     import visexpman.engine.vision_experiment.configuration
-    config_class = utils.fetch_classes('visexpman.users.common', classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
+    import visexpman
+    config_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
     if len(config_class) == 0:#Try user's folder if not found in common folder 
-        config_class = utils.fetch_classes('visexpman.users.' + args['user'], classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
+        config_class = utils.fetch_classes(visexpman.USER_MODULE+'.' + args['user'], classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
         if len(config_class) == 0:#Machine config class not found
             raise RuntimeError('{0} user\'s {1} machine configuration class cannot be found'.format(args['user'], args['config']))
     machine_config = config_class[0][1]()

@@ -581,7 +581,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
                 self.camera_trigger=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT_STIM)
             prefix='data' if self.machine_config.PLATFORM in  ['ao_cortical','resonant'] else 'stim'
-            if self.machine_config.PLATFORM in ['behav', 'standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
+            if self.machine_config.PLATFORM in ['standalone',  'intrinsic']:#TODO: this is just a hack. Standalone platform has to be designed
                 self.parameters['outfolder']=self.machine_config.EXPERIMENT_DATA_PATH
                 if hasattr(self, 'calculate_stimulus_duration'):
                     self.parameters['stimclass']=self.__class__.__name__
@@ -623,8 +623,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.camera = XimeaCamera(config=self.machine_config)
                     self.camera.start()
                     self.camera.trigger.set()  # starts acquisition
-                elif self.machine_config.PLATFORM in ['behav','epos']:
-                    if self.machine_config.PLATFORM=='behav':
+                elif self.machine_config.PLATFORM in ['standalone','epos']:
+                    if self.machine_config.PLATFORM=='standalone':#Might break on Miao's setup
                         self.sync_recording_duration=self.parameters['duration']
                         self.start_sync_recording()
                     self.printl('Waiting for external trigger')
@@ -686,7 +686,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM == 'resonant':
                 if not self.mesc_error:
                     self.send({'mesc':'stop'})
-            if self.machine_config.PLATFORM in ['behav', 'ao_cortical', 'resonant']:
+            if self.machine_config.PLATFORM in ['standalone', 'ao_cortical', 'resonant']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
             #Saving data

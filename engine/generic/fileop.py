@@ -479,7 +479,10 @@ def get_user_module_folder(config):
     '''
     Returns folder path where user's stimulation files or other source files reside
     '''
-    return os.path.join(visexpman_package_path(), 'users', config.user)
+    if '--visexpu' in sys.argv:
+        return os.path.join(os.path.dirname(visexpman_package_path()), 'visexpu', 'users', config.user)
+    else:
+        return os.path.join(visexpman_package_path(), 'users', config.user)
 
 def get_context_filename(config,extension=' npy'):
     '''
