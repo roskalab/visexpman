@@ -339,6 +339,9 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
                 else:
                     all_files.append(root + os.sep + file)    
         return directories, all_files
+        
+def find_files(start_path,extension=None):
+    return find_files_and_folders(start_path, extension=extension)[1]
 
 def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):
     import numpy
