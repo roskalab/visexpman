@@ -237,7 +237,7 @@ class CaImagingData(supcl):
         else:
             index=self.configs['machine_config']['TSTIM_SYNC_INDEX']
         sig=sync[:,index]
-        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['user']!='daniel':
             raise RuntimeError('Stimulus timing signal maximum amplitude is only {0:0.2f} V. Check connections'.format(sig.max()))
         self.tstim=signal.trigger_indexes(sig)/fsample
         self.save(['timg', 'tstim'])
@@ -295,7 +295,8 @@ class CaImagingData(supcl):
         map(self.load, vns)
         if not hasattr(self, 'configs'):#For older files
             self.load('machine_config')
-            self.configs=self.machine_config
+            if hasattr(self,  'machine_config'):
+                self.configs=self.machine_config
         if self.parameters['resolution_unit']=='pixel/um':
             self.scale = 1.0/self.parameters['pixel_size']
         else:

@@ -1,14 +1,22 @@
 #OBSOLETE MODULE
 import sys
 import time
-import Queue
+try:
+    import Queue
+except ImportError:
+    import queue as Queue
 import os
 import numpy
 import traceback
 import re
-import cPickle as pickle
-
-import PyQt4.QtCore as QtCore
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+try:
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import introspect
 from visexpman.engine.generic import command_parser

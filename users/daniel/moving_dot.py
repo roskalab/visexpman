@@ -549,15 +549,15 @@ def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
         while vs_runner.state !='idle':
             time.sleep(0.2)
         time.sleep(pause_before[i])
-        print 'slept ' + str(pause_before[i])
+        print('slept ' + str(pause_before[i]))
         try:
             sock = socket.create_connection(('localhost', 10000))
             sock.sendall('SOC'+messages[i]+'EOC'+parameters[i]+'EOP')
         except Exception as e:
-            print e
+            print(e)
         finally:  
             sock.close()
-    print 'everything sent,  returning'
+    print('everything sent,  returning')
     return
 
 def run_stimulation(vs):
