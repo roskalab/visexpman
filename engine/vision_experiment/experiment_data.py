@@ -1539,21 +1539,21 @@ def yscanner2sync(waveform):
     pass
     
 def hdf52mat(filename):
-    h=hdf5io.Hdf5io(filename)
+    hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
-    rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
     mat_data={}
     for rn in rootnodes:
         if os.path.basename(filename).split('_')[-2] in rn:
             rnt='idnode'
         else:
             rnt=rn
-        mat_data[rnt]=h.findvar(rn)
+        mat_data[rnt]=hh.findvar(rn)
         if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
     if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
-    h.close()
+    hh.close()
     matfile=fileop.replace_extension(add_mat_tag(filename), '.mat')
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
     return matfile

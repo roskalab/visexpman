@@ -1730,6 +1730,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     
         
     def run(self):
+        self.loop_wait=20e-3
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
         for fn in dir(self):
             if 'init_'==fn[:5] and callable(getattr(self, fn)):
@@ -1737,8 +1738,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-#                if hasattr(self,'run_all_iterations'):
-#                    self.run_all_iterations()
                 for fn in run_always:
                     getattr(self, fn)()
                 if self.enable_check_network_status:
@@ -1750,6 +1749,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     if msg == 'terminate':
                         break
                 else:
+                    time.sleep(self.loop_wait)
                     continue
                 #parse message
                 if 'data' in msg:#expected format: {'data': value, 'path': gui path, 'name': name}
@@ -1769,7 +1769,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.printc(traceback.format_exc())
                 self.dump()
                 self.close_open_files()
-            time.sleep(20e-3)
+            time.sleep(self.loop_wait)
         self.close()
         
     def close_open_files(self):
