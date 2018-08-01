@@ -10,6 +10,7 @@ from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import IntrinsicConfig, VisionExperimentConfig,RcCorticalCaImagingConfig
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
+from visexpman.users.common.femtonics_setups import ResonantSetup
 
 
 class IntrinsicDevelopment(IntrinsicConfig):
@@ -51,6 +52,15 @@ class IntrinsicDevelopment(IntrinsicConfig):
 
 
 
-    
+class DanielResonantSetup(ResonantSetup):
+    def _set_user_parameters(self):
+        ResonantSetup._set_user_parameters(self)
+        self.EXPERIMENT_DATA_PATH='v:\\experiment_data'
+        self.SCREEN_DISTANCE_FROM_MOUSE_EYE = 145.0
+        self.SYNC_RECORDER_CHANNELS='Dev1/ai0:7' #0: frame sync, 1: stim frame, 2: block, 3, 4, 5, 6: camera trigger from MESc computer, 7: laser timing signal
+        self.TSTIM_LASER_SYNC_INDEX=7
+
+
+
 if __name__ == "__main__":
     pass

@@ -441,9 +441,10 @@ class ExperimentHandler(object):
                 fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
             elif self.machine_config.PLATFORM=='resonant':
                 self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
-                #Convert to mat file
-                experiment_data.hdf52mat(self.outputfilename)
-                self.printc('{0} converted to mat'.format(self.outputfilename))
+                #Convert to mat file except for Dani
+                if self.machine_config.user!='daniel':
+                    experiment_data.hdf52mat(self.outputfilename)
+                    self.printc('{0} converted to mat'.format(self.outputfilename))
             if not (self.machine_config.PLATFORM in ['ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
@@ -668,7 +669,10 @@ class ExperimentHandler(object):
                 self.enable_check_network_status=True
             elif self.machine_config.PLATFORM=='resonant':
                 self.printc('Stop mesc recording, might still running')
-                self.mesc_handler('stop')
+                try:
+                    self.mesc_handler('stop')
+                except:
+                    pass#Ignore errors
             self.finish_experiment()
             self.save_experiment_files(aborted=True)
             self.printc('Experiment finished with error')            
@@ -770,55 +774,57 @@ class Analysis(object):
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
         self.datafile.sync2time(recreate=self.santiago_setup)
-        self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
+        if self.machine_config.PLATFORM!='resonant':#Do not load imaging data
+            self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
+            self.image_scale=self.datafile.scale
+            self.meanimage=self.datafile.image
+            self.raw_data=self.datafile.raw_data
+            self.printc(self.raw_data.shape)
+            self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
         if self.santiago_setup and 0:
             self._remove_dropped_frame_timestamps()
         self.tstim=self.datafile.tstim
         self.timg=self.datafile.timg
         if self.santiago_setup:
             self.timg=self.timg[:self.datafile.raw_data.shape[0]]
-        self.image_scale=self.datafile.scale
-        self.meanimage=self.datafile.image
-        self.raw_data=self.datafile.raw_data
         self.printc(self.timg.shape)
         self.printc(self.tstim.shape)
-        self.printc(self.raw_data.shape)
         if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
             msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
             self.notify('Error', msg)
             raise RuntimeError(msg)
         self.experiment_name= self.datafile.findvar('parameters')['stimclass']
-        self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
-        if self.machine_config.PLATFORM != 'ao_cortical':
-            self._recalculate_background()
-        try:
-            self._red_channel_statistics()
-        except:
-            self.printc('No red stat')
-        self.rois = self.datafile.findvar('rois')
-        if hasattr(self, 'reference_rois'):
-            if self.rois is not None and len(self.rois)>0:
-                if not self.ask4confirmation('{0} already contains Rois. These will be overwritten with Rois from previous file. Is that OK?'.format(os.path.basename(self.filename))):
-                    self.datafile.close()
-                    return
-            #Calculate roi curves
-            self.rois = copy.deepcopy(self.reference_rois)
-            self._extract_roi_curves()
-            self._normalize_roi_curves()
-            self.current_roi_index = 0
-            self.selected_roi_indexes=[]
-            self.display_roi_rectangles()
-            self.display_roi_curve()
-            self._roi_area2image()
-        elif self.rois is None:#No reference rois, nothing is loaded from file
-            self.rois=[]
-            self._init_meanimge_w_rois()
-        else:
-            self.current_roi_index = 0
-            self.selected_roi_indexes=[]
-            self.display_roi_rectangles()
-            self.display_roi_curve()
-            self._roi_area2image()
+        if self.machine_config.PLATFORM!='resonant':
+            if self.machine_config.PLATFORM != 'ao_cortical':
+                self._recalculate_background()
+            try:
+                self._red_channel_statistics()
+            except:
+                self.printc('No red stat')
+            self.rois = self.datafile.findvar('rois')
+            if hasattr(self, 'reference_rois'):
+                if self.rois is not None and len(self.rois)>0:
+                    if not self.ask4confirmation('{0} already contains Rois. These will be overwritten with Rois from previous file. Is that OK?'.format(os.path.basename(self.filename))):
+                        self.datafile.close()
+                        return
+                #Calculate roi curves
+                self.rois = copy.deepcopy(self.reference_rois)
+                self._extract_roi_curves()
+                self._normalize_roi_curves()
+                self.current_roi_index = 0
+                self.selected_roi_indexes=[]
+                self.display_roi_rectangles()
+                self.display_roi_curve()
+                self._roi_area2image()
+            elif self.rois is None:#No reference rois, nothing is loaded from file
+                self.rois=[]
+                self._init_meanimge_w_rois()
+            else:
+                self.current_roi_index = 0
+                self.selected_roi_indexes=[]
+                self.display_roi_rectangles()
+                self.display_roi_curve()
+                self._roi_area2image()
         self.datafile.close()
         self._bouton_analysis()
 

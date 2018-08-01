@@ -67,6 +67,8 @@ def check_experiment_config(config):
             #Variable names with timing_keywords and woutout _MS tag considered as timing parameters in seconds
             if any([kw.upper() in vn and '_MS' not in vn for kw in timing_keywords]):
                 v=getattr(config, vn)
+                import numbers
+                if not isinstance(v,  numbers.Number): continue
                 if v >second_millisecond_warning_threshold:
                     import warnings
                     warnings.warn('{0} ({1}) parameter might be in milliseconds'.format(vn,v))

@@ -145,7 +145,7 @@ def circle_coord(diameter,  resolution = 1.0,  image_size = None,  color = 1.0, 
     draw.polygon(vertices_int,  fill = int(color * 255.0))    
     #just for debug
     image.show()
-    print numpy.asarray(image)
+    print(numpy.asarray(image))
     return numpy.asarray(image)
 
     

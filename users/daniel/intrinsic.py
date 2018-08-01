@@ -58,7 +58,7 @@ class MyIntrinsicProtocol(experiment.Experiment):
 #            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6))
             ]
         self.fragment_durations = [self.experiment_config.DURATION*len(self.positions)*2+self.experiment_config.BLANK_DELAY]
-        print self.fragment_durations
+        print(self.fragment_durations)
 
     def run(self):
         #Initial delay and flash
