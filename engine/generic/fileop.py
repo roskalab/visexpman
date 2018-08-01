@@ -339,6 +339,9 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
                 else:
                     all_files.append(root + os.sep + file)    
         return directories, all_files
+        
+def find_files(start_path,extension=None):
+    return find_files_and_folders(start_path, extension=extension)[1]
 
 def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):
     import numpy
@@ -479,7 +482,10 @@ def get_user_module_folder(config):
     '''
     Returns folder path where user's stimulation files or other source files reside
     '''
-    return os.path.join(visexpman_package_path(), 'users', config.user)
+    if '--visexpu' in sys.argv:
+        return os.path.join(os.path.dirname(visexpman_package_path()), 'visexpu', 'users', config.user)
+    else:
+        return os.path.join(visexpman_package_path(), 'users', config.user)
 
 def get_context_filename(config,extension=' npy'):
     '''

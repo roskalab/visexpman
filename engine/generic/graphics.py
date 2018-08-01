@@ -167,7 +167,7 @@ class Screen(object):
         Main loop for updating screen.
         """        
         if self.mode == 'single_frame':
-            self.set_viewpoint(self.position,  self.heading,  self.roll, self.pitch)
+            self.set_view(self.position,  self.heading,  self.roll, self.pitch)
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.draw_scene()
             self.flip()

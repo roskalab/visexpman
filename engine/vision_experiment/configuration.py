@@ -134,6 +134,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         KEYS['set grey'] = 'g'
         KEYS['set white'] = 'w'
         KEYS['set user color'] = 'u'
+        ENABLE_CHECK_ABORT=True
             
         ############## Stimulation software graphic menu related OBSOLETE ##########
         ENABLE_TEXT = True

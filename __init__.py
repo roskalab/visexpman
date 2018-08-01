@@ -5,6 +5,7 @@ import numpy
 
 
 version = 'v0.4.0'
+USER_MODULE= 'visexpu.users' if '--visexpu' in sys.argv else 'visexpman.users'
 try:
     from visexpman.applications.visexp_smallapp import rotate_images
 except:

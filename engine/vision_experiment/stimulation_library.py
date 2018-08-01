@@ -81,7 +81,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             self.frame_rates.append(self.screen.frame_rate)
-        self.check_abort()
+        if self.machine_config.ENABLE_CHECK_ABORT:
+            self.check_abort()
         
     def _get_frame_index(self):
         if not hasattr(self, 't0'):

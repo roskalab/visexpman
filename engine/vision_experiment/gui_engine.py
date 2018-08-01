@@ -539,7 +539,6 @@ class ExperimentHandler(object):
                 Image.fromarray(h.raw_data[framei,chi]).rotate(90).save(fn)
         h.load('tstim')
         h.load('timg')
-        
         h.load('dropped_frames')
         if hasattr(h, 'dropped_frames'):
             h.dropped_frames=numpy.array(h.dropped_frames)
@@ -555,7 +554,7 @@ class ExperimentHandler(object):
             tstim_sep={}
             for ch in ['stim','led']:
                 tstim_sep[ch]=real_events[[i for i in range(len(channels)) if channels[i]==ch or channels[i]=='both']]
-        h.close()        
+        h.close()
         if 'Led2' in filename:
             self.printc(['led stim', numpy.round(tstim_sep['led'])])
             self.printc(['stim', numpy.round(tstim_sep['stim'])])
@@ -752,13 +751,13 @@ class Analysis(object):
             if hasattr(self, 'reference_roi_filename'):
                 del self.reference_roi_filename
 
-    def open_datafile(self,filename):
+    def open_datafile(self,filename, ask=True):
         if hasattr(self, 'bouton_stat_text'):
             del self.bouton_stat_text
         if self.experiment_running:
             self.printc('Try again after recording')
             return
-        self._check_unsaved_rois()
+        self._check_unsaved_rois(warning_only=not ask)
         if experiment_data.parse_recording_filename(filename)['type'] != 'data':
             self.notify('Warning', 'This file cannot be displayed')
             return
@@ -856,12 +855,12 @@ class Analysis(object):
             self.printc('Background cannot be calculated')
         self.background_threshold=background_threshold
         
-    def find_cells(self, pixel_range=None):
+    def find_cells(self, pixel_range=None, ask_confirmation=True):
         if not hasattr(self, 'meanimage') or not hasattr(self, 'image_scale'):
             self.notify('Warning', 'Open datafile first')
             return
         if len(self.rois)>0:
-            if not self.ask4confirmation('Automatic cell detection will remove current rois. Are you sure?'):
+            if ask_confirmation and not self.ask4confirmation('Automatic cell detection will remove current rois. Are you sure?'):
                 return
         self.rois = []
         self.printc('Searching for cells, please wait...')
@@ -870,7 +869,7 @@ class Analysis(object):
         sigma = self.guidata.read('Sigma')/self.image_scale
         threshold_factor = self.guidata.read('Threshold factor')
         if sigma*self.image_scale<0.2 or max_-min_>3:
-            if not self.ask4confirmation('Automatic cell detection will take long with these parameters, do you want to continue?'):
+            if ask_confirmation and not self.ask4confirmation('Automatic cell detection will take long with these parameters, do you want to continue?'):
                 return
         img2process=numpy.copy(self.meanimage)
         if pixel_range != None:
@@ -1023,6 +1022,9 @@ class Analysis(object):
                     self.bouton_stat_text+='\n'
                     roi_index+=1
                 self.printc(res[1])
+                if hasattr(self, 'aggregated'):
+                    self.aggregated.append([os.path.basename(self.filename), res[1]['increase'], res[1]['decrease'], len(self.rois)])
+                
         
     def display_roi_rectangles(self):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
@@ -1293,7 +1295,33 @@ class Analysis(object):
         
     def aggregate(self, folder):
         if self.santiago_setup:
-            pass
+            save=self.ask4confirmation('Shall we save ROIs to files (will take longer)?')
+            self.printc('Batch processing files in {0}, please wait...'.format(folder))
+            files=fileop.listdir(folder)
+            self.aggregated=[['filename', 'number of increase', 'number of decrease', 'number of cells']]
+            self.abort=False
+            for datafile in files:
+                if datafile[-5:]!='.hdf5': continue
+                self.open_datafile(datafile, ask=False)
+                self.find_cells(ask_confirmation=False)
+                if save:
+                    self.save_rois_and_export(ask_overwrite=False)
+                self.printc('Batch progress: {0}/{1}'.format(files.index(datafile)+1,len(files)))
+                if self.abort:
+                    break
+            filename=folder+'.xls'
+            if os.path.exists(filename):
+                os.remove(filename)
+            self.printc('Saving aggregated data to {0}'.format(filename))
+            import xlwt
+            book = xlwt.Workbook()
+            sh = book.add_sheet('Bouton summary')
+            for line in range(len(self.aggregated)):
+                for c in range(4):
+                    sh.write(line, c, self.aggregated[line][c])
+            book.save(filename)
+            self.printc('Done')
+
         else:
             self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
             self.cells = cone_data.aggregate_cells(folder)

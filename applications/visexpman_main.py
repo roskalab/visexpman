@@ -15,7 +15,7 @@ import visexpman
 import visexpman.engine
 from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.engine.vision_experiment.screen import StimulationScreen
-from visexpman.engine.vision_experiment import experiment_data
+from visexpman.engine.vision_experiment import experiment_data,experiment
 from visexpman.engine.generic import utils,fileop,introspect
 try:
     import hdf5io#TODO: thismoves with StimulationLoop
@@ -24,11 +24,11 @@ except ImportError:
     import scipy.io
     context_file_type='mat'#TODO: this might be obsolete because context file is saved as npy
 
-class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be moved to stim.py
+class StimulationLoop(ServerLoop, StimulationScreen):
     def __init__(self, machine_config, socket_queues, command, log,context={}):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
-        self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
-        self.experiment_configs.extend([ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)])
+        self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes(visexpman.USER_MODULE+'.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
+        self.experiment_configs.extend([ecn[1].__name__ for ecn in utils.fetch_classes(visexpman.USER_MODULE+ '.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)])
         self.experiment_configs.sort()
         if len(self.experiment_configs)>10:
             self.experiment_configs = self.experiment_configs[:10]#TODO: give some warning
@@ -233,7 +233,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):#TODO: this class should be
             experiment_config_class=[]
             for ancestor in [visexpman.engine.vision_experiment.experiment.ExperimentConfig,visexpman.engine.vision_experiment.experiment.Stimulus]:
                 for u in [self.machine_config.user, 'common']:
-                    experiment_config_class.extend(utils.fetch_classes('visexpman.users.'+ u, classname = parameters['experiment_name'],  
+                    experiment_config_class.extend(utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = parameters['experiment_name'],  
                                                         required_ancestors = ancestor, direct=False))
             if len(experiment_config_class)==0:
                 from visexpman.engine import ExperimentConfigError

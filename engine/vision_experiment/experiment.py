@@ -1,4 +1,4 @@
-import sys, threading, time, inspect,traceback
+import threading, time, inspect,traceback
 import logging
 import os
 import visexpman
@@ -35,7 +35,7 @@ class ExperimentConfig(Config):
             experiment_class = getattr(experiment_module, self.runnable)
         else: #experiment class is in common or user module
             for u in ['common', machine_config.user]:
-                experiment_class = utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
+                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.runnable,  
                                                     required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)
                 if len(experiment_class) == 1:
                     experiment_class = experiment_class[0][1]
@@ -264,14 +264,14 @@ def get_experiment_duration(experiment_config_class, config, source=None):
     if '_'in experiment_config_class:
         raise ExperimentConfigError('Stimulus name cannot contain _ character')
     if source is None:
-        stimulus_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)
+        stimulus_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)
         if len(stimulus_class)==1:
             experiment_class_object=stimulus_class[0][1]
         else:
             try:
-                experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
             except IndexError:
-                experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
             experiment_class_object = experiment_class(config).runnable
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
@@ -284,7 +284,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
             if hasattr(experiment_config_module,experiment_config_class_object.runnable):
                 experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
             else:
-                experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
+                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
                 experiment_class_object = experiment_class(config, experiment_config_class_object)
     if hasattr(experiment_class_object,'calculate_stimulus_duration'):
         ec=experiment_class_object(config)
