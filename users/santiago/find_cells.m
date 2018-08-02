@@ -54,11 +54,11 @@ options = CNMFSetParms(...
 [Ain,Cin,bin,fin,center] = initialize_components(Y,K,tau,options,P);  % initialize
 % display centers of found components
 Cn =  correlation_image(Y); %reshape(P.sn,d1,d2);  %max(Y,[],3); %std(Y,[],3); % image statistic (only for display purposes)
-figure;imagesc(Cn);
-    axis equal; axis tight; hold all;
-    scatter(center(:,2),center(:,1),'mo');
-    title('Center of ROIs found from initialization algorithm');
-    drawnow;
+%figure;imagesc(Cn);
+%    axis equal; axis tight; hold all;
+%    scatter(center(:,2),center(:,1),'mo');
+%    title('Center of ROIs found from initialization algorithm');
+%    drawnow;
 %% manually refine components (optional)
 refine_components = false;  % flag for manual refinement
 if refine_components
@@ -86,19 +86,19 @@ Pm.p = p;    % restore AR value
 [A_or,C_or,S_or,P_or] = order_ROIs(A2,C2,S2,P2); % order components
 K_m = size(C_or,1);
 [C_df,~] = extract_DF_F(Yr,A_or,C_or,P_or,options); % extract DF/F values (optional)
-figure;
-[Coor,json_file] = plot_contours(A_or,Cn,options,1); % contour plot of spatial footprints
+%figure;
+%[Coor,json_file] = plot_contours(A_or,Cn,options,1); % contour plot of spatial footprints
 %savejson('jmesh',json_file,'filename');        % optional save json file with component coordinates (requires matlab json library)
 %% Store a location variable
 roiLoc = zeros(size(rawdata,1),size(rawdata,2),size(A_or,2));
 for i = 1:size(A_or,2)
     roiLoc(:,:,i) = full(reshape(A_or(:,i),size(rawdata,1),size(rawdata,2)));
 end
-figure;
-ax1 = axes;
-image(mean(rawdata,3));   
-axis equal tight
-ax2 = axes;
+%figure;
+%ax1 = axes;
+%image(mean(rawdata,3));   
+%axis equal tight
+%ax2 = axes;
 % A = zeros(size(rawdata,1),size(rawdata,2),3);
 % for i = 1:size(roiLoc,3)
 %     colorChoice = randn(1,3);
@@ -108,16 +108,17 @@ ax2 = axes;
 % hold on
 % a = image(permute(A,[1 2 3]));
 % set(a,'AlphaData',0.3);
-hold on;
-for i = 1:size(roiLoc,3)
+%hold on;
+%for i = 1:size(roiLoc,3)
     % contour(roiLoc(:,:,i))
-    contour(roiLoc(:,:,i)/max(max(roiLoc(:,:,i))),[0.25:0.15:0.75])
-end
-axis equal tight
-set(ax2,'ydir','reverse')
-linkaxes([ax1,ax2])
-ax2.Visible = 'off';
-ax2.XTick = [];
-ax2.YTick = [];
-colormap(ax1,'gray')
-colormap(ax2,'hot')
+%    contour(roiLoc(:,:,i)/max(max(roiLoc(:,:,i))),[0.25:0.15:0.75])
+%end
+%axis equal tight
+%set(ax2,'ydir','reverse')
+%linkaxes([ax1,ax2])
+%ax2.Visible = 'off';
+%ax2.XTick = [];
+%ax2.YTick = [];
+%colormap(ax1,'gray')
+%colormap(ax2,'hot')
+rois=roiLoc;

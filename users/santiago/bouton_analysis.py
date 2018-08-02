@@ -2,13 +2,20 @@ import numpy,unittest,os
 from visexpman.engine.generic import fileop
 from visexpman.engine.vision_experiment import experiment_data
 
-settings= {'name': 'Bouton Analysis', 'type': 'group', 'expanded' : False, 'children': [
+settings= [{'name': 'Bouton Analysis', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Baseline', 'type': 'int', 'value': 3, 'siPrefix': True, 'suffix': 'frames'},
                                 {'name': 'Preflash', 'type': 'int', 'value': 3, 'siPrefix': True, 'suffix': 'frames'},
                                 {'name': 'Postflash', 'type': 'int', 'value': 3, 'siPrefix': True, 'suffix': 'frames'},
                                 {'name': 'Significance Threshold', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'std'},
                                 {'name': 'Mean Method', 'type': 'list', 'value': 'mean', 'values':['mean','median']},
-                                ]}
+                                ]},
+                {'name': 'Bouton Detection', 'type': 'group', 'expanded' : True, 'children': [
+                                {'name': 'Expected cell number', 'type': 'int', 'value': 100},
+                                {'name': 'Gaussian fit std', 'type': 'float', 'value': 3},
+                                {'name': 'Expected response type', 'type': 'list', 'value': 'rising and falling (2)', 'values': ['rising and falling (2)', 'decay only (1)', 'any amplitude change (0)']},
+                                {'name': 'Merge threshold', 'type': 'float', 'value': 0.9},
+                                ]},
+                                ]
 
 def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frames,preflash_nframes,postflash_nframes,significant_threshold_std,mean_method):
     
@@ -65,8 +72,23 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
             else:
                 stats['decrease']+=1
     return rois, stats
+    
+def find_boutons(rawdata, K, tau, p, merge_thr):
+    import matlab.engine
+    eng = matlab.engine.start_matlab()
+    rois=eng.find_cells(rawdata, K, tau, p, merge_thr)
+    return image2soma_rois(rois)
+    
+def image2soma_rois(rois):
+    return [numpy.array(numpy.nonzero(rois[:,:,i])).T for i in rois.shape[2]]
 
 class TestFileops(unittest.TestCase):
+    def test_image2soma_rois(self):
+        import scipy.io
+        r=scipy.io.loadmat('/home/rz/mysoftware/data/caiman/var.mat')['roiLoc']
+        rois=image2soma_rois(r)
+        
+        
     def test(self):
         #TODO: test for baseline and response n_frames=1 too
         #TODO: handle multiple datafolders

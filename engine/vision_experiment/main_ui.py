@@ -753,7 +753,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[-1]['children'].append({'name': 'Motion Correction', 'type': 'bool', 'value': False})
         if 'santiago' in self.machine_config.__class__.__name__.lower():
             from visexpman.users.santiago import bouton_analysis
-            self.params_config[-1]['children'].append(bouton_analysis.settings)
+            self.params_config[-1]['children'].extend(bouton_analysis.settings)
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
         elif self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
