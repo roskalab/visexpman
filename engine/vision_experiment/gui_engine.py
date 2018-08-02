@@ -879,21 +879,21 @@ class Analysis(object):
             img2process=numpy.where(img2process<low,low,img2process)
             img2process=numpy.where(img2process>high,high,img2process)
         if self.santiago_setup:
-            try:
+       #     try:
                 from visexpman.users.santiago import bouton_analysis
                 K=self.guidata.read('Expected cell number')
                 tau=self.guidata.read('Gaussian fit std')
-                p=int(self.guidata.read('Expected response type').split(' )')[1][:1])
+                p=int(self.guidata.read('Expected response type').split()[-1][1:-1])
                 merge_thr=self.guidata.read('Merge threshold')
                 self.suggested_rois = bouton_analysis.find_boutons(self.raw_data, K, tau, p, merge_thr)
-            except:
-                raise RuntimeError('''
-                1) Make sure that MATLAB python API is installed:
-                            cd "matlabroot\extern\engines\python"
-                            python setup.py install
-                2) Make sure that MATLAB path is set to <visexpmanroot>\users\santiago
-                3) Make sure that MATLAB path is set to CaImAn-Matlab folder and subfolders
-                            ''')
+#            except:
+ #               raise RuntimeError('''
+  #              1) Make sure that MATLAB python API is installed:
+   #                         cd "matlabroot\extern\engines\python"
+    #                        python setup.py install
+     #           2) Make sure that MATLAB path is set to <visexpmanroot>\users\santiago
+      #          3) Make sure that MATLAB path is set to CaImAn-Matlab folder and subfolders
+        #                    ''')
         else:
             self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(img2process, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self._filter_rois()

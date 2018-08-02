@@ -74,13 +74,18 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
     return rois, stats
     
 def find_boutons(rawdata, K, tau, p, merge_thr):
-    import matlab.engine
+    import matlab.engine, scipy.io, tempfile
+    fn=os.path.join(tempfile.gettempdir(), 'rd.mat')
+    rd=rawdata[:,0]
+    rd=numpy.rollaxis(rd, 0,3)
+    scipy.io.savemat(fn, {'rawdata':rd, 'params': [float(K), float(tau), float(p), float(merge_thr)]})
     eng = matlab.engine.start_matlab()
-    rois=eng.find_cells(rawdata, K, tau, p, merge_thr)
+    rois=eng.find_cells(fn)
+    rois=scipy.io.loadmat(fn)['rois']
     return image2soma_rois(rois)
     
 def image2soma_rois(rois):
-    return [numpy.array(numpy.nonzero(rois[:,:,i])).T for i in rois.shape[2]]
+    return [numpy.array(numpy.nonzero(rois[:,:,i])).T for i in range(rois.shape[2])]
 
 class TestFileops(unittest.TestCase):
     def test_image2soma_rois(self):
