@@ -699,13 +699,14 @@ def mesc2visexpa(fn):
     tstim=signal.trigger_indexes(numpy.where(sync_data[:,-1]>0.2,1,0))/float(stimh.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])*1000
     sync_signal={}
     sync_signal['data_frame_start_ms']=1000*stimh.findvar('timg')
-    sync_signal['stimulus_block_start_ms']=tstim[::2]
-    sync_signal['stimulus_block_end_ms']=tstim[1::2]
+    sync_signal['stimulus_pulse_start_ms']=tstim[::2]
+    sync_signal['stimulus_pulse_end_ms']=tstim[1::2]
     idnode={}
     idnode['stimulus_frame_info']=stimh.findvar('stimulus_frame_info')
     idnode['sync_data']=sync_data
     idnode['machine_config']=stimh.findvar('configs')['machine_config']
     idnode['experiment_config']=stimh.findvar('configs')['experiment_config']
+    experiment_config_name=stimh.findvar('parameters')['stimclass']
     stimh.close()
     import tables
     mesch=tables.open_file(dstmesc)
@@ -733,7 +734,8 @@ def mesc2visexpa(fn):
     outh.image_scale=image_scale
     outh.sync_signal=sync_signal
     outh.rawdata=rawdata
-    outh.save([idnodename, 'image_scale', 'position', 'sync_signal'])
+    outh.experiment_config_name=experiment_config_name
+    outh.save([idnodename, 'image_scale', 'position', 'sync_signal', 'experiment_config_name', 'rawdata'])
     outh.close()    
     os.remove(dstmesc)
 
@@ -777,7 +779,6 @@ class TestConverter(unittest.TestCase):
         from visexpman.engine.analysis import FileProcessor
         fp=FileProcessor(mesc2visexpa,'/home/rz/mysoftware/data/dani', extension='mesc', verbose=True)
         fp.process()
-	
         
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
