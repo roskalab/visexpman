@@ -1,4 +1,10 @@
-function rois=find_cells(rawdata, K, tau, p, merge_thr)
+function rois=find_cells(rawdatafn)
+load(rawdatafn);
+K=params(1);
+tau=params(2);
+p=params(3);
+merge_thr=params(4);
+disp ([K,tau, p, merge_thr, size(rawdata)]);
 %clear all
 %startupShort;
 %common_filepath = 'D:\Raw Microscopy Data\Santiago (Test Data) - V2\No smear\716-18d-vivo-m1-reg4-rep1-LGN\';
@@ -85,7 +91,7 @@ Pm.p = p;    % restore AR value
 %% do some plotting
 [A_or,C_or,S_or,P_or] = order_ROIs(A2,C2,S2,P2); % order components
 K_m = size(C_or,1);
-[C_df,~] = extract_DF_F(Yr,A_or,C_or,P_or,options); % extract DF/F values (optional)
+%[C_df,~] = extract_DF_F(Yr,A_or,C_or,P_or,options); % extract DF/F values (optional)
 %figure;
 %[Coor,json_file] = plot_contours(A_or,Cn,options,1); % contour plot of spatial footprints
 %savejson('jmesh',json_file,'filename');        % optional save json file with component coordinates (requires matlab json library)
@@ -122,3 +128,4 @@ end
 %colormap(ax1,'gray')
 %colormap(ax2,'hot')
 rois=roiLoc;
+save(rawdatafn, 'rois');

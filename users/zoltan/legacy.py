@@ -789,7 +789,6 @@ class TestConverter(unittest.TestCase):
         from visexpman.engine.analysis import FileProcessor
         fp=FileProcessor(mesc2visexpa,'/mnt/datafast/debug/dani', extension='mesc', verbose=True)
         fp.process()
-
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
         if fileop.free_space(sys.argv[1])<30e9:
