@@ -668,7 +668,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl(traceback.format_exc())
             self.log.resume()
             #Terminate recording devices
-            if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant']:
+            if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
@@ -698,7 +698,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.PLATFORM in ['ao_cortical']:
                     self._backup(self.datafilename)
                     self.printl('{0} backed up'.format(self.datafilename))
-                elif self.machine_config.PLATFORM in ['behav']:
+                elif self.machine_config.PLATFORM in ['standalone']:
                     experiment_data.hdf52mat(self.outputfilename)
             else:
                 self.printl('Stimulation stopped')

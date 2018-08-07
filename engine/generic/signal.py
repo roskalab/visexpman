@@ -349,6 +349,20 @@ def generate_frequency_modulated_waveform(duration, base_frequency, frequency_st
         frequency_values=numpy.round(frequency_values,-2)
         sig=numpy.sin(t*numpy.pi*2*frequency_values)
         return sig
+        
+def generate_grating(orientation, width, size):
+    im=numpy.zeros((max(size)*2, 2*max(size)))
+    period=2*width
+    nperiods=im.shape[0]/period+1
+    for rep in range(nperiods):
+        im[rep*period:rep*period+width]=1
+    from PIL import Image
+    im=numpy.asarray(Image.fromarray(im).rotate(orientation))
+    im=im[im.shape[0]/2-size[0]/2:im.shape[0]/2+size[0]/2, im.shape[1]/2-size[1]/2:im.shape[1]/2+size[1]/2]
+    return im
+    
+    
+    
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -542,6 +556,16 @@ class TestSignal(unittest.TestCase):
         generate_frequency_modulated_waveform(10, 15e3, 1e3, 10,48e3)
         generate_frequency_modulated_waveform(10, 15e3, 1e3, 1,48e3,False)
         
+    def test_20_grating_pattern(self):
+        sizes=[[100,200], [100,100], [200,20]]
+        widths=[1,4,10]
+        orientations=[0,20,45,90,180]
+        import itertools
+        from PIL import Image
+        for s, w, o in itertools.product(sizes, widths, orientations):
+            im=generate_grating(o,w,s)
+            Image.fromarray(numpy.cast['uint8'](im*255)).save('/tmp/size {0} width {1}, orientation {2}.png'.format(s,w,o))
+            
         
     
 

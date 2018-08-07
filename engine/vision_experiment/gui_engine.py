@@ -882,7 +882,24 @@ class Analysis(object):
             high = float(pixel_range[1])/100*image_range
             img2process=numpy.where(img2process<low,low,img2process)
             img2process=numpy.where(img2process>high,high,img2process)
-        self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(img2process, 0,2**16-1)), min_,max_,sigma,threshold_factor)
+        if self.santiago_setup:
+       #     try:
+                from visexpman.users.santiago import bouton_analysis
+                K=self.guidata.read('Expected cell number')
+                tau=self.guidata.read('Gaussian fit std')
+                p=int(self.guidata.read('Expected response type').split()[-1][1:-1])
+                merge_thr=self.guidata.read('Merge threshold')
+                self.suggested_rois = bouton_analysis.find_boutons(self.raw_data, K, tau, p, merge_thr)
+#            except:
+ #               raise RuntimeError('''
+  #              1) Make sure that MATLAB python API is installed:
+   #                         cd "matlabroot\extern\engines\python"
+    #                        python setup.py install
+     #           2) Make sure that MATLAB path is set to <visexpmanroot>\users\santiago
+      #          3) Make sure that MATLAB path is set to CaImAn-Matlab folder and subfolders
+        #                    ''')
+        else:
+            self.suggested_rois = cone_data.find_rois(numpy.cast['uint16'](signal.scale(img2process, 0,2**16-1)), min_,max_,sigma,threshold_factor)
         self._filter_rois()
         #Calculate roi bounding box
         self.roi_bounding_boxes = [[rc[:,0].min(), rc[:,0].max(), rc[:,1].min(), rc[:,1].max()] for rc in self.suggested_rois]
@@ -1740,6 +1757,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     
         
     def run(self):
+        self.loop_wait=20e-3
         run_always=[fn for fn in dir(self) if 'run_always' in fn and callable(getattr(self, fn))]
         for fn in dir(self):
             if 'init_'==fn[:5] and callable(getattr(self, fn)):
@@ -1747,8 +1765,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         while True:
             try:                
                 self.last_run = time.time()#helps determining whether the engine still runs
-#                if hasattr(self,'run_all_iterations'):
-#                    self.run_all_iterations()
                 for fn in run_always:
                     getattr(self, fn)()
                 if self.enable_check_network_status:
@@ -1760,6 +1776,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     if msg == 'terminate':
                         break
                 else:
+                    time.sleep(self.loop_wait)
                     continue
                 #parse message
                 if 'data' in msg:#expected format: {'data': value, 'path': gui path, 'name': name}
@@ -1779,7 +1796,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.printc(traceback.format_exc())
                 self.dump()
                 self.close_open_files()
-            time.sleep(20e-3)
+            time.sleep(self.loop_wait)
         self.close()
         
     def close_open_files(self):
