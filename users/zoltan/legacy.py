@@ -14,6 +14,7 @@ from visexpman.engine.generic import fileop,utils,signal,introspect,stringop
 from visexpman.engine.vision_experiment import experiment_data
 import unittest
 import tempfile
+from contextlib import closing
 FIX1KHZ= False
 NOMATFILE= False
 NWEEKS=2
@@ -685,7 +686,7 @@ def v0p3tov0p4(folder):
             hh.save('parameters')
         hh.close()
 
-def mesc2visexpa(fn):
+def mesc2visexpa(fn, experiment_config_name = 'IRLaser'):
     import shutil
     dstmesc=os.path.join('/tmp', os.path.basename(fileop.replace_extension(fn, '.hdf5')))
     shutil.copy(fn, dstmesc)
@@ -699,13 +700,14 @@ def mesc2visexpa(fn):
     tstim=signal.trigger_indexes(numpy.where(sync_data[:,-1]>0.2,1,0))/float(stimh.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])*1000
     sync_signal={}
     sync_signal['data_frame_start_ms']=1000*stimh.findvar('timg')
-    sync_signal['stimulus_block_start_ms']=tstim[::2]
-    sync_signal['stimulus_block_end_ms']=tstim[1::2]
+    sync_signal['stimulus_pulse_start_ms']=tstim[::2]
+    sync_signal['stimulus_pulse_end_ms']=tstim[1::2]
     idnode={}
     idnode['stimulus_frame_info']=stimh.findvar('stimulus_frame_info')
     idnode['sync_data']=sync_data
     idnode['machine_config']=stimh.findvar('configs')['machine_config']
     idnode['experiment_config']=stimh.findvar('configs')['experiment_config']
+    experiment_config_name=stimh.findvar('parameters')['stimclass']
     stimh.close()
     import tables
     mesch=tables.open_file(dstmesc)
@@ -727,15 +729,25 @@ def mesc2visexpa(fn):
     outfn='fragment_xy_center_0_0_{0}_{1}.hdf5'.format(position['z'][0], idnodename)
     outfn=os.path.join(os.path.dirname(fn), outfn)
     from visexpA.engine.datahandlers import datatypes
-    outh=datatypes.ImageData(outfn,filelocking=False)
-    outh.position=position
-    setattr(outh, idnodename, idnode)
-    outh.image_scale=image_scale
-    outh.sync_signal=sync_signal
-    outh.rawdata=rawdata
-    outh.save([idnodename, 'image_scale', 'position', 'sync_signal'])
-    outh.close()    
+    with closing(datatypes.RowColTimeChan(outfn,filelocking=False)) as outh:
+        outh.position=position
+        setattr(outh, idnodename, idnode)
+        outh.image_scale=image_scale
+        outh.sync_signal=sync_signal
+        outh.rawdata=rawdata
+        outh.save([idnodename, 'image_scale', 'position', 'sync_signal', 'rawdata'])
     os.remove(dstmesc)
+    extend_with_stimanaltext(outfn, experiment_config_name = experiment_config_name)
+
+def extend_with_stimanaltext(fn, experiment_config_name = 'IRLaser'):
+    ''' Adds text attributes needed to recognize which stimulus was used'''
+    with closing(datatypes.RowColTimeChan(outfn,filelocking=False)) as outh:
+        outh.stimulus_class = 'LedStimulation'
+        outh.exptype = 'LedStimulation2D'
+        outh.data_class = 'RowColTimeChan'
+        outh.experiment_config_name = experiment_config_name
+        outh.save(['stimulus_class', 'exptype', 'data_class','experiment_config_name'])
+
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')
@@ -775,10 +787,8 @@ class TestConverter(unittest.TestCase):
 
     def test_04_mesc2visexpa(self):
         from visexpman.engine.analysis import FileProcessor
-        fp=FileProcessor(mesc2visexpa,'/home/rz/mysoftware/data/dani', extension='mesc', verbose=True)
+        fp=FileProcessor(mesc2visexpa,'/mnt/datafast/debug/dani', extension='mesc', verbose=True)
         fp.process()
-	
-        
 if __name__ == '__main__':
     if len(sys.argv)==2 or len(sys.argv)==3:
         if fileop.free_space(sys.argv[1])<30e9:

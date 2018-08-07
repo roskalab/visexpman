@@ -106,6 +106,7 @@ class MescapiInterface(object):
         '''
         Saves last recording to file
         '''
+        return self.request('MEScFile.closeFileAndSaveAsAsync("{0}")'.format(filename.replace('\\',  '\\\\')))
         
     def terminate(self):
         self.serverpp.kill()
