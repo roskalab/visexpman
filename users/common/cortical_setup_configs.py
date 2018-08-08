@@ -150,6 +150,7 @@ class SantiagoAnalysisConfig(ElphysRetinalCaImagingConfig):
         self.LOG_PATH = self.root_folder
         self.EXPERIMENT_LOG_PATH = self.LOG_PATH        
         self.EXPERIMENT_DATA_PATH = self.root_folder
+        self.EXPERIMENT_DATA_PATH = 'y:\\santiago-setup\\test'
         self.CONTEXT_PATH = self.root_folder
         self.COORDINATE_SYSTEM='center'
         self.TIMG_SYNC_INDEX=1
