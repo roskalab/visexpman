@@ -20,8 +20,12 @@ class FileProcessor(object):
         i=1
         for f in self.files:
             if self.verbose:
-                print('{0}/{1} {2}'.format(i,nfiles,f))
-            self.target(f, **self.kwargs)
+                print ('{0}/{1} {2}'.format(i,nfiles,f))
+            try:
+                self.target(f, **self.kwargs)
+            except:
+                import traceback
+                print(traceback.format_exc())
             i+=1
             
 def process_file(filename, opt=None):

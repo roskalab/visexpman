@@ -74,6 +74,14 @@ def extract_bouton_increase(raw_data, rois, stimulus_parameters,baseline_n_frame
     return rois, stats
     
 def find_boutons(rawdata, K, tau, p, merge_thr):
+    #remove saturated frames
+    saturation_value=255 if rawdata.dtype.name=='uint8' else 2**16-1
+    row_means=rawdata.mean(axis=2)
+    indexes=[i for i in range(row_means.shape[0]) if saturation_value in row_means[i]]
+    col_means=rawdata.mean(axis=3)
+    indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
+    keep_frame_indexes=[i for i in range(rawdata.shape[0]) if i not in indexes]
+    rawdata = rawdata[keep_frame_indexes]
     import matlab.engine, scipy.io, tempfile
     fn=os.path.join(tempfile.gettempdir(), 'rd.mat')
     rd=rawdata[:,0]
@@ -88,12 +96,13 @@ def image2soma_rois(rois):
     return [numpy.array(numpy.nonzero(rois[:,:,i])).T for i in range(rois.shape[2])]
 
 class TestFileops(unittest.TestCase):
+    @unittest.skip("")
     def test_image2soma_rois(self):
         import scipy.io
         r=scipy.io.loadmat('/home/rz/mysoftware/data/caiman/var.mat')['roiLoc']
         rois=image2soma_rois(r)
         
-        
+    @unittest.skip("")
     def test(self):
         #TODO: test for baseline and response n_frames=1 too
         #TODO: handle multiple datafolders
@@ -125,7 +134,8 @@ class TestFileops(unittest.TestCase):
     def indexofsmallestpositive(self,a):
         m=numpy.where(a<0, 0, a)
         return numpy.where(a==a[numpy.nonzero(m)[0]].min())[0][0]
-            
+    
+    @unittest.skip("")
     def test_dropped_frames(self):
         folder='x:\\santiago-setup\\Acute Slice Recordings'
         import hdf5io
@@ -155,6 +165,41 @@ class TestFileops(unittest.TestCase):
                 hh.close()
             except:
                 pass
+                
+    def test_01_find_cells_and_export(self):
+        folder='/data/santiago-setup/test'
+        folder='y:\\santiago-setup\\test'
+        for f in fileop.find_files_and_folders(folder, extension='hdf5')[1]:
+            if 'data_773-1-region14_LedConfig_201806301138399' not in f:
+                continue
+            try:
+                import hdf5io
+                rawdata=hdf5io.read_item(f, 'raw_data', filelocking=False)
+                K=100
+                tau=3
+                p=0
+                merge_thr=0.9
+                res=find_boutons(rawdata, K, tau, p, merge_thr)
+                from pylab import savefig, imshow,cla,clf,show
+                mip=rawdata.max(axis=0)[0]
+                ima=numpy.zeros((mip.shape[0], 3*mip.shape[1], 3))
+                ima[:,:mip.shape[1],1]=mip
+                ima[:,mip.shape[1]:2*mip.shape[1],1]=mip
+                for r in res:
+                    for p in r:
+                        ima[p[0], p[1], 0]=255
+                        ima[p[0], 2*mip.shape[1]+p[1], 0]=255
+                #import pdb;pdb.set_trace()
+                imshow(ima/255.)
+                savefig(os.path.join(folder, os.path.basename(fileop.replace_extension(f, '.png'))))
+                cla()
+                clf()
+            except:
+                import traceback
+                print traceback.format_exc()
+                #import pdb;pdb.set_trace()
+            
+            
             
             
             

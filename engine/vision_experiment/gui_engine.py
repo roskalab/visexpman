@@ -1046,6 +1046,7 @@ class Analysis(object):
                     roi_index+=1
                 self.printc(res[1])
                 if hasattr(self, 'aggregated'):
+                    self.printc('Aggregate: {0}'.format(self.filename))
                     self.aggregated.append([os.path.basename(self.filename), res[1]['increase'], res[1]['decrease'], len(self.rois)])
                 
         
@@ -1323,10 +1324,14 @@ class Analysis(object):
             files=fileop.listdir(folder)
             self.aggregated=[['filename', 'number of increase', 'number of decrease', 'number of cells']]
             self.abort=False
+            self.files=files
             for datafile in files:
                 if datafile[-5:]!='.hdf5': continue
                 self.open_datafile(datafile, ask=False)
-                self.find_cells(ask_confirmation=False)
+                try:
+                    self.find_cells(ask_confirmation=False)
+                except:
+                    continue
                 if save:
                     self.save_rois_and_export(ask_overwrite=False)
                 self.printc('Batch progress: {0}/{1}'.format(files.index(datafile)+1,len(files)))
@@ -1339,9 +1344,9 @@ class Analysis(object):
             import xlwt
             book = xlwt.Workbook()
             sh = book.add_sheet('Bouton summary')
-            for line in range(len(self.aggregated)):
+            for line in range(len(self.aggregated)/2):#bouton analysis is run twice: at file open and cell detection
                 for c in range(4):
-                    sh.write(line, c, self.aggregated[line][c])
+                    sh.write(line, c, self.aggregated[line*2+1][c])
             book.save(filename)
             self.printc('Done')
 
