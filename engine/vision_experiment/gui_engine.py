@@ -173,6 +173,8 @@ class ExperimentHandler(object):
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
+        if self.guidata.read('Name')!='':
+            experiment_parameters['region_name']=self.guidata.read('Name')
         experiment_parameters['animal']=self.guidata.read('Animal')
         experiment_parameters['comment']=self.guidata.read('Comment')
         source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
