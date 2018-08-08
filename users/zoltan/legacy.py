@@ -718,7 +718,7 @@ def mesc2visexpa(fn, experiment_config_name = 'IRLaser'):
         rawdata=mesch.root.MSession_0.MUnit_1.Channel_0.read()
         measparamsxml=mesch.root.MSession_0.MUnit_1._v_attrs.MeasurementParamsXML
     rawdata=numpy.rollaxis(numpy.rollaxis(rawdata[:, numpy.newaxis], 0,4), 0,4)#row, col, time, channel
-    slowz=float(measparamsxml.split('SlowZ')[1].split('value=')[1].split()[0][1:-1])
+    slowz=float(measparamsxml.split('VirtZ')[1].split('value=')[1].split()[0][1:-1])
     xscale=float(measparamsxml.split('PixelSizeX')[1].split('value=')[1].split()[0][1:-1])
     yscale=float(measparamsxml.split('PixelSizeY')[1].split('value=')[1].split()[0][1:-1])
     image_scale=utils.cr((xscale, yscale))
