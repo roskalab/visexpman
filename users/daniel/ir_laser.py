@@ -1,5 +1,18 @@
 from visexpman.users.common import stimuli
 import numpy
+
+class LaserPulseC(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.INITIAL_DELAY=5
+        self.PULSE_DURATION=[100e-3]
+        self.PERIOD_TIME=[10.0]
+        self.NPULSES=3
+        self.LASER_AMPLITUDE=[1.0]
+        self.SAMPLE_RATE=1000
+        self.ZERO_VOLTAGE=0.0
+        self.runnable = 'LaserPulseE'
+        self._create_parameters_from_locals(locals())
+
 class IRLaser(stimuli.LaserPulseC):
     def _create_parameters(self):
         stimuli.LaserPulseC._create_parameters(self)

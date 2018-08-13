@@ -5,7 +5,7 @@ import copy
 import numpy
 import scipy.interpolate
 
-import utils
+from . import utils
 
 import unittest
 
@@ -231,7 +231,7 @@ class TestSignal(unittest.TestCase):
         numpy.testing.assert_allclose(shifted, expected, 0, 1e-5)
         
     def test_04_histogram_shift_on_image(self):
-        from fileop import visexpman_package_path
+        from .fileop import visexpman_package_path
         from PIL import Image
         import os.path
         gamma = 4
@@ -292,7 +292,7 @@ class TestSignal(unittest.TestCase):
         numpy.testing.assert_allclose(numpy.diff(sig[int(t_up*fs): int((t_up+t_down)*fs)]).std(), 0.0, 0.0, 1e-5)
         if False:
             from pylab import plot,show
-            print numpy.diff(sig)
+            print(numpy.diff(sig))
             plot(sig)
             show()
             

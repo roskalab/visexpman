@@ -31,10 +31,10 @@ class AOData(experiment_data.CaImagingData):
         self.image=mesdata[mesdata['DATA/IMAGE'][0][0]].value
         height=int(mesdata[mesdata['DATA/TransversePixNum'][0][0]].value.flatten()[0])
         width=48
-        nrois=mesdata[[item2 for item2 in [item for item in mesdata[mesdata['DATA/info_Linfo'][0][0]].values() if 'lines' in item.name][0].values() if 'line1' in item2.name][0].value[0,1]].shape[0]
-        nframes=int([item for item in mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values() if 'numFrames' in item.name][0][0][0])
+        nrois=mesdata[[item2 for item2 in list([item for item in list(mesdata[mesdata['DATA/info_Linfo'][0][0]].values()) if 'lines' in item.name][0].values()) if 'line1' in item2.name][0].value[0,1]].shape[0]
+        nframes=int([item for item in list(mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values()) if 'numFrames' in item.name][0][0][0])
         xoffset=1*0
-        toffset=int([item for item in mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values() if 'firstFramePos' in item.name][0][0][0])
+        toffset=int([item for item in list(mesdata[mesdata['DATA/FoldedFrameInfo'][0][0]].values()) if 'firstFramePos' in item.name][0][0][0])
         self.raw_data=numpy.zeros((nframes, nchannels, nrois, height, width),dtype=self.image.dtype)
         for roiid in range(nrois):#1.5-2 second, does not need to speed it up
             for framei in range(nframes):
@@ -42,7 +42,7 @@ class AOData(experiment_data.CaImagingData):
                         self.image[height*framei+toffset:height*(framei+1)+toffset,width*roiid+xoffset:width*(roiid+1)+xoffset]
         scale=mesdata[mesdata['DATA/WidthStep'][0][0]][0][0]#um/pixel
         self.save('raw_data')
-        self.sync_pulses_to_skip=[item for item in mesdata[mesdata['DATA/Clipping'][0][0]].values() if 'savedHeightBegin' in item.name][0][0][0]/width
+        self.sync_pulses_to_skip=[item for item in list(mesdata[mesdata['DATA/Clipping'][0][0]].values()) if 'savedHeightBegin' in item.name][0][0][0]/width
         self.save('sync_pulses_to_skip')
         self.load('parameters')
         self.parameters['nrois']=nrois

@@ -121,7 +121,7 @@ class ScreenAndKeyboardHandler(VisionExperimentScreen):
         '''
         command = None
         parameter = None
-        for k, v in self.keyboard_commands.items():
+        for k, v in list(self.keyboard_commands.items()):
             if v['key'] == key_pressed and utils.is_in_list(v['domain'], domain) :
                 command_and_parameters = k.split(self.separator)
                 command = command_and_parameters[0]

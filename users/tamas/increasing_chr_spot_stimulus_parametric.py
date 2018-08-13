@@ -1,17 +1,17 @@
 
 #if parameters are not provided, create them with default values
 parameters = locals()
-if not parameters.has_key('chr_stimulation_enable'):
+if 'chr_stimulation_enable' not in parameters:
     chr_stimulation_enable = True #True/False
-if not parameters.has_key('stimulus_length'):
+if 'stimulus_length' not in parameters:
     stimulus_length = 'short' #'long'/'short'
-if not parameters.has_key('pulse_width'):
+if 'pulse_width' not in parameters:
     pulse_width = 100 #ms
-if not parameters.has_key('on_light_level'):
+if 'on_light_level' not in parameters:
     on_light_level = 'ND40' #'ND0' ... 'ND40'
-if not parameters.has_key('off_light_level'):
+if 'off_light_level' not in parameters:
     off_light_level = 'ND40' #... 'ND40'
-if not parameters.has_key('nd_level'):
+if 'nd_level' not in parameters:
    nd_level = 'ND100' #...'ND100'
 
 #increasing spot

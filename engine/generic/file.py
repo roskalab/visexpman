@@ -5,7 +5,7 @@ import numpy
 import tempfile
 import time
 import subprocess as sub
-import multiprocessing,threading,Queue
+import multiprocessing,threading,queue
 import time
 from distutils import file_util,  dir_util
 try:
@@ -61,7 +61,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
             self.command_queue=command_queue
             if thread:
                 threading.Thread.__init__(self)
-                self.message_out_queue=Queue.Queue()
+                self.message_out_queue=queue.Queue()
             else:
                 multiprocessing.Process.__init__(self)
                 self.message_out_queue = multiprocessing.Queue()
@@ -120,7 +120,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                             self.logfile.write('nothing to do\n');self.logfile.flush()
                         continue
                     if debug and self.isthread:
-                        print file_list
+                        print(file_list)
                     for item in file_list:
                         try:
                             current_exception=''
@@ -141,7 +141,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                                     current_exception = '{0} has same size as {1}'.format(source, target)
                             except Exception as e:
                                 current_exception=str(e)
-                                print e
+                                print(e)
                                 self.postponed_list.append((source,target))
                             if item in self.postponed_list:
                                 self.postponed_list.remove(item)
@@ -306,9 +306,9 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
 def getziphandler(zipstream):
     '''convenience wrapper that returns the zipreader object for both a byte array and a string containing 
     the filename of the zip file'''
-    import cStringIO,  zipfile
+    import io,  zipfile
     if hasattr(zipstream, 'data'):
-        sstream = cStringIO.StringIO(zipstream.data) # zipfile as byte stream
+        sstream = io.StringIO(zipstream.data) # zipfile as byte stream
     else:
         sstream = zipstream #filename
     return zipfile.ZipFile(sstream)
@@ -321,7 +321,7 @@ def parsefilename(filename, regexdict):
     is a python class that is used to convert the extracted string into a number (if applicable)
     '''
     import re
-    for k,v in regexdict.items():
+    for k,v in list(regexdict.items()):
         for expr in v[:-1]: #iterate through possible patterns (compatibility patters for filename structured used earlier)
             p = re.findall(expr,filename)
         if p:
@@ -424,7 +424,7 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
     if ext=='' and sort == True:
         raise ValueError("Recursive listing with sorting is not implemented")
 
-    if isinstance(ext,basestring):
+    if isinstance(ext,str):
         ext = [ext]
     ext = [ex[ex.find('.')+1:] for ex in ext] #remove . from extension if it is there
     try:
@@ -454,7 +454,7 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
             dirs.extend(rdirs[:])
     if sortit:
         from operator import itemgetter
-        dirs, modtimes = zip(*sorted(zip(dirs,lastmod), key=itemgetter(1)))
+        dirs, modtimes = list(zip(*sorted(zip(dirs,lastmod), key=itemgetter(1))))
     if noext: # remove extensions
         dirs = [item[:item.rfind('.')] for item in dirs]
     if fullpath:
@@ -568,7 +568,7 @@ def pngsave(im, file):
     meta = PngImagePlugin.PngInfo()
 
     # copy metadata into new object
-    for k,v in im.info.iteritems():
+    for k,v in im.info.items():
         if k in reserved: continue
         meta.add_text(k, v, 0)
 
@@ -632,16 +632,16 @@ class TestUtils(unittest.TestCase):
                 else:
                     while not message_list.empty():
                         msg= message_list.get()
-                        print msg
+                        print(msg)
                         if msg=='TERMINATE':
                             return
-        print os.getpid()
+        print(os.getpid())
         killit=1
         sourcedir = tempfile.mkdtemp()
         targetdir = tempfile.mkdtemp()
         files = [tempfile.mkstemp(dir=sourcedir,suffix=str(i1)+'.png')[1] for i1 in range(5)]
         [ numpy.savetxt(f1, numpy.random.rand(128,)) for f1 in files]
-        srcdstlist = zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files])
+        srcdstlist = list(zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files]))
         command_queue = multiprocessing.Queue()
         p1 = BackgroundCopier(command_queue,postpone_seconds=5,debug=1,thread=0)
         lister = threading.Thread(target=message_printer, args=(p1.message_out_queue,))
@@ -652,9 +652,9 @@ class TestUtils(unittest.TestCase):
         if killit and not p1.isthread:
             import signal
             children = psutil.Process(os.getpid()).get_children(recursive=True)
-            print('no of children:{0}'.format(len(children)))
+            print(('no of children:{0}'.format(len(children))))
             for c1 in children:
-                print('child pid {0} name {1}'.format(c1.pid,c1.name))
+                print(('child pid {0} name {1}'.format(c1.pid,c1.name)))
             time.sleep(1)
             os.kill(os.getpid(), signal.SIGKILL) #kill parent process and see whether child processes quit automatically
             return

@@ -90,7 +90,7 @@ TEST_working_folder = '/mnt/databig/software_test/working'
 def prepare_test_data(modulename, clean_working_dir = True):
     ref_folder = os.path.join(TEST_test_data_folder, modulename)
     working_folder = TEST_working_folder
-    print 'preparing test data'
+    print('preparing test data')
     if clean_working_dir:
         shutil.rmtree(working_folder)
         os.mkdir(working_folder)
@@ -209,7 +209,7 @@ class UnitTestRunner():
                 test_class = self.reference_to_test_class(test_config['test_class_path'])
                 test_methods = self.fetch_test_methods(test_class)
                 for test_method in test_methods:                    
-                    if test_config.has_key('run_only'):
+                    if 'run_only' in test_config:
                         for item in test_config['run_only']:                            
                             if '_{0}_'.format(item) in test_method:
                                 test_suite.addTest(test_class(test_method))
@@ -222,13 +222,13 @@ class UnitTestRunner():
         #Save tested source files        
         f.close()
         f = open(self.test_log)
-        print f.read()
+        print((f.read()))
         f.close()
 
         self.save_source_and_results()
-        print str(datetime.datetime.now())
+        print((str(datetime.datetime.now())))
         if TEST_delete_files:
-            print TEST_working_folder
+            print(TEST_working_folder)
         directories = []
         all_files  = []
         directories = []
@@ -242,14 +242,14 @@ class UnitTestRunner():
                         try:
                             os.remove(path)
                         except:
-                            print path,  'Not removed'
+                            print(path,  'Not removed')
                 for dir in dirs:
                     path = root + os.sep + dir
                     if os.stat(path).st_mtime > unit_test_start_time:
                         try:
                             shutil.rmtree(path)
                         except:
-                            print path,  'Not removed'
+                            print(path,  'Not removed')
 
     def save_source_and_results(self):
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))

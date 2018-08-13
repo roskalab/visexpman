@@ -193,7 +193,7 @@ def process_all(folder):
                 animals[sig]=days
     aggregated={}
     aggregated_mean={}
-    for sig in animals.keys():
+    for sig in list(animals.keys()):
         for day in animals[sig]:
             signew=(sig[0], sig[1], os.path.basename(day))
             print(signew)
@@ -212,14 +212,14 @@ def plot_aggregated():
     aggregated_mean=utils.array2object(numpy.load('/tmp/aggregated_mean.npy'))
     #Select best animal
     #1. select last two days
-    animals = list(set([a[0] for a in aggregated_mean.keys()]))
+    animals = list(set([a[0] for a in list(aggregated_mean.keys())]))
     ranks={}
     for aref in animals:
-        values=numpy.concatenate(tuple([val for sig, val in aggregated_mean.items() if sig[0]==aref]))
+        values=numpy.concatenate(tuple([val for sig, val in list(aggregated_mean.items()) if sig[0]==aref]))
         values=numpy.array([v for v in values if not any(numpy.isnan(v))])
         ranks[values[numpy.where(values[:,0]==values[:,0].min())[0],1].min()]=aref
     #Select the 10 lowest ranks
-    r=ranks.keys()
+    r=list(ranks.keys())
     r.sort()
     selected_ranks=r[:10]
     best_animals=[ranks[s] for s in selected_ranks]
@@ -244,11 +244,11 @@ def plot_aggregated():
         figure(1)
         #Find out maximal number of days
         ndays=0#process only last 2 days
-        animals=list(set([a[0] for a in aggregated.keys()]))
+        animals=list(set([a[0] for a in list(aggregated.keys())]))
         #animals=best_animals
         for a in animals:
-            [sig for sig in aggregated.keys() if sig[0]==a and sig[1]==e]
-            ndays=max(ndays, len([sig[2] for sig in aggregated.keys() if sig[0]==a and sig[1]==e]))
+            [sig for sig in list(aggregated.keys()) if sig[0]==a and sig[1]==e]
+            ndays=max(ndays, len([sig[2] for sig in list(aggregated.keys()) if sig[0]==a and sig[1]==e]))
         ndays=2
         for d in range(ndays):
             #identify last dth day's signature
@@ -258,7 +258,7 @@ def plot_aggregated():
             sigagg=(e,-d)
             aggregate_per_voltage[sigagg]=[]
             for a in animals:
-                days=[sig[2] for sig in aggregated.keys() if sig[0]==a and sig[1]==e]
+                days=[sig[2] for sig in list(aggregated.keys()) if sig[0]==a and sig[1]==e]
                 days.sort()
                 if len(days)==0 or len(days)<=d: continue
                 current_day=days[-(d+1)]
@@ -321,7 +321,7 @@ def lick_detection_folder(folder,fsample,lick_wait_time,threshold=0.25,max_width
             pass
     ids=[experiment_data.id2timestamp(experiment_data.parse_recording_filename(f)['id']) for f in fns]
     p=multiprocessing.Pool(introspect.get_available_process_cores())
-    res=map(lick_detection_wrapper,pars)
+    res=list(map(lick_detection_wrapper,pars))
     output=[[ids[i], res[i][0],res[i][1], res[i][2]] for i in range(len(res))]
     return output
         
@@ -405,8 +405,8 @@ class LickSummary(object):
     def select_best(self,n):
         n=int(n)
         self.best={}
-        for d in self.data.keys():
-            timestamps=self.data[d].keys()
+        for d in list(self.data.keys()):
+            timestamps=list(self.data[d].keys())
             timestamps.sort()
             timestamps=numpy.array(timestamps)
             latency=numpy.array([self.data[d][ti]['latency'] for ti in timestamps])
@@ -446,7 +446,7 @@ def check_hitmiss_files(filename):
             print(f)
         ishitmiss='hitmiss' in os.path.basename(filename).split('_')[1].lower()
         h=hdf5io.Hdf5io(f)
-        map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat'])
+        list(map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat']))
         recording_duration=h.sync.shape[0]/float(h.machine_config['AI_SAMPLE_RATE'])
         protocol_duration=h.protocol['PRETRIAL_DURATION']
         if h.stat['result']:
@@ -526,7 +526,7 @@ class HitmissAnalysis(object):
                      continue
                 h=hdf5io.Hdf5io(f)
                 stat=h.findvar('stat')
-                if not stat.has_key('stimulus_t'):
+                if 'stimulus_t' not in stat:
                     h.close()
                     continue
                     sync=h.findvar('sync')
@@ -535,25 +535,25 @@ class HitmissAnalysis(object):
                     stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
                     h.stat=stat
                     h.save('stat')
-                if self.filter.has_key('voltage') and h.findvar('protocol')['LASER_INTENSITY'] != self.filter['voltage']:
+                if 'voltage' in self.filter and h.findvar('protocol')['LASER_INTENSITY'] != self.filter['voltage']:
                     h.close()
                     continue
                 self.nflashes+=1
                 h.close()
                 self.nhits+=stat['result']
                 self.nsuccesfullicks+=stat['lick_result']
-                if stat.has_key('lick_latency'):
+                if 'lick_latency' in stat:
                     self.lick_latencies.append(stat['lick_latency']*1000)
-                if stat.has_key('reward_latency'):
+                if 'reward_latency' in stat:
                     self.reward_latencies.append(stat['reward_latency']*1000)
                 self.lick_times.extend((1000*(stat['lick_times']-stat['stimulus_t'][0])).tolist())
             except:
                 import logging, traceback
                 logging.info(f)
                 logging.error(traceback.format_exc())
-        self.lick_latencies=numpy.array(map(int,self.lick_latencies))
-        self.reward_latencies=numpy.array(map(int,self.reward_latencies))
-        self.lick_times=numpy.array(map(int,self.lick_times))
+        self.lick_latencies=numpy.array(list(map(int,self.lick_latencies)))
+        self.reward_latencies=numpy.array(list(map(int,self.reward_latencies)))
+        self.lick_times=numpy.array(list(map(int,self.lick_times)))
         if self.nflashes==0:
             self.success_rate=0
             self.lick_success_rate=0
@@ -567,7 +567,7 @@ class HitmissAnalysis(object):
         self.nhits+=stat['result']
         self.nflashes+=1
         self.success_rate=self.nhits/float(self.nflashes)
-        if stat.has_key('lick_latency'):
+        if 'lick_latency' in stat:
             numpy.append(self.lick_latencies,stat['lick_latency']*1000)
         self.lick_times=numpy.concatenate((self.lick_times,numpy.cast['int'](stat['lick_times']*1000)))
         
@@ -614,14 +614,14 @@ class HitmissAnalysis(object):
         
     def generate_histogram(self,data):
         try:
-            values=numpy.concatenate(data.values())
+            values=numpy.concatenate(list(data.values()))
         except ValueError:
             return None,None
         if values.shape[0]==0:
             return None,None
         bins=numpy.arange(values.min(),values.max(),self.histogram_bin_time)
         hist={}
-        for k,v in data.items():
+        for k,v in list(data.items()):
             if bins.shape[0]==1:
                 hist[k]=numpy.array([v.shape[0]])
             elif bins.shape[0]==0:
@@ -723,7 +723,7 @@ class TestBehavAnalysis(unittest.TestCase):
             of=None#os.path.join(out,fn)
             with introspect.Timer():
                 airpuff_t, airpuff, is_blinked, activity_t, activity = extract_eyeblink(os.path.join(folder,fn), debug=False,annotation=annotated)
-                print(is_blinked.sum()/float(is_blinked.shape[0]))
+                print((is_blinked.sum()/float(is_blinked.shape[0])))
                 
     @unittest.skip('')
     def test_04_lick_summary(self):

@@ -77,10 +77,10 @@ if __name__ == "__main__":
         mirror_profile = numpy.array(mirror_profile)
         offset = mirror_profile.min(axis = 0)[0]
         mirror_profile = mirror_profile - numpy.array([offset, 0])
-        print mirror_profile[:, 1].max()
+        print(mirror_profile[:, 1].max())
 #        print mirror_profile
         
         show_mirror_profile(mirror_profile, focal_distance, path.replace('.png', str(amplification) + '.png'))
     #print min(invalid_angles), max(invalid_angles)
 
-    print min(invalid_angles), max(invalid_angles)
+    print(min(invalid_angles), max(invalid_angles))

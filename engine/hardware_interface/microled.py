@@ -3,7 +3,7 @@ import serial
 import os
 import time
 import unittest
-import instrument
+from . import instrument
 
 class MicroLEDArray(instrument.Instrument):
     '''
@@ -183,16 +183,16 @@ class Testuled(unittest.TestCase):
         p='v:\\debug\\uled\\timing_00001.hdf5'
         h=hdf5io.Hdf5io(p, filelocking=False)
         reps = h.findvar('repeats')
-        print h.findvar('timing')
+        print(h.findvar('timing'))
         bt=h.findvar('blocktimes')
-        print numpy.array(bt[::reps])/16*1000
+        print(numpy.array(bt[::reps])/16*1000)
         data = h.findvar('data')
         h.close()
         from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig, clf, subplot, ylabel
         t=data[:, 0]
         intensities=data[:, 1]
         edges=t[numpy.nonzero(numpy.diff(numpy.where(intensities>5e-6, 1, 0)))[0]]
-        print numpy.diff(edges)[::2][::reps]/16*1000
+        print(numpy.diff(edges)[::2][::reps]/16*1000)
         plot(data[:, 0], data[:, 1])
         show()
         

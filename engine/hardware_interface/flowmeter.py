@@ -100,6 +100,6 @@ class Flowmeter(object):
         
 if __name__ == '__main__':
     f = Flowmeter()
-    print f.init_ready
+    print(f.init_ready)
     f.measure()
     f.close()

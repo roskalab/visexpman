@@ -15,8 +15,8 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
         self.FRAME_RATE=60.0
         self.VIDEO_OFFSET=0.0#seconds
         self.VIDEO_DURATION=0.0 #seconds
-        sig_catcam17=  (19392, 911855977L, 1509011964.359375)
-        sig_movieincage= (2624, 100294490L, 1509011613.5)
+        sig_catcam17=  (19392, 911855977, 1509011964.359375)
+        sig_movieincage= (2624, 100294490, 1509011613.5)
 
         if 'catcam17' in self.FILENAME:
             sig=sig_catcam17
@@ -33,7 +33,7 @@ class NaturalBarsConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEED = 300.0#um/s
         self.REPEATS = 2#5
-        self.DIRECTIONS = range(0,360,90)
+        self.DIRECTIONS = list(range(0,360,90))
         self.DURATION = 30.0
         self.runnable = 'NaturalBarsExperiment'
         self._create_parameters_from_locals(locals())

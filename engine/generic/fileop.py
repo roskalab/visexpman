@@ -3,7 +3,7 @@ Common file and filename operations
 '''
 import sys, os, re, ctypes, platform, shutil, numpy, tempfile, time, subprocess, multiprocessing,threading
 try:
-    import Queue
+    import queue
 except ImportError:
     import queue as Queue
 from distutils import file_util,  dir_util
@@ -91,7 +91,7 @@ def parsefilename(filename, regexdict):
     is a python class that is used to convert the extracted string into a number (if applicable)
     '''
     import re
-    for k,v in regexdict.items():
+    for k,v in list(regexdict.items()):
         for expr in v[:-1]: #iterate through possible patterns (compatibility patters for filename structured used earlier)
             p = re.findall(expr,filename)
         if p:
@@ -297,7 +297,7 @@ def listdir(folder):
     '''
     files = os.listdir(folder)
     files.sort()
-    return map(os.path.join, len(files)*[folder],files)
+    return list(map(os.path.join, len(files)*[folder],files))
     
 def find_latest(path, extension=None):
     '''
@@ -308,7 +308,7 @@ def find_latest(path, extension=None):
     fns = [fn for fn in listdir_fullpath(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
-    fns_dates = map(os.path.getmtime, fns)
+    fns_dates = list(map(os.path.getmtime, fns))
     latest_file_index = fns_dates.index(max(fns_dates))
     return fns[latest_file_index]
      
@@ -404,7 +404,7 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
     if ext=='' and sort == True:
         raise ValueError("Recursive listing with sorting is not implemented")
 
-    if isinstance(ext,basestring):
+    if isinstance(ext,str):
         ext = [ext]
     ext = [ex[ex.find('.')+1:] for ex in ext] #remove . from extension if it is there
     try:
@@ -434,7 +434,7 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
             dirs.extend(rdirs[:])
     if sortit:
         from operator import itemgetter
-        dirs, modtimes = zip(*sorted(zip(dirs,lastmod), key=itemgetter(1)))
+        dirs, modtimes = list(zip(*sorted(zip(dirs,lastmod), key=itemgetter(1))))
     if noext: # remove extensions
         dirs = [item[:item.rfind('.')] for item in dirs]
     if fullpath:
@@ -506,7 +506,7 @@ def get_log_filename(config):
     import platform
     uiname=config.user_interface_name if hasattr(config, 'user_interface_name') else config.PLATFORM
     try:
-        import utils
+        from . import utils
     except ImportError:
         from visexpman.engine.generic import utils
     dt=utils.timestamp2ymdhms(time.time(), filename=True)
@@ -699,7 +699,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
             self.command_queue=command_queue
             if thread:
                 threading.Thread.__init__(self)
-                self.message_out_queue=Queue.Queue()
+                self.message_out_queue=queue.Queue()
             else:
                 multiprocessing.Process.__init__(self)
                 self.message_out_queue = multiprocessing.Queue()
@@ -804,9 +804,9 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
 def getziphandler(zipstream):
     '''convenience wrapper that returns the zipreader object for both a byte array and a string containing 
     the filename of the zip file'''
-    import cStringIO,  zipfile
+    import io,  zipfile
     if hasattr(zipstream, 'data'):
-        sstream = cStringIO.StringIO(zipstream.data) # zipfile as byte stream
+        sstream = io.StringIO(zipstream.data) # zipfile as byte stream
     else:
         sstream = zipstream #filename
     return zipfile.ZipFile(sstream)
@@ -843,7 +843,7 @@ def pngsave(im, file):
     meta = PngImagePlugin.PngInfo()
 
     # copy metadata into new object
-    for k,v in im.info.iteritems():
+    for k,v in im.info.items():
         if k in reserved: continue
         meta.add_text(k, v, 0)
 
@@ -925,13 +925,13 @@ class TestFileops(unittest.TestCase):
                         print(msg)
                         if msg=='TERMINATE':
                             return
-        print(os.getpid())
+        print((os.getpid()))
         killit=1
         sourcedir = tempfile.mkdtemp()
         targetdir = tempfile.mkdtemp()
         files = [tempfile.mkstemp(dir=sourcedir,suffix=str(i1)+'.png')[1] for i1 in range(5)]
         [ numpy.savetxt(f1, numpy.random.rand(128,)) for f1 in files]
-        srcdstlist = zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files])
+        srcdstlist = list(zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files]))
         command_queue = multiprocessing.Queue()
         p1 = BackgroundCopier(command_queue,postpone_seconds=5,debug=1,thread=0)
         lister = threading.Thread(target=message_printer, args=(p1.message_out_queue,))
@@ -942,9 +942,9 @@ class TestFileops(unittest.TestCase):
         if killit and not p1.isthread:
             import signal
             children = psutil.Process(os.getpid()).get_children(recursive=True)
-            print('no of children:{0}'.format(len(children)))
+            print(('no of children:{0}'.format(len(children))))
             for c1 in children:
-                print('child pid {0} name {1}'.format(c1.pid,c1.name))
+                print(('child pid {0} name {1}'.format(c1.pid,c1.name)))
             time.sleep(1)
             os.kill(os.getpid(), signal.SIGKILL) #kill parent process and see whether child processes quit automatically
             return
@@ -971,7 +971,7 @@ class TestFileops(unittest.TestCase):
         dd=numpy.empty((0,5))
         for i in range(20):
             s=2
-            d=numpy.array(5*range(s)).reshape(5,s).T+0.1*i-8
+            d=numpy.array(5*list(range(s))).reshape(5,s).T+0.1*i-8
             d[:,1]*=0.5
             daf.add(d)
             dd=numpy.append(dd,d,axis=0)

@@ -130,25 +130,25 @@ class SceneGenerator(object):
                 self.run_loop = False
             elif self.UserEvent == 'SpacePressed':                
                 self.ExperimentState='DisplayCSF'
-                print self.ExperimentState
+                print(self.ExperimentState)
         elif self.ExperimentState == 'DisplayCSF':
             if self.UserEvent == 'SpacePressed':
                 self.ExperimentState='RunCSF'                
-                print self.ExperimentState
+                print(self.ExperimentState)
         elif self.ExperimentState == 'RunCSF':
             if self.UserEvent == 'SpacePressed':
                 self.ExperimentState='DisplayColour'
-                print self.ExperimentState
+                print(self.ExperimentState)
             elif self.UserEvent == 'LeftShiftPressed':
                 self.ExperimentState='RunCSF'
-                print self.ExperimentState
+                print(self.ExperimentState)
                 self.mouse_positions = []
                 # Need to Clear Data
         elif self.ExperimentState == 'DisplayColour':
             if self.UserEvent == 'SpacePressed':
                 self.ColourCounter=0
                 self.ExperimentState = 'RunColour'
-                print self.ExperimentState
+                print(self.ExperimentState)
         elif self.ExperimentState == 'RunColour':
             if self.UserEvent == 'Choice1' or self.UserEvent == 'Choice2':
                 self.ColourCounter=self.ColourCounter+1
@@ -156,12 +156,12 @@ class SceneGenerator(object):
                     self.color_choices.append('red')
                 elif self.UserEvent == 'Choice2':
                     self.color_choices.append('blue')                    
-            print self.ColourCounter
+            print(self.ColourCounter)
             if self.ColourCounter>=self.number_of_color_choice_experiments:
                 self.ExperimentState = 'BlackScreen'
                 self.experiment_counter = self.experiment_counter + 1
                 self.generate_color_choices(self.experiment_counter)
-                print self.ExperimentState
+                print(self.ExperimentState)
                 # Need to Save Data
                 #save CSF 
                 csf_path_indexed = self.csf_path.replace('.', str(self.experiment_counter) + '.')
@@ -199,7 +199,7 @@ class SceneGenerator(object):
         elif color == 'blue':
             self.draw_rectangle([0.2, 1.0], (0.0, 0.0), (0.0,  0.0, 1.0))
         else:
-            print 'invalid'
+            print('invalid')
         
     def show_image_file_stimulus(self):
         glEnable(GL_TEXTURE_2D)

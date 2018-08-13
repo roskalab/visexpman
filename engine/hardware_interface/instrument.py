@@ -248,7 +248,7 @@ class Filterwheel(Instrument):
     def set_filter(self,  filter = '', log = True):
         if self.config.ENABLE_FILTERWHEEL:
             position_to_set = -1
-            for k,  v in self.config.FILTERWHEEL_FILTERS[self.id].items():
+            for k,  v in list(self.config.FILTERWHEEL_FILTERS[self.id].items()):
                 if k == filter:
                     position_to_set = self.config.FILTERWHEEL_FILTERS[self.id][k]
                     

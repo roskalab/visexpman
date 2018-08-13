@@ -116,7 +116,7 @@ if __name__ == "__main__":
                            ])
     initial_ray_start_point = numpy.array([0.0, 1.0, 0.0])
     initial_ray_direction = numpy.array([0.0, -1.0, 0.0])
-    print multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_direction, 1)
+    print(multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_direction, 1))
     
     #Config 1:
 #    ray_start_point = numpy.array([0.0, 100.0, 50.0])

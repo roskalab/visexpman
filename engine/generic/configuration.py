@@ -2,7 +2,7 @@ import sys
 import os.path
 import os 
 
-import parameter
+from . import parameter
 
 import unittest
 
@@ -72,12 +72,12 @@ class Config(object):
         return
 
     def _create_parameters_from_locals(self,  locals):
-        for k,  v in locals.items():
+        for k,  v in list(locals.items()):
             if hasattr(self, k):  # parameter was already initialized, just update with new value
                 self.set(k, v)
             elif k.isupper() and k.find('_RANGE') == -1:
                 if PRINT_PAR_NAMES:
-                    print k, v
+                    print(k, v)
                 if isinstance(v,  list):
                     if len(v)==2 and ((isinstance(v[1], (list, tuple)) and v[1][0] !='not_range') or v[1]==None):
                         setattr(self,  k + '_p',  parameter.Parameter(v[0],  range_ = v[1]))
@@ -99,7 +99,7 @@ class Config(object):
         self._create_parameter_aliases()
 
     def _set_parameters_from_locals(self,  locals):
-        for k,  v in locals.items():
+        for k,  v in list(locals.items()):
             if k.isupper() and k.find('_RANGE') == -1:
                 self.set(k,  v)
                 
@@ -156,7 +156,7 @@ class Config(object):
         class_variables = dir(self)
         parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper()] 
         for parameter_name in parameter_names:
-            print parameter_name + ' = ' + str(getattr(self,  parameter_name))
+            print(parameter_name + ' = ' + str(getattr(self,  parameter_name)))
             
     def get_all_parameters(self):
     #TODO: test case for this function

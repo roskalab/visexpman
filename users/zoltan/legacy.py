@@ -87,8 +87,8 @@ class PhysTiff2Hdf5(object):
         if len(pairs)>0:
             print('converting pairs')
             for p in pairs:
-                print(p[0])
-                print(p[1])
+                print((p[0]))
+                print((p[1]))
                 print('')
                
 #        converted=[]
@@ -106,21 +106,21 @@ class PhysTiff2Hdf5(object):
                 converted.append(res)
             except:
                 import traceback
-                print(traceback.format_exc())
+                print((traceback.format_exc()))
             
         return converted
         
     def convert_old_files(self):
         self.match_files()
         if 1:
-            for k,v in self.assignments.items():
+            for k,v in list(self.assignments.items()):
                 print(k)
                 self.build_hdf5(k, v[0], None)#self.folder)
         else:
             p=multiprocessing.Pool(processes=14)
-            pars = [(k, v[0]) for k, v in self.assignments.items()]
+            pars = [(k, v[0]) for k, v in list(self.assignments.items())]
             res = p.map(self.build_hdf5_2,pars)
-        print(self.skipped_files)
+        print((self.skipped_files))
         
     def match_files(self):
         self.allfiles = fileop.find_files_and_folders(self.folder)[1]
@@ -134,16 +134,16 @@ class PhysTiff2Hdf5(object):
                 tdiff = abs(tphys-ttif)
                 if tdiff>self.maximal_timediff:
                     continue
-                elif not assignments.has_key(fphys):
+                elif fphys not in assignments:
                     assignments[fphys] = [ftif, tdiff]
                 elif assignments[fphys][1]>tdiff:
                     assignments[fphys] = [ftif, tdiff]
         #check assignment for redundancy
-        assigned_tiffiles = [fn for fn, tdiff in assignments.values()]
+        assigned_tiffiles = [fn for fn, tdiff in list(assignments.values())]
         if len(assigned_tiffiles) != len(set(assigned_tiffiles)):
             assigned_tiffiles.sort()
             redundant_tiff = [assigned_tiffiles[i] for i in range(len(assigned_tiffiles)-1) if assigned_tiffiles[i] == assigned_tiffiles[i+1]]
-            [[k,v] for k,v in assignments.items() if v[0] in redundant_tiff]
+            [[k,v] for k,v in list(assignments.items()) if v[0] in redundant_tiff]
             raise RuntimeError('A tifffile is assigned to multiple phys files')
         self.assignments = assignments
         pass
@@ -180,12 +180,12 @@ class PhysTiff2Hdf5(object):
         absolute_stage_coordinates=numpy.zeros(3)
         if os.path.exists(coordsfn):
             try:
-                absolute_stage_coordinates=numpy.array(map(float, fileop.read_text_file(coordsfn).split('\r\n')[0].split('\t')))
+                absolute_stage_coordinates=numpy.array(list(map(float, fileop.read_text_file(coordsfn).split('\r\n')[0].split('\t'))))
                 print('coords file processed')
             except:
                 print('coords file cannot be read')
         else:
-            print('coords file not found', coordsfn)
+            print(('coords file not found', coordsfn))
             
         if self.use_tiff:
             tmptiff = os.path.join(tempfile.gettempdir(), 'temp.tiff')
@@ -204,7 +204,7 @@ class PhysTiff2Hdf5(object):
         else:
 #            import struct
 #            f =open(ftiff, 'rb')
-            sizex, sizey, a,b, res = map(float, os.path.split(ftiff)[1].replace('.csv','').split('_')[-5:])
+            sizex, sizey, a,b, res = list(map(float, os.path.split(ftiff)[1].replace('.csv','').split('_')[-5:]))
 #            data_s = f.read()
 #            data=numpy.array(struct.unpack('>'+''.join(len(data_s)/4*['f']),data_s), dtype = numpy.float32)
             try:
@@ -239,21 +239,21 @@ class PhysTiff2Hdf5(object):
         #Up-down flip
         if VERTICAL_FLIP:
             raw_data = numpy.flipud(raw_data.swapaxes(2,0).swapaxes(3,1)).swapaxes(0,2).swapaxes(1,3)
-        print('rawdata ok', time.time()-t0)
+        print(('rawdata ok', time.time()-t0))
         recording_parameters = {}
         recording_parameters['resolution_unit'] = 'pixel/um'
         recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+os.path.splitext(ftiff)[1], ''))
-        recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
+        recording_parameters['scanning_range'] = utils.rc((list(map(float,ftiff.split('_')[-5:-3]))))
         recording_parameters['elphys_sync_sample_rate'] = 10000 if not FIX1KHZ else 1000
         if self.irlaser:
             experiment_name = 'irlaser'
             with open(fphys,'rt') as f:
                 txt=f.read()
-            data=numpy.array([map(float,line.split('\t')) for line in txt.split('\n')[:-1]]).T
+            data=numpy.array([list(map(float,line.split('\t'))) for line in txt.split('\n')[:-1]]).T
             metadata={}
             metadata['Sample Rate']=10000
             try:
-                metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=map(float,os.path.basename(fphys).replace('.csv','').split('_')[-3:])
+                metadata['repeats'], metadata['pulse_width'], metadata['laser_power']=list(map(float,os.path.basename(fphys).replace('.csv','').split('_')[-3:]))
             except:
                 pass
             data[1]=data[2]
@@ -268,8 +268,8 @@ class PhysTiff2Hdf5(object):
 #        if 'spot' not in experiment_name.lower() or 'annulus' not in experiment_name.lower():
 #            return None
         recording_parameters['experiment_name']=experiment_name
-        recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if metadata.has_key('Stimulus file') and os.path.exists(metadata['Stimulus file']) else ''
-        recording_parameters['experiment_source_file'] = metadata['Stimulus file'] if metadata.has_key('Stimulus file') else ''
+        recording_parameters['experiment_source']= fileop.read_text_file(metadata['Stimulus file']) if 'Stimulus file' in metadata and os.path.exists(metadata['Stimulus file']) else ''
+        recording_parameters['experiment_source_file'] = metadata['Stimulus file'] if 'Stimulus file' in metadata else ''
         recording_parameters['absolute_stage_coordinates'] = absolute_stage_coordinates
         if float(metadata['Sample Rate'])!=(10000 if not FIX1KHZ else 1000):
             if 1:
@@ -312,7 +312,7 @@ class PhysTiff2Hdf5(object):
         sync_and_elphys[:,4] = sig
         #a=raw_data.mean(axis=2).mean(axis=2)[:,0]
         #plot(2*a);plot(data[1]);plot(data[2]);show()
-        print('sync data ok', time.time()-t0)
+        print(('sync data ok', time.time()-t0))
         id = experiment_data.get_id(os.path.getmtime(fphys))
         if folder is None:
             folder = os.path.join(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
@@ -321,7 +321,7 @@ class PhysTiff2Hdf5(object):
             os.makedirs(folder)
         cellid=os.path.split(ftiff)[1].split('_')[0]
         filename = os.path.join(folder, 'data_{1}_{2}_{0}_0.hdf5'.format(id, cellid, experiment_name))
-        print(utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename)
+        print((utils.timestamp2ymdhms(time.time()), 'saving to file', time.time()-t0,filename))
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = numpy.rollaxis(raw_data, 2,4)#Make sure that analysis and imaging software show the same orientations
 
@@ -339,7 +339,7 @@ class PhysTiff2Hdf5(object):
         return filename
         
     def parse_stimulus_name(self,metadata):
-        if not metadata.has_key('Stimulus file'):
+        if 'Stimulus file' not in metadata:
             return 'unknown'
         if os.path.exists(metadata['Stimulus file']):
             m=introspect.import_code(fileop.read_text_file(metadata['Stimulus file']),'experiment_config_module', add_to_sys_modules=1)
@@ -429,7 +429,7 @@ def phys2mat(filename):
     from visexpman.engine.vision_experiment.experiment_data import read_phys
     for f in filename:
         data, metadata = read_phys(f)
-        for k in metadata.keys():
+        for k in list(metadata.keys()):
             metadata[stringop.to_variable_name(k)] = metadata[k]
             del metadata[k]
         scipy.io.savemat(f.replace('.phys','.mat'), {'data': data, 'metadata': metadata}, oned_as='column')
@@ -463,7 +463,7 @@ def merge_ca_data(folder,**kwargs):
         files1.sort()
         fn=os.path.join(imaging_folder, files1[-1])
         frame_fn=fn
-        sizex, sizey, a,b, res = map(float, os.path.split(fn)[1].replace('.csv','').split('_')[-6:-1])
+        sizex, sizey, a,b, res = list(map(float, os.path.split(fn)[1].replace('.csv','').split('_')[-6:-1]))
         nchannels=2 if fn.split('_')[-1].split('.')[0]=='both' else 1
         channels=[fn.split('_')[-1].split('.')[0]]
         if channels==['both']:
@@ -540,16 +540,16 @@ def merge_ca_data(folder,**kwargs):
     recording_parameters['imaging_filename']=frame_fn
     recording_parameters['resolution_unit'] = 'pixel/um'
     recording_parameters['pixel_size'] = float(os.path.splitext(os.path.basename(frame_fn))[0].split('_')[-2])
-    recording_parameters['scanning_range'] = utils.rc((map(float,os.path.splitext(os.path.basename(frame_fn))[0].split('_')[-6:-4])))
+    recording_parameters['scanning_range'] = utils.rc((list(map(float,os.path.splitext(os.path.basename(frame_fn))[0].split('_')[-6:-4]))))
     recording_parameters['elphys_sync_sample_rate'] = machine_config['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
     recording_parameters['experiment_name']=stimulus['experiment_name']
     try:
-        recording_parameters['experiment_source']= kwargs['stimulus_source_code'] if kwargs.has_key('stimulus_source_code') else kwargs['experiment_config_source_code']
+        recording_parameters['experiment_source']= kwargs['stimulus_source_code'] if 'stimulus_source_code' in kwargs else kwargs['experiment_config_source_code']
         recording_parameters['experiment_source_file'] = kwargs['stimfile']
     except:
         pass
-    for k,v in kwargs.items():
-        if not recording_parameters.has_key(k):
+    for k,v in list(kwargs.items()):
+        if k not in recording_parameters:
             recording_parameters[k]=v
     hsync.load('sync')
     hsync.sync/=256
@@ -650,7 +650,7 @@ def rewrite_hdf5(folder):
     '''
     files=[f for f in fileop.find_files_and_folders(folder)[1] if os.path.splitext(f)[1]=='.hdf5']
     for f in files:
-        print(f, files.index(f), len(files))
+        print((f, files.index(f), len(files)))
         h=hdf5io.Hdf5io(f)
         rootnodes=[v for v in dir(h.h5f.root) if v[0]!='_' ]
         for rn in rootnodes:
@@ -685,17 +685,6 @@ def v0p3tov0p4(folder):
             hh.save('configs')
             hh.save('parameters')
         hh.close()
-
-
-def extend_with_stimanaltext(fn, experiment_config_name = 'IRLaser'):
-    ''' Adds text attributes needed to recognize which stimulus was used'''
-    with closing(datatypes.RowColTimeChan(outfn,filelocking=False)) as outh:
-        outh.stimulus_class = 'LedStimulation'
-        outh.exptype = 'LedStimulation2D'
-        outh.data_class = 'RowColTimeChan'
-        outh.experiment_config_name = experiment_config_name
-        outh.save(['stimulus_class', 'exptype', 'data_class','experiment_config_name'])
-
 
 class TestConverter(unittest.TestCase):
     @unittest.skip('')
@@ -745,7 +734,7 @@ if __name__ == '__main__':
         if fileop.free_space(sys.argv[1])<30e9:
             raise RuntimeError('{0} is running out of free space'.format(sys.argv[1]))
         elif fileop.free_space(sys.argv[1])<100e9:
-            print('Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9)))
+            print(('Only {1} GB free space is left on {0}'.format(sys.argv[1], int(fileop.free_space(sys.argv[1])/1e9))))
         p=PhysTiff2Hdf5(sys.argv[1], sys.argv[1],sys.argv[2])
         p.use_tiff=False
         print('Close window to exit program')
@@ -756,11 +745,11 @@ if __name__ == '__main__':
                 t0=time.time()
                 r=p.detect_and_convert()
                 if len(r)>0:
-                    print('runtime', time.time()-t0)
-                    print('New files', r)
+                    print(('runtime', time.time()-t0))
+                    print(('New files', r))
             except:
                 import traceback
-                print(traceback.format_exc())
+                print((traceback.format_exc()))
 #                pdb.set_trace()
             time.sleep(1.0)
         print('DONE')

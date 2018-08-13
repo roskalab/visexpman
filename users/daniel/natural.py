@@ -18,7 +18,7 @@ class NaturalBarsConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEED = 300.0#um/s
         self.REPEATS = 2#5
-        self.DIRECTIONS = range(0,360,90)
+        self.DIRECTIONS = list(range(0,360,90))
         self.DURATION = 30.0
         self.runnable = 'NaturalBarsExperiment'
         self._create_parameters_from_locals(locals())

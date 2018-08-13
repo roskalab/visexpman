@@ -13,7 +13,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.MARCH_TIME = 2.5 # standing phase time
         self.GRATING_STAND_TIME = 2.0 #post-moving-phase time
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]
         self.VELOCITIES = [1200.0]
@@ -39,7 +39,7 @@ class MovingGratingNoMarchingConfig(MovingGratingConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 4.0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
@@ -165,7 +165,7 @@ class MovingGrating(experiment.Experiment):
                                     starting_phase = phase+stimulus_unit['starting_phase'],
                                     color_contrast = stimulus_unit['color_contrast'])
                 #Show moving grating
-                if stimulus_unit.has_key('phases'):
+                if 'phases' in stimulus_unit:
                     self.show_grating(
                             profile = profile, 
                             orientation = orientation, 

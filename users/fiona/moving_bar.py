@@ -6,7 +6,7 @@ class FionaMovingBar(experiment.ExperimentConfig):
         self.BAR_WIDTH=300#8000#um
         self.BAR_LENGHT=6000#um
         self.SPEEDS=[1200]
-        self.DIRECTIONS=range(0,360,45)
+        self.DIRECTIONS=list(range(0,360,45))
         import random
         random.shuffle(self.DIRECTIONS)
         self.PAUSE=3.0#Pause between directions

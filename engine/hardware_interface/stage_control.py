@@ -5,11 +5,11 @@ import os
 try:
     import serial
 except:
-    print 'pyserial not installed'
+    print('pyserial not installed')
 
 import unittest
 
-import instrument
+from . import instrument
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
@@ -220,7 +220,7 @@ class AllegraStageOld(StageControl):
                     if hasattr(self.queue,  'empty'):
                         if not self.queue.empty():
                             if 'stop' in parameter_extract.findall(self.queue.get())[0]:
-                                print 'stop stage'
+                                print('stop stage')
                                 self.stop()
                                 break
                 self.read_position()
@@ -237,7 +237,7 @@ class AllegraStageOld(StageControl):
                 self.execute_command('rx\nry\nrz')
                 time.sleep(0.5) #used to be 0.5 s
                 response = self.serial_port.read(100)
-                print 'r',response
+                print('r',response)
                 position = []
                 for line in response.replace('\r','').split('\n'):
                     if len(line) > 0:
@@ -245,7 +245,7 @@ class AllegraStageOld(StageControl):
                             if 'Stopping' not in line and 'Done' not in line:
                                 position.append(int(line[1:]))
                         except ValueError:
-                            print response
+                            print(response)
                             raise RuntimeError('No valid response from motion controller ' + line)
                             
                 self.position_ustep = numpy.array(position)
@@ -253,7 +253,7 @@ class AllegraStageOld(StageControl):
                     self.position = self.position_ustep * self.config.STAGE[self.id]['UM_PER_USTEP']
                 except ValueError:
                     self.position = numpy.zeros(3, dtype = float)
-                    print 'position in ustep: {0}' .format(self.position_ustep)
+                    print('position in ustep: {0}' .format(self.position_ustep))
             else:
                 self.position = numpy.zeros(3, dtype = float)
             return self.position #in um
@@ -266,7 +266,7 @@ class AllegraStageOld(StageControl):
         response = self.serial_port.read(100)
         time.sleep(1)
         response = self.serial_port.read(100)
-        print 'after reset', response
+        print('after reset', response)
         
     def stop(self):
         self.execute_command('STOPALL')
@@ -278,7 +278,7 @@ class AllegraStageOld(StageControl):
         for cmd in commands:
             if len(cmd) > 0:
                 self.serial_port.write(cmd + '\n')
-                print 'c',cmd + '\n'
+                print('c',cmd + '\n')
                 if wait_after_command:
                     time.sleep(100e-3) #Takes 100 ms to complete the command
                 self.command_counter += 1
@@ -298,7 +298,7 @@ def stage_calibration(side_usteps, folder):
     import visexpA.engine.dataprocessors.signal as signal
     frames = utils.listdir_fullpath(folder)
     frames.sort()
-    print frames
+    print(frames)
     for i in range(len(frames)):
         f2 = numpy.array(Image.open(frames[i]))[:, :, 1]
         
@@ -339,18 +339,18 @@ class MotorizedGoniometer(StageControl):
         response = self.serial_port.read(100)
         if len(response)>0:
             try:
-                self.position_ustep = numpy.array(map(int,  [extract_goniometer_axis1.findall(response)[0],  extract_goniometer_axis2.findall(response)[0]]))
+                self.position_ustep = numpy.array(list(map(int,  [extract_goniometer_axis1.findall(response)[0],  extract_goniometer_axis2.findall(response)[0]])))
                 self.position = self.position_ustep * self.config.STAGE[self.id]['DEGREE_PER_USTEP']
                 result = True
             except:
                 if print_position:
                     import traceback
-                    print traceback.format_exc()
-                    print response
+                    print(traceback.format_exc())
+                    print(response)
         if not hasattr(self, 'position'):
             self.position = numpy.zeros(2)
         if print_position:
-            print self.position
+            print(self.position)
         return self.position, result
         
     def move(self, angle):
@@ -428,19 +428,19 @@ class TestAllegraStage(unittest.TestCase):
         a.setparams()
         a.move(1,-200)
         for i in range(3):
-            print a.read_position()
+            print(a.read_position())
         for j in range(3):
             try:
                 a.move(10,20)
-                print '+',  j,   a.position
+                print('+',  j,   a.position)
             except:
-                print '+',  j,  'error',  a.position
+                print('+',  j,  'error',  a.position)
             try:
                 a.move(-10,-20)
-                print '-',  j,   a.position
+                print('-',  j,   a.position)
             except:
-                print '-',  j,  'error',  a.position
-        print a.position
+                print('-',  j,  'error',  a.position)
+        print(a.position)
         a.close()
 #        a=AllegraStage('COM7',timeout=0.8)
 #        print a.read_position()

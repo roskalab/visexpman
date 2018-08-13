@@ -1,4 +1,4 @@
-import instrument
+from . import instrument
 import time
 import ctypes
 import os
@@ -40,18 +40,18 @@ class ImagingSourceCamera(VideoCamera):
         if self.dllref.IC_OpenVideoCaptureDevice(self.grabber_handle, cam_name) != 1:
             raise RuntimeError('Opening video capture device did not succeed')
         video_format = ctypes.c_char_p('RGB24')
-        print self.dllref.IC_SetVideoFormat(self.grabber_handle,video_format)
+        print(self.dllref.IC_SetVideoFormat(self.grabber_handle,video_format))
         self.isrunning = False
         
     def start(self):
         if not self.isrunning:
-            print self.dllref.IC_StartLive(self.grabber_handle, 0)
+            print(self.dllref.IC_StartLive(self.grabber_handle, 0))
         else:
             raise RuntimeError('Camera is alredy recording')
         
     def save(self):
         image_path = ctypes.c_char_p('c:\\_del\\d.jpeg')
-        print self.dllref.IC_SaveImage(self.grabber_handle,  image_path, 1, 100)
+        print(self.dllref.IC_SaveImage(self.grabber_handle,  image_path, 1, 100))
         
     def stop(self):
         if self.isrunning:

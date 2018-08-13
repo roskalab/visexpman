@@ -1,10 +1,10 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
-import tables,os,unittest,time,zmq,logging,sys,threading,cPickle as pickle,numpy,traceback,pdb,shutil,Queue
+import tables,os,unittest,time,zmq,logging,sys,threading,pickle as pickle,numpy,traceback,pdb,shutil,queue
 import scipy.io,multiprocessing,stat,subprocess,io,getpass
 if len(sys.argv)>=4 and 'jobhandler1' in sys.argv[0] and sys.argv[3]!='--ignore_failed_files':#only when jobhandler is run but not imported as a module
     visexpman_path=sys.argv[3]
     sys.path.insert(0,visexpman_path)
-    print 'loading visexpman path',visexpman_path,sys.path.index(visexpman_path)
+    print('loading visexpman path',visexpman_path,sys.path.index(visexpman_path))
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 try:
@@ -36,18 +36,18 @@ class Jobhandler(object):
         aconfigname = 'Config'
         self.analysis_config = utils.fetch_classes('visexpA.users.'+'daniel', classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
         self.logfile = os.path.join(self.config.LOG_PATH, 'jobhandler_{0}.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
-        print self.logfile
+        print(self.logfile)
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
-        self.jrq=Queue.Queue()
+        self.jrq=queue.Queue()
         self.jr=JobReceiver(self.config,self.jrq)
         if THREAD:
             self.jr.start()
         self.queues = {}
         self.queues['gui'] = {}
-        self.queues['gui']['out'] = Queue.Queue()
-        self.queues['gui']['in'] = Queue.Queue()
+        self.queues['gui']['out'] = queue.Queue()
+        self.queues['gui']['in'] = queue.Queue()
         if GUI_CONN:
             self.connections = {}
             self.connections['gui'] = network_interface.start_client(self.config, 'ANALYSIS', 'GUI_ANALYSIS', self.queues['gui']['in'], self.queues['gui']['out'])
@@ -78,7 +78,7 @@ class Jobhandler(object):
                     
     def printl(self,msg,loglevel='info'):
         getattr(logging, loglevel)(msg)
-        print msg
+        print(msg)
         if loglevel =='error' or loglevel=='warning':
             self.queues['gui']['out'].put('SOCnotifyEOC{0} {1}EOP'.format(loglevel,msg))
         else:
@@ -122,17 +122,17 @@ class Jobhandler(object):
         if THREAD:
             self.jrq.put('terminate')
             self.jr.join()
-            print 'thread terminated'
+            print('thread terminated')
         if getpass.getuser()=='hd':
-            print 'pushing stim changes'
+            print('pushing stim changes')
             repository_path=os.path.join(os.path.dirname(os.path.abspath(visexpman.__file__)),'users', self.user)
             message = 'Stimulus modifications automatically saved'
             #repository_path='/mnt/datafast/codes/jobhandler/visexpman'
             cmd='cd {0};git add .;git commit -m "{1}";git push origin {2}'.format(repository_path, message, visexpman.version)
-            print cmd
+            print(cmd)
             subprocess.call(cmd, shell=True)
         self.connections['gui'].wait()
-        print 'done'
+        print('done')
         
     def process_job(self,nextfunction, nextpars):
         getattr(self,nextfunction)(*nextpars)
@@ -156,7 +156,7 @@ class Jobhandler(object):
         if active_animals=={}:
             #No active files found
             return
-        current_animal=[k for k, v in active_animals.items() if v ==max(active_animals.values())][0]
+        current_animal=[k for k, v in list(active_animals.items()) if v ==max(active_animals.values())][0]
         logging.debug('Active animals: {0}'.format(active_animals))
         return current_animal
                 
@@ -226,7 +226,7 @@ class Jobhandler(object):
         self.save_failed_file_status(failed_files)
         if jobs=={}:
             return None,None
-        job_order=jobs.keys()
+        job_order=list(jobs.keys())
         job_order.sort()
         job_order.reverse()
         job_selected=False
@@ -312,7 +312,7 @@ class Jobhandler(object):
             file_info = os.stat(filename)
             logging.info(str(file_info))
             self.analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
-            print(self.analysis_config.ROI['parallel'])
+            print((self.analysis_config.ROI['parallel']))
             h = hdf5io.iopen(filename,self.analysis_config)
             if h is not None:
                 for c in create:
@@ -340,7 +340,7 @@ class Jobhandler(object):
         
     def convert_and_copy(self,filename,user,region_add_date,animal_id):
         '''
-        Converts hdf5 file to mat, copies hdf5, mat and png files to u:\data\user\...
+        Converts hdf5 file to mat, copies hdf5, mat and png files to u:\data\\user\...
         For certain users conversion is not performed.
         
         Copy:
@@ -365,7 +365,7 @@ class Jobhandler(object):
                 else:
                     rnt=rn
                 mat_data[rnt]=h.findvar(rn)
-            if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+            if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
                 del mat_data['soma_rois_manual_info']
             h.close()
             matfile=filename.replace('.hdf5', '_mat.mat')
@@ -436,7 +436,7 @@ class JobReceiver(threading.Thread):
              raise RuntimeError('Other instance of Jobhandler is already running.')
 
     def printl(self,msg,loglevel='info'):
-        print msg
+        print(msg)
         getattr(logging,loglevel)(msg)
         
     def run(self):
@@ -552,8 +552,8 @@ class DatafileDatabase(object):
             logging.warning('{0} already in database, this entry not added'.format(kwargs['id']))
             return 
         item = self.hdf5.root.datafiles.row
-        for f,v in Datafile.columns.items():
-            if kwargs.has_key(f):
+        for f,v in list(Datafile.columns.items()):
+            if f in kwargs:
                 item[f]=kwargs[f]
             else:
                 item[f]=Datafile.columns[f].dflt
@@ -564,10 +564,10 @@ class DatafileDatabase(object):
         logging.info('{0} added to database'.format(kwargs['id']))
 
     def update(self,**kwargs):
-        if kwargs.has_key('id'):
+        if 'id' in kwargs:
             keyname='id'
             key=kwargs['id']
-        elif kwargs.has_key('filename'):
+        elif 'filename' in kwargs:
             keyname='filename'
             key='"{0}"'.format(kwargs['filename'])
         rowsfound=len([1 for row in self.hdf5.root.datafiles.where('{0}=={1}'.format(keyname, key))])
@@ -577,7 +577,7 @@ class DatafileDatabase(object):
             raise RuntimeError('{0} id is not unique'.format(kwargs['id']))
         else:
             for row in self.hdf5.root.datafiles.where('{0}=={1}'.format(keyname, key)):
-                for f,v in kwargs.items():
+                for f,v in list(kwargs.items()):
                     row[f]=v
                 row.update()
             self.hdf5.flush()
@@ -611,7 +611,7 @@ class DatafileDatabase(object):
             export_filename=self.filename.replace('.hdf5','_{0}.txt'.format(region))
             try:
                 fp=open(export_filename,'w')
-                ids=lines.keys()
+                ids=list(lines.keys())
                 ids.sort()
                 [fp.write(lines[i]) for i in ids]
                 fp.close()
@@ -653,7 +653,7 @@ class TestDatafileDatabase(unittest.TestCase):
             t.append(time.time() - t0)
         t0=time.time()
         dfdb.update(id=id, region='test2', depth=-102.0,animal_id='153')
-        print t0-time.time()
+        print(t0-time.time())
         
         
         dfdb.export()
@@ -663,7 +663,7 @@ class TestDatafileDatabase(unittest.TestCase):
         self.assertGreaterEqual(len([i for i in dfdb.hdf5.root.datafiles.where('filename==\'okokok\'')]),n)
         
         dfdb.close()
-        print sum(t)/1000
+        print(sum(t)/1000)
         
         
 def folder2stimcontext(folder):
@@ -703,7 +703,7 @@ def hdf52mat(filename, analysis_config):
         else:
             rnt=rn
         mat_data[rnt]=h.findvar(rn)
-    if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+    if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     h.close()
     matfile=filename.replace('.hdf5', '_mat.mat')
@@ -715,15 +715,15 @@ def hdf52mat_folder(folder):
     analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
     for f in fileop.find_files_and_folders(folder)[1]:
         if f[-4:]=='hdf5':
-            print f
+            print(f)
             hdf52mat(f,analysis_config)
 
 def extract_prepost_scan(h):
     import visexpA.engine.component_guesser as cg
     idnode=h.findvar(cg.get_node_id(h))
     nodes2save=[]
-    if idnode.has_key('prepost_scan_image'):
-        for k,v in idnode['prepost_scan_image'].items():
+    if 'prepost_scan_image' in idnode:
+        for k,v in list(idnode['prepost_scan_image'].items()):
             setattr(h, k+'_scan', matlabfile.read_line_scan(io.BytesIO(v), read_red_channel = True))
             nodes2save.append(k+'_scan')
             logging.info(nodes2save[-1]+' extracted')
@@ -741,12 +741,12 @@ def jobhandler_process_single_file(filename, user):
     else:
         filenames=[f for f in fileop.listdir_fullpath(filename) if os.path.splitext(f)[1]=='.hdf5']
     for fn in filenames:
-        print fn
+        print(fn)
         try:
             mes_extractor = importers.MESExtractor(fn, config = analysis_config, close_file=False)
             data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
             extract_prepost_scan(mes_extractor.hdfhandler)
-            print 'mesextractor done'
+            print('mesextractor done')
             mes_extractor.hdfhandler.close()
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
@@ -758,11 +758,11 @@ def jobhandler_process_single_file(filename, user):
                 for e in export:
                     getattr(h,'export_'+e)()
                 h.close()
-            print 'analysis done'
+            print('analysis done')
             hdf52mat(fn, analysis_config)
         except:
-            print 'error'
-    print 'all done'
+            print('error')
+    print('all done')
         
 if __name__=='__main__':
     if len(sys.argv)==1:

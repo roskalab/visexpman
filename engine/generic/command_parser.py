@@ -1,5 +1,5 @@
 import traceback,os
-import Queue
+import queue
 import re
 import unittest
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
@@ -102,8 +102,8 @@ class TestCommandParser(CommandParser):
 
 class TestCommandHandler(unittest.TestCase):
     def setUp(self):
-        self.queue_in = Queue.Queue()
-        self.queue_out = Queue.Queue()
+        self.queue_in = queue.Queue()
+        self.queue_out = queue.Queue()
         
     def test_01_no_arg(self):
         self.queue_in.put('SOCtest0EOCEOP')

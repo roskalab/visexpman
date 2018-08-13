@@ -21,5 +21,5 @@ class PresentinatorExperiment(experiment.Experiment):
         try:
             shutil.copyfile(self.logfile_path, self.experiment_config.experiment_log_copy_path)
         except:
-            print 'not copied for some reason'
+            print('not copied for some reason')
             

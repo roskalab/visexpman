@@ -12,8 +12,8 @@ Extreme setting: big movement, short setting time, big speed change
 import numpy
 import time
 
-import daq_instrument
-import instrument
+from . import daq_instrument
+from . import instrument
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import configuration
 from visexpman.users.zoltan.test import unit_test_runner
@@ -126,7 +126,7 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
     v0 = v_initial
     #Calculate initial speed and position from the parameters of the last line assuming that the scanning will be periodical
     p0 = lines[-1]['p1']
-    if lines[-1].has_key('v'):
+    if 'v' in lines[-1]:
         ds, n = calculate_spatial_resolution(lines[-1]['p0'], lines[-1]['p1'], lines[-1]['v'], dt)
         v0, n = calculate_scanner_speed(lines[-1]['p0'], lines[-1]['p1'], ds, dt)
     else:
@@ -143,7 +143,7 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
         for line in lines:
             line_out = line
             #connect line's initial position with actual scanner position
-            if line.has_key('v'):
+            if 'v' in line:
                 ds, n = calculate_spatial_resolution(line['p0'], line['p1'], line['v'], dt)
                 v1, n = calculate_scanner_speed(line['p0'], line['p1'], ds, dt)
             else:
@@ -508,8 +508,8 @@ class TestScannerControl(unittest.TestCase):
         vmax = 5000
         pos_x, pos_y, speed_x, speed_y, accel_x, accel_y, scan_mask, period_time = generate_line_scan_series(lines, self.dt, setting_time, vmax, accmax, scanning_periods = 2, start_stop_scanner = True, start_stop_time = start_stop_time)
         if plot_enable:
-            print period_time
-            print abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max()
+            print(period_time)
+            print(abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max())
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
             figure(1)
             subplot(411)

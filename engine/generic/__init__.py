@@ -47,7 +47,7 @@ def expspace(start,  end,  number_of_points):
     
 def iterate_parameter_space(parameters):
     iterable_parameters = []
-    for parameter_name, parameter_values in parameters.items():
+    for parameter_name, parameter_values in list(parameters.items()):
         iterable_parameters.append(parameter_values)
     iterable = []
     for item in itertools.product(*iterable_parameters):
@@ -55,8 +55,8 @@ def iterate_parameter_space(parameters):
     iterable_parameters = []    
     for item in iterable:
         parameter_set = {}        
-        for i in range(len(parameters.keys())):
-            parameter_set[parameters.keys()[i]] = item[i]
+        for i in range(len(list(parameters.keys()))):
+            parameter_set[list(parameters.keys())[i]] = item[i]
         iterable_parameters.append(parameter_set)
     return iterable_parameters
 
@@ -85,7 +85,7 @@ class Test(unittest.TestCase):
 #            im.save('/home/zoltan/visexp/debug/scalebar.png')
 #    
     def test_03(self):
-        print expspace(0,  10,  4)
+        print((expspace(0,  10,  4)))
     
 if __name__ == '__main__':
     unittest.main()

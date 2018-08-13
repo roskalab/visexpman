@@ -6,7 +6,7 @@ locking transparently against that.
 
 import numpy as np
 from os import getpid
-import thread
+import _thread
 from threading import currentThread
 from visexpman.engine.generic.shmem_sync import SharedExclusiveLock
 
@@ -119,7 +119,7 @@ class SyncNumpy(object):
         with self.reading:
             return ob in self._underlying
 
-    def __nonzero__(self):
+    def __bool__(self):
         with self.reading:
             return bool(self._underlying)
 
@@ -154,32 +154,32 @@ class SyncNumpy(object):
     # Python Intrinsics
     # -----------------
     for name in PyObject_Intrinsics:
-        exec (
+        exec((
             "def __%(name)s__(self,*args, **kwargs):\n"
             "    with self.reading:"
             "        return self._underlying.__%(name)s__()"
-        ) % locals()
+        ) % locals())
 
     # Unary Prefix
     # ------------
     for name, op in PyObject_UnaryOperators:
-        exec (
+        exec((
             "def __%(name)s__(self):\n"
             "    with self.reading:\n"
             "        return self._underlying.__%(name)s__()"
-        ) % locals()
+        ) % locals())
 
     for name in PyArray_ReadMethods:
-        exec (
+        exec((
             "def %(name)s(self, *args, **kwargs):\n"
             "    with self.reading:\n"
             "        return self._underlying.%(name)s(*args, **kwargs)"
-        ) % locals()
+        ) % locals())
 
     # Binary Prefix
     # -------------
     for name, op in PyObject_BinaryOperators:
-        exec (
+        exec((
             "def __%(name)s__(self,ob):\n"
             "    with self.reading:"
             "        return self._underlying %(op)s ob\n"
@@ -188,22 +188,22 @@ class SyncNumpy(object):
             "    with self.reading:"
             "        return ob %(op)s self._underlying\n"
             "\n"
-        )  % locals()
+        )  % locals())
 
     # Write Operations
     # ===============
 
     for name, op in PyObject_BinaryOperators:
-        exec (
+        exec((
             "def __i%(name)s__(self,ob):\n"
             "    with self.writing:"
             "        return ob %(op)s self._underlying\n"
             "\n"
-        )  % locals()
+        )  % locals())
 
     for name in PyArray_WriteMethods:
-        exec (
+        exec((
             "def %(name)s(self, *args, **kwargs):\n"
             "    with self.writing:\n"
             "        return self._underlying.%(name)s(*args, **kwargs)"
-        ) % locals()
+        ) % locals())

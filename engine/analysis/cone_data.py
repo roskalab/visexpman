@@ -126,7 +126,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
     p=im1.max()
     im = gaussian_filter(im1, sigma)
     centers = signal2.getextrema(im, method = 'regmax')
-    wrange = range(minsomaradius, maxsomaradius,stepsize)
+    wrange = list(range(minsomaradius, maxsomaradius,stepsize))
     ims=signal.scale(im, 0.0, 1.0)
     res = roi.ratio_center_perimeter(ims, centers,  wrange)
     maskcum = numpy.zeros_like(im1,dtype=numpy.float)
@@ -144,7 +144,7 @@ def find_rois(im1, minsomaradius, maxsomaradius, sigma, threshold_factor,stepsiz
         labeled, nsegments = scipy.ndimage.measurements.label(thresholded)
         central_segment = numpy.where(labeled==labeled[roi_center[0],roi_center[1]],1,0)
         if  numpy.nonzero(central_segment)[0].shape[0] < 0.95*numpy.nonzero(mask)[0].shape[0]:#Valid roi
-            soma_rois.append(numpy.array(zip(*numpy.nonzero(central_segment))))
+            soma_rois.append(numpy.array(list(zip(*numpy.nonzero(central_segment)))))
     return soma_rois
     
 def area2edges(soma_roi):
@@ -187,7 +187,7 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     ids = [experiment_data.parse_recording_filename(f)['id'] for f in allhdf5files]
     if len(ids) != len(set(ids)):
         import collections
-        duplicates = [x for x, y in collections.Counter(ids).items() if y > 1]
+        duplicates = [x for x, y in list(collections.Counter(ids).items()) if y > 1]
         raise RuntimeError('Some files are duplicated: {0}'.format([f for f in allhdf5files if stringop.string_in_list(duplicates, f, any_match=True)]))
     #Identify files that are linked together
     links = [(f, fast_read(f, 'repetition_link')) for f in allhdf5files]#This takes long, cannot be run in parallel processes
@@ -215,16 +215,16 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
             break
     #Read roi info from assigned files
     aggregated_rois = dict([(f, hdf5io.read_item(f, 'rois', filelocking=False)) for f in allhdf5files if stringop.string_in_list(repetitions, f, any_match=True) and (experiment_name == experiment_data.parse_recording_filename(f)['experiment_name'] if filter_by_stimulus_type else True)])
-    for fn in aggregated_rois.keys():#Remove recordings that do not contain roi
+    for fn in list(aggregated_rois.keys()):#Remove recordings that do not contain roi
         if aggregated_rois[fn] is None:
             del aggregated_rois[fn]
     #take rectangle center for determining mathcing roi
     aggregated_rectangles = {}
-    for fn, rois in aggregated_rois.items():
+    for fn, rois in list(aggregated_rois.items()):
         if len(rois)>0 and rois is not None:#Skip if link exists but rois do not
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
     #Match rois from different repetitions
-    if not aggregated_rectangles.has_key(filename):
+    if filename not in aggregated_rectangles:
         raise RuntimeError('{0} does not contain rois. Make sure that rois are saved'.format(filename))
     reference = aggregated_rectangles[filename]
     ref_signatures = point_signature(reference)
@@ -233,14 +233,14 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     roi_ct = 0
     for reference_rect in reference:
         ref_sig=find_by_point(reference_rect, ref_signatures)
-        for fn in aggregated_rectangles.keys():
+        for fn in list(aggregated_rectangles.keys()):
             signatures = point_signature(aggregated_rectangles[fn])
             match_list = [compare_signatures(ref_sig, find_by_point(r, signatures)) for r in aggregated_rectangles[fn]]
             match_weight = max(match_list)
             #Take the smaller number of rois as the basis of the comparison with match_weight
             nrois = min(len(aggregated_rectangles[fn]), len(reference))
             if match_weight>(nrois-1)*0.7:#Match: if there are at least n exact matches where n can be 70 % of number of rois
-                if not aggregated_rois[filename][roi_ct].has_key('matches'):
+                if 'matches' not in aggregated_rois[filename][roi_ct]:
                     aggregated_rois[filename][roi_ct]['matches'] = {}
                 index=numpy.array(match_list).argmax()
                 matched_roi=aggregated_rois[fn][index]
@@ -276,7 +276,7 @@ def aggregate_cells(folder):
     aggregated_cells = []
     allhdf5files.sort()
     for hdf5file in allhdf5files:
-        print(allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells))
+        print((allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells)))
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
         fntags= experiment_data.parse_recording_filename(hdf5file)
         if fntags['id'] in skip_ids or not experiment_data.is_recording_filename(hdf5file):
@@ -299,27 +299,27 @@ def aggregate_cells(folder):
             matched_rois.update(roi['matches'])
             #Organize by stimulus type:
             organized_rois = {}
-            [v['stimulus_name'] for v in matched_rois.values()]
-            for stimulus_name in list(set([v['stimulus_name'] for v in matched_rois.values()])):
+            [v['stimulus_name'] for v in list(matched_rois.values())]
+            for stimulus_name in list(set([v['stimulus_name'] for v in list(matched_rois.values())])):
                 organized_rois[stimulus_name]={}
-                for fn in [fn for fn,v in matched_rois.items() if v['stimulus_name'] == stimulus_name]:
+                for fn in [fn for fn,v in list(matched_rois.items()) if v['stimulus_name'] == stimulus_name]:
                     organized_rois[stimulus_name][fn.replace('.hdf5', '')]=matched_rois[fn]
             organized_rois['scan_region']=scan_region_name
             aggregated_cells.append(organized_rois)
-            skip_ids.extend([experiment_data.parse_recording_filename(fn)['id'] for fn in roi['matches'].keys()])
+            skip_ids.extend([experiment_data.parse_recording_filename(fn)['id'] for fn in list(roi['matches'].keys())])
         skip_ids = list(set(skip_ids))
     return aggregated_cells
     
 def aggregate_stage_coordinates(folder):
     allhdf5files = experiment_data.find_recording_files(folder)
     rp=[[os.path.basename(f).replace('.hdf5',''), hdf5io.read_item(f, 'recording_parameters', filelocking=False)] for f in allhdf5files]
-    return dict([(rpi[0], rpi[1]['absolute_stage_coordinates']) for rpi in rp if rpi[1].has_key('absolute_stage_coordinates')])
+    return dict([(rpi[0], rpi[1]['absolute_stage_coordinates']) for rpi in rp if 'absolute_stage_coordinates' in rpi[1]])
     
 def cell_trace_params(cell):
     keys=[]
-    for sn,v in cell.items():
+    for sn,v in list(cell.items()):
         if 'scan_region' in sn: continue
-        keys.extend(zip(len(v.keys())*[sn], v.keys()))
+        keys.extend(list(zip(len(list(v.keys()))*[sn], list(v.keys()))))
     for key in keys:
         baseline_mean, response_amplitude, response_rise_sigma, T_falling, T_initial_drop,fitted_traces = \
                     calculate_trace_parameters(cell[key[0]][key[1]]['normalized'],
@@ -342,18 +342,18 @@ def quantify_cells(cells):
     cell_parameters=[]
     for cell in cells:
         cell_parameter = {}
-        for sn in cell.keys():
+        for sn in list(cell.keys()):
             if 'scan_region' in sn: continue
-            pars=numpy.array([[v['response_amplitude'], v['response_rise_sigma']] for v in cell[sn].values()]).mean(axis=0)
+            pars=numpy.array([[v['response_amplitude'], v['response_rise_sigma']] for v in list(cell[sn].values())]).mean(axis=0)
             cell_parameter[sn] = {'response_amplitude': pars[0], 'response_rise_sigma': pars[1]}
         cell_parameters.append(cell_parameter)
     #Distribution of different stimuli
     parameter_distributions = {}
-    parameter_names = list(set([cpii for cp in cell_parameters for cpi in cp.values() for cpii in cpi.keys()]))
-    for stimulus_name in list(set([cpi for cp in cell_parameters for cpi in cp.keys()])):
+    parameter_names = list(set([cpii for cp in cell_parameters for cpi in list(cp.values()) for cpii in list(cpi.keys())]))
+    for stimulus_name in list(set([cpi for cp in cell_parameters for cpi in list(cp.keys())])):
         parameter_distributions[stimulus_name]={}
         for parname in parameter_names:
-            parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] if cp.has_key(stimulus_name) else numpy.nan for cp in cell_parameters])
+            parameter_distributions[stimulus_name][parname] = numpy.array([cp[stimulus_name][parname] if stimulus_name in cp else numpy.nan for cp in cell_parameters])
     return parameter_distributions
     
 def roi_redetect(rectangle, meanimage, subimage_size=3):
@@ -381,7 +381,7 @@ class TestCA(unittest.TestCase):
             rc=[r['raw'] for r in h.findvar('rois')]
             tstim,timg, meanimage, image_scale, raw_data = h.prepare4analysis()
 #            with introspect.Timer(''):
-            res = map(calculate_trace_parameters, rc, len(rc)*[tstim], len(rc)*[timg], len(rc)*[1])
+            res = list(map(calculate_trace_parameters, rc, len(rc)*[tstim], len(rc)*[timg], len(rc)*[1]))
             response_amplitudes = []
             response_rise_sigmas = []
             T_fallings = []
@@ -396,7 +396,7 @@ class TestCA(unittest.TestCase):
                 if 0:
                     clf()
                     plot(trace)
-                    map(plot, fitted_traces)
+                    list(map(plot, fitted_traces))
                     title('response_amplitude {0}, response_rise_sigma {1},\n T_falling {2}, T_initial_drop {3}' .format(response_amplitude, response_rise_sigma, T_falling, T_initial_drop))
                     savefig('r:\\temp\\fitting\\{0}_{1}.png'.format(os.path.split(f)[1], res.index(r)),dpi=300)
                 pass
@@ -461,8 +461,8 @@ class TestCA(unittest.TestCase):
         fns.sort()
         for fn in fns:
             res = find_repetitions(fn, wf)
-            self.assertGreater(sum([r.has_key('matches') for r in res]),0)
-            self.assertEqual([len(r['matches'].keys()) for r in res if r.has_key('matches')], [2]*len(res))
+            self.assertGreater(sum(['matches' in r for r in res]),0)
+            self.assertEqual([len(list(r['matches'].keys())) for r in res if 'matches' in r], [2]*len(res))
         
     
     def test_06_aggregate_cells(self):
@@ -472,23 +472,23 @@ class TestCA(unittest.TestCase):
         fns.sort()
         cells = aggregate_cells(wf)
         self.assertTrue(isinstance(cells,list))
-        [self.assertTrue('scan_region' in cell.keys()) for cell in cells]
-        [self.assertGreater(len(cell.keys()),0) for cell in cells]
+        [self.assertTrue('scan_region' in list(cell.keys())) for cell in cells]
+        [self.assertGreater(len(list(cell.keys())),0) for cell in cells]
         expected_cell_properties = ['image_scale', 'area', 'match_weight', 'meanimage', 'stimulus_name', 'tstim', 'raw', 'baseline_length', 'normalized', 'background', 'background_threshold', 'rectangle', 'timg', 'red']
         for cell in cells:
-            repeats=cell[[c for c in cell.keys() if 'scan_region' !=c][0]].values()
+            repeats=list(cell[[c for c in list(cell.keys()) if 'scan_region' !=c][0]].values())
             for r in repeats:
-                self.assertGreaterEqual(len([True for p in expected_cell_properties if p in r.keys()]),11)#11...13. Some old files does not have area key or match_weight
+                self.assertGreaterEqual(len([True for p in expected_cell_properties if p in list(r.keys())]),11)#11...13. Some old files does not have area key or match_weight
     
     def test_07_quantify_cells(self):
         folder = fileop.select_folder_exists(['/home/rz/rzws/test_data/', '/home/rz/codes/data/test_data'])
         cells=hdf5io.read_item(os.path.join(folder, 'aggregated_cells.hdf5'), 'cells',filelocking=False)
         parameter_distributions = quantify_cells(cells)
         self.assertTrue(isinstance(parameter_distributions,dict))
-        ref=parameter_distributions.values()[0].keys()
-        for parnames in [v.keys() for v in parameter_distributions.values()]:
+        ref=list(parameter_distributions.values())[0].keys()
+        for parnames in [list(v.keys()) for v in list(parameter_distributions.values())]:
             self.assertEqual(ref,parnames)
-        self.assertTrue(all([hasattr(vv, 'shape') for vv in v.values() for v in parameter_distributions.values()]))
+        self.assertTrue(all([hasattr(vv, 'shape') for vv in list(v.values()) for v in list(parameter_distributions.values())]))
         
     def test_08_local_cell_detection(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
@@ -500,7 +500,7 @@ class TestCA(unittest.TestCase):
         meanimage=roi['meanimage']
         area=roi_redetect(roi['rectangle'], meanimage, subimage_size=3)
         meanimage[area[:,0],area[:,1]]=meanimage.max()
-        print(roi['rectangle'])
+        print((roi['rectangle']))
         imshow(meanimage);show()
         pass
     

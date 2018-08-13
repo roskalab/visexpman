@@ -2,7 +2,7 @@ import shutil
 import time,datetime
 import numpy
 import re
-import Queue
+import queue
 import traceback
 import os
 import os.path
@@ -52,7 +52,7 @@ class Poller(QtCore.QThread):
     '''
     #Initializing, loader methods
     def __init__(self, parent):
-        self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
+        self.signal_id_queue = queue.Queue() #signal parameter is passed to handler
         self.parent = parent
         self.config = self.parent.config
         QtCore.QThread.__init__(self)
@@ -414,7 +414,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.move_to_region_options['checkboxes']['objective_move'].setEnabled(False)
         self.move_to_region_options['checkboxes']['objective_realign'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['objective_origin_adjust'] = QtGui.QCheckBox(self)
-        for k, v in self.move_to_region_options['checkboxes'].items():
+        for k, v in list(self.move_to_region_options['checkboxes'].items()):
 #            if 'origin_adjust' not in k and 'objective_move' not in k:
             if 'stage_move' in k:
                 v.setCheckState(2)
@@ -610,7 +610,7 @@ class HelpersWidget(QtGui.QWidget):
         self.config = config
         #generate connection name list
         self.connection_names = ['']
-        for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
+        for k, v in list(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items()):
             if 'GUI' in k:
                 self.connection_names.append(k.replace('GUI', '').replace('_', '').lower())
         self.create_widgets()
@@ -765,14 +765,14 @@ command_extract = re.compile('SOC(.+)EOC')
 class MainPoller(Poller):
     #Initializing, loader methods
     def __init__(self, parent):
-        self.gui_thread_queue = Queue.Queue()
+        self.gui_thread_queue = queue.Queue()
         Poller.__init__(self, parent)
         self.user=parent.user
         self.xz_scan_acquired = False
         self.stage_origin_set = False
         self.cell_status_changed_in_cache = False
         self.queues = {}
-        self.queues['mouse_file_handler'] = Queue.Queue()
+        self.queues['mouse_file_handler'] = queue.Queue()
         self.init_network()
         self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections)
         self.init_variables()
@@ -839,7 +839,7 @@ class MainPoller(Poller):
             if not hasattr(self.parent,'main_widget'):#gui has not yet started 
                 return
             region=str(self.parent.get_current_region_name())
-            user=str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
+            user=str(self.animal_parameters['user'] if 'user' in self.animal_parameters else 'default_user')
             path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
             if os.path.exists(path):
                 sig=sum([i for i in os.stat(path)])
@@ -856,8 +856,8 @@ class MainPoller(Poller):
     def processstatus2gui(self):
         animalid= os.path.basename(self.mouse_file).split('_')[1]
         region=self.parent.get_current_region_name()
-        user=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
-        print 'v:\\animals', user, '{0}_{1}.txt'.format(animalid,region)
+        user=self.animal_parameters['user'] if 'user' in self.animal_parameters else 'default_user'
+        print('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
         path=os.path.join('v:\\animals', user, '{0}_{1}.txt'.format(animalid,region))
         if os.path.exists(path):
             self.parent.main_widget.measurement_datafile_status_groupbox.process_status_label.setText('\n'.join(file.read_text_file(path).split('\n')[-20:]))
@@ -882,16 +882,16 @@ class MainPoller(Poller):
         self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.connections = {}
         self.queues['mes'] = {}
-        self.queues['mes']['out'] = Queue.Queue()
-        self.queues['mes']['in'] = Queue.Queue()
+        self.queues['mes']['out'] = queue.Queue()
+        self.queues['mes']['in'] = queue.Queue()
         self.connections['mes'] = network_interface.start_client(self.config, 'GUI', 'GUI_MES', self.queues['mes']['in'], self.queues['mes']['out'])
         self.queues['stim'] = {}
-        self.queues['stim']['out'] = Queue.Queue()
-        self.queues['stim']['in'] = Queue.Queue()
+        self.queues['stim']['out'] = queue.Queue()
+        self.queues['stim']['in'] = queue.Queue()
         self.connections['stim'] = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.queues['stim']['in'], self.queues['stim']['out'])
         self.queues['analysis'] = {}
-        self.queues['analysis']['out'] = Queue.Queue()
-        self.queues['analysis']['in'] = Queue.Queue()
+        self.queues['analysis']['out'] = queue.Queue()
+        self.queues['analysis']['in'] = queue.Queue()
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
     
     def init_jobhandler(self):
@@ -938,16 +938,16 @@ class MainPoller(Poller):
                 if '.mat' == fullpath[-4:] or '.hdf5' == fullpath[-5:]:
                     try:
                         os.remove(fullpath)
-                        print (fullpath, 'removed')
+                        print((fullpath, 'removed'))
                         self.printc((fullpath, 'removed'))
                     except WindowsError:
-                        print traceback.format_exc()
+                        print(traceback.format_exc())
                     except:
-                        print traceback.format_exc()
+                        print(traceback.format_exc())
                         import pdb
                         pdb.set_trace()
         except:
-            print traceback.format_exc()
+            print(traceback.format_exc())
             
         
         time.sleep(3.0)
@@ -969,8 +969,8 @@ class MainPoller(Poller):
         Handle commands coming via queues (mainly from network thread
         '''
         try:
-            for k, queue in self.queues.items():                
-                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
+            for k, queue in list(self.queues.items()):                
+                if hasattr(queue, 'has_key') and 'in' in queue and not queue['in'].empty():
                     messages = queue['in'].get()
                     if 'EOPSOC' in messages:
                         messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
@@ -1075,11 +1075,11 @@ class MainPoller(Poller):
                 self.scan_regions = {}
             else:
                 if ENABLE_SCAN_REGION_SERIALIZATION:
-                    if isinstance(scan_regions, dict) and isinstance(scan_regions.values()[0], dict):
+                    if isinstance(scan_regions, dict) and isinstance(list(scan_regions.values())[0], dict):
                         self.scan_regions = copy.deepcopy(scan_regions)
-                    elif hasattr(scan_regions.values()[0], 'dtype'):
+                    elif hasattr(list(scan_regions.values())[0], 'dtype'):
                         self.scan_regions={}
-                        for srn in scan_regions.keys():
+                        for srn in list(scan_regions.keys()):
                             self.scan_regions[srn] = utils.array2object(copy.deepcopy(scan_regions[srn]))
                 else:
                     self.scan_regions = copy.deepcopy(scan_regions)
@@ -1202,7 +1202,7 @@ class MainPoller(Poller):
         self.images = copy.deepcopy(self.images)
         if not hasattr(self,  'cells'):
             self.cells = {}
-        if not self.cells.has_key(region_name):
+        if region_name not in self.cells:
             self.cells[region_name] = {}
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
@@ -1246,7 +1246,7 @@ class MainPoller(Poller):
             return
         id_not_found = False
         for flag_name in flag_names:
-            if self.scan_regions[region_name]['process_status'].has_key(id):
+            if id in self.scan_regions[region_name]['process_status']:
                 self.scan_regions[region_name]['process_status'][id][flag_name] = True
             else:
                 id_not_found = True
@@ -1261,9 +1261,9 @@ class MainPoller(Poller):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
         if region_name is None:
             return
-        if not self.scan_regions[region_name].has_key('process_status'):
+        if 'process_status' not in self.scan_regions[region_name]:
             self.scan_regions[region_name]['process_status'] = {}
-        if self.scan_regions[region_name]['process_status'].has_key(id):
+        if id in self.scan_regions[region_name]['process_status']:
             if not self.ask4confirmation('ID ({0} already exists, do you want to reimport this measurement?' .format(id)):
                 return
         self.scan_regions[region_name]['process_status'][id] = {}
@@ -1290,7 +1290,7 @@ class MainPoller(Poller):
         measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path,filelocking=False)
         fromfile = measurement_hdfhandler.findvar(['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
-        if not call_parameters.has_key('scan_mode'):
+        if 'scan_mode' not in call_parameters:
             self.printc('Scan mode does not exists')
             measurement_hdfhandler.close()
             return 3*[None]
@@ -1312,7 +1312,7 @@ class MainPoller(Poller):
 #        if not self.scan_regions.has_key(call_parameters['region_name']):
 #            self.printc('{0} region does not exits, probably mouse file was changed recently'.format(call_parameters['region_name']))
 #            return 3*[None]
-        if self.scan_regions[call_parameters['region_name']].has_key(id):
+        if id in self.scan_regions[call_parameters['region_name']]:
             self.printc('ID already exists: {0}'.format(id))
             return 3*[None]
         return call_parameters['region_name'], measurement_file_path, info
@@ -1329,7 +1329,7 @@ class MainPoller(Poller):
         
     def clear_process_status(self):
         self.cells = {}
-        for region_name in self.scan_regions.keys():
+        for region_name in list(self.scan_regions.keys()):
             self.scan_regions[region_name]['process_status'] = {}
         self.save2mouse_file(['scan_regions', 'cells'])
         
@@ -1339,7 +1339,7 @@ class MainPoller(Poller):
         if id_to_remove is None:
             id_to_remove = self.parent.get_current_file_id()
         region_name = self.parent.get_current_region_name()
-        if utils.safe_has_key(self.scan_regions, region_name) and not process_status_update and self.scan_regions[region_name]['process_status'].has_key(id_to_remove):
+        if utils.safe_has_key(self.scan_regions, region_name) and not process_status_update and id_to_remove in self.scan_regions[region_name]['process_status']:
             del self.scan_regions[region_name]['process_status'][id_to_remove]
             fields_to_save.append('scan_regions')
             self.printc('Scan regions updated')
@@ -1348,7 +1348,7 @@ class MainPoller(Poller):
             fields_to_save.append('images')
             self.printc('Meanimages updated')
         if hasattr(self, 'cells') and utils.safe_has_key(self.cells, region_name):
-            for cell_id in self.cells[region_name].keys():
+            for cell_id in list(self.cells[region_name].keys()):
                 if id_to_remove in cell_id:
                     del self.cells[region_name][cell_id]
             fields_to_save.append('cells')
@@ -1371,7 +1371,7 @@ class MainPoller(Poller):
         if target_state == any(['not processed', 'mesextractor_ready']):#remove cells, mean images and roi curves
             self.remove_measurement_file_from_database(id_to_remove = selected_id, keep_process_status_entry = True)
         #Modify process status
-        if utils.safe_has_key(self.scan_regions, region_name) and self.scan_regions[region_name]['process_status'].has_key(selected_id):
+        if utils.safe_has_key(self.scan_regions, region_name) and selected_id in self.scan_regions[region_name]['process_status']:
             if target_state == 'not processed':
                 self.scan_regions[region_name]['process_status'][selected_id]['mesextractor_ready'] = False
                 self.scan_regions[region_name]['process_status'][selected_id]['fragment_check_ready'] = False
@@ -1422,8 +1422,8 @@ class MainPoller(Poller):
     def calculate_suggested_depth(self):
         current_group = str(self.parent.roi_widget.cell_group_combobox.currentText())
         region_name = self.parent.get_current_region_name()
-        if current_group != '' and self.cells.has_key(region_name):
-            depths = [cell['depth'] for cell in self.cells[region_name].values() if cell['group'] == current_group]
+        if current_group != '' and region_name in self.cells:
+            depths = [cell['depth'] for cell in list(self.cells[region_name].values()) if cell['group'] == current_group]
             self.suggested_depth = numpy.round(numpy.array(list(set(depths))).mean(), 0)
         else:
             self.suggested_depth = numpy.nan
@@ -1502,7 +1502,7 @@ class MainPoller(Poller):
             self.printc('Tilting NOT enabled')
             return
         self.parent.common_widget.enable_tilting_checkbox.setCheckState(0)
-        movement = map(float, self.parent.scanc().split(','))
+        movement = list(map(float, self.parent.scanc().split(',')))
         if len(movement) != 2:
             self.printc('Invalid coordinates')
             return
@@ -1629,14 +1629,14 @@ class MainPoller(Poller):
         elif self.parent.main_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
             self.xy_scan, result = self.mes_interface.acquire_xy_scan(self.config.MES_TIMEOUT)
         if hasattr(self.xy_scan, 'has_key'):
-            if self.xy_scan.has_key('path'):#For unknown reason this key is not found sometimes
+            if 'path' in self.xy_scan:#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.xy_scan['path'])
         else:
             del self.xy_scan
         if result:
-            if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+            if self.config.DEFAULT_PMT_CHANNEL in self.xy_scan:
                 self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
-            elif self.xy_scan.has_key('pmtURraw'):
+            elif 'pmtURraw' in self.xy_scan:
                 self.show_image(self.xy_scan['pmtURraw'], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
             self.save_context()
             #Update objective position to ensure synchronzation with manual control of objective
@@ -1667,7 +1667,7 @@ class MainPoller(Poller):
             self.printc('Vertical scan did not succeed')
             return result
         if hasattr(self.xz_scan, 'has_key'):
-            if self.xz_scan.has_key('path'):#For unknown reason this key is not found sometimes
+            if 'path' in self.xz_scan:#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.xz_scan['path'])
         #Update objective position to ensure synchronzation with manual control of objective
         self.objective_position = self.xz_scan['objective_position']
@@ -1675,7 +1675,7 @@ class MainPoller(Poller):
                                       0.04*self.xz_scan['scaled_image'].shape[0] * self.xz_scan['scaled_scale']['col'], self.objective_position]]
         
         self.parent.update_position_display()
-        if self.config.DEFAULT_PMT_CHANNEL == 'pmtURraw' and self.xz_scan.has_key('scaled_image_red'):
+        if self.config.DEFAULT_PMT_CHANNEL == 'pmtURraw' and 'scaled_image_red' in self.xz_scan:
             self.show_image(self.xz_scan['scaled_image_red'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
         else:
             self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
@@ -1726,7 +1726,7 @@ class MainPoller(Poller):
                                                                      aux_roi_distance = aux_roi_distance, soma_size_ratio = None)
             if self.roi_locations is not None:
                 line_length = str(self.parent.roi_widget.xz_line_length_combobox.currentText())
-                self.xz_config = dict(self.xz_config.items() + copy.deepcopy(self.config.XZ_SCAN_CONFIG).items())
+                self.xz_config = dict(list(self.xz_config.items()) + list(copy.deepcopy(self.config.XZ_SCAN_CONFIG).items()))
                 if line_length != '':
                     self.xz_config['LINE_LENGTH'] = float(line_length)
                 if not self.mes_interface.create_XZline_from_points(self.roi_locations, self.xz_config, True):
@@ -1868,7 +1868,7 @@ class MainPoller(Poller):
             self.printc('=================================')
             self.printc(type(self.xy_scan))
             if hasattr(self.xy_scan, 'has_key'):
-                self.printc(self.xy_scan.keys())
+                self.printc(list(self.xy_scan.keys()))
             self.printc(self.xy_scan)
             self.printc('=================================')
             
@@ -1901,7 +1901,7 @@ class MainPoller(Poller):
         if region_name == '':
             self.printc('Region name must be provided')
             return
-        if self.scan_regions.has_key(region_name):
+        if region_name in self.scan_regions:
             #Ask for confirmation to overwrite if region name already exists
             #if not self.ask4confirmation('Overwriting scan region'):
 #            self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
@@ -1916,7 +1916,7 @@ class MainPoller(Poller):
             region_name = region_name + region_name_tag
             region_name = region_name.replace(' ', '_')
             #Ask for confirmation to overwrite if region name already exists
-            if self.scan_regions.has_key(region_name) and not self.ask4confirmation('Overwriting scan region'):
+            if region_name in self.scan_regions and not self.ask4confirmation('Overwriting scan region'):
                 self.printc('Region not saved')
                 return
             self.printc('2. region name generated')
@@ -1936,9 +1936,9 @@ class MainPoller(Poller):
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
         scan_region['laser_intensity'] = laser_intensity
         scan_region['xy'] = {}
-        if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+        if self.config.DEFAULT_PMT_CHANNEL in self.xy_scan:
             scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
-        elif self.xy_scan.has_key('pmtURraw'):
+        elif 'pmtURraw' in self.xy_scan:
             scan_region['xy']['image'] = self.xy_scan['pmtURraw']
         scan_region['xy']['scale'] = self.xy_scan['scale']
         scan_region['xy']['origin'] = self.xy_scan['origin']
@@ -1976,9 +1976,9 @@ class MainPoller(Poller):
         region_name = self.parent.get_current_region_name()
         if not self.xy_scan is None:
             
-            if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+            if self.config.DEFAULT_PMT_CHANNEL in self.xy_scan:
                 self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
-            elif self.xy_scan.has_key('pmtURraw'):
+            elif 'pmtURraw' in self.xy_scan:
                 self.scan_regions[region_name]['xy']['image'] = self.xy_scan['pmtURraw']
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
@@ -2021,7 +2021,7 @@ class MainPoller(Poller):
         if not self.ask4confirmation('Do you want to remove {0} scan region?' .format(selected_region)):
             return
         if selected_region != 'master' and 'r_0_0' not in selected_region:
-            if self.scan_regions.has_key(selected_region):
+            if selected_region in self.scan_regions:
                 del self.scan_regions[selected_region]
             self.save2mouse_file('scan_regions')
             self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(0)
@@ -2055,7 +2055,7 @@ class MainPoller(Poller):
                 return
             self.printc('Objective set to {0} um'.format(self.scan_regions[selected_region]['position']['z']))
         if self.parent.main_widget.scan_region_groupbox.move_to_region_options['checkboxes']['stage_move'] .checkState() != 0:
-            if not (self.has_master_position(self.scan_regions) and self.scan_regions.has_key(selected_region)):
+            if not (self.has_master_position(self.scan_regions) and selected_region in self.scan_regions):
                 self.printc('Master position is not defined')
                 return
             self.printc('Move stage to saved region position')
@@ -2095,7 +2095,7 @@ class MainPoller(Poller):
                 self.printc('Realignment was not successful {0}' .format(self.suggested_translation)) #Process not interrupted, but moves to vertical realignment
             self.printc('XY offset {0}' .format(self.suggested_translation))
         if self.parent.main_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_realign'] .checkState() != 0 and\
-                self.scan_regions[selected_region].has_key('xz'):
+                'xz' in self.scan_regions[selected_region]:
             self.printc('Realign objective')
             result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
             if not result:
@@ -2163,7 +2163,7 @@ class MainPoller(Poller):
         except ValueError:
             z_overlap = self.config.DEFAULT_Z_SCAN_OVERLAP
         try:
-            z_top, z_bottom = map(float, str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText()).split(','))
+            z_top, z_bottom = list(map(float, str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText()).split(',')))
         except ValueError:
             z_top = 0
             z_bottom = float(str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText()))
@@ -2171,7 +2171,7 @@ class MainPoller(Poller):
             self.printc('z bottom must be deeper than z top')
             return
         try:
-            max_laser_z_top, max_laser_z_bottom =  map(float, str(self.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText()).split(','))
+            max_laser_z_top, max_laser_z_bottom =  list(map(float, str(self.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText()).split(',')))
         except ValueError:
             max_laser_z_top, max_laser_z_bottom = (30, 50)
         if max_laser_z_top > max_laser_z_bottom:
@@ -2255,7 +2255,7 @@ class MainPoller(Poller):
             return
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['user']=self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'
+        self.experiment_parameters['user']=self.animal_parameters['user'] if 'user' in self.animal_parameters else 'default_user'
         self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
 #        self.read_stage()
         self.experiment_parameters['stage_position']=self.stage_position
@@ -2274,7 +2274,7 @@ class MainPoller(Poller):
                         self.scan_regions[self.experiment_parameters['region_name']]['add_date']= utils.datetime_string().replace('_', ' ')
         objective_range_string = str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
-            objective_positions = map(float, objective_range_string.split(','))
+            objective_positions = list(map(float, objective_range_string.split(',')))
             if len(objective_positions) != 3:
                 self.printc('Objective range is not in correct format')
                 return
@@ -2298,7 +2298,7 @@ class MainPoller(Poller):
             self.experiment_parameters['current_objective_position_index'] = 0
         laser_intensities_string =  str(self.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
         if len(laser_intensities_string) > 0:
-            self.experiment_parameters['laser_intensities'] = map(float, laser_intensities_string.replace(' ', '').split(','))
+            self.experiment_parameters['laser_intensities'] = list(map(float, laser_intensities_string.replace(' ', '').split(',')))
             if len(self.experiment_parameters['laser_intensities']) != 2:
                 self.printc('Laser intensity range is not in correct format')
                 return
@@ -2311,7 +2311,7 @@ class MainPoller(Poller):
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
         self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo')
         self.generate_experiment_start_command()
-        if self.experiment_parameters.has_key('objective_positions') and (self.user=='daniel' or self.ask4confirmation('Issue command for all depths?')):
+        if 'objective_positions' in self.experiment_parameters and (self.user=='daniel' or self.ask4confirmation('Issue command for all depths?')):
             while True:
                 if self.next_experiment()==None:
                     break
@@ -2323,7 +2323,7 @@ class MainPoller(Poller):
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
         self.experiment_parameters['id'] = str(int(time.time()))
         self.issued_ids.append(self.experiment_parameters['id'])
-        if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('objective_positions'):
+        if 'current_objective_position_index' in self.experiment_parameters and 'objective_positions' in self.experiment_parameters:
             self.experiment_parameters['objective_position'] = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']]
             objective_position = self.experiment_parameters['objective_position']
             self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo {0} um'.format(objective_position))
@@ -2335,7 +2335,7 @@ class MainPoller(Poller):
             if self.experiment_parameters['current_objective_position_index'] > 0:
                 objective_position = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']-1]
                 self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev {0} um'.format(objective_position))
-        if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('laser_intensities'):
+        if 'current_objective_position_index' in self.experiment_parameters and 'laser_intensities' in self.experiment_parameters:
             self.experiment_parameters['laser_intensity'] = self.experiment_parameters['laser_intensities'][self.experiment_parameters['current_objective_position_index']]
         #generate parameter file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
@@ -2349,14 +2349,14 @@ class MainPoller(Poller):
                 return
         h = hdf5io.Hdf5io(parameter_file,filelocking=False)
         h.parameters = copy.deepcopy(self.experiment_parameters)
-        if h.parameters.has_key('laser_intensities'):
+        if 'laser_intensities' in h.parameters:
             del h.parameters['laser_intensities']
-        if h.parameters.has_key('objective_positions'):
+        if 'objective_positions' in h.parameters:
             del h.parameters['objective_positions']
         if not self.experiment_parameters['intrinsic']:
             h.scan_regions = copy.deepcopy(self.scan_regions)
             h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
-            if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
+            if 'process_status' in h.scan_regions[self.experiment_parameters['region_name']]:
                 del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
             h.animal_parameters = copy.deepcopy(self.animal_parameters)
             h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
@@ -2375,14 +2375,14 @@ class MainPoller(Poller):
         h.save(fields_to_save)
         h.close()
         file.wait4file_ready(parameter_file)
-        self.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
+        self.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if 'objective_position' in self.experiment_parameters else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         time.sleep(0.5)
         self.queues['stim']['out'].put('SOCpingEOCEOP')
         self.queues['stim']['out'].put(command)
         
     def previous_experiment(self):
-        if self.experiment_parameters.has_key('current_objective_position_index') and \
+        if 'current_objective_position_index' in self.experiment_parameters and \
             self.experiment_parameters['current_objective_position_index'] > 0:
             self.experiment_parameters['current_objective_position_index'] -= 1
             self.generate_experiment_start_command()
@@ -2391,7 +2391,7 @@ class MainPoller(Poller):
         self.generate_experiment_start_command()
         
     def next_experiment(self):
-        if self.experiment_parameters.has_key('current_objective_position_index'):
+        if 'current_objective_position_index' in self.experiment_parameters:
             self.experiment_parameters['current_objective_position_index'] += 1
             if self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
                 self.generate_experiment_start_command()
@@ -2418,7 +2418,7 @@ class MainPoller(Poller):
     ########### Network debugger tools #################
     def send_command(self):
         connection = str(self.parent.helpers_widget.select_connection_list.currentText())
-        if self.queues.has_key(connection):
+        if connection in self.queues:
             self.queues[connection]['out'].put(self.parent.scanc())
         else:
             self.printc('Connection not selected')
@@ -2426,7 +2426,7 @@ class MainPoller(Poller):
     def show_connected_clients(self):
         connection_status = self.command_relay_server.get_connection_status()
         connected = []
-        for k, v in connection_status.items():
+        for k, v in list(connection_status.items()):
             if v:
                 connected.append(k)
         connected.sort()
@@ -2463,7 +2463,7 @@ class MainPoller(Poller):
             if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                 connected += 'ANALYSIS  '
                 n_connected += 1
-            n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
+            n_connections = len(list(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys()))
             connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
             self.parent.common_widget.connected_clients_label.setText(connected)
             
@@ -2522,11 +2522,11 @@ class MainPoller(Poller):
                     h1=hdf5io.Hdf5io(copy_path,filelocking=False)
                     h1.scan_regions = copy.deepcopy(self.scan_regions)
                     #Keep only process status data
-                    for scan_region_name in h1.scan_regions.keys():
-                        if not h1.scan_regions[scan_region_name].has_key('process_status'):
+                    for scan_region_name in list(h1.scan_regions.keys()):
+                        if 'process_status' not in h1.scan_regions[scan_region_name]:
                             del h1.scan_regions[scan_region_name]
                         else:
-                            for k in h1.scan_regions[scan_region_name].keys():
+                            for k in list(h1.scan_regions[scan_region_name].keys()):
                                 if k != 'process_status':
                                     del h1.scan_regions[scan_region_name][k]
                     h1.save('scan_regions', overwrite=True)
@@ -2558,10 +2558,10 @@ class MainPoller(Poller):
         
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
         selected_region = self.parent.get_current_region_name()
-        if not self.scan_regions.has_key(selected_region):
+        if selected_region not in self.scan_regions:
             self.printc('Selected region does not exists')
             return False
-        if not self.scan_regions[selected_region].has_key(scan_type):
+        if scan_type not in self.scan_regions[selected_region]:
             self.printc('Parameters for {0} does not exists' .format(scan_type))
             return False
         self.scan_regions[selected_region][scan_type]['mes_parameters'].tofile(parameter_file_path)
@@ -2650,11 +2650,11 @@ class MainPoller(Poller):
         return False
 
     def parse_list_response(self, response):
-        return numpy.array(map(float,parameter_extract.findall( response)[0].split(',')))
+        return numpy.array(list(map(float,parameter_extract.findall( response)[0].split(','))))
         
     def has_master_position(self, scan_regions):
         master_position_exists = False
-        for saved_region_name in scan_regions.keys():
+        for saved_region_name in list(scan_regions.keys()):
             if 'master' in saved_region_name or '0_0' in saved_region_name:
                 master_position_exists = True
                 break
@@ -2662,7 +2662,7 @@ class MainPoller(Poller):
 
     def get_master_position_name(self, scan_regions):
         master_position_name = ''
-        for saved_region_name in scan_regions.keys():
+        for saved_region_name in list(scan_regions.keys()):
             if 'master' in saved_region_name or '0_0' in saved_region_name:
                 master_position_name = saved_region_name
                 break
@@ -2720,7 +2720,7 @@ class MainPoller(Poller):
                     field_name += str(int(time.time()))
                 if field_name == 'scan_regions' and ENABLE_SCAN_REGION_SERIALIZATION:
                     new_fv={}
-                    for srn in field_value.keys():
+                    for srn in list(field_value.keys()):
                         new_fv[srn]=utils.object2array(field_value[srn])
                     field_value = new_fv
                 setattr(h, field_name, field_value)
@@ -2771,13 +2771,13 @@ class MainPoller(Poller):
                     #files=[fn for fn in file.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH,extension='hdf5')[1] if os.path.basename(fn)== self.mouse_file]
                     user=self.user
                     files=[fn for fn in list_mouse_files(self.config,user) if os.path.basename(fn)== os.path.basename(self.mouse_file)]
-                    rn=[rn for rn in self.scan_regions.keys() if self.parent.get_current_region_name() in rn]
+                    rn=[rn for rn in list(self.scan_regions.keys()) if self.parent.get_current_region_name() in rn]
                     if len(rn)==1:
                         d=self.scan_regions[rn[0]]['add_date']
                     else:
                         d=self.animal_parameters['add_date']
                     id=str(d.split(' ')[0].replace('-',''))
-                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']),todatabig=True)
+                    experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if 'user' in self.animal_parameters else 'default_user'),id,str(self.animal_parameters['id']),todatabig=True)
                 except:
                     self.printc(traceback.format_exc())
                     msg='ERROR: Automatic backup failed, please make sure that files are copied to u:\\backup'
@@ -2789,8 +2789,8 @@ class MainPoller(Poller):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io
         '''
-        for sr in cells.values():
-            for cell in sr.values():
+        for sr in list(cells.values()):
+            for cell in list(sr.values()):
                 if cell['group'] == '':
                     cell['group'] = 'none'
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
@@ -2808,7 +2808,7 @@ class MainPoller(Poller):
             return
         txt=('''Please read this carefully!
 All files from {0} will be compared with all files in {1} which takes some time.
-All files not found in {1} will be copied to {1}\unsorted folder.
+All files not found in {1} will be copied to {1}\\unsorted folder.
 It may copy raw mes files or processed hdf5 files depending on the current user's policy.
 Finally all files except mouse files in {0} will be permanently deleted. Are you sure?'''
                     .format(src, dst))
@@ -2849,7 +2849,7 @@ class MouseFileHandler(Poller):
 #            except:
 #                pass
             for f in field_names_to_save:
-                print f
+                print(f)
                 h.save(f, overwrite = True)
             h.close()
             self.running = False
@@ -2861,8 +2861,8 @@ class MouseFileHandler(Poller):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io
         '''
-        for sr in cells.values():
-            for cell in sr.values():
+        for sr in list(cells.values()):
+            for cell in list(sr.values()):
                 if cell['group'] == '':
                     cell['group'] = 'none'
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
@@ -2951,7 +2951,7 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         self.plots.append(self.addPlot(title='{0}, {1:.2f}'.format(traces['title'],traces['response_size'])))#, colspan=10, rowspan=10))
         color_index=0
         for trace in traces['trace']:
-            if trace.has_key('color'):
+            if 'color' in trace:
                 c=trace['color']
             else:
                 c = tuple(numpy.cast['int'](numpy.array(colors.get_color(0))*255))
@@ -3016,7 +3016,7 @@ def purge_user_folder(src,dst,delete_src=False):
     dstfiles=file.find_files_and_folders(dst)[1]
     uncopied_files=[]
     import filecmp
-    print 'comparing files'
+    print('comparing files')
     ignore_files=[]
     for srcfile in srcfiles:
 #        if len([True for dstfile in dstfiles if os.path.basename(srcfile)==os.path.basename(dstfile) and filecmp.cmp(srcfile,dstfile)])==0:
@@ -3029,13 +3029,13 @@ def purge_user_folder(src,dst,delete_src=False):
                 ignore_files.append(srcfile)
             if not already_converted:
                 uncopied_files.append(srcfile)
-    print 'found {0} uncopied files'.format(len(uncopied_files))
+    print('found {0} uncopied files'.format(len(uncopied_files)))
     #copy unsorted files
     unsorted_folder=os.path.join(dst,'unsorted')
     if not os.path.exists(unsorted_folder):
         os.mkdir(unsorted_folder)
     [shutil.copy(f, unsorted_folder) for f in uncopied_files]
-    print 'copied files'
+    print('copied files')
     if delete_src:#Delete files from src folder
         srcfiles=file.find_files_and_folders(src)[1]
         dstfiles=file.find_files_and_folders(dst)[1]
@@ -3050,7 +3050,7 @@ def purge_user_folder(src,dst,delete_src=False):
                 try:
                     os.remove(f) 
                 except:
-                    print 'cannot delete {0}'.format(f)
+                    print('cannot delete {0}'.format(f))
 
 if __name__ == '__main__':
     pass

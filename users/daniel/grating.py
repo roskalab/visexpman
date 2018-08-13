@@ -15,7 +15,7 @@ class MovingGratingQuickMarchConfig(experiment.ExperimentConfig):
         self.MARCH_TIME = 2 # standing phase time
         self.GRATING_STAND_TIME = 2.0 #post-moving-phase time
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]
         self.VELOCITIES = [1200.0]
@@ -35,7 +35,7 @@ class PhasesGratingConfig(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 4.0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.DUTY_CYCLES = [6.0] #put 1.0 to a different config
@@ -59,7 +59,7 @@ class MovingGratingExpAccConfig(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 0
         self.GRATING_STAND_TIME = 0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.DUTY_CYCLES = [6.0] #put 1.0 to a different config
         self.REPEATS = 2
@@ -89,7 +89,7 @@ class MovingGratingStartStopConfig(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 2.
         self.GRATING_STAND_TIME = 0.
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.DUTY_CYCLES = [6.0] #put 1.0 to a different config
         self.REPEATS = 2
@@ -121,7 +121,7 @@ class CurtainConfig(experiment.ExperimentConfig):
         self.MARCH_TIME = 0.0 # standing phase time
         self.GRATING_STAND_TIME = 0.0 #post-moving-phase time
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [3000.0]
         self.VELOCITIES = [300.0]
@@ -202,7 +202,7 @@ class MovingGratingLongSpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig):
         MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
         self.VELOCITIES = [1200, 1200, 300, 300, 800, 800, 500, 500]
         self.REPEATS = 1
-        self.ORIENTATIONS = range(0,360,45)
+        self.ORIENTATIONS = list(range(0,360,45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
         
@@ -211,7 +211,7 @@ class MovingGratingQuickSpeedTuningConfig(MovingGratingNoMarchHor35812umsConfig)
         MovingGratingNoMarchHor35812umsConfig._create_parameters(self)
         self.VELOCITIES = [1200, 300, 1200, 300]
         self.REPEATS = 1
-        self.ORIENTATIONS = range(0,360,45)
+        self.ORIENTATIONS = list(range(0,360,45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.DUTY_CYCLES = [3.0]*len(self.ORIENTATIONS)
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
@@ -235,7 +235,7 @@ class MovingGratingNoMarching6xConfig(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 3.5
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.COLOR_CONTRAST = 1.0
         self.WHITE_BAR_WIDTHS = [300.0]#300
@@ -320,7 +320,7 @@ class MovingGratingNoMarch3xConfig(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 3.5
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.COLOR_CONTRAST = 1.0
         self.WHITE_BAR_WIDTHS = [300.0]#300
@@ -362,7 +362,7 @@ class MovingGrating50pConfig(grating_base.MovingGratingConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 4.0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [800.0]#1800
@@ -382,7 +382,7 @@ class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
         self.MARCH_TIME = 4.0
         self.GRATING_STAND_TIME = 4.0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config

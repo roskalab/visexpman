@@ -177,7 +177,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         if reflect:
             for i in range(initial_ray_start_point.shape[0]):
                 is_reflection, rays = ray_reflection.multiple_reflections(self.mirrors,  initial_ray_start_point[i], initial_ray_direction[i], number_of_reflections)
-                print is_reflection
+                print(is_reflection)
                 self.rays.append(rays)
 
         flatten_rays = []
@@ -192,7 +192,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         self.vertices = numpy.concatenate((self.axis, self.rays, self.plane_mirror, self.aam, self.screen, self.projector, mouse_visual_range_boundaries))
         
 #        print self.rays
-        print time.time() - st
+        print(time.time() - st)
     
     def draw_scene(self):
         #draw x,y and z axis 

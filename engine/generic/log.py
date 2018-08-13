@@ -80,7 +80,7 @@ class Log(object):
             try:
                 self.handler.flush()
             except:
-                print 'Flushing log file was not successful'
+                print('Flushing log file was not successful')
         
     def queue(self, queue, name = None):
         '''

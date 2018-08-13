@@ -213,7 +213,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         SYNC_SIGNAL_MIN_AMPLITUDE = 1.3
         
         #gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
-        print gamma_corr_filename
+        print(gamma_corr_filename)
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy

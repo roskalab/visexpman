@@ -4,7 +4,7 @@ import os
 import visexpman
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils, file
-import stimulation_library
+from . import stimulation_library
 import inspect
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 from visexpman.engine.generic import introspect
@@ -156,7 +156,7 @@ class MachineConfig(configuration.VisionExperimentConfig):
         
     def _set_user_parameters(self):
         copy_parameters = ['COORDINATE_SYSTEM']
-        for k, v in self.machine_config_dict.items():
+        for k, v in list(self.machine_config_dict.items()):
             if k in copy_parameters:
                 setattr(self, k, v)
         if not hasattr(self, 'user'):
@@ -188,20 +188,20 @@ class MetaStimulus(object):
         self.abortfn=os.path.join(self.poller.config.CONTEXT_PATH,'abort.txt')
         if os.path.exists(self.abortfn):
             os.remove(self.abortfn)
-        import Queue
-        self.q=Queue.Queue()
+        import queue
+        self.q=queue.Queue()
         self.region_name = self.poller.parent.get_current_region_name()
 
     def read_depth(self):
         depthstr=str(self.poller.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
-        depthparams=map(int,depthstr.split(','))
-        depths=range(depthparams[0],depthparams[1],-depthparams[2])
+        depthparams=list(map(int,depthstr.split(',')))
+        depths=list(range(depthparams[0],depthparams[1],-depthparams[2]))
         depths.append(depthparams[1])
         return depths
 
     def read_laser(self,depths):
         laserstr=str(self.poller.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
-        laserpars=map(int, laserstr.split(','))
+        laserpars=list(map(int, laserstr.split(',')))
         return numpy.linspace(laserpars[0], laserpars[1], len(depths))
         
     def sleep(self, duration):
@@ -251,7 +251,7 @@ class MetaStimulus(object):
         h.save(fields_to_save)
         h.close()
         file.wait4file_ready(parameter_file)
-        self.poller.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if self.experiment_parameters.has_key('objective_position') else ''))
+        self.poller.printc('{0}{1} parameter file generated'.format(self.experiment_parameters['id'],'/{0} um'.format(self.experiment_parameters['objective_position']) if 'objective_position' in self.experiment_parameters else ''))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         self.q.put('SOCpingEOCEOP')
         self.q.put(command)

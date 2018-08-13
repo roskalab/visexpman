@@ -19,7 +19,7 @@ class TestElphysAnalysis(unittest.TestCase):
         trig=numpy.zeros_like(wf)
         trig[:pulse.shape[0]]=pulse
         spike_threshold=4
-        print peristimulus_histogram(wf, trig, fsample, binsize, spike_threshold)
+        print(peristimulus_histogram(wf, trig, fsample, binsize, spike_threshold))
         
 if __name__ == "__main__":    
     unittest.main()

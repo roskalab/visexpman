@@ -136,7 +136,7 @@ def test_case(configuration):
         
         if res != configuration['expected results'][i]:
             result = False
-    print 'test case: ' + configuration['name'] + ': ' + str(result)
+    print('test case: ' + configuration['name'] + ': ' + str(result))
     return result
     
 if __name__ == "__main__":

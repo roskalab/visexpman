@@ -12,8 +12,8 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
 
-import command_handler
-import experiment_control
+from . import command_handler
+from . import experiment_control
 from visexpman.engine.generic import graphics #Not used
 from visexpman.engine.generic import utils,signalop, geometry
 from visexpman.engine.generic import colors
@@ -93,7 +93,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
         command = screen.check_keyboard() #Here only commands with running experiment domain are considered
         if command != None:
-            for k, v in self.config.COMMANDS.items():
+            for k, v in list(self.config.COMMANDS.items()):
                 if v['key'] == command and 'running experiment' in v['domain']:
                     self.command_buffer += k
                     break
@@ -297,7 +297,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self.log_on_flip_message_initial = 'show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(size)  + ', ' + ')'
         self.log_on_flip_message_continous = 'show_shape'
         self._save_stimulus_frame_info(inspect.currentframe())
-        print self.frame_counter
+        print(self.frame_counter)
         if os.path.isdir(path):
             files=os.listdir(path)
             files.sort()
@@ -319,7 +319,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self._flip(trigger = False)
         else:
             self._show_image(path,duration,position,flip)
-        print self.frame_counter
+        print(self.frame_counter)
         self._save_stimulus_frame_info(inspect.currentframe())
         
     def _show_image(self,path,duration,position,stretch,flip):
@@ -1434,7 +1434,7 @@ class StimulationSequences(Stimulations):
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):
             for angle,shape_size_i, color,p in positions_and_colors:
-                    print angle
+                    print(angle)
                     #print shape_size_i['row']
             #for p in positions:
              #   for color in shape_colors:

@@ -1,11 +1,11 @@
 import sys
 import time
-import Queue
+import queue
 import os
 import numpy
 import traceback
 import re
-import cPickle as pickle
+import pickle as pickle
 import zmq
 try:
     import PyQt4.QtCore as QtCore
@@ -33,9 +33,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     -experiment control: start_experiment, execution time can be several minutes depending on the experiment/stimulus configuration
     '''
     def __init__(self):
-        self.keyboard_command_queue = Queue.Queue()
+        self.keyboard_command_queue = queue.Queue()
         #Here the set of queues are defined from commands are parsed
-        self.metastim_queue=Queue.Queue()
+        self.metastim_queue=queue.Queue()
         queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in'], self.metastim_queue]
         #Set of queues where command parser output is relayed NOT YET IMPLEMENTED IN command_parser
         queue_out = self.queues['gui']['out']
@@ -70,7 +70,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
 ###### Commands ######    
 
     def printl(self,message):
-        print message
+        print(message)
         self.queues['gui']['out'].put(message)
         self.log.info(message)
         
@@ -114,7 +114,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
 #        if time.time()-self.last_send_time<self.job_resend_period:
 #            self.last_send_time=time.time()
 #            return 'not'
-        print 'send'
+        print('send')
         fn=os.path.join(self.config.CONTEXT_PATH,'stim.hdf5')
         h=hdf5io.Hdf5io(fn,filelocking=False)
         h.load('jobs')
@@ -281,11 +281,11 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         if self.abort_metastim():
             return 'aborted'
-        if kwargs.has_key('source_code'):
+        if 'source_code' in kwargs:
             source_code = kwargs['source_code']
         else:
            source_code = ''
-        if kwargs.has_key('experiment_config'):
+        if 'experiment_config' in kwargs:
             for experiment_config in self.experiment_config_list:
                 if experiment_config[1].__name__ == kwargs['experiment_config']:
                     self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log, parameters = kwargs)

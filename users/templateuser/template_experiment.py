@@ -16,7 +16,7 @@ class TemplateExperiment(visual_stimulation.experiment.Experiment):
     
     def run(self):
         #accessing an experiment parameter
-        print self.experiment_config.PARAMETER
+        print(self.experiment_config.PARAMETER)
         #calls to stimulation library
         #self.st.stimulation_library_function()
         pass

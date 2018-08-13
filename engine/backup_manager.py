@@ -1,4 +1,4 @@
-import os,shutil,time,logging,datetime,filecmp,subprocess,threading,Queue, sys
+import os,shutil,time,logging,datetime,filecmp,subprocess,threading,queue, sys
 import traceback
 transient_backup_path='/mnt/databig/backup'
 tape_path='/mnt/tape/hillier/invivocortex/TwoPhoton/new'
@@ -63,8 +63,8 @@ def is_mounted():
     if ISMOUNT_ENABLED:
         if not os.path.ismount('/mnt/tape'):
             try:
-                subprocess.call(u'mount /mnt/tape',shell=True)
-                subprocess.call(u'fusermount -u /mnt/tape',shell=True)
+                subprocess.call('mount /mnt/tape',shell=True)
+                subprocess.call('fusermount -u /mnt/tape',shell=True)
             except:
                 pass
         return os.path.ismount('/mnt/tape') and os.path.ismount('/mnt/mdrive')
@@ -248,7 +248,7 @@ def run():
     logging.basicConfig(filename= logfile_path,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.DEBUG)
-    q=Queue.Queue()
+    q=queue.Queue()
     wd=threading.Thread(target=watchdog,args=(2*60,q))
     wd.start()
     #time.sleep(150)

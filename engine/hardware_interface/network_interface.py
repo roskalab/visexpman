@@ -1,5 +1,5 @@
 import socket
-import Queue
+import queue
 import sys
 import time
 import unittest
@@ -16,7 +16,7 @@ except:
     pass
 import os.path
 import threading
-import SocketServer
+import socketserver
 import random
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import log
@@ -117,7 +117,7 @@ class ZeroMQPuller(multiprocessing.Process):#threading.Thread):
         
         
     def close(self): #exit process if spawned on the same machine
-        print "Shutdown initiated"
+        print("Shutdown initiated")
         self.debug=1
         self.exit.set()
     
@@ -173,7 +173,7 @@ class CallableViaZeroMQ(threading.Thread):
         
     def run(self):
         if self.port is None:
-            print 'callable via zmq did not get a port number'
+            print('callable via zmq did not get a port number')
             return
         self.context=zmq.Context(1)
         self.server = self.context.socket(zmq.REP)
@@ -194,7 +194,7 @@ class CallableViaZeroMQ(threading.Thread):
                 if value is None:
                     self.server.send('NONE')
                     continue
-                if isinstance(value, (basestring, int, bool,  float,  complex)) or list_type(value)=='arrayized':
+                if isinstance(value, (str, int, bool,  float,  complex)) or list_type(value)=='arrayized':
                     cargo=simplejson.dumps(value)
                 else:
                     if not hasattr(value, 'shape'):
@@ -202,7 +202,7 @@ class CallableViaZeroMQ(threading.Thread):
                     cargo=blosc.pack_array(value)
                 self.server.send(cargo) 
             except Exception as e:
-                print e
+                print(e)
                 self.server.send('ERROR:'+ str(e))
                 
 class CallViaZeroMQ(object):
@@ -213,7 +213,7 @@ class CallViaZeroMQ(object):
         self.request_retries = request_retries
         
     def connect(self):
-        print "I: Connecting to server"
+        print("I: Connecting to server")
         self.client = self.context.socket(zmq.REQ)
         self.client.connect(self.server_endpoint)
         self.poll = zmq.Poller()
@@ -224,8 +224,8 @@ class CallViaZeroMQ(object):
         retries_left = self.request_retries
         request = [method_name, args, kwargs]
         while retries_left:
-            print "I: Sending request"
-            print request
+            print("I: Sending request")
+            print(request)
             self.client.send_json(request)
             expect_reply = True
             while expect_reply:
@@ -234,7 +234,7 @@ class CallViaZeroMQ(object):
                     reply = self.client.recv()
                     if not reply:
                         break
-                    print "I: Server replied "
+                    print("I: Server replied ")
                     if reply=='TERMINATED' or reply=='NONE': 
                         return
                     if 'ERROR' in reply: return reply
@@ -248,22 +248,22 @@ class CallViaZeroMQ(object):
                                 data=data[1]
                         return data
                 else:
-                    print "W: No response from server, retrying"
+                    print("W: No response from server, retrying")
                     # Socket is confused. Close and remove it.
                     self.client.setsockopt(zmq.LINGER, 0)
                     self.client.close()
                     self.poll.unregister(self.client)
                     retries_left -= 1
                     if retries_left == 0:
-                        print "E: Server seems to be offline, abandoning"
+                        print("E: Server seems to be offline, abandoning")
                         break
-                    print "I: Reconnecting and resending request"
+                    print("I: Reconnecting and resending request")
                     self.connect()
                     self.client.send_json(request)
 
-class SockServer(SocketServer.TCPServer):
+class SockServer(socketserver.TCPServer):
     def __init__(self, address, queue_in, queue_out, name, log_queue, timeout):
-        SocketServer.TCPServer.__init__(self, address, None)
+        socketserver.TCPServer.__init__(self, address, None)
         self.allow_reuse_address = True
         self.queue_in = queue_in
         self.queue_out = queue_out
@@ -283,12 +283,12 @@ class SockServer(SocketServer.TCPServer):
     def printl(self, message):        
         debug_message = self.name + ': ' + str(message)
         if DISPLAY_MESSAGE:
-            print debug_message
+            print(debug_message)
         if self.log_queue != None:
             self.log_queue.put([time.time(), debug_message], True)
             
     def debug(self, data, ids):
-        ids_=map(int,timestamp_re.findall(data))
+        ids_=list(map(int,timestamp_re.findall(data)))
         ids.extend(ids_)
         if len(ids)>0 and any(numpy.diff(numpy.array(ids))<0):
             self.printl('id mismatch!!!!!! {0}'.format(ids))
@@ -404,14 +404,14 @@ class CommandRelayServer(object):
         Generates queues and put them in a dictionary :
         queues[connection_name][endpointA2endpointB], queues[connection_name][endpointB2endpointA]
         '''
-        self.log_queue = Queue.Queue()        
-        self.command_queue = Queue.Queue()        
+        self.log_queue = queue.Queue()        
+        self.command_queue = queue.Queue()        
         self.queues = {}
-        for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
-            endpoints = connection_config.keys()            
+        for connection, connection_config in list(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items()):
+            endpoints = list(connection_config.keys())            
             self.queues[connection] = {}
-            self.queues[connection][endpoints[0] + '2' + endpoints[1]] = Queue.Queue()
-            self.queues[connection][endpoints[1] + '2' + endpoints[0]] = Queue.Queue()
+            self.queues[connection][endpoints[0] + '2' + endpoints[1]] = queue.Queue()
+            self.queues[connection][endpoints[1] + '2' + endpoints[0]] = queue.Queue()
         
             
     def _create_servers(self):
@@ -422,8 +422,8 @@ class CommandRelayServer(object):
             servers[connection][endpointB]
         '''
         self.servers = {}
-        for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
-            endpoints = connection_config.keys()
+        for connection, connection_config in list(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items()):
+            endpoints = list(connection_config.keys())
             self.servers[connection] = {}
             if self.config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE']:
                 server_ip = self.config.COMMAND_RELAY_SERVER['SERVER_IP'][connection]
@@ -450,14 +450,14 @@ class CommandRelayServer(object):
                                                                             )
 
     def _start_servers(self):
-        for connection_name, connection in self.servers.items():
-            for endpoint, server in connection.items():
+        for connection_name, connection in list(self.servers.items()):
+            for endpoint, server in list(connection.items()):
                 server.start()
                 
     def shutdown_servers(self):
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
-            for connection_name, connection in self.servers.items():
-                for endpoint, server in connection.items():
+            for connection_name, connection in list(self.servers.items()):
+                for endpoint, server in list(connection.items()):
                     server.shutdown()
             self.command_queue.put('TERMINATE')
             self.log.join()
@@ -472,14 +472,14 @@ class CommandRelayServer(object):
                 try:
                     self.log.info(packet)
                 except:
-                    print 'network: log error'
+                    print('network: log error')
                 debug_info.append(packet)
         return debug_info
         
     def get_connection_status(self, connection_id = None, endpoint_name = None, ):
         connection_status = {}
-        for connection_name, connection in self.servers.items():
-            for endpoint, server in connection.items():
+        for connection_name, connection in list(self.servers.items()):
+            for endpoint, server in list(connection.items()):
                 connection_status[connection_name + '/' + endpoint]  = server.server.connected
         if connection_id != None and endpoint_name != None:
             connection_status = self.servers[connection_id][endpoint_name].server.connected
@@ -500,18 +500,18 @@ class QueuedClient(QtCore.QThread):
         self.no_message_timeout = timeout
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.endpoint_name = endpoint_name
-        self.log_queue = Queue.Queue() 
+        self.log_queue = queue.Queue() 
         self.idsin=[]
         self.idsout=[]       
         
     def printl(self, message):
         debug_message = str(message)
         if DISPLAY_MESSAGE:
-            print debug_message        
+            print(debug_message)        
         self.log_queue.put([time.time(), debug_message], True)
 
     def debug(self, data, ids):
-        ids_=map(int,timestamp_re.findall(data))
+        ids_=list(map(int,timestamp_re.findall(data)))
         ids.extend(ids_)
         if len(ids)>0 and any(numpy.diff(numpy.array(ids))<0):
             self.printl('id mismatch!!!!!! {0}'.format(ids))
@@ -634,7 +634,7 @@ class QueuedClient(QtCore.QThread):
                 #Save non-echo messages
                 data_back_to_queue.append(response)
         #Put non-echo messages back to queue so that other methods could process them
-        map(self.queue_in.put, data_back_to_queue)
+        list(map(self.queue_in.put, data_back_to_queue))
         return result
             
     def connected_to_remote_client(self, timeout = 8.0):
@@ -644,7 +644,7 @@ class QueuedClient(QtCore.QThread):
         #TODO: testcase is missing for this function
         import random
         import traceback
-        map(self.printl, traceback.format_list(traceback.extract_stack()))
+        list(map(self.printl, traceback.format_list(traceback.extract_stack())))
         echo_message = 'SOCechoEOC{0}_{1}EOP'.format(self.endpoint_name, int(random.random()*10e5))
         self.queue_out.put(echo_message)
         t = utils.Timeout(timeout)
@@ -683,7 +683,7 @@ def check_response(queue, expected_responses, keyboard_handler, from_gui_queue):
             #Save non-echo messages
             data_back_to_queue.append(response)    
     #Put non-echo messages back to queue so that other methods could process them
-    map(queue.put, data_back_to_queue)
+    list(map(queue.put, data_back_to_queue))
     if hasattr(keyboard_handler, 'experiment_user_interface_handler'):
         key_pressed = keyboard_handler.experiment_user_interface_handler()
         if isinstance(key_pressed, str):
@@ -733,7 +733,7 @@ class TestQueuedServer(unittest.TestCase):
         self.client_queues = []
         self.clients = []
         for i in range(4):
-            self.client_queues.append({'in': Queue.Queue(), 'out': Queue.Queue()})
+            self.client_queues.append({'in': queue.Queue(), 'out': queue.Queue()})
             connection_name = (i / 2) * 2+4
             connection_name  = '{0}_{1}'.format(connection_name, connection_name+1)
             self.clients.append(start_client(self.config, str(i+4), connection_name, self.client_queues[-1]['in'], self.client_queues[-1]['out']) )
@@ -823,7 +823,7 @@ class NetworkListener(QtCore.QThread):
                             self.command_queue.put(data)
                             break
                 except Exception as e:
-                    print e
+                    print(e)
                 finally:
                     # Clean up the connection
                     connection.close()
@@ -913,7 +913,7 @@ class testRunner():
         self.setDaemon(False)
 
     def run(self):
-        print 'test runner started'        
+        print('test runner started')        
         config = NetworkInterfaceTestConfig()
         listener = NetworkListener(config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         sender1 = NetworkSender(config, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT, self.config.MSG_LENGTH)
@@ -926,7 +926,7 @@ class testRunner():
         self.response = ''
         while not self.command_queue.empty():
             self.response += self.command_queue.get()
-        print self.response
+        print(self.response)
         listener.close()
 
 class TestNetworkInterface(unittest.TestCase):
@@ -935,7 +935,7 @@ class TestNetworkInterface(unittest.TestCase):
         self.config = NetworkInterfaceTestConfig()
 
     def test_01_single_sender(self):
-        self.command_queue = Queue.Queue()        
+        self.command_queue = queue.Queue()        
         self.listener1 = NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         sender = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT, self.config.MSG_LENGTH)
         self.listener1.start()
@@ -956,7 +956,7 @@ class TestNetworkInterface(unittest.TestCase):
         self.listener1.wait()
         
     def test_02_multiple_tcpip_senders(self):
-        self.command_queue = Queue.Queue()        
+        self.command_queue = queue.Queue()        
         self.listener2 = NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
         sender1 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0, self.config.MSG_LENGTH)
         sender2 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0, self.config.MSG_LENGTH)
@@ -1007,7 +1007,7 @@ class TestNetworkInterface(unittest.TestCase):
 #        self.listener4.close()
         
     def test_03_single_udp_senders(self):
-        self.command_queue = Queue.Queue()
+        self.command_queue = queue.Queue()
         config = NetworkInterfaceTestConfig()
         self.listener3 = NetworkListener(config.SERVER_IP, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
         sender1 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT, self.config.MSG_LENGTH)
@@ -1029,7 +1029,7 @@ class TestNetworkInterface(unittest.TestCase):
         self.assertEqual((response),  (expected_string))        
     
     def test_04_multiple_udp_senders(self):
-        self.command_queue = Queue.Queue()
+        self.command_queue = queue.Queue()
         config = NetworkInterfaceTestConfig()
         self.listener4 = NetworkListener(config.SERVER_IP, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
         sender1 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT, self.config.MSG_LENGTH)
@@ -1083,7 +1083,7 @@ class TestZMQInterface(unittest.TestCase):
         
     def test_push_without_listeners(self):
         pusher = ZeroMQPusher()
-        print pusher.port
+        print(pusher.port)
         returncode = pusher.send(1, False)
         pusher.close()
         self.assertTrue(returncode==0)
@@ -1121,7 +1121,7 @@ class TestZMQInterface(unittest.TestCase):
         puller2.join()
         result=list(puller1.queue)+list(puller2.queue)
         pusher.close()
-        print 'pubsubtest:'+str(result)
+        print('pubsubtest:'+str(result))
         self.assertEqual(sum(list(result)),  2*sum([1, 2]))
         
     def test_push_pull_queue(self):
@@ -1155,7 +1155,7 @@ class TestZMQInterface(unittest.TestCase):
             if hasattr(broker.launcher, 'pid'):
                 broker.launcher.terminate()
             result =list(puller1.queue)
-            print list(monitor.queue)
+            print(list(monitor.queue))
             del pusher1
             del puller1
             monitor.close()
@@ -1165,4 +1165,4 @@ class TestZMQInterface(unittest.TestCase):
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(TestZMQInterface)
     unittest.TextTestRunner().run(suite)
-    print 'all done'
+    print('all done')

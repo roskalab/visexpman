@@ -13,14 +13,14 @@ class FileProcessor(object):
         self.target=target
         self.kwargs=kwargs
         if self.verbose:
-            print('found {0} files'.format(len(self.files)))
+            print(('found {0} files'.format(len(self.files))))
         
     def process(self):
         nfiles=len(self.files)
         i=1
         for f in self.files:
             if self.verbose:
-                print('{0}/{1} {2}'.format(i,nfiles,f))
+                print(('{0}/{1} {2}'.format(i,nfiles,f)))
             self.target(f, **self.kwargs)
             i+=1
             

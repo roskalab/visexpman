@@ -1,4 +1,4 @@
-import instrument
+from . import instrument
 import unittest
 import ctypes
 import os.path
@@ -21,7 +21,7 @@ class Polychrome(instrument.Instrument):
             self.bandwidth = 15.0
             return (self.handle,self.dllref)
         else:
-            print 'Polychrome not supported on this OS'
+            print('Polychrome not supported on this OS')
         
     def set_wavelength(self, wavelength, duration = 0.01,  blocking = False):
         if os.name == 'nt':
@@ -79,8 +79,8 @@ class TestPolychrome(unittest.TestCase):
     def test_01_poly(self):
         cfg = PolyTestConfig()
         p = Polychrome(cfg)
-        print p.get_intensity_range()
-        print p.get_bandwidth()
+        print(p.get_intensity_range())
+        print(p.get_bandwidth())
         p.set_intensity(1.0)
 #         time.sleep(1.0)
 #         p.set_wavelength(450)

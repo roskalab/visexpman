@@ -4,7 +4,7 @@ import os
 import numpy
 from visexpA.engine.datahandlers import hdf5io
 from visexpman.engine.generic import utils
-import cPickle as pickle
+import pickle as pickle
 #N = 100
 #Cell = {
 #    'id' : tables.StringCol(32), 
@@ -46,8 +46,8 @@ import cPickle as pickle
 #plan: def save_cells, def load_cells
 
 cells = hdf5io.read_item("c:\\_del\\mouse_big.hdf5", 'cells')
-for sr in cells.values():
-    for cell in sr.values():
+for sr in list(cells.values()):
+    for cell in list(sr.values()):
         if cell['group'] == '':
             cell['group'] = 'None'
         cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
@@ -60,17 +60,17 @@ cells_readback = utils.hdf52object(h2, 'cells')
 h2.close()
 pass
 #Compare
-for sr in cells.keys():
-    for cell_name in cells[sr].keys():
+for sr in list(cells.keys()):
+    for cell_name in list(cells[sr].keys()):
         if cells[sr][cell_name]['origin']['col'] != cells_readback[sr][cell_name]['origin']['col'] and \
             cells[sr][cell_name]['origin']['row'] != cells_readback[sr][cell_name]['origin']['row']:
-                print 'origin',  cells[sr][cell_name]['origin'],  cells_readback[sr][cell_name]['origin']
+                print('origin',  cells[sr][cell_name]['origin'],  cells_readback[sr][cell_name]['origin'])
         if cells[sr][cell_name]['scale']['col'] != cells_readback[sr][cell_name]['scale']['col'] and\
             cells[sr][cell_name]['scale']['row'] != cells_readback[sr][cell_name]['scale']['row']:
-                print 'scale',  cells[sr][cell_name]['scale'],  cells_readback[sr][cell_name]['scale']
+                print('scale',  cells[sr][cell_name]['scale'],  cells_readback[sr][cell_name]['scale'])
         if cells[sr][cell_name]['roi_center']['col'] != cells_readback[sr][cell_name]['roi_center']['col'] and\
             cells[sr][cell_name]['roi_center']['row'] != cells_readback[sr][cell_name]['roi_center']['row'] and\
             cells[sr][cell_name]['roi_center']['depth'] != cells_readback[sr][cell_name]['roi_center']['depth']:
-                print 'roi_center',  cells[sr][cell_name]['roi_center'],  cells_readback[sr][cell_name]['roi_center']
-                print 'roi_center',  cells[sr][cell_name]['roi_center'].dtype,  cells_readback[sr][cell_name]['roi_center'].dtype
+                print('roi_center',  cells[sr][cell_name]['roi_center'],  cells_readback[sr][cell_name]['roi_center'])
+                print('roi_center',  cells[sr][cell_name]['roi_center'].dtype,  cells_readback[sr][cell_name]['roi_center'].dtype)
 pass

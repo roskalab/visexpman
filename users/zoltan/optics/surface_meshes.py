@@ -1,6 +1,6 @@
 import numpy
 import visexpman.engine.generic.utils as utils
-import angular_amplification_mirror
+from . import angular_amplification_mirror
 import visexpman.users.zoltan.configurations
 
 def mesh_point(mesh_size, angle_range, radius):
@@ -113,6 +113,6 @@ if __name__ == "__main__":
 #    vertical_angle_range = (-90.0, 90.0)
 #    mesh_resolution = 12.0
 #    toroid_mesh(horizontal_radius, horizontal_angle_range, vertical_radius, vertical_angle_range, mesh_resolution)
-    print aam_mesh(100.0, 1.0, 70.0)
+    print(aam_mesh(100.0, 1.0, 70.0))
     
     

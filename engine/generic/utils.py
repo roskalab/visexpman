@@ -14,12 +14,12 @@ import tempfile
 import copy
 import select
 import subprocess
-import cPickle as pickle
+import pickle
 if os.name == 'nt':
     import win32process
     import win32api
 
-import file
+import visexpman.engine.generic.fileop
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
@@ -117,7 +117,7 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
     draw.polygon(vertices_int,  fill = int(color * 255.0))    
     #just for debug
     image.show()
-    print numpy.asarray(image)
+    print((numpy.asarray(image)))
     return numpy.asarray(image)
     
 def rectangle_vertices(size, orientation = 0):
@@ -225,7 +225,7 @@ def argsort(seq):
     '''same as numpy.argsort but works on sequences'''
     #http://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python/3382369#3382369
     #by ubuntu
-    return sorted(range(len(seq)), key=seq.__getitem__)
+    return sorted(list(range(len(seq))), key=seq.__getitem__)
     
 def nd(rcarray, squeeze=False, dim_order=None,tuples=0):
     '''Convenience function to convert a recarray to nd array'''
@@ -280,7 +280,7 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     if raw.ndim == 2 and raw.shape[0] != len(dim_names): # required format (2,x)
         raise RuntimeError('Input array provided to rc should be {0}, got {1}'.format(raw.T.shape, raw.shape))
     raw = numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
-    return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
+    return numpy.array(list(zip(*[raw[index] for index in range(len(dim_order))])),dtype=dtype)
 
 def rc_add(operand1, operand2,  operation = '+'):
     '''
@@ -633,7 +633,7 @@ def imported_modules():
     visexpman_modules = []
     module_names = []
     #stdlib = list_stdlib() this takes long
-    for k, v in sys.modules.items():
+    for k, v in list(sys.modules.items()):
         if 'visexpman' in k or 'visexpA' in k:
             if v == None:
                 new_module_name = k.split('.')[-1]
@@ -1039,7 +1039,7 @@ def pack_position(stagexyz, objective_z = None):
 def chunks(l, n):
     """ Yield successive n-sized chunks from l.
     """
-    for i in xrange(0, len(l), n):
+    for i in range(0, len(l), n):
         yield l[i:i+n]
         
 def file_to_binary_array(path):
@@ -1119,7 +1119,7 @@ def enter_hit():
 def safe_has_key(var, key):
     result = False
     if hasattr(var, 'has_key'):
-        if var.has_key(key):
+        if key in var:
             result = True
     return result
 
@@ -1216,7 +1216,7 @@ class TestUtils(unittest.TestCase):
                 if d>1:
                     for d2 in range(2, 4):
                         data[0, 0]=10*d2*data[0, 0]
-            results.append([nd(rcd_pack(data, dim_order = range(d))), data])
+            results.append([nd(rcd_pack(data, dim_order = list(range(d)))), data])
         self.assertTrue(numpy.all((item[0]==item[1]).all() for item in results))
         pass
         
@@ -1242,7 +1242,7 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
     cti=0
     while True:
         cti+=1
-        selected_i = random.choice(range(len(remaining)))
+        selected_i = random.choice(list(range(len(remaining))))
         if len(shuffled)>0:
             ct=0
             while True:
@@ -1250,7 +1250,7 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
                 coords=rc(numpy.array([nd(shuffled[-1][1]),nd(remaining[selected_i][1])]))
                 if abs(numpy.diff(coords['row'])[0])<=shape_distance['row'] and abs(numpy.diff(coords['col'])[0])<=shape_distance['col']:
                     if len(remaining)>1:
-                        selected_i = random.choice(range(len(remaining)))
+                        selected_i = random.choice(list(range(len(remaining))))
                     else:
                         success=False
                         break

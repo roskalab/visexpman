@@ -6,12 +6,12 @@ if os.name == 'nt':
     from OpenGL.GLUT import *
 import time
 import visexpman
-import generic.utils
-import visual_stimulation.user_interface
-import hardware_interface.udp_interface
-import visual_stimulation.stimulation_control
-import visual_stimulation.command_handler
-import visual_stimulation.configuration
+from . import generic.utils
+from . import visual_stimulation.user_interface
+from . import hardware_interface.udp_interface
+from . import visual_stimulation.stimulation_control
+from . import visual_stimulation.command_handler
+from . import visual_stimulation.configuration
 import visexpman.users as users
 
 
@@ -68,7 +68,7 @@ class VisualStimulation(object):
                     del self.command_buffer[0]
                 time.sleep(0.1)
         self.user_interface.close()
-        print 'run ended'
+        print('run ended')
     
 def find_out_config():
     '''

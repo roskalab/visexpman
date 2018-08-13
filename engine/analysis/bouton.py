@@ -54,10 +54,10 @@ class Test(unittest.TestCase):
             h=experiment_data.CaImagingData(f)
             h.load('raw_data')
             rd=numpy.array([i for i in h.raw_data if numpy.where(i.sum(axis=1)==255*i.shape[1])[0].shape[0]==0])
-            import cone_data
+            from . import cone_data
             t0=time.time()
             mc=motion_correction(rd)
-            print time.time()-t0
+            print(time.time()-t0)
             mi=mc.max(axis=0)[0]
             minsomaradius=2*2
             maxsomaradius=2*4

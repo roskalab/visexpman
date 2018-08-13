@@ -28,11 +28,11 @@ def nostderr():
 
 def hash_variables(variables, digest = None):
         import hashlib
-        import cPickle
+        import pickle
         myhash = hashlib.md5()
         if not isinstance(variables, (list, tuple)): variables = [variables]
         for v in variables:
-            myhash.update(cPickle.dumps(v))
+            myhash.update(pickle.dumps(v))
         return myhash.digest() if digest is None else myhash.hexdigest()
         
 def kill_child_processes(parent_pid, sig='SIGTERM'):
@@ -56,7 +56,7 @@ def current_stack(skip=0):
     try: 1/0
     except ZeroDivisionError:
         f = sys.exc_info()[2].tb_frame
-    for i in xrange(skip + 2):
+    for i in range(skip + 2):
         f = f.f_back
     lst = []
     while f is not None:
@@ -178,9 +178,9 @@ class TransactionExample(TransactionBase):
 
     def do_rollback(self, auto):
         if auto:
-            print "auto rollback", self
+            print("auto rollback", self)
         else:
-            print "manual rollback", self
+            print("manual rollback", self)
         self.resource.close()
 ## end of http://code.activestate.com/recipes/519621/ }}}
 ## {{{ http://code.activestate.com/recipes/502283/ (r1)
@@ -457,22 +457,22 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                 if seen: write = 'write' in lockregistry[i] # this lock has been acquired for writing
                 else: write = False
             if seen and write:
-                print mn+threadid + ' tries to relock '+str(i)+ ' for '+L[1]+' that is locked for writing'
+                print(mn+threadid + ' tries to relock '+str(i)+ ' for '+L[1]+' that is locked for writing')
                 with QtCore.QReadLocker(locklock):
-                    print lockregistry
+                    print(lockregistry)
                 L[0].lockForWrite()
                 with QtCore.QWriteLocker(locklock):
                     lockregistry[i].append(L[1])
                     #raise RuntimeError(threadid + ' tries to relock '+str(i)+ ' that is locked for writing')
-                print inspect.stack()[2][3]
+                print(inspect.stack()[2][3])
 
             elif seen and L[1]=='read' and not write:
-                if debug: print mn+threadid + " reacquires "+str(i)+" for reading"
+                if debug: print(mn+threadid + " reacquires "+str(i)+" for reading")
                 L[0].lockForRead()
                 with QtCore.QWriteLocker(locklock):
                     lockregistry[i].append(L[1])
             elif seen and L[1]=='write' and not write:
-                print mn+threadid + ' tries to relock '+str(i)+ ' for writing that is locked for reading. This would block forever.'
+                print(mn+threadid + ' tries to relock '+str(i)+ ' for writing that is locked for reading. This would block forever.')
                 raise RuntimeError(mn+threadid + ' tries to relock '+str(i)+' for writing that is locked for reading. This would block forever.')
             elif not seen:
                 with QtCore.QWriteLocker(locklock):
@@ -481,7 +481,7 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                     L[0].lockForRead()
                 else:
                     L[0].lockForWrite()
-                if debug: print mn+ threadid + " locked "+str(i)+ " for "+L[1]
+                if debug: print(mn+ threadid + " locked "+str(i)+ " for "+L[1])
         yield
     finally:
         for lock in reversed(locks):
@@ -494,7 +494,7 @@ def acquire(locks,  lockregistry=dict()): # assigning lockregistry a mutable typ
                     else:
                         lockregistry[i].pop()
                     if debug:
-                        print mn+threadid + " unlocked "+str(i)+ " for "+lock[1]
+                        print(mn+threadid + " unlocked "+str(i)+ " for "+lock[1])
 
 def nameless_dummy_object_with_methods(*methods):
     d = {}
@@ -522,7 +522,7 @@ def list_of_empty_mutables(n, prototype=list()):
     return [copy.deepcopy(prototype) for _ in range(n)]
 
 def dict_of_empty_mutables(keys,prototype=list(),dict_type = dict):
-    return dict_type(zip(keys,list_of_empty_mutables(len(keys),prototype)))
+    return dict_type(list(zip(keys,list_of_empty_mutables(len(keys),prototype))))
     
 def traverse(obj,  attrchain):
     '''Walks trough the attribute chain starting from obj and returns the last element of the chain. E.g.
@@ -542,7 +542,7 @@ def index(seq, f):
     else:
         return 'Calcium'
     """
-    return next((i for i in xrange(len(seq)) if f(seq[i])), None)
+    return next((i for i in range(len(seq)) if f(seq[i])), None)
 
 class Timer(object):
     '''Simple measurement utility, use as:
@@ -558,8 +558,8 @@ class Timer(object):
 
     def __exit__(self, type, value, traceback):
         if self.name:
-            print '[%s]' % self.name,
-        print 'Elapsed: %s' % (time.time() - self.tstart)
+            print('[%s]' % self.name, end=' ')
+        print('Elapsed: %s' % (time.time() - self.tstart))
 
 def celery_available():
     try:
@@ -578,7 +578,7 @@ def list_type(item):
         if isinstance(item, (list, tuple)) and item2.dtype.names is None and item2.dtype !=object:#numpy.issctype(item2.dtype):
             return 'arrayized'
     except Exception as e:
-        print e
+        print(e)
     if isinstance(item,(list,tuple)):
         if isinstance(item[0],(list,tuple)):
             response='list_of_lists'
@@ -599,7 +599,7 @@ def list_type(item):
 
 def dict_isequal(d1,d2):
     if set(d1.keys()) != set(d2.keys()): return False
-    for k in d1.keys():
+    for k in list(d1.keys()):
         if hasattr(d1[k],'shape'):
             if numpy.any(d1[k]!=d2[k]): return False
         else: 
@@ -625,7 +625,7 @@ class ModifiableIterator(object):
         '''Gives back the number of items to be processed'''
         return len(self.list)
         
-    def next(self):
+    def __next__(self):
         if len(self.list) == 0:
             self.refill()
             raise StopIteration
@@ -685,7 +685,7 @@ def import_code(code,name,add_to_sys_modules=0):
 
     module = imp.new_module(name)
 
-    exec code in module.__dict__
+    exec(code, module.__dict__)
     if add_to_sys_modules:
         sys.modules[name] = module
     return module
@@ -712,7 +712,7 @@ class TestUtils(unittest.TestCase):
         
     def test_flatten(self):
         a = []
-        for i in xrange(3):
+        for i in range(3):
             a = [a, i]
             a = flatten(a)
         #self.assertEqual()

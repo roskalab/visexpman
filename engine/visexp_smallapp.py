@@ -44,7 +44,7 @@ class SmallApp(QtGui.QWidget):
         if hasattr(self.config, 'LOG_PATH'):
             self.log = log.Log('gui log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, self.config.SMALLAPP['NAME'].replace(' ', '_') +'.txt')), local_saving = True)
         self.console_text = ''
-        if self.config is not None and self.config.SMALLAPP.has_key('POLLER'):
+        if self.config is not None and 'POLLER' in self.config.SMALLAPP:
             if hasattr(gui_pollers, self.config.SMALLAPP['POLLER']):
                 self.poller =  getattr(gui_pollers, self.config.SMALLAPP['POLLER'])(self, self.config)
             else:
@@ -62,7 +62,7 @@ class SmallApp(QtGui.QWidget):
         self.create_layout()
         self.connect_signals()
         self.show()
-        if self.config is not None and self.config.SMALLAPP.has_key('POLLER'):
+        if self.config is not None and 'POLLER' in self.config.SMALLAPP:
             if hasattr(self.poller,  'init_widgets'):
                 self.poller.init_widgets()
             self.poller.start()
@@ -104,7 +104,7 @@ class SmallApp(QtGui.QWidget):
             if hasattr(self, 'log'):
                 self.log.info(text)
         except:
-            print 'gui: logging error'
+            print('gui: logging error')
             
     
     def ask4confirmation(self, action2confirm):
@@ -125,7 +125,7 @@ class SmallApp(QtGui.QWidget):
         e.accept()
         if hasattr(self, 'log'):
             self.log.copy()
-        if self.config is not None and self.config.SMALLAPP.has_key('POLLER'):
+        if self.config is not None and 'POLLER' in self.config.SMALLAPP:
             self.poller.abort = True
         time.sleep(1.0)
         sys.exit(0)
@@ -242,11 +242,11 @@ class ReceptiveFieldPlotter(SmallApp):
     def open_file(self):
         if len(self.plots.plots)>0:
             try:
-                map(self.plots.removeItem, self.plots.plots)
+                list(map(self.plots.removeItem, self.plots.plots))
             except:
                 pass
         self.filenames = self.ask4filename('Select data file', fileop.select_folder_exists(['/mnt/datafast/experiment_data', 'v:\\experiment_data', '/tmp', 'c:\\temp\\rec']), '*.hdf5')
-        self.filenames = map(str, self.filenames)
+        self.filenames = list(map(str, self.filenames))
         if len(self.filenames)==0:return
         self.filename = self.filenames[0]
         if not os.path.exists(self.filename):return
@@ -444,7 +444,7 @@ class ReceptiveFieldPlotter(SmallApp):
                 scy=self.machine_config.SCREEN_CENTER['row']
     #            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']-scx), int(p['row']-scy), int(p['col']-scx), int(p['row']-scy))
                 traces[r][c]['title'] = 'cr(({0},{1}))'.format(int(p['col']-scx), int(p['row']-scy))
-                if not traces[r][c].has_key('trace'):
+                if 'trace' not in traces[r][c]:
                     traces[r][c]['trace'] = []
                 for rep in range(len(boundaries[i])):
                     boundary=boundaries[i][rep]

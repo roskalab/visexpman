@@ -12,7 +12,7 @@ def calib(gridpoints,  cfg,  dot_area, dot_coord, dots_per_size, allowed_white_a
     dots_per_size['mean'] = numpy.r_[[numpy.floor(float(dot_area[ds1+1])/dot_area[ds1])  for ds1 in range(len(dot_diameter_f)-1)], [1]] 
     multidot_frame_n = numpy.ceil(len(gridpoints[1])/dots_per_size['mean'][1])
     
-    icd = numpy.setdiff1d(range(len(gridpoints)),cfg.enforce_complete_dots)
+    icd = numpy.setdiff1d(list(range(len(gridpoints))),cfg.enforce_complete_dots)
     part_dots={'center':[], 'ndots_extra':[], 'consumed_dots': numpy.array([0,0])}
     for e1 in numpy.sort(icd):
         part_dots['center'].append([numpy.array(cgp) for cgp in gridpoints[e1] if 
@@ -139,7 +139,7 @@ def circle_coord(diameter,  resolution = 1.0,  image_size = None,  color = 1.0, 
     draw.polygon(vertices_int,  fill = int(color * 255.0))    
     #just for debug
     image.show()
-    print numpy.asarray(image)
+    print(numpy.asarray(image))
     return numpy.asarray(image)
 
     
@@ -171,7 +171,7 @@ class Config:
         else:
             self.subsample=8
         if self.enforce_complete_dots=='all':
-            self.enforce_complete_dots = range(len(self.dot_diameter_um))
+            self.enforce_complete_dots = list(range(len(self.dot_diameter_um)))
         self.monitor['pixelwidth']=self.monitor['pixelwidth']
         self.monitor['resolution']['width']/=self.subsample
         self.monitor['resolution']['height']/=self.subsample
@@ -289,7 +289,7 @@ class SparseDots():
                 previous_frame_maskflag=1-previous_frame_maskflag
             
             xyi, debug_i = self.populate_iniframes([g[b1::self.nblocks] for g in gridpoints], dot_area)
-            for k in self.xy.keys():
+            for k in list(self.xy.keys()):
                 xyi[k].extend(self.xy[k])
                 self.xy[k] = xyi[k]
             self.debug_frames = numpy.dstack((debug_i, self.debug_frames[:, :, 0:f]))
@@ -320,7 +320,7 @@ class SparseDots():
             debug_frames[:,:,i1] = numpy.array(Image.fromarray(normalize(previous_frame_mask[1-previous_frame_maskflag], numpy.uint8)).resize((self.debug_frames.shape[:2]))).T
             previous_frame_mask[previous_frame_maskflag] = numpy.ones(self.cfg.mres, numpy.bool) # reset previous_frame_mask not used in next round
             previous_frame_maskflag=1-previous_frame_maskflag
-        [item.reverse() for k, item in xy.items()]
+        [item.reverse() for k, item in list(xy.items())]
         return xy,  debug_frames[:, :, ::-1]
         
     def populate_frame(self, dot_area,dotsizes,gridpoints, previous_frame_mask, pfmf):
@@ -351,7 +351,7 @@ class SparseDots():
     def export_to_matlab(self, bi):
         from scipy.io import savemat
         import zipfile
-        import StringIO, os
+        import io, os
         from CaData import rawdata2avi_menc
         xy=self.xy
         filename=generate_filename(['fixed_compl_random', self.cfg.dot_diameter_um,self.cfg.mres*self.cfg.subsample,self.cfg.ONOFFratio,
@@ -364,7 +364,7 @@ class SparseDots():
                 self.cfg.white_area_variation_factor, self.cfg.sec_per_block,self.cfg.iniduration, self.cfg.frames_per_sec, bi])
         xyv = numpy.concatenate([numpy.c_[[(fi,p['row']*self.cfg.subsample, p['col']*self.cfg.subsample, color, dia*self.cfg.subsample)  for p, color, dia in zip(
                 xy['center'][fi], xy['color'][fi], xy['diameter_pixels'][fi])]] for fi in range(len(xy['center']))])
-        s = StringIO.StringIO()
+        s = io.StringIO()
         zf = zipfile.ZipFile(s, 'w')
         zf.write(__file__)
         savemat(filename, {'xy':xyv, 'debug_frames':self.debug_frames,'creating_code':s.getvalue(), 'seed':self.cfg.seed})
@@ -402,5 +402,5 @@ if __name__ == '__main__':
         cfg = Config(seed=seed)
         sdo = SparseDots()
         sd.append(sdo.prepare(cfg))
-        print(sd[-1])
-    print(repr(zip(srange, sd)))
+        print((sd[-1]))
+    print((repr(list(zip(srange, sd)))))

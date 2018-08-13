@@ -210,7 +210,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                 toroid_mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])           
         
         #== Calculate reflections ==
-        print 'number of mirrors %i'%len(self.mirrors)
+        print('number of mirrors %i'%len(self.mirrors))
         self.rays = []
         if reflect:
             pool = multiprocessing.Pool()
@@ -226,7 +226,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                               
             exec(map_string)            
             for reflection_result in reflection_results:
-                print reflection_result[0]
+                print(reflection_result[0])
                 self.rays.append(reflection_result[1])
                 
             pool.close()
@@ -268,10 +268,10 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         if self.points_on_screen.shape != (0,):
             self.vertices = numpy.concatenate((self.vertices, self.points_on_screen))
             
-        print 'number of rays %d, number of rays hit the screen %d'%(len(corners), self.points_on_screen.shape[0])        
+        print('number of rays %d, number of rays hit the screen %d'%(len(corners), self.points_on_screen.shape[0]))        
         
         #display runtime
-        print time.time() - st
+        print(time.time() - st)
         
     def user_keyboard_handler(self, key_pressed):
         if key_pressed == 'space':

@@ -261,7 +261,7 @@ class MovingDot(experiment.Experiment):
         for r in range(self.experiment_config.REPEATS):
             lines_rc = deepcopy(lines_rowcol) # keep original data in case of multiple repetitions. 
             lineo = deepcopy(line_order)
-            while sum([len(value) for key, value in lines_rc.items()])>0: # are there lines that have not yet been shown?
+            while sum([len(value) for key, value in list(lines_rc.items())])>0: # are there lines that have not yet been shown?
                 for direction in angleset: # display blocks obeying angle pseudorandom order
                     if len(lines_rc[direction])>0:
                         lrc = lines_rc[direction].pop();# take the last element (containing n lines) and remove from list of lines to be shown
@@ -287,7 +287,7 @@ class MovingDot(experiment.Experiment):
                 #For very short block times this would keep only 1 or 2 trajectory from a given direction in a block which is not good because we are supposed to wait between changing directions
                # so that calcium transients can settle and we can clearly distinguish responses belonging to different directions. 
                 if numpy.any(angleset[a]==[0,90,180,270]):
-                    direction = [k for k in vr_all.keys() if angleset[a] in k][0]
+                    direction = [k for k in list(vr_all.keys()) if angleset[a] in k][0]
                     vr = vr_all[direction][b]; 
                     vc = vc_all[direction][b]
                     if angleset[a]== 270: # swap coordinates
@@ -297,12 +297,12 @@ class MovingDot(experiment.Experiment):
                     
                     # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
                     segm_length = vr.shape[1]/self.experiment_config.NDOTS #number of coordinate points in the trajectory 1 dot has to run in the stimulation segment
-                    cl =range(vr.shape[0]) # this many lines will be shown
+                    cl =list(range(vr.shape[0])) # this many lines will be shown
                     #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
-                    partsep = range(0 , vr.shape[0], int(numpy.ceil(segm_length)))
+                    partsep = list(range(0 , vr.shape[0], int(numpy.ceil(segm_length))))
                     if len(partsep)<self.experiment_config.NDOTS+1:
                         partsep.append(vr.shape[1])
-                    dots_line_i = [range(partsep[d1-1], partsep[d1]) for d1 in range(1, self.experiment_config.NDOTS+1)] 
+                    dots_line_i = [list(range(partsep[d1-1], partsep[d1])) for d1 in range(1, self.experiment_config.NDOTS+1)] 
                     drc=[]
                     for s1 in range(self.experiment_config.NDOTS): #each dot runs through a full line
                         dl = numpy.prod(vr[:,dots_line_i[s1]].shape) # total number of coordinate points for all the lines in the current direction
@@ -323,7 +323,7 @@ class MovingDot(experiment.Experiment):
                     dots_line_i = [[] for i2 in range(self.experiment_config.NDOTS)]
                     for d1 in range(1, self.experiment_config.NDOTS+1):
                         partsep[d1] = numpy.argmin(numpy.abs(cl-(d1)*segm_len))
-                        dots_line_i[d1-1] = range(partsep[d1-1],partsep[d1]+1)
+                        dots_line_i[d1-1] = list(range(partsep[d1-1],partsep[d1]+1))
                     while 1:
                         part_len = []
                         drc = [[] for i2 in range(self.experiment_config.NDOTS)]
@@ -339,7 +339,7 @@ class MovingDot(experiment.Experiment):
                             mli = numpy.argmin(numpy.abs(takeable_lengths-midpoint)) # moved line
                             taken_line_i = dots_line_i[li][mli]
                             dll = len(dots_line_i[li])
-                            dots_line_i[li] = dots_line_i[li][numpy.c_[range(mli-1),range(mli+1, dll)]]
+                            dots_line_i[li] = dots_line_i[li][numpy.c_[list(range(mli-1)),list(range(mli+1, dll))]]
                             dots_line_i[si] = numpy.c_[dots_line_i[si],  taken_line_i]
                         else:
                             break
@@ -555,15 +555,15 @@ def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
         while vs_runner.state !='idle':
             time.sleep(0.2)
         time.sleep(pause_before[i])
-        print 'slept ' + str(pause_before[i])
+        print('slept ' + str(pause_before[i]))
         try:
             sock = socket.create_connection(('localhost', 10000))
             sock.sendall('SOC'+messages[i]+'EOC'+parameters[i]+'EOP')
         except Exception as e:
-            print e
+            print(e)
         finally:  
             sock.close()
-    print 'everything sent,  returning'
+    print('everything sent,  returning')
     return
 
 def run_stimulation(vs):

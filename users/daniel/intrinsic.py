@@ -37,8 +37,8 @@ class Retinotopy(experiment.ExperimentConfig):#was MyInstrConfig
         self.ENABLE_TRIGGER_WAIT = True
         self.DURATION = 10.0*0.1
         self.SPEEDS = 200
-        self.ORIENTATIONS = range(0,360,90)
-        self.FULLFIELD_ORIENTATIONS = range(0,360,90)
+        self.ORIENTATIONS = list(range(0,360,90))
+        self.FULLFIELD_ORIENTATIONS = list(range(0,360,90))
         self.PAUSE = 10.0
         self.BLANK_DELAY = 14.0
         self.runnable='MyIntrinsicProtocol'
@@ -58,7 +58,7 @@ class MyIntrinsicProtocol(experiment.Experiment):
 #            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6))
             ]
         self.fragment_durations = [self.experiment_config.DURATION*len(self.positions)*2+self.experiment_config.BLANK_DELAY]
-        print self.fragment_durations
+        print(self.fragment_durations)
 
     def run(self):
         #Initial delay and flash
@@ -118,7 +118,7 @@ class MyFFGratingsConfig(experiment.ExperimentConfig):
         self.DUTY_CYCLE = 1.0
         self.DURATION = 10.0*.3
         self.SPEEDS = 102*2
-        self.FULLFIELD_ORIENTATIONS = range(0,360,360)
+        self.FULLFIELD_ORIENTATIONS = list(range(0,360,360))
         self.runnable='MyFFGratingsExp'
 
 class MyFFGratingsExp(experiment.Experiment):

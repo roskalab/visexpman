@@ -55,7 +55,7 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,
     if ext=='' and sort == True:
         raise ValueError("Recursive listing with sorting is not implemented")
 
-    if isinstance(ext,basestring):
+    if isinstance(ext,str):
         ext = [ext]
     ext = [ex[ex.find('.')+1:] for ex in ext] #remove . from extension if it is there
     try:
@@ -81,7 +81,7 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,
             dirs.extend(rdirs[:])
     if sort:
         from operator import itemgetter
-        dirs, modtimes = zip(*sorted(zip(dirs,lastmod), key=itemgetter(1)))
+        dirs, modtimes = list(zip(*sorted(zip(dirs,lastmod), key=itemgetter(1))))
     if noext: # remove extensions
         dirs = [item[:item.rfind('.')] for item in dirs]
     return dirs
@@ -102,7 +102,7 @@ def get_recent_file(flist, ref_date = None, mode = 'earlier', interval=numpy.Inf
     '''
     import time
     if len(flist) == 0:
-        raise StandardError("Empty list provided")
+        raise Exception("Empty list provided")
     lastmod_date = []
     for f in range(len(flist)):
         stats = os.stat(flist[f])

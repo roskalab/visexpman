@@ -204,10 +204,10 @@ class Screen(object):
         self.flip_time_previous = self.flip_time
         
         if DISPLAY_FRAME_RATE:
-            print self.frame_rate
+            print(self.frame_rate)
         if DISPLAY_FRAME_DELAY:
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
-                print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
+                print(abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE))
         if self.config.ENABLE_FRAME_CAPTURE:
             if hasattr(self.config, 'CAPTURE_FORMAT'):
                 fileformat = self.config.CAPTURE_FORMAT
@@ -415,7 +415,7 @@ class Screen(object):
         
     #Additional helper functions
     def print_viewing_parameters(self):
-        print self.position,  self.heading,  self.roll, self.pitch
+        print(self.position,  self.heading,  self.roll, self.pitch)
         
     def keyboard_handler(self, key_pressed):
         '''
@@ -452,7 +452,7 @@ class Screen(object):
             self.scale = self.scale + self.scale_step
         elif key_pressed == '3':
             self.save_frame(file.generate_filename(self.config.CAPTURE_PATH + os.sep + 'capture.bmp'))
-            print 'frame saved'
+            print('frame saved')
         self.user_keyboard_handler(key_pressed)
         
     def user_keyboard_handler(self, key_pressed):

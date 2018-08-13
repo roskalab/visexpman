@@ -32,7 +32,7 @@ class RandomShapeExperiment(experiment.Experiment):
                                            row * self.experiment_config.GRID_STEP - grid_size['row'], \
                                            col * self.experiment_config.GRID_STEP - grid_size['col'])))
                                            
-        self.order = range(len(self.positions))
+        self.order = list(range(len(self.positions)))
         if self.experiment_config.RANDOM_ORDER:
             random.seed(0)
             random.shuffle(self.order)

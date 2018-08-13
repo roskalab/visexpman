@@ -5,7 +5,7 @@ import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.geometry as geometry
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
-import Queue
+import queue
 import os.path
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.dataprocessors.signal as signal
@@ -34,17 +34,17 @@ class MesTest(object):
     def __init__(self, config):
         self.config = config
         self.server = network_interface.CommandRelayServer(self.config)
-        self.mes_command_queue = Queue.Queue()
-        self.mes_response_queue = Queue.Queue()        
+        self.mes_command_queue = queue.Queue()
+        self.mes_response_queue = queue.Queue()        
         self.mes_connection = network_interface.start_client(self.config, 'TEST', 'TEST_MES', self.mes_response_queue, self.mes_command_queue)        
             
     def experiment_z_stack(self, test_mat_file = None, timeout = 0.0):
         '''
 
         '''
-        raw_input('Connect MES and press a key')
+        input('Connect MES and press a key')
         z_stack, results = mes_interface.acquire_z_stack( self.mes_command_queue, self.mes_response_queue, self.config, timeout = timeout, test_mat_file = test_mat_file)
-        print z_stack, results
+        print(z_stack, results)
         
     def experiment_z_stack_set_points(self, test_mat_file = None, timeout = 0.0):
         '''
@@ -53,13 +53,13 @@ class MesTest(object):
             Acquire zstack with different xyz scales/ranges.
             Display the points found in the 1st zstack 
         '''
-        raw_input('Connect MES and press a key')
+        input('Connect MES and press a key')
         z_stack, results = mes_interface.acquire_z_stack( self.mes_command_queue, self.mes_response_queue, self.config, timeout = timeout, test_mat_file = test_mat_file)
-        raw_input('Z stack done?')        
+        input('Z stack done?')        
         if z_stack != {}:
             centroids = find_cells_centroids(z_stack)            
-            print centroids ['row'].max(), centroids ['row'].min(), centroids ['col'].max(), centroids ['col'].min(), centroids ['depth'].max(), centroids ['depth'].min()
-            raw_input('Create new z stack and press a key')
+            print(centroids ['row'].max(), centroids ['row'].min(), centroids ['col'].max(), centroids ['col'].min(), centroids ['depth'].max(), centroids ['depth'].min())
+            input('Create new z stack and press a key')
             return mes_interface.set_points(centroids, self.mes_command_queue, self.mes_response_queue, self.config, timeout = timeout)
         else:
             return 'no z stack'
@@ -71,9 +71,9 @@ class MesTest(object):
         z_stack = {}        
         z_stack['data'], z_stack['origin'], z_stack['scale'], z_stack['size'] = mes_interface.z_stack_from_mes_file(z_stack_path)
         centroids = find_cells_centroids(z_stack)
-        raw_input('MES shall be connected, ready to send points?')
+        input('MES shall be connected, ready to send points?')
 #        centroids = generate_cube(z_stack)
-        print centroids
+        print(centroids)
         return mes_interface.set_points(centroids, self.mes_command_queue, self.mes_response_queue, self.config, timeout = timeout)        
  
     def experiment_rc_scan(self, timeout = 0.0, z_stack_path = None):
@@ -85,7 +85,7 @@ class MesTest(object):
         MES scans the trajectory and gives back vector of xyz - intensity value pairs 
         find points on the result data give back to MES and overlay on original zstack
         '''
-        raw_input('Connect MES and press a key')
+        input('Connect MES and press a key')
         z_stack = {}
         z_stack, results = mes_interface.acquire_z_stack( self.mes_command_queue, self.mes_response_queue, self.config, timeout = timeout)        
         if z_stack == {} and z_stack_path != None:            
@@ -94,14 +94,14 @@ class MesTest(object):
         trajectory = find_cells_centroids(z_stack)
         scanned_trajectory, results = mes_interface.rc_scan(trajectory, self.mes_command_queue, self.mes_response_queue, self.config, timeout = timeout)            
         centroids = trajectory #cells need to be find in scanned_trajectory
-        raw_input('Send back cell centroids found in trajectory scan')
+        input('Send back cell centroids found in trajectory scan')
         mes_interface.set_points(centroids, self.mes_command_queue, self.mes_response_queue, self.config, timeout = timeout)
             
     def close(self):
         self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')        
         time.sleep(0.5)
         for i in self.server.get_debug_info():
-            print i
+            print(i)
         self.server.shutdown_servers()
         time.sleep(1.0)
         

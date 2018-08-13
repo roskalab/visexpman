@@ -1,5 +1,5 @@
 import os
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import time
 import numpy # For some unknown reason numpy is not imported without errors
 import unittest
@@ -28,11 +28,11 @@ def schedule_fragments(period_time, repeats, maximum_duration):
 def sync_time():
     if os.name == 'nt':
         url = 'http://tycho.usno.navy.mil/cgi-bin/timer.pl'
-        txt = urllib2.urlopen(url).read()
-        min,  sec = map(int, txt.split('\n')[7].split('\t')[0].split(', ')[1].split(' ')[0].split(':')[1:])
+        txt = urllib.request.urlopen(url).read()
+        min,  sec = list(map(int, txt.split('\n')[7].split('\t')[0].split(', ')[1].split(' ')[0].split(':')[1:]))
         localtime =  time.localtime()
-        print localtime.tm_min, min
-        print localtime.tm_sec, sec
+        print(localtime.tm_min, min)
+        print(localtime.tm_sec, sec)
         import win32api
         win32api.SetSystemTime(localtime.tm_year, localtime.tm_mon, localtime.tm_mday, localtime.tm_hour, min, sec, 0)
     pass

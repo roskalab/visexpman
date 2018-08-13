@@ -3,7 +3,7 @@
 PyZeroMQt - zmqsocket.py: Provides a wrapper for a ZeroMQ socket 
 """
 from PyQt4.QtCore import QObject, QSocketNotifier, pyqtSignal
-from zmqcontext import ZmqContext
+from .zmqcontext import ZmqContext
 from zmq import FD, LINGER, IDENTITY, SUBSCRIBE, UNSUBSCRIBE, EVENTS, \
                 POLLIN, POLLOUT, POLLERR, NOBLOCK, ZMQError, EAGAIN
 
@@ -43,7 +43,7 @@ class ZmqSocket(QObject):
         flags=self._socket.getsockopt(EVENTS)
         if flags&POLLIN: self.readyRead.emit()
         elif flags&POLLOUT: self.readyWrite.emit()
-        elif flags&POLLERR: print "ZmqSocket.activity(): POLLERR"
+        elif flags&POLLERR: print("ZmqSocket.activity(): POLLERR")
         else: pass#print str(flags) + " ZmqSocket.activity(): fail"
 
     def _recv(self, flags=NOBLOCK):

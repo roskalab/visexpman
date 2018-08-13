@@ -11,8 +11,8 @@ import os.path
 import multiprocessing
 import pickle
 import visexpman
-import generic.graphics
-import generic.utils as utils
+from . import generic.graphics
+from . import generic.utils as utils
 import visexpman.users.zoltan.configurations
 import visexpman.users.zoltan.optics.ray_reflection as ray_reflection
 import visexpman.users.zoltan.optics.angular_amplification_mirror as angular_amplification_mirror
@@ -230,7 +230,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                 toroid_mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])           
         
         #== Calculate reflections ==
-        print 'number of mirrors %i'%len(self.mirrors)
+        print('number of mirrors %i'%len(self.mirrors))
         self.rays = []
         if reflect:
             pool = multiprocessing.Pool()
@@ -248,7 +248,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
             pool.close()
             pool.join()
             for reflection_result in reflection_results:
-                print reflection_result[0]
+                print(reflection_result[0])
                 self.rays.append(reflection_result[1])
                 
             
@@ -298,10 +298,10 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         self.save_simulation_data(folder_to_save)
 #        self.load_simulation_data(folder_to_save)
             
-        print 'number of rays %d, number of rays hit the screen %d'%(len(corners), self.points_on_screen.shape[0])
+        print('number of rays %d, number of rays hit the screen %d'%(len(corners), self.points_on_screen.shape[0]))
         
         #display runtime
-        print time.time() - st
+        print(time.time() - st)
         
     def save_simulation_data(self, foldername):
         if not os.path.isdir(foldername):

@@ -5,7 +5,7 @@ import threading,multiprocessing
 import time
 import unittest
 import os.path
-import Queue
+import queue
 import socket
 import logging
 import os
@@ -125,7 +125,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         except:
             traceback_info = traceback.format_exc()
             self.log.info(traceback_info)
-            print traceback_info
+            print(traceback_info)
         self.close()
 
     def close(self):
@@ -156,12 +156,12 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         self.connections = {}
         self.queues = {}
         self.queues['gui'] = {}
-        self.queues['gui']['out'] = Queue.Queue()
-        self.queues['gui']['in'] = Queue.Queue()
+        self.queues['gui']['out'] = queue.Queue()
+        self.queues['gui']['in'] = queue.Queue()
         self.queues['mes'] = {}
-        self.queues['mes']['out'] = Queue.Queue()
-        self.queues['mes']['in'] = Queue.Queue()
-        self.queues['udp'] = {'in' : Queue.Queue() }
+        self.queues['mes']['out'] = queue.Queue()
+        self.queues['mes']['in'] = queue.Queue()
+        self.queues['udp'] = {'in' : queue.Queue() }
         self.connections['gui'] = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.queues['gui']['in'], self.queues['gui']['out'])
         self.connections['mes'] = network_interface.start_client(self.config, 'STIM', 'STIM_MES', self.queues['mes']['in'], self.queues['mes']['out'])
         if self.config.ENABLE_UDP:
@@ -262,7 +262,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
 
     def tearDown(self):
         if '_09_' in self._testMethodName and unit_test_runner.TEST_mes:
-            raw_input('1. In MES software close connections\n\
+            input('1. In MES software close connections\n\
                  2. Press ENTER')
             if hasattr(self, 'server'):
                 self.server.shutdown_servers()
@@ -448,7 +448,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         
         unit test runner command line switches: pp, mes (real/emulated mes), daq, stage
         '''
-        raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
+        input('1. In MES software, server address shall be set to this machine\'s ip\n\
                 2. Connect MES to stim\n\
                 3. Press ENTER')
         
@@ -564,7 +564,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
             number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0                        
             if reference_data != captured_data:                                                            
                 if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
-                    print reference_file_path, number_of_differing_pixels
+                    print(reference_file_path, number_of_differing_pixels)
                     result = False
         return result
         
@@ -631,7 +631,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                              ]
         for reference_string in reference_strings:
             if reference_string not in experiment_log:
-                print reference_string
+                print(reference_string)
                 return False
         return True
 

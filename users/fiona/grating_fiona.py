@@ -16,7 +16,7 @@ class MovingGratingFiona(grating_base.MovingGratingNoMarchingConfig):
         self.GREY_INSTEAD_OF_MARCHING=True
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [1200.0]#1200#1800
@@ -42,7 +42,7 @@ class MovingGratingOKRFiona(grating_base.MovingGratingNoMarchingConfig):
         self.GREY_INSTEAD_OF_MARCHING=True
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 90)
+        self.ORIENTATIONS = list(range(0, 360, 90))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [800.0]#1200#1800
@@ -68,7 +68,7 @@ class MovingStandingGratingFiona(grating_base.MovingGratingNoMarchingConfig):
         self.GREY_INSTEAD_OF_MARCHING=False
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [1200.0]#1800
@@ -91,7 +91,7 @@ class MovingGratingFiona3x(grating_base.MovingGratingNoMarchingConfig):
         self.GREY_INSTEAD_OF_MARCHING=True#False
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0.42
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [400.0,1200.0,2400.0]#1800
@@ -113,7 +113,7 @@ class MovingGratingFionaHC(grating_base.MovingGratingNoMarchingConfig):
         self.GREY_INSTEAD_OF_MARCHING=True
         self.GREY_INSTEAD_OF_MARCHING_COLOR=0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.COLOR_CONTRAST = 1.0
         self.VELOCITIES = [1200.0]#1800

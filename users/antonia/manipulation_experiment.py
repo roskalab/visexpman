@@ -109,7 +109,7 @@ class ManipulationExperiment(experiment.Experiment):
             elif self.experiment_config.STIMULATION_TYPE == 'grating':
                 screen_width = self.machine_config.SCREEN_RESOLUTION['col'] / self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
                 number_of_periods = int(round(self.experiment_config.STIMULATION_LENGTH / (float(self.experiment_config.GRATING_OFFSET + self.experiment_config.GRATING_DURATION + self.experiment_config.GRATING_PAUSE)*len(self.experiment_config.GRATING_MID_CONTRAST)*len(self.experiment_config.GRATING_CONTRAST)*len(self.experiment_config.TEMPORAL_FREQUENCY)*len(self.experiment_config.SPATIAL_FREQUENCY)*len(self.experiment_config.GRATING_ANGLE)), 0))
-                print number_of_periods
+                print(number_of_periods)
                 for period in range(number_of_periods):
                     for spatial_frequency in self.experiment_config.SPATIAL_FREQUENCY:
                         for temporal_frequency in self.experiment_config.TEMPORAL_FREQUENCY:
@@ -176,10 +176,10 @@ class ManipulationExperiment(experiment.Experiment):
     def cleanup(self):
         self.log.flush()
         path = self.experiment_config.experiment_log_copy_path.replace('G:\\User\\Antonia\\data\\', self.experiment_config.local_experiment_log_copy)
-        print path
+        print(path)
         try:
             shutil.copyfile(self.logfile_path, path)
 #             shutil.copyfile(self.logfile_path, self.experiment_config.experiment_log_copy_path)
         except:
-            print self.logfile_path, self.experiment_config.experiment_log_copy_path
-            print 'not copied for some reason'
+            print(self.logfile_path, self.experiment_config.experiment_log_copy_path)
+            print('not copied for some reason')

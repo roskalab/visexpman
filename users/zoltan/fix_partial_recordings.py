@@ -62,11 +62,11 @@ class FixPartial(object):
                 
 if __name__=='__main__':
     fp=FixPartial()
-    print 'copy'
+    print('copy')
     fp.copy()
-    print 'clone hdf5'
+    print('clone hdf5')
     fp.clone_hdf5files()
-    print 'mesextractor'
+    print('mesextractor')
     fp.process()
-    print 'Done'
+    print('Done')
     

@@ -17,7 +17,7 @@ class CurtainConfig(experiment.ExperimentConfig):
         self.GRATING_STAND_TIME = 0.0 #post-moving-phase time
         self.COLOR_CONTRAST = 1.0
         self.WHITE_BAR_WIDTHS = [3000.0]
-        self.ORIENTATIONS = range(0, 360, 45)
+        self.ORIENTATIONS = list(range(0, 360, 45))
         self.VELOCITIES = [300.0]
         self.DUTY_CYCLES = [2]*len(self.ORIENTATIONS) #white and blck bar ratio -> number of bars 
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)

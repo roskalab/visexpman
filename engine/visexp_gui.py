@@ -3,7 +3,7 @@ import os
 import io
 import time
 import socket
-import Queue
+import queue
 import os.path
 import tempfile
 import numpy
@@ -11,7 +11,7 @@ import shutil
 import traceback
 import re
 import copy
-import cPickle as pickle
+import pickle as pickle
 import scipy.ndimage
 from PIL import Image
 from PIL import ImageDraw
@@ -289,8 +289,8 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.update_cell_group_combobox()
         except:
             import traceback
-            print traceback.format_exc()
-            print image_widget
+            print(traceback.format_exc())
+            print(image_widget)
             
     def gridline_checkbox_changed(self):
         self.update_gridlined_images()
@@ -375,7 +375,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_animal_parameter_display(self):
         if hasattr(self.poller, 'animal_parameters'):
             animal_parameters = self.poller.animal_parameters
-            if not animal_parameters.has_key('both_channels'):
+            if 'both_channels' not in animal_parameters:
                 channel = ''
             elif animal_parameters['both_channels']:
                 channel = 'both'
@@ -390,7 +390,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_region_names_combobox(self, selected_region = None):
         #Update combobox containing scan region names
         if hasattr(self.poller.scan_regions, 'keys'):
-            region_names = self.poller.scan_regions.keys()
+            region_names = list(self.poller.scan_regions.keys())
             region_names.sort()
             self.update_combo_box_list(self.main_widget.scan_region_groupbox.scan_regions_combobox, region_names, selected_item = selected_region)
         else:
@@ -405,7 +405,7 @@ class VisionExperimentGui(QtGui.QWidget):
             self.roi_widget.scan_region_name_label.setText('Current scan region is {0}'.format(selected_region))
             line = []
             #Update xz image if exists and collect xy line(s)
-            if scan_regions[selected_region].has_key('xz'):
+            if 'xz' in scan_regions[selected_region]:
                 line = [[ scan_regions[selected_region]['xz']['p1']['row'] , scan_regions[selected_region]['xz']['p1']['col'], 
                              scan_regions[selected_region]['xz']['p2']['row'] , scan_regions[selected_region]['xz']['p2']['col'] ]]
                 self.show_image(scan_regions[selected_region]['xz']['scaled_image'], 3,
@@ -422,7 +422,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             #Update region info
-            if scan_regions[selected_region].has_key('add_date'):
+            if 'add_date' in scan_regions[selected_region]:
                 region_add_date = scan_regions[selected_region]['add_date']
             else:
                 region_add_date = 'unknown'
@@ -439,7 +439,7 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         scan_regions = self.poller.scan_regions
         if utils.safe_has_key(scan_regions, region_name) and utils.safe_has_key(scan_regions[region_name], 'process_status'):
-            ids = scan_regions[region_name]['process_status'].keys()
+            ids = list(scan_regions[region_name]['process_status'].keys())
             ids.sort()
             ids.reverse()
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
@@ -449,26 +449,26 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_jobhandler_process_status(self):
         scan_regions = self.poller.scan_regions
         region_name = self.get_current_region_name()
-        if utils.safe_has_key(scan_regions, region_name) and scan_regions[region_name].has_key('process_status'):
+        if utils.safe_has_key(scan_regions, region_name) and 'process_status' in scan_regions[region_name]:
             status_text = ''
-            ids = scan_regions[region_name]['process_status'].keys()
+            ids = list(scan_regions[region_name]['process_status'].keys())
             ids.sort()
             ids = ids[-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS:]
             for id in ids:
                 status = scan_regions[region_name]['process_status'][id]
-                if status['info'].has_key('depth'):
+                if 'depth' in status['info']:
                     depth = int(numpy.round(status['info']['depth'], 0))
                 else:
                     depth = ''
-                if status['info'].has_key('stimulus'):
+                if 'stimulus' in status['info']:
                     stimulus = str(status['info']['stimulus']).replace('Config', '')#For unknown reason this is not always string type
                 else:
                     stimulus = ''
-                if status['info'].has_key('scan_mode'):
+                if 'scan_mode' in status['info']:
                     scan_mode = status['info']['scan_mode']
                 else:
                     scan_mode = ''
-                if status['info'].has_key('laser_intensity'):
+                if 'laser_intensity' in status['info']:
                     try:
                         laser_intensity = float(status['info']['laser_intensity'])
                     except ValueError:
@@ -476,7 +476,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     laser_intensity = 0.0
                 if status['find_cells_ready']:
-                    if status['info'].has_key('number_of_cells'):
+                    if 'number_of_cells' in status['info']:
                         status = '{0} cells' .format(status['info']['number_of_cells'])
                     else:
                         status = 'ready'
@@ -498,7 +498,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.update_combo_box_list(self.roi_widget.select_cell_combobox, [])
                 return
         if hasattr(self.poller, 'cells') and utils.safe_has_key(self.poller.cells, region_name): #To handle situations when region name is being edited by user
-            self.poller.cell_ids = self.poller.cells[region_name].keys()
+            self.poller.cell_ids = list(self.poller.cells[region_name].keys())
             filter = str(self.roi_widget.cell_filter_combobox.currentText())
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
             if filtername != 'No filter':
@@ -506,7 +506,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     key_name = 'add_date'
                 else:
                     key_name = filtername
-                self.poller.cell_ids = [cell_id for cell_id, cell in self.poller.cells[region_name].items() if filter in str(cell[key_name])]
+                self.poller.cell_ids = [cell_id for cell_id, cell in list(self.poller.cells[region_name].items()) if filter in str(cell[key_name])]
             self.poller.cell_ids.sort()
             self.update_combo_box_list(self.roi_widget.select_cell_combobox,self.poller.cell_ids)
         else:
@@ -524,8 +524,8 @@ class VisionExperimentGui(QtGui.QWidget):
             else:
                 key_name = filtername
             if utils.safe_has_key(self.poller.cells, region_name):
-                for cell_id in self.poller.cells[region_name].keys():
-                    if self.poller.cells[region_name][cell_id].has_key(key_name):
+                for cell_id in list(self.poller.cells[region_name].keys()):
+                    if key_name in self.poller.cells[region_name][cell_id]:
                         value = str(self.poller.cells[region_name][cell_id][key_name])
                         if key_name =='add_date':
                             value = value.split(' ')[0]
@@ -538,9 +538,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_cell_info(self):
         region_name = self.get_current_region_name()
         text = ''
-        if hasattr(self.poller, 'cells') and self.poller.cells.has_key(region_name) and region_name != '':
+        if hasattr(self.poller, 'cells') and region_name in self.poller.cells and region_name != '':
             cell_name = self.get_current_cell_id()
-            if self.poller.cells[region_name].has_key(cell_name):
+            if cell_name in self.poller.cells[region_name]:
                 if not self.poller.cells[region_name][cell_name]['accepted']:
                     info = 'not selected'
                 else:
@@ -551,7 +551,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 number_of_columns = 3
                 cell_id_counter = 0
                 text += '\n'
-                for cell_id, cell in self.poller.cells[region_name].items():
+                for cell_id, cell in list(self.poller.cells[region_name].items()):
                     if cell['group'] == self.get_current_cell_group() :
                         text += cell_id + ', '
                         cell_id_counter += 1
@@ -563,9 +563,9 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         if region_name == '':
                 return
-        if hasattr(self.poller, 'cells') and self.poller.cells.has_key(region_name):
+        if hasattr(self.poller, 'cells') and region_name in self.poller.cells:
             cell_groups = []
-            for cell_id, cell_info in self.poller.cells[region_name].items():
+            for cell_id, cell_info in list(self.poller.cells[region_name].items()):
                 if cell_info['accepted'] and not cell_info['group'] in cell_groups and cell_info['group'] != 'none' and cell_info['group'] != '':
                     cell_groups.append(cell_info['group'])
             cell_groups.sort()
@@ -587,7 +587,7 @@ class VisionExperimentGui(QtGui.QWidget):
             origin = utils.rcd(utils.nd(image_record['origin'])[0])
             cells_to_display = []
             soma_rois_to_display = []
-            for cell_i in self.poller.cells[region_name].values():
+            for cell_i in list(self.poller.cells[region_name].values()):
                 if cell_i['group'] == cell_group and cell_i['accepted']:
                     if self.roi_widget.show_selected_roi_centers_checkbox.checkState() != 0:
                         cells_to_display.append(cell_i['roi_center'])
@@ -713,7 +713,7 @@ class VisionExperimentGui(QtGui.QWidget):
             box = []
         else:
             try:
-                box = map(float, box)
+                box = list(map(float, box))
             except:
                 box = []
         return box
@@ -749,11 +749,11 @@ class VisionExperimentGui(QtGui.QWidget):
             self.standard_io_widget.text_out.setPlainText(self.console_text)
             self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
         except:
-            print text
+            print(text)
         try:
             self.log.info(text)
         except:
-            print 'gui: logging error'
+            print('gui: logging error')
 
     def scanc(self):
         return str(self.standard_io_widget.text_in.toPlainText())
@@ -889,7 +889,7 @@ class GuiTest(QtCore.QThread):
     def __init__(self, parent):
         self.parent = parent
         QtCore.QThread.__init__(self)
-        self.queue = Queue.Queue()
+        self.queue = queue.Queue()
         self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         
     def run(self):

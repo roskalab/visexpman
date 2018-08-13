@@ -4,11 +4,11 @@ import tempfile
 import uuid
 import scipy.io
 import io
-import StringIO
+import io
 import zipfile
 import numpy
 import inspect
-import cPickle as pickle
+import pickle as pickle
 import traceback
 import shutil
 import zmq
@@ -19,8 +19,8 @@ try:
 except ImportError:
     pass
 
-import experiment
-import experiment_data
+from . import experiment
+from . import experiment_data
 import visexpman.engine.generic.log as log
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -86,9 +86,9 @@ class ExperimentControl(object):
         '''
         Runs a single experiment which parameters are determined by the context parameter and the self.parameters attribute
         '''
-        if context.has_key('stage_origin'):
+        if 'stage_origin' in context:
             self.stage_origin = context['stage_origin']
-        if context.has_key('pusher'):
+        if 'pusher' in context:
             self.pusher=context['pusher']
         message_to_screen = ''
         if not self.connections['mes'].connected_to_remote_client(timeout = 3.0) and self.config.PLATFORM == 'mes':
@@ -98,7 +98,7 @@ class ExperimentControl(object):
         if message is not None:
             message_to_screen += message
             message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
-            if context.has_key('experiment_count'):
+            if 'experiment_count' in context:
                 message = '{0} {1}'.format( context['experiment_count'],  message)
             message_to_screen += self.printl(message,  application_log = True) + '\n'
             self.finished_fragment_index = 0
@@ -161,7 +161,7 @@ class ExperimentControl(object):
             data={'id':self.id, 
                     'stimulus': self.experiment_config_name, 
                     'region': str(self.parameters['region_name']), 
-                    'user':str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),
+                    'user':str(self.animal_parameters['user'] if 'user' in self.animal_parameters else 'default_user'),
                     'animal_id': str(self.animal_parameters['id']),
                     'region_add_date':str(self.scan_region['add_date']),
                     'recording_started': self.recording_start_time,
@@ -209,7 +209,7 @@ class ExperimentControl(object):
                 for fragment_id in range(self.number_of_fragments):
                     files.extend([self.filenames['mes_fragments'][fragment_id],self.filenames['fragments'][fragment_id]])
                 id=str(self.scan_region['add_date']).split(' ')[0].replace('-','')
-                experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user'),id,str(self.animal_parameters['id']))
+                experiment_data.RlvivoBackup(files,str(self.animal_parameters['user'] if 'user' in self.animal_parameters else 'default_user'),id,str(self.animal_parameters['id']))
             except:
                 self.printl(traceback.format_exc())
                 self.printl('SOCnotifyEOCERROR: Automatic backup failed, please make sure that files are copied to u:\\backupEOP')
@@ -220,7 +220,7 @@ class ExperimentControl(object):
           pass
         
     def _load_experiment_parameters(self):
-        if not self.parameters.has_key('id'):
+        if 'id' not in self.parameters:
             self.printl('Measurement ID is NOT provided')
             return False
         self.parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['id']+'.hdf5')
@@ -238,7 +238,7 @@ class ExperimentControl(object):
                 self.printl('{0} is NOT found in parameter file'.format(field))
                 return False
             if field == 'parameters':
-                self.parameters = dict(self.parameters.items() + value.items())
+                self.parameters = dict(list(self.parameters.items()) + list(value.items()))
                 self.scan_mode = self.parameters['scan_mode']
                 self.intrinsic = self.parameters['intrinsic']
                 self.id = self.parameters['id']
@@ -287,9 +287,9 @@ class ExperimentControl(object):
                     return None
             parameters2set = ['laser_intensity', 'objective_position']
             for parameter_name2set in parameters2set:                
-                if self.parameters.has_key(parameter_name2set):
+                if parameter_name2set in self.parameters:
                     value = self.parameters[parameter_name2set]
-                elif context.has_key(parameter_name2set) :
+                elif parameter_name2set in context :
                     value = context[parameter_name2set]
                 else:
                     value = None
@@ -318,7 +318,7 @@ class ExperimentControl(object):
     def _finish_experiment(self):
         self._finish_data_fragments()
         #Set back laser
-        if hasattr(self, 'initial_laser_intensity') and self.parameters.has_key('laser_intensities'):
+        if hasattr(self, 'initial_laser_intensity') and 'laser_intensities' in self.parameters:
             result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(self.initial_laser_intensity)
             if not result:
                 self.printl('Setting back laser did NOT succeed')
@@ -350,7 +350,7 @@ class ExperimentControl(object):
                 raise RuntimeError('Stimulus too long')
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             if not self.intrinsic:
-                if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and self.animal_parameters.has_key('both_channels'):
+                if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and 'both_channels' in self.animal_parameters:
                     if self.animal_parameters['both_channels']:
                         channels = 'both'
                     else:
@@ -587,7 +587,7 @@ class ExperimentControl(object):
         self.filenames['local_fragments'] = []#fragment files are first saved to a local, temporary file
         self.filenames['mes_fragments'] = []
         self.fragment_names = []
-        userfolder=os.path.join(self.config.EXPERIMENT_DATA_PATH, self.animal_parameters['user'] if self.animal_parameters.has_key('user') else 'default_user')
+        userfolder=os.path.join(self.config.EXPERIMENT_DATA_PATH, self.animal_parameters['user'] if 'user' in self.animal_parameters else 'default_user')
         if not os.path.exists(userfolder):
             os.makedirs(userfolder)
         for fragment_id in range(self.number_of_fragments):
@@ -598,7 +598,7 @@ class ExperimentControl(object):
             fragment_filename = os.path.join(userfolder, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'mes':
                 if hasattr(self, 'objective_position'):
-                    if self.parameters.has_key('region_name'):
+                    if 'region_name' in self.parameters:
                         fragment_filename = fragment_filename.replace('fragment_', 
                         'fragment_{2}_{0}_{1}_'.format(self.parameters['region_name'], self.objective_position, self.scan_mode))
                     elif hasattr(self, 'stage_position'):
@@ -750,7 +750,7 @@ class ExperimentControl(object):
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             pass
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
-            for fragment_path, data_to_mat in self.fragment_data.items():
+            for fragment_path, data_to_mat in list(self.fragment_data.items()):
                 data_to_mat['experiment_log_dict'] = experiment_log_dict
                 data_to_mat['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
                 scipy.io.savemat(fragment_path, data_to_mat, oned_as = 'row', long_field_names=True)
@@ -760,7 +760,7 @@ class ExperimentControl(object):
         module_names, visexpman_module_paths = utils.imported_modules()
         module_versions, software_environment['module_version'] = utils.module_versions(module_names)
         stream = io.BytesIO()
-        stream = StringIO.StringIO()
+        stream = io.StringIO()
         tmpfn=tempfile.mktemp()+'.zip'
         zipfile_handler = zipfile.ZipFile(tmpfn, 'a')
         #zipfile_handler = zipfile.ZipFile(stream, 'a')
@@ -785,8 +785,8 @@ class ExperimentControl(object):
         xy_static_scan_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_red_green_channel_xy.mat'))
         scanner_trajectory_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_scanner_signals.mat'))
         #Save initial line scan settings
-        if hasattr(self, 'animal_parameters') and self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xy':
-            if (utils.safe_has_key(self.animal_parameters, 'red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not self.animal_parameters.has_key('red_labeling'):
+        if hasattr(self, 'animal_parameters') and 'scan_mode' in self.parameters and self.parameters['scan_mode'] == 'xy':
+            if (utils.safe_has_key(self.animal_parameters, 'red_labeling') and self.animal_parameters['red_labeling'] == 'no') or 'red_labeling' not in self.animal_parameters:
                 return True
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters(parameter_file = initial_mes_line_scan_settings_filename)
         if not result:
@@ -823,7 +823,7 @@ class ExperimentControl(object):
             self.prepost_scan_image['pre'] = utils.file_to_binary_array(red_channel_data_filename)
         else:
             self.prepost_scan_image['post'] = utils.file_to_binary_array(red_channel_data_filename)
-        if self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xz':
+        if 'scan_mode' in self.parameters and self.parameters['scan_mode'] == 'xz':
             #Measure scanner signal
             self.printl('Recording scanner signals')
             shutil.copy(initial_mes_line_scan_settings_filename, scanner_trajectory_filename)
@@ -870,7 +870,7 @@ class ExperimentControl(object):
         -gui
         -experiment log
         '''
-        print message
+        print(message)
         self.queues['gui']['out'].put(str(message))
         if application_log:
             self.application_log.info(message)

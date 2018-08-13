@@ -1,6 +1,6 @@
 import numpy
 import time
-import instrument
+from . import instrument
 import visexpman.engine.generic.configuration as configuration
 import visexpman.engine.generic.utils as utils
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
@@ -141,12 +141,12 @@ class AnalogIO(instrument.Instrument):
             daq_config = {'ENABLE': False}
             self.daq_config = daq_config
         if os.name == 'nt' and self.daq_config['ENABLE']:            
-            if not self.daq_config.has_key('SAMPLE_RATE') and (\
-                (not self.daq_config.has_key('AO_SAMPLE_RATE') and not self.daq_config.has_key('AI_SAMPLE_RATE'))\
+            if 'SAMPLE_RATE' not in self.daq_config and (\
+                ('AO_SAMPLE_RATE' not in self.daq_config and 'AI_SAMPLE_RATE' not in self.daq_config)\
                 or\
-                (not self.daq_config.has_key('AI_SAMPLE_RATE') and (self.daq_config['ANALOG_CONFIG'] != 'ao'))\
+                ('AI_SAMPLE_RATE' not in self.daq_config and (self.daq_config['ANALOG_CONFIG'] != 'ao'))\
                 or\
-                (not self.daq_config.has_key('AO_SAMPLE_RATE') and (self.daq_config['ANALOG_CONFIG'] != 'ai'))\
+                ('AO_SAMPLE_RATE' not in self.daq_config and (self.daq_config['ANALOG_CONFIG'] != 'ai'))\
                 ):
                 #Exception shall be raised when none of these conditions are true:
                 #- SAMPLE_RATE defined 
@@ -154,7 +154,7 @@ class AnalogIO(instrument.Instrument):
                 #- AI_SAMPLE_RATE only and ANALOG_CONFIG = ai
                 #- AO_SAMPLE_RATE only and ANALOG_CONFIG = ao
                 raise RuntimeError('SAMPLE_RATE parameter or AO_SAMPLE_RATE, AI_SAMPLE_RATE parameters needs to be defined.')                
-            elif self.daq_config.has_key('SAMPLE_RATE'):            
+            elif 'SAMPLE_RATE' in self.daq_config:            
                 self.ai_sample_rate = self.daq_config['SAMPLE_RATE']
                 self.ao_sample_rate = self.daq_config['SAMPLE_RATE']
             else:
@@ -206,7 +206,7 @@ class AnalogIO(instrument.Instrument):
     def _configure_timing(self):    
         if os.name == 'nt' and self.daq_config['ENABLE']:    
             if self.enable_ao:
-                if self.daq_config.has_key('AO_SAMPLING_MODE') and self.daq_config['AO_SAMPLING_MODE'] != 'finite':
+                if 'AO_SAMPLING_MODE' in self.daq_config and self.daq_config['AO_SAMPLING_MODE'] != 'finite':
                     self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
                 else:
                     self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_FiniteSamps
@@ -1101,9 +1101,9 @@ class TestDaqInstruments(unittest.TestCase):
         return ao0, ao1, ai0, ai1, ai2, ai3, ai4
 
     def generate_waveform1(self, duration):
-        if self.config.DAQ_CONFIG[0].has_key('SAMPLE_RATE'):
+        if 'SAMPLE_RATE' in self.config.DAQ_CONFIG[0]:
             fsample = self.config.DAQ_CONFIG[0]['SAMPLE_RATE']
-        elif self.config.DAQ_CONFIG[0].has_key('AO_SAMPLE_RATE'):
+        elif 'AO_SAMPLE_RATE' in self.config.DAQ_CONFIG[0]:
             fsample = self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         waveform = numpy.zeros(fsample * duration)
         waveform[1] = 1.0
@@ -1111,9 +1111,9 @@ class TestDaqInstruments(unittest.TestCase):
         return waveform
 
     def generate_waveform2(self, duration):        
-        if self.config.DAQ_CONFIG[0].has_key('SAMPLE_RATE'):
+        if 'SAMPLE_RATE' in self.config.DAQ_CONFIG[0]:
             fsample = self.config.DAQ_CONFIG[0]['SAMPLE_RATE']
-        elif self.config.DAQ_CONFIG[0].has_key('AO_SAMPLE_RATE'):
+        elif 'AO_SAMPLE_RATE' in self.config.DAQ_CONFIG[0]:
             fsample = self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         waveform = numpy.linspace(2.0, 0.0, fsample * duration)
         waveform = numpy.array([waveform, 1.0 + 2.0 * waveform]).transpose()

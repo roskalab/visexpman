@@ -58,7 +58,7 @@ else:
         command = 'SOC' + command[0] + 'EOC'
     else:
         command = 'SOC' + command[0] + 'EOC' + command[1] + 'EOP'
-print command
+print(command)
 sock = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
 sock.sendto( command, (conf.SERVER_IP, conf.UDP_PORT) )
 #data, addr = sock.recvfrom( conf.UDP_BUFFER_SIZE )

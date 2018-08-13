@@ -1,8 +1,8 @@
-import network_interface
+from . import network_interface
 import unittest
 import time
 import socket
-import Queue
+import queue
 import sys
 import scipy.io
 import numpy
@@ -80,11 +80,11 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         ts = numpy.array([ts[0],ts[1],ts[2],scantime_ms, 0], dtype = numpy.float64)
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
     if channels is None or channels == 'green':
-        channels_ = numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
+        channels_ = numpy.array(numpy.array([['pmtUGraw']]), dtype=object)
     elif channels == 'red':
-        channels_ = numpy.array(numpy.array([[u'pmtURraw']]), dtype=object)
+        channels_ = numpy.array(numpy.array([['pmtURraw']]), dtype=object)
     elif 'both' in channels :
-        channels_ = numpy.array([[channel] for channel in [u'pmtUGraw',  u'pmtURraw']], dtype = object)
+        channels_ = numpy.array([[channel] for channel in ['pmtUGraw',  'pmtURraw']], dtype = object)
     elif channels == 'default':
         channels_ = None
     else:
@@ -145,7 +145,7 @@ class MesInterface(object):
         self.connection = connections['mes']
         self.log = log
         self.stop = False
-        if self.queues.has_key('gui'):
+        if 'gui' in self.queues:
             self.from_gui_queue = self.queues['gui']['in']
         else:
             self.from_gui_queue = None
@@ -389,9 +389,9 @@ class MesInterface(object):
         scanned_trajectory = {}
         #Send trajectory points to mes
         set_trajectory_success = self.set_points(cell_centers, timeout = timeout)
-        print 'set_trajectory_success',  set_trajectory_success
+        print('set_trajectory_success',  set_trajectory_success)
         prepare_rc_scan_success = self.prepare_rc_scan(timeout = timeout)
-        print 'prepare_rc_scan_success',  prepare_rc_scan_success
+        print('prepare_rc_scan_success',  prepare_rc_scan_success)
         rc_scan_path, rc_scan_path_on_mes = self._generate_mes_file_paths('rc_scan.mat')
         utils.empty_queue(self.queues['mes']['in'])
         if self.rc_runnability_test(cell_centers,  timeout = timeout) and self.connection.connected_to_remote_client():
@@ -496,9 +496,9 @@ class MesInterface(object):
         ranges =  re.findall('EOC(.+)EOP',result).split(',')
         mes_scan_range = {}
         if len(ranges) == 5:
-            mes_scan_range['col'] = map(float, result[:2])
-            mes_scan_range['row'] = map(float, result[2:4])
-            mes_scan_range['depth'] = map(float, result[4])
+            mes_scan_range['col'] = list(map(float, result[:2]))
+            mes_scan_range['row'] = list(map(float, result[2:4]))
+            mes_scan_range['depth'] = list(map(float, result[4]))
         return mes_scan_range
 
     #######################  Line scan #######################
@@ -574,7 +574,7 @@ class MesInterface(object):
                 scipy.io.loadmat(line_scan_path)
             except:
                 msg='line scan parameter file {0} is corrupt'.format(line_scan_path)
-                print msg
+                print(msg)
                 self._log_info(msg)
                 result=False
         return result, line_scan_path, line_scan_path_on_mes
@@ -649,7 +649,7 @@ class MesInterface(object):
         if self.log != None:
             self.log.info(message)
         if enable_print:
-            print message
+            print(message)
 
     def _generate_mes_file_paths(self, filename):
         path = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename))
@@ -735,21 +735,21 @@ class TestMesInterfaceEmulated(unittest.TestCase):
     def setUp(self):
         self.parameter_path = os.path.join(unit_test_runner.TEST_working_folder, 'test.mat')
         self.config = MESTestConfig()       
-        self.user_to_client = Queue.Queue()
-        self.client_to_user = Queue.Queue()
+        self.user_to_client = queue.Queue()
+        self.client_to_user = queue.Queue()
         queues = {}
         queues['mes'] = {}
         queues['mes']['out'] = self.user_to_client
         queues['mes']['in'] = self.client_to_user
         queues['gui'] = {}
-        queues['gui']['in'] = Queue.Queue()
-        queues['gui']['out'] = Queue.Queue()
+        queues['gui']['in'] = queue.Queue()
+        queues['gui']['out'] = queue.Queue()
         self.user_client = network_interface.start_client(self.config, 'USER', 'USER_MES', self.client_to_user, self.user_to_client)
         self.mes_interface = MesInterface(self.config, queues = queues, connections = {'mes' : self.user_client})
         if not '_01_' in self._testMethodName:
             self.server = network_interface.CommandRelayServer(self.config)
-            self.mes_to_client = Queue.Queue()
-            self.client_to_mes = Queue.Queue()
+            self.mes_to_client = queue.Queue()
+            self.client_to_mes = queue.Queue()
             self.mes_client = network_interface.start_client(self.config, 'MES', 'USER_MES', self.client_to_mes, self.mes_to_client)
 
     def test_01_line_scan_mes_not_connected(self):   
@@ -776,15 +776,15 @@ class TestMesInterface(unittest.TestCase):
 
     def setUp(self):
         self.config = MESTestConfig(mes_data_to_new_folder = not True, baseport = 10000)
-        self.user_to_client = Queue.Queue()
-        self.client_to_user = Queue.Queue()
+        self.user_to_client = queue.Queue()
+        self.client_to_user = queue.Queue()
         queues = {}
         queues['mes'] = {}
         queues['mes']['out'] = self.user_to_client
         queues['mes']['in'] = self.client_to_user
         queues['gui'] = {}
-        queues['gui']['in'] = Queue.Queue()
-        queues['gui']['out'] = Queue.Queue()
+        queues['gui']['in'] = queue.Queue()
+        queues['gui']['out'] = queue.Queue()
         self.user_client = network_interface.start_client(self.config, 'USER', 'USER_MES', self.client_to_user, self.user_to_client)
         self.mes_interface = MesInterface(self.config, queues = queues, connections = {'mes' : self.user_client})
         self.server = network_interface.CommandRelayServer(self.config)
@@ -797,7 +797,7 @@ class TestMesInterface(unittest.TestCase):
 
         scan_time_reference1 = 4.0
         scan_time_reference2 = 5.0
-        raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
+        input('1. In MES software, server address shall be set to this machine\'s ip\n\
                 2. Connect MES to gui\n\
                 3. Press ENTER')
 

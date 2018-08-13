@@ -3,7 +3,7 @@ import os.path
 import copy
 import numpy
 import scipy.io
-import cPickle as pickle
+import pickle as pickle
 import unittest
 import hashlib
 import string
@@ -43,12 +43,12 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_sign
         for stimulus_item in stimulus_frame_info:
             info = stimulus_item
             try:
-                if info.has_key('counter'):
+                if 'counter' in info:
                     info['data_series_index'] = rising_edges_indexes[info['counter']]
             except IndexError:
                 #less pulses detected
                 info['data_series_index'] = -1
-                print 'less trigger pulses were detected'
+                print('less trigger pulses were detected')
             stimulus_frame_info_with_data_series_index.append(info)
     return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
 
@@ -123,7 +123,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
             if not hasattr(node, 'keys'):
                 result = False
                 messages.append('unexpected data type in software_environment')
-            elif not (node.has_key('source_code') and node.has_key('module_version')):
+            elif not ('source_code' in node and 'module_version' in node):
                 result = False
                 messages.append('unexpected data in software_environment')
         elif node_name == 'position':
@@ -149,7 +149,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
                 expected_subnodes.append(vname[0])
             if scan_mode == 'xy' and\
                 ((utils.safe_has_key(animal_parameters, 'red_labeling') and animal_parameters['red_labeling'] == 'no') \
-                or not animal_parameters.has_key('red_labeling')):
+                or 'red_labeling' not in animal_parameters):
                 #prepost_scan_image is not expected when scan mode is xy and red labeling is set to no or no red labeling key in animal parameters
                 pass
             else:
@@ -157,10 +157,10 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
             if not hasattr(node,  'has_key'):
                 result = False
                 messages.append('unexpected data type in {0}'.format(node_name))
-            elif numpy.array(map(node.has_key, expected_subnodes)).sum() != len(expected_subnodes):
+            elif numpy.array(list(map(node.has_key, expected_subnodes))).sum() != len(expected_subnodes):
                 result = False
-                messages.append('unexpected number of datafields in {0}, {1}'.format(node_name,  map(node.has_key, expected_subnodes)))
-            if 'MovingDot' in node_name and not node['generated_data'].has_key('shown_directions'):
+                messages.append('unexpected number of datafields in {0}, {1}'.format(node_name,  list(map(node.has_key, expected_subnodes))))
+            if 'MovingDot' in node_name and 'shown_directions' not in node['generated_data']:
                 result = False
                 messages.append('Shown directions are not saved {0}'.format(node['generated_data']))
     if fragment_hdf5_handle == None:
@@ -171,12 +171,12 @@ def read_merge_rois(cells, cell_group, region_name, objective_position, objectiv
     '''
     Reads rois of selected group, performs filtering based on objective position and merge distance
     '''
-    if not cells.has_key(region_name):
+    if region_name not in cells:
         return None, None
     roi_locations = []
     roi_locations_rcd = []
     rois = []
-    for cell in cells[region_name].values():
+    for cell in list(cells[region_name].values()):
         #Calculate minimal distance of current cell from all the already selected cells
         distances = [abs(utils.rc_distance(roi_location, cell['roi_center'], rc_distance_only = True)) for roi_location in roi_locations_rcd]
         if cell['depth'] > objective_position - 0.5 * z_range and cell['depth'] < objective_position + 0.5 * z_range\
@@ -188,7 +188,7 @@ def read_merge_rois(cells, cell_group, region_name, objective_position, objectiv
             else:
                 #find indexes
                 merge_to_index = ((numpy.array(distances)<merge_distance).tolist()).index(True)
-                if not rois[merge_to_index].has_key('merged_rois'):
+                if 'merged_rois' not in rois[merge_to_index]:
                     rois[merge_to_index]['merged_rois'] = []
                 rois[merge_to_index]['merged_rois'].append(cell)
     if len(roi_locations) == 0:
@@ -263,7 +263,21 @@ def add_auxiliary_rois(rois, roi_pattern_size, objective_position, objective_ori
             im.save('v:\\debug\\somaroi.png')
         pass
     return rois_to_roi_locations(expanded_rois, objective_position, objective_origin), expanded_rois
-        
+
+def parse_recording_filename(filename):
+    items = {}
+    items['folder'] = os.path.split(filename)[0]
+    items['file'] = os.path.split(filename)[1]
+    items['extension'] = os.path.splitext(filename)[1]
+    fnp = items['file'].replace(items['extension'],'').split('_')
+    items['type'] = fnp[0]
+    #Find out if there is a counter at the end of the filename. (Is last item 1 character long?)
+    offset = 2 if len(fnp[-1]) == 1 else 1
+    items['id'] = fnp[-offset]
+    items['experiment_name'] = fnp[-1-offset]
+    items['tag'] = fnp[1]
+    return items
+
 def rois_to_roi_locations(rois, objective_position, objective_origin):
     roi_locations = []
     for roi in rois:
@@ -296,10 +310,10 @@ def detect_cells(rawdata, scale, cell_size):
     background_mask = (gaussian_filtered==0)
     eroded_background_mask = binary_erosion(background_mask, structure=neighborhood, border_value=1)
     centers = numpy.array(numpy.nonzero(local_max - eroded_background_mask)).T
-    print 'Found {0} maximums'.format(centers.shape[0])
+    print('Found {0} maximums'.format(centers.shape[0]))
     cell_rois = []
     if centers.shape[0]>200 and mip.max()<200:
-        print 'the recording is probably just noise'
+        print('the recording is probably just noise')
         return mip, cell_rois
     for center in centers:
         distances = list(numpy.sqrt(((centers-center)**2).sum(axis=1)))
@@ -336,7 +350,7 @@ def detect_cells(rawdata, scale, cell_size):
             #Diameter: get two furthest points
             import itertools
             #Checking the distance between all pixels. Optimal would be to do it for perimeter pixels
-            diameter = max([numpy.sqrt(((roi_coordinates[:,ci[0]]-roi_coordinates[:,ci[1]])**2).sum()) for ci in [i for i in itertools.combinations(range(roi_coordinates.shape[1]), 2)]])
+            diameter = max([numpy.sqrt(((roi_coordinates[:,ci[0]]-roi_coordinates[:,ci[1]])**2).sum()) for ci in [i for i in itertools.combinations(list(range(roi_coordinates.shape[1])), 2)]])
             #perimeter/diameter shall be around pi
             peri_diam_ratio = perimeter/diameter
             if (peri_diam_ratio<1.5*numpy.pi) and \
@@ -372,7 +386,7 @@ def get_data_timing(filename):
     try:
         block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
         if 'grating' not in filename.lower() and 0:
-            print 'Detect cells'
+            print('Detect cells')
             mip,cell_rois = detect_cells(rawdata, scale, 12)
             roi_curves = get_roi_curves(rawdata, cell_rois)
         h.quick_analysis = {}
@@ -388,7 +402,7 @@ def get_data_timing(filename):
             plot_receptive_field_stimulus(organized_blocks,roi_curves, mip)
     except:
         import traceback
-        print traceback.format_exc()
+        print(traceback.format_exc())
     h.close()
     
 def plot_receptive_field_stimulus(organized_blocks,roi_curves, mip):
@@ -441,12 +455,12 @@ def sfi2signature(sfi):
     import copy
     sfisig = []
     for sfii in sfi:
-        if sfii.has_key('parameters'):
+        if 'parameters' in sfii:
             item = copy.deepcopy(sfii)
             item.update(item['parameters'])
             removable_keys = ['elapsed_time', 'counter', 'data_series_index', 'flip', 'parameters', 'count', 'frame_trigger']
             for k in removable_keys:
-                if item.has_key(k):
+                if k in item:
                     del item[k]
             sfisig.append(item)
     return sfisig
@@ -467,8 +481,8 @@ def sfi2blocks(sfi):
     '''
     Group stimulus frame info entries into blocks
     '''
-    block_start_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_start')]
-    block_end_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_end')]
+    block_start_indexes = [i for i in range(len(sfi)) if 'block_start' in sfi[i]]
+    block_end_indexes = [i for i in range(len(sfi)) if 'block_end' in sfi[i]]
     grouped_sfi_by_blocks = []
     for i in range(len(block_start_indexes)):
         grouped_sfi_by_blocks.append(sfi[block_start_indexes[i]+1:block_end_indexes[i]])
@@ -492,26 +506,26 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     #Collect parameter names
     parnames = []
     for sfii in sfi:
-        if sfii.has_key('parameters'):
-            parnames.extend(sfii['parameters'].keys())
+        if 'parameters' in sfii:
+            parnames.extend(list(sfii['parameters'].keys()))
     parnames = list(set(parnames))
     [parnames.remove(pn) for pn in ['frame_trigger', 'count', 'flip'] if pn in parnames]
     #assign frame counts and values to each parameters
     stimulus_parameter_times = {}
     block_times = []
     for sfii in sfi:
-        if sfii.has_key('parameters'):
+        if 'parameters' in sfii:
             for k in parnames:
-                if sfii['parameters'].has_key(k):
-                    if not stimulus_parameter_times.has_key(k):
+                if k in sfii['parameters']:
+                    if k not in stimulus_parameter_times:
                         stimulus_parameter_times[k] = []
                     if sfii['parameters'][k] is not None and sfii['parameters'][k] != {} and sfii['parameters'][k] != []:#hdf5io cannot handle this data
                         stimulus_parameter_times[k].append([sfii['counter'], stimulus_frame_counter2image_frame_counter(sfii['counter'], imaging_time, stimulus_time), sfii['parameters'][k]])
-        elif sfii.has_key('block_start'):
+        elif 'block_start' in sfii:
             block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_start'], imaging_time, stimulus_time), 1])
-        elif sfii.has_key('block_end'):
+        elif 'block_end' in sfii:
             block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_end'], imaging_time, stimulus_time), 0])
-    for k in stimulus_parameter_times.keys():
+    for k in list(stimulus_parameter_times.keys()):
         if stimulus_parameter_times[k] == []:
             del stimulus_parameter_times[k]
     block_times = numpy.array(block_times)

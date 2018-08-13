@@ -38,7 +38,7 @@ def realign_to_region(self, scan_region, config, protocol, printc, mes_interface
             self.printc('Realignment was not successful {0}' .format(self.suggested_translation)) #Process not interrupted, but moves to vertical realignment
         self.printc('XY offset {0}' .format(self.suggested_translation))
     if self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_realign'] .checkState() != 0 and\
-            self.scan_regions[selected_region].has_key('vertical_section'):
+            'vertical_section' in self.scan_regions[selected_region]:
         self.printc('Realign objective')
         result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
         if not result:

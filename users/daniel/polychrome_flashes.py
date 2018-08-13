@@ -46,7 +46,7 @@ class ColorFlashConfig(experiment.ExperimentConfig):
 
 class PolychromeFlash(experiment.Experiment):
     def prepare(self):
-        self.wavelengths = range(self.experiment_config.WAVELENGTH_MIN, self.experiment_config.WAVELENGTH_MAX, self.experiment_config.WAVELENGTH_STEP)
+        self.wavelengths = list(range(self.experiment_config.WAVELENGTH_MIN, self.experiment_config.WAVELENGTH_MAX, self.experiment_config.WAVELENGTH_STEP))
         self.wavelengths.append(self.experiment_config.WAVELENGTH_MAX)
         self.fragment_durations = [self.experiment_config.DELAY_BEFORE_FIRST_FLASH + len(self.wavelengths)*(self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES) * self.experiment_config.NUMBER_OF_FLASHES]
         self.save_variables(['wavelengths'])#Save to make it available for analysis

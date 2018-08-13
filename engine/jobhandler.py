@@ -4,7 +4,7 @@ import numpy
 import sys
 import os
 import time
-import Queue
+import queue
 import unittest
 import os.path
 import traceback
@@ -51,16 +51,16 @@ class Jobhandler(object):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct=False)[0][1]()
         self.queues = {}
         self.queues['gui'] = {}
-        self.queues['gui']['out'] = Queue.Queue()
-        self.queues['gui']['in'] = Queue.Queue()
+        self.queues['gui']['out'] = queue.Queue()
+        self.queues['gui']['in'] = queue.Queue()
         self.connections = {}
         self.connections['gui'] = network_interface.start_client(self.config, 'ANALYSIS', 'GUI_ANALYSIS', self.queues['gui']['in'], self.queues['gui']['out'])
         self.log = log.Log('analysis interface log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'jobhandler_log.txt'))) 
         self.queues['low_priority_processor'] = {}
-        self.queues['low_priority_processor']['in'] = Queue.Queue()#Fragment check and mesextractor has higher priority
-        self.queues['low_priority_processor']['in'] = Queue.PriorityQueue()#Fragment check and mesextractor has higher priority
-        self.queues['low_priority_processor']['out'] = Queue.PriorityQueue()
-        if kwargs.has_key('zmq'):
+        self.queues['low_priority_processor']['in'] = queue.Queue()#Fragment check and mesextractor has higher priority
+        self.queues['low_priority_processor']['in'] = queue.PriorityQueue()#Fragment check and mesextractor has higher priority
+        self.queues['low_priority_processor']['out'] = queue.PriorityQueue()
+        if 'zmq' in kwargs:
             zmq = kwargs['zmq']
         else:
             zmq=True
@@ -96,7 +96,7 @@ class Jobhandler(object):
         self.command_handler._save_files()
         if BACKGROUND_COPIER:
             self.command_handler.background_copier_command_queue.put('TERMINATE')
-            print 'Wait for background copier to finish'
+            print('Wait for background copier to finish')
             self.command_handler.background_copier.join()
         self.queues['gui']['out'].put('Jobhandler quits')
         time.sleep(0.1)
@@ -104,7 +104,7 @@ class Jobhandler(object):
         self.queues['gui']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['low_priority_processor']['in'].put('SOCcloseEOCEOP')
         time.sleep(1.0)
-        print 'Jobhandler quit'
+        print('Jobhandler quit')
 
 class CommandInterface(command_parser.CommandParser):
     '''
@@ -198,9 +198,9 @@ class CommandInterface(command_parser.CommandParser):
             
             self.log.info('scan regions read')
             if hasattr(scan_regions, 'values'):
-                for scan_region in scan_regions.values():
-                    if scan_region.has_key('process_status'):
-                        for id, measurment_unit in scan_region['process_status'].items():
+                for scan_region in list(scan_regions.values()):
+                    if 'process_status' in scan_region:
+                        for id, measurment_unit in list(scan_region['process_status'].items()):
                             if not measurment_unit['fragment_check_ready'] and not measurment_unit['mesextractor_ready'] and id not in self.sent_to_mesextractor:
                                 self.queues['low_priority_processor']['out'].put('SOCcheck_and_preprocess_fragmentEOCid={0}EOP'.format(id))
                                 self.sent_to_mesextractor.append(id)#TODO: this mechanism might not be necessary
@@ -293,7 +293,7 @@ class CommandInterface(command_parser.CommandParser):
             exit = True
         if BACKGROUND_COPIER:
             if not os.path.ismount('/mnt/tape'):
-                print '!!! Tape not mounted, measurement data is not backed up !!!'
+                print('!!! Tape not mounted, measurement data is not backed up !!!')
             else:
                 self._save_files()
                 self.printl('sent to bg copier: {0}'.format((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path)))
@@ -306,8 +306,8 @@ class CommandInterface(command_parser.CommandParser):
                     self.printl('Tape not mounted')
                     import subprocess#Mount tape if not mounted
                     try:
-                        subprocess.call(u'mount /mnt/tape',shell=True)
-                        subprocess.call(u'fusermount -u /mnt/tape',shell=True)
+                        subprocess.call('mount /mnt/tape',shell=True)
+                        subprocess.call('fusermount -u /mnt/tape',shell=True)
                     except:
                         pass
                 if 1 and os.path.ismount('/mnt/tape'):#Copy data if tape is mounted
@@ -333,7 +333,7 @@ class CommandInterface(command_parser.CommandParser):
         self.printl('Cell detection ready: ({1} s) {0}' .format(fullpath, runtime))
         time.sleep(0.3)
         self.queues['gui']['out'].put('SOCfind_cells_readyEOC{0}EOP'.format(id))
-        print 'sending msg:'+databig_path
+        print('sending msg:'+databig_path)
         if self.zmq:
             self.zeromq_pusher.send((('add_and_sync', databig_path, ), ), False) #also opens the file
         
@@ -366,7 +366,7 @@ class CommandInterface(command_parser.CommandParser):
         if not hasattr(self, 'mouse_file'):
             return False
         else:
-            print 'Saving mouse file to databig and tape'
+            print('Saving mouse file to databig and tape')
             mouse_file = self.mouse_file.replace('_jobhandler','')
             databig_path, tape_path = self._generate_copypath(mouse_file, create_folder=False)
 #            if os.path.exists(databig_path):
@@ -400,8 +400,8 @@ class CommandInterface(command_parser.CommandParser):
                 if not os.path.ismount('/mnt/tape'):
                     import subprocess#Mount tape if not mounted
                     try:
-                        subprocess.call(u'mount /mnt/tape',shell=True)
-                        subprocess.call(u'fusermount -u /mnt/tape',shell=True)
+                        subprocess.call('mount /mnt/tape',shell=True)
+                        subprocess.call('fusermount -u /mnt/tape',shell=True)
                     except:
                         pass
                 if os.path.ismount('/mnt/tape'):#Copy data if tape is mounted
@@ -411,7 +411,7 @@ class CommandInterface(command_parser.CommandParser):
                 else:
                     self.printl('Tape cannot be mounted. Try to mount it manually and perform the following copies manually:')
                     for source, target in self.not_copied_to_tape:
-                        print '{0} to {1}' .format(source, target)
+                        print('{0} to {1}' .format(source, target))
 
     def check_and_preprocess_fragment(self, id = None, force_recreate = False):
         '''
@@ -422,7 +422,7 @@ class CommandInterface(command_parser.CommandParser):
             #Make a copy
             if BACKGROUND_COPIER:
                 if not os.path.ismount('/mnt/tape'):
-                    print '!!! Tape not mounted, measurement data is not backed up !!!'
+                    print('!!! Tape not mounted, measurement data is not backed up !!!')
                 else:
                     filename = full_fragment_path
 #                    self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path))
@@ -598,7 +598,7 @@ class CommandInterface(command_parser.CommandParser):
             self.queue_out.put(message)
         message = str(message).replace('SOC', '').replace('EOC', '').replace('EOP', '')
         self.log.info(message)
-        print utils.datetime_string() + ' ' + message
+        print(utils.datetime_string() + ' ' + message)
         
     def exit(self):
         self.queue_out.put('SOCclose_connectionEOCstop_clientEOP')
@@ -636,8 +636,8 @@ class TestJobhandler(unittest.TestCase):
         listener = network_interface.ZeroMQPuller(5502, type='PULL', serializer='json')
         listener.start()
         jh.command_handler.find_cells_ready(id ='1355574962', runtime=0) #should see the message in the monitor process
-        print list(monitor.queue)
-        print list(listener.queue)
+        print(list(monitor.queue))
+        print(list(listener.queue))
         monitor.close()
         listener.close()
         queue.launcher.terminate()
@@ -667,14 +667,14 @@ class TestJobhandler(unittest.TestCase):
                         jh.command_handler.find_cells(id)
                 except:
                     import traceback
-                    print traceback.print_exc()
+                    print(traceback.print_exc())
                 
                 
         else:
-            for k, v in scan_regions.items():
+            for k, v in list(scan_regions.items()):
                 if 'mast' in k: continue
-                if  not v.has_key('process_status'): continue
-                for id in [id for id in v['process_status'].keys() if  True or'Natural' in v['process_status'][id]['info']['stimulus'] ]:
+                if  'process_status' not in v: continue
+                for id in [id for id in list(v['process_status'].keys()) if  True or'Natural' in v['process_status'][id]['info']['stimulus'] ]:
                     jh.command_handler.check_and_preprocess_fragment(id,force_recreate = True)
                     jh.command_handler.find_cells(id)
         jh.close()
@@ -699,13 +699,13 @@ class TestJobhandler(unittest.TestCase):
                 full_fragment_path = file.get_measurement_file_path_from_id(id, self.config)
                 txt = '{0}/{1}, {2}'.format(ct, len(ids),full_fragment_path)
                 f.write(txt+'\r\n')
-                print txt
+                print(txt)
                 file_info = os.stat(full_fragment_path)
                 
                 mes_extractor = importers.MESExtractor(full_fragment_path, config = self.config)                
                 data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = not False)
                 mes_extractor.hdfhandler.close()
-                print 'mesextractor done'
+                print('mesextractor done')
                 
                 excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars']
                 if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
@@ -714,16 +714,16 @@ class TestJobhandler(unittest.TestCase):
                     h = hdf5io.iopen(full_fragment_path,self.analysis_config)
                     if h is not None:
                         for c in create:
-                            print 'create_'+c
+                            print('create_'+c)
                             h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
                         for e in export:
-                            print 'export_'+e
+                            print('export_'+e)
                             getattr(h,'export_'+e)()
                         h.close()
                         file.set_file_dates(full_fragment_path, file_info)
                 else:
-                    print 'No online analysis for this type of experiment'
-                print 'Saving sync data to mat file'
+                    print('No online analysis for this type of experiment')
+                print('Saving sync data to mat file')
                 from visexpA.users.zoltan import converters
                 #Kamill
                 converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = '_sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
@@ -734,7 +734,7 @@ class TestJobhandler(unittest.TestCase):
                 import traceback
                 txt= traceback.format_exc()
                 f.write(txt+'\r\n')
-                print txt
+                print(txt)
         f.close()
         
 def offline(folder,output_folder=None,video=False):
@@ -747,7 +747,7 @@ def offline(folder,output_folder=None,video=False):
         if '.hdf5' not in f or 'fragment' not in f:
             continue
         try:
-            print f
+            print(f)
             if '_raw' in f:
                 shutil.move(f,f.replace('_raw',''))
                 time.sleep(10)
@@ -765,10 +765,10 @@ def offline(folder,output_folder=None,video=False):
                 h = hdf5io.iopen(f,analysis_config)
                 if h is not None:
                     for c in create:
-                        print('create_'+c)
+                        print(('create_'+c))
                         h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
                     for e in export:
-                        print('export_'+e)
+                        print(('export_'+e))
                         getattr(h,'export_'+e)()
                     h.close()
             file.set_file_dates(full_fragment_path, file_info)
@@ -782,7 +782,7 @@ def offline(folder,output_folder=None,video=False):
                 else:
                     rnt=rn
                 mat_data[rnt]=h.findvar(rn)
-            if mat_data.has_key('soma_rois_manual_info') and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+            if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
                 del mat_data['soma_rois_manual_info']
             h.close()
             matfile=full_fragment_path.replace('.hdf5', '_mat.mat')
@@ -797,7 +797,7 @@ def offline(folder,output_folder=None,video=False):
         except:
             import traceback
             txt= traceback.format_exc()
-            print txt
+            print(txt)
             import pdb
             pdb.set_trace()
 
@@ -805,9 +805,9 @@ if __name__=='__main__':
     if len(sys.argv)==1:
         unittest.main()
     elif len(sys.argv)<3:
-        print 'Command line parameters: username machine_config_name,  for example: daniel RcMicroscopeConfig'
+        print('Command line parameters: username machine_config_name,  for example: daniel RcMicroscopeConfig')
     else:
-        print sys.argv[1:]
+        print(sys.argv[1:])
         Jobhandler(sys.argv[1], sys.argv[2]).run()
-    print 'jobhandler all done'
+    print('jobhandler all done')
         

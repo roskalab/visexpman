@@ -20,7 +20,7 @@ class NaturalMovieWithGrayBackgnd(experiment.ExperimentConfig):
         self.MARCH_TIME = 3.0
         self.GRATING_STAND_TIME = 3.0
         
-        self.ORIENTATIONS = range(0, 360, 90)
+        self.ORIENTATIONS = list(range(0, 360, 90))
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800

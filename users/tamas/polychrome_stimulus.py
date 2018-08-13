@@ -1,6 +1,6 @@
     
 parameters = locals()
-if not parameters.has_key('wavelength_range'):
+if 'wavelength_range' not in parameters:
     wavelength_range = 'm'
 import time
 #parameters
@@ -34,7 +34,7 @@ def get_intensity_range(handle):
     min_intensity = ctypes.c_double()
     max_intensity = ctypes.c_double()
     handle[1].TILLPolychrome_GetIntensityRange(handle[0],ctypes.pointer(motorized_control),ctypes.pointer(min_intensity),ctypes.pointer(max_intensity))
-    print motorized_control,min_intensity,max_intensity
+    print(motorized_control,min_intensity,max_intensity)
 
 start_time = time.time()
 self.st.clear_screen(0, 0)
