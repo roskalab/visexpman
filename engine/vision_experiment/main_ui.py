@@ -564,6 +564,11 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
+        if hasattr(self.machine_config, 'WIDGET'):
+            import importlib
+            m=importlib.import_module('.'.join(self.machine_config.WIDGET.split('.')[:-1]))
+            self.w=getattr(m, self.machine_config.WIDGET.split('.')[-1])(self)
+            self.main_tab.addTab(self.w, self.w.__class__.__name__)
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
@@ -576,7 +581,6 @@ class MainUI(gui.VisexpmanMainWindow):
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
         if self.machine_config.PLATFORM == 'elphys_retinal_ca' and hasattr(self.analysis_helper, 'show_repetitions'):
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
-        
         self.main_tab.currentChanged.connect(self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()

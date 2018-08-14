@@ -226,13 +226,24 @@ class ResonantJobhandler(object):
         if os.path.exists(self.logfile):
             self.prev_log=fileop.read_text_file(self.logfile)
         logging.basicConfig(filename= self.logfile,
-                    format='%(asctime)s %(levelname)s\t%(message)s',
-level=logging.INFO)
+                    format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
         self.locked= os.path.exists(self.lockfile) and fileop.file_age(self.lockfile)<lock_timeout*60
         if not self.locked:
             fileop.write_text_file(self.lockfile, 'locked')
         else:
             logging.warning('Locked')
+            
+    def mesc_backup(self):
+        self.mescfile_minimum_age=60
+        now=time.time()
+        files=[f for f in fileop.find_files_and_folders(self.folders['experiment_data'])[1] if os.path.splitext(f)[1]=='.mesc' and now-os.path.getctime(f)>self.mescfile_minimum_age]
+        for src in files:
+            dst=os.path.join(self.folders['backup'], *src.split(os.sep)[-3:])
+            if not os.path.exists(dst):
+                if not os.path.exists(os.path.dirname(dst)):
+                    os.makedirs(os.path.dirname(dst))
+                shutil.copy(src,dst)
+                logging('Backup {0} to {1}'.format(src,dst))
             
     def run(self):
         logging.info('Conversion started')
