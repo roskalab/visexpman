@@ -1041,7 +1041,6 @@ class Analysis(object):
                     roi_index+=1
                 self.printc(res[1])
                 if hasattr(self, 'aggregated'):
-                    self.printc('Aggregate: {0}'.format(self.filename))
                     self.aggregated.append([os.path.basename(self.filename), res[1]['increase'], res[1]['decrease'], len(self.rois)])
                 
         
@@ -1315,35 +1314,65 @@ class Analysis(object):
     def aggregate(self, folder):
         if self.santiago_setup:
             save=self.ask4confirmation('Shall we save ROIs to files (will take longer)?')
-            self.printc('Batch processing files in {0}, please wait...'.format(folder))
             files=fileop.listdir(folder)
-            self.aggregated=[['filename', 'number of increase', 'number of decrease', 'number of cells']]
-            self.abort=False
             self.files=files
-            for datafile in files:
-                if datafile[-5:]!='.hdf5': continue
-                self.open_datafile(datafile, ask=False)
-                try:
-                    self.find_cells(ask_confirmation=False)
-                except:
-                    continue
-                if save:
-                    self.save_rois_and_export(ask_overwrite=False)
-                self.printc('Batch progress: {0}/{1}'.format(files.index(datafile)+1,len(files)))
-                if self.abort:
-                    break
-            filename=folder+'.xls'
-            if os.path.exists(filename):
-                os.remove(filename)
-            self.printc('Saving aggregated data to {0}'.format(filename))
-            import xlwt
-            book = xlwt.Workbook()
-            sh = book.add_sheet('Bouton summary')
-            for line in range(len(self.aggregated)/2):#bouton analysis is run twice: at file open and cell detection
-                for c in range(4):
-                    sh.write(line, c, self.aggregated[line*2+1][c])
-            book.save(filename)
-            self.printc('Done')
+            self.folder=folder
+            main_folder=len([f for f in files if f[-5:]=='.hdf5'])==0
+            if main_folder:
+                subfolders=[f for f in files if os.path.isdir(f)]
+            else:
+                subfolders=[folder]
+            self.abort=False
+            self.printc('Batch processing files in {0}, please wait...'.format(subfolders))
+            for subfolder in subfolders:
+                files=fileop.listdir(subfolder)
+                self.aggregated=[['filename', 'number of increase', 'number of decrease', 'number of cells']]
+                for datafile in files:
+                    if datafile[-5:]!='.hdf5': continue
+                    self.open_datafile(datafile, ask=False)
+                    try:
+                        #self._bouton_analysis()
+                        self.find_cells(ask_confirmation=False)
+                    except:
+                        continue
+                    if save:
+                        self.save_rois_and_export(ask_overwrite=False)
+#                    if files.index(datafile)==20:
+#                        break
+                    self.printc('Batch progress: {0}/{1}'.format(files.index(datafile)+1,len(files)))
+                    if self.abort:
+                        break
+                filename=subfolder+'.xls'
+                if os.path.exists(filename):
+                    os.remove(filename)
+                self.printc('Saving aggregated data to {0}'.format(filename))
+                import xlwt
+                book = xlwt.Workbook()
+                sh = book.add_sheet('Bouton summary')
+                self.printc(self.aggregated)
+                self.aggregated=self.aggregated[0::2]
+                for line in range(len(self.aggregated)):#bouton analysis is run twice: at file open and cell detection
+                    for c in range(4):
+                        sh.write(line+1, c, self.aggregated[line][c])
+                book.save(filename)
+                #Extract samre regions:
+                animals=list(set(['-'.join(row[0].split('-')[:2]) for row in self.aggregated[1:]]))
+                self.aggregated_animals=[self.aggregated[0]]
+                self.aggregated_animals[0][0]='animal'
+                book = xlwt.Workbook()
+                sh = book.add_sheet('Bouton summary')
+                [sh.write(0, i, self.aggregated[0][i]) for i in range(0,4)]
+                line=1
+                for a in animals:
+                    stats=numpy.array([row[1:] for row in self.aggregated[1:] if a in row[0]]).sum(axis=0)
+                    self.printc((line,a,stats))
+                    sh.write(line, 0, a)
+                    [sh.write(line, col, stats[col-1]) for col in range(1,4)]
+                    line+=1
+                filename_compiled=filename.replace('.xls', '_compiled.xls')
+                book.save(filename_compiled)
+                self.printc('Saving aggregated data to {0}'.format(filename_compiled))
+                self.printc('Done')
 
         else:
             self.printc('Aggregating cell data from files in {0}, please wait...'.format(folder))
