@@ -695,7 +695,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
                 if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant']:
                     self.send({'trigger':'stim data ready'})
-                if self.machine_config.PLATFORM in ['ao_cortical']:
+                if self.machine_config.PLATFORM in ['ao_cortical',  'resonant']:
                     self._backup(self.datafilename)
                     self.printl('{0} backed up'.format(self.datafilename))
                 elif self.machine_config.PLATFORM in ['standalone']:

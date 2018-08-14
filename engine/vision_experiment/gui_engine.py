@@ -414,6 +414,15 @@ class ExperimentHandler(object):
                     h.cam=self.eyecamdata
                     h.save('cam')
                     h.close()
+                    #Backup file
+                    dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.current_experiment_parameters['outfolder']).split(os.sep)[-2:]))
+                    if not os.path.exists(dst):
+                        os.makedirs(dst)
+                    try:
+                        shutil.copy(fn, dst)
+                        self.printc('Backup saved to {0}'.format(dst))
+                    except:
+                        raise RuntimeError('Saving {0} to backup failed'.format(fn))
                 else:
                     self.printc('Camera data cannot be saved because of error')
             if self.santiago_setup:
@@ -461,21 +470,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-        self.to_gui.put({'update_status':'idle'})   
-                
-    def eyecam2video(self):
-        dirname=os.path.dirname(experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam'))
-        for fn in fileop.listdir(dirname): 
-            if 'eyecam' not in os.path.basename(fn): continue
-            h=hdf5io.Hdf5io(fn)
-            frames=numpy.array(h.findvar('cam')['frames'])
-            videofn=fn.replace('.hdf5',  '.mp4')
-            if not os.path.exists(videofn):
-                self.printc('exporting to {0}'.format(videofn))
-                videofile.array2mp4(frames, videofn,  fps=self.guidata.read('Eye Camera Frame Rate'))
-        self.printc('Done')
-        h.close()
-        
+        self.to_gui.put({'update_status':'idle'})
 
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:

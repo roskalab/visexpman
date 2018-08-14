@@ -137,6 +137,7 @@ class ResonantSetup(ResonantConfig):
         root='x:\\resonant-setup'
         self.LOG_PATH = os.path.join(root,'log')
         self.EXPERIMENT_DATA_PATH = os.path.join(root,'processed')
+        self.BACKUP_PATH = root
         self.CONTEXT_PATH= os.path.join(root, 'context')
         self.ENABLE_MESC_SAVE=True
         #Stimulus screen
@@ -184,7 +185,7 @@ class GeorgResonantSetup(ResonantSetup):
         self.CAMERA_TIMING_PIN=5
         self.CAMERA_IO_PORT_STIM='COM3'
         self.CAMERA_IO_PORT='COM10'
-        self.ENABLE_MESC_SAVE=False
+        self.ENABLE_MESC_SAVE=True
 
 class ResonantDev(ResonantSetup):
     def _set_user_parameters(self):
