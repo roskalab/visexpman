@@ -243,11 +243,12 @@ class ResonantJobhandler(object):
                 if not os.path.exists(os.path.dirname(dst)):
                     os.makedirs(os.path.dirname(dst))
                 shutil.copy(src,dst)
-                logging('Backup {0} to {1}'.format(src,dst))
+                logging.info('Backup {0} to {1}'.format(src,dst))
             
     def run(self):
         logging.info('Conversion started')
         try:
+            self.mesc_backup()
             files=[f for f in fileop.find_files_and_folders(self.folders['experiment_data'])[1] if os.path.splitext(f)[1]=='.hdf5' and 'eyecam'==os.path.basename(f)[:6]]
             #import pdb;pdb.set_trace()
             from visexpman.engine.generic import videofile
