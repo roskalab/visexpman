@@ -302,6 +302,7 @@ class Analysis(object):
             self._roi_area2image()
         elif self.rois is None:#No reference rois, nothing is loaded from file
             self.rois=[]
+            self.selected_roi_indexes=[]
             self._init_meanimge_w_rois()
         else:
             self.current_roi_index = 0
