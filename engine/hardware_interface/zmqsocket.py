@@ -2,7 +2,11 @@
 """
 PyZeroMQt - zmqsocket.py: Provides a wrapper for a ZeroMQ socket 
 """
-from PyQt4.QtCore import QObject, QSocketNotifier, pyqtSignal
+import sys
+if sys.version_info[0] < 3:
+    from PyQt4.QtCore import QObject, QSocketNotifier, pyqtSignal
+else:
+    from PyQt5.QtCore import QObject, QSocketNotifier, pyqtSignal
 from .zmqcontext import ZmqContext
 from zmq import FD, LINGER, IDENTITY, SUBSCRIBE, UNSUBSCRIBE, EVENTS, \
                 POLLIN, POLLOUT, POLLERR, NOBLOCK, ZMQError, EAGAIN

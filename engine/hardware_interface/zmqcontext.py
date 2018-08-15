@@ -3,8 +3,6 @@
 PyZeroMQt - zmqsocket.py: Provides a singleton wrapper for a ZeroMQ context
 """
 from zmq import Context
-from PyQt4.QtCore import QString
-
 class ZmqContext(object):
     self_=None
     def __init__(self, iothreads, defaultLinger):
@@ -29,5 +27,5 @@ class ZmqContext(object):
     @staticmethod
     def instance(iothreads=4, defaultLinger=0):
         if not ZmqContext.self_: 
-            ZmqContext.self_=ZmqContext(iothreads, defaultLinger)
+            ZmqContext.self_= ZmqContext(iothreads, defaultLinger)
         return ZmqContext.self_
