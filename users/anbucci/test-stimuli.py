@@ -10,7 +10,7 @@ from visexpman.engine.vision_experiment import experiment
 
 # -----------------------------------------------------------------------------
 #15 min
-class AB_WhiteNoise(experiment.ExperimentConfig):
+class AB_WhiteNoisee(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
         self.DURATION_MINS = 20.0
@@ -132,12 +132,28 @@ class AB_TwoPixelFullField(experiment.ExperimentConfig):
         self.ONTIME=2#seconds
         self.OFFTIME=2#seconds
         self.TIMESHIFT=-1.5#seconds
-        self.PIXEL_RATIO=0.7
+        self.PIXEL_RATIO=0.5
         self.REPEATS=5
         self.runnable='TwoPixelFullFieldE'
         self._create_parameters_from_locals(locals())
 
 # -----------------------------------------------------------------------------
+# Two pixels stimulus: modifications
+
+class TEST_TwoPixelFullField(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.CONTRASTS=[0.625, 0.75, 0.87, 0.999]
+        self.ONTIME=2#seconds
+        self.OFFTIME=2#seconds
+        self.TIMESHIFT= 1 #-1.5#seconds
+        self.PIXEL_RATIO=0.5
+        self.REPEATS=5
+        self.runnable='lisaTwoPixelFullFieldE'
+        self._create_parameters_from_locals(locals())
+
+# -----------------------------------------------------------------------------
+
+
 # Contrast steps
 
 class AB_ContrastStepsParameters(experiment.ExperimentConfig):

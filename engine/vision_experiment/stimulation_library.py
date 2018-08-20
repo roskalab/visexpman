@@ -12,7 +12,7 @@ import multiprocessing
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
-import OpenGL.arrays.vbo
+import OpenGL.arrays.vbo as glvbo
 
 import command_handler
 import experiment_control
@@ -1659,34 +1659,42 @@ class AdvancedStimulation(StimulationHelpers):
         # Set background grey and then prepare the rest
         background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
         converted_background_color = colors.convert_color(randomDots['bgcolor'], self.config)
-        glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2],1.0)# 0.0)
+        
+        
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(frames_vertices)
         
+       
         # Run the stimulus frame by frame:
         shape_position = numpy.zeros([n_shapes, 2])
         for frame_i in range(n_frames):
             #if frame_i%60 == 0:
             #    print str(frame_i/60) + ' of ' + str(n_frames/60)
-                
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
             
-            for shape_i in shape_idx[frame_i]: # range(n_shapes):
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
+            
+             # Instances
+            instance_array = []
+            
+            #for shape_i in shape_idx[frame_i]: # range(n_shapes):
+                
+            #    instance_array.append(shape_i)
+                #instance_array = numpy.array(instance_array)
                 
                 # Draw objects:
-                glPushMatrix()
+             #   glPushMatrix()
                 
-                if frame_i == randomDots['appearanceT'][shape_i]:
-                    shape_position[shape_i] = [randomDots['appearanceX'][shape_i], randomDots['appearanceY'][shape_i]]                    
-                else:
-                    shape_position[shape_i][0] += numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
-                    shape_position[shape_i][1] += numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
+            #   if frame_i == randomDots['appearanceT'][shape_i]:
+            #        shape_position[shape_i] = [randomDots['appearanceX'][shape_i], randomDots['appearanceY'][shape_i]]                    
+            #    else:
+            #        shape_position[shape_i][0] += numpy.cos(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
+            #        shape_position[shape_i][1] += numpy.sin(numpy.deg2rad(randomDots['angles'][shape_i])) * randomDots['speeds'][shape_i]
                 
-                glTranslatef(shape_position[shape_i][0], shape_position[shape_i][1],0)        
-                glColor3fv(converted_color[shape_i]) #
-                glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices) # find out if all can be rendered together
-                
-                glPopMatrix()
+            #    glTranslatef(shape_position[shape_i][0], shape_position[shape_i][1],0)        
+            #    glColor3fv(converted_color[shape_i]) #
+            glDrawArraysInstanced(GL_POLYGON, shape_idx[frame_i][0]* n_vertices, n_vertices, shape_idx[frame_i].shape() ) # find out if all can be rendered together
+            #    glPopMatrix()
                 
             #Make sure that at the first flip the parameters of the function call are logged
             if not first_flip:
