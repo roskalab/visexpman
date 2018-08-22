@@ -353,7 +353,7 @@ def generate_frequency_modulated_waveform(duration, base_frequency, frequency_st
 def generate_grating(orientation, width, size):
     im=numpy.zeros((max(size)*2, 2*max(size)))
     period=2*width
-    nperiods=im.shape[0]/period+1
+    nperiods=int(im.shape[0]/period+1)
     for rep in range(nperiods):
         im[rep*period:rep*period+width]=1
     from PIL import Image
