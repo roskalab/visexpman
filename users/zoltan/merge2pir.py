@@ -36,10 +36,11 @@ class Test(unittest.TestCase):
                 p=merged[offsetx*scale2p:offsetx*scale2p+side_scaled.shape[0],offsety*scale2p:offsety*scale2p+side_scaled.shape[1],0]
                 side_scaled=side_scaled[:p.shape[0], :p.shape[1]]
                 merged[offsetx*scale2p:offsetx*scale2p+side_scaled.shape[0],offsety*scale2p:offsety*scale2p+side_scaled.shape[1],0]=side_scaled
-            cla()
-            clf()
-            imshow(merged)
-            savefig(folder+'.png')
+#            cla()
+#            clf()
+#            imshow(merged)
+#            savefig(folder+'.png')
+            Image.fromarray(merged).save(folder+'.png')
             ir_extended=numpy.where(ir_extended>threshold_otsu(ir_extended),255,0)
             side_extended=numpy.where(side_extended>threshold_otsu(side_extended),255,0)
             y,x=register_translation(ir_extended, side_extended)[0]
@@ -47,10 +48,10 @@ class Test(unittest.TestCase):
             shifted[:,:,1]=ir_extended
             p=shifted[x:x+side_extended.shape[0],y:y+side_extended.shape[1],0]
             shifted[x:x+side_extended.shape[0],y:y+side_extended.shape[1],0]=side_extended[:p.shape[0], :p.shape[1]]
-            cla()
-            clf()
-            imshow(shifted)
-            savefig(folder+'_shifted.png')
+#            cla()
+#            clf()
+#            imshow(shifted)
+#            savefig(folder+'_shifted.png')
             
             
         
