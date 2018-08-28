@@ -1,6 +1,9 @@
 import sys
 import time
-import queue
+try:
+    import queue
+except:
+    import Queue as queue
 import os
 import numpy
 import traceback

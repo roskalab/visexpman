@@ -1,5 +1,8 @@
 import traceback,os
-import queue
+try:
+    import queue
+except:
+    import Queue as queue
 import re
 import unittest
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)

@@ -3,7 +3,7 @@ Common file and filename operations
 '''
 import sys, os, re, ctypes, platform, shutil, numpy, tempfile, time, subprocess, multiprocessing,threading
 try:
-    import queue
+    import Queue
 except ImportError:
     import queue as Queue
 from distutils import file_util,  dir_util

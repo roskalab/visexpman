@@ -5,7 +5,10 @@ import threading,multiprocessing
 import time
 import unittest
 import os.path
-import queue
+try:
+    import queue
+except:
+    import Queue
 import socket
 import logging
 import os

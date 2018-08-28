@@ -5,7 +5,11 @@ import numpy
 import tempfile
 import time
 import subprocess as sub
-import multiprocessing,threading,queue
+import multiprocessing,threading
+try:
+    import queue
+except:
+    import Queue as queue
 import time
 from distutils import file_util,  dir_util
 try:

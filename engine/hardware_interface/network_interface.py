@@ -1,5 +1,8 @@
 import socket
-import queue
+try:
+    import queue
+except:
+    import Queue as queue
 import sys
 import time
 import unittest
@@ -16,7 +19,10 @@ except:
     pass
 import os.path
 import threading
-import socketserver
+try:
+    import socketserver
+except:
+    import SocketServer as socketserver
 import random
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import log
