@@ -648,6 +648,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.send({'trigger':'stim error'})
                     else:
                         self.mesc_error=False
+                elif self.machine_config.PLATFORM == 'behav':
+                    self.sync_recording_duration=self.machine_config.EXPERIMENT_MAXIMUM_DURATION*60
+                    self.start_sync_recording()
                 if self.machine_config.CAMERA_TRIGGER_ENABLE:
                     self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
                     time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
@@ -686,7 +689,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM == 'resonant':
                 if not self.mesc_error:
                     self.send({'mesc':'stop'})
-            if self.machine_config.PLATFORM in ['standalone', 'ao_cortical', 'resonant']:
+            if self.machine_config.PLATFORM in ['standalone', 'ao_cortical', 'resonant', 'behav']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
             #Saving data
