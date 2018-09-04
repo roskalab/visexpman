@@ -10,3 +10,16 @@ sudo rmmod lp
 sudo rmmod parport_pc
 
 sudo modprobe ppdev
+
+
+## For anaconda
+
+conda install pyzmq
+conda install pyqt=4
+conda install pyserial
+
+pip install pygame
+pip install zc.lockfile
+pip install PyOpenGL
+pip install PythonQwt
+
