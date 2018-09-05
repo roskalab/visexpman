@@ -1,4 +1,5 @@
 from visexpman.users.common import stimuli
+from visexpman.engine.vision_experiment import experiment
 import numpy
 
 class LaserPulseC(experiment.ExperimentConfig):
