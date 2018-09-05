@@ -1,6 +1,5 @@
 from visexpman.users.common import stimuli
-import numpy
-
+import visexpman.engine.vision_experiment.experiment as experiment
 class LaserPulseC(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.INITIAL_DELAY=5

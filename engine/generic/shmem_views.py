@@ -6,7 +6,7 @@ locking transparently against that.
 
 import numpy as np
 from os import getpid
-import _thread
+#import _thread
 from threading import currentThread
 from visexpman.engine.generic.shmem_sync import SharedExclusiveLock
 
