@@ -42,8 +42,8 @@ class Test(unittest.TestCase):
     def test_02(self):
         root='/tmp/snapshots'
         irscale=3.9#um/pixel
-        offsetycal=94
-        offsetxcal=54
+        offsetxcal=94#in um
+        offsetycal=54
         for folder in fileop.listdir(root):
             if not os.path.isdir(folder): continue
             scale2p=float(folder.split('x')[-1])
@@ -54,6 +54,7 @@ class Test(unittest.TestCase):
             scale_ratio=irscale/scale2p
             newsize=[side.shape[0]*scale_ratio, side.shape[1]*scale_ratio]
             newsize=map(int,newsize)
+            #scale up 2p image to ir's resulution
             side_scaled=numpy.asarray(Image.fromarray(side).resize(newsize))
             side_scaled=numpy.cast['uint8'](side_scaled/float(side_scaled.max())*255)
             merged=numpy.zeros([ir.shape[0],ir.shape[1],3], dtype=numpy.uint8)
@@ -74,7 +75,7 @@ class Test(unittest.TestCase):
                 p=merged[offsetx:offsetx+side_scaled.shape[0],offsety:offsety+side_scaled.shape[1],0]
                 side_scaled=side_scaled[:p.shape[0], :p.shape[1]]
                 merged[offsetx:offsetx+side_scaled.shape[0],offsety:offsety+side_scaled.shape[1],0]=side_scaled
-            Image.fromarray(merged).save(folder+'.png')            
+            Image.fromarray(merged).save(folder+'.png')
         
 if __name__=='__main__':
     unittest.main()
