@@ -1,6 +1,6 @@
 from visexpman.engine.vision_experiment import experiment
 
-class SmallAndLargeSpotInitialWaitParameters(experiment.ExperimentConfig):
+class SmallLargeSpotInitialWait(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SMALL_SPOT_SIZE=120
         self.LARGE_SPOT_SIZE=3900
@@ -15,9 +15,9 @@ class SmallAndLargeSpotInitialWaitE(experiment.Experiment):
     def run(self):
         ec=self.experiment_config
         self.show_fullscreen(color=0.0, duration=ec.INITIAL_WAIT)
-        self.show_shape(color=1.0, size=ec.SMALL_SPOT_SIZE, duration=ec.PRE_WAIT)
-        self.show_shape(color=1.0, size=ec.LARGE_SPOT_SIZE, duration=ec.SPOT_TIME)
-        self.show_shape(color=1.0, size=ec.SMALL_SPOT_SIZE, duration=ec.POST_WAIT)
+        self.show_shape(color=1.0, size=ec.SMALL_SPOT_SIZE, duration=ec.PRE_WAIT,background_color=0.0)
+        self.show_shape(color=1.0, size=ec.LARGE_SPOT_SIZE, duration=ec.SPOT_TIME,background_color=0.0)
+        self.show_shape(color=1.0, size=ec.SMALL_SPOT_SIZE, duration=ec.POST_WAIT,background_color=0.0)
         
 if __name__ == "__main__":
     from visexpman.applications.visexp_app import stimulation_tester
