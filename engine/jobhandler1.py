@@ -1,6 +1,7 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
-import tables,os,unittest,time,zmq,logging,sys,threading,pickle as pickle,numpy,traceback,pdb,shutil,queue
+import tables,os,unittest,time,zmq,logging,sys,threading,numpy,traceback,pdb,shutil,queue, pickle as pickle
 import scipy.io,multiprocessing,stat,subprocess,io,getpass
+sys.path.insert(0,  '/mnt/datafast/codes/zdev')
 if len(sys.argv)>=4 and 'jobhandler1' in sys.argv[0] and sys.argv[3]!='--ignore_failed_files':#only when jobhandler is run but not imported as a module
     visexpman_path=sys.argv[3]
     sys.path.insert(0,visexpman_path)
