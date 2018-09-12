@@ -288,7 +288,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #Check if there is no redundancy in command configuration
         self.COMMANDS = self._merge_commands(self.COMMANDS, self.USER_EXPERIMENT_COMMANDS)        
         MENU_TEXT = ''
-        for k, v in self.COMMANDS.items():            
+        for k, v in list(self.COMMANDS.items()):            
             if utils.is_in_list(v['domain'], 'keyboard'):                
                 MENU_TEXT += v['key'] + ' - ' + k + '\n'
 
@@ -307,7 +307,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
         self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
-        print self.SCREEN_SIZE_UM_p.v
+        print((self.SCREEN_SIZE_UM_p.v))
         ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
@@ -342,19 +342,25 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.packagepath = 'visexpA.users.daniel'
 
     def _merge_commands(self, command_list, user_command_list):        
-        commands = dict(command_list.items() + user_command_list.items())
-        for user_command_name in user_command_list.keys():
-            if command_list.has_key(user_command_name):
+        commands = dict(list(command_list.items()) + list(user_command_list.items()))
+        for user_command_name in list(user_command_list.keys()):
+            if user_command_name in command_list:
                 raise RuntimeError('Redundant command name: {0} is reserved'.format(user_command_name))
         
         all_keys = []
-        for k, v in commands.items():            
+        for k, v in list(commands.items()):            
             if utils.is_in_list(all_keys, v['key']):
                 raise RuntimeError('Redundant keyboard command: {0} is reserved'.format(v['key']))
             else:
                 all_keys.append(v['key'])
         return commands
-        
+
+
+class ResonantConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'resonant'
+        self._create_parameters_from_locals(locals())        
   
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

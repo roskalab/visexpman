@@ -56,7 +56,7 @@ class Jobhandler(object):
         self.printl(os.path.abspath(visexpman.__file__))
         self.printl('Current user is {0}'.format(getpass.getuser()))
         u=getpass.getuser()
-        if u=='hd':
+        if u=='hd' or u=='rz':
             self.current_user='daniel'
         elif u=='fm':
             self.current_user='fiona'
@@ -146,6 +146,7 @@ class Jobhandler(object):
         now=time.time()
         #Exclude files which have not been modified in the last 30 days
         recent_files=[a for a in afiles if now-os.stat(a).st_mtime<DAYS_SINCE_NO_RECORDING*86400 and a[-5:]=='.hdf5']
+        recent_files=[r for r in recent_files if 'testbu' in r]
         if len(recent_files)==0:
             return
         #Read status info from files
@@ -200,9 +201,8 @@ class Jobhandler(object):
                     offset=0
 #                if row['region']==current_scan_region:#Increase priority for current scan regions
 #                    weight+=2
-                    
                 priority=10**(numpy.ceil(numpy.log10(row['recording_started']))+1)*weight+row['recording_started']+offset
-                filename=[f for f in allfiles if os.path.basename(f)==row['filename']]
+                filename=[f for f in allfiles if os.path.basename(f)==row['filename'].decode('utf-8')]
                 if filename==[]:
                     logging.info('{0} does not exists'.format(row['filename']))
                     failed_files.append([row['filename'], 'file does not exists'])
@@ -285,7 +285,7 @@ class Jobhandler(object):
             file_info = os.stat(filename)
             logging.info(str(file_info))
             mes_extractor = importers.MESExtractor(filename, config = self.analysis_config, close_file=False)
-            data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = True)
+            data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(force_recreate = False)
             extract_prepost_scan(mes_extractor.hdfhandler)
             mes_extractor.hdfhandler.close()
             #fileop.set_file_dates(filename, file_info)
@@ -307,7 +307,8 @@ class Jobhandler(object):
             dbfilelock.release()
 
     def analyze(self,filename,stimulus,user):
-        if len([sn for sn in self.config.ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.lower()])>0:
+        #pdb.set_trace()
+        if len([sn for sn in self.config.ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.decode('utf-8').lower()])>0:
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
             file_info = os.stat(filename)
@@ -451,11 +452,26 @@ class JobReceiver(threading.Thread):
     def check4newjob(self):
         try:
             msg=self.socket.recv(flags=zmq.NOBLOCK)
-            if msg=='ping':
-                self.socket.send('pong',flags=zmq.NOBLOCK)
+            if sys.version_info.major==3:
+                msg1=msg.decode('latin1')
+            else:
+                msg1=msg
+            if msg1=='ping':
+                try:
+                    self.socket.send('pong',flags=zmq.NOBLOCK)
+                except:
+                    self.socket.send_string('pong',flags=zmq.NOBLOCK)
                 return
             else:
-                new_job=pickle.loads(msg)
+                if sys.version_info.major==3:
+                    new_job1=pickle.loads(msg,  encoding='latin1')
+                    new_job={}
+                    for k, v in new_job1.items():
+                        new_job[k]=v
+                        if isinstance(v,  bytes):
+                            new_job[k]=v.decode('utf-8')
+                else:
+                    new_job=pickle.loads(msg)
         except zmq.ZMQError:
             return
         self.printl('{0} recevived {1} {2} {3}'.format(new_job['id'], new_job['region'],new_job['stimulus'],new_job['depth']))
@@ -463,7 +479,10 @@ class JobReceiver(threading.Thread):
         try:
             dbf=DatafileDatabase(self.config.ANIMAL_FOLDER,new_job['animal_id'],new_job['user'])
             dbf.add(**new_job)
-            self.socket.send(new_job['id'],flags=zmq.NOBLOCK)
+            try:
+                self.socket.send(new_job['id'],flags=zmq.NOBLOCK)
+            except:
+                self.socket.send_string(new_job['id'],flags=zmq.NOBLOCK)
         except:
             self.printl(traceback.format_exc(),'error')
         finally:
