@@ -31,7 +31,7 @@ class MEAConfig(HiMEAConfig):
         username = getpass.getuser()
         
         #recordingMachineName = 'bs-hpws18' # hungary setup
-        recordingMachineName = 'bs-hpws19' # retina room
+        recordingMachineName = 'bs-dw100' # retina room
         #folder = '/mnt/' + recordingMachineName + '/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
         folder = '/nfs4/' + recordingMachineName + '/data/' + username + '/' + time.strftime('%y%m%d'.format(os.sep)) + '/'
         
