@@ -291,7 +291,7 @@ class PhysTiff2Hdf5(object):
         #matfile[0]='20161020_C1#281.phys_MovingShapeParameters_1476953394_0.mat'
         if len(matfile)>0:
             stimdata=scipy.io.loadmat(os.path.join(os.path.dirname(fphys),matfile[0]))
-            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot', 'LargeSpot10sec','Fullfield10min', 'Nostim', 'MovingRectangleParameters', 'SpotOnOff', 'SmallAndLargeSpotParameters', 'SmallAndLargeSpotInitialWaitParameters']
+            supported_stims=['FlashedShapePar','MovingShapeParameters', 'Annulus', 'Spot', 'LargeSpot', 'LargeSpot10sec','Fullfield10min', 'Nostim', 'MovingRectangleParameters', 'SpotOnOff', 'SmallAndLargeSpotParameters', 'SmallLargeSpotInitialWait']
             stiminfo_available=str(stimdata['experiment_config_name'][0]) in supported_stims
         else:
             print 'no stim metadata found'
@@ -331,7 +331,7 @@ class PhysTiff2Hdf5(object):
                 elif stimdata['experiment_config_name'][0]=='SpotOnOff':
                     spot_contrast_on=stimdata['config']['experiment_config'][0][0]['SPOT_CONTRAST_ON'][0][0][0]
                     block_startend = [sfi['counter'][0][0][0][0] for sfi in stimdata['stimulus_frame_info'][0] if sfi['parameters'][0][0]['color'][0][0][0][0] in spot_contrast_on]
-                elif stimdata['experiment_config_name'][0] =='SmallAndLargeSpotParameters' or stimdata['experiment_config_name'][0] =='SmallAndLargeSpotInitialWaitParameters':
+                elif stimdata['experiment_config_name'][0] =='SmallAndLargeSpotParameters' or stimdata['experiment_config_name'][0] =='SmallLargeSpotInitialWait':
                     largespot_size=stimdata['config']['experiment_config'][0][0]['LARGE_SPOT_SIZE'][0][0][0][0]
                     block_startend=[item['counter'][0][0][0][0] for item in stimdata['stimulus_frame_info'][0] if item['stimulus_type']=='show_shape' and item['parameters'][0][0]['size'][0][0]==largespot_size]
                 block_startend=numpy.array(block_startend)
