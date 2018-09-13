@@ -219,12 +219,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, 
+    def show_fullscreen(self, duration = 0.0,  color = numpy.array([]), 
                         flip = True, count = True, is_block = False, save_frame_info = True, frame_trigger = True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        if color == None:
+        if color.size == 0:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
             color_to_set = colors.convert_color(color, self.config)
