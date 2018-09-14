@@ -1,4 +1,4 @@
-import numpy,os
+import numpy,os,shutil
 from PIL import Image
 from visexpman.engine.generic import fileop
 import unittest
@@ -10,6 +10,60 @@ def linear(x, *p):
     return p[0]*x+p[1]
 
 class Test(unittest.TestCase):
+    @unittest.skip('') 
+    def test_03_export_for_annotation(self):
+        src='/home/rz/mysoftware/data/merge/2'
+        dst='/tmp/2p'
+        if os.path.exists(dst):
+            shutil.rmtree(dst)
+        shutil.copytree(src,dst)
+        for folder in fileop.listdir(dst):
+            irfn=[f for f in fileop.listdir(folder) if 'infrared' in f][0]
+            sidefn=[f for f in fileop.listdir(folder) if 'side' in f][0]
+            for f  in [irfn, sidefn]:
+                Image.open(f).save(os.path.join(dst, '{0}_{1}.png'.format(os.path.basename(folder), f.split('_')[-3])))
+            pass
+            
+    def test_extract_centers(self):
+        db={}
+        for f in fileop.listdir('/home/rz/mysoftware/data/merge/annotation'):
+            im=numpy.asarray(Image.open(f))
+            x,y=numpy.nonzero(im[:,:,0]-im[:,:,1])
+            center=x.mean(), y.mean()
+            resolution=int(os.path.basename(f).split('x')[-1].split('_')[0])
+            twophoton_side=int(os.path.basename(f).split('x')[-2])
+            if 'infrared' in f:
+                resolution=3.9
+            roi_size=15
+            roi_size_pixel=roi_size*resolution
+            roi=im[center[0]-roi_size_pixel/2:center[0]+roi_size_pixel/2,center[1]-roi_size_pixel/2:center[1]+roi_size_pixel/2,2]
+            offset=center[0]-roi_size_pixel/2, center[1]-roi_size_pixel/2
+            import scipy.ndimage.measurements
+            if 'infrared' in f:
+                channel='ir'
+                bw=numpy.where(roi>threshold_otsu(roi),1,0)
+                labeled,n=scipy.ndimage.measurements.label(bw)
+                selected=numpy.where(labeled==numpy.array([numpy.where(labeled==l)[0].shape[0] for l in range(1,n)]).argmax()+1,1,0)
+                x,y=numpy.nonzero(selected)
+                bead_center=x.mean()+offset[0], y.mean()+offset[1]
+            else:
+                channel='2p'
+                from scipy.ndimage.morphology import binary_erosion
+                bw=binary_erosion(numpy.where(roi>threshold_otsu(roi),1,0))
+                labeled,n=scipy.ndimage.measurements.label(bw)
+                selected=numpy.where(labeled==numpy.array([numpy.where(labeled==l)[0].shape[0] for l in range(1,n)]).argmax()+1,1,0)
+                x,y=numpy.nonzero(selected)
+                bead_center=x.mean()+offset[0], y.mean()+offset[1]
+                
+            db[(twophoton_side, resolution, channel)]=int(bead_center[0]), int(bead_center[1])
+            print (twophoton_side, resolution, channel), round(bead_center[0]/resolution,1), round(bead_center[1]/resolution,1)
+            imout=numpy.copy(im)
+            imout[bead_center[0],bead_center[1],2]=255
+            imout[bead_center[0],bead_center[1],1]=255
+            Image.fromarray(imout).save(os.path.join('/tmp', os.path.basename(f)))
+        print db
+    
+    @unittest.skip('') 
     def test_01_evaluate_2p_center_shift(self):
         #Size, resolution, centerx, centery
         data=numpy.array([[50,2,119,99], 
@@ -38,7 +92,8 @@ class Test(unittest.TestCase):
                     
     def xcorrection(self,resolution):
         return -1.72382353*resolution+8.09235294-2.62
-        
+    
+    @unittest.skip('')     
     def test_02(self):
         root='/tmp/snapshots'
         irscale=3.9#um/pixel
