@@ -124,7 +124,7 @@ class Jobhandler(object):
             self.jrq.put('terminate')
             self.jr.join()
             print('thread terminated')
-        if getpass.getuser()=='hd':
+        if 0 and getpass.getuser()=='hd':
             print('pushing stim changes')
             repository_path=os.path.join(os.path.dirname(os.path.abspath(visexpman.__file__)),'users', self.user)
             message = 'Stimulus modifications automatically saved'
@@ -132,10 +132,19 @@ class Jobhandler(object):
             cmd='cd {0};git add .;git commit -m "{1}";git push origin {2}'.format(repository_path, message, visexpman.version)
             print(cmd)
             subprocess.call(cmd, shell=True)
-        self.connections['gui'].wait()
+        #self.connections['gui'].wait()
         print('done')
         
     def process_job(self,nextfunction, nextpars):
+        if sys.version_info.major==3:
+            nextpars1=[]
+            for ppi in nextpars:
+                if isinstance(ppi,  bytes):
+                    v=ppi.decode('latin1')
+                else:
+                    v=ppi
+                nextpars1.append(v)
+            nextpars=nextpars1
         getattr(self,nextfunction)(*nextpars)
         
     def get_active_animal(self):
@@ -204,7 +213,7 @@ class Jobhandler(object):
                 priority=10**(numpy.ceil(numpy.log10(row['recording_started']))+1)*weight+row['recording_started']+offset
                 filename=[f for f in allfiles if os.path.basename(f)==row['filename'].decode('utf-8')]
                 if filename==[]:
-                    logging.info('{0} does not exists'.format(row['filename']))
+                    logging.info('{0} does not exists'.format(row['filename'].decode('latin1')))
                     failed_files.append([row['filename'], 'file does not exists'])
                     continue
                 else:
@@ -307,27 +316,28 @@ class Jobhandler(object):
             dbfilelock.release()
 
     def analyze(self,filename,stimulus,user):
-        #pdb.set_trace()
-        if len([sn for sn in self.config.ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.decode('utf-8').lower()])>0:
+        if len([sn for sn in self.config.ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.lower()])>0:
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
             file_info = os.stat(filename)
             logging.info(str(file_info))
             self.analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
             print((self.analysis_config.ROI['parallel']))
-            h = hdf5io.iopen(filename,self.analysis_config)
-            if h is not None:
-                for c in create:
-                    self.printl('create_'+c)
-                    h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
-                for e in export:
-                    self.printl('export_'+e)
-                    getattr(h,'export_'+e)()
-                h.close()
-                #fileop.set_file_dates(filename, file_info)
-                time.sleep(0.1)
-                logging.info(os.stat(filename))
-                self.printl('Analysis done')
+            if 1:#skip this while parallel processing is fixed
+                h = hdf5io.iopen(filename,self.analysis_config)
+                if h is not None:
+                    for c in create:
+                        self.printl('create_'+c)
+                        h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
+                    for e in export:
+                        self.printl('export_'+e)
+                        getattr(h,'export_'+e)()
+                    h.close()
+                    #fileop.set_file_dates(filename, file_info)
+                    time.sleep(0.1)
+                    logging.info(os.stat(filename))
+                    self.printl('Analysis done')
+                    pdb.set_trace()
         else:
             self.printl('Online analysis is not available')
         dbfilelock.acquire()
@@ -619,7 +629,7 @@ class DatafileDatabase(object):
         '''
         Export database to txt format which can be displayed by a webpage
         '''
-        regions=list(set([r['region'] for r in self.hdf5.root.datafiles]))
+        regions=list(set([r['region'].decode('latin1') for r in self.hdf5.root.datafiles]))
         for region in regions:
             lines={}
             for row in self.hdf5.root.datafiles.where('(region=="{0}")'.format(region)):
@@ -627,7 +637,6 @@ class DatafileDatabase(object):
                 state=''.join(['*' if s else ' ' for s in state ])
                 line='{0},{1},{5}%,{2} {3}{4}\r\n'.format(row['stimulus'],int(row['depth']),row['id'], state, 'e' if row['is_error'] else '',int(row['laser']))
                 lines[row['recording_started']]=line
-                pass
             export_filename=self.filename.replace('.hdf5','_{0}.txt'.format(region))
             try:
                 fp=open(export_filename,'w')
