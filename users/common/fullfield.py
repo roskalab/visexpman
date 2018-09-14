@@ -3,11 +3,11 @@ from visexpman.engine.generic import utils
 
 class Fullfield(experiment.Stimulus):
     def configuration(self):
-        self.WIDTH=600#pixel
-        self.HEIGHT=600#pixel
+        self.WIDTH=800#pixel
+        self.HEIGHT=800#pixel
         self.ONTIME=2.0#seconds
         self.OFFTIME=2.0#seconds
-        self.REPEATS=6
+        self.REPEATS=25
         self.WAIT=0.5#wait time in seconds at beginning and end of stimulus
         self.BACKGROUND=0.0
 #Do not edit below this!

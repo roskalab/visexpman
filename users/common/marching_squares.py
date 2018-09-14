@@ -8,11 +8,11 @@ class MarchingSquare(experiment.Stimulus):
         self.STIMULUS_AREA_HEIGHT=400#um
         self.NROWS=5
         self.NCOLUMNS=5
-        self.BACKGROUND=0.5
+        self.BACKGROUND=0.0
         self.COLOR=1.0
-        self.ONTIME=1#sec, square is flashed for this duration
+        self.ONTIME=2#sec, square is flashed for this duration
         self.OFFTIME=2#sec, blank screen is displayed between squares
-        self.RANDOM_ORDER=not False#True: order of square positions is randomized
+        self.RANDOM_ORDER=True#True: order of square positions is randomized
         self.WAIT=0.5#wait time in seconds at beginning and end of stimulus
         self.REPEATS=6
 #Do not edit below this!
