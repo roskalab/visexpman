@@ -1267,7 +1267,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
-    def show_white_noise(self, duration, square_size, save_frame_info=True):
+    def show_white_noise(self, duration, square_size, screen_size=None, save_frame_info=True):
         '''
         Generates white noise stimulus using numpy.random.random
         
@@ -1280,7 +1280,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe())
         square_size_pixel = square_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
-        ncheckers = utils.rc_x_const(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
+        if screen_size == None:
+            screen_size=self.machine_config.SCREEN_SIZE_UM
+        ncheckers = utils.rc_x_const(screen_size, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
         checker_colors = numpy.where(numpy.random.random((nframes,int(ncheckers['row']),int(ncheckers['col'])))<0.5, False,True)
         row_coords = numpy.arange(ncheckers['row'])-0.5*(ncheckers['row'] - 1)

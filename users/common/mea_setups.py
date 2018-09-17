@@ -13,7 +13,7 @@ class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([1280, 800])
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        SCREEN_UM_TO_PIXEL_SCALE = 0.5
         BACKGROUND_COLOR=[0.0, 0.0, 0.0]
         LOG_PATH = fileop.select_folder_exists(['e:\\stim_data\\log', '/tmp', 'c:\\stim_data\\log'])
         EXPERIMENT_LOG_PATH = LOG_PATH        
