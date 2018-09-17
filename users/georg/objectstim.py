@@ -21,6 +21,7 @@ class ObjectStim(experiment.ExperimentConfig):
         self.COLOR_MIN=0.0
         self.COLOR_MAX=1.0
         self.GRAY=0.5
+        self.TRANSLATE_ORIENTATION='horizontal'#'vertical
         #Object specific:
         self.OBJECT_ORDER=self.OBJECTS*self.REPEAT_PER_OBJECT
         random.shuffle(self.OBJECT_ORDER)
@@ -67,6 +68,16 @@ class ObjectExperiment(experiment.Experiment):
             else:
                 spatial_frq=ec.SPATIAL_FREQUENCY
             invert='invert' in words
+            if 'translate' in words:
+                translate=-float(words[words.index('translate')+1])
+                if ec.TRANSLATE_ORIENTATION=='horizontal':
+                    translate=utils.rc((0, translate))
+                elif ec.TRANSLATE_ORIENTATION=='vertical':
+                    translate=utils.rc((translate, 0))
+                else:
+                    raise NotImplementedError('')
+            else:
+                translate=utils.rc((0,0))
             if name=='grating':
                 bw=0.5*experiment_data.cpd2um(spatial_frq,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
                 period=2*bw
@@ -79,6 +90,7 @@ class ObjectExperiment(experiment.Experiment):
                                                 orientation=ori,
                                                 mask_size=ec.SIZE,
                                                 mask_color=ec.GRAY,
+                                                pos=translate,
                                                 white_bar_width=bw,
                                                 display_area=utils.rc((ec.SIZE,ec.SIZE)),
                                                 starting_phase=starting_phase)
@@ -88,6 +100,7 @@ class ObjectExperiment(experiment.Experiment):
                                                 spatial_frequency=spatial_frq,
                                                 duration=ec.ON_TIME,
                                                 orientation=ori,
+                                                position=translate,
                                                 color_min=ec.COLOR_MIN,
                                                 color_max=ec.COLOR_MAX,
                                                 narms=narms,
@@ -96,7 +109,8 @@ class ObjectExperiment(experiment.Experiment):
             self.show_fullscreen(color=ec.GRAY, duration=ec.OFF_TIME)
             if self.abort:
                 break
+        pass
         
 if __name__ == "__main__":
-    from visexpman.engine.visexp_app import stimulation_tester
+    from visexpman.applications.visexpman_main import stimulation_tester
     stimulation_tester('georg', 'StimulusDevelopment', 'ObjectStim',ENABLE_FRAME_CAPTURE=not True)

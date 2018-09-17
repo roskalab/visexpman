@@ -581,7 +581,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_object(self,name, size, spatial_frequency, duration,orientation=0, color_min=0.0, color_max=1.0, 
+    def show_object(self,name, size, spatial_frequency, duration,position=utils.rc((0,0)), orientation=0, color_min=0.0, color_max=1.0, 
                                     narms=4, background_color=0.5, invert=False,save_frame_info=True):
         '''
         Shows an object defined by name parameter:
@@ -759,7 +759,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
 #            import pdb;pdb.set_trace()
             texture = self.config.GAMMA_CORRECTION(texture)
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
-        self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=texture_orientation)
+        tex_coo, vertices=self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=texture_orientation,position=position)
         for frame_i in range(nframes):
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -977,8 +977,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              ])
         t,rect=self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates,set_vertices=False,enable_texture=False)
         if mask_size!=None:
-            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1)
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1, offset=max(pos['col'], pos['row']))
             vertices=numpy.append(rect,mask,axis=0)
+            vertices+=numpy.array([pos['col'], pos['row']])
         else:
             vertices=rect
         glEnableClientState(GL_VERTEX_ARRAY)
@@ -1593,9 +1594,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
 class StimulationHelpers(Stimulations):
-    def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True,enable_texture=True):
+    def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True,enable_texture=True, position=utils.rc((0,0))):
         from visexpman.engine.generic import geometry
         vertices = geometry.rectangle_vertices(size, orientation = orientation)
+        vertices+=numpy.array([position['col'], position['row']])
         if set_vertices:
             glEnableClientState(GL_VERTEX_ARRAY)
             glVertexPointerf(vertices)
@@ -1621,14 +1623,16 @@ class StimulationHelpers(Stimulations):
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
         
-    def _generate_mask_vertices(self, mask_size_pixel, resolution=0.5):
+    def _generate_mask_vertices(self, mask_size_pixel, resolution=0.5, offset=0):
         circle_vertices=geometry.circle_vertices([mask_size_pixel]*2,  resolution = resolution)+0*numpy.array([[100,0]])
         #Convert circle to its complementer shape being composed of rectangles
-        rect_width=self.config.SCREEN_RESOLUTION['col']/2+circle_vertices[:,0].min()
-        x1=-self.config.SCREEN_RESOLUTION['col']/2+rect_width/2
-        x2=self.config.SCREEN_RESOLUTION['col']/2-rect_width/2
-        mask_vertices1=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x1,0]])
-        mask_vertices2=geometry.rectangle_vertices(utils.cr((rect_width,self.config.SCREEN_RESOLUTION['row'])))+numpy.array([[x2,0]])
+        screen_width=self.config.SCREEN_RESOLUTION['col']+offset*2
+        screen_height=self.config.SCREEN_RESOLUTION['row']+offset*2
+        rect_width=screen_width/2+circle_vertices[:,0].min()
+        x1=-screen_width/2+rect_width/2
+        x2=screen_width/2-rect_width/2
+        mask_vertices1=geometry.rectangle_vertices(utils.cr((rect_width,screen_height)))+numpy.array([[x1,0]])
+        mask_vertices2=geometry.rectangle_vertices(utils.cr((rect_width,screen_height)))+numpy.array([[x2,0]])
         mask_vertices=mask_vertices1
         mask_vertices=numpy.append(mask_vertices,mask_vertices2,axis=0)
         for pi in range(circle_vertices.shape[0]-1):
@@ -1641,13 +1645,13 @@ class StimulationHelpers(Stimulations):
                 continue
             if numpy.round(p1[1],6)==0:
                 if p2[1]>0:
-                    coo=self.config.SCREEN_RESOLUTION['row']/2
+                    coo=screen_height/2
                 else:
-                    coo=-self.config.SCREEN_RESOLUTION['row']/2
+                    coo=-screen_height/2
             elif p1[1]>0:
-                coo=self.config.SCREEN_RESOLUTION['row']/2
+                coo=screen_height/2
             else:
-                coo=-self.config.SCREEN_RESOLUTION['row']/2
+                coo=-screen_height/2
             rect=numpy.array([p1,p2, [p2[0],coo], [p1[0],coo]])
             mask_vertices=numpy.append(mask_vertices,rect,axis=0)
         return mask_vertices

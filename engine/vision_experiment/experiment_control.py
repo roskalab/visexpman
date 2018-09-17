@@ -7,7 +7,6 @@ import traceback
 import shutil
 import copy
 import tables
-import sys
 import zmq
 try:
     import PyDAQmx
