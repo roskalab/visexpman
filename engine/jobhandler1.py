@@ -1,7 +1,7 @@
 #TODO: old test animal from prev day and new on this day: why is the old one selected
 import tables,os,unittest,time,zmq,logging,sys,threading,numpy,traceback,pdb,shutil,queue, pickle as pickle
 import scipy.io,multiprocessing,stat,subprocess,io,getpass
-sys.path.insert(0,  '/mnt/datafast/codes/zdev')
+#sys.path.insert(0,  '/mnt/datafast/codes/zdev')
 if len(sys.argv)>=4 and 'jobhandler1' in sys.argv[0] and sys.argv[3]!='--ignore_failed_files':#only when jobhandler is run but not imported as a module
     visexpman_path=sys.argv[3]
     sys.path.insert(0,visexpman_path)
@@ -155,7 +155,6 @@ class Jobhandler(object):
         now=time.time()
         #Exclude files which have not been modified in the last 30 days
         recent_files=[a for a in afiles if now-os.stat(a).st_mtime<DAYS_SINCE_NO_RECORDING*86400 and a[-5:]=='.hdf5']
-        recent_files=[r for r in recent_files if 'testbu' in r]
         if len(recent_files)==0:
             return
         #Read status info from files
@@ -337,7 +336,6 @@ class Jobhandler(object):
                     time.sleep(0.1)
                     logging.info(os.stat(filename))
                     self.printl('Analysis done')
-                    pdb.set_trace()
         else:
             self.printl('Online analysis is not available')
         dbfilelock.acquire()
