@@ -195,7 +195,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
         screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
         self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
-        self.SCREEN_SIZE_UM = numpy.array((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE))
+        self.SCREEN_SIZE_UM = {'col':self.SCREEN_RESOLUTION['col']/self.SCREEN_UM_TO_PIXEL_SCALE, 'row':self.SCREEN_RESOLUTION['row']/self.SCREEN_UM_TO_PIXEL_SCALE}
         ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION,self.UPPER_LEFT_CORNER= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)

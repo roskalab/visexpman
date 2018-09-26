@@ -79,7 +79,7 @@ class SC04ColoredNoise(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 # ------------------------------------------------------------------------------
-class SC05MovingBar(experiment.ExperimentConfig):
+class SC04MovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingShapeStimulus'
         self.DIRECTIONS = range(0, 360, 45)
@@ -88,7 +88,7 @@ class SC05MovingBar(experiment.ExperimentConfig):
         self.SHAPE_BACKGROUND = 0.0
         self.SHAPE_CONTRAST = 1.0
         self.SHAPE = 'rect'
-        self.SHAPE_SIZE = utils.cr((1000, 500)) #um
+        self.SHAPE_SIZE = [1000, 500] #um
         self.RANDOM_ORDER = True
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self._create_parameters_from_locals(locals())

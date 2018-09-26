@@ -224,6 +224,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
+        
         if color.size == 0:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
@@ -1444,20 +1445,22 @@ class AdvancedStimulation(StimulationHelpers):
         
         #assert len(speeds) == len(directions), 'There must be the same number of speeds as directions at this point!'
         #%%
-
-        for spd, direction in zip(trajectory_parameters['speeds'], trajectory_parameters['directions']):
+        speeds = trajectory_parameters['speeds']
+        directions = trajectory_parameters['directions']
+        
+        for speed, direction in zip(speeds, directions):
 
             end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
             start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
-            if spd == 0:
+            if speed == 0:
                 raise RuntimeError('Zero speed is not supported')
-            spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+            spatial_resolution = speed/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
             t = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution)
             trajectories.append(t)
             nframes += trajectories[-1].shape[0]
             trajectory_directions.append(direction)
         
-        duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
+        duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)+1)*pause
         return trajectories, trajectory_directions, duration
         
         
@@ -1465,7 +1468,7 @@ class AdvancedStimulation(StimulationHelpers):
                      #speeds, directions,
                         shape = 'rect',
                         color = 1.0,
-                        background_color = 0.0,
+                        background_color = numpy.array([0.0,0.0,0.0]),
                         moving_range = utils.rc((0.0,0.0)),
                         pause=0.0,
                         #repetition = 1,
@@ -1476,6 +1479,10 @@ class AdvancedStimulation(StimulationHelpers):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''
+
+        speeds = trajectory_parameters['speeds']
+        directions = trajectory_parameters['directions']
+
         
         #TODO:
 #        if hasattr(self, 'screen_center'):
@@ -1485,7 +1492,7 @@ class AdvancedStimulation(StimulationHelpers):
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')', source='stim')
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(
             size = size,
-            parameters = trajectory_parameters,
+            trajectory_parameters = trajectory_parameters,
             #speeds = speeds,
             #directions = directions,
             #repetition = repetition,

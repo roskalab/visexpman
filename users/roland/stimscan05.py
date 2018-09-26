@@ -35,7 +35,7 @@ class SC05ChirpSweep(experiment.ExperimentConfig):
         self.FREQUENCY_RANGE = [1.0, 4.0]
         self.STATIC_FREQUENCY = 2.0
         self.REPEATS = 5
-        self.COLOR = [0, 1, 1]
+        self.COLOR = [0.0, 1.0, 1.0]
 
         self._create_parameters_from_locals(locals())
 
@@ -68,8 +68,8 @@ class SC05MovingBar(experiment.ExperimentConfig):
         self.DIRECTIONS = range(0, 360, 45)
         self.SPEEDS = [300, 1600]  # um/s#
         self.REPETITIONS = 5
-        self.SHAPE_BACKGROUND = 0.0
-        self.SHAPE_CONTRAST = 1.0
+        self.SHAPE_BACKGROUND = [0.0,0.0,0.0]
+        self.SHAPE_CONTRAST = [0.0,1.0,1.0]
         self.SHAPE = 'rect'
         self.SHAPE_SIZE = utils.cr((1000, 500))  # um
         self.RANDOM_ORDER = True
@@ -83,10 +83,10 @@ class SC05MovingFront(experiment.ExperimentConfig):
         self.DIRECTIONS = range(0, 360, 45)
         self.SPEEDS = [300, 1600]  # um/s#
         self.REPETITIONS = 5
-        self.SHAPE_BACKGROUND = 0.0
-        self.SHAPE_CONTRAST = 1.0
+        self.SHAPE_BACKGROUND = [0.0,0.0,0.0]
+        self.SHAPE_CONTRAST = [0.0,1.0,1.0]
         self.SHAPE = 'rect'
-        self.SHAPE_SIZE = utils.cr((1000, 5000))  # um
+        self.SHAPE_SIZE = utils.cr((1000,3000))  # um
         self.RANDOM_ORDER = True
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self._create_parameters_from_locals(locals())

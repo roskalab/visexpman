@@ -60,9 +60,12 @@ class MovingShapeStimulus(experiment.Experiment):
         speeds_directions = numpy.array([speeds_, directions_]).transpose()
         if self.experiment_config.RANDOM_ORDER:
             numpy.random.seed(1)
-            speeds_directions = numpy.random.permutation(sd)
+            speeds_directions = numpy.random.permutation(speeds_directions)
 
         self.trajectory_parameters = {'speeds': speeds_directions[:, 0], 'directions': speeds_directions[:, 1]}
+
+        self.shape_background = numpy.array(self.shape_background)
+        self.shape_contrast = numpy.array(self.shape_contrast)
 
        #Calculate duration
         trajectories, trajectory_directions, self.stimulus_duration = self.moving_shape_trajectory(
@@ -533,7 +536,7 @@ class FingerPrintingStimulus(experiment.Experiment):
             DURATION
             INTENSITY_LEVELS
             SPEEDS
-            DIRECTIONS
+            DIREC1.5*screen_size[1]TIONS
             REPEATS
         Optional:
             SPATIAL_PERIOD
@@ -568,7 +571,8 @@ class FingerPrintingStimulus(experiment.Experiment):
                                                                                        spatial_resolution=spatial_resolution,
                                                                                        )
                 
-                intensity_profile = numpy.concatenate((numpy.zeros(1.5*screen_size[1]), intensity_profile, numpy.zeros(1.5*screen_size[1])) )
+                n_zeros = int(numpy.round(1.5*screen_size[1])) 
+                intensity_profile = numpy.concatenate((numpy.zeros(n_zeros), intensity_profile, numpy.zeros(n_zeros)) )
                 #if intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
                 #    intensity_profile = numpy.tile(intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/intensity_profile.shape[0]))
                 self.intensity_profiles[speed][minimal_spatial_period] = intensity_profile
@@ -613,11 +617,8 @@ class WhiteNoiseStimulus(experiment.Experiment):
             self.flickering_frequency = self.config.SCREEN_EXPECTED_FRAME_RATE
         
         self.colors = self.experiment_config.COLORS
-        npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
-        print(npatterns)
-        print(self.experiment_config.DURATION_MINS)
-        print(self.flickering_frequency)
-        
+
+        n_patterns = numpy.round(self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency)
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
 
         pixel_size = self.experiment_config.PIXEL_SIZE
@@ -631,7 +632,7 @@ class WhiteNoiseStimulus(experiment.Experiment):
         
         npixels = numpy.round(screen_size/pixel_size)
         n_channels = 1
-        color = numpy.zeros((npatterns, npixels[0], npixels[1], n_channels))
+        color = numpy.zeros((int(n_patterns), int(npixels[0]), int(npixels[1]), int(n_channels)))
         numpy.random.seed(0)
         self.textures = numpy.round(numpy.random.random(color.shape[:-1]))
         
@@ -640,7 +641,7 @@ class WhiteNoiseStimulus(experiment.Experiment):
         #random.seed(0)
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':0, 'counter':self.frame_counter})
         self.white_noise(textures = self.textures, color_0 = self.colors[0], color_1 = self.colors[1])
-        self.show_fullscreen(color=0.5)
+        self.show_fullscreen(color=numpy.array([0.5,0.5,0.5]))
         self.stimulus_frame_info.append({'super_block':'WhiteNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})  
     # End of WhiteNoiseStimulus
 
@@ -674,7 +675,7 @@ class ColoredNoiseStimulus(experiment.Experiment):
         self.red = self.experiment_config.RED
         self.green = self.experiment_config.GREEN
         self.blue = self.experiment_config.BLUE
-        npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
+        n_patterns = numpy.round(self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency)
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
         
@@ -689,7 +690,7 @@ class ColoredNoiseStimulus(experiment.Experiment):
         
         npixels = numpy.round(screen_size/pixel_size)
         n_channels = 1
-        color = numpy.zeros((npatterns, npixels[0], npixels[1], n_channels))
+        color = numpy.zeros((int(n_patterns), int(npixels[0]), int(npixels[1]), int(n_channels)))
         numpy.random.seed(0)
         self.textures_red = numpy.round(numpy.random.random(color.shape[:-1]))
         self.textures_green = numpy.round(numpy.random.random(color.shape[:-1]))
@@ -706,7 +707,7 @@ class ColoredNoiseStimulus(experiment.Experiment):
     def run(self):
         self.stimulus_frame_info.append({'super_block':'ColoredNoiseStimulus', 'is_last':0, 'counter':self.frame_counter})
         self.colored_noise(textures_red = self.textures_red, textures_green = self.textures_green, textures_blue = self.textures_blue)
-        self.show_fullscreen(color=0.5)
+        self.show_fullscreen(color=numpy.array([0.5, 0.5, 0.5]))
         self.stimulus_frame_info.append({'super_block':'ColoredNoiseStimulus', 'is_last':1, 'counter':self.frame_counter})  
     # End of ColoredNoiseStimulus
 
@@ -788,6 +789,11 @@ class ChirpSweep(experiment.Experiment):
         else:
             self.color = numpy.array([1.0, 1.0, 1.0])
         
+        print("self.color")
+        print(self.color)
+        print("self.contrast_range")
+        print(self.contrast_range)
+         
     def run(self):
         mid_contrast = numpy.mean(self.contrast_range)
     
@@ -868,10 +874,10 @@ class CommonReceptiveFieldExplore(experiment.Experiment):
     def calculate_positions(self, display_range, center, repeats, mesh_xy, colors=None, repeat_each=1):
         positions = []
         step = {}
-        display_range = numpy.array(display_range)
+        #display_range = numpy.array(display_range)
         #for axis in ['row', 'col']:
         #    step[axis] = display_range[axis] / mesh_xy[axis]
-        step = {'row': display_range[0]/mesh_xy[0], 'col': display_range[1]/mesh_xy[1]}
+        step = {'row': display_range['row']/mesh_xy[0], 'col': display_range['col']/mesh_xy[1]}
         
         for repeat in range(repeats):
             for row in range(int(mesh_xy[0])):
@@ -879,8 +885,8 @@ class CommonReceptiveFieldExplore(experiment.Experiment):
                     position = utils.rc(
                         ((row + 0.5) * step['row'] + center['row'], (col + 0.5) * step['col'] + center['col']))
                     if self.machine_config.COORDINATE_SYSTEM == 'center':
-                        position['row'] = position['row'] - 0.5 * display_range[0]
-                        position['col'] = position['col'] - 0.5 * display_range[1]
+                        position['row'] = position['row'] - 0.5 * display_range['row']
+                        position['col'] = position['col'] - 0.5 * display_range['col']
                     for rep_each in range(repeat_each):
                         if colors is None:
                             positions.append(position)
