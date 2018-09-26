@@ -5,7 +5,9 @@ Created on Wed Sep 26 11:03:00 2018
 @author: rolandd
 """
 
+import math
 from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.generic import utils
 
 # ------------------------------------------------------------------------------
 class SC05FingerPrinting(experiment.ExperimentConfig):
@@ -93,12 +95,12 @@ class SC05MovingFront(experiment.ExperimentConfig):
 class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.ENABLE_ELECTRODE_ROI = True
         self.COLORS = [0.0, 1.0]
-        self.BACKGROUND_COLOR = 0.5
-        self.SHAPE_SIZE = 100.0
-        self.MESH_XY = utils.rc((int(self.machine_config.SCREEN_SIZE_UM['row'] / self.SHAPE_SIZE),
-                                 int(self.machine_config.SCREEN_SIZE_UM['col'] / self.SHAPE_SIZE)))
+        self.BACKGROUND_COLOR = [0.5, 0.5, 0.5]
+        self.SHAPE_SIZE = 500.0
+        #self.MESH_XY = utils.rc((int(self.machine_config.SCREEN_SIZE_UM['row'] / self.SHAPE_SIZE),
+        #                         int(self.machine_config.SCREEN_SIZE_UM['col'] / self.SHAPE_SIZE)))
+        self.MESH_XY = [math.ceil(600.0/self.SHAPE_SIZE), math.ceil(600.0/self.SHAPE_SIZE)]
         self.ON_TIME = 1.5
         self.OFF_TIME = 0.0
         self.PAUSE_BEFORE_AFTER = 2.0

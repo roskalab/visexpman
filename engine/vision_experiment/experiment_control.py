@@ -483,6 +483,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if self.machine_config.PLATFORM=='hi_mea':
                 #send start signal
                 self._send_himea_cmd("start")
+                # The following line does not work right now because
+                # the path points to an nfs4 mount that is not 
+                # accessible to the recording machine itself.
+                #self._send_himea_cmd("start "+ self.machine_config.EXPERIMENT_LOG_PATH)
+
             else:
                 self.send({'trigger':'stim started'})
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate

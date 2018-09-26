@@ -164,7 +164,7 @@ class FullFieldTestFlicker(experiment.Experiment):
     Expected parameters:
     '''
     def prepare(self):
-    print 'x'
+        print('x')
 	
     def run(self):
         for r in range(self.experiment_config.REPETITIONS):
@@ -614,9 +614,9 @@ class WhiteNoiseStimulus(experiment.Experiment):
         
         self.colors = self.experiment_config.COLORS
         npatterns = self.experiment_config.DURATION_MINS*60.0*self.flickering_frequency
-        print npatterns
-        print self.experiment_config.DURATION_MINS
-        print self.flickering_frequency
+        print(npatterns)
+        print(self.experiment_config.DURATION_MINS)
+        print(self.flickering_frequency)
         
         screen_size = numpy.array([self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col']])
 
@@ -868,16 +868,19 @@ class CommonReceptiveFieldExplore(experiment.Experiment):
     def calculate_positions(self, display_range, center, repeats, mesh_xy, colors=None, repeat_each=1):
         positions = []
         step = {}
-        for axis in ['row', 'col']:
-            step[axis] = display_range[axis] / mesh_xy[axis]
+        display_range = numpy.array(display_range)
+        #for axis in ['row', 'col']:
+        #    step[axis] = display_range[axis] / mesh_xy[axis]
+        step = {'row': display_range[0]/mesh_xy[0], 'col': display_range[1]/mesh_xy[1]}
+        
         for repeat in range(repeats):
-            for row in range(mesh_xy['row']):
-                for col in range(mesh_xy['col']):
+            for row in range(int(mesh_xy[0])):
+                for col in range(int(mesh_xy[1])):
                     position = utils.rc(
                         ((row + 0.5) * step['row'] + center['row'], (col + 0.5) * step['col'] + center['col']))
                     if self.machine_config.COORDINATE_SYSTEM == 'center':
-                        position['row'] = position['row'] - 0.5 * display_range['row']
-                        position['col'] = position['col'] - 0.5 * display_range['col']
+                        position['row'] = position['row'] - 0.5 * display_range[0]
+                        position['col'] = position['col'] - 0.5 * display_range[1]
                     for rep_each in range(repeat_each):
                         if colors is None:
                             positions.append(position)
@@ -887,6 +890,8 @@ class CommonReceptiveFieldExplore(experiment.Experiment):
         return positions, utils.rc((step['row'], step['col']))
 
     def prepare(self):
+        self.experiment_config.BACKGROUND_COLOR = numpy.array(self.experiment_config.BACKGROUND_COLOR)
+        
         if self.experiment_config.ENABLE_ZOOM:
             # Calculate the mesh positions for the whole screen
             positions, display_range = self.calculate_positions(self.machine_config.SCREEN_SIZE_UM,
@@ -903,22 +908,10 @@ class CommonReceptiveFieldExplore(experiment.Experiment):
                                                                      self.experiment_config.ZOOM_MESH_XY,
                                                                      self.experiment_config.COLORS)
             self.shape_size = display_range
-
-        elif self.experiment_config.ENABLE_ELECTRODE_ROI:
-            from visexpman.users.antonia.electrode_id_reader import read_electrode_coordinates
-            center, size = read_electrode_coordinates()
-            mesh_xy = utils.rc((int(numpy.ceil(size['row'] / self.experiment_config.SHAPE_SIZE)),
-                                int(numpy.ceil(size['col'] / self.experiment_config.SHAPE_SIZE))))
-            print(size, self.experiment_config.SHAPE_SIZE, mesh_xy)
-
-            self.positions, display_range = self.calculate_positions(size,
-                                                                     center,
-                                                                     self.experiment_config.REPEATS,
-                                                                     mesh_xy,
-                                                                     self.experiment_config.COLORS,
-                                                                     self.experiment_config.REPEAT_EACH)
-            self.shape_size = self.experiment_config.SHAPE_SIZE
         else:
+            #print(self.machine_config.SCREEN_SIZE_UM)
+            #print(type(self.machine_config.SCREEN_SIZE_UM))
+            #print(self.machine_config.SCREEN_SIZE_UM.shape)
             self.positions, display_range = self.calculate_positions(self.machine_config.SCREEN_SIZE_UM,
                                                                      utils.rc((0, 0)),
                                                                      self.experiment_config.REPEATS,
@@ -938,6 +931,7 @@ class CommonReceptiveFieldExplore(experiment.Experiment):
 
         self.stimulus_frame_info.append({'super_block': 'CommonReceptiveFieldExplore', 'is_last': 0, 'counter': self.frame_counter})
 
+        print(self.experiment_config.BACKGROUND_COLOR)
         self.show_fullscreen(color=self.experiment_config.BACKGROUND_COLOR,
                              duration=self.experiment_config.PAUSE_BEFORE_AFTER)
 

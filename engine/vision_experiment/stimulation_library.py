@@ -497,11 +497,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glColor3fv(colors.convert_color(color[0], self.config))
         else:
             glColor3fv(colors.convert_color(color, self.config))
-        if background_color != None:
+        try:
+        #if background_color != None:
             background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
             converted_background_color = colors.convert_color(background_color, self.config)
             glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
-        else:
+        except:
             converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
@@ -550,8 +551,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 break
         glDisableClientState(GL_VERTEX_ARRAY)
         #Restore original background color
-        if background_color != None:            
+        try:
+        #if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
+        except:
+            pass
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
