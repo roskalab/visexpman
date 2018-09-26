@@ -95,7 +95,8 @@ class MovingShapeStimulus(experiment.Experiment):
                           #random_order = self.experiment_config.RANDOM_ORDER,
                           block_trigger = True)
         self.stimulus_frame_info.append({'super_block':'MovingShapeStimulus', 'is_last':1, 'counter':self.frame_counter})
-        
+    # End of MovingShapeStimulus
+
 class IncreasingSpotExperiment(experiment.Experiment):
     def prepare(self):
         if not hasattr(self.experiment_config, 'COLORS'):
@@ -119,6 +120,7 @@ class IncreasingSpotExperiment(experiment.Experiment):
                                     pos = utils.rc((0,  0)),
                                     block_trigger = True)
         self.stimulus_frame_info.append({'super_block':'IncreasingSpotExperiment', 'is_last':1, 'counter':self.frame_counter})
+    # End of IncreasingSpotExperiment
 
 class FullFieldFlashesStimulus(experiment.Experiment):
     '''
@@ -155,21 +157,20 @@ class FullFieldFlashesStimulus(experiment.Experiment):
                 self.block_end()
                 self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,frame_trigger=True)
         self.stimulus_frame_info.append({'super_block':'FullFieldFlashesStimulus', 'is_last':1, 'counter':self.frame_counter})
-            
+    # End of FullFieldFlashesStimulus
 
 class FullFieldTestFlicker(experiment.Experiment):
     '''
     Expected parameters:
     '''
     def prepare(self):
-	print 'x'        
+    print 'x'
 	
     def run(self):
         for r in range(self.experiment_config.REPETITIONS):
             self.show_fullscreen(duration=1.0/60.0,color=[1,1,1], frame_trigger=True)
-	    self.show_fullscreen(duration=1.0/60.0,color=[0,0,0], frame_trigger=True)
-
-
+        self.show_fullscreen(duration=1.0/60.0,color=[0,0,0], frame_trigger=True)
+    # End of FullFieldTestFlicker
 
 class MovingGratingStimulus(experiment.Experiment):
     '''
@@ -846,8 +847,7 @@ class RandomDotsStimulus(experiment.Experiment):
                     colors = self.experiment_config.COLORS,
                     bgcolor = self.experiment_config.BGCOLOR,
                     sparsityFactor = self.experiment_config.SPARSITY_FACTOR)
-       
-       
+
     def run(self):
         
         self.stimulus_frame_info.append({'super_block':'RandomDots', 'is_last':0, 'counter':self.frame_counter})
@@ -855,10 +855,110 @@ class RandomDotsStimulus(experiment.Experiment):
         for rep in range(self.experiment_config.REPEATS):
             self.random_dots(self.randomDots)
             self.show_fullscreen(color=0.5)
-        
+
         self.stimulus_frame_info.append({'super_block':'RandomDots', 'is_last':1, 'counter':self.frame_counter})
     # End of RandomDots
 
+
+class CommonReceptiveFieldExplore(experiment.Experiment):
+    '''
+        I found this object in antonia's folder and adapted it a little (Roland, 26.09.2018).
+    '''
+
+    def calculate_positions(self, display_range, center, repeats, mesh_xy, colors=None, repeat_each=1):
+        positions = []
+        step = {}
+        for axis in ['row', 'col']:
+            step[axis] = display_range[axis] / mesh_xy[axis]
+        for repeat in range(repeats):
+            for row in range(mesh_xy['row']):
+                for col in range(mesh_xy['col']):
+                    position = utils.rc(
+                        ((row + 0.5) * step['row'] + center['row'], (col + 0.5) * step['col'] + center['col']))
+                    if self.machine_config.COORDINATE_SYSTEM == 'center':
+                        position['row'] = position['row'] - 0.5 * display_range['row']
+                        position['col'] = position['col'] - 0.5 * display_range['col']
+                    for rep_each in range(repeat_each):
+                        if colors is None:
+                            positions.append(position)
+                        else:
+                            for color in colors:
+                                positions.append([position, color])
+        return positions, utils.rc((step['row'], step['col']))
+
+    def prepare(self):
+        if self.experiment_config.ENABLE_ZOOM:
+            # Calculate the mesh positions for the whole screen
+            positions, display_range = self.calculate_positions(self.machine_config.SCREEN_SIZE_UM,
+                                                                utils.rc((0, 0)),
+                                                                1,
+                                                                self.experiment_config.MESH_XY)
+
+            zoom_center = utils.rc_add(positions[self.experiment_config.SELECTED_POSITION],
+                                       utils.rc_multiply_with_constant(display_range, 0.5), '-')
+
+            self.positions, display_range = self.calculate_positions(display_range,
+                                                                     zoom_center,
+                                                                     self.experiment_config.REPEATS,
+                                                                     self.experiment_config.ZOOM_MESH_XY,
+                                                                     self.experiment_config.COLORS)
+            self.shape_size = display_range
+
+        elif self.experiment_config.ENABLE_ELECTRODE_ROI:
+            from visexpman.users.antonia.electrode_id_reader import read_electrode_coordinates
+            center, size = read_electrode_coordinates()
+            mesh_xy = utils.rc((int(numpy.ceil(size['row'] / self.experiment_config.SHAPE_SIZE)),
+                                int(numpy.ceil(size['col'] / self.experiment_config.SHAPE_SIZE))))
+            print(size, self.experiment_config.SHAPE_SIZE, mesh_xy)
+
+            self.positions, display_range = self.calculate_positions(size,
+                                                                     center,
+                                                                     self.experiment_config.REPEATS,
+                                                                     mesh_xy,
+                                                                     self.experiment_config.COLORS,
+                                                                     self.experiment_config.REPEAT_EACH)
+            self.shape_size = self.experiment_config.SHAPE_SIZE
+        else:
+            self.positions, display_range = self.calculate_positions(self.machine_config.SCREEN_SIZE_UM,
+                                                                     utils.rc((0, 0)),
+                                                                     self.experiment_config.REPEATS,
+                                                                     self.experiment_config.MESH_XY,
+                                                                     self.experiment_config.COLORS,
+                                                                     self.experiment_config.REPEAT_EACH)
+            self.shape_size = self.experiment_config.SHAPE_SIZE
+
+        if self.experiment_config.ENABLE_RANDOM_ORDER:
+            import random
+            random.shuffle(self.positions)
+
+        self.fragment_durations = [len(self.positions) * (self.experiment_config.ON_TIME + self.experiment_config.OFF_TIME) + self.experiment_config.PAUSE_BEFORE_AFTER * 2]
+        print(self.fragment_durations, len(self.positions), self.experiment_config.MESH_XY)
+
+    def run(self):
+
+        self.stimulus_frame_info.append({'super_block': 'CommonReceptiveFieldExplore', 'is_last': 0, 'counter': self.frame_counter})
+
+        self.show_fullscreen(color=self.experiment_config.BACKGROUND_COLOR,
+                             duration=self.experiment_config.PAUSE_BEFORE_AFTER)
+
+        for position_color in self.positions:
+            if self.abort:
+                break
+            self.show_shape(shape=self.experiment_config.SHAPE,
+                            size=self.shape_size,
+                            color=position_color[1],
+                            background_color=self.experiment_config.BACKGROUND_COLOR,
+                            duration=self.experiment_config.ON_TIME,
+                            pos=position_color[0])
+            self.show_fullscreen(color=self.experiment_config.BACKGROUND_COLOR,
+                                 duration=self.experiment_config.OFF_TIME)
+
+        self.show_fullscreen(color=self.experiment_config.BACKGROUND_COLOR,
+                             duration=self.experiment_config.PAUSE_BEFORE_AFTER - self.experiment_config.OFF_TIME)
+
+        self.stimulus_frame_info.append({'super_block': 'CommonReceptiveFieldExplore', 'is_last': 1, 'counter': self.frame_counter})
+
+        # End of ReceptiveFieldExplore
 
 class BatchStimulus(experiment.Experiment):
     '''
@@ -879,12 +979,12 @@ class BatchStimulus(experiment.Experiment):
         '''
             This function creates all the sub-stimuli and calls their 'prepare' functions.
         '''        
-        print 'Preparing Batch Stimulus'
+        print('Preparing Batch Stimulus')
         self.stimulus_duration = 0.0
         
         self.experiments = {}
         for stimulus_name in self.experiment_config.VARS:
-            print 'Adding sub-stimulus: ' + stimulus_name
+            print('Adding sub-stimulus: ' + stimulus_name)
             stimulus_type = self.experiment_config.STIM_TYPE_CLASS[stimulus_name]
             
             # Pass on ExperimentConfig to sub classes:
@@ -901,7 +1001,7 @@ class BatchStimulus(experiment.Experiment):
                                                                       )                                                    
             self.experiments[stimulus_name].prepare()
             self.stimulus_duration += self.experiments[stimulus_name].stimulus_duration
-        print "Projected BatchStimulus duration: " + str(self.stimulus_duration)
+        print("Projected BatchStimulus duration: " + str(self.stimulus_duration))
         
     def run(self):
         '''
@@ -923,5 +1023,4 @@ class BatchStimulus(experiment.Experiment):
             self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':0, 'counter':self.frame_counter})     
             self.show_fullscreen(duration=1.0, color=1.0, frame_trigger=True)
             self.stimulus_frame_info.append({'super_block':'FullScreen', 'is_last':1, 'counter':self.frame_counter})
-
 
