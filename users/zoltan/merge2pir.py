@@ -107,6 +107,7 @@ class Test(unittest.TestCase):
         
     def test_merge(self):
         for f in fileop.listdir('/home/rz/mysoftware/data/merge/2'):
+            print f
             resolution2p=float(f.split('x')[-1])
             resolutionir=3.9
             side=numpy.asarray(Image.open([fi for fi in fileop.listdir(f) if 'side' in fi][0]))[:,:,0]
@@ -116,10 +117,10 @@ class Test(unittest.TestCase):
             newsize=map(int,newsize)
             side=numpy.asarray(Image.fromarray(side).resize(newsize))
             side_size_um=float(f.split('x')[-2])
-            yoffset_um=-14.5*0
-            xoffset_um=-27.4*0
-            xshift_um=xoffset_um+self.xcorrection(resolution2p)*0+side_size_um/2
-            yshift_um=yoffset_um+side_size_um/2
+            yoffset_um=-14.5*0+100+20
+            xoffset_um=-27.4*0+100-16
+            xshift_um=xoffset_um-side_size_um/2
+            yshift_um=yoffset_um-side_size_um/2-self.xcorrection(resolution2p)
             merged=numpy.zeros((ir.shape[0], ir.shape[1], 3),dtype=numpy.uint8)
             merged[:,:,1]=ir
             xshift_pixel=int(xshift_um*resolutionir)
@@ -135,11 +136,20 @@ class Test(unittest.TestCase):
                 merged_ymax=merged.shape[1]
                 side_ymax=merged_ymax-yshift_pixel
             try:
-                merged[xshift_pixel:merged_xmax, yshift_pixel:merged_ymax,0]=side[:side_xmax,:side_ymax]*2
+                merged[xshift_pixel:merged_xmax, yshift_pixel:merged_ymax,0]=side[:side_xmax,:side_ymax]*1.5
             except:
+                if xshift_pixel<0:
+                    try:
+                        merged[:, yshift_pixel:merged_ymax,0]=side[-xshift_pixel:merged.shape[0]-xshift_pixel,:side_ymax]*1.5
+                    except:
+                        pass
+                        pass
+                        pass
+                print 'error'
                 pass
-            title(f)
-            imshow(merged);show()
+            #title(f)
+            #imshow(merged);show()
+            Image.fromarray(merged).save('/tmp/{0}.png'.format(os.path.basename(f)))
     
     
         
