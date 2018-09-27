@@ -44,7 +44,7 @@ class SC05WhiteNoise(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'WhiteNoiseStimulus'
         self.DURATION_MINS = 15.0  # 15 min
-        self.PIXEL_SIZE = [40.0]
+        self.PIXEL_SIZE = [20.0]
         # self.FLICKERING_FREQUENCY = 60.0
         self.N_WHITE_PIXELS = False
         self.COLORS = [[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]]
@@ -55,7 +55,7 @@ class SC05ColoredNoise(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'ColoredNoiseStimulus'
         self.DURATION_MINS = 15.0  # 15 min
-        self.PIXEL_SIZE = [40.0]  # um
+        self.PIXEL_SIZE = [20.0]  # um
         self.RED = False
         self.GREEN = True
         self.BLUE = True
