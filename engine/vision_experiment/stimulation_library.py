@@ -1190,12 +1190,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if duration_calc_only:
             return (alltexture.shape[0]-(0 if circular else self.config.SCREEN_RESOLUTION['col']))/(ds*float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
+        texture_width=self.config.SCREEN_RESOLUTION['col']
+        if direction%90!=0:
+            texture_width=numpy.sqrt(2)*texture_width
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
-        diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
+        diagonal =  1*numpy.sqrt(2) * texture_width
         alpha =numpy.pi/4
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
         angles = angles + direction*numpy.pi/180.0
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        #import pdb;pdb.set_trace()
         vertices = vertices.transpose()
         if self.config.COORDINATE_SYSTEM == 'ulcorner':
             vertices += self.config.SCREEN_UM_TO_PIXEL_SCALE*numpy.array([self.machine_config.SCREEN_CENTER['col'], self.machine_config.SCREEN_CENTER['col']])
@@ -1220,7 +1224,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         frame_counter = 0
         while True:
             start_index = int(texture_pointer)
-            end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
+            end_index = int(start_index + texture_width)
             if end_index > alltexture.shape[0]:
                 end_index -= alltexture.shape[0]
             if start_index > alltexture.shape[0]:
@@ -1257,7 +1261,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             self.stimulus_frame_info[-1]['parameters']['intensity_profile']=self.intensity_profile
             
-    def show_white_noise(self, duration, square_size, save_frame_info=True):
+    def show_white_noise(self, duration, square_size, screen_size=None, save_frame_info=True):
         '''
         Generates white noise stimulus using numpy.random.random
         
@@ -1270,7 +1274,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe())
         square_size_pixel = square_size*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*duration)
-        ncheckers = utils.rc_x_const(self.machine_config.SCREEN_SIZE_UM, 1.0/square_size)
+        if screen_size == None:
+            screen_size=self.machine_config.SCREEN_SIZE_UM
+        ncheckers = utils.rc_x_const(screen_size, 1.0/square_size)
         ncheckers = utils.rc((numpy.floor(ncheckers['row']), numpy.floor(ncheckers['col'])))
         numpy.random.seed(0)
         checker_colors = numpy.where(numpy.random.random((nframes,int(ncheckers['row']),int(ncheckers['col'])))<0.5, False,True)
