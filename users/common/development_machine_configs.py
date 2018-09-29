@@ -39,7 +39,7 @@ class StimulusDevelopment(VisionExperimentConfig):
         
         SCREEN_RESOLUTION = utils.cr((800, 600))
         SCREEN_RESOLUTION = utils.cr((800, 450))
-        SCREEN_RESOLUTION = utils.cr((800/2, 800/2))
+        SCREEN_RESOLUTION = utils.cr((800/2, 600/2))
         self.SCREEN_WIDTH=47.657#cm
         self.SCREEN_HEIGHT=26.876#cm
         #SCREEN_RESOLUTION = utils.cr([1280, 720])

@@ -86,8 +86,6 @@ class WaveformGenerator(multiprocessing.Process, daqmxtask):
         #self.WaitUntilTaskDone(self.update_time*4)
         self.StopTask()
         self.ClearTask()
-            
-        
 
 def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None, aimode=default_aimode, ailimit=5):
     try:

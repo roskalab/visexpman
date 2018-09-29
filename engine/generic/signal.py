@@ -350,12 +350,18 @@ def generate_frequency_modulated_waveform(duration, base_frequency, frequency_st
         sig=numpy.sin(t*numpy.pi*2*frequency_values)
         return sig
         
-def generate_grating(orientation, width, size):
+def generate_grating(orientation, width, size, sin=False):
     im=numpy.zeros((max(size)*2, 2*max(size)))
     period=2*width
-    nperiods=im.shape[0]/period+1
-    for rep in range(nperiods):
-        im[rep*period:rep*period+width]=1
+    nperiods=int(im.shape[0]/period+1)
+    if sin:
+        #generate waveform
+        s=numpy.arange(im.shape[0])
+        waveform=0.5*numpy.sin(2*numpy.pi*s/float(s.max())*nperiods)+0.5
+        im=numpy.tile(waveform, im.shape[1]).reshape(im.shape)
+    else:
+        for rep in range(nperiods):
+            im[rep*period:rep*period+width]=1
     from PIL import Image
     im=numpy.asarray(Image.fromarray(im).rotate(orientation))
     im=im[im.shape[0]/2-size[0]/2:im.shape[0]/2+size[0]/2, im.shape[1]/2-size[1]/2:im.shape[1]/2+size[1]/2]
@@ -560,11 +566,12 @@ class TestSignal(unittest.TestCase):
         sizes=[[100,200], [100,100], [200,20]]
         widths=[1,4,10]
         orientations=[0,20,45,90,180]
+        sin=[True, False]
         import itertools
         from PIL import Image
-        for s, w, o in itertools.product(sizes, widths, orientations):
-            im=generate_grating(o,w,s)
-            Image.fromarray(numpy.cast['uint8'](im*255)).save('/tmp/size {0} width {1}, orientation {2}.png'.format(s,w,o))
+        for s, w, o, sinen in itertools.product(sizes, widths, orientations, sin):
+            im=generate_grating(o,w,s,sinen)
+            Image.fromarray(numpy.cast['uint8'](im*255)).save('/tmp/size {0} width {1}, orientation {2}_{3}.png'.format(s,w,o,sinen))
             
         
     

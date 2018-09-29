@@ -246,6 +246,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
                 else:
                     self.setHeaderLabels([classname])
                 self.parent.to_engine.put({'data': filename+os.sep+classname, 'path': 'stimulusbrowser/Selected experiment class', 'name': 'Selected experiment class'})
+                return filename, classname
         
     def _is_experiment_class(self, widget):
         return not(widget.parent() is None or str(widget.parent().text(0))[-3:] != '.py')
@@ -655,7 +656,8 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'display_cell_tree' in msg:
                 self.cellbrowser.populate(msg['display_cell_tree'])
             elif 'update_network_status' in msg:
-                self.statusbar.showMessage(msg['update_network_status'])
+                import visexpman
+                self.statusbar.showMessage(msg['update_network_status']+20*' '+'visexpman '+visexpman.version)
             elif 'update_status' in msg:
                 if msg['update_status']=='idle':
                     self.statusbar.status.setStyleSheet('background:gray;')

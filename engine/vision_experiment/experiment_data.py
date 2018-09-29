@@ -297,6 +297,7 @@ class CaImagingData(supcl):
             self.load('machine_config')
             if hasattr(self,  'machine_config'):
                 self.configs=self.machine_config
+            self.parameters=self.findvar('recording_parameters')
         if self.parameters['resolution_unit']=='pixel/um':
             self.scale = 1.0/self.parameters['pixel_size']
         else:
@@ -318,7 +319,7 @@ class CaImagingData(supcl):
             indexes.extend([i for i in range(col_means.shape[0]) if saturation_value in col_means[i]])
             keep_frame_indexes=[i for i in range(self.raw_data.shape[0]) if i not in indexes]
             self.image= self.raw_data[keep_frame_indexes].max(axis=0)[0]
-        if self.configs['machine_config']['PLATFORM']=='ao_cortical':
+        if hasattr(self, 'configs') and self.configs['machine_config']['PLATFORM']=='ao_cortical':
             nrois=self.image.shape[0]
             roi_aspect_ratio=self.raw_data.shape[-2]/float(self.raw_data.shape[-1])
             #merge rois to a square image:
@@ -390,7 +391,7 @@ class CaImagingData(supcl):
                 self.meanimage, self.scale = self.get_image('mip')
             #um/pixel to dpi
             dpi = 1.0/self.scale*25.4e3
-            self.outfile = fileop.get_convert_filename(self.filename, 'tif')
+            self.outfile = fileop.get_convert_filename(self.filename, '.tif')
             tifffile.imsave(self.outfile, self.raw_data[:,0,:,:],resolution = (dpi,dpi),description = self.filename, software = 'Vision Experiment Manager')
         elif format == 'rois':
             output_folder=os.path.join(os.path.dirname(self.filename), 'output', os.path.basename(self.filename))
