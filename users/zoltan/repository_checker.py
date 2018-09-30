@@ -125,6 +125,11 @@ if __name__ == "__main__":
             r=RepositoryChecker('/home/rz/repocheck/rc_rldata', '/data/software/rc-setup',
                                    ignore_folder=[])
             r.run()
+        elif sys.argv[1]=='ddev':
+            r=RepositoryChecker('/home/rz/repocheck/ddev', '/mnt/datafast/codes/ddev',
+                                   vip_files=[],
+                                   ignore_folder=[])
+            r.run()
 
 
     else:
