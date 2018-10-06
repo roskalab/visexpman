@@ -63,6 +63,41 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         self.timer=QtCore.QTimer()
         self.timer.start(50)#ms
         self.timer.timeout.connect(self.check_queue)
+        self.enable_help=False
+        if self.enable_help:
+            menubar = self.menuBar()
+            helpmenu=menubar.addMenu("&Help")
+            show_manual_action = QtGui.QAction("Show Manual", self)
+            show_about_action = QtGui.QAction("About", self)
+            helpmenu.addAction(show_manual_action)
+            helpmenu.addAction(show_about_action)
+            self.helper = QtGui.QToolButton()
+            self.tooltip_state=False
+            self.helper.setFixedSize(22, 22)
+            self.iconfolder=os.path.join(fileop.visexpman_package_path(),'data', 'icons')
+            self.helper.setIcon(QtGui.QIcon(os.path.join(self.iconfolder, "help_off.png")))
+            self.helper.setToolTip('Click here for detailed help')
+            self.helper.clicked.connect(self.help_click)
+            menubar.setCornerWidget(self.helper)
+            self.tooltiplist = []
+            for item in self.findChildren(QtGui.QWidget):#TODO: implement aggregating tooltip strings automatically
+                self.tooltiplist.append(item.toolTip())
+                item.setToolTip("")
+        
+    def help_click(self):
+        widgets = self.findChildren(QtGui.QWidget)
+        if(self.tooltip_state):
+            self.helper.setIcon(QtGui.QIcon(os.path.join(self.iconfolder,"help_on.png")))
+            for item in widgets:
+                item.setToolTip("")
+            self.helper.setToolTip('Click here for detailed help')            
+            self.tooltip_state = False
+        else:
+            self.helper.setIcon(QtGui.QIcon(os.path.join(self.iconfolder,"help_off.png")))
+            for item in widgets:
+                item.setToolTip(self.tooltiplist[widgets.index(item)])
+            self.helper.setToolTip('Click here to hide tooltips')
+            self.tooltip_state = True
         
     def check_queue(self):
         pass
