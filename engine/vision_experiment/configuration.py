@@ -76,7 +76,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
+        PLATFORM = ['undefined', ['retinal', 'elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -269,6 +269,18 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
 
+class RetinalSetup(VisionExperimentConfig):
+    '''
+    Base configuration for retinal setups with elphys/ca imaging
+    '''
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'retinal'
+        #Later: self.CONNECTIONS['ca_imaging'] = {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}}
+        
+        self._create_parameters_from_locals(locals())
+
+#OBSOLETE
 class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
     '''
         FILTERWHEEL = [{
