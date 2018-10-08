@@ -3533,7 +3533,7 @@ class VerifyInstallation(object):
         fileop.download_folder('rldata.fmi.ch', 'mouse', '/data/software/rldata/visexpman', tempfile.gettempdir(), password=pw)
         
     def verify_pygame(self):
-        from visexpman.engine.visexp_app import stimulation_tester
+        from visexpman.applications.visexpman_main import stimulation_tester
         stimulation_tester('zoltan', 'StimulusDevelopment', 'ShortTestStimulus')
 
     def verify_qt(self):

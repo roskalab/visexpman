@@ -494,7 +494,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
         self._set_window_title()
         #Set up toobar
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal']:
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
@@ -521,7 +521,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical']:
             self.image = Image(self,roi_diameter=self.machine_config.DEFAULT_ROI_SIZE_ON_GUI)
             #self.image.setFixedHeight(480)
             #self.image.setFixedWidth(480)
@@ -539,7 +539,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.cellbrowser=CellBrowser(self)
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal',  'ao_cortical', 'us_cortical', 'resonant']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
@@ -554,7 +554,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical', 'us_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical', 'us_cortical', 'resonant']:
             self.main_tab.addTab(self.analysis, 'Analysis')
         if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
@@ -736,9 +736,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca',  'retinal']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal','ao_cortical']:
             self.params_config.extend([
                                                   {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
