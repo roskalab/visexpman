@@ -607,7 +607,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 elif self.machine_config.PLATFORM=='hi_mea':
                     #send start signal
                     self._send_himea_cmd("start")
-                elif self.machine_config.PLATFORM=='elphys_retinal_ca':
+                elif self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca']:
+                    cmd='sec {0} filename {1}'.format(self.parameters['duration']+self.machine_config.CA_IMAGING_START_DELAY, self.parameters['outfolder'])
+                    self.printl(cmd)
+                    utils.send_udp(self.machine_config.CONNECTIONS['ca_imaging']['ip']['ca_imaging'],446,cmd)
+                    time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
                     self.send({'trigger':'stim started'})
                 elif self.machine_config.PLATFORM=='mc_mea':
                     pass
@@ -659,15 +663,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'trigger':'stim error'})
                 self.printl(traceback.format_exc())
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
+            self._start_frame_capture()
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
-                self._start_frame_capture()
                 self.run()
-                self._stop_frame_capture()
             except:
                 self.abort=True
                 self.send({'trigger':'stim error'})
                 self.printl(traceback.format_exc())
+            self._stop_frame_capture()
             self.log.resume()
             #Terminate recording devices
             if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav']:
