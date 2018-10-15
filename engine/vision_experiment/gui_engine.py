@@ -383,7 +383,7 @@ class ExperimentHandler(object):
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
-        fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
+        fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'sync')
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
@@ -449,7 +449,7 @@ class ExperimentHandler(object):
                     pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
-                fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+                fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
             elif self.machine_config.PLATFORM=='resonant':
                 self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
                 #Convert to mat file except for Dani
