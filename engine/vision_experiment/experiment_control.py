@@ -608,6 +608,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     #send start signal
                     self._send_himea_cmd("start")
                 elif self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca']:
+                    if self.machine_config.PLATFORM == 'retinal':
+                        self.sync_recording_duration=self.parameters['duration']
+                        self.start_sync_recording()
                     cmd='sec {0} filename {1}'.format(self.parameters['duration']+self.machine_config.CA_IMAGING_START_DELAY, self.parameters['outfolder'])
                     self.printl(cmd)
                     utils.send_udp(self.machine_config.CONNECTIONS['ca_imaging']['ip']['ca_imaging'],446,cmd)
@@ -674,7 +677,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self._stop_frame_capture()
             self.log.resume()
             #Terminate recording devices
-            if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav']:
+            if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
@@ -692,16 +695,16 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM == 'resonant':
                 if not self.mesc_error:
                     self.send({'mesc':'stop'})
-            if self.machine_config.PLATFORM in ['standalone', 'ao_cortical', 'resonant', 'behav']:
+            if self.machine_config.PLATFORM in ['standalone', 'ao_cortical', 'resonant', 'behav', 'retinal']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
             #Saving data
             if not self.abort:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant']:
+                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant']:
                     self.send({'trigger':'stim data ready'})
-                if self.machine_config.PLATFORM in ['ao_cortical',  'resonant']:
+                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
                     self._backup(self.datafilename)
                     self.printl('{0} backed up'.format(self.datafilename))
                 elif self.machine_config.PLATFORM in ['standalone']:
