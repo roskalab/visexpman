@@ -47,14 +47,12 @@ def get_recording_name(parameters, separator):
         if k in parameters and parameters[k]!='':
             name += str(parameters[k])+separator
     return name[:-1]
-    
-def get_recording_filename(config, parameters, prefix):
+
+def get_recording_path(config, parameters, prefix = '', filename_only=False):
     if prefix != '':
         prefix = prefix + '_'
-    return prefix + get_recording_name(parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
-
-def get_recording_path(config, parameters, prefix = ''):
-    return os.path.join(get_user_experiment_data_folder(parameters), get_recording_filename(config, parameters, prefix))
+    fn=prefix + get_recording_name(parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
+    return os.path.join(get_user_experiment_data_folder(parameters), fn)
     
 def get_user_experiment_data_folder(parameters):
     '''

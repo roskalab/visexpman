@@ -85,6 +85,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 return 'terminate'
             elif key_pressed == self.config.KEYS['measure framerate']:#measure frame rate
                 self.measure_frame_rate()
+            elif key_pressed == self.config.KEYS['flicker screen']:#flicker screen
+                self.flicker()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -152,6 +154,20 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         self.printl('test OK 1')
         time.sleep(0.1)
         self.printl('test OK 2')
+
+    def flicker(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        i=0
+        while True:
+            c=float(i%2)
+            i+=1
+            self.clear_screen(color = colors.convert_color(c, self.config))
+            self.flip()
+            keys = check_keyboard()
+            if "a" in keys:
+                break
+        
 
     def measure_frame_rate(self,duration=10.0, background_color=None ):
         from visexpman.engine.generic import colors
