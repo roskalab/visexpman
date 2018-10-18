@@ -695,6 +695,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM == 'resonant':
                 if not self.mesc_error:
                     self.send({'mesc':'stop'})
+            if self.machine_config.PLATFORM in [ 'retinal']:
+                #Make sure that imaging recording finishes before terminating sync recording
+                time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
             if self.machine_config.PLATFORM in ['standalone', 'ao_cortical', 'resonant', 'behav', 'retinal']:
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
