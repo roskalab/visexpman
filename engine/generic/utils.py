@@ -15,6 +15,8 @@ import copy
 import select
 import subprocess
 import pickle
+import warnings
+
 if os.name == 'nt':
     import win32process
     import win32api
@@ -494,6 +496,8 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
             filtered_class_list.append(class_item)
         elif not class_item[0].__name__.find('automated_test_data') != -1 and not unit_test_runner.TEST_test:
             filtered_class_list.append(class_item)
+    if len(filtered_class_list) == 0:
+        warnings.warn(f'Could not find any class that matches the specifications.')
     return filtered_class_list
     
 def class_list_in_string(class_list):
