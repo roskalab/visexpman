@@ -87,6 +87,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 self.measure_frame_rate()
             elif key_pressed == self.config.KEYS['flicker screen']:#flicker screen
                 self.flicker()
+            elif key_pressed == self.config.KEYS['arbitrary timing']:
+                self.arbitrary_timing()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -158,17 +160,50 @@ class StimulationLoop(ServerLoop, StimulationScreen):
     def flicker(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
-        i=0
-        while True:
-            c=float(i%2)
-            i+=1
-            self.clear_screen(color = colors.convert_color(c, self.config))
+        for fps in [144, 100, 50, 25, 15]:
+            print fps
+            self.clear_screen(color = colors.convert_color(0, self.config))
             self.flip()
+            time.sleep(5)
+            t00=time.time()
+            i=0
+            t0step=time.time()
+            flip_times=[]
+            while True:
+                c=float(i%2)
+                i+=1
+                self.clear_screen(color = colors.convert_color(c, self.config))
+                tt00=time.time()
+                self.flip()
+                flip_times.append(time.time()-tt00)
+                time.sleep(1.0/fps)
+                keys = check_keyboard()
+                if "a" in keys:
+                    break
+                if time.time()-t0step>2.0:
+                    break
+            print flip_times
+            print i/(time.time()-t00)
+            keys = check_keyboard()
+            if "q" in keys:
+                break
+        
+    def arbitrary_timing(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        timesteps=[10e-3,  20e-3,  30e-3, 40e-3]
+        intensities=[1.0,  0.0,  1.0,  0.0]
+        while True:
+            t0=time.time()
+            for i in range(len(intensities)):
+                self.clear_screen(color = colors.convert_color(intensities[i], self.config))
+                self.flip()
+                time.sleep(timesteps[i])
+            print 1000*(time.time()-t0)
             keys = check_keyboard()
             if "a" in keys:
                 break
         
-
     def measure_frame_rate(self,duration=10.0, background_color=None ):
         from visexpman.engine.generic import colors
         cols = numpy.cos(numpy.arange(0, 2*numpy.pi, 2*numpy.pi/(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)))+0.5
