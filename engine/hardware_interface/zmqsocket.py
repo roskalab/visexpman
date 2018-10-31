@@ -76,6 +76,7 @@ class ZmqSocket(QObject):
         _return=[]
         while 1:
             _msg=self._recv_json()
+            print(_msg)
             if not _msg: break
             _return.append(_msg)
         return _return 
