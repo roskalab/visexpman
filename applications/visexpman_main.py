@@ -160,11 +160,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
     def flicker(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
+        wait_before_flip=False
         for fps in [144, 100, 50, 25, 15]:
             print fps
             self.clear_screen(color = colors.convert_color(0, self.config))
             self.flip()
-            time.sleep(5)
+            time.sleep(0.5)
             t00=time.time()
             i=0
             t0step=time.time()
@@ -174,13 +175,16 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 i+=1
                 self.clear_screen(color = colors.convert_color(c, self.config))
                 tt00=time.time()
-                self.flip()
+                if not wait_before_flip:
+                    self.flip()
                 flip_times.append(time.time()-tt00)
                 time.sleep(1.0/fps)
+                if wait_before_flip:
+                    self.flip()
                 keys = check_keyboard()
                 if "a" in keys:
                     break
-                if time.time()-t0step>2.0:
+                if time.time()-t0step>1.0:
                     break
             print flip_times
             print i/(time.time()-t00)
@@ -191,14 +195,20 @@ class StimulationLoop(ServerLoop, StimulationScreen):
     def arbitrary_timing(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
-        timesteps=[10e-3,  20e-3,  30e-3, 40e-3]
-        intensities=[1.0,  0.0,  1.0,  0.0]
+        wait_before_flip=False
+        pause=50e-3
+        timesteps=[10e-3,  pause, 10e-3,  pause, 20e-3,  pause, 20e-3,  pause, 30e-3, pause, 30e-3, pause, 40e-3, pause, 40e-3, pause, 50e-3, pause, 50e-3, pause]
+        intensities=numpy.array([1.0]*len(timesteps))
+        intensities[1::2]=0.0
         while True:
             t0=time.time()
             for i in range(len(intensities)):
                 self.clear_screen(color = colors.convert_color(intensities[i], self.config))
-                self.flip()
+                if not wait_before_flip:
+                    self.flip()
                 time.sleep(timesteps[i])
+                if wait_before_flip:
+                    self.flip()
             print 1000*(time.time()-t0)
             keys = check_keyboard()
             if "a" in keys:
