@@ -197,8 +197,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
         wait_before_flip=False
-        pause=50e-3
-        timesteps=[10e-3,  pause, 10e-3,  pause, 20e-3,  pause, 20e-3,  pause, 30e-3, pause, 30e-3, pause, 40e-3, pause, 40e-3, pause, 50e-3, pause, 50e-3, pause]
+        pause=20e-3
+        timesteps=[10e-3,  pause, 10e-3,  pause, 20e-3,  pause, 20e-3,  pause, 30e-3, pause, 30e-3, pause, 40e-3, pause, 40e-3, pause]
         intensities=numpy.array([1.0]*len(timesteps))
         intensities[1::2]=0.0
         while True:
