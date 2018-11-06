@@ -223,11 +223,19 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 break
                 
     def tearing(self):
-        for i in range(500):
-            image=numpy.zeros((5, 5, 3))
-            image[i%5, i%5, :]=1.0
-            self.render_image(image, position = utils.rc((0, 0)), stretch=100.0)
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        for i in range(600):
+            self.clear_screen(color = colors.convert_color(0.0, self.config))
+            image=numpy.zeros((500, 500))
+            index=(i*5)%image.shape[0]
+            image[index:index+5, :]=1.0
+            image=numpy.array([image]*3).T
+            self.render_image(image, position = utils.rc((0, 0)), stretch=1.0)
             self.flip()
+            keys = check_keyboard()
+            if "a" in keys:
+                break
         
     def measure_frame_rate(self,duration=10.0, background_color=None ):
         from visexpman.engine.generic import colors
