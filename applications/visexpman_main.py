@@ -89,6 +89,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 self.flicker()
             elif key_pressed == self.config.KEYS['arbitrary timing']:
                 self.arbitrary_timing()
+            elif key_pressed == self.config.KEYS['tearing']:
+                self.tearing()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -161,6 +163,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
         wait_before_flip=False
+        insert_delay=True
         for fps in [144,  80, 40, 20]:
             print fps
             for i in range(144/2):
@@ -172,7 +175,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             flip_times=[]
             while True:
                 c=float(i%2)
-                print i, c
+#                print i, c
                 i+=1
                 self.clear_screen(color = colors.convert_color(c, self.config))
                 tt00=time.time()
@@ -185,8 +188,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 keys = check_keyboard()
                 if "a" in keys:
                     break
-                if time.time()-t0step>1.0:
+                dt=time.time()-t0step
+                if dt>1.0:
                     break
+                if insert_delay and dt>0.5:
+                    time.sleep(30e-3)
+                    insert_delay=False
             print flip_times
             print i/(time.time()-t00)
             keys = check_keyboard()
@@ -198,7 +205,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic.graphics import check_keyboard
         wait_before_flip=False
         pause=20e-3
-        timesteps=[10e-3,  pause, 10e-3,  pause, 20e-3,  pause, 20e-3,  pause, 30e-3, pause, 30e-3, pause, 40e-3, pause, 40e-3, pause]
+        timesteps=[10e-3,  pause]
         intensities=numpy.array([1.0]*len(timesteps))
         intensities[1::2]=0.0
         while True:
@@ -210,10 +217,17 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 time.sleep(timesteps[i])
                 if wait_before_flip:
                     self.flip()
-            print 1000*(time.time()-t0)
+#            ,print 1000*(time.time()-t0)
             keys = check_keyboard()
             if "a" in keys:
                 break
+                
+    def tearing(self):
+        for i in range(500):
+            image=numpy.zeros((5, 5, 3))
+            image[i%5, i%5, :]=1.0
+            self.render_image(image, position = utils.rc((0, 0)), stretch=100.0)
+            self.flip()
         
     def measure_frame_rate(self,duration=10.0, background_color=None ):
         from visexpman.engine.generic import colors
