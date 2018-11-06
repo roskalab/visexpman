@@ -323,7 +323,7 @@ class Jobhandler(object):
             self.analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
             print((self.analysis_config.ROI['parallel']))
             if 1:#skip this while parallel processing is fixed
-                h = hdf5io.iopen(filename,self.analysis_config)
+                h = hdf5io._iopen(filename,self.analysis_config)
                 if h is not None:
                     for c in create:
                         self.printl('create_'+c)
@@ -778,7 +778,7 @@ def jobhandler_process_single_file(filename, user):
             create = ['roi_curves','soma_rois_manual_info']
             export = ['roi_curves'] 
             analysis_config.ROI['parallel']='mp-wiener' if user == 'fiona' else 'mp'
-            h = hdf5io.iopen(fn,analysis_config)
+            h = hdf5io._iopen(fn,analysis_config)
             if h is not None:
                 for c in create:
                     h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)

@@ -472,7 +472,7 @@ class CommandInterface(command_parser.CommandParser):
                         if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
                             create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
                             export = ['roi_curves'] 
-                            h = hdf5io.iopen(full_fragment_path,self.analysis_config)
+                            h = hdf5io._iopen(full_fragment_path,self.analysis_config)
                             if h is not None:
                                 for c in create:
                                     self.printl('create_'+c)
@@ -711,7 +711,7 @@ class TestJobhandler(unittest.TestCase):
                 if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
                     create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
                     export = ['roi_curves'] 
-                    h = hdf5io.iopen(full_fragment_path,self.analysis_config)
+                    h = hdf5io._iopen(full_fragment_path,self.analysis_config)
                     if h is not None:
                         for c in create:
                             print('create_'+c)
@@ -762,7 +762,7 @@ def offline(folder,output_folder=None,video=False):
             ONLINE_ANALYSIS_STIMS=['grating','movingdot','led']
             stimulus=os.path.basename(f).split('_')[-3]
             if len([sn for sn in ONLINE_ANALYSIS_STIMS if sn.lower() in stimulus.lower()])>0 and 1:
-                h = hdf5io.iopen(f,analysis_config)
+                h = hdf5io._iopen(f,analysis_config)
                 if h is not None:
                     for c in create:
                         print(('create_'+c))
