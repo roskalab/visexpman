@@ -175,7 +175,7 @@ class LedStimulation(experiment.Experiment):
             import winsound
             winsound.PlaySound('ExitWindows',winsound.SND_ALIAS)
 
-            class KamillLedStimulation(experiment.Experiment):
+    class KamillLedStimulation(experiment.Experiment):
     '''
     Flashes externally connected blue led controller by generating analog control signals using daq analog output
     '''
