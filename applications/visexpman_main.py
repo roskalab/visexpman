@@ -163,7 +163,6 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
         wait_before_flip=False
-        insert_delay=True
         for fps in [144,  80, 40, 20]:
             print fps
             for i in range(144/2):
@@ -173,6 +172,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             i=0
             t0step=time.time()
             flip_times=[]
+            insert_delay=True
             while True:
                 c=float(i%2)
 #                print i, c
@@ -204,7 +204,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
         wait_before_flip=False
-        pause=20e-3
+        pause=30e-3
         timesteps=[10e-3,  pause]
         intensities=numpy.array([1.0]*len(timesteps))
         intensities[1::2]=0.0
