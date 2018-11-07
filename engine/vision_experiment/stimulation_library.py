@@ -977,9 +977,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              ])
         t,rect=self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates,set_vertices=False,enable_texture=False)
         if mask_size!=None:
-            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1, offset=max(pos['col'], pos['row']))
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1, offset=max(pos_adjusted))
             vertices=numpy.append(rect,mask,axis=0)
-            vertices+=numpy.array([pos['col'], pos['row']])
+            vertices+=numpy.array([pos_adjusted])
         else:
             vertices=rect
         glEnableClientState(GL_VERTEX_ARRAY)
