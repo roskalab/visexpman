@@ -303,7 +303,7 @@ class Screen(object):
         
     def clear_screen(self, color = None):
         #clears screen to color
-        if color != None:
+        if color is not None:
             glClearColor(color[0], color[1], color[2], 0.0)
         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         

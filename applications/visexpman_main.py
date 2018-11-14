@@ -85,6 +85,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 return 'terminate'
             elif key_pressed == self.config.KEYS['measure framerate']:#measure frame rate
                 self.measure_frame_rate()
+            elif key_pressed == self.config.KEYS['flicker screen']:#flicker screen
+                self.flicker()
+            elif key_pressed == self.config.KEYS['arbitrary timing']:
+                self.arbitrary_timing()
+            elif key_pressed == self.config.KEYS['tearing']:
+                self.tearing()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -153,6 +159,84 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         time.sleep(0.1)
         self.printl('test OK 2')
 
+    def flicker(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        wait_before_flip=False
+        for fps in [144,  80, 40, 20]:
+            print fps
+            for i in range(144/2):
+                self.clear_screen(color = colors.convert_color(0, self.config))
+                self.flip()
+            t00=time.time()
+            i=0
+            t0step=time.time()
+            flip_times=[]
+            insert_delay=True
+            while True:
+                c=float(i%2)
+#                print i, c
+                i+=1
+                self.clear_screen(color = colors.convert_color(c, self.config))
+                tt00=time.time()
+                if not wait_before_flip:
+                    self.flip()
+                flip_times.append(time.time()-tt00)
+                time.sleep(1.0/fps)
+                if wait_before_flip:
+                    self.flip()
+                keys = check_keyboard()
+                if "a" in keys:
+                    break
+                dt=time.time()-t0step
+                if dt>1.0:
+                    break
+                if insert_delay and dt>0.5:
+                    time.sleep(30e-3)
+                    insert_delay=False
+            print flip_times
+            print i/(time.time()-t00)
+            keys = check_keyboard()
+            if "q" in keys:
+                break
+        
+    def arbitrary_timing(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        wait_before_flip=False
+        pause=30e-3
+        timesteps=[10e-3,  pause]
+        intensities=numpy.array([1.0]*len(timesteps))
+        intensities[1::2]=0.0
+        while True:
+            t0=time.time()
+            for i in range(len(intensities)):
+                self.clear_screen(color = colors.convert_color(intensities[i], self.config))
+                if not wait_before_flip:
+                    self.flip()
+                time.sleep(timesteps[i])
+                if wait_before_flip:
+                    self.flip()
+#            ,print 1000*(time.time()-t0)
+            keys = check_keyboard()
+            if "a" in keys:
+                break
+                
+    def tearing(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        for i in range(600):
+            self.clear_screen(color = colors.convert_color(0.0, self.config))
+            image=numpy.zeros((500, 500))
+            index=(i*5)%image.shape[0]
+            image[index:index+5, :]=1.0
+            image=numpy.array([image]*3).T
+            self.render_image(image, position = utils.rc((0, 0)), stretch=1.0)
+            self.flip()
+            keys = check_keyboard()
+            if "a" in keys:
+                break
+        
     def measure_frame_rate(self,duration=10.0, background_color=None ):
         from visexpman.engine.generic import colors
         cols = numpy.cos(numpy.arange(0, 2*numpy.pi, 2*numpy.pi/(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)))+0.5

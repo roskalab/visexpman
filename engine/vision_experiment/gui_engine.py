@@ -63,7 +63,7 @@ class ExperimentHandler(object):
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
-            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical', 'resonant', 'behav']:
+            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical', 'resonant', 'behav',  'retinal']:
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
                 self.sync_recorder.start()
             self.sync_recording_started=False
@@ -383,7 +383,7 @@ class ExperimentHandler(object):
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
-        fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'sync'))
+        fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'sync')
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
@@ -449,14 +449,14 @@ class ExperimentHandler(object):
                     pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
-                fn=os.path.join(self.current_experiment_parameters['outfolder'],experiment_data.get_recording_filename(self.machine_config, self.current_experiment_parameters, prefix = 'data'))
+                fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
             elif self.machine_config.PLATFORM=='resonant':
                 self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
                 #Convert to mat file except for Dani
                 if self.machine_config.user!='daniel':
                     experiment_data.hdf52mat(self.outputfilename)
                     self.printc('{0} converted to mat'.format(self.outputfilename))
-            if not (self.machine_config.PLATFORM in ['ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['retinal', 'ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
@@ -649,7 +649,7 @@ class ExperimentHandler(object):
         if trigger_name == 'stim started':
             self.printc('WARNING: no stim started trigger timeout implemented')
         elif trigger_name == 'stim done':
-            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical']:
+            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal']:
                 self.enable_check_network_status=True
             self.finish_experiment()
         elif trigger_name=='stim data ready':
@@ -665,7 +665,7 @@ class ExperimentHandler(object):
                 else:
                     self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.outputfilename)))
         elif trigger_name=='stim error':
-            if self.machine_config.PLATFORM=='mc_mea' or self.machine_config.PLATFORM=='elphys_retinal_ca':
+            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:
                 self.enable_check_network_status=True
             elif self.machine_config.PLATFORM=='resonant':
                 self.printc('Stop mesc recording, might still running')
@@ -1517,7 +1517,7 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant'] or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal'] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
