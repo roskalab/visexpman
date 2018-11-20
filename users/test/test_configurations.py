@@ -484,11 +484,11 @@ class StageExperimentTestConfig(configuration.VisionExperimentConfig):
         self._create_parameters_from_locals(locals())
 
         
-class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
+class GUITestConfig(configuration.VisionExperimentConfig):
     def __init__(self, clear_files = False, capture_frames = False):
         self.clear_files = clear_files
         self.capture_frames = capture_frames
-        configuration.ElphysRetinalCaImagingConfig.__init__(self)
+        configuration.VisionExperimentConfig.__init__(self)
         
     def _set_user_parameters(self):
         from visexpman.users.test import unittest_aggregator

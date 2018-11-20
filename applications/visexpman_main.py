@@ -162,20 +162,32 @@ class StimulationLoop(ServerLoop, StimulationScreen):
     def flicker(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
-        wait_before_flip=False
-        for fps in [144,  80, 40, 20]:
+        wait_before_flip=not False
+        offset=0.5
+        contrast=1.0
+        on=offset+0.5*contrast
+        off=offset-0.5*contrast
+        fpss=[60, 40,20] if self.machine_config.SCREEN_EXPECTED_FRAME_RATE==60 else [144,80,40,20]
+        tstart=time.time()
+        for fps in fpss:
+            if fps<=40:
+                nreps=40
+            else:
+                nreps=50
             print fps
-            for i in range(144/2):
+            for i in range(self.machine_config.SCREEN_EXPECTED_FRAME_RATE/4):
                 self.clear_screen(color = colors.convert_color(0, self.config))
                 self.flip()
             t00=time.time()
             i=0
             t0step=time.time()
             flip_times=[]
-            insert_delay=True
+            insert_delay=not True
             while True:
-                c=float(i%2)
-#                print i, c
+                if i%2==0:
+                    c=on
+                else:
+                    c=off
                 i+=1
                 self.clear_screen(color = colors.convert_color(c, self.config))
                 tt00=time.time()
@@ -199,11 +211,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             keys = check_keyboard()
             if "q" in keys:
                 break
+        print time.time()-tstart
         
     def arbitrary_timing(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
-        wait_before_flip=False
+        wait_before_flip=not False
         pause=30e-3
         timesteps=[10e-3,  pause]
         intensities=numpy.array([1.0]*len(timesteps))

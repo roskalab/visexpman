@@ -506,6 +506,8 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'mesc_connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
+        elif self.machine_config.PLATFORM =='elphys':
+            toolbar_buttons = ['start_experiment', 'stop', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -537,9 +539,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.plot.setLabels(bottom='sec')
             self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal',  'ao_cortical', 'us_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
@@ -554,15 +556,15 @@ class MainUI(gui.VisexpmanMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical', 'us_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['elphys', 'retinal', 'ao_cortical', 'us_cortical', 'resonant']:
             self.main_tab.addTab(self.analysis, 'Analysis')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.PLATFORM in ['us_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['resonant']:
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['tbd']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
         if hasattr(self.machine_config, 'WIDGET'):
@@ -575,12 +577,12 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self.load_all_parameters()
         self.show()
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['retinal', 'ao_cortical']:
             self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
-        if self.machine_config.PLATFORM == 'elphys_retinal_ca' and hasattr(self.analysis_helper, 'show_repetitions'):
+        if self.machine_config.PLATFORM == 'retinal' and hasattr(self.analysis_helper, 'show_repetitions'):
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
         self.main_tab.currentChanged.connect(self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
@@ -736,9 +738,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca',  'retinal']:
+        if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal','ao_cortical']:
+        if self.machine_config.PLATFORM in ['retinal','ao_cortical']:
             self.params_config.extend([
                                                   {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
@@ -755,20 +757,26 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': '3d to 2d Image Function', 'type': 'list', 'values': ['mean', 'mip'], 'value': 'mean'},
                             ]
                             }])
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[-1]['children'].append({'name': 'Motion Correction', 'type': 'bool', 'value': False})
         if 'santiago' in self.machine_config.__class__.__name__.lower():
             from visexpman.users.santiago import bouton_analysis
             self.params_config[-1]['children'].extend(bouton_analysis.settings)
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
-        elif self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
+        elif self.machine_config.PLATFORM in ['elphys']:
+                if self.machine_config.AMPLIFIER_TYPE=='differential':
+                    pars=[{'name': 'gain', 'type': 'float', 'value': 1000}]
+                elif self.machine_config.AMPLIFIER_TYPE=='patch':
+                    pars=[{'name': 'clamp mode', 'type': 'list', 'values': ['current', 'voltage']},
+                                {'name': 'Current Gain', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'pA/V??'},
+                                {'name': 'Voltage Gain', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'mV/V??'}]
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
-                                {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
-                                {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+                                {'name': 'Sample Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},                                
                             ]},  ]               
                         )
+                self.params_config[-1]['children'].append(pars)
         if self.machine_config.PLATFORM=='mc_mea':
             self.params_config[0]['children'].extend([
                 {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
@@ -790,7 +798,10 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):
-            self.params_config.append(self.machine_config.SETUP_SETTINGS)
+            if isinstance(self.machine_config.SETUP_SETTINGS, list):
+                self.params_config.extend(self.machine_config.SETUP_SETTINGS)
+            else:
+                self.params_config.append(self.machine_config.SETUP_SETTINGS)
 
     ############# Actions #############
     def start_experiment_action(self):
