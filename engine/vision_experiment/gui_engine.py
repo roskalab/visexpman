@@ -289,6 +289,13 @@ class ExperimentHandler(object):
             experiment_parameters=self._get_experiment_parameters()
             if experiment_parameters==None:
                 return
+        if self.machine_config.PLATFORM=='elphys':
+            introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
+            experiment_module = __import__('experiment_module')
+            self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
+                                                                                                  log=self.log)
+            #TODO: allow only electrical stimulus, implement starting stimulus, start sync recording
+            return
         if self.machine_config.PLATFORM=='ao_cortical':
             if not self.ask4confirmation('Is AO line scan selected on MES user interface?'):
                 return
