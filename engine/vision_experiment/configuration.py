@@ -76,7 +76,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['retinal', 'elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
+        PLATFORM = ['undefined', ['retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -279,7 +279,7 @@ class RetinalSetup(VisionExperimentConfig):
         self.CONNECTIONS['ca_imaging'] = {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}}        
         self._create_parameters_from_locals(locals())
 
-class ElphysSetup(VisionExperimentConfig):
+class ElphysConfig(VisionExperimentConfig):
     '''
     Base configuration for elphys setups where only electrophysiological recordings take place. 
     Visual and electrical stimulation is supported.
@@ -288,6 +288,7 @@ class ElphysSetup(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'elphys'
         AMPLIFIER_TYPE='differential'
+        COORDINATE_SYSTEM='center'
         self._create_parameters_from_locals(locals())
 
         

@@ -769,14 +769,15 @@ class MainUI(gui.VisexpmanMainWindow):
                     pars=[{'name': 'gain', 'type': 'float', 'value': 1000}]
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
                     pars=[{'name': 'clamp mode', 'type': 'list', 'values': ['current', 'voltage']},
-                                {'name': 'Current Gain', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'pA/V??'},
-                                {'name': 'Voltage Gain', 'type': 'float', 'value': 3.0, 'siPrefix': True, 'suffix': 'mV/V??'}]
+                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5, 'siPrefix': True, 'suffix': 'pA/V'},
+                                {'name': 'Voltage Gain', 'type': 'float', 'value': 10.0, 'siPrefix': True, 'suffix': 'mV/V'}
+                                ]
                 self.params_config.extend([
-                            {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
-                                {'name': 'Sample Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},                                
+                            {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Recording Sample Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
                             ]},  ]               
                         )
-                self.params_config[-1]['children'].append(pars)
+                self.params_config[-1]['children'].extend(pars)
         if self.machine_config.PLATFORM=='mc_mea':
             self.params_config[0]['children'].extend([
                 {'name': 'Bandpass filter', 'type': 'str', 'value': ''},

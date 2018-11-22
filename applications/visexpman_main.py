@@ -91,6 +91,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 self.arbitrary_timing()
             elif key_pressed == self.config.KEYS['tearing']:
                 self.tearing()
+            elif key_pressed == self.config.KEYS['contrast steps']:
+                self.contrast_steps()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -212,6 +214,20 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             if "q" in keys:
                 break
         print time.time()-tstart
+        
+    def contrast_steps(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        step_time=20e-3
+        step_size=0.1
+        intensities=numpy.linspace(0.0,1.0, 1/step_size+1)
+        for i in intensities:
+            self.clear_screen(color = colors.convert_color(i, self.config))
+            time.sleep(step_time)
+            self.flip()
+            keys = check_keyboard()
+            if "a" in keys:
+                break
         
     def arbitrary_timing(self):
         from visexpman.engine.generic import colors
