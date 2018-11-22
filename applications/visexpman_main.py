@@ -163,8 +163,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
         wait_before_flip=not False
-        offset=0.5
-        contrast=1.0
+        offset=0.75
+        contrast=0.5
         on=offset+0.5*contrast
         off=offset-0.5*contrast
         fpss=[60, 40,20] if self.machine_config.SCREEN_EXPECTED_FRAME_RATE==60 else [144,80,40,20]
@@ -175,7 +175,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             else:
                 nreps=50
             print fps
-            for i in range(self.machine_config.SCREEN_EXPECTED_FRAME_RATE/4):
+            for i in range(int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE/4)):
                 self.clear_screen(color = colors.convert_color(0, self.config))
                 self.flip()
             t00=time.time()
