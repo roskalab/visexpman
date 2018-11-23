@@ -93,6 +93,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 self.tearing()
             elif key_pressed == self.config.KEYS['contrast steps']:
                 self.contrast_steps()
+            elif key_pressed == self.config.KEYS['led test']:
+                self.led_test()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -214,6 +216,43 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             if "q" in keys:
                 break
         print time.time()-tstart
+        
+    def led_test(self):
+        fps=50
+        screen_setup_time=7e-3
+        comport='COM4'
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.engine.hardware_interface import digital_io
+        import PyDAQmx
+        import PyDAQmx.DAQmxConstants as DAQmxConstants
+        import PyDAQmx.DAQmxTypes as DAQmxTypes
+        io=digital_io.IOBoard(comport)
+        digital_input = PyDAQmx.Task()
+        digital_input.CreateDIChan('Dev1/port1/line0','di', DAQmxConstants.DAQmx_Val_ChanPerLine)
+        data = numpy.zeros((1,), dtype=numpy.uint8 )
+        total_samps = DAQmxTypes.int32()
+        total_bytes = DAQmxTypes.int32()
+        ct=0
+        io.reset()
+        io.set_waveform(self,fps, 0, 0)
+        io.elongate(screen_setup_time*1e6, 4)
+        time.sleep(1)
+        while True:
+            self.clear_screen(color = colors.convert_color(float(ct%2), self.config))            
+            t0=time.time()
+            while True:
+                digital_input.ReadDigitalLines(1,0.1,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+                if data[0]==1 or time.time()-t0>3:
+                    break
+            self.flip()
+            ct+=1
+            keys = check_keyboard()
+            if "a" in keys:
+                break
+        digital_input.ClearTask()
+        io.stop_waveform()
+        io.close()
         
     def contrast_steps(self):
         from visexpman.engine.generic import colors
