@@ -323,7 +323,10 @@ class IOBoard(object):
         for i in range(ndigchannels):
             waveform[:,i]=numpy.where(vect[:,1]&(4<<i)==0,0,1)
         return t, waveform
-            
+        
+    def elongate(self, duration, port):
+        res=self.command('elongate,{0},{1}'.format(float(duration), float(port)))
+        return res
             
     def close(self):
         self.s.close()
