@@ -165,12 +165,14 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
         wait_before_flip=not False
-        offset=0.75
-        contrast=0.5
+        offset=0.5
+        contrast=1.0
         on=offset+0.5*contrast
         off=offset-0.5*contrast
         fpss=[60, 40,20] if self.machine_config.SCREEN_EXPECTED_FRAME_RATE==60 else [144,80,40,20]
         tstart=time.time()
+        rectangle=True
+        rectangle_size=500
         for fps in fpss:
             if fps<=40:
                 nreps=40
@@ -191,7 +193,11 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 else:
                     c=off
                 i+=1
-                self.clear_screen(color = colors.convert_color(c, self.config))
+                if rectangle:
+                    self.clear_screen(color = colors.convert_color(0, self.config))
+                    self.render_rectangle(utils.rc((0, 0)),  utils.rc((rectangle_size, rectangle_size)),  colors.convert_color(c, self.config))
+                else:
+                    self.clear_screen(color = colors.convert_color(c, self.config))
                 tt00=time.time()
                 if not wait_before_flip:
                     self.flip()
@@ -221,13 +227,16 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         step_time=20e-3
         step_size=0.1
         intensities=numpy.linspace(0.0,1.0, 1/step_size+1)
-        for i in intensities:
-            self.clear_screen(color = colors.convert_color(i, self.config))
-            time.sleep(step_time)
-            self.flip()
-            keys = check_keyboard()
-            if "a" in keys:
-                break
+        intensities=numpy.concatenate((intensities, intensities[::-1]))
+        print intensities
+        for r in range(10):
+            for i in intensities:
+                self.clear_screen(color = colors.convert_color(i, self.config))
+                time.sleep(step_time)
+                self.flip()
+                keys = check_keyboard()
+                if "a" in keys:
+                    break
         
     def arbitrary_timing(self):
         from visexpman.engine.generic import colors
