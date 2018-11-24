@@ -11,7 +11,8 @@ IOBoardCommands::IOBoardCommands(void)
   waveform_state=OFF;
   elongate_state=ON;
   elongate_output_pin=5.0;
-  elongate_duration=1000.0;
+  elongate_duration=5000.0;
+  elongate_delay=0*7000.0;
   port=0;
   port_last=0;
   phase_counter=0;
@@ -186,18 +187,8 @@ void IOBoardCommands::run(void)
         Serial.println(EEPROM.read(ID_EEPROM_ADDRESS));
       }
     }
-    else if ((strcmp(command,"elongate")==0)&&(nparams==3))
+    else if ((strcmp(command,"elongate")==0)&&(nparams==4))//FOR SOME REASON THIS COMMAND DOES NOT WORK
     {
-      if (debug==1)
-      {
-        Serial.print("Elongate: ");
-        Serial.print(par[0]);
-        Serial.print(" on ");
-        Serial.print(par[1]);
-        Serial.print(" ");
-        Serial.print(par[2]);
-        Serial.println("us");
-      }
       if (par[0]==0.0)
       {
         elongate_state=OFF;
@@ -206,7 +197,16 @@ void IOBoardCommands::run(void)
       else
       {
         elongate_output_pin=par[1];
-        elongate_duration=par[2]-INT0_LATENCY_US;
+        elongate_duration=par[2];
+        elongate_delay=par[3];
+        if (elongate_delay<1e-3)
+        {
+          elongate_duration-=INT0_LATENCY_US;
+        }
+        else
+        {
+          elongate_delay-=INT0_LATENCY_US;
+        }
         Serial.println(elongate_duration);
         if (elongate_duration<0)
         {//TODO: This check does not work!!!!!!
@@ -216,9 +216,20 @@ void IOBoardCommands::run(void)
         {
           elongate_state=ON;
           EIMSK|=1;
-          elongate_output_pin=par[1];
-          elongate_duration=par[2]-INT0_LATENCY_US;
+          elongate_output_pin=par[2];
+          elongate_duration=par[3]-INT0_LATENCY_US;
         }
+      }
+      if (debug==1)
+      {
+        Serial.print("Elongate: port: ");
+        Serial.print(elongate_output_pin);
+        Serial.print(" duration ");
+        Serial.print(elongate_duration);
+        Serial.print(" delay: ");
+        Serial.print(elongate_delay);
+        Serial.print(" state");
+        Serial.println(elongate_state);
       }
     }
     else
@@ -308,10 +319,14 @@ void IOBoardCommands::elongate_isr(void)
 {
   if (elongate_state==ON)
   {
+    if (elongate_delay>0.0)
+    {
+        delayMicroseconds((unsigned long)(elongate_delay));
+    }
     set_pin(elongate_output_pin,1.0);
+    //Serial.print("I");
     delayMicroseconds((unsigned long)(elongate_duration));
     set_pin(elongate_output_pin,0.0);
   }
   
 }
-

@@ -224,15 +224,19 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         print time.time()-tstart
         
     def led_test(self):
-        fps=50
+        daq=True
+        fps=25
         screen_setup_time=7e-3
-        comport='COM4'
+        flash_time=5e-3
+        comport='COM3'
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
-        from visexpman.engine.hardware_interface import digital_io
+        from visexpman.engine.hardware_interface import digital_io, daq_instrument
         import PyDAQmx
         import PyDAQmx.DAQmxConstants as DAQmxConstants
         import PyDAQmx.DAQmxTypes as DAQmxTypes
+        duration=20
+        fsample=10000
         io=digital_io.IOBoard(comport)
         digital_input = PyDAQmx.Task()
         digital_input.CreateDIChan('Dev1/port1/line0','di', DAQmxConstants.DAQmx_Val_ChanPerLine)
@@ -241,24 +245,79 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         total_bytes = DAQmxTypes.int32()
         ct=0
         io.reset()
-        io.set_waveform(self,fps, 0, 0)
-        io.elongate(screen_setup_time*1e6, 4)
-        time.sleep(1)
+        if daq:
+            ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:2', fsample, duration+5, duration+7, diffmode=True)
+        time.sleep(0.5)
+#        io.set_pin(5, 1)
+#        io.set_pin(5, 0)
+        time.sleep(0.5)
+#        print io.elongate(5, screen_setup_time*1e6, flash_time*1e6)
+        io.set_waveform(fps, 0, 0)       
+        time.sleep(0.5)
+        t00=time.time()
         while True:
-            self.clear_screen(color = colors.convert_color(float(ct%2), self.config))            
+            c=(ct%4)
+            if c==0:
+                c=0.0
+            elif c==1:
+                c=0.5
+            elif c==2:
+                c=1.0
+            elif c==3:
+                c=0.5
+            self.clear_screen(color = colors.convert_color(float(c), self.config))            
             t0=time.time()
+            ii=0
             while True:
-                digital_input.ReadDigitalLines(1,0.1,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
-                if data[0]==1 or time.time()-t0>3:
+                digital_input.ReadDigitalLines(1,0.01,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+                ii+=1
+                if data[0]==1:
                     break
+                if ii>1000:
+                    if time.time()-t0>3:
+                        break
+#                time.sleep(1e-3)
             self.flip()
             ct+=1
             keys = check_keyboard()
-            if "a" in keys:
+            if "a" in keys or time.time()-t00>duration-3:
                 break
+            #If trigger is high, introduce wait to avoid double triggering
+            digital_input.ReadDigitalLines(1,0.01,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+            if data[0]==1:
+                time.sleep(1.0/(1.9*fps))
+#        print ct,  time.time()-t00
         digital_input.ClearTask()
+#        print io.s.read(200)
         io.stop_waveform()
         io.close()
+        if daq:
+            d=ai.finish()
+            fn="c:\\temp\\{0}.hdf5".format(time.time())
+            hdf5io.save_item(fn,  "data",  d)
+            from visexpu.users.zoltan.tasks.calculate_gsync_timing import plot_timing
+            plot_timing(fn)
+#            from pylab import plot, show, legend
+#            t=numpy.arange(d.shape[0])/float(fsample)*1000
+#            plot(t, d[:, 0])
+#            plot(t, d[:, 1])
+#            ss=(d[:, 2]-d[:, 2].mean())*100
+#            ss-=d[:, 2]
+#            figure(1)
+#            plot(t, ss)
+#            legend(["stimulus trigger",  "led control",  "screen"])
+#            boundaries=signal.trigger_indexes(d[:, 0])[0::2][::4]
+#            boundaries-=1
+#            slices=numpy.split(d, boundaries, axis=0)[1:-1]
+#            figure(2)
+#            t=numpy.arange(slices[0][:,0].shape[0])/float(fsample)*1000
+#            plot(t, slices[0][:,0]*.1)
+#            plot(t, slices[0][:,1]*.1)
+#            for i in range(len(slices)):
+#                t=numpy.arange(slices[i][:,2].shape[0])/float(fsample)*1000
+#                plot(t, slices[i][:,2])
+#            legend(["stimulus trigger",  "led control",  "screen"])
+#            show()
         
     def contrast_steps(self):
         from visexpman.engine.generic import colors

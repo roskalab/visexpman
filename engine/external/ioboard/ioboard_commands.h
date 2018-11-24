@@ -30,6 +30,7 @@ class IOBoardCommands:public Comm {
         unsigned char debug;
         float elongate_output_pin;
         float elongate_duration;
+        float elongate_delay;
         void set_pin(float pin,float value);
         void pulse(float pin,float duration);
         void waveform(float base_frequency, float frequency_range, float modulation_frequency);

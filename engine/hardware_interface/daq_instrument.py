@@ -214,9 +214,9 @@ class SimpleAIO(object):
         return self.ai_data
         
 class SimpleAnalogIn(object):
-    def __init__(self,ai_channel,sample_rate,duration, timeout=1, finite=True):
+    def __init__(self,ai_channel,sample_rate,duration, timeout=1, finite=True,  diffmode=False):
         try:
-            self.n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
+            self.n_ai_channels=int(numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1)
         except IndexError:
             raise NotImplementedError('Single channel not parsed')
         self.nsamples=int(duration*sample_rate)
@@ -224,13 +224,14 @@ class SimpleAnalogIn(object):
         self.finite=finite
         if os.name=='nt':
             if self.finite:
-                self.ai_data = numpy.zeros(self.nsamples*self.n_ai_channels, dtype=numpy.float64)
+                self.ai_data = numpy.zeros(int(self.nsamples*self.n_ai_channels), dtype=numpy.float64)
             else:
                 self.ai_frames=[]
             self.analog_input = PyDAQmx.Task()
+            mode =DAQmxConstants.DAQmx_Val_Diff if diffmode else DAQmxConstants.DAQmx_Val_RSE
             self.analog_input.CreateAIVoltageChan(ai_channel,
                                             'ai',
-                                            DAQmxConstants.DAQmx_Val_RSE,
+                                            mode,
                                             -5, 
                                             5, 
                                             DAQmxConstants.DAQmx_Val_Volts,
@@ -265,7 +266,6 @@ class SimpleAnalogIn(object):
                                         self.ai_data.shape[0],
                                         DAQmxTypes.byref(self.readb),
                                         None)
-                
         self.ai_data = self.ai_data[:self.readb.value * self.n_ai_channels]
         self.ai_data = self.ai_data.flatten('F').reshape((self.n_ai_channels, self.readb.value)).transpose()
         if not self.finite:
