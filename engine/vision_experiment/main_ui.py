@@ -131,12 +131,16 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.menu.exec_(self.viewport().mapToGlobal(position))
         
     def stimulus_info_action(self):
-        bases=experiment.read_stimulus_base_classes(self.classname, self.filename, self.parent.machine_config)
-        self.parent.printc('Base classes: {0}'.format(' -> '.join(bases)))
-        duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
-        self.parent.printc('Duration: {0:0.0f} seconds'.format(duration))
-        parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
-        self.parent.printc('Stimulus hash: {0}'.format(experiment.stimulus_parameters_hash(parameters)))
+        try:
+            bases=experiment.read_stimulus_base_classes(self.classname, self.filename, self.parent.machine_config)
+            self.parent.printc('Base classes: {0}'.format(' -> '.join(bases)))
+            duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
+            self.parent.printc('Duration: {0:0.0f} seconds'.format(duration))
+            parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
+            self.parent.printc('Stimulus hash: {0}'.format(experiment.stimulus_parameters_hash(parameters)))
+        except:
+            import traceback
+            self.parent.printc(traceback.format_exc())
 
     def stimulus_par_action(self):
         parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
@@ -768,9 +772,9 @@ class MainUI(gui.VisexpmanMainWindow):
                 if self.machine_config.AMPLIFIER_TYPE=='differential':
                     pars=[{'name': 'gain', 'type': 'float', 'value': 1000}]
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
-                    pars=[{'name': 'clamp mode', 'type': 'list', 'values': ['current', 'voltage']},
-                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5, 'siPrefix': True, 'suffix': 'pA/V'},
-                                {'name': 'Voltage Gain', 'type': 'float', 'value': 10.0, 'siPrefix': True, 'suffix': 'mV/V'}
+                    pars=[
+                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'pA/V'},
+                                {'name': 'Voltage Gain', 'type': 'float', 'value': 10.0, 'suffix': 'mV/V'}
                                 ]
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [

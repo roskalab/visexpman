@@ -62,6 +62,17 @@ def cap_attributes2dict(obj):
             if isinstance(v,  range):#In python3 range expressions are handled as iterators
                 values[k]=[i for i in v]
     return values
+    
+def get_cap_attribute(obj, kw):
+    '''
+    Return attribute of obj that contains kw
+    '''
+    pars=cap_attributes2dict(obj)
+    key=[k for k in pars.keys() if kw in k]
+    if len(key)==0:
+        return 
+    else:
+        return pars[key[0]]
 
 def get_available_process_cores():
     '''

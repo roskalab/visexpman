@@ -209,6 +209,10 @@ class ExperimentHandler(object):
         elif self.machine_config.PLATFORM=='resonant':
             for pn in ['Eye Camera Frame Rate', 'Enable Eye Camera']:
                 experiment_parameters[pn]=self.guidata.read(pn)
+        elif self.machine_config.PLATFORM=='elphys':
+            experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
+            experiment_parameters['Current Gain']=self.guidata.read('Current Gain')
+            experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
         return experiment_parameters
             
     def start_batch(self):
@@ -289,13 +293,6 @@ class ExperimentHandler(object):
             experiment_parameters=self._get_experiment_parameters()
             if experiment_parameters==None:
                 return
-        if self.machine_config.PLATFORM=='elphys':
-            introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
-            experiment_module = __import__('experiment_module')
-            self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
-                                                                                                  log=self.log)
-            #TODO: allow only electrical stimulus, implement starting stimulus, start sync recording
-            return
         if self.machine_config.PLATFORM=='ao_cortical':
             if not self.ask4confirmation('Is AO line scan selected on MES user interface?'):
                 return
@@ -304,7 +301,11 @@ class ExperimentHandler(object):
             nchannels=nchannels[1]-nchannels[0]+1
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',[-5,5])
             #Start sync signal recording
-            self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
+            if self.machine_config.PLATFORM=='elphys':
+                sample_rate=experiment_parameters['Recording Sample Rate']
+            else:
+                sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            self.sync_recorder.start_daq(ai_sample_rate = sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
@@ -326,6 +327,13 @@ class ExperimentHandler(object):
             stimulus_source_code=[v for k, v in experiment_parameters.items() if 'experiment_config_source_code' in k][0]
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
+        elif self.machine_config.PLATFORM=='elphys':
+            introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
+            experiment_module = __import__('experiment_module')
+            self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
+                                                                                                  log=self.log)
+            self.stimuluso.run()
+            self.printc('allow only electrical stimulus, implement starting stimulus')
         else:
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
@@ -627,8 +635,10 @@ class ExperimentHandler(object):
                 self.printc('Batch terminated')
                 return
         self.printc('Aborting experiment, please wait...')
-        if self.machine_config.PLATFORM=='elphys_retinal_ca':
+        if self.machine_config.PLATFORM=='retinal':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
+        if self.machine_config.PLATFORM=='elphys':
+            self.stimuluso.stop()
         self.send({'function': 'stop_all','args':[]},'stim')
         self.enable_check_network_status=True
         if hasattr(self,  'cam') and self.cam.is_alive():
