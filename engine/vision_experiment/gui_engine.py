@@ -828,7 +828,7 @@ class Analysis(object):
             t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             x=2*[t]
             sync=signal.from_16bit(sync, sync_scaling)
-            y=[sync[:, 0],  sync[:, 1]]
+            y=[sync[:, self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX],  sync[:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
             self.to_gui.put({'display_roi_curve': [x, y, None, None, {}]})
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys"]:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
