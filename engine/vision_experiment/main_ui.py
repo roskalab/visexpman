@@ -172,6 +172,8 @@ class StimulusTree(pyqtgraph.TreeWidget):
         #Clear tree view
         self.blockSignals(True)
         self.clear()
+        if hasattr(self.parent.machine_config, 'STIMULUS_VIEW_FILTER'):
+            experiment_configs=[ec for ec in experiment_configs if len([kw for kw in self.parent.machine_config.STIMULUS_VIEW_FILTER if kw in os.path.basename(ec)])>0]
         #Populate with files and stimulus classes
         branches = [list(e.replace(self.root, '')[1:].split(os.sep)) for e in experiment_configs]
         nlevels=[len(b) for b in branches]
@@ -196,7 +198,6 @@ class StimulusTree(pyqtgraph.TreeWidget):
                     ref[0].addChild(newwidget)
                 else:
                     raise
-                    
             added_items.append(newwidget)
         self.blockSignals(False)
         
@@ -522,7 +523,6 @@ class MainUI(gui.VisexpmanMainWindow):
             self.statusbar.camera_status=QtGui.QLabel('', self)
             self.statusbar.addPermanentWidget(self.statusbar.camera_status)
             self.statusbar.camera_status.setStyleSheet('background:gray;')
-        
         #Add dockable widgets
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
@@ -544,7 +544,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.setMaximumWidth(w)
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
-            self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, d, self.plot)
+            self._add_dockable_widget('Plot',d, d, self.plot)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
         if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
@@ -558,6 +558,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
             self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
             self.analysis.setLayout(self.analysis.layout)
+        if self.machine_config.PLATFORM in ['elphys']:
+            self.analysis.setMaximumWidth(self.machine_config.GUI['SIZE']['col']/2)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
