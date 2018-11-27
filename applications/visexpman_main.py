@@ -95,6 +95,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 self.contrast_steps()
             elif key_pressed == self.config.KEYS['led test']:
                 self.led_test()
+            elif key_pressed == self.config.KEYS['phase shift test']:
+                self.phase_shift_test()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -176,10 +178,6 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         rectangle=True
         rectangle_size=500
         for fps in fpss:
-            if fps<=40:
-                nreps=40
-            else:
-                nreps=50
             print fps
             for i in range(int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE/4)):
                 self.clear_screen(color = colors.convert_color(0, self.config))
@@ -297,28 +295,37 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             hdf5io.save_item(fn,  "data",  d)
             from visexpu.users.zoltan.tasks.calculate_gsync_timing import plot_timing
             plot_timing(fn)
-#            from pylab import plot, show, legend
-#            t=numpy.arange(d.shape[0])/float(fsample)*1000
-#            plot(t, d[:, 0])
-#            plot(t, d[:, 1])
-#            ss=(d[:, 2]-d[:, 2].mean())*100
-#            ss-=d[:, 2]
-#            figure(1)
-#            plot(t, ss)
-#            legend(["stimulus trigger",  "led control",  "screen"])
-#            boundaries=signal.trigger_indexes(d[:, 0])[0::2][::4]
-#            boundaries-=1
-#            slices=numpy.split(d, boundaries, axis=0)[1:-1]
-#            figure(2)
-#            t=numpy.arange(slices[0][:,0].shape[0])/float(fsample)*1000
-#            plot(t, slices[0][:,0]*.1)
-#            plot(t, slices[0][:,1]*.1)
-#            for i in range(len(slices)):
-#                t=numpy.arange(slices[i][:,2].shape[0])/float(fsample)*1000
-#                plot(t, slices[i][:,2])
-#            legend(["stimulus trigger",  "led control",  "screen"])
-#            show()
+            
+    def phase_shift_test(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.engine.hardware_interface import daq_instrument
+        ct=0
+        fps=80.
+        duration=5.0
+        fsample=10000
+        t0=time.time()
+        phase_shift=0.25/fps
+        tsample=1.0/fps
+        ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:2', fsample, duration+5, duration+7, diffmode=True)
+        time.sleep(0.1)
+        while True:
+            keys = check_keyboard()
+            if time.time()-t0>duration or "a" in keys:
+                break
+            ct+=1
+            self.clear_screen(color = colors.convert_color(float(ct%2), self.config))
+            if ct%20==0:
+                time.sleep(tsample+phase_shift)
+            else:
+                time.sleep(tsample)
+            self.flip()
+        d=ai.finish()
+        from pylab import plot,show
+        [plot(d[:,i]) for i in range(3)]
+        show()
         
+            
     def contrast_steps(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
