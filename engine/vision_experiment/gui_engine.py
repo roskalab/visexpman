@@ -494,7 +494,7 @@ class ExperimentHandler(object):
                 #Export timing to csv file
                 self._timing2csv(filename)
             if self.machine_config.PLATFORM=='elphys':
-                experiment_data.hdf52mat(fn)
+                experiment_data.hdf52mat(fn, scale_sync=True)
                 self.printc('{0} converted to mat'.format(fn))
                 sync=hdf5io.read_item(fn,  "sync")
                 sync_scaling=hdf5io.read_item(fn,  "sync_scaling")

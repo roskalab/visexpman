@@ -1538,7 +1538,7 @@ def gammatext2hdf5(filename):
 def yscanner2sync(waveform):
     pass
     
-def hdf52mat(filename):
+def hdf52mat(filename, scale_sync=False):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
     try:
@@ -1554,6 +1554,8 @@ def hdf52mat(filename):
         mat_data[rnt]=hh.findvar(rn)
         if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
+    if scale_sync and hasattr(hh,'sync') and hasattr(hh,'sync_scaling'):
+        mat_data['sync']=signal.from_16bit(mat_data['sync'], mat_data['sync_scaling'])
     if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     hh.close()
