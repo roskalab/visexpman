@@ -63,7 +63,7 @@ def get_user_experiment_data_folder(parameters):
     user_experiment_data_folder = parameters['outfolder']
     if not os.path.exists(user_experiment_data_folder):
         os.makedirs(user_experiment_data_folder)
-    return user_experiment_data_folder
+    return str(user_experiment_data_folder)#TODO: need to be investigated why is it a numpy array on elphys platform
     
 def find_recording_filename(id, config_or_path):
     if isinstance(config_or_path,str):
@@ -1541,7 +1541,10 @@ def yscanner2sync(waveform):
 def hdf52mat(filename):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
-    rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    try:
+        rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    except:
+        rootnodes=[v for v in hh.h5f.root._v_children.keys() if v not in ignore_nodes]
     mat_data={}
     for rn in rootnodes:
         if os.path.basename(filename).split('_')[-2] in rn:

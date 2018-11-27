@@ -537,11 +537,14 @@ class MainUI(gui.VisexpmanMainWindow):
             self.adjust.low.setValue(0)
             self.adjust.high.setValue(99)
             self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys"]:
             self.plot = gui.Plot(self)
             self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-            self.plot.setMaximumWidth(self.image.width())
+            w=self.image.width() if hasattr(self,  "image") else self.machine_config.GUI['SIZE']['col']
+            self.plot.setMaximumWidth(w)
             self.plot.plot.setLabels(bottom='sec')
-            self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
+            d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
+            self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, d, self.plot)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
         if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
@@ -633,13 +636,15 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.curve=curve
                 self.tsync=tsync
                 #Highlight roi
-                self.image.highlight_roi(index)
+                if hasattr(self,  "image"):
+                    self.image.highlight_roi(index)
                 if isinstance(timg, list) and isinstance(curve, list):
                     self.plot.update_curves(timg, curve,plot_average = options['plot_average'] if options.has_key('plot_average') else True, colors = options['colors'] if options.has_key('colors') else [])
                 else:
                     #Update plot
                     self.plot.update_curve(timg, curve)
-                self.plot.add_linear_region(list(tsync))
+                if hasattr(tsync, "dtype"):
+                    self.plot.add_linear_region(list(tsync))
             elif 'remove_roi_rectangle' in msg:
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))
             elif 'fix_roi' in msg:
@@ -774,11 +779,13 @@ class MainUI(gui.VisexpmanMainWindow):
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
                     pars=[
                                 {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'pA/V'},
-                                {'name': 'Voltage Gain', 'type': 'float', 'value': 10.0, 'suffix': 'mV/V'}
+                                {'name': 'Voltage Gain', 'type': 'float', 'value': 10.0, 'suffix': 'mV/V'}, 
+                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
+                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
                                 ]
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [
-                            {'name': 'Recording Sample Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+                            
                             ]},  ]               
                         )
                 self.params_config[-1]['children'].extend(pars)

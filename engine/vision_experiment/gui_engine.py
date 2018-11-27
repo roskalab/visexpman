@@ -15,6 +15,14 @@ import shutil
 import itertools
 import tables
 try:
+    import PyQt4.Qt as Qt
+    import PyQt4.QtGui as QtGui
+    import PyQt4.QtCore as QtCore
+except ImportError:
+    import PyQt5.Qt as Qt
+    import PyQt5.QtGui as QtGui
+    import PyQt5.QtCore as QtCore
+try:
     import hdf5io
 except ImportError:
     pass
@@ -186,7 +194,7 @@ class ExperimentHandler(object):
         experiment_parameters['user']=self.machine_config.user
         experiment_parameters['machine_config']=self.machine_config.__class__.__name__
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  "elphys"]:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
         else:
             experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
@@ -213,6 +221,8 @@ class ExperimentHandler(object):
             experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
             experiment_parameters['Current Gain']=self.guidata.read('Current Gain')
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
+            experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
+            experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
         return experiment_parameters
             
     def start_batch(self):
@@ -301,10 +311,7 @@ class ExperimentHandler(object):
             nchannels=nchannels[1]-nchannels[0]+1
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',[-5,5])
             #Start sync signal recording
-            if self.machine_config.PLATFORM=='elphys':
-                sample_rate=experiment_parameters['Recording Sample Rate']
-            else:
-                sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             self.sync_recorder.start_daq(ai_sample_rate = sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
@@ -344,6 +351,7 @@ class ExperimentHandler(object):
         self.enable_check_network_status=False
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
+        self.experiment_start_time=time.time()
         self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
@@ -398,7 +406,7 @@ class ExperimentHandler(object):
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
-        fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'sync')
+        fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "data" if self.machine_config.PLATFORM=='elphys' else 'sync' )
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
@@ -471,7 +479,7 @@ class ExperimentHandler(object):
                 if self.machine_config.user!='daniel':
                     experiment_data.hdf52mat(self.outputfilename)
                     self.printc('{0} converted to mat'.format(self.outputfilename))
-            if not (self.machine_config.PLATFORM in ['retinal', 'ao_cortical', 'resonant']):#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['retinal', 'ao_cortical', 'resonant', "elphys"]):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
@@ -485,6 +493,16 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
+            if self.machine_config.PLATFORM=='elphys':
+                experiment_data.hdf52mat(fn)
+                self.printc('{0} converted to mat'.format(fn))
+                sync=hdf5io.read_item(fn,  "sync")
+                sync_scaling=hdf5io.read_item(fn,  "sync_scaling")
+                t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+                x=2*[t]
+                sync=signal.from_16bit(sync, sync_scaling)
+                y=[sync[:, 0],  sync[:, 1]]
+                self.to_gui.put({'display_roi_curve': [x, y, None, None, {}]})
         self.to_gui.put({'update_status':'idle'})
 
     def _remerge_files(self,folder,hdf5fold):
@@ -600,7 +618,7 @@ class ExperimentHandler(object):
         
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
-        if d!=None:
+        if hasattr(d,  "dtype"):
             self.last_ai_read=d
             self.daqdatafile.add(d)
             
@@ -614,15 +632,27 @@ class ExperimentHandler(object):
                 d=d[0]
             elif d.shape[0]!=0:
                 self.daqdatafile.add(d)
-            self.daqdatafile.hdf5.machine_config=experiment_data.pack_configs(self)
-            self.daqdatafile.hdf5.save('machine_config')
+            if self.machine_config.PLATFORM=="elphys":
+                self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self.stimuluso)
+                self.daqdatafile.hdf5.parameters=self.current_experiment_parameters
+                self.daqdatafile.hdf5.save('parameters')
+            else:
+                self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self)
+            self.daqdatafile.hdf5.save('configs')
+#            if self.machine_config.PLATFORM=="elphys":
+#                self.daqdatafile.hdf5.experiment_config=self.stimuluso.config2dict()
+#                self.daqdatafile.hdf5.save('experiment_config')
             self.daqdatafile.close()
             
     def run_always_experiment_handler(self):
+        now=time.time()
         self.check_batch()
         self.eyecamera2screen()
         if self.sync_recording_started:
             self.read_sync_recorder()
+            if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+1:
+                self.finish_experiment()
+                self.save_experiment_files()
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
@@ -787,11 +817,20 @@ class Analysis(object):
             del self.reference_roi_filename
             del self.reference_rois
         self.filename = filename
-        self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
-        self.datafile.sync2time(recreate=self.santiago_setup)
-        if self.machine_config.PLATFORM!='resonant':#Do not load imaging data
+        if self.machine_config.PLATFORM not in ["elphys"]:
+            self.datafile.sync2time(recreate=self.santiago_setup)
+            self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
+        else:
+            sync=self.datafile.findvar("sync")
+            sync_scaling=self.datafile.findvar("sync_scaling")
+            t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            x=2*[t]
+            sync=signal.from_16bit(sync, sync_scaling)
+            y=[sync[:, 0],  sync[:, 1]]
+            self.to_gui.put({'display_roi_curve': [x, y, None, None, {}]})
+        if self.machine_config.PLATFORM not in  ['resonant',  "elphys"]:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
             self.image_scale=self.datafile.scale
             self.meanimage=self.datafile.image
@@ -800,18 +839,19 @@ class Analysis(object):
             self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
         if self.santiago_setup and 0:
             self._remove_dropped_frame_timestamps()
-        self.tstim=self.datafile.tstim
-        self.timg=self.datafile.timg
-        if self.santiago_setup:
-            self.timg=self.timg[:self.datafile.raw_data.shape[0]]
-        self.printc(self.timg.shape)
-        self.printc(self.tstim.shape)
-        if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
-            msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
-            self.notify('Error', msg)
-            raise RuntimeError(msg)
+        if self.machine_config.PLATFORM not in ["elphys"]:
+            self.tstim=self.datafile.tstim
+            self.timg=self.datafile.timg
+            if self.santiago_setup:
+                self.timg=self.timg[:self.datafile.raw_data.shape[0]]
+            self.printc(self.timg.shape)
+            self.printc(self.tstim.shape)
+            if self.tstim.shape[0]==0 or  self.timg.shape[0]==0:
+                msg='In {0} stimulus sync signal or imaging sync signal was not recorded'.format(self.filename)
+                self.notify('Error', msg)
+                raise RuntimeError(msg)
         self.experiment_name= self.datafile.findvar('parameters')['stimclass']
-        if self.machine_config.PLATFORM!='resonant':
+        if self.machine_config.PLATFORM not in ['resonant',  "elphys"]:
             if self.machine_config.PLATFORM != 'ao_cortical':
                 self._recalculate_background()
             try:
@@ -1534,7 +1574,7 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal'] or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal',  "elphys"] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
