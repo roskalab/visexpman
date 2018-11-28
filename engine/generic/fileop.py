@@ -531,8 +531,9 @@ class DataAcquisitionFile(object):
     def __init__(self,nchannels,dataname, datarange,filename=None,compression_level=5):
         self.nchannels=nchannels
         self.datarange=datarange
-        self.scale=(2**16-1)/(datarange[1]-datarange[0])
-        self.offset=-datarange[0]
+        if datarange!=None:#if None, scaling to 16 bit is disabled
+            self.scale=(2**16-1)/(datarange[1]-datarange[0])
+            self.offset=-datarange[0]
         self.dataname=dataname
         if filename is None:
             self.filename=os.path.join(tempfile.gettempdir(), 'recorded_{0}.hdf5'.format(time.time()))
@@ -542,16 +543,20 @@ class DataAcquisitionFile(object):
             self.filename=filename
         import hdf5io,tables
         self.hdf5 = hdf5io.Hdf5io(self.filename,filelocking=False)
-        setattr(self.hdf5,dataname+'_scaling', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
-        self.hdf5.save(dataname+'_scaling')
+        if datarange!=None:
+            setattr(self.hdf5,dataname+'_scaling', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
+            self.hdf5.save(dataname+'_scaling')
         datacompressor = tables.Filters(complevel=compression_level, complib='zlib', shuffle = 1)
-        datatype = tables.UInt16Atom(self.nchannels)
+        datatype = tables.UInt16Atom(self.nchannels) if datarange!=None else tables.Float32Atom(self.nchannels)
         setattr(self,self.dataname, self.hdf5.h5f.create_earray(self.hdf5.h5f.root, dataname, datatype, (0,),filters=datacompressor))
                     
     def _scale(self,data):
-        clipped=numpy.where(data<self.datarange[0],self.datarange[0],data)
-        clipped=numpy.where(clipped>self.datarange[1],self.datarange[1],clipped)
-        return numpy.cast['uint16']((clipped+self.offset)*self.scale)
+        if self.datarange!=None:
+            clipped=numpy.where(data<self.datarange[0],self.datarange[0],data)
+            clipped=numpy.where(clipped>self.datarange[1],self.datarange[1],clipped)
+            return numpy.cast['uint16']((clipped+self.offset)*self.scale)
+        else:
+            return data
             
     def add(self,data):
         if data.shape[1]!=self.nchannels:

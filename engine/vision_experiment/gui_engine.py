@@ -309,7 +309,7 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
             nchannels=nchannels[1]-nchannels[0]+1
-            self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',[-5,5])
+            self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None if self.machine_config.PLATFORM=="elphys" else [-5,5])
             #Start sync signal recording
             sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             self.sync_recorder.start_daq(ai_sample_rate = sample_rate,
@@ -339,6 +339,7 @@ class ExperimentHandler(object):
             experiment_module = __import__('experiment_module')
             self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
                                                                                                   log=self.log)
+            time.sleep(0.3)#Ensure that analog recording started
             self.stimuluso.run()
             self.printc('allow only electrical stimulus, implement starting stimulus')
         else:
@@ -494,16 +495,18 @@ class ExperimentHandler(object):
                 #Export timing to csv file
                 self._timing2csv(filename)
             if self.machine_config.PLATFORM=='elphys':
-                experiment_data.hdf52mat(fn, scale_sync=True)
+                experiment_data.hdf52mat(fn, scale_sync=False)
                 self.printc('{0} converted to mat'.format(fn))
                 sync=hdf5io.read_item(fn,  "sync")
-                sync_scaling=hdf5io.read_item(fn,  "sync_scaling")
-                t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-                x=2*[t]
-                sync=signal.from_16bit(sync, sync_scaling)
-                y=[sync[:, 0],  sync[:, 1]]
-                self.to_gui.put({'display_roi_curve': [x, y, None, None, {}]})
+                self._plot_elphys(sync)
         self.to_gui.put({'update_status':'idle'})
+        
+    def _plot_elphys(self, sync):
+        t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        x=2*[t]
+        y=[sync[:, self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX],  sync[:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
+        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":[[255, 0, 0],  [0, 0, 255]]}]})
+
 
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:
@@ -639,9 +642,6 @@ class ExperimentHandler(object):
             else:
                 self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self)
             self.daqdatafile.hdf5.save('configs')
-#            if self.machine_config.PLATFORM=="elphys":
-#                self.daqdatafile.hdf5.experiment_config=self.stimuluso.config2dict()
-#                self.daqdatafile.hdf5.save('experiment_config')
             self.daqdatafile.close()
             
     def run_always_experiment_handler(self):
@@ -650,7 +650,7 @@ class ExperimentHandler(object):
         self.eyecamera2screen()
         if self.sync_recording_started:
             self.read_sync_recorder()
-            if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+1:
+            if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
                 self.finish_experiment()
                 self.save_experiment_files()
             if self.santiago_setup:
@@ -824,12 +824,7 @@ class Analysis(object):
             self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         else:
             sync=self.datafile.findvar("sync")
-            sync_scaling=self.datafile.findvar("sync_scaling")
-            t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            x=2*[t]
-            sync=signal.from_16bit(sync, sync_scaling)
-            y=[sync[:, self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX],  sync[:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
-            self.to_gui.put({'display_roi_curve': [x, y, None, None, {}]})
+            self._plot_elphys(sync)
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys"]:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
             self.image_scale=self.datafile.scale
@@ -1101,7 +1096,6 @@ class Analysis(object):
                 if hasattr(self, 'aggregated'):
                     self.aggregated.append([os.path.basename(self.filename), res[1]['increase'], res[1]['decrease'], len(self.rois)])
                 
-        
     def display_roi_rectangles(self):
         self.to_gui.put({'display_roi_rectangles' :[list(numpy.array(r['rectangle'])*self.image_scale) for r in self.rois]})
         
@@ -1591,7 +1585,7 @@ class Analysis(object):
             elif sync.dtype.name=='uint8':
                 sync=signal.from_16bit(sync*256,scale)
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(sync.dtype.name)
             fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
             h.close()
             x=[]
