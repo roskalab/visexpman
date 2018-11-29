@@ -777,7 +777,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
         elif self.machine_config.PLATFORM in ['elphys']:
                 if self.machine_config.AMPLIFIER_TYPE=='differential':
-                    pars=[{'name': 'gain', 'type': 'float', 'value': 1000}]
+                    pars=[{'name': 'Gain', 'type': 'int', 'value': 10000.0, 'siPrefix': True,}]
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
                     pars=[
                                 {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'pA/V'},
