@@ -50,7 +50,7 @@ class StBMovingGratingPrecise(experiment.ExperimentConfig):
         self.NUMBER_OF_MARCHING_PHASES = 1.0
         self.GRATING_STAND_TIME = 1.0
         self.ORIENTATIONS = range(0,360, 22.5)
-        self.WHITE_BAR_WIDTHS = [100]
+        self.WHITE_BAR_WIDTHS = [200]
         self.VELOCITIES = [700]
         self.DUTY_CYCLES = [1]
         self.PAUSE_BEFORE_AFTER = 1.0
