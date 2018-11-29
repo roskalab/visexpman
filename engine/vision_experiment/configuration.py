@@ -269,7 +269,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
 
-class RetinalSetup(VisionExperimentConfig):
+class RetinalConfig(VisionExperimentConfig):
     '''
     Base configuration for retinal setups with elphys/ca imaging
     '''
