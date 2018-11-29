@@ -293,7 +293,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             d=ai.finish()
             fn="c:\\temp\\{0}.hdf5".format(time.time())
             hdf5io.save_item(fn,  "data",  d)
-            from visexpu.users.zoltan.tasks.calculate_gsync_timing import plot_timing
+            from visexpur.users.zoltan.tasks.calculate_gsync_timing import plot_timing
             plot_timing(fn)
             
     def phase_shift_test(self):
@@ -301,11 +301,11 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         from visexpman.engine.generic.graphics import check_keyboard
         from visexpman.engine.hardware_interface import daq_instrument
         ct=0
-        fps=80.
+        fps=50.
         duration=5.0
         fsample=10000
         t0=time.time()
-        phase_shift=0.25/fps
+        phase_shift=0.5/fps
         tsample=1.0/fps
         ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:2', fsample, duration+5, duration+7, diffmode=True)
         time.sleep(0.1)
@@ -315,12 +315,14 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 break
             ct+=1
             self.clear_screen(color = colors.convert_color(float(ct%2), self.config))
-            if ct%20==0:
+            if ct%10==0:
                 time.sleep(tsample+phase_shift)
             else:
                 time.sleep(tsample)
             self.flip()
         d=ai.finish()
+        fn="c:\\temp\\{0}.hdf5".format(time.time())
+        hdf5io.save_item(fn,  "data",  d)
         from pylab import plot,show
         [plot(d[:,i]) for i in range(3)]
         show()
