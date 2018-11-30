@@ -501,9 +501,21 @@ class ExperimentHandler(object):
         self.to_gui.put({'update_status':'idle'})
         
     def _plot_elphys(self, sync):
+        #Filter rawdata
+        if self.guidata.read('Enable Filter')==True:
+            order=self.guidata.filter_order.v
+            frq=float(self.guidata.cut_frequency.v)
+            sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            if self.guidata.filter_type.v=='lowpass':
+                self.filter=scipy.signal.butter(order,frq/sample_rate,'low')
+            else:
+                self.filter=scipy.signal.butter(order,frq/sample_rate,'high')
+            self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]).real
+        else:
+            self.filtered=sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         x=2*[t]
-        y=[sync[:, self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX],  sync[:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
+        y=[self.filtered,  sync[:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
         self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":[[255, 0, 0],  [0, 0, 255]]}]})
 
 
@@ -826,6 +838,7 @@ class Analysis(object):
             self.datafile.sync2time(recreate=self.santiago_setup)
             self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         else:
+            self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
             self._plot_elphys(sync)
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys"]:#Do not load imaging data
@@ -1587,6 +1600,8 @@ class Analysis(object):
                 sync=signal.from_16bit(sync,scale)
             elif sync.dtype.name=='uint8':
                 sync=signal.from_16bit(sync*256,scale)
+            elif sync.dtype.name=='float32':
+                pass
             else:
                 raise NotImplementedError(sync.dtype.name)
             fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']

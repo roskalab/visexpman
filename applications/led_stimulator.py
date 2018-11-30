@@ -4,7 +4,7 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except ImportError:
     pass
-import os,logging,numpy,copy,pyqtgraph,scipy.signal,scipy.io,time, copy
+import os,logging,numpy,copy,pyqtgraph,scipy.signal,scipy.io,time
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 from visexpman.engine.generic import gui, signal,utils

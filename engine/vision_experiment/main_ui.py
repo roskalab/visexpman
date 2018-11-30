@@ -624,6 +624,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.image.add_linear_region(boundaries)
             elif 'image_title' in msg:
                 self.image.plot.setTitle(msg['image_title'])
+            elif 'plot_title' in msg:
+                self.plot.plot.setTitle(msg['plot_title'])
             elif 'show_suggested_rois' in msg:
                 self.image_w_rois = msg['show_suggested_rois']
                 self.image.set_image(self.image_w_rois)
