@@ -341,7 +341,6 @@ class ExperimentHandler(object):
                                                                                                   log=self.log)
             time.sleep(0.3)#Ensure that analog recording started
             self.stimuluso.run()
-            self.printc('allow only electrical stimulus, implement starting stimulus')
         else:
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
@@ -628,7 +627,11 @@ class ExperimentHandler(object):
     def _stop_sync_recorder(self):
         if self.sync_recording_started:
             self.sync_recording_started=False
-            d,n=self.sync_recorder.stop_daq()
+            res=self.sync_recorder.stop_daq()
+            try:
+                d, n=res
+            except:
+                raise RuntimeError("daq data cannot be read: {0}".format(res))
             self.printc('Sync signal recording stopped')
             if len(d.shape)==3:
                 self.printc('Warning: 3 d data, 2 d expected')
