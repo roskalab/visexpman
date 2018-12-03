@@ -30,13 +30,13 @@ class CWidget(QtGui.QWidget):
                     {'name': 'Left LED', 'type': 'bool', 'value': True,},
                     {'name': 'Right LED', 'type': 'bool', 'value': True,},
                     {'name': 'Enable Average', 'type': 'bool', 'value': False,},
-                    {'name': 'Stimulus Rate', 'type': 'int', 'value': 2, 'suffix': 'Hz', 'siPrefix': True},
-                    {'name': 'LED on time', 'type': 'float', 'value': 100, 'suffix': 'ms', 'siPrefix': True},
+                    {'name': 'Stimulus Rate', 'type': 'int', 'value': 1, 'suffix': 'Hz', 'siPrefix': True},
+                    {'name': 'LED on time', 'type': 'float', 'value': 50, 'suffix': 'ms', 'siPrefix': True},
                     {'name': 'Sample Rate', 'type': 'int', 'value': 20000, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'Phase Shift', 'type': 'int', 'value': 0, 'suffix': 'deg', 'siPrefix': True},
                     {'name': 'Filter Frequency', 'type': 'int', 'value': 100, 'suffix': 'Hz', 'siPrefix': True},
                     {'name': 'Enable Filter', 'type': 'bool', 'value': True,},
-                    {'name': 'LED Voltage', 'type': 'float', 'value': 5, 'suffix': 'V', 'siPrefix': True},
+                    {'name': 'LED Voltage', 'type': 'float', 'value': 3, 'suffix': 'V', 'siPrefix': True},
                     {'name': 'Amplifier gain', 'type': 'float', 'value': 10000},
                     {'name': 'Advanced', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Filter Order', 'type': 'int', 'value': 3},
@@ -120,7 +120,7 @@ class LEDStimulator(gui.SimpleAppWindow):
             self.lowpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'low')
             self.highpass=scipy.signal.butter(self.settings['Filter Order'],float(self.settings['Filter Frequency'])/self.settings['Sample Rate'],'high')
             self.sigs=[]
-            self.ai_trace=numpy.empty((0, 3))
+            self.ai_trace=numpy.empty((0, 4))
             self.running=True
             self.init_daq()
             self.timer.start(int(1000*(self.tperiod-0.5*self.daq_timeout)))
@@ -187,10 +187,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         
         '''
         buffer_size=self.settings['Buffer Size']
-        if self.settings['Left LED']:
-            trig=self.ai_trace[:, 0]
-        else:
-            trig=self.ai_trace[:, 1]
+        trig=self.ai_trace[:, 0]
         edges=signal.detect_edges(trig,0.5*trig.max())
         if trig[0]>0.5*trig.max():
             edges=numpy.insert(edges, 0, 0)
@@ -250,15 +247,15 @@ class LEDStimulator(gui.SimpleAppWindow):
             pp=[{'name': 'elphys', 'pen':pyqtgraph.mkPen(color=(255,150,0), width=0)},{'name': 'left', 'pen': pyqtgraph.mkPen(color=(255,0,0), width=3)}, 
                     {'name': 'right', 'pen': pyqtgraph.mkPen(color=(0,0,255), width=3)}]
             maxamp=abs(self.signals[k]['elphys'].max())
-            self.left=self.signals['last']['left']/self.signals['last']['left'].max()*maxamp*self.settings['Left LED']
-            self.right=self.signals['last']['right']/self.signals['last']['right'].max()*maxamp*self.settings['Right LED']
-            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],self.left, self.right],plotparams=pp)
+            left=self.signals['last']['left']/self.signals['last']['left'].max()*maxamp
+            right=self.signals['last']['right']/self.signals['last']['right'].max()*maxamp
+            self.cw.plotw.update_curves(3*[self.t], [self.signals[k]['elphys'],left,  right],plotparams=pp)
             self.cw.plotw.plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
             dt=(time.time()-self.t0)/60.
             self.cw.plotw.plot.setTitle('Raw {0:0.1f} minutes'.format(dt))
             if self.settings['Enable Filter']:
-                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,self.left, self.right],plotparams=pp)
-                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,self.left, self.right],plotparams=pp)
+                self.cw.plotfiltered['Field Potential'].update_curves(3*[self.t], [self.lowpassfiltered,left,  right],plotparams=pp)
+                self.cw.plotfiltered['Spike'].update_curves(3*[self.t], [self.highpassfiltered,left,  right],plotparams=pp)
                 self.cw.plotfiltered['Field Potential'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
                 self.cw.plotfiltered['Spike'].plot.setXRange(0, 1000/self.settings['Stimulus Rate'])
         
@@ -284,9 +281,9 @@ class LEDStimulator(gui.SimpleAppWindow):
             ch1=1
             ch2=2
         ch1=0
-        ch2=2
+        ch2=3
         self.elphys_channel_index=1
-        self.number_of_ai_channels=3
+        self.number_of_ai_channels=4
         ai_channels='{0}/ai{1}:{2}' .format(self.settings['DAQ device'], ch1, ch2)
         self.analog_input.CreateAIVoltageChan(ai_channels,
                                                 'ai',

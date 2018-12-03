@@ -85,6 +85,7 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.eye_camera_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
+        self.continuous_recording=False
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -288,6 +289,10 @@ class ExperimentHandler(object):
     def mesc_connect(self):
         self.mesc_handler('init')
         
+    def start_continuous_recording(self):
+        self.continuous_recording=True
+        self.start_experiment()
+        
     def start_experiment(self, experiment_parameters=None):
         if self.machine_config.PLATFORM=='resonant':
             if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
@@ -402,7 +407,9 @@ class ExperimentHandler(object):
                 self.start_eye_camera()
             self.experiment_running=False
             self.experiment_finish_time=time.time()
-        self.to_gui.put({'update_status':'idle'}) 
+        self.to_gui.put({'update_status':'idle'})
+        if self.continuous_recording:
+            self.start_experiment() 
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
@@ -497,6 +504,7 @@ class ExperimentHandler(object):
                 experiment_data.hdf52mat(fn, scale_sync=False)
                 self.printc('{0} converted to mat'.format(fn))
                 sync=hdf5io.read_item(fn,  "sync")
+                self.to_gui.put({'plot_title': os.path.dirname(fn)+'<br>'+os.path.basename(fn)})
                 self._plot_elphys(sync)
         self.to_gui.put({'update_status':'idle'})
         
@@ -673,6 +681,7 @@ class ExperimentHandler(object):
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
 
     def stop_experiment(self):
+        self.continuous_recording=False
         if self.batch_running:
             self.batch_running=False
             self.batch=[]

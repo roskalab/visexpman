@@ -512,7 +512,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
-            toolbar_buttons = ['start_experiment', 'stop', 'exit']
+            toolbar_buttons = ['start_experiment', 'continuous_recording', 'stop', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -822,6 +822,9 @@ class MainUI(gui.VisexpmanMainWindow):
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
+        
+    def continuous_recording_action(self):
+        self.to_engine.put({'function': 'start_continuous_recording', 'args':[]})
         
     def start_batch_action(self):
         self.to_engine.put({'function': 'start_batch', 'args':[]})
