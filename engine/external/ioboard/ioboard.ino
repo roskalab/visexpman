@@ -55,12 +55,12 @@ ISR(TIMER1_COMPA_vect)
 
 ISR(INT0_vect)
 {
-  iobc.elongate_isr();
+  iobc.int0_isr();
 }
 
 ISR(INT1_vect)
 {
-  Serial.println("INT1");
+  iobc.int1_isr();
 }
 
 

@@ -408,8 +408,6 @@ class ExperimentHandler(object):
             self.experiment_running=False
             self.experiment_finish_time=time.time()
         self.to_gui.put({'update_status':'idle'})
-        if self.continuous_recording:
-            self.start_experiment() 
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
@@ -676,6 +674,8 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
                 self.finish_experiment()
                 self.save_experiment_files()
+                if self.continuous_recording:
+                    self.start_experiment() 
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
