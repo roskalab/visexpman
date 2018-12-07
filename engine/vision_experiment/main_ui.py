@@ -649,6 +649,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.plot.update_curve(timg, curve)
                 if hasattr(tsync, "dtype"):
                     self.plot.add_linear_region(list(tsync))
+                if "labels" in options:
+                    self.plot.plot.setLabels(left=options["labels"]["left"], bottom=options["labels"]["bottom"])
             elif 'remove_roi_rectangle' in msg:
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))
             elif 'fix_roi' in msg:

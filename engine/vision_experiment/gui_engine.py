@@ -79,7 +79,6 @@ class ExperimentHandler(object):
                     limits['min_ai_voltage'] = -5.0
                     limits['max_ai_voltage'] = 5.0
                     limits['timeout'] = self.machine_config.DAQ_TIMEOUT
-                    limits=None
                 else:
                     limits=None
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
@@ -356,7 +355,12 @@ class ExperimentHandler(object):
             self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
                                                                                                   log=self.log)
             time.sleep(0.3)#Ensure that analog recording started
-            self.stimuluso.run()
+            try:
+                self.stimuluso.run()
+            except:
+                self.printc(traceback.format_exc())
+                self._stop_sync_recorder()
+                return
         else:
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
@@ -517,7 +521,7 @@ class ExperimentHandler(object):
                 self._plot_elphys(sync)
         self.to_gui.put({'update_status':'idle'})
         
-    def _plot_elphys(self, sync):
+    def _plot_elphys(self, sync,  display_all=True):
         #Filter rawdata
         if self.guidata.read('Enable Filter')==True:
             order=self.guidata.filter_order.v
@@ -530,10 +534,24 @@ class ExperimentHandler(object):
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]
+        #Scale elphys
+        
+        if self.experiment_running:
+            unit="pA" if "current" in self.stimuluso.__class__.__name__.lower() else "mV"
+            scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
+        else:
+            unit = "pA" if "current" in os.path.basename(self.filename).lower() else "mV"
+            scale=self.guidata.read(("Current" if "current" in os.path.basename(self.filename).lower() else "Voltage")+" Gain")
+        if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and not display_all:
+            index=-int(self.machine_config.LIVE_SIGNAL_LENGTH*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        else:
+            index=0
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        t=t[index:]
         x=2*[t]
-        y=[self.filtered,  sync[:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
-        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":[[255, 0, 0],  [0, 0, 255]]}]})
+        y=[self.filtered[index:]*scale,  sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
+        labels={"left": unit,  "bottom": "time [s]"}
+        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":[[255, 0, 0],  [0, 0, 255]],  "labels": labels}]})
 
 
     def _remerge_files(self,folder,hdf5fold):
@@ -652,8 +670,8 @@ class ExperimentHandler(object):
         if hasattr(d,  "dtype"):
             self.live_data=numpy.concatenate((self.live_data,d))
             self.last_ai_read=d
-            if self.live_data.shape[0]>0 and 0:
-                self._plot_elphys(self.live_data)
+            if self.live_data.shape[0]>0:
+                self._plot_elphys(self.live_data,  display_all=False)
             self.daqdatafile.add(d)
             
     def _stop_sync_recorder(self):
