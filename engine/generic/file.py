@@ -3,6 +3,7 @@ import os.path
 import shutil
 import numpy
 import tempfile
+import numbers
 import time
 import subprocess as sub
 import multiprocessing,threading
@@ -16,7 +17,6 @@ try:
     import psutil
 except ImportError:
     pass
-timestamp_re = re.compile('.*(\d{10,10}).*')
 
 def wait4file_ready(f,timeout=60):
     if os.path.exists(f):
@@ -196,11 +196,24 @@ def file_open_by_other_process(filename):
     if len(pids)<1: return False
     elif len(pids)>1 or pids[0]!=os.getpid():return True
 
-def compare_timestamps(string1, string2):
-        '''Finds timestamps in the strings and returns true if the timestamps are the same'''
-        ts1 = timestamp_re.findall(str(string1))[0]
-        ts2 = timestamp_re.findall(str(string2))[0]
-        if int(ts1)==int(ts2): return True
+def compare_timestamps(ts1, ts2):
+        """
+        Check for equality between two timesamps
+
+        Parameters
+        ----------
+        ts1 : string or number.
+        ts2
+
+        Returns
+        -------
+        float : True, if timestamps are equal, False otherwise
+
+        """
+        from visexpA.engine.datahandlers.datatypes import timestamp_re
+        ts = [ts1, ts2]
+        ts_f = [timestamp_re.findall(tt1)[0] if not isinstance(tt1, numbers.Number) else tt1 for tt1 in ts]
+        if int(ts_f[0])==int(ts_f[1]): return True
         else: return False
 
 def copy_reference_fragment_files(reference_folder, target_folder):
