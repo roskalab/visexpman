@@ -72,7 +72,17 @@ class ExperimentHandler(object):
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
             if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical', 'resonant', 'behav',  'retinal']:
-                self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS)
+                if self.machine_config.PLATFORM=='elphys':
+                    limits = {}
+                    limits['min_ao_voltage'] = -5.0
+                    limits['max_ao_voltage'] = 5.0
+                    limits['min_ai_voltage'] = -5.0
+                    limits['max_ai_voltage'] = 5.0
+                    limits['timeout'] = self.machine_config.DAQ_TIMEOUT
+                    limits=None
+                else:
+                    limits=None
+                self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
                 self.sync_recorder.start()
             self.sync_recording_started=False
             self.experiment_running=False
@@ -340,6 +350,7 @@ class ExperimentHandler(object):
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
         elif self.machine_config.PLATFORM=='elphys':
+            self.live_data=numpy.empty((0,3))
             introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
@@ -639,7 +650,10 @@ class ExperimentHandler(object):
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
         if hasattr(d,  "dtype"):
+            self.live_data=numpy.concatenate((self.live_data,d))
             self.last_ai_read=d
+            if self.live_data.shape[0]>0 and 0:
+                self._plot_elphys(self.live_data)
             self.daqdatafile.add(d)
             
     def _stop_sync_recorder(self):
