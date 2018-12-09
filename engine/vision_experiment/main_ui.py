@@ -784,8 +784,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     pars=[{'name': 'Gain', 'type': 'int', 'value': 10000.0, 'siPrefix': True,}]
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
                     pars=[
-                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'pA/V'},
-                                {'name': 'Voltage Gain', 'type': 'float', 'value': 10.0, 'suffix': 'mV/V'}, 
+                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/nA'},
+                                {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
                                 {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
                                 {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
                                 ]
@@ -793,6 +793,9 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Infinite Recording', 'type': 'bool', 'value': True},
                             {'name': 'Displayed signal length', 'type': 'float', 'value': 60,  'suffix': 's'},
+                            {'name': 'Show Command Trace', 'type': 'bool', 'value': True},
+                            {'name': 'Show Stimulus Trace', 'type': 'bool', 'value': False},
+                            {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
                             ]},  ]               
                         )
                 self.params_config[-1]['children'].extend(pars)

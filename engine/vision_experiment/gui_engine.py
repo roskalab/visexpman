@@ -326,6 +326,7 @@ class ExperimentHandler(object):
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None if self.machine_config.PLATFORM=="elphys" else [-5,5])
             #Start sync signal recording
             sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            d=self.sync_recorder.read_ai()#Empty ai buffer
             self.sync_recorder.start_daq(ai_sample_rate = sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
@@ -537,22 +538,41 @@ class ExperimentHandler(object):
         #Scale elphys
         
         if self.experiment_running:
-            unit="pA" if "current" in self.stimuluso.__class__.__name__.lower() else "mV"
-            scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
+            unit="mV / pA" if "current" in self.stimuluso.__class__.__name__.lower() else "pA / mV"
+            scale=self.guidata.read(("Current" if "voltage" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
+            command_scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Command Sensitivity")
         else:
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
-            unit = "pA" if "current" in os.path.basename(fn).lower() else "mV"
-            scale=self.guidata.read(("Current" if "current" in os.path.basename(fn).lower() else "Voltage")+" Gain")
+            unit = "mV / pA" if "current" in os.path.basename(fn).lower() else "pA / mV"
+            scale=self.guidata.read(("Current" if "voltage" in os.path.basename(fn).lower() else "Voltage")+" Gain")
+            command_scale=self.guidata.read(("Current" if "current" in os.path.basename(fn).lower() else "Voltage")+" Command Sensitivity")
+        scale*=1e-3
+        if self.guidata.read('Show raw voltage'):
+            scale=1
+            command_scale=1
+        unit='Red / Green: '+unit
         if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and not display_all:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
             index=0
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         t=t[index:]
-        x=2*[t]
-        y=[self.filtered[index:]*scale,  sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX]]
+        cmd_disp_ena=self.guidata.read('Show Command Trace')
+        stim_disp_ena=self.guidata.read('Show Stimulus Trace')
+        n=1+int(cmd_disp_ena)+int(stim_disp_ena)
+        x=n*[t]
+        y=[self.filtered[index:]/scale]
+        cc=[[255, 0, 0]]
+        if stim_disp_ena:
+            y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
+            cc.append([0, 0, 255])
+        if cmd_disp_ena:
+            y.append(sync[index:, self.machine_config.COMMAND_SYNC_CHANNEL_INDEX]*command_scale)
+            cc.append([0, 255, 0])
+        self.y=y
+        self.sync=sync
         labels={"left": unit,  "bottom": "time [s]"}
-        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":[[255, 0, 0],  [0, 0, 255]],  "labels": labels}]})
+        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels}]})
 
 
     def _remerge_files(self,folder,hdf5fold):
@@ -726,6 +746,7 @@ class ExperimentHandler(object):
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         if self.machine_config.PLATFORM=='elphys':
             self.stimuluso.stop()
+            time.sleep(0.5)
         self.send({'function': 'stop_all','args':[]},'stim')
         self.enable_check_network_status=True
         if hasattr(self,  'cam') and self.cam.is_alive():
