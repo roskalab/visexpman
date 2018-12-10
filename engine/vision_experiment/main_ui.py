@@ -651,6 +651,11 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.plot.add_linear_region(list(tsync))
                 if "labels" in options:
                     self.plot.plot.setLabels(left=options["labels"]["left"], bottom=options["labels"]["bottom"])
+                if 'range' in options and options['range']!= None:
+                    #self.plot.plot.autoRange(False)
+                    self.plot.plot.setYRange(options['range'][0],options['range'][1])
+#                else:
+#                    self.plot.plot.autoRange(True)
             elif 'remove_roi_rectangle' in msg:
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))
             elif 'fix_roi' in msg:
@@ -796,6 +801,9 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': 'Show Command Trace', 'type': 'bool', 'value': True},
                             {'name': 'Show Stimulus Trace', 'type': 'bool', 'value': False},
                             {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
+                            {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
+                            {'name': 'Y min', 'type': 'float', 'value': 0},
+                            {'name': 'Y max', 'type': 'float', 'value': 10},
                             ]},  ]               
                         )
                 self.params_config[-1]['children'].extend(pars)

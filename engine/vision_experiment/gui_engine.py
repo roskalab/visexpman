@@ -572,7 +572,8 @@ class ExperimentHandler(object):
         self.y=y
         self.sync=sync
         labels={"left": unit,  "bottom": "time [s]"}
-        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels}]})
+        self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
+        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
 
 
     def _remerge_files(self,folder,hdf5fold):
