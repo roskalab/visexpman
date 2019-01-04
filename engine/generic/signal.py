@@ -108,6 +108,8 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
         spatial_resolution: duration of 1 sample in seconds
     '''
     spatial_range = duration * speed
+    if speed==0:
+        raise ValueError('0 speed is not valid')
     if minimal_spatial_period < 5 * spatial_resolution:
         raise RuntimeError('minimal_spatial_period ({0}) shall be bigger than 5 x spatial_resolution ({0}) ' .format(minimal_spatial_period, spatial_resolution))
     spatial_frequencies = numpy.arange(1.0/spatial_range, 1.0/minimal_spatial_period+1.0/spatial_range, 1.0/spatial_range)

@@ -1135,10 +1135,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
+        
+    #TODO: rename show_barcode
     def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, 
                             spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,
-                            offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,
+                            offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,mask_size=None,enable_motion=True,
                             duration_calc_only=False,save_frame_info =True):
         '''
         Show vertical bars where the distribution of the color of the bar corresponds to the distribution of
@@ -1186,7 +1187,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             alltexture=numpy.concatenate((fly_in_out,alltexture))
         if fly_out:
             alltexture=numpy.concatenate((alltexture,fly_in_out))
-        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        if enable_motion:
+            ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        else:
+            ds=0
         if duration_calc_only:
             return (alltexture.shape[0]-(0 if circular else self.config.SCREEN_RESOLUTION['col']))/(ds*float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
@@ -1251,6 +1255,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glDrawArrays(GL_POLYGON,  0, 4)
             self._flip(frame_timing_pulse = True)
             if self.abort:
+                break
+            if not enable_motion and frame_counter>=duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
                 break
         dt=(time.time()-self.t0)
         #print 'frame rate', frame_counter/dt,'dt', dt,'frame counter', frame_counter,'text pointer', texture_pointer,'all texture size', alltexture.shape[0], 'self.intensity_profile', self.intensity_profile.shape, 'ds', ds
