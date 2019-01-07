@@ -1203,8 +1203,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
         angles = angles + direction*numpy.pi/180.0
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
-        #import pdb;pdb.set_trace()
         vertices = vertices.transpose()
+        if mask_size!=None:
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1)
+            vertices=numpy.append(vertices,mask,axis=0)
         if self.config.COORDINATE_SYSTEM == 'ulcorner':
             vertices += self.config.SCREEN_UM_TO_PIXEL_SCALE*numpy.array([self.machine_config.SCREEN_CENTER['col'], self.machine_config.SCREEN_CENTER['col']])
         glEnableClientState(GL_VERTEX_ARRAY)
@@ -1213,7 +1215,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        glEnable(GL_TEXTURE_2D)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         texture_coordinates = numpy.array(
                              [
@@ -1249,10 +1250,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             else:
                 frame_counter += 1
             texture_pointer = ds*frame_counter
-            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            if mask_size!=None:
+                glColor3fv(colors.convert_color(0.0, self.config))
+                for shi in range(vertices.shape[0]/4-1):
+                    glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
             glColor3fv((1.0,1.0,1.0))
+            glEnable(GL_TEXTURE_2D)
             glDrawArrays(GL_POLYGON,  0, 4)
+            glDisable(GL_TEXTURE_2D)
             self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
@@ -1260,7 +1267,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 break
         dt=(time.time()-self.t0)
         #print 'frame rate', frame_counter/dt,'dt', dt,'frame counter', frame_counter,'text pointer', texture_pointer,'all texture size', alltexture.shape[0], 'self.intensity_profile', self.intensity_profile.shape, 'ds', ds
-        glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
         if save_frame_info and not duration_calc_only:
