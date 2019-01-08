@@ -54,6 +54,7 @@ class IOBoardCommands:public Comm {
         unsigned long imaging_frame_interval;
         phase_lock_state_t phase_lock_state;
         unsigned long imaging_pulse_counter;
+        unsigned long micros_offset;
 #endif
         void set_pin(float pin,float value);
         void pulse(float pin,float duration);

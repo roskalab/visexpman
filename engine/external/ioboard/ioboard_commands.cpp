@@ -177,6 +177,7 @@ void IOBoardCommands::run(void)
       }
       read_state=OFF;
       stop_waveform();
+      asm volatile ("  jmp 0");
     }
     else if ((strcmp(command,"set_id")==0)&&(nparams==1))
     {
@@ -255,6 +256,11 @@ void IOBoardCommands::run(void)
     {
         phase_lock_state=NOT_RUNNING;
         Serial.println(imaging_frame_interval/(TIMING_BUFFER_SIZE-1));
+    }    
+    else if ((strcmp(command,"clock_reset")==0)&&(nparams==0))
+    {
+        micros_offset=micros();
+        Serial.println(micros_offset);
     }    
 #endif
     else
