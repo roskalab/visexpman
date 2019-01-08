@@ -56,7 +56,7 @@ def application_init(**kwargs):
         argparser.add_argument('--testmode', help = 'Test mode')
         argparser.add_argument('--kill', help = 'Kill other python processes before software starts')
         argparser.add_argument('--nofullscreen', help = '')
-        argparser.add_argument('--visexpu', help = 'Use visexpu module instead of visexpman.users for loading machine configs and stimuli')
+        argparser.add_argument('--vu', help = 'Use visexpu module instead of visexpman.users for loading machine configs and stimuli')
         parsed_args = argparser.parse_args()
         for parname in parnames:
             if getattr(parsed_args,parname) is None:

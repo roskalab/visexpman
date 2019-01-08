@@ -352,8 +352,8 @@ def parse_stimulation_file(filename):
     for c in inspect.getmembers(experiment_module,inspect.isclass):
         if c[1]==object:#call to =introspect.class_ancestors hangs
             continue
-        ancestorts=introspect.class_ancestors(c[1])
-        if 'ExperimentConfig' in ancestorts:
+        ancestors=introspect.class_ancestors(c[1])
+        if 'ExperimentConfig' in ancestors:
             try:
                 expconfig_lines = source_code.split('class '+c[0])[1].split('def _create_parameters')[1].split('def')[0].split('\n')
                 experiment_config_classes[c[0]] = \
@@ -361,7 +361,7 @@ def parse_stimulation_file(filename):
                         if '=' in expconfig_line and (expconfig_line.split('=')[0].replace('self.','').isupper() or 'self.editable' in expconfig_line.split('=')[0])]
             except:
                 continue
-        elif 'Stimulus' in ancestorts:
+        elif 'Stimulus' in ancestors:
             experiment_config_classes[c[0]] = []
     return experiment_config_classes
 

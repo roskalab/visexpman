@@ -1135,10 +1135,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
+        
+    #TODO: rename show_barcode
     def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, 
                             spatial_resolution = None, intensity_levels = 255, direction = 0, background=None,
-                            offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,
+                            offset=0.0, scale=1.0, fly_in=False, fly_out=False, circular=False,mask_size=None,enable_motion=True,
                             duration_calc_only=False,save_frame_info =True):
         '''
         Show vertical bars where the distribution of the color of the bar corresponds to the distribution of
@@ -1186,7 +1187,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             alltexture=numpy.concatenate((fly_in_out,alltexture))
         if fly_out:
             alltexture=numpy.concatenate((alltexture,fly_in_out))
-        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        if enable_motion:
+            ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        else:
+            ds=0
         if duration_calc_only:
             return (alltexture.shape[0]-(0 if circular else self.config.SCREEN_RESOLUTION['col']))/(ds*float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
@@ -1199,8 +1203,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
         angles = angles + direction*numpy.pi/180.0
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
-        #import pdb;pdb.set_trace()
         vertices = vertices.transpose()
+        if mask_size!=None:
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1)
+            vertices=numpy.append(vertices,mask,axis=0)
         if self.config.COORDINATE_SYSTEM == 'ulcorner':
             vertices += self.config.SCREEN_UM_TO_PIXEL_SCALE*numpy.array([self.machine_config.SCREEN_CENTER['col'], self.machine_config.SCREEN_CENTER['col']])
         glEnableClientState(GL_VERTEX_ARRAY)
@@ -1209,7 +1215,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        glEnable(GL_TEXTURE_2D)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         texture_coordinates = numpy.array(
                              [
@@ -1245,16 +1250,23 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             else:
                 frame_counter += 1
             texture_pointer = ds*frame_counter
-            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            if mask_size!=None:
+                glColor3fv(colors.convert_color(0.0, self.config))
+                for shi in range(vertices.shape[0]/4-1):
+                    glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
             glColor3fv((1.0,1.0,1.0))
+            glEnable(GL_TEXTURE_2D)
             glDrawArrays(GL_POLYGON,  0, 4)
+            glDisable(GL_TEXTURE_2D)
             self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
+            if not enable_motion and frame_counter>=duration*self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
+                break
         dt=(time.time()-self.t0)
         #print 'frame rate', frame_counter/dt,'dt', dt,'frame counter', frame_counter,'text pointer', texture_pointer,'all texture size', alltexture.shape[0], 'self.intensity_profile', self.intensity_profile.shape, 'ds', ds
-        glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
         if save_frame_info and not duration_calc_only:

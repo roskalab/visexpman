@@ -63,7 +63,7 @@ def get_user_experiment_data_folder(parameters):
     user_experiment_data_folder = parameters['outfolder']
     if not os.path.exists(user_experiment_data_folder):
         os.makedirs(user_experiment_data_folder)
-    return user_experiment_data_folder
+    return str(user_experiment_data_folder)#TODO: need to be investigated why is it a numpy array on elphys platform
     
 def find_recording_filename(id, config_or_path):
     if isinstance(config_or_path,str):
@@ -1538,10 +1538,13 @@ def gammatext2hdf5(filename):
 def yscanner2sync(waveform):
     pass
     
-def hdf52mat(filename):
+def hdf52mat(filename, scale_sync=False):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
-    rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    try:
+        rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+    except:
+        rootnodes=[v for v in hh.h5f.root._v_children.keys() if v not in ignore_nodes]
     mat_data={}
     for rn in rootnodes:
         if os.path.basename(filename).split('_')[-2] in rn:
@@ -1551,6 +1554,8 @@ def hdf52mat(filename):
         mat_data[rnt]=hh.findvar(rn)
         if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
+    if scale_sync and hasattr(hh,'sync') and hasattr(hh,'sync_scaling'):
+        mat_data['sync']=signal.from_16bit(mat_data['sync'], mat_data['sync_scaling'])
     if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
         del mat_data['soma_rois_manual_info']
     hh.close()

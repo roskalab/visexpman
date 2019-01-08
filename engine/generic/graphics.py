@@ -402,7 +402,20 @@ class Screen(object):
         glDrawArrays(GL_POLYGON,  0, 4)
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
-        glDisableClientState(GL_VERTEX_ARRAY)        
+        glDisableClientState(GL_VERTEX_ARRAY)
+        
+    def render_rectangle(self,  center,  size,  color):
+        vertices = numpy.array([
+                                [center['col'] + 0.5 * size['col'], center['row'] - 0.5 * size['row']],
+                                [center['col'] + 0.5 * size['col'], center['row'] + 0.5 * size['row']],
+                                [center['col'] - 0.5 * size['col'], center['row'] + 0.5 * size['row']],
+                                [center['col'] - 0.5 * size['col'], center['row'] - 0.5 * size['row']],
+                                ])
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glColor3fv(color)
+        glDrawArrays(GL_POLYGON,  0, 4)
+        glDisableClientState(GL_VERTEX_ARRAY)
         
     def create_texture(self):
         pass

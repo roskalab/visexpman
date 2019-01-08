@@ -91,6 +91,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 self.arbitrary_timing()
             elif key_pressed == self.config.KEYS['tearing']:
                 self.tearing()
+            elif key_pressed == self.config.KEYS['contrast steps']:
+                self.contrast_steps()
+            elif key_pressed == self.config.KEYS['led test']:
+                self.led_test()
+            elif key_pressed == self.config.KEYS['phase shift test']:
+                self.phase_shift_test()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
@@ -162,22 +168,36 @@ class StimulationLoop(ServerLoop, StimulationScreen):
     def flicker(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
-        wait_before_flip=False
-        for fps in [144,  80, 40, 20]:
+        wait_before_flip=not False
+        offset=0.5
+        contrast=1.0
+        on=offset+0.5*contrast
+        off=offset-0.5*contrast
+        fpss=[60, 40,20] if self.machine_config.SCREEN_EXPECTED_FRAME_RATE==60 else [144,80,40,20]
+        tstart=time.time()
+        rectangle=True
+        rectangle_size=500
+        for fps in fpss:
             print fps
-            for i in range(144/2):
+            for i in range(int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE/4)):
                 self.clear_screen(color = colors.convert_color(0, self.config))
                 self.flip()
             t00=time.time()
             i=0
             t0step=time.time()
             flip_times=[]
-            insert_delay=True
+            insert_delay=not True
             while True:
-                c=float(i%2)
-#                print i, c
+                if i%2==0:
+                    c=on
+                else:
+                    c=off
                 i+=1
-                self.clear_screen(color = colors.convert_color(c, self.config))
+                if rectangle:
+                    self.clear_screen(color = colors.convert_color(0, self.config))
+                    self.render_rectangle(utils.rc((0, 0)),  utils.rc((rectangle_size, rectangle_size)),  colors.convert_color(c, self.config))
+                else:
+                    self.clear_screen(color = colors.convert_color(c, self.config))
                 tt00=time.time()
                 if not wait_before_flip:
                     self.flip()
@@ -199,11 +219,136 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             keys = check_keyboard()
             if "q" in keys:
                 break
+        print time.time()-tstart
+        
+    def led_test(self):
+        daq=True
+        fps=25
+        screen_setup_time=7e-3
+        flash_time=5e-3
+        comport='COM3'
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.engine.hardware_interface import digital_io, daq_instrument
+        import PyDAQmx
+        import PyDAQmx.DAQmxConstants as DAQmxConstants
+        import PyDAQmx.DAQmxTypes as DAQmxTypes
+        duration=20
+        fsample=10000
+        io=digital_io.IOBoard(comport)
+        digital_input = PyDAQmx.Task()
+        digital_input.CreateDIChan('Dev1/port1/line0','di', DAQmxConstants.DAQmx_Val_ChanPerLine)
+        data = numpy.zeros((1,), dtype=numpy.uint8 )
+        total_samps = DAQmxTypes.int32()
+        total_bytes = DAQmxTypes.int32()
+        ct=0
+        io.reset()
+        if daq:
+            ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:2', fsample, duration+5, duration+7, diffmode=True)
+        time.sleep(0.5)
+#        io.set_pin(5, 1)
+#        io.set_pin(5, 0)
+        time.sleep(0.5)
+#        print io.elongate(5, screen_setup_time*1e6, flash_time*1e6)
+        io.set_waveform(fps, 0, 0)       
+        time.sleep(0.5)
+        t00=time.time()
+        while True:
+            c=(ct%4)
+            if c==0:
+                c=0.0
+            elif c==1:
+                c=0.5
+            elif c==2:
+                c=1.0
+            elif c==3:
+                c=0.5
+            self.clear_screen(color = colors.convert_color(float(c), self.config))            
+            t0=time.time()
+            ii=0
+            while True:
+                digital_input.ReadDigitalLines(1,0.01,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+                ii+=1
+                if data[0]==1:
+                    break
+                if ii>1000:
+                    if time.time()-t0>3:
+                        break
+#                time.sleep(1e-3)
+            self.flip()
+            ct+=1
+            keys = check_keyboard()
+            if "a" in keys or time.time()-t00>duration-3:
+                break
+            #If trigger is high, introduce wait to avoid double triggering
+            digital_input.ReadDigitalLines(1,0.01,DAQmxConstants.DAQmx_Val_GroupByChannel,data,1,DAQmxTypes.byref(total_samps),DAQmxTypes.byref(total_bytes),None)
+            if data[0]==1:
+                time.sleep(1.0/(1.9*fps))
+#        print ct,  time.time()-t00
+        digital_input.ClearTask()
+#        print io.s.read(200)
+        io.stop_waveform()
+        io.close()
+        if daq:
+            d=ai.finish()
+            fn="c:\\temp\\{0}.hdf5".format(time.time())
+            hdf5io.save_item(fn,  "data",  d)
+            from visexpur.users.zoltan.tasks.calculate_gsync_timing import plot_timing
+            plot_timing(fn)
+            
+    def phase_shift_test(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.engine.hardware_interface import daq_instrument
+        ct=0
+        fps=50.
+        duration=5.0
+        fsample=10000
+        t0=time.time()
+        phase_shift=0.5/fps
+        tsample=1.0/fps
+        ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:2', fsample, duration+5, duration+7, diffmode=True)
+        time.sleep(0.1)
+        while True:
+            keys = check_keyboard()
+            if time.time()-t0>duration or "a" in keys:
+                break
+            ct+=1
+            self.clear_screen(color = colors.convert_color(float(ct%2), self.config))
+            if ct%10==0:
+                time.sleep(tsample+phase_shift)
+            else:
+                time.sleep(tsample)
+            self.flip()
+        d=ai.finish()
+        fn="c:\\temp\\{0}.hdf5".format(time.time())
+        hdf5io.save_item(fn,  "data",  d)
+        from pylab import plot,show
+        [plot(d[:,i]) for i in range(3)]
+        show()
+        
+            
+    def contrast_steps(self):
+        from visexpman.engine.generic import colors
+        from visexpman.engine.generic.graphics import check_keyboard
+        step_time=20e-3
+        step_size=0.1
+        intensities=numpy.linspace(0.0,1.0, 1/step_size+1)
+        intensities=numpy.concatenate((intensities, intensities[::-1]))
+        print intensities
+        for r in range(10):
+            for i in intensities:
+                self.clear_screen(color = colors.convert_color(i, self.config))
+                time.sleep(step_time)
+                self.flip()
+                keys = check_keyboard()
+                if "a" in keys:
+                    break
         
     def arbitrary_timing(self):
         from visexpman.engine.generic import colors
         from visexpman.engine.generic.graphics import check_keyboard
-        wait_before_flip=False
+        wait_before_flip=not False
         pause=30e-3
         timesteps=[10e-3,  pause]
         intensities=numpy.array([1.0]*len(timesteps))

@@ -76,7 +76,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['retinal', 'elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
+        PLATFORM = ['undefined', ['retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -269,94 +269,28 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
 
-class RetinalSetup(VisionExperimentConfig):
+class RetinalConfig(VisionExperimentConfig):
     '''
     Base configuration for retinal setups with elphys/ca imaging
     '''
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'retinal'
-        self.CONNECTIONS['ca_imaging'] = {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}}
-        
+        self.CONNECTIONS['ca_imaging'] = {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}}        
         self._create_parameters_from_locals(locals())
 
-#OBSOLETE
-class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
+class ElphysConfig(VisionExperimentConfig):
     '''
-        FILTERWHEEL = [{
-                        'port' :  port,
-                        'baudrate' : 115200,
-                        'filters' : {
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }
-                        }]
+    Base configuration for elphys setups where only electrophysiological recordings take place. 
+    Visual and electrical stimulation is supported.
     '''
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
-        ################ Ca imaging GUI #######################
-        PLATFORM = 'elphys_retinal_ca'
-        self.CONNECTIONS['ca_imaging'] = {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}}
-        
-        STIM_RECORDS_ANALOG_SIGNALS = False
-        self.GUI['SIZE'] = utils.rc((1024, 1280))
-        
-        ######### Calcium imaging #########
-        MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
-        MAX_PMT_NOISE_LEVEL = [1.0,[0.0,15.0]]
-        MAX_SCANNER_VOLTAGE = [10.0,[0.0,30.0]]
-        SCANNER_MAX_POSITION = [350.0, [100.0, 500.0]]#Corresponds to maximal amplitude of scanner contol signal
-        POSITION_TO_SCANNER_VOLTAGE = [2.0/128.0, [1e-5,1]]#Conversion rate between laser beam position and scanner control voltage
-        XMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]#Offset of scanner signal cannot exceed 2 V
-        YMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]
-        STIMULATION_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging stimulus trigger signals
-        FRAME_TIMING_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
-        PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
-                            'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
-        TWO_PHOTON = {}
-        TWO_PHOTON['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0'
-        TWO_PHOTON['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
-        TWO_PHOTON['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
-        TWO_PHOTON['PROJECTOR_CONTROL'] = 'Dev1/ao2'
-        TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
-        
-        ELPHYS_SYNC_RECORDING={}
-        ELPHYS_SYNC_RECORDING['AI_PINOUT'] = 'Dev1/ai2:6'
-        ELPHYS_SYNC_RECORDING['AO_PINOUT'] = 'Dev1/ao0:1'
-        ELPHYS_SYNC_RECORDING['SPIKING_SAMPLE_RATE'] = 10000 #This value cannot be adjusted from main_ui
-        ELPHYS_SYNC_RECORDING['ELPHYS_SAMPLE_RATE'] = 1000 #This value cannot be adjusted from main_ui
-        ELPHYS_SYNC_RECORDING['TIMEOUT'] = 10.0
-        ELPHYS_SYNC_RECORDING['ELPHYS_INDEXES'] = [0,1]
-        ELPHYS_SYNC_RECORDING['SYNC_INDEXES'] = [2,3,4]#stim frame sync, y scanner, imaging frame sync, block trigger
-        
-        DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync', 'conversion_factor', 'recording_parameters', 'stimulus_frame_info']
-        for an in self.USER_INTERFACE_NAMES:
-            if 'analysis' not in an:
-                DATA_FILE_NODES.extend(['configs_{0}'.format(an), 'software_environment_{0}'.format(an)])
-        #Scanner dynamics
-        XMIRROR_MAX_FREQUENCY = [1400.0, [50.0, 2200.0]]
-        Y_MIRROR_MIN_FLYBACK_TIME = [1e-3, [0.66e-3, 100e-3]]
-        #These values will be overridden by setup configs
-        SCANNER_CHARACTERISTICS = {}
-        SCANNER_CHARACTERISTICS['GAIN'] = [-1.12765460e-04,  -2.82919056e-06]#(p1+p2*A)*f+1, in PU
-        SCANNER_CHARACTERISTICS['PHASE'] = \
-                    [9.50324884e-08,  -1.43226725e-07, 1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]#(p1*a+p2)*f**2+(p3*a**2+p4*a+p5)*f+(p6*a+p7), in radians
-        
-        MAX_CA_IMAGE_DISPLAYS = [4, [1, 10]]
-        CAIMAGE_DISPLAY_VERTICAL_FLIP = False
-        CAIMAGE_DISPLAY_HORIZONTAL_FLIP = False
-        
-        self.KEYS['snap'] = 'return'
-        self.KEYS['live_start_stop'] = 'space'
-        self.KEYS['transfer_function'] = 't'
-        
-        DATAFILE_COMPRESSION_LEVEL = [4, [0,9]]
-        SYNC_SAMPLE_SIZE = [3, [1, 100]]
+        PLATFORM = 'elphys'
+        AMPLIFIER_TYPE='differential'
+        COORDINATE_SYSTEM='center'
         self._create_parameters_from_locals(locals())
+
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):

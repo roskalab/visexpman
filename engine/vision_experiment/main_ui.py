@@ -131,12 +131,16 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.menu.exec_(self.viewport().mapToGlobal(position))
         
     def stimulus_info_action(self):
-        bases=experiment.read_stimulus_base_classes(self.classname, self.filename, self.parent.machine_config)
-        self.parent.printc('Base classes: {0}'.format(' -> '.join(bases)))
-        duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
-        self.parent.printc('Duration: {0:0.0f} seconds'.format(duration))
-        parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
-        self.parent.printc('Stimulus hash: {0}'.format(experiment.stimulus_parameters_hash(parameters)))
+        try:
+            bases=experiment.read_stimulus_base_classes(self.classname, self.filename, self.parent.machine_config)
+            self.parent.printc('Base classes: {0}'.format(' -> '.join(bases)))
+            duration=experiment.get_experiment_duration( self.classname, self.parent.machine_config, source=fileop.read_text_file(self.filename))
+            self.parent.printc('Duration: {0:0.0f} seconds'.format(duration))
+            parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
+            self.parent.printc('Stimulus hash: {0}'.format(experiment.stimulus_parameters_hash(parameters)))
+        except:
+            import traceback
+            self.parent.printc(traceback.format_exc())
 
     def stimulus_par_action(self):
         parameters=experiment.read_stimulus_parameters(self.classname, self.filename, self.parent.machine_config)
@@ -168,6 +172,8 @@ class StimulusTree(pyqtgraph.TreeWidget):
         #Clear tree view
         self.blockSignals(True)
         self.clear()
+        if hasattr(self.parent.machine_config, 'STIMULUS_VIEW_FILTER'):
+            experiment_configs=[ec for ec in experiment_configs if len([kw for kw in self.parent.machine_config.STIMULUS_VIEW_FILTER if kw in os.path.basename(ec)])>0]
         #Populate with files and stimulus classes
         branches = [list(e.replace(self.root, '')[1:].split(os.sep)) for e in experiment_configs]
         nlevels=[len(b) for b in branches]
@@ -192,7 +198,6 @@ class StimulusTree(pyqtgraph.TreeWidget):
                     ref[0].addChild(newwidget)
                 else:
                     raise
-                    
             added_items.append(newwidget)
         self.blockSignals(False)
         
@@ -506,6 +511,8 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'mesc_connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
+        elif self.machine_config.PLATFORM =='elphys':
+            toolbar_buttons = ['start_experiment', 'continuous_recording', 'stop', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -516,7 +523,6 @@ class MainUI(gui.VisexpmanMainWindow):
             self.statusbar.camera_status=QtGui.QLabel('', self)
             self.statusbar.addPermanentWidget(self.statusbar.camera_status)
             self.statusbar.camera_status.setStyleSheet('background:gray;')
-        
         #Add dockable widgets
         self.debug = gui.Debug(self)
 #        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
@@ -531,15 +537,18 @@ class MainUI(gui.VisexpmanMainWindow):
             self.adjust.low.setValue(0)
             self.adjust.high.setValue(99)
             self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys"]:
             self.plot = gui.Plot(self)
             self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-            self.plot.setMaximumWidth(self.image.width())
+            w=self.image.width() if hasattr(self,  "image") else self.machine_config.GUI['SIZE']['col']
+            self.plot.setMaximumWidth(w)
             self.plot.plot.setLabels(bottom='sec')
-            self._add_dockable_widget('Plot', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.plot)
+            d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
+            self._add_dockable_widget('Plot',d, d, self.plot)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal',  'ao_cortical', 'us_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
@@ -549,20 +558,22 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
             self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
             self.analysis.setLayout(self.analysis.layout)
+        if self.machine_config.PLATFORM in ['elphys']:
+            self.analysis.setMaximumWidth(self.machine_config.GUI['SIZE']['col']/2)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical', 'us_cortical', 'resonant']:
-            self.main_tab.addTab(self.analysis, 'Analysis')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['elphys', 'retinal', 'ao_cortical', 'us_cortical', 'resonant']:
+            self.main_tab.addTab(self.analysis, 'Data Files')
+        if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.PLATFORM in ['us_cortical', 'resonant']:
+        if self.machine_config.PLATFORM in ['resonant']:
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['tbd']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
         if hasattr(self.machine_config, 'WIDGET'):
@@ -575,12 +586,12 @@ class MainUI(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self.load_all_parameters()
         self.show()
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'ao_cortical']:
+        if self.machine_config.PLATFORM in ['retinal', 'ao_cortical']:
             self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
             self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
             self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
-        if self.machine_config.PLATFORM == 'elphys_retinal_ca' and hasattr(self.analysis_helper, 'show_repetitions'):
+        if self.machine_config.PLATFORM == 'retinal' and hasattr(self.analysis_helper, 'show_repetitions'):
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
         self.main_tab.currentChanged.connect(self.tab_changed)
         if QtCore.QCoreApplication.instance() is not None:
@@ -613,6 +624,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.image.add_linear_region(boundaries)
             elif 'image_title' in msg:
                 self.image.plot.setTitle(msg['image_title'])
+            elif 'plot_title' in msg:
+                self.plot.plot.setTitle(msg['plot_title'])
             elif 'show_suggested_rois' in msg:
                 self.image_w_rois = msg['show_suggested_rois']
                 self.image.set_image(self.image_w_rois)
@@ -627,13 +640,22 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.curve=curve
                 self.tsync=tsync
                 #Highlight roi
-                self.image.highlight_roi(index)
+                if hasattr(self,  "image"):
+                    self.image.highlight_roi(index)
                 if isinstance(timg, list) and isinstance(curve, list):
                     self.plot.update_curves(timg, curve,plot_average = options['plot_average'] if options.has_key('plot_average') else True, colors = options['colors'] if options.has_key('colors') else [])
                 else:
                     #Update plot
                     self.plot.update_curve(timg, curve)
-                self.plot.add_linear_region(list(tsync))
+                if hasattr(tsync, "dtype"):
+                    self.plot.add_linear_region(list(tsync))
+                if "labels" in options:
+                    self.plot.plot.setLabels(left=options["labels"]["left"], bottom=options["labels"]["bottom"])
+                if 'range' in options and options['range']!= None:
+                    #self.plot.plot.autoRange(False)
+                    self.plot.plot.setYRange(options['range'][0],options['range'][1])
+#                else:
+#                    self.plot.plot.autoRange(True)
             elif 'remove_roi_rectangle' in msg:
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))
             elif 'fix_roi' in msg:
@@ -736,9 +758,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca',  'retinal']:
+        if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal','ao_cortical']:
+        if self.machine_config.PLATFORM in ['retinal','ao_cortical']:
             self.params_config.extend([
                                                   {'name': 'Analysis', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Baseline Lenght', 'type': 'float', 'value': 1.0, 'siPrefix': True, 'suffix': 's'},
@@ -755,20 +777,36 @@ class MainUI(gui.VisexpmanMainWindow):
                             {'name': '3d to 2d Image Function', 'type': 'list', 'values': ['mean', 'mip'], 'value': 'mean'},
                             ]
                             }])
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca']:
+        if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[-1]['children'].append({'name': 'Motion Correction', 'type': 'bool', 'value': False})
         if 'santiago' in self.machine_config.__class__.__name__.lower():
             from visexpman.users.santiago import bouton_analysis
             self.params_config[-1]['children'].extend(bouton_analysis.settings)
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
-        elif self.machine_config.PLATFORM in ['elphys_retinal_ca']:                    
+        elif self.machine_config.PLATFORM in ['elphys']:
+                if self.machine_config.AMPLIFIER_TYPE=='differential':
+                    pars=[{'name': 'Gain', 'type': 'int', 'value': 10000.0, 'siPrefix': True,}]
+                elif self.machine_config.AMPLIFIER_TYPE=='patch':
+                    pars=[
+                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/nA'},
+                                {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
+                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
+                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
+                                ]
                 self.params_config.extend([
-                            {'name': 'Electrophysiology', 'type': 'group', 'expanded' : False, 'children': [
-                                {'name': 'Electrophysiology Channel', 'type': 'list', 'values': ['None', 'CH1', 'CH2'], 'value': 'None'},
-                                {'name': 'Electrophysiology Sampling Rate', 'type': 'list', 'value': 10e3,  'values': [10e3, 1e3]},
+                            {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [
+                            {'name': 'Infinite Recording', 'type': 'bool', 'value': True},
+                            {'name': 'Displayed signal length', 'type': 'float', 'value': 60,  'suffix': 's'},
+                            {'name': 'Show Command Trace', 'type': 'bool', 'value': True},
+                            {'name': 'Show Stimulus Trace', 'type': 'bool', 'value': False},
+                            {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
+                            {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
+                            {'name': 'Y min', 'type': 'float', 'value': 0},
+                            {'name': 'Y max', 'type': 'float', 'value': 10},
                             ]},  ]               
                         )
+                self.params_config[-1]['children'].extend(pars)
         if self.machine_config.PLATFORM=='mc_mea':
             self.params_config[0]['children'].extend([
                 {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
@@ -790,11 +828,17 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):
-            self.params_config.append(self.machine_config.SETUP_SETTINGS)
+            if isinstance(self.machine_config.SETUP_SETTINGS, list):
+                self.params_config.extend(self.machine_config.SETUP_SETTINGS)
+            else:
+                self.params_config.append(self.machine_config.SETUP_SETTINGS)
 
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
+        
+    def continuous_recording_action(self):
+        self.to_engine.put({'function': 'start_continuous_recording', 'args':[]})
         
     def start_batch_action(self):
         self.to_engine.put({'function': 'start_batch', 'args':[]})

@@ -11,7 +11,8 @@ IOBoardCommands::IOBoardCommands(void)
   waveform_state=OFF;
   elongate_state=ON;
   elongate_output_pin=5.0;
-  elongate_duration=1000.0;
+  elongate_duration=5000.0;
+  elongate_delay=0*7000.0;
   port=0;
   port_last=0;
   phase_counter=0;
@@ -32,6 +33,14 @@ IOBoardCommands::IOBoardCommands(void)
 
   EICRA|=3;//INT0/PIN2 rising edge
   EIMSK|=1;
+#if ENABLE_STIMULUS_PHASE_LOCKING
+  imaging_timestamp_index=0;
+  stimulus_timestamp_index=0;
+  phase_lock_state=NOT_RUNNING;
+  imaging_pulse_counter=0;
+  EICRA|=3<<2;//INT1/PIN2 rising edge
+  EIMSK|=1<<1;  
+#endif
   sei();
 }
 
@@ -186,18 +195,8 @@ void IOBoardCommands::run(void)
         Serial.println(EEPROM.read(ID_EEPROM_ADDRESS));
       }
     }
-    else if ((strcmp(command,"elongate")==0)&&(nparams==3))
+    else if ((strcmp(command,"elongate")==0)&&(nparams==4))//FOR SOME REASON THIS COMMAND DOES NOT WORK
     {
-      if (debug==1)
-      {
-        Serial.print("Elongate: ");
-        Serial.print(par[0]);
-        Serial.print(" on ");
-        Serial.print(par[1]);
-        Serial.print(" ");
-        Serial.print(par[2]);
-        Serial.println("us");
-      }
       if (par[0]==0.0)
       {
         elongate_state=OFF;
@@ -206,7 +205,16 @@ void IOBoardCommands::run(void)
       else
       {
         elongate_output_pin=par[1];
-        elongate_duration=par[2]-INT0_LATENCY_US;
+        elongate_duration=par[2];
+        elongate_delay=par[3];
+        if (elongate_delay<1e-3)
+        {
+          elongate_duration-=INT0_LATENCY_US;
+        }
+        else
+        {
+          elongate_delay-=INT0_LATENCY_US;
+        }
         Serial.println(elongate_duration);
         if (elongate_duration<0)
         {//TODO: This check does not work!!!!!!
@@ -216,11 +224,39 @@ void IOBoardCommands::run(void)
         {
           elongate_state=ON;
           EIMSK|=1;
-          elongate_output_pin=par[1];
-          elongate_duration=par[2]-INT0_LATENCY_US;
+          elongate_output_pin=par[2];
+          elongate_duration=par[3]-INT0_LATENCY_US;
         }
       }
+      if (debug==1)
+      {
+        Serial.print("Elongate: port: ");
+        Serial.print(elongate_output_pin);
+        Serial.print(" duration ");
+        Serial.print(elongate_duration);
+        Serial.print(" delay: ");
+        Serial.print(elongate_delay);
+        Serial.print(" state");
+        Serial.println(elongate_state);
+      }
     }
+#if ENABLE_STIMULUS_PHASE_LOCKING
+    else if ((strcmp(command,"measure_fps")==0)&&(nparams==0))
+    {
+        phase_lock_state=MEASURE_FPS;
+        Serial.println("OK");      
+    }
+    else if ((strcmp(command,"stop_fpsmeas")==0)&&(nparams==0))
+    {
+        phase_lock_state=NOT_RUNNING;
+        Serial.println("OK");      
+    }
+    else if ((strcmp(command,"read_fps")==0)&&(nparams==0))
+    {
+        phase_lock_state=NOT_RUNNING;
+        Serial.println(imaging_frame_interval/(TIMING_BUFFER_SIZE-1));
+    }    
+#endif
     else
     {
       #if (PLATFORM==ARDUINO_UNO)
@@ -304,14 +340,64 @@ void IOBoardCommands::stop_waveform(void)
   TIMSK1 &= ~(1<<1);
   waveform_state=OFF;
 }
-void IOBoardCommands::elongate_isr(void)
+void IOBoardCommands::int0_isr(void)
 {
-  if (elongate_state==ON)
-  {
-    set_pin(elongate_output_pin,1.0);
-    delayMicroseconds((unsigned long)(elongate_duration));
-    set_pin(elongate_output_pin,0.0);
-  }
+#if (!ENABLE_STIMULUS_PHASE_LOCKING)
+    if (elongate_state==ON)
+    {
+      if (elongate_delay>0.0)
+      {
+          delayMicroseconds((unsigned long)(elongate_delay));
+      }
+      set_pin(elongate_output_pin,1.0);
+      //Serial.print("I");
+      delayMicroseconds((unsigned long)(elongate_duration));
+      set_pin(elongate_output_pin,0.0);
+    }
+#else
+    static int i;
+    last_imaging_pulse_ts=micros();
+    imaging_timestamps[imaging_timestamp_index]=last_imaging_pulse_ts;
+    imaging_timestamp_index++;
+    imaging_pulse_counter++;
+    if (imaging_timestamp_index==TIMING_BUFFER_SIZE)
+    {
+      imaging_timestamp_index=0;
+    }
+    switch (phase_lock_state)
+    {
+      case MEASURE_FPS:
+        if (imaging_pulse_counter>TIMING_BUFFER_SIZE)//buffer is not empty
+        {
+          imaging_frame_interval=0;
+          for(i=0;i<TIMING_BUFFER_SIZE;i++)
+          {
+             if ((i==0) && (imaging_timestamps[i]>imaging_timestamps[TIMING_BUFFER_SIZE-1]))
+             {
+               imaging_frame_interval+=imaging_timestamps[i]-imaging_timestamps[TIMING_BUFFER_SIZE-1];
+             }
+             else if (imaging_timestamps[i]>imaging_timestamps[i-1])
+             {
+                imaging_frame_interval+=imaging_timestamps[i]-imaging_timestamps[i-1];
+             }
+          }
+        }
+        break;
+    }
+#endif
   
 }
-
+void IOBoardCommands::int1_isr(void)
+{
+#if ENABLE_STIMULUS_PHASE_LOCKING
+    last_stimulus_pulse_ts=micros();
+    stimulus_timestamps[stimulus_timestamp_index]=last_stimulus_pulse_ts;    
+    stimulus_timestamp_index++;
+    if (stimulus_timestamp_index==TIMING_BUFFER_SIZE)
+    {
+      stimulus_timestamp_index=0;
+    }
+    Serial.println(last_stimulus_pulse_ts);
+#endif
+  
+}

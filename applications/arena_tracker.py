@@ -6,7 +6,7 @@ except ImportError:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
-import cv2,logging,numpy,time,pyqtgraph
+import cv2,logging,numpy,time,pyqtgraph, os
 from visexpman.engine.generic import gui,introspect,utils
 from visexpman.engine.analysis import behavioral_data
 class CWidget(QtGui.QWidget):
@@ -66,7 +66,8 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def init(self):
         dt=utils.timestamp2ymdhms(time.time(), filename=True)
-        self.logfile='/tmp/log_{0}.txt'.format(dt)
+        root='/tmp' if os.name!='nt' else 'x:\\behavioral2'
+        self.logfile=os.path.join(root, 'log_{0}.txt'.format(dt))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
