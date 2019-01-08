@@ -17,7 +17,7 @@ IOBoardCommands::IOBoardCommands(void)
   phase_counter=0;
   debug=1;
   //initialize peripherals
-  Serial.begin(115200);
+  Serial.begin(1000000);
   DDRD=OUTPORT_MASK;//port 2-4 input, port 5-7 output
   PORTD=0x0;
   //Initialize timer2 periodic interrupt
