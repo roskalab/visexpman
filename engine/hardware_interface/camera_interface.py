@@ -205,8 +205,7 @@ def opencv_camera_runner(filename, duration, config):
     cam = OpenCVCamera(config, debug=True)
     cam.start(duration, filename)
     cam.close()
-        
-        
+    
 class ImagingSourceCamera(object):
     def __init__(self,frame_rate, video_format='RGB24 (744x480)'):
         dllpath = os.path.join(os.path.dirname(visexpman.__file__),'engine', 'external','IC', 'tisgrabber_x64.dll')
@@ -279,6 +278,26 @@ class ImagingSourceCamera(object):
             return True
         else:
             return False
+            
+    def set_filename(self, filename):
+        self.datafile=tables.open_file(filename, 'w')
+        self.datafile.create_earray(self.datafile.root, 'ic_frames', tables.UInt8Atom((480, 744)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='blosc', shuffle = 1))
+            
+    def read(self,  save=False):
+        '''
+        Read frame from camera
+        '''
+        if self.dllref.IC_SnapImage(self.grabber_handle, int(self.snap_timeout)) == 1:
+            addr = self.dllref.IC_GetImagePtr(self.grabber_handle)
+            a=self.frame_size*ctypes.c_byte
+            buffer=numpy.ctypeslib.as_array(a.from_address(addr))
+            frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
+            if save:
+                self.datafile.root.ic_frames.append(numpy.expand_dims(self.frames[-1],0))
+            return frame
+            
+    def close_file(self):
+        self.datafile.close()
         
     def stop(self):
         if self.isrunning:
@@ -309,7 +328,7 @@ class ImagingSourceCamera(object):
         frame_steps=numpy.cast['uint8'](numpy.round(dt/expected_frame_time))
         return numpy.where(frame_steps>1)[0].shape[0], dt.shape[0]+1
         
-class ImagingSourceCameraSaver(ImagingSourceCamera):
+class ImagingSourceCameraSaver(ImagingSourceCameraOld):
     def __init__(self,filename,frame_rate):
         ImagingSourceCamera.__init__(self,frame_rate)
         self.filename=filename

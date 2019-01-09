@@ -6,9 +6,11 @@ except ImportError:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
-import cv2,logging,numpy,time,pyqtgraph, os
+import cv2,logging,numpy,time,pyqtgraph, os, sys
 from visexpman.engine.generic import gui,introspect,utils
+from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
+from visexpman.engine.vision_experiment import experiment_data
 class CWidget(QtGui.QWidget):
     '''
     The central widget of the user interface which contains the image, the plot and the various controls for starting experiment or adjusting parameters
@@ -20,6 +22,8 @@ class CWidget(QtGui.QWidget):
         self.image.setFixedWidth(640)
         self.image.setFixedHeight(480)
         self.params_config=[
+                            {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
+                            {'name': 'Frame rate', 'type': 'int', 'value': 30},
                             {'name': 'Threshold', 'type': 'int', 'value': 200},
                             {'name': 'Enable ROI cut', 'type': 'bool', 'value': True},
                             {'name': 'ROI x1', 'type': 'int', 'value': 200},
@@ -40,6 +44,7 @@ class CWidget(QtGui.QWidget):
 class ArenaTracker(gui.SimpleAppWindow):
     def __init__(self):
         self.init()
+        self.datafolder='c:\\Data'
         gui.SimpleAppWindow.__init__(self)
         
     def init_gui(self):
@@ -73,24 +78,60 @@ class ArenaTracker(gui.SimpleAppWindow):
                     level=logging.INFO)
         w=640
         h=480
-        self.camera = cv2.VideoCapture(2)#Initialize video capturing
-        self.camera.set(3, w)#Set camera resolution
-        self.camera.set(4, h)
+        self.is_camera='--iscamera' in sys.argv
+        if self.is_camera:
+            self.camera=camera_interface.ImagingSourceCamera(self.parameters['Frame rate'])
+            self.camera.start()
+        else:
+            self.camera = cv2.VideoCapture(2)#Initialize video capturing
+            self.camera.set(3, w)#Set camera resolution
+            self.camera.set(4, h)
         logging.info('Camera initialized')
         self.record=False
+        self.dio=digital_io.DigitalIO('COM4')
+        self.dio.set_pin(1, 0)
+        
+    def ttl_pulse(self):
+        self.dio.set_pin(1, 1)
+        time.sleep(1e-3)
+        self.dio.set_pin(1, 0)
+        
+    def read_digital_input(self):
+        return self.dio.hwhandler.getCTS()
+        
+    def recording_start_stop(self):
+        if self.is_camera:
+            di=self.read_digital_input()
+            if self.record and not di:
+                self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
+                self.camera.close_file()
+            elif not self.record and di:
+                fn=os.path.join(self.datafolder, 'camera_{0}.hdf5'.format(experiment_data.get_id()))
+                self.camera.set_filename(fn)
+                self.track=[]
+                logging.info('Saving video to {0}'.format(fn))
+            self.record = di
         
     def read_camera(self):
-        ret, frame = self.camera.read()#Reading the raw frame from the camera
-        if frame is None or not ret:
-            return
-        frame_color_corrected=numpy.zeros_like(frame)#For some reason we need to rearrange the color channels
-        frame_color_corrected[:,:,0]=frame[:,:,2]
-        frame_color_corrected[:,:,1]=frame[:,:,1]
-        frame_color_corrected[:,:,2]=frame[:,:,0]
-        return frame_color_corrected
+        if self.is_camera:
+            self.camera.frames=[]
+            res=self.camera.save()
+            self.ttl_pulse()
+            if res:
+                return self.camera.frames[-1]
+        else:
+            ret, frame = self.camera.read()#Reading the raw frame from the camera
+            if frame is None or not ret:
+                return
+            frame_color_corrected=numpy.zeros_like(frame)#For some reason we need to rearrange the color channels
+            frame_color_corrected[:,:,0]=frame[:,:,2]
+            frame_color_corrected[:,:,1]=frame[:,:,1]
+            frame_color_corrected[:,:,2]=frame[:,:,0]
+            return frame_color_corrected
         
     def update_camera_image(self):
         self.frame=self.read_camera()
+        self.recording_start_stop()
         if hasattr(self.frame, 'dtype'):
             if self.parameters['Enable ROI cut']:
                 self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
@@ -106,7 +147,7 @@ class ArenaTracker(gui.SimpleAppWindow):
                     f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
 
 
-            self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
+        self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
         
     def closeEvent(self, e):
         e.accept()
@@ -114,6 +155,8 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def record_action(self):
         if self.record:
+            return
+        if self.parameters['Enable trigger']:
             return
         self.record=True
         self.track=[]
@@ -126,7 +169,12 @@ class ArenaTracker(gui.SimpleAppWindow):
         logging.info('Tracking finished')
         
     def exit_action(self):
-        self.camera.release()#Stop camera operation
+        if self.is_camera:
+            self.camera.stop()
+            self.camera.close()
+        else:
+            self.camera.release()#Stop camera operation
+        self.dio.close()
         self.close()
         
 
