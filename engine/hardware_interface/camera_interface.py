@@ -306,8 +306,10 @@ class ImagingSourceCamera(object):
             self.video = numpy.array(self.frames)
 
     def close(self):
+        if hasattr(self,  'closed'): return
         self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
         self.dllref.IC_CloseLibrary()
+        self.closed=True
         
     def get_frame_rates(self):
         val=ctypes.c_float()
@@ -328,7 +330,7 @@ class ImagingSourceCamera(object):
         frame_steps=numpy.cast['uint8'](numpy.round(dt/expected_frame_time))
         return numpy.where(frame_steps>1)[0].shape[0], dt.shape[0]+1
         
-class ImagingSourceCameraSaver(ImagingSourceCameraOld):
+class ImagingSourceCameraSaver(ImagingSourceCamera):
     def __init__(self,filename,frame_rate):
         ImagingSourceCamera.__init__(self,frame_rate)
         self.filename=filename

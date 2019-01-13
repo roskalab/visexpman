@@ -398,7 +398,7 @@ def find_port(ioboard_id):
     if len(port)==0:
         raise ValueError('Unknown IOBoard id: {0}'.format(id))
     return port[0]
-    
+
 class DigitalIO(object):
     def __init__(self, type, port=None,id=None, timeout=1):
         '''

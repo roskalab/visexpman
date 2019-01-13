@@ -23,7 +23,7 @@ class CWidget(QtGui.QWidget):
         self.image.setFixedHeight(480)
         self.params_config=[
                             {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
-                            {'name': 'Frame rate', 'type': 'int', 'value': 30},
+                            {'name': 'Show track', 'type': 'bool', 'value': True}, 
                             {'name': 'Threshold', 'type': 'int', 'value': 200},
                             {'name': 'Enable ROI cut', 'type': 'bool', 'value': True},
                             {'name': 'ROI x1', 'type': 'int', 'value': 200},
@@ -32,6 +32,7 @@ class CWidget(QtGui.QWidget):
                             {'name': 'ROI y2', 'type': 'int', 'value': 400},
                             {'name': 'Channel', 'type': 'int', 'value': 0},
                             {'name': 'Show channel only', 'type': 'bool', 'value': False},
+                            {'name': 'Override trigger', 'type': 'bool', 'value': False}, 
                     ]
         self.paramw = gui.ParameterTable(self, self.params_config)
         self.main_tab = QtGui.QTabWidget(self)
@@ -43,8 +44,9 @@ class CWidget(QtGui.QWidget):
 
 class ArenaTracker(gui.SimpleAppWindow):
     def __init__(self):
-        self.init()
         self.datafolder='c:\\Data'
+        self.frame_rate=30
+        self.init()
         gui.SimpleAppWindow.__init__(self)
         
     def init_gui(self):
@@ -80,15 +82,15 @@ class ArenaTracker(gui.SimpleAppWindow):
         h=480
         self.is_camera='--iscamera' in sys.argv
         if self.is_camera:
-            self.camera=camera_interface.ImagingSourceCamera(self.parameters['Frame rate'])
+            self.camera=camera_interface.ImagingSourceCamera(self.frame_rate)
             self.camera.start()
         else:
             self.camera = cv2.VideoCapture(2)#Initialize video capturing
             self.camera.set(3, w)#Set camera resolution
             self.camera.set(4, h)
         logging.info('Camera initialized')
-        self.record=False
-        self.dio=digital_io.DigitalIO('COM4')
+        self.live_view=True#when true live camera image is displayed, if false: triggered recording is ongoing
+        self.dio=digital_io.DigitalIO('usb-uart', 'COM4')
         self.dio.set_pin(1, 0)
         
     def ttl_pulse(self):
@@ -99,18 +101,24 @@ class ArenaTracker(gui.SimpleAppWindow):
     def read_digital_input(self):
         return self.dio.hwhandler.getCTS()
         
+    def start_recording(self):
+        fn=os.path.join(self.datafolder, 'camera_{0}.hdf5'.format(experiment_data.get_id()))
+        self.camera.set_filename(fn)
+        self.track=[]
+        logging.info('Saving video to {0}'.format(fn))
+        
     def recording_start_stop(self):
-        if self.is_camera:
-            di=self.read_digital_input()
-            if self.record and not di:
+        if self.is_camera and self.parameters['Enable trigger']:
+            if 0:
+                di=self.read_digital_input()
+            else:
+                di=self.parameters['Override trigger']
+            if not self.live_view and not di:#Start recording
                 self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
                 self.camera.close_file()
-            elif not self.record and di:
-                fn=os.path.join(self.datafolder, 'camera_{0}.hdf5'.format(experiment_data.get_id()))
-                self.camera.set_filename(fn)
-                self.track=[]
-                logging.info('Saving video to {0}'.format(fn))
-            self.record = di
+            elif self.live_view and di:#Stop recording
+                self.start_recording()
+            self.live_view = not di#controlled by digital input, it expects that during recording it is set to HIGH otherwise to LOW
         
     def read_camera(self):
         if self.is_camera:
@@ -118,7 +126,9 @@ class ArenaTracker(gui.SimpleAppWindow):
             res=self.camera.save()
             self.ttl_pulse()
             if res:
-                return self.camera.frames[-1]
+                f=self.camera.frames[-1]
+                f=numpy.rollaxis(numpy.array([f]*3), 0, 3)
+                return f
         else:
             ret, frame = self.camera.read()#Reading the raw frame from the camera
             if frame is None or not ret:
@@ -133,6 +143,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.frame=self.read_camera()
         self.recording_start_stop()
         if hasattr(self.frame, 'dtype'):
+            self.vframe=self.frame
             if self.parameters['Enable ROI cut']:
                 self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
             coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Channel'], self.parameters['Threshold'])
@@ -143,30 +154,24 @@ class ArenaTracker(gui.SimpleAppWindow):
                         if i!=self.parameters['Channel']:
                             f[:,:,i]=0
                 self.track.append(coo)
-                for coo in self.track:
-                    f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
-
-
-        self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
+                if self.parameters['Showtrack']:
+                    for coo in self.track:
+                        f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
+            self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
         
     def closeEvent(self, e):
         e.accept()
         self.exit_action()
         
     def record_action(self):
-        if self.record:
-            return
-        if self.parameters['Enable trigger']:
-            return
-        self.record=True
-        self.track=[]
-        logging.info('Start tracking')
+        #Manually sart saving frames to file
+        if not self.parameters['Enable trigger']:
+            self.start_recording()
     
     def stop_action(self):
-        if not self.record:
+        if self.live_view:
             return
-        self.record=False
-        logging.info('Tracking finished')
+        logging.info('Recording aborted')
         
     def exit_action(self):
         if self.is_camera:
