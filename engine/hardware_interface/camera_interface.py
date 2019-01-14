@@ -293,7 +293,7 @@ class ImagingSourceCamera(object):
             buffer=numpy.ctypeslib.as_array(a.from_address(addr))
             frame = copy.deepcopy(numpy.reshape(numpy.frombuffer(buffer, numpy.uint8)[::3], self.frame_shape))
             if save:
-                self.datafile.root.ic_frames.append(numpy.expand_dims(self.frames[-1],0))
+                self.datafile.root.ic_frames.append(numpy.expand_dims(frame,0))
             return frame
             
     def close_file(self):

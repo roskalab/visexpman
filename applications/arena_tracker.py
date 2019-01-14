@@ -11,6 +11,9 @@ from visexpman.engine.generic import gui,introspect,utils
 from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
 from visexpman.engine.vision_experiment import experiment_data
+
+TEST=True
+
 class CWidget(QtGui.QWidget):
     '''
     The central widget of the user interface which contains the image, the plot and the various controls for starting experiment or adjusting parameters
@@ -63,7 +66,6 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.setCentralWidget(self.cw)#Setting it as a central widget
         self.cw.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
-        
         self.cam_timer=QtCore.QTimer()
         self.cam_timer.start(33)#ms
         self.connect(self.cam_timer, QtCore.SIGNAL('timeout()'), self.update_camera_image)
@@ -73,7 +75,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def init(self):
         dt=utils.timestamp2ymdhms(time.time(), filename=True)
-        root='/tmp' if os.name!='nt' else 'x:\\behavioral2'
+        root='/tmp' if os.name!='nt' else 'x:\\behavioral2\\log'
         self.logfile=os.path.join(root, 'log_{0}.txt'.format(dt))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -89,7 +91,8 @@ class ArenaTracker(gui.SimpleAppWindow):
             self.camera.set(3, w)#Set camera resolution
             self.camera.set(4, h)
         logging.info('Camera initialized')
-        self.live_view=True#when true live camera image is displayed, if false: triggered recording is ongoing
+        self.triggered_recording=False
+        self.manual_recording=False
         self.dio=digital_io.DigitalIO('usb-uart', 'COM4')
         self.dio.set_pin(1, 0)
         
@@ -107,27 +110,29 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.track=[]
         logging.info('Saving video to {0}'.format(fn))
         
+    def stop_recording(self):
+        logging.info('Stopped video recording')
+        self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
+        self.camera.close_file()
+        
     def recording_start_stop(self):
         if self.is_camera and self.parameters['Enable trigger']:
-            if 0:
+            if not TEST:
                 di=self.read_digital_input()
             else:
-                di=self.parameters['Override trigger']
-            if not self.live_view and not di:#Start recording
-                self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
-                self.camera.close_file()
-            elif self.live_view and di:#Stop recording
+                di= self.parameters['Override trigger']
+            if self.triggered_recording and not self.manual_recording and not di:#Start recording
+                self.stop_recording()
+            elif not self.triggered_recording and not self.manual_recording and di:#Stop recording
                 self.start_recording()
-            self.live_view = not di#controlled by digital input, it expects that during recording it is set to HIGH otherwise to LOW
+            self.triggered_recording = di#controlled by digital input, it expects that during recording it is set to HIGH otherwise to LOW
         
     def read_camera(self):
         if self.is_camera:
-            self.camera.frames=[]
-            res=self.camera.save()
+            frame=self.camera.read(save=self.manual_recording or self.triggered_recording)
             self.ttl_pulse()
-            if res:
-                f=self.camera.frames[-1]
-                f=numpy.rollaxis(numpy.array([f]*3), 0, 3)
+            if hasattr(frame,  'dtype'):
+                f=numpy.rollaxis(numpy.array([frame]*3), 0, 3)
                 return f
         else:
             ret, frame = self.camera.read()#Reading the raw frame from the camera
@@ -164,14 +169,16 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.exit_action()
         
     def record_action(self):
-        #Manually sart saving frames to file
-        if not self.parameters['Enable trigger']:
+        #Manually start saving frames to file
+        if not self.parameters['Enable trigger']  and not self.manual_recording:
             self.start_recording()
+            self.manual_recording=True
     
     def stop_action(self):
-        if self.live_view:
-            return
-        logging.info('Recording aborted')
+        if self.manual_recording or self.triggered_recording:
+            self.stop_recording()
+            self.triggered_recording=False
+            self.manual_recording=False
         
     def exit_action(self):
         if self.is_camera:
