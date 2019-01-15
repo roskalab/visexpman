@@ -737,7 +737,7 @@ def polygon2filled(polygon, color=None):
     allpts= numpy.array(numpy.nonzero(numpy.array(li))).T
     return allpts
 
-def overlap(p1, p2, thr=0.25):
+def overlap(p1, p2, thr=0.25, return_max = True):
     """
     Overlapping area of two polygons.
 
@@ -747,6 +747,7 @@ def overlap(p1, p2, thr=0.25):
     ----------
     p1, p2 : each a Polygon instance
     thr : float, area threshold for accepting polygons as overlapping
+    return_max: bool, default is True, compatibility with online roi extraction code. False:return overlap area normed to first polygon's area.
 
     Returns
     -------
@@ -771,7 +772,7 @@ def overlap(p1, p2, thr=0.25):
             return 1
         proportions = numpy.array([float(len(int_sec))/len(d) for d in diffs])
     if numpy.any(proportions>thr): # TODO: max is not a good idea, use p1 as refernce roi, otherwise when called overlap in a loop it is not possible to resolve which rois overlap best (align.align_rois)
-        return max(proportions)
+        return max(proportions) if return_max else proportions[0]
     else:
         return 0
 
