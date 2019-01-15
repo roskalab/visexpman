@@ -737,28 +737,40 @@ def polygon2filled(polygon, color=None):
     allpts= numpy.array(numpy.nonzero(numpy.array(li))).T
     return allpts
 
-def overlap(p1, p2,  thr=0.25):
-    #polygon based overlap causes spurious segfaults
-    if hasattr(p1, 'nPoints'):
-        if p1.nPoints()==45 and p2.nPoints()==66:
-            pass
+def overlap(p1, p2, thr=0.25):
+    """
+    Overlapping area of two polygons.
+
+    Requires Polygon package installed.
+
+    Parameters
+    ----------
+    p1, p2 : each a Polygon instance
+    thr : float, area threshold for accepting polygons as overlapping
+
+    Returns
+    -------
+        float: proportion of overlap area to the smaller ROI, if the proportion exceeds thr
+
+    """
+    if hasattr(p1, 'nPoints'): # use Polygon lib
         int_sec = p1&p2
-        if int_sec.area()==0:
+        if int_sec.nPoints()==0:
             return 0
         diffs = [p1-p2, p2-p1]
         #decide whether the two components are spatially distinct
-        proportions = numpy.array([int_sec.area()/d.area() for d in diffs if d.area()>0])
-    else:
+        proportions = numpy.array([int_sec.nPoints()/d.nPoints() for d in diffs if d.nPoints()>0])
+    else: # point cloud
         p1s=set([tuple([int(i1) for i1 in i]) for i in p1])
         p2s=set([tuple([int(i1) for i1 in i]) for i in p2])
-        int_sec= p1s& p2s
+        int_sec = p1s & p2s
         if len(int_sec)==0:
             return 0
         diffs=[p1s-p2s, p2s-p1s]
-        if len(diffs[0])==0 or len(diffs[1])==0:
+        if len(diffs[0])==0 or len(diffs[1])==0: # identical polygons
             return 1
         proportions = numpy.array([float(len(int_sec))/len(d) for d in diffs])
-    if numpy.any(proportions>thr):
+    if numpy.any(proportions>thr): # TODO: max is not a good idea, use p1 as refernce roi, otherwise when called overlap in a loop it is not possible to resolve which rois overlap best (align.align_rois)
         return max(proportions)
     else:
         return 0
