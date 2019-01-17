@@ -29,7 +29,7 @@ except ImportError:
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io
-from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
+from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
 
 class GUIDataItem(object):
@@ -330,6 +330,7 @@ class ExperimentHandler(object):
             self.sync_recorder.start_daq(ai_sample_rate = sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
+            self.printc('Signal recording started')
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
             self.printc('Saving eye video')
@@ -535,45 +536,54 @@ class ExperimentHandler(object):
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]
-        #Scale elphys
-        
-        if self.experiment_running:
-            unit="mV / pA" if "current" in self.stimuluso.__class__.__name__.lower() else "pA / mV"
-            scale=self.guidata.read(("Current" if "voltage" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
-            command_scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Command Sensitivity")
-        else:
-            fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
-            unit = "mV / pA" if "current" in os.path.basename(fn).lower() else "pA / mV"
-            scale=self.guidata.read(("Current" if "voltage" in os.path.basename(fn).lower() else "Voltage")+" Gain")
-            command_scale=self.guidata.read(("Current" if "current" in os.path.basename(fn).lower() else "Voltage")+" Command Sensitivity")
-        scale*=1e-3
-        if self.guidata.read('Show raw voltage'):
-            scale=1
-            command_scale=1
-        unit='Red / Green: '+unit
         if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and not display_all:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
             index=0
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         t=t[index:]
-        cmd_disp_ena=self.guidata.read('Show Command Trace')
-        stim_disp_ena=self.guidata.read('Show Stimulus Trace')
-        n=1+int(cmd_disp_ena)+int(stim_disp_ena)
-        x=n*[t]
-        y=[self.filtered[index:]/scale]
-        cc=[[255, 0, 0]]
-        if stim_disp_ena:
-            y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
-            cc.append([0, 0, 255])
-        if cmd_disp_ena:
-            y.append(sync[index:, self.machine_config.COMMAND_SYNC_CHANNEL_INDEX]*command_scale)
-            cc.append([0, 255, 0])
-        self.y=y
-        self.sync=sync
-        labels={"left": unit,  "bottom": "time [s]"}
-        self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
-        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
+        if self.machine_config.AMPLIFIER_TYPE=='patch':
+            #Scale elphys
+            if self.experiment_running:
+                unit="mV / pA" if "current" in self.stimuluso.__class__.__name__.lower() else "pA / mV"
+                scale=self.guidata.read(("Current" if "voltage" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
+                command_scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Command Sensitivity")
+            else:
+                fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
+                unit = "mV / pA" if "current" in os.path.basename(fn).lower() else "pA / mV"
+                scale=self.guidata.read(("Current" if "voltage" in os.path.basename(fn).lower() else "Voltage")+" Gain")
+                command_scale=self.guidata.read(("Current" if "current" in os.path.basename(fn).lower() else "Voltage")+" Command Sensitivity")
+            scale*=1e-3
+            if self.guidata.read('Show raw voltage'):
+                scale=1
+                command_scale=1
+            unit='Red / Green: '+unit
+            cmd_disp_ena=self.guidata.read('Show Command Trace')
+            stim_disp_ena=self.guidata.read('Show Stimulus Trace')
+            n=1+int(cmd_disp_ena)+int(stim_disp_ena)
+            x=n*[t]
+            y=[self.filtered[index:]/scale]
+            cc=[[255, 0, 0]]
+            if stim_disp_ena:
+                y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
+                cc.append([0, 0, 255])
+            if cmd_disp_ena:
+                y.append(sync[index:, self.machine_config.COMMAND_SYNC_CHANNEL_INDEX]*command_scale)
+                cc.append([0, 255, 0])
+            self.y=y
+            self.sync=sync
+            labels={"left": unit,  "bottom": "time [s]"}
+            self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
+            self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
+        elif self.machine_config.AMPLIFIER_TYPE=='differential' :
+            n=sync.shape[1]
+            x=n*[t]
+            y=[sync[:,0] for i in range(n)]
+            cc=[colors.get_color(i,unit=False) for i in range(n)]
+            labels=self.machine_config.CHANNEL_NAMES
+            labels={"left": '',  "bottom": "time [s]"}
+            self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels}]})
+            
 
 
     def _remerge_files(self,folder,hdf5fold):
