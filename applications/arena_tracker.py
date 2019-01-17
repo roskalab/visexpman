@@ -6,9 +6,14 @@ except ImportError:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
-import cv2,logging,numpy,time,pyqtgraph, os
+import cv2,logging,numpy,time,pyqtgraph, os, sys
 from visexpman.engine.generic import gui,introspect,utils
+from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
+from visexpman.engine.vision_experiment import experiment_data
+
+TEST=True
+
 class CWidget(QtGui.QWidget):
     '''
     The central widget of the user interface which contains the image, the plot and the various controls for starting experiment or adjusting parameters
@@ -20,6 +25,8 @@ class CWidget(QtGui.QWidget):
         self.image.setFixedWidth(640)
         self.image.setFixedHeight(480)
         self.params_config=[
+                            {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
+                            {'name': 'Show track', 'type': 'bool', 'value': True}, 
                             {'name': 'Threshold', 'type': 'int', 'value': 200},
                             {'name': 'Enable ROI cut', 'type': 'bool', 'value': True},
                             {'name': 'ROI x1', 'type': 'int', 'value': 200},
@@ -28,6 +35,7 @@ class CWidget(QtGui.QWidget):
                             {'name': 'ROI y2', 'type': 'int', 'value': 400},
                             {'name': 'Channel', 'type': 'int', 'value': 0},
                             {'name': 'Show channel only', 'type': 'bool', 'value': False},
+                            {'name': 'Override trigger', 'type': 'bool', 'value': False}, 
                     ]
         self.paramw = gui.ParameterTable(self, self.params_config)
         self.main_tab = QtGui.QTabWidget(self)
@@ -39,6 +47,8 @@ class CWidget(QtGui.QWidget):
 
 class ArenaTracker(gui.SimpleAppWindow):
     def __init__(self):
+        self.datafolder='c:\\Data'
+        self.frame_rate=30
         self.init()
         gui.SimpleAppWindow.__init__(self)
         
@@ -56,7 +66,6 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.setCentralWidget(self.cw)#Setting it as a central widget
         self.cw.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
-        
         self.cam_timer=QtCore.QTimer()
         self.cam_timer.start(33)#ms
         self.connect(self.cam_timer, QtCore.SIGNAL('timeout()'), self.update_camera_image)
@@ -66,32 +75,80 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def init(self):
         dt=utils.timestamp2ymdhms(time.time(), filename=True)
-        root='/tmp' if os.name!='nt' else 'x:\\behavioral2'
+        root='/tmp' if os.name!='nt' else 'x:\\behavioral2\\log'
         self.logfile=os.path.join(root, 'log_{0}.txt'.format(dt))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
                     level=logging.INFO)
         w=640
         h=480
-        self.camera = cv2.VideoCapture(2)#Initialize video capturing
-        self.camera.set(3, w)#Set camera resolution
-        self.camera.set(4, h)
+        self.is_camera='--iscamera' in sys.argv
+        if self.is_camera:
+            self.camera=camera_interface.ImagingSourceCamera(self.frame_rate)
+            self.camera.start()
+        else:
+            self.camera = cv2.VideoCapture(2)#Initialize video capturing
+            self.camera.set(3, w)#Set camera resolution
+            self.camera.set(4, h)
         logging.info('Camera initialized')
-        self.record=False
+        self.triggered_recording=False
+        self.manual_recording=False
+        self.dio=digital_io.DigitalIO('usb-uart', 'COM4')
+        self.dio.set_pin(1, 0)
+        
+    def ttl_pulse(self):
+        self.dio.set_pin(1, 1)
+        time.sleep(1e-3)
+        self.dio.set_pin(1, 0)
+        
+    def read_digital_input(self):
+        return self.dio.hwhandler.getCTS()
+        
+    def start_recording(self):
+        fn=os.path.join(self.datafolder, 'camera_{0}.hdf5'.format(experiment_data.get_id()))
+        self.camera.set_filename(fn)
+        self.track=[]
+        logging.info('Saving video to {0}'.format(fn))
+        
+    def stop_recording(self):
+        logging.info('Stopped video recording')
+        self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
+        self.camera.close_file()
+        
+    def recording_start_stop(self):
+        if self.is_camera and self.parameters['Enable trigger']:
+            if not TEST:
+                di=self.read_digital_input()
+            else:
+                di= self.parameters['Override trigger']
+            if self.triggered_recording and not self.manual_recording and not di:#Start recording
+                self.stop_recording()
+            elif not self.triggered_recording and not self.manual_recording and di:#Stop recording
+                self.start_recording()
+            self.triggered_recording = di#controlled by digital input, it expects that during recording it is set to HIGH otherwise to LOW
         
     def read_camera(self):
-        ret, frame = self.camera.read()#Reading the raw frame from the camera
-        if frame is None or not ret:
-            return
-        frame_color_corrected=numpy.zeros_like(frame)#For some reason we need to rearrange the color channels
-        frame_color_corrected[:,:,0]=frame[:,:,2]
-        frame_color_corrected[:,:,1]=frame[:,:,1]
-        frame_color_corrected[:,:,2]=frame[:,:,0]
-        return frame_color_corrected
+        if self.is_camera:
+            frame=self.camera.read(save=self.manual_recording or self.triggered_recording)
+            self.ttl_pulse()
+            if hasattr(frame,  'dtype'):
+                f=numpy.rollaxis(numpy.array([frame]*3), 0, 3)
+                return f
+        else:
+            ret, frame = self.camera.read()#Reading the raw frame from the camera
+            if frame is None or not ret:
+                return
+            frame_color_corrected=numpy.zeros_like(frame)#For some reason we need to rearrange the color channels
+            frame_color_corrected[:,:,0]=frame[:,:,2]
+            frame_color_corrected[:,:,1]=frame[:,:,1]
+            frame_color_corrected[:,:,2]=frame[:,:,0]
+            return frame_color_corrected
         
     def update_camera_image(self):
         self.frame=self.read_camera()
+        self.recording_start_stop()
         if hasattr(self.frame, 'dtype'):
+            self.vframe=self.frame
             if self.parameters['Enable ROI cut']:
                 self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
             coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Channel'], self.parameters['Threshold'])
@@ -102,10 +159,9 @@ class ArenaTracker(gui.SimpleAppWindow):
                         if i!=self.parameters['Channel']:
                             f[:,:,i]=0
                 self.track.append(coo)
-                for coo in self.track:
-                    f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
-
-
+                if self.parameters['Showtrack']:
+                    for coo in self.track:
+                        f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
             self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
         
     def closeEvent(self, e):
@@ -113,20 +169,24 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.exit_action()
         
     def record_action(self):
-        if self.record:
-            return
-        self.record=True
-        self.track=[]
-        logging.info('Start tracking')
+        #Manually start saving frames to file
+        if not self.parameters['Enable trigger']  and not self.manual_recording:
+            self.start_recording()
+            self.manual_recording=True
     
     def stop_action(self):
-        if not self.record:
-            return
-        self.record=False
-        logging.info('Tracking finished')
+        if self.manual_recording or self.triggered_recording:
+            self.stop_recording()
+            self.triggered_recording=False
+            self.manual_recording=False
         
     def exit_action(self):
-        self.camera.release()#Stop camera operation
+        if self.is_camera:
+            self.camera.stop()
+            self.camera.close()
+        else:
+            self.camera.release()#Stop camera operation
+        self.dio.close()
         self.close()
         
 
