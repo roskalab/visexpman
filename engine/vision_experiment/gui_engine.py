@@ -94,7 +94,6 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.eye_camera_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
-        self.continuous_recording=False
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -298,10 +297,6 @@ class ExperimentHandler(object):
     def mesc_connect(self):
         self.mesc_handler('init')
         
-    def start_continuous_recording(self):
-        self.continuous_recording=True
-        self.start_experiment()
-        
     def start_experiment(self, experiment_parameters=None):
         if self.machine_config.PLATFORM=='resonant':
             if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
@@ -351,7 +346,8 @@ class ExperimentHandler(object):
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
         elif self.machine_config.PLATFORM=='elphys':
-            self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+            if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
+                self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
             introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
@@ -523,7 +519,7 @@ class ExperimentHandler(object):
                 self._plot_elphys(sync)
         self.to_gui.put({'update_status':'idle'})
         
-    def _plot_elphys(self, sync,  display_all=True):
+    def _plot_elphys(self, sync):
         #Filter rawdata
         if self.guidata.read('Enable Filter')==True:
             order=self.guidata.filter_order.v
@@ -536,7 +532,7 @@ class ExperimentHandler(object):
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]
-        if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and not display_all:
+        if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and self.guidata.read('Displayed signal length')>0:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
             index=0
@@ -579,10 +575,12 @@ class ExperimentHandler(object):
             n=sync.shape[1]
             x=n*[t]
             y=[sync[:,0] for i in range(n)]
+            if hasattr(self.machine_config, 'CHANNEL_SCALE'):
+                y=[y[i]*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
             cc=[colors.get_color(i,unit=False) for i in range(n)]
-            labels=self.machine_config.CHANNEL_NAMES
             labels={"left": '',  "bottom": "time [s]"}
             self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels}]})
+            self.to_gui.put({'curves2plot2': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels}]})
             
 
 
@@ -703,7 +701,7 @@ class ExperimentHandler(object):
             self.live_data=numpy.concatenate((self.live_data,d))
             self.last_ai_read=d
             if self.live_data.shape[0]>0:
-                self._plot_elphys(self.live_data,  display_all=False)
+                self._plot_elphys(self.live_data)
             self.daqdatafile.add(d)
             
     def _stop_sync_recorder(self):
@@ -735,17 +733,16 @@ class ExperimentHandler(object):
         self.eyecamera2screen()
         if self.sync_recording_started:
             self.read_sync_recorder()
-            if not self.guidata.read('Infinite Recording') and self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
+            if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
                 self.finish_experiment()
                 self.save_experiment_files()
-                if self.continuous_recording:
+                if self.guidata.read('Infinite Recording'):
                     self.start_experiment() 
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
 
     def stop_experiment(self):
-        self.continuous_recording=False
         if self.batch_running:
             self.batch_running=False
             self.batch=[]
@@ -770,7 +767,9 @@ class ExperimentHandler(object):
             self._stop_sync_recorder()
         if self.machine_config.PLATFORM=='elphys':
             self.finish_experiment()
-            self.save_experiment_files()            
+            self.save_experiment_files()
+            #When infinite recording stopped, live_data erased
+            self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
         self.experiment_running=False
         self.to_gui.put({'update_status':'idle'})
         self.printc('Experiment stopped')

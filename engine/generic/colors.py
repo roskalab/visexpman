@@ -66,6 +66,7 @@ def get_color(index,unit=True):
     c=numpy.concatenate((c,0.5*c, numpy.array([1,0.5,0,])))
     if not unit:
         c*=255
+        c=numpy.cast['uint8'](c)
     if index>=c.shape[0]/3:
         raise RuntimeError('No more colors')
     return list(c[index*3:(index+1)*3])

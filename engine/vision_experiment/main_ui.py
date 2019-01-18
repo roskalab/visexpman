@@ -512,7 +512,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
-            toolbar_buttons = ['start_experiment', 'continuous_recording', 'stop', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -658,6 +658,24 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.plot.plot.setYRange(options['range'][0],options['range'][1])
 #                else:
 #                    self.plot.plot.autoRange(True)
+            elif 'curves2plot2' in msg:
+                timg, curve, index, tsync,options = msg['curves2plot2']
+                self.timg=timg
+                self.curve=curve
+                self.tsync=tsync
+                #Highlight roi
+                if isinstance(timg, list) and isinstance(curve, list):
+                    self.plot2.update_curves(timg, curve,plot_average = options['plot_average'] if options.has_key('plot_average') else True, colors = options['colors'] if options.has_key('colors') else [])
+                else:
+                    #Update plot
+                    self.plot2.update_curve(timg, curve)
+                if hasattr(tsync, "dtype"):
+                    self.plot2.add_linear_region(list(tsync))
+                if "labels" in options:
+                    self.plot2.plot.setLabels(left=options["labels"]["left"], bottom=options["labels"]["bottom"])
+                if 'range' in options and options['range']!= None:
+                    #self.plot.plot.autoRange(False)
+                    self.plot2.plot.setYRange(options['range'][0],options['range'][1])
             elif 'remove_roi_rectangle' in msg:
                  self.image.remove_roi(*list(msg['remove_roi_rectangle']))
             elif 'fix_roi' in msg:
@@ -795,17 +813,18 @@ class MainUI(gui.VisexpmanMainWindow):
                                 {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
                                 {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
                                 {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
+                                {'name': 'Show Command Trace', 'type': 'bool', 'value': True},
+                                {'name': 'Show Stimulus Trace', 'type': 'bool', 'value': False},
+                                {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
+                                {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
+                                {'name': 'Y min', 'type': 'float', 'value': 0},
+                                {'name': 'Y max', 'type': 'float', 'value': 10},
                                 ]
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [
                             {'name': 'Infinite Recording', 'type': 'bool', 'value': True},
                             {'name': 'Displayed signal length', 'type': 'float', 'value': 60,  'suffix': 's'},
-                            {'name': 'Show Command Trace', 'type': 'bool', 'value': True},
-                            {'name': 'Show Stimulus Trace', 'type': 'bool', 'value': False},
-                            {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
-                            {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
-                            {'name': 'Y min', 'type': 'float', 'value': 0},
-                            {'name': 'Y max', 'type': 'float', 'value': 10},
+                            
                             ]},  ]               
                         )
                 self.params_config[-1]['children'].extend(pars)
@@ -838,9 +857,6 @@ class MainUI(gui.VisexpmanMainWindow):
     ############# Actions #############
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
-        
-    def continuous_recording_action(self):
-        self.to_engine.put({'function': 'start_continuous_recording', 'args':[]})
         
     def start_batch_action(self):
         self.to_engine.put({'function': 'start_batch', 'args':[]})
