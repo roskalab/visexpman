@@ -516,8 +516,14 @@ class ExperimentHandler(object):
                 self.printc('{0} converted to mat'.format(fn))
                 sync=hdf5io.read_item(fn,  "sync")
                 self.to_gui.put({'plot_title': os.path.dirname(fn)+'<br>'+os.path.basename(fn)})
-                self._plot_elphys(sync)
+                if self.guidata.read('Displayed signal length')==0:
+                    self._plot_elphys(sync)
         self.to_gui.put({'update_status':'idle'})
+        
+    def enable_plot_signals(self,enable):
+        self.plot_signal_enable=enable
+        if hasattr(self, 'live_data'):
+            self._plot_elphys(self.live_data)
         
     def _plot_elphys(self, sync):
         #Filter rawdata
@@ -574,16 +580,29 @@ class ExperimentHandler(object):
         elif self.machine_config.AMPLIFIER_TYPE=='differential' :
             n=sync.shape[1]
             x=n*[t]
-            y=[sync[:,0] for i in range(n)]
+            y=[sync[index:,i] for i in range(n)]
             if hasattr(self.machine_config, 'CHANNEL_SCALE'):
                 y=[y[i]*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
             cc=[colors.get_color(i,unit=False) for i in range(n)]
             labels={"left": '',  "bottom": "time [s]"}
-            self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels}]})
-            self.to_gui.put({'curves2plot2': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels}]})
+            xleft=[]
+            yleft=[]
+            ccleft=[]
+            xright=[]
+            yright=[]
+            ccright=[]
+            for i in range(len(self.plot_signal_enable['left'])):
+                if self.plot_signal_enable['left'][i]:
+                    xleft.append(x[i])
+                    yleft.append(y[i])
+                    ccleft.append(cc[i])
+                if self.plot_signal_enable['right'][i]:
+                    xright.append(x[i])
+                    yright.append(y[i])
+                    ccright.append(cc[i])
+            self.to_gui.put({'display_roi_curve': [xright, yright, None, None, {'plot_average':False, "colors":ccright,  "labels": labels}]})
+            self.to_gui.put({'curves2plot2': [xleft, yleft, None, None, {'plot_average':False, "colors":ccleft,  "labels": labels}]})
             
-
-
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:
             return

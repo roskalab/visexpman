@@ -17,6 +17,35 @@ from visexpman.engine.generic import stringop,utils,gui,signal,fileop,introspect
 from visexpman.engine.vision_experiment import gui_engine, experiment,experiment_data
 
 
+class SelectPlotSignals(QtGui.QWidget):
+    def __init__(self,parent):
+        self.parent=parent
+        QtGui.QWidget.__init__(self,parent)
+        if hasattr(self.parent.machine_config, 'CHANNEL_NAMES'):
+            self.left=[]
+            self.right=[]
+            self.layout = QtGui.QGridLayout()
+            row=0
+            for channel_name in self.parent.machine_config.CHANNEL_NAMES:
+                self.left.append(gui.LabeledCheckBox(self, channel_name))
+                self.layout.addWidget(self.left[-1], row, 0)
+                self.right.append(gui.LabeledCheckBox(self, channel_name))
+                self.layout.addWidget(self.right[-1], row, 1)
+                self.right[-1].input.setChecked(2)
+                self.left[-1].input.setChecked(2)
+                self.right[-1].input.stateChanged.connect(self.update_selection)
+                self.left[-1].input.stateChanged.connect(self.update_selection)
+                row+=1
+            self.setLayout(self.layout)
+            self.update_selection()
+            
+    def update_selection(self):
+        enable={'left': [], 'right': []}
+        for i in range(len(self.parent.machine_config.CHANNEL_NAMES)):
+            enable['left'].append(self.left[i].input.checkState()==2)
+            enable['right'].append(self.right[i].input.checkState()==2)
+        self.parent.to_engine.put({'function': 'enable_plot_signals', 'args':[enable]})
+
 class Advanced(QtGui.QWidget):
     def __init__(self,parent):
         self.parent=parent
@@ -544,8 +573,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.setMaximumWidth(w)
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
-            self._add_dockable_widget('Plot',d, d, self.plot)
-            self.plot2 = gui.Plot(self)
+            self._add_dockable_widget('Plot', d, d, self.plot)
+        self.plot2 = gui.Plot(self)
+        self.select_plot_signal=SelectPlotSignals(self)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
         if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
@@ -575,6 +605,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
         self.main_tab.addTab(self.plot2, 'Plot')
+        self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
         if self.machine_config.PLATFORM in ['tbd']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
