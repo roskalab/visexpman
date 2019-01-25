@@ -178,7 +178,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         rectangle=True
         rectangle_size=500
         for fps in fpss:
-            print fps
+            print(fps)
             for i in range(int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE/4)):
                 self.clear_screen(color = colors.convert_color(0, self.config))
                 self.flip()
@@ -214,12 +214,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 if insert_delay and dt>0.5:
                     time.sleep(30e-3)
                     insert_delay=False
-            print flip_times
-            print i/(time.time()-t00)
+            print(flip_times)
+            print(i/(time.time()-t00))
             keys = check_keyboard()
             if "q" in keys:
                 break
-        print time.time()-tstart
+        print(time.time()-tstart)
         
     def led_test(self):
         daq=True
@@ -335,7 +335,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         step_size=0.1
         intensities=numpy.linspace(0.0,1.0, 1/step_size+1)
         intensities=numpy.concatenate((intensities, intensities[::-1]))
-        print intensities
+        print(intensities)
         for r in range(10):
             for i in intensities:
                 self.clear_screen(color = colors.convert_color(i, self.config))
