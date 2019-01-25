@@ -839,9 +839,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             #Convert to mat file except for Dani
             if self.machine_config.user!='daniel' and self.machine_config.PLATFORM in ['resonant']:
                 experiment_data.hdf52mat(self.outputfilename)
-                self.printc('{0} converted to mat'.format(self.outputfilename))
-            experiment_data.hdf52mat(self.outputfilename)
-            self.printl('{0} converted to mat'.format(self.outputfilename))
+                self.printl('{0} converted to mat'.format(self.outputfilename))
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.datafile = {}
