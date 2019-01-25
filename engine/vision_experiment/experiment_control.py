@@ -817,7 +817,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.datafile = experiment_data.CaImagingData(self.outputfilename)
             self._prepare_data2save()
             [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
-            [self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
+            for v in variables2save :
+                if hasattr(self.datafile, v):
+                    print(v)
+                    self.printl(v)
+                    self.datafile.save(v)
+            #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
             if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
                 self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
                 self.datafile.save(['sync', 'sync_scaling'])
@@ -831,6 +836,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
                     raise RuntimeError(traceback.format_exc())
             self.datafile.close()
+            #Convert to mat file except for Dani
+            if self.machine_config.user!='daniel' and self.machine_config.PLATFORM in ['resonant']:
+                experiment_data.hdf52mat(self.outputfilename)
+                self.printc('{0} converted to mat'.format(self.outputfilename))
+            experiment_data.hdf52mat(self.outputfilename)
+            self.printl('{0} converted to mat'.format(self.outputfilename))
             self.datafilename=self.datafile.filename
         elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.datafile = {}
@@ -858,13 +869,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
     def _backup(self, filename):
-        dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
-        if not os.path.exists(dst):
-            os.makedirs(dst)
-        try:
-            shutil.copy(filename, dst)
-        except:
-            raise RuntimeError('Saving {0} to backup failed'.format(filename))
+        bupaths=[self.machine_config.BACKUP_PATH]
+        for bupath in bupaths:
+            dst=os.path.join(bupath, 'raw',  os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))
+            if not os.path.exists(dst):
+                os.makedirs(dst)
+            try:
+                shutil.copy(filename, dst)
+            except:
+                raise RuntimeError('Saving {0} to backup failed'.format(filename))
             
     def _data2matfile_compatible(self):
         '''Make sure that keys are not longer than 31 characters'''

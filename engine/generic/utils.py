@@ -692,7 +692,10 @@ def str2object(string):
     if ENABLE_COMPRESSION:
         return pickle.loads(compressor.decompress(string))
     else:
-        return pickle.loads(string)
+        try:
+            return pickle.loads(string)
+        except ValueError:#TMP
+            raise RuntimeError(string)
 
 def array2object(numpy_array):
     if ENABLE_COMPRESSION:

@@ -493,10 +493,6 @@ class ExperimentHandler(object):
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
             elif self.machine_config.PLATFORM=='resonant':
                 self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
-                #Convert to mat file except for Dani
-                if self.machine_config.user!='daniel':
-                    experiment_data.hdf52mat(self.outputfilename)
-                    self.printc('{0} converted to mat'.format(self.outputfilename))
             if not (self.machine_config.PLATFORM in ['retinal', 'ao_cortical', 'resonant', "elphys"]):#On ao_cortical sync signal calculation and check is done by stim
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
