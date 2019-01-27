@@ -237,6 +237,8 @@ class CaImagingData(supcl):
         sig=sync[:,index]
         if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['user']!='daniel':
             raise RuntimeError('Stimulus timing signal maximum amplitude is only {0:0.2f} V. Check connections'.format(sig.max()))
+        if sig[0]>0.5:
+            raise RuntimeError('Initial voltage level of stimulus timing signal is too high: {0} V'.format(sig[0]))
         self.tstim=signal.trigger_indexes(sig)/fsample
         self.save(['timg', 'tstim'])
         
@@ -264,13 +266,16 @@ class CaImagingData(supcl):
             errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
         if check_frame_rate:
             #Check frame rate
-            self.load('stimulus_frame_info')
+            if not hasattr(self,  'stimulus_frame_info'):
+                self.load('stimulus_frame_info')
             sfi=self.stimulus_frame_info
             if 'laser' in str(self.parameters['stimclass']).lower() or 'led' in str(self.parameters['stimclass']).lower():
                 pass
             elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
                 bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
                 bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
+                if bsi.shape[0]!=bei.shape[0]:
+                    raise RuntimeError('number of block start and block end timestamps do not match ({0}, {1})'.format(bsi,  bei))
                 expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
                 measured_block_durations = numpy.diff(self.tstim)[::2]
                 measured_frame_rate=(bei-bsi)/measured_block_durations
