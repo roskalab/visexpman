@@ -24,6 +24,8 @@ BehavioralConfig:
 IntrinsicConfig:
     Intrinsic imaging platform.
     Platform name: intrinsic
+TwoPhotonConfig: (2p)
+    Generalized platform for setups with two photon microscope. Device specific interface class is provided by machine config
 '''
 import os
 import sys
@@ -266,9 +268,18 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         if 'hdf5' not in os.path.split(filename)[1]:
             raise RuntimeError('Gamma calibration file is expected in hdf5 format: {0}'.format(filename))
         import hdf5io
-        import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
 
+class TwoPhotonConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = '2p'
+        EXPERIMENT_FILE_FORMAT='mat'
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
+        ENABLE_SYNC=['off', ['off', 'stim', 'main']]#Subclass must set these values
+        COORDINATE_SYSTEM='center'
+        self._create_parameters_from_locals(locals())
+        
 class RetinalConfig(VisionExperimentConfig):
     '''
     Base configuration for retinal setups with elphys/ca imaging

@@ -71,7 +71,7 @@ class ExperimentHandler(object):
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
-            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical', 'resonant', 'behav',  'retinal']:
+            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.ENABLE_SYNC=='main':
                 if self.machine_config.PLATFORM=='elphys':
                     limits = {}
                     limits['min_ao_voltage'] = -5.0
@@ -203,10 +203,11 @@ class ExperimentHandler(object):
         experiment_parameters['user']=self.machine_config.user
         experiment_parameters['machine_config']=self.machine_config.__class__.__name__
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  "elphys"]:
-            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
-        else:
-            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
+        if self.machine_config.user=='common':
+            root=self.machine_config.EXPERIMENT_DATA_PATH
+        else:#Multiple users
+            root=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+        experiment_parameters['outfolder']=os.path.join(root, utils.timestamp2ymd(time.time(), separator=''))
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
         if self.machine_config.PLATFORM=='us_cortical':
@@ -294,13 +295,13 @@ class ExperimentHandler(object):
                 self.start_experiment(experiment_parameters=self.batch[0])
                 self.batch=self.batch[1:]
                 
-    def mesc_connect(self):
-        self.mesc_handler('init')
+    def connect(self):
+        self.microscope_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
-        if self.machine_config.PLATFORM=='resonant':
-            if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
-                missing_connections=[conn for conn in ['mesc', 'stim'] if conn not in self.connected_nodes]
+        if self.machine_config.PLATFORM=='2p':
+            if 'stim' not in self.connected_nodes or self.microscope.name not in self.connected_nodes:
+                missing_connections=[conn for conn in [self.microscope.name, 'stim'] if conn not in self.connected_nodes]
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
@@ -491,13 +492,15 @@ class ExperimentHandler(object):
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
-            elif self.machine_config.PLATFORM=='resonant':
+            elif self.machine_config.PLATFORM in ['resonant', '2p']:
+                raise RuntimeError('Fixme')
                 self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
                 #Convert to mat file except for Dani
                 if self.machine_config.user!='daniel':
                     experiment_data.hdf52mat(self.outputfilename)
                     self.printc('{0} converted to mat'.format(self.outputfilename))
-            if not (self.machine_config.PLATFORM in ['retinal', 'ao_cortical', 'resonant', "elphys"]):#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p']):#On ao_cortical sync signal calculation and check is done by stim
+                raise RuntimeError('On which platform it is really needed?')
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
@@ -713,7 +716,6 @@ class ExperimentHandler(object):
         fileop.write_text_file(csvfn3, txtlines3)
         self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))
         
-        
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
         if hasattr(d,  "dtype"):
@@ -806,7 +808,7 @@ class ExperimentHandler(object):
         if trigger_name == 'stim started':
             self.printc('WARNING: no stim started trigger timeout implemented')
         elif trigger_name == 'stim done':
-            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal']:
+            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal', '2p']:
                 self.enable_check_network_status=True
             self.finish_experiment()
         elif trigger_name=='stim data ready':
@@ -821,18 +823,45 @@ class ExperimentHandler(object):
                     self.mesc.save(fileop.replace_extension(self.outputfilename,  '.mesc'))
                 else:
                     self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.outputfilename)))
+            elif self.machine_config.PLATFORM=='2p':
+                fn=fileop.replace_extension(self.outputfilename, self.microscope.fileformat)
+                self.printc('Save 2p data to {0}'.format(fn))
+                self.microscope.save(fn)
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:
                 self.enable_check_network_status=True
             elif self.machine_config.PLATFORM=='resonant':
                 self.printc('Stop mesc recording, might still running')
                 try:
-                    self.mesc_handler('stop')
+                    self.microscope_handler('stop')
+                except:
+                    pass#Ignore errors
+            elif self.machine_config.PLATFORM=='2p':
+                self.printc('Stop two photon microscope recording, might still running')
+                try:
+                    self.microscope.stop()
                 except:
                     pass#Ignore errors
             self.finish_experiment()
             self.save_experiment_files(aborted=True)
-            self.printc('Experiment finished with error')            
+            self.printc('Experiment finished with error')
+            
+    def microscope_handler(self,command):
+        if self.machine_config.PLATFORM=='resonant':#This is temporary, should be eliminated
+            self.mesc_handler(command)
+        elif self.machine_config.PLATFORM=='2p':
+            if command=='init':
+                for u in ['common', self.machine_config.user]:
+                    import visexpman
+                    microscope_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.machine_config.MICROSCOPE_INTERFACE,  
+                                                    required_ancestors = visexpman.engine.hardware_interface.microscope.TwoPhotonMicroscopeInterface, direct=False)
+                    if len(microscope_class) == 1:
+                        microscope_class = microscope_class[0][1]
+                        break
+                self.microscope=microscope_class()
+            else:
+                getattr(self.microscope, command)()
+                
             
     def mesc_handler(self, command):
         if command=='init':
@@ -884,10 +913,10 @@ class ExperimentHandler(object):
         self.stop_eye_camera()
 
     def init_experiment_handler(self):
-        self.mesc_handler('init')
+        self.microscope_handler('init')
 
     def close_experiment_handler(self):
-        self.mesc_handler('close')
+        self.microscope_handler('close')
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -1679,7 +1708,7 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal',  "elphys"] or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal',  "elphys", '2p', 'behav'] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
@@ -1933,6 +1962,10 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 if self.mesc.ping():
                     n_connected += 1
                     self.connected_nodes+='mesc '
+            elif hasattr(self, 'microscope'):
+                if self.microscope.ping():
+                    n_connected += 1
+                    self.connected_nodes+=self.microscope.name+' '
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
@@ -1950,6 +1983,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                     self.mes_connection_status=msg['mes_connection_status']
                 elif 'mesc' in msg and hasattr(self,  'mesc_handler'):
                     self.mesc_handler(msg['mesc'])
+                elif '2p' in msg and hasattr(self, 'microscope_handler'):
+                    self.microscope_handler(msg['2p'])
                     
         
     def run(self):

@@ -600,6 +600,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             #Control/synchronization with platform specific recording devices
             time.sleep(0.1)
             try:
+                if self.machine_config.ENABLE_SYNC=='stim':
+                    self.start_sync_recording()
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
                     self.start_sync_recording()
@@ -654,6 +656,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.send({'trigger':'stim error'})
                     else:
                         self.mesc_error=False
+                elif self.machine_config.PLATFORM == '2p':
+                    self.send({'2p': 'start'})
+                    time.sleep(1.5)
+                    response=self.recv()
+                    if not hasattr(response, 'keys') or not response['start command result']:
+                        self.abort=True
+                        self.printl('Two photon recording did not start, aborting stimulus')
+                        self.send({'trigger':'stim error'})
+                        self.send({'2p': 'stop'})
                 elif self.machine_config.PLATFORM == 'behav':
                     self.sync_recording_duration=self.machine_config.EXPERIMENT_MAXIMUM_DURATION*60
                     self.start_sync_recording()
@@ -677,7 +688,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self._stop_frame_capture()
             self.log.resume()
             #Terminate recording devices
-            if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav']:
+            if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav', '2p']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
@@ -695,17 +706,19 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM == 'resonant':
                 if not self.mesc_error:
                     self.send({'mesc':'stop'})
+            elif self.machine_config.PLATFORM == '2p':
+                self.send({'2p': 'stop'})
             if self.machine_config.PLATFORM in [ 'retinal']:
                 #Make sure that imaging recording finishes before terminating sync recording
                 time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
-            if self.machine_config.PLATFORM in ['standalone', 'ao_cortical', 'resonant', 'behav', 'retinal']:
+            if self.machine_config.ENABLE_SYNC=='stim':
                 self.analog_input.finish_daq_activity(abort = self.abort)
                 self.printl('Sync signal recording finished')
             #Saving data
             if not self.abort:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant']:
+                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p']:
                     self.send({'trigger':'stim data ready'})
                 if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
                     self._backup(self.datafilename)
