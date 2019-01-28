@@ -915,7 +915,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                                 del self.datafile[k1][k2][k3]
 
     def _send_himea_cmd(self, cmd):
-       if self.machine_config.config.ENABLE_MEA_START_COMMAND:
+       if self.machine_config.ENABLE_MEA_START_COMMAND:
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
             socket.connect(self.machine_config.MEA_COMPUTER_ADDRESS)
