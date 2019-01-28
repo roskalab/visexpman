@@ -915,10 +915,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                                 del self.datafile[k1][k2][k3]
 
     def _send_himea_cmd(self, cmd):
-       if self.config.ENABLE_MEA_START_COMMAND:
+       if self.machine_config.config.ENABLE_MEA_START_COMMAND:
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
-            socket.connect("tcp://12.0.1.1:75000")
+            socket.connect(self.machine_config.MEA_COMPUTER_ADDRESS)
             socket.send(cmd)
             socket.recv()#This is blocking!!!
         

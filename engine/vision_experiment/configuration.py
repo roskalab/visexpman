@@ -161,6 +161,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         WAIT4TRIGGER_ENABLED=False
         CAMERA_TRIGGER_ENABLE=False
         
+        ENABLE_SYNC=['off', ['off', 'stim', 'main']]#Subclass must set these values
+        
         ############# Graphical User Interface related ######################
         GUI = {}
         GUI['GREEN_LABELING_SUGGESTIONS'] = ['',
@@ -276,7 +278,6 @@ class TwoPhotonConfig(VisionExperimentConfig):
         PLATFORM = '2p'
         EXPERIMENT_FILE_FORMAT='mat'
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
-        ENABLE_SYNC=['off', ['off', 'stim', 'main']]#Subclass must set these values
         COORDINATE_SYSTEM='center'
         self._create_parameters_from_locals(locals())
         
@@ -410,8 +411,8 @@ class HiMEAConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'hi_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
+        COORDINATE_SYSTEM='center'
         self.KEYS['start stimulus'] = 'e'
-        STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
         
 class ElectroporationConfig(VisionExperimentConfig):
