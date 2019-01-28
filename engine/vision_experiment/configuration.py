@@ -412,6 +412,7 @@ class HiMEAConfig(VisionExperimentConfig):
         PLATFORM = 'hi_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
         COORDINATE_SYSTEM='center'
+        USE_MEADATAFILE_PREFIX=False
         self.KEYS['start stimulus'] = 'e'
         self._create_parameters_from_locals(locals())
         
