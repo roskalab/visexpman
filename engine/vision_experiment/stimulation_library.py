@@ -1403,6 +1403,62 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
+    
+    # ---------------------------------------------------------------
+    def chirp(self, stimulus_duration, contrast_range, frequency_range, color, save_frame_info = True):
+        '''
+            ...
+        '''               
+        nTimePoints =  stimulus_duration*self.config.SCREEN_EXPECTED_FRAME_RATE
+        amplitudes = numpy.linspace(contrast_range[0], contrast_range[1], nTimePoints)
+        frequencies = numpy.linspace(frequency_range[0], frequency_range[1], nTimePoints)
+        time = numpy.linspace(0, stimulus_duration, nTimePoints)
+        
+        contrast = (amplitudes*numpy.sin(2*numpy.pi*frequencies*time) + 1.0) / 2.0    
+        
+        #print 'In stimulation_library.py chirp():'
+        #print self.config.SCREEN_EXPECTED_FRAME_RATE    
+        
+        if False:
+            import matplotlib.pyplot as p
+            p.plot(contrast)
+            p.show()
+            
+            p.plot(time)
+            p.show()
+            
+            p.plot(frequencies)
+            p.show()
+        
+        # Enter stimulus loop:
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        idx = 0
+        
+        shown_colors = []
+        shown_contrasts = []
+        
+        while True:
+            if self.abort or idx >= nTimePoints:
+                break
+            
+            color_to_set = colors.convert_color(color*contrast[idx], self.config)
+            self.screen.clear_screen(color_to_set)
+            self._flip(trigger = True)
+            
+           # print color*contrast[idx]
+            shown_contrasts.append(color*contrast[idx])
+            shown_colors.append(color_to_set)
+            idx += 1
+        
+        
+        # Finish up
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True) #,
+                                           #contrasts = numpy.array(shown_contrasts), colors = numpy.array(shown_colors))
+        # END OF chirp()
+    # ---------------------------------------------------------------
+            
     def show_approach_stimulus(self, motion, bar_width, speed, color=1.0, initial_wait=2.0, mask_size=400.,save_frame_info=True):
         if save_frame_info:
             self.log.info('show_approach_stimulus(' + str(motion)+ ', ' + str(bar_width) + ', ' + str(speed) + ', ' + str(color)  + ', ' + str(initial_wait)  + ', ' + str(mask_size)  + ')', source = 'stim')
