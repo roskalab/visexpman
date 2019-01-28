@@ -657,6 +657,8 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.plot.setTitle(msg['image_title'])
             elif 'plot_title' in msg:
                 self.plot.plot.setTitle(msg['plot_title'])
+            elif 'plot2_title' in msg:
+                self.plot2.plot.setTitle(msg['plot2_title'])
             elif 'show_suggested_rois' in msg:
                 self.image_w_rois = msg['show_suggested_rois']
                 self.image.set_image(self.image_w_rois)

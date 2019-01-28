@@ -587,6 +587,7 @@ class ExperimentHandler(object):
             if hasattr(self.machine_config, 'CHANNEL_SCALE'):
                 y=[y[i]*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
             cc=[colors.get_color(i,unit=False) for i in range(n)]
+            cc_html=[('#%02x%02x%02x' % (cci[0], cci[1], cci[2])).upper() for cci in cc]
             labels={"left": '',  "bottom": "time [s]"}
             xleft=[]
             yleft=[]
@@ -594,17 +595,27 @@ class ExperimentHandler(object):
             xright=[]
             yright=[]
             ccright=[]
+            left_title=''
+            right_title=''
             for i in range(len(self.plot_signal_enable['left'])):
                 if self.plot_signal_enable['left'][i]:
                     xleft.append(x[i])
                     yleft.append(y[i])
                     ccleft.append(cc[i])
+                    last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
+                    if len(self.machine_config.CHANNEL_UNITS[i])>0:
+                        left_title+=last_value
                 if self.plot_signal_enable['right'][i]:
                     xright.append(x[i])
                     yright.append(y[i])
                     ccright.append(cc[i])
+                    last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
+                    if len(self.machine_config.CHANNEL_UNITS[i])>0:
+                        right_title+=last_value
             self.to_gui.put({'display_roi_curve': [xright, yright, None, None, {'plot_average':False, "colors":ccright,  "labels": labels}]})
             self.to_gui.put({'curves2plot2': [xleft, yleft, None, None, {'plot_average':False, "colors":ccleft,  "labels": labels}]})
+            self.to_gui.put({'plot_title': right_title})
+            self.to_gui.put({'plot2_title': left_title})
             
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:
