@@ -1444,7 +1444,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             
             color_to_set = colors.convert_color(color*contrast[idx], self.config)
             self.screen.clear_screen(color_to_set)
-            self._flip(trigger = True)
+            self._flip(frame_timing_pulse = True)
             
            # print color*contrast[idx]
             shown_contrasts.append(color*contrast[idx])

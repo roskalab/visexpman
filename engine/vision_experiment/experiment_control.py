@@ -861,9 +861,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if hasattr(self, v):
                     self.datafile[v] = getattr(self,v)
             self._data2matfile_compatible()
-            if self.machine_config.PLATFORM == 'hi_mea':
+            if self.machine_config.PLATFORM == 'hi_mea' and self.machine_config.USE_MEADATAFILE_PREFIX:
                 #the latest file's name with a specific format
-                latest_file = fileop.find_latest(os.path.split(experiment_data.get_user_experiment_data_folder(self.machine_config))[0],extension=None)#TODO: extension tbd
+                latest_file = fileop.find_latest(os.path.split(experiment_data.get_user_experiment_data_folder(self.parameters))[0],extension=None)#TODO: extension tbd
                 if latest_file is None:
                     filename_prefix = ''
                 else:
