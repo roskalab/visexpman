@@ -325,8 +325,8 @@ class RoiShift(gui.ArrowButtons):
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
-        self.setMaximumWidth(parent.machine_config.GUI['SIZE']['col']/2)
-        self.setMaximumHeight(parent.machine_config.GUI['SIZE']['col']/2)
+        self.setMaximumWidth(parent.machine_config.GUI_WIDTH/2)
+        self.setMaximumHeight(parent.machine_config.GUI_WIDTH/2)
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
         self.connect(self, QtCore.SIGNAL('wheel_double_click'), parent.add_roi_action)
@@ -525,7 +525,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
         self._start_engine(gui_engine.MainUIEngine(self.machine_config, self.logger, self.socket_queues))
-        self.resize(self.machine_config.GUI['SIZE']['col'], self.machine_config.GUI['SIZE']['row'])
+        self.resize(self.machine_config.GUI_HEIGHT, self.machine_config.GUI_WIDTH)
         self._set_window_title()
         #Set up toobar
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal']:
@@ -566,8 +566,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys", '2p']:
             self.plot = gui.Plot(self)
-            self.plot.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/2)
-            w=self.image.width() if hasattr(self,  "image") else self.machine_config.GUI['SIZE']['col']
+            self.plot.setMinimumWidth(self.machine_config.GUI_WIDTH/2)
+            w=self.image.width() if hasattr(self,  "image") else self.machine_config.GUI_WIDTH
             self.plot.setMaximumWidth(w)
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
@@ -588,7 +588,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
             self.analysis.setLayout(self.analysis.layout)
         if self.machine_config.PLATFORM in ['elphys']:
-            self.analysis.setMaximumWidth(self.machine_config.GUI['SIZE']['col']/2)
+            self.analysis.setMaximumWidth(self.machine_config.GUI_WIDTH/2)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
@@ -642,7 +642,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.set_image(self.meanimage, color_channel = 1)
                 self.image.set_scale(self.image_scale)
                 h=self.image.width()*float(self.meanimage.shape[1])/float(self.meanimage.shape[0])
-                if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
+                if h<self.machine_config.GUI_HEIGHT*0.5: h=self.machine_config.GUI_HEIGHT*0.5
                 if h>self.image.height() and self.isMaximized():#when maximized and actual height is smaller then image width
                     self.printc('WARNING: temporary user interface rescaling')
                     w=self.image.height()*float(self.meanimage.shape[0])/float(self.meanimage.shape[1])
@@ -753,7 +753,7 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'eye_camera_image' in msg:
                 self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 'all')
                 h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
-                if h<self.machine_config.GUI['SIZE']['row']*0.5: h=self.machine_config.GUI['SIZE']['row']*0.5
+                if h<self.machine_config.GUI_HEIGHT*0.5: h=self.machine_config.GUI_HEIGHT*0.5
                 self.eye_camera.setFixedHeight(h)
                 self.eye_camera.plot.setTitle(time.time())
                 #self.eye_camera.img.setLevels([0,255])

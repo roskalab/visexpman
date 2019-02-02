@@ -91,7 +91,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 self.arbitrary_timing()
             elif 'tearing' in self.config.KEYS and key_pressed == self.config.KEYS['tearing']:
                 self.tearing()
-            elif 'contrast steps' in self.config.KEYS in key_pressed == self.config.KEYS['contrast steps']:
+            elif 'contrast steps' in self.config.KEYS and key_pressed == self.config.KEYS['contrast steps']:
                 self.contrast_steps()
             elif 'led test' in self.config.KEYS and key_pressed == self.config.KEYS['led test']:
                 self.led_test()

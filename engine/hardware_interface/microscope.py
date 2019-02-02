@@ -18,3 +18,6 @@ class TwoPhotonMicroscopeInterface(object):
         '''
         Save imaging data to provided location
         '''
+        
+    def close(self):
+        pass
