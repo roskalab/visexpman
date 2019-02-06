@@ -1195,8 +1195,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             return (alltexture.shape[0]-(0 if circular else self.config.SCREEN_RESOLUTION['col']))/(ds*float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         texture_width=self.config.SCREEN_RESOLUTION['col']
-        if direction%90!=0:
-            texture_width=numpy.sqrt(2)*texture_width
+#        if direction%90!=0:#This stretches the stimulus and spatial frequencies are not the same across different directions
+#            texture_width=numpy.sqrt(2)*texture_width
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * texture_width
         alpha =numpy.pi/4

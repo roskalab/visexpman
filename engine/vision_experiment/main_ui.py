@@ -139,8 +139,6 @@ class StimulusTree(pyqtgraph.TreeWidget):
             self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
         else:
             self.setHeaderLabels([''])#, 'Date Modified']))
-        self.setMaximumWidth(350)
-        self.setMinimumHeight(400)
         self.populate()
         self.itemDoubleClicked.connect(self.stimulus_selected_for_open)
         self.itemClicked.connect(self.stimulus_selected)
@@ -325,8 +323,6 @@ class RoiShift(gui.ArrowButtons):
 class Image(gui.Image):
     def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
-        self.setMaximumWidth(parent.machine_config.GUI_WIDTH/2)
-        self.setMaximumHeight(parent.machine_config.GUI_WIDTH/2)
         self.plot.setLabels(left='um', bottom='um')
         self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
         self.connect(self, QtCore.SIGNAL('wheel_double_click'), parent.add_roi_action)
@@ -423,8 +419,6 @@ class AnalysisHelper(QtGui.QWidget):
             self.layout.addWidget(self.show_trace_parameter_distribution,3,3,1,1)
             self.layout.addWidget(self.find_cells_scaled,3,0,1,1)
         self.setLayout(self.layout)
-        self.setFixedHeight(140)
-        self.setFixedWidth(530)
         if parent.parent.machine_config.PLATFORM=='elphys_retinal_ca':
             self.connect(self.find_repetitions, QtCore.SIGNAL('clicked()'), self.find_repetitions_clicked)
             self.connect(self.show_trace_parameter_distribution, QtCore.SIGNAL('clicked()'), self.show_trace_parameter_distribution_clicked)
@@ -525,7 +519,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
         self._start_engine(gui_engine.MainUIEngine(self.machine_config, self.logger, self.socket_queues))
-        self.resize(self.machine_config.GUI_HEIGHT, self.machine_config.GUI_WIDTH)
+        self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         #Set up toobar
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal']:
@@ -552,12 +546,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.statusbar.camera_status.setStyleSheet('background:gray;')
         #Add dockable widgets
         self.debug = gui.Debug(self)
-#        self.debug.setMinimumWidth(self.machine_config.GUI['SIZE']['col']/3)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical', '2p']:
             self.image = Image(self,roi_diameter=self.machine_config.DEFAULT_ROI_SIZE_ON_GUI)
-            #self.image.setFixedHeight(480)
-            #self.image.setFixedWidth(480)
             self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
             self.adjust=gui.ImageAdjust(self)
             self.adjust.setFixedHeight(40)
@@ -566,14 +557,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys", '2p']:
             self.plot = gui.Plot(self)
-            self.plot.setMinimumWidth(self.machine_config.GUI_WIDTH/2)
-            w=self.image.width() if hasattr(self,  "image") else self.machine_config.GUI_WIDTH
-            self.plot.setMaximumWidth(w)
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
             self._add_dockable_widget('Plot', d, d, self.plot)
-        self.plot2 = gui.Plot(self)
-        self.select_plot_signal=SelectPlotSignals(self)
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
         if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
@@ -587,10 +573,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
             self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
             self.analysis.setLayout(self.analysis.layout)
-        if self.machine_config.PLATFORM in ['elphys']:
-            self.analysis.setMaximumWidth(self.machine_config.GUI_WIDTH/2)
         self.params = gui.ParameterTable(self, self.params_config)
-        self.params.setMaximumWidth(500)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
@@ -602,8 +585,11 @@ class MainUI(gui.VisexpmanMainWindow):
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
-        self.main_tab.addTab(self.plot2, 'Plot')
-        self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
+        if self.machine_config.PLATFORM in ["elphys"]:
+            self.plot2 = gui.Plot(self)
+            self.select_plot_signal=SelectPlotSignals(self)
+            self.main_tab.addTab(self.plot2, 'Plot')
+            self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
         if self.machine_config.PLATFORM in ['tbd']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
@@ -625,6 +611,9 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM == 'retinal' and hasattr(self.analysis_helper, 'show_repetitions'):
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
         self.main_tab.currentChanged.connect(self.tab_changed)
+        #Set size of widgets
+        self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
+        self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
