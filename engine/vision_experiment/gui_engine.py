@@ -299,8 +299,8 @@ class ExperimentHandler(object):
         self.microscope_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
-        if self.machine_config.PLATFORM=='2p':
-            if 'stim' not in self.connected_nodes or self.microscope.name not in self.connected_nodes:
+        if self.machine_config.PLATFORM in ['2p',  'resonant']:
+            if 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
                 missing_connections=[conn for conn in [self.microscope.name, 'stim'] if conn not in self.connected_nodes]
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
@@ -493,12 +493,8 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
             elif self.machine_config.PLATFORM in ['resonant', '2p']:
-                raise RuntimeError('Fixme')
+                #Generate filename for mesc/2p imaging datafile -> Later this could be moved to a more optimal place: all filenames shall be generated before starting experiment and shall be part of self.parameters
                 self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
-                #Convert to mat file except for Dani
-                if self.machine_config.user!='daniel':
-                    experiment_data.hdf52mat(self.outputfilename)
-                    self.printc('{0} converted to mat'.format(self.outputfilename))
             if not (self.machine_config.PLATFORM in ['2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p']):#On ao_cortical sync signal calculation and check is done by stim
                 raise RuntimeError('On which platform it is really needed?')
                 self.printc(fn)
@@ -819,7 +815,7 @@ class ExperimentHandler(object):
         if trigger_name == 'stim started':
             self.printc('WARNING: no stim started trigger timeout implemented')
         elif trigger_name == 'stim done':
-            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal', '2p']:
+            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal', '2p',  'resonant']:
                 self.enable_check_network_status=True
             self.finish_experiment()
         elif trigger_name=='stim data ready':

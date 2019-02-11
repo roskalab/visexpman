@@ -601,6 +601,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             time.sleep(0.1)
             try:
                 if self.machine_config.ENABLE_SYNC=='stim':
+                    self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
@@ -644,8 +645,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.abort=True
                         self.send({'trigger':'stim error'})
                 elif self.machine_config.PLATFORM == 'resonant':
-                    self.sync_recording_duration=self.parameters['duration']
-                    self.start_sync_recording()
                     self.send({'mesc':'start'})
                     time.sleep(1.5)
                     response=self.recv()

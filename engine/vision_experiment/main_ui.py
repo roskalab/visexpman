@@ -555,7 +555,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.adjust.low.setValue(0)
             self.adjust.high.setValue(99)
             self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys", '2p']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys", '2p', 'resonant']:
             self.plot = gui.Plot(self)
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
