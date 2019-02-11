@@ -85,17 +85,17 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 return 'terminate'
             elif key_pressed == self.config.KEYS['measure framerate']:#measure frame rate
                 self.measure_frame_rate()
-            elif key_pressed == self.config.KEYS['flicker screen']:#flicker screen
+            elif 'flicker screen' in self.config.KEYS and key_pressed == self.config.KEYS['flicker screen']:#flicker screen
                 self.flicker()
-            elif key_pressed == self.config.KEYS['arbitrary timing']:
+            elif 'arbitrary timing' in self.config.KEYS and key_pressed == self.config.KEYS['arbitrary timing']:
                 self.arbitrary_timing()
-            elif key_pressed == self.config.KEYS['tearing']:
+            elif 'tearing' in self.config.KEYS and key_pressed == self.config.KEYS['tearing']:
                 self.tearing()
-            elif key_pressed == self.config.KEYS['contrast steps']:
+            elif 'contrast steps' in self.config.KEYS and key_pressed == self.config.KEYS['contrast steps']:
                 self.contrast_steps()
-            elif key_pressed == self.config.KEYS['led test']:
+            elif 'led test' in self.config.KEYS and key_pressed == self.config.KEYS['led test']:
                 self.led_test()
-            elif key_pressed == self.config.KEYS['phase shift test']:
+            elif 'phase shift test' in self.config.KEYS and key_pressed == self.config.KEYS['phase shift test']:
                 self.phase_shift_test()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
