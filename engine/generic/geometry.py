@@ -6,7 +6,9 @@ from PIL import Image
 from visexpman.engine.generic.utils import nan2value
 from scipy.ndimage.interpolation import shift, rotate
 from visexpman.engine.generic.utils import nd, rc, cr
+import warnings
 from visexpA.engine.datadisplay.imaged import imshow
+import pdb
 
 ## {{{ http://code.activestate.com/recipes/117225/ (r2)
 # convex hull (Graham scan by x-coordinate) and diameter of a set of points
@@ -737,7 +739,7 @@ def polygon2filled(polygon, color=None):
     allpts= numpy.array(numpy.nonzero(numpy.array(li))).T
     return allpts
 
-def overlap(p1, p2, thr=0.25, return_max = True):
+def overlap(p1, p2, thr=0.25, return_max = True, return_area_prop=False):
     """
     Overlapping area of two polygons.
 
@@ -764,13 +766,20 @@ def overlap(p1, p2, thr=0.25, return_max = True):
     else: # point cloud
         p1s=set([tuple([int(i1) for i1 in i]) for i in p1])
         p2s=set([tuple([int(i1) for i1 in i]) for i in p2])
+       # if numpy.round(numpy.array(list(p2s))).mean(axis=0).astype(int).tolist() == [94,210]:
+        #    pdb.set_trace()
         int_sec = p1s & p2s
         if len(int_sec)==0:
             return 0
         diffs=[p1s-p2s, p2s-p1s]
         if len(diffs[0])==0 or len(diffs[1])==0: # identical polygons
             return 1
-        proportions = numpy.array([float(len(int_sec))/len(d) for d in diffs])
+        if return_area_prop:
+            proportions = numpy.array([float(len(int_sec)) / len(d) for d in [p1s,p2s]])
+        else:
+            warnings.warn("Overlap returning proportion of intsec/(p1-p2) should not be used, rather intsec/p1",
+                          DeprecationWarning)
+            proportions = numpy.array([float(len(int_sec))/len(d) for d in diffs])
     if numpy.any(proportions>thr): # TODO: max is not a good idea, use p1 as refernce roi, otherwise when called overlap in a loop it is not possible to resolve which rois overlap best (align.align_rois)
         return max(proportions) if return_max else proportions[0]
     else:
