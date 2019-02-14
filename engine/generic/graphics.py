@@ -365,13 +365,15 @@ class Screen(object):
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
             im = im.transpose(Image.FLIP_TOP_BOTTOM)
         image = (numpy.cast['float'](numpy.asarray(im))/255.0)
-        if image.shape[2]>3:
+        if len(image.shape)==3 and image.shape[2]>3:
             mask=numpy.where(image[:,:,3]>0, True, False)[:,:,numpy.newaxis]
             image=image[:,:,:3]* mask
         self.render_image(image, position = position, stretch=stretch,position_in_pixel=False)
         return image
         
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
+        if len(image.shape)==2:
+            image=numpy.rollaxis(numpy.array([image]*3), 0, 3)
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         scale = 1.0 if position_in_pixel else self.config.SCREEN_UM_TO_PIXEL_SCALE
         vertices = numpy.array([

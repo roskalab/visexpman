@@ -221,7 +221,7 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
         raw=raw.T
     raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
-    return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
+    return numpy.array([i for i in zip(*[raw[index] for index in numpy.arange(len(dim_order))])],dtype=dtype)
 
 def rc_add(operand1, operand2,  operation = '+'):
     '''

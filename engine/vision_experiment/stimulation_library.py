@@ -1195,8 +1195,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             return (alltexture.shape[0]-(0 if circular else self.config.SCREEN_RESOLUTION['col']))/(ds*float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         texture_width=self.config.SCREEN_RESOLUTION['col']
-        if direction%90!=0:
-            texture_width=numpy.sqrt(2)*texture_width
+#        if direction%90!=0:#This stretches the stimulus and spatial frequencies are not the same across different directions
+#            texture_width=numpy.sqrt(2)*texture_width
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * texture_width
         alpha =numpy.pi/4
@@ -1402,6 +1402,62 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
+    
+    # ---------------------------------------------------------------
+    def chirp(self, stimulus_duration, contrast_range, frequency_range, color, save_frame_info = True):
+        '''
+            ...
+        '''               
+        nTimePoints =  stimulus_duration*self.config.SCREEN_EXPECTED_FRAME_RATE
+        amplitudes = numpy.linspace(contrast_range[0], contrast_range[1], nTimePoints)
+        frequencies = numpy.linspace(frequency_range[0], frequency_range[1], nTimePoints)
+        time = numpy.linspace(0, stimulus_duration, nTimePoints)
+        
+        contrast = (amplitudes*numpy.sin(2*numpy.pi*frequencies*time) + 1.0) / 2.0    
+        
+        #print 'In stimulation_library.py chirp():'
+        #print self.config.SCREEN_EXPECTED_FRAME_RATE    
+        
+        if False:
+            import matplotlib.pyplot as p
+            p.plot(contrast)
+            p.show()
+            
+            p.plot(time)
+            p.show()
+            
+            p.plot(frequencies)
+            p.show()
+        
+        # Enter stimulus loop:
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        idx = 0
+        
+        shown_colors = []
+        shown_contrasts = []
+        
+        while True:
+            if self.abort or idx >= nTimePoints:
+                break
+            
+            color_to_set = colors.convert_color(color*contrast[idx], self.config)
+            self.screen.clear_screen(color_to_set)
+            self._flip(frame_timing_pulse = True)
+            
+           # print color*contrast[idx]
+            shown_contrasts.append(color*contrast[idx])
+            shown_colors.append(color_to_set)
+            idx += 1
+        
+        
+        # Finish up
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True) #,
+                                           #contrasts = numpy.array(shown_contrasts), colors = numpy.array(shown_colors))
+        # END OF chirp()
+    # ---------------------------------------------------------------
             
     def show_approach_stimulus(self, motion, bar_width, speed, color=1.0, initial_wait=2.0, mask_size=400.,save_frame_info=True):
         if save_frame_info:

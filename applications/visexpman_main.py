@@ -85,17 +85,17 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 return 'terminate'
             elif key_pressed == self.config.KEYS['measure framerate']:#measure frame rate
                 self.measure_frame_rate()
-            elif key_pressed == self.config.KEYS['flicker screen']:#flicker screen
+            elif 'flicker screen' in self.config.KEYS and key_pressed == self.config.KEYS['flicker screen']:#flicker screen
                 self.flicker()
-            elif key_pressed == self.config.KEYS['arbitrary timing']:
+            elif 'arbitrary timing' in self.config.KEYS and key_pressed == self.config.KEYS['arbitrary timing']:
                 self.arbitrary_timing()
-            elif key_pressed == self.config.KEYS['tearing']:
+            elif 'tearing' in self.config.KEYS and key_pressed == self.config.KEYS['tearing']:
                 self.tearing()
-            elif key_pressed == self.config.KEYS['contrast steps']:
+            elif 'contrast steps' in self.config.KEYS and key_pressed == self.config.KEYS['contrast steps']:
                 self.contrast_steps()
-            elif key_pressed == self.config.KEYS['led test']:
+            elif 'led test' in self.config.KEYS and key_pressed == self.config.KEYS['led test']:
                 self.led_test()
-            elif key_pressed == self.config.KEYS['phase shift test']:
+            elif 'phase shift test' in self.config.KEYS and key_pressed == self.config.KEYS['phase shift test']:
                 self.phase_shift_test()
             elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
@@ -178,7 +178,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         rectangle=True
         rectangle_size=500
         for fps in fpss:
-            print fps
+            print(fps)
             for i in range(int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE/4)):
                 self.clear_screen(color = colors.convert_color(0, self.config))
                 self.flip()
@@ -214,12 +214,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 if insert_delay and dt>0.5:
                     time.sleep(30e-3)
                     insert_delay=False
-            print flip_times
-            print i/(time.time()-t00)
+            print(flip_times)
+            print(i/(time.time()-t00))
             keys = check_keyboard()
             if "q" in keys:
                 break
-        print time.time()-tstart
+        print(time.time()-tstart)
         
     def led_test(self):
         daq=True
@@ -335,7 +335,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         step_size=0.1
         intensities=numpy.linspace(0.0,1.0, 1/step_size+1)
         intensities=numpy.concatenate((intensities, intensities[::-1]))
-        print intensities
+        print(intensities)
         for r in range(10):
             for i in intensities:
                 self.clear_screen(color = colors.convert_color(i, self.config))

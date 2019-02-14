@@ -266,7 +266,8 @@ class CaImagingData(supcl):
             errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
         if check_frame_rate:
             #Check frame rate
-            self.load('stimulus_frame_info')
+            if not hasattr(self,  'stimulus_frame_info'):
+                self.load('stimulus_frame_info')
             sfi=self.stimulus_frame_info
             if 'laser' in str(self.parameters['stimclass']).lower() or 'led' in str(self.parameters['stimclass']).lower():
                 pass
