@@ -1,5 +1,5 @@
 import os,tables,unittest,sys,shutil,time,traceback,logging,getpass,hdf5io,numpy
-from visexpman.engine.generic import fileop,utils,introspect
+from visexpman.engine.generic import fileop,utils,introspect, videofile
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.analysis import aod
 
@@ -213,18 +213,27 @@ class DatafileDatabase(object):
     def close(self):
         self.hdf5.close()
             
-class ResonantJobhandler(object):
+class Jobhandler(object):
     '''
-    Runs as a cron job, converts hdf5 files to mp4
+    Runs as a cron job, the following jobs are supported:
+    1) hdf5 file to mp4 (eye camera recordings
+    2) merge mesc/mes files with stim hdf5 files
+    3) check backup
+    
     Starting it:
-        python -c "folders={'log':'/data/resonant-setup/log', 'experiment_data': '/data/resonant-setup/processed'};import sys;sys.path.insert(0, '/data/software/resonant-setup');from visexpman.applications import jobhandler;jobhandler.ResonantJobhandler(folders).run()"
+        python -c "from visexpman.applications import jobhandler;jobhandler.Jobhandler('/mnt/resonant_data/Data')"
     '''
-    def __init__(self, folders, lock_timeout=60):
-        self.folders=folders
-        self.lockfile='/tmp/resonant-jobhandler-lock.txt'
-        self.logfile = os.path.join(folders['log'], 'jobhandler_resonant.txt'.format(utils.timestamp2ymdhm(time.time()).replace(':','').replace(' ','').replace('-','')))
+    def __init__(self, folder, job, lock_timeout=60):
+        self.folder=folder
+        self.lockfile='/tmp/{0}-jobhandler-lock.txt'.format(job)
+        self.logfile = os.path.join('/data/software/log', 'jobhandler_{0}.txt'.format(job))
+        if not hasattr(self, job):
+            logging.warning('Handler of {0} job does not exists'.format(job))
+            return
         if os.path.exists(self.logfile):
             self.prev_log=fileop.read_text_file(self.logfile)
+        else:
+            self.prev_log=''
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
         self.locked= os.path.exists(self.lockfile) and fileop.file_age(self.lockfile)<lock_timeout*60
@@ -232,50 +241,48 @@ class ResonantJobhandler(object):
             fileop.write_text_file(self.lockfile, 'locked')
         else:
             logging.warning('Locked')
-            
-    def mesc_backup(self):
-        self.mescfile_minimum_age=60
-        now=time.time()
-        files=[f for f in fileop.find_files_and_folders(self.folders['experiment_data'])[1] if os.path.splitext(f)[1]=='.mesc' and now-os.path.getctime(f)>self.mescfile_minimum_age]
-        for src in files:
-            dst=os.path.join(self.folders['backup'], *src.split(os.sep)[-3:])
-            if not os.path.exists(dst):
-                if not os.path.exists(os.path.dirname(dst)):
-                    os.makedirs(os.path.dirname(dst))
-                shutil.copy(src,dst)
-                logging.info('Backup {0} to {1}'.format(src,dst))
-            
-    def run(self):
-        logging.info('Conversion started')
         try:
-            self.mesc_backup()
-            files=[f for f in fileop.find_files_and_folders(self.folders['experiment_data'])[1] if os.path.splitext(f)[1]=='.hdf5' and 'eyecam'==os.path.basename(f)[:6]]
-            #import pdb;pdb.set_trace()
-            from visexpman.engine.generic import videofile
-            logging.info(len(files))
-            for f in files:
-                try:
-                    videofilename=fileop.replace_extension(f, '.mp4')
-                    if os.path.exists(videofilename): continue
-                    if hasattr(self, 'prev_log'):
-                        logging.info((f, f in self.prev_log, fileop.file_age(f)))
-                        if f in self.prev_log: continue
-                    if fileop.file_age(f)<60: continue
-                    logging.info('Converting {0} to {1}'.format(f, videofilename))
-                    hh=hdf5io.Hdf5io(f)
-                    hh.load('cam')
-                    fps=hh.cam['fps']
-                    logging.info('fps is {0}'.format(fps))
-                    videofile.array2mp4(numpy.array(hh.cam['frames'],dtype=numpy.uint8), videofilename, fps, tempdir=os.path.expanduser('~'))
-                    hh.close()
-                except:
-                    logging.error(traceback.format_exc())
-                    #import pdb;pdb.set_trace()
+            getattr(self, job)()
         except:
             logging.error(traceback.format_exc())
+            
+    def get_next_file(self, filter):
+        files=fileop.find_files_and_folders(self.folder,extension='hdf5')[1]
+        #Find oldest unprocessed file which  is at least 2 minute old
+        fileswage=[]
+        for f in files:
+            age=fileop.file_age(f)
+            processed_message='{0} processed'.format(os.path.basename(f))
+            if age>120 and processed_message not in self.prev_log and filter in os.path.basename(f):
+                fileswage.append([f,age])
+        if len(fileswage)==0:
+            return
+        return fileswage[numpy.array([a[1] for a in fileswage]).argmax()][0]
+
+    def eye2mp4(self):
+        f=self.get_next_file('eye')
+        if f != None:
+            localin=os.path.join('/tmp', os.path.basename(f))
+            localout=fileop.replace_extension(localin, '.mp4')
+            videofilename=fileop.replace_extension(f, '.mp4')
+            if not os.path.exists(videofilename):
+                logging.info('Converting {0} to {1}'.format(f, videofilename))
+                shutil.copy(f,localin)
+                hh=hdf5io.Hdf5io(localin)
+                hh.load('cam')
+                fps=hh.cam['fps']
+                logging.info('fps is {0}'.format(fps))
+                videofile.array2mp4(numpy.array(hh.cam['frames'],dtype=numpy.uint8), localout, fps, tempdir=os.path.expanduser('~'))
+                hh.close()
+                shutil.copy(localout, videofilename)
+                map(os.remove, [localin, localout])
+            logging.info('{0} processed'.format(1))
+            
+    def __del__(self):
         logging.info('Removing lock file')
         os.remove(self.lockfile)
         logging.info('Done')
+    
 
 class TestJobhandler(unittest.TestCase):
     
