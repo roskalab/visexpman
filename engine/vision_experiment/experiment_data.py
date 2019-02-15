@@ -206,7 +206,7 @@ class CaImagingData(supcl):
     
     '''
     def __init__(self,filename, **kwargs):
-        hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
+        hdf5io.Hdf5io.__init__(self, filename)
         if os.path.exists(filename):
             self.file_info = os.stat(filename)
         
@@ -1546,6 +1546,8 @@ def yscanner2sync(waveform):
 def hdf52mat(filename, scale_sync=False):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
+    if not hasattr(hh, 'h5f'):
+        raise NotImplementedError('add dd support!')
     try:
         rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
     except:
