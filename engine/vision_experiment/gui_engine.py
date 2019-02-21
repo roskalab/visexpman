@@ -453,21 +453,22 @@ class ExperimentHandler(object):
                 self.printc('Sync data saved to {0}'.format(fn))
             if hasattr(self,  'eyecamdata'):
                 self.eyecamfile=self.current_experiment_parameters['eyecamfilename']
+                self.printc(('test',  self.eyecamfile))
                 if hasattr(self.eyecamdata, 'keys'):
-                    self.printc('Saving eye camera data to {0}'.format(fn))
-                    h=hdf5io.Hdf5io(fn)
+                    self.printc('Saving eye camera data to {0}'.format(self.eyecamfile))
+                    h=hdf5io.Hdf5io(self.eyecamfile)
                     h.cam=self.eyecamdata
                     h.save('cam')
                     h.close()
                     #Backup file
-                    dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.current_experiment_parameters['outfolder']).split(os.sep)[-2:]))
-                    if not os.path.exists(dst):
-                        os.makedirs(dst)
-                    try:
-                        shutil.copy(fn, dst)
-                        self.printc('Backup saved to {0}'.format(dst))
-                    except:
-                        raise RuntimeError('Saving {0} to backup failed'.format(fn))
+#                    dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.current_experiment_parameters['outfolder']).split(os.sep)[-2:]))
+#                    if not os.path.exists(dst):
+#                        os.makedirs(dst)
+#                    try:
+#                        shutil.copy(fn, dst)
+#                        self.printc('Backup saved to {0}'.format(dst))
+#                    except:
+#                        raise RuntimeError('Saving {0} to backup failed'.format(fn))
                 else:
                     self.printc('Camera data cannot be saved because of error')
             if self.santiago_setup:
