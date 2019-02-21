@@ -210,6 +210,7 @@ class ExperimentHandler(object):
         experiment_parameters['outfolder']=os.path.join(root, utils.timestamp2ymd(time.time(), separator=''))
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
+        experiment_parameters['outfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters,prefix = 'data')
         if self.machine_config.PLATFORM=='us_cortical':
             for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Eye Camera']:
                 experiment_parameters[pn]=self.guidata.read(pn)
@@ -233,6 +234,8 @@ class ExperimentHandler(object):
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
+        if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
+            experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
         return experiment_parameters
             
     def start_batch(self):
@@ -411,7 +414,7 @@ class ExperimentHandler(object):
                 self.printc('Terminating eye camera recording')
                 self.eyecamdata=self.cam.stop()
                 if hasattr(self.eyecamdata, 'keys'):
-                    self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
+                    self.eyecamdata['fps']=self.current_experiment_parameters['Eye Camera Frame Rate']
                     self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
                 else:
                     self.printc(self.eyecamdata)
@@ -426,6 +429,7 @@ class ExperimentHandler(object):
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
         fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "data" if self.machine_config.PLATFORM=='elphys' else 'sync' )
+        self.printc('WARNING: Fix this filename generation!!!!')
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
@@ -448,8 +452,7 @@ class ExperimentHandler(object):
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
             if hasattr(self,  'eyecamdata'):
-                fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
-                self.eyecamfile=fn
+                self.eyecamfile=self.current_experiment_parameters['eyecamfilename']
                 if hasattr(self.eyecamdata, 'keys'):
                     self.printc('Saving eye camera data to {0}'.format(fn))
                     h=hdf5io.Hdf5io(fn)
@@ -491,10 +494,8 @@ class ExperimentHandler(object):
                     pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
+                raise RuntimeError("Is it used at all?")
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
-            elif self.machine_config.PLATFORM in ['resonant', '2p']:
-                #Generate filename for mesc/2p imaging datafile -> Later this could be moved to a more optimal place: all filenames shall be generated before starting experiment and shall be part of self.parameters
-                self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
             if not (self.machine_config.PLATFORM in ['2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p']):#On ao_cortical sync signal calculation and check is done by stim
                 raise RuntimeError('On which platform it is really needed?')
                 self.printc(fn)
@@ -826,12 +827,12 @@ class ExperimentHandler(object):
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
             elif self.machine_config.PLATFORM=='resonant':
                 if self.machine_config.ENABLE_MESC_SAVE:
-                    self.printc('MESc saves data to {0}'.format(self.outputfilename))
-                    self.mesc.save(fileop.replace_extension(self.outputfilename,  '.mesc'))
+                    self.printc('MESc saves data to {0}'.format(self.current_experiment_parameters['outfilename']))
+                    self.mesc.save(fileop.replace_extension(self.current_experiment_parameters['outfilename'],  '.mesc'))
                 else:
-                    self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.outputfilename)))
+                    self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.current_experiment_parameters['outfilename'])))
             elif self.machine_config.PLATFORM=='2p':
-                fn=fileop.replace_extension(self.outputfilename, self.microscope.fileformat)
+                fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
                 self.printc('Save 2p data to {0}'.format(fn))
                 self.microscope.save(fn)
         elif trigger_name=='stim error':
@@ -867,7 +868,8 @@ class ExperimentHandler(object):
                         break
                 self.microscope=microscope_class()
             else:
-                getattr(self.microscope, command)()
+                res=getattr(self.microscope, command)()
+                self.send({'{0} command result'.format(command):res}, 'stim')
                 
             
     def mesc_handler(self, command):
@@ -1964,7 +1966,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if self.mes_connection_status:
                 n_connected += 1
                 self.connected_nodes+='stim-mes '
-        elif self.machine_config.PLATFORM=='resonant':
+        elif self.machine_config.PLATFORM in ['2p', 'resonant']:
             n_connections+=1
             if hasattr(self, 'mesc'):
                 if self.mesc.ping():
@@ -1990,7 +1992,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 elif 'mes_connection_status' in msg:
                     self.mes_connection_status=msg['mes_connection_status']
                 elif 'mesc' in msg and hasattr(self,  'mesc_handler'):
-                    self.mesc_handler(msg['mesc'])
+                    self.microscope_handler(msg['mesc'])#TODO: eliminate this
                 elif '2p' in msg and hasattr(self, 'microscope_handler'):
                     self.microscope_handler(msg['2p'])
                     
@@ -2254,6 +2256,7 @@ class CaImagingEngine(GUIEngine):
             
     def _prepare_datafile(self):
         if self.imaging_parameters['save2file']:
+            raise RuntimeError('Fix filename generation')
             self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.imaging_parameters, self.machine_config, prefix = 'ca'),filelocking=False)
             self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
             self.image_size = (len(self.imaging_parameters['channels']), self.imaging_parameters['size']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['size']['col'] * self.imaging_parameters['resolution'])
