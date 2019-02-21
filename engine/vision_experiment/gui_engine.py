@@ -884,6 +884,7 @@ class ExperimentHandler(object):
             if not self.mesc.connected:
                 self.printc('No connection to MESc')
                 return
+            self.mesc.galvo=self.guidata.read('Enable Galvo')
             res=getattr(self.mesc,  command)()
             self.printc('mesc command: {0}, {1}'.format(command,  res))
             self.send({'mesc {0} command result'.format(command):res}, 'stim')
