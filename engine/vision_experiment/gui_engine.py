@@ -235,7 +235,7 @@ class ExperimentHandler(object):
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
-            experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
+            experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         return experiment_parameters
             
     def start_batch(self):
