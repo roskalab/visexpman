@@ -51,7 +51,7 @@ def get_recording_name(parameters, separator):
 def get_recording_path(config, parameters, prefix = '', filename_only=False):
     if prefix != '':
         prefix = prefix + '_'
-    fn=prefix + get_recording_name(parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
+    fn=prefix + get_recording_name(parameters, '_')+'.hdf5'#+config.EXPERIMENT_FILE_FORMAT
     return os.path.join(get_user_experiment_data_folder(parameters), fn)
     
 def get_user_experiment_data_folder(parameters):
