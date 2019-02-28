@@ -12,8 +12,8 @@ from visexpman.engine.vision_experiment.configuration import HiMEAConfig,MCMEACo
 class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
         FULLSCREEN = True
-        SCREEN_RESOLUTION = utils.cr([1280, 800])
-        SCREEN_UM_TO_PIXEL_SCALE = 0.5
+        SCREEN_RESOLUTION = utils.cr([1280, 800])#TODO: adjust this to projector's native resolution
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0#TODO: calibrate. Press button 'b' and a 100 um sized bullseye is displayed
         BACKGROUND_COLOR=[0.0, 0.0, 0.0]
         LOG_PATH = fileop.select_folder_exists(['e:\\stim_data\\log', '/tmp', 'c:\\stim_data\\log'])
         EXPERIMENT_LOG_PATH = LOG_PATH        
