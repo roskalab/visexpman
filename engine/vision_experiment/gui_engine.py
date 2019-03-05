@@ -235,7 +235,7 @@ class ExperimentHandler(object):
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
-            experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
+            experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         return experiment_parameters
             
     def start_batch(self):
@@ -453,21 +453,22 @@ class ExperimentHandler(object):
                 self.printc('Sync data saved to {0}'.format(fn))
             if hasattr(self,  'eyecamdata'):
                 self.eyecamfile=self.current_experiment_parameters['eyecamfilename']
+                self.printc(('test',  self.eyecamfile))
                 if hasattr(self.eyecamdata, 'keys'):
-                    self.printc('Saving eye camera data to {0}'.format(fn))
-                    h=hdf5io.Hdf5io(fn)
+                    self.printc('Saving eye camera data to {0}'.format(self.eyecamfile))
+                    h=hdf5io.Hdf5io(self.eyecamfile)
                     h.cam=self.eyecamdata
                     h.save('cam')
                     h.close()
                     #Backup file
-                    dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.current_experiment_parameters['outfolder']).split(os.sep)[-2:]))
-                    if not os.path.exists(dst):
-                        os.makedirs(dst)
-                    try:
-                        shutil.copy(fn, dst)
-                        self.printc('Backup saved to {0}'.format(dst))
-                    except:
-                        raise RuntimeError('Saving {0} to backup failed'.format(fn))
+#                    dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.current_experiment_parameters['outfolder']).split(os.sep)[-2:]))
+#                    if not os.path.exists(dst):
+#                        os.makedirs(dst)
+#                    try:
+#                        shutil.copy(fn, dst)
+#                        self.printc('Backup saved to {0}'.format(dst))
+#                    except:
+#                        raise RuntimeError('Saving {0} to backup failed'.format(fn))
                 else:
                     self.printc('Camera data cannot be saved because of error')
             if self.santiago_setup:
@@ -886,6 +887,7 @@ class ExperimentHandler(object):
             if not self.mesc.connected:
                 self.printc('No connection to MESc')
                 return
+            self.mesc.galvo=self.guidata.read('Enable Galvo')
             res=getattr(self.mesc,  command)()
             self.printc('mesc command: {0}, {1}'.format(command,  res))
             self.send({'mesc {0} command result'.format(command):res}, 'stim')

@@ -11,7 +11,7 @@ else:
     use_proxy=True
 
 class MescapiInterface(object):
-    def __init__(self, mesc_address='localhost', port=11000, command_buffer_size=1024*512, timeout=1.0,debug=False):
+    def __init__(self, mesc_address='localhost', port=11000, command_buffer_size=1024*512, timeout=1.0,debug=False, galvo=False):
         if use_proxy:
             self.command_buffer_size=command_buffer_size
             apiserverpath=os.path.join(fileop.visexpman_package_path(), 'engine', 'external', 'mesc', 'MEScApiServer.exe')
@@ -25,6 +25,7 @@ class MescapiInterface(object):
                 self.serverpp.kill()
                 raise IOError('Cannot connect to MEScApiServer')
         else:
+            self.galvo=galvo
             self.connected=False
             self.manager = mescapi.APIClientManager()
             done=self.manager.webSocketConnect(QtCore.QUrl('ws://{0}:8888'.format(mesc_address)))
@@ -85,7 +86,10 @@ class MescapiInterface(object):
         state=self.get_state()
         if state!='Ready':
             raise IOError('Microscope is not ready for recording, current state: {0}'.format(state))
-        return self.request('MEScMicroscope.startResonantScanAsync()')
+        if self.galvo:
+            return self.request('MEScMicroscope.startGalvoScanAsync()')
+        else:
+            return self.request('MEScMicroscope.startResonantScanAsync()')
         
     def stop(self):
         '''
@@ -94,7 +98,10 @@ class MescapiInterface(object):
         state=self.get_state()
         if state!='Working':
             raise IOError('Acquisition is not running, current state: {0}\r\nCheck MESc, error might have happened during recording'.format(state))
-        return self.request('MEScMicroscope.stopResonantScanAsync()')
+        if self.galvo:
+            return self.request('MEScMicroscope.stopGalvoScanAsync()')
+        else:
+            return self.request('MEScMicroscope.stopResonantScanAsync()')
         
     def get_state(self):
         '''
