@@ -12,7 +12,7 @@ from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
 from visexpman.engine.vision_experiment import experiment_data
 
-TEST=True
+TEST=not True
 
 class CWidget(QtGui.QWidget):
     '''
@@ -25,7 +25,7 @@ class CWidget(QtGui.QWidget):
         self.image.setFixedWidth(640)
         self.image.setFixedHeight(480)
         self.params_config=[
-                            {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
+                            {'name': 'Enable trigger', 'type': 'bool', 'value': True}, 
                             {'name': 'Show track', 'type': 'bool', 'value': True}, 
                             {'name': 'Threshold', 'type': 'int', 'value': 200},
                             {'name': 'Enable ROI cut', 'type': 'bool', 'value': True},
@@ -93,7 +93,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         logging.info('Camera initialized')
         self.triggered_recording=False
         self.manual_recording=False
-        self.dio=digital_io.DigitalIO('usb-uart', 'COM4')
+        self.dio=digital_io.DigitalIO('usb-uart', 'COM3')
         self.dio.set_pin(1, 0)
         
     def ttl_pulse(self):
@@ -118,12 +118,12 @@ class ArenaTracker(gui.SimpleAppWindow):
     def recording_start_stop(self):
         if self.is_camera and self.parameters['Enable trigger']:
             if not TEST:
-                di=self.read_digital_input()
+                di=False in [self.read_digital_input() for i in range(10000)]
             else:
                 di= self.parameters['Override trigger']
-            if self.triggered_recording and not self.manual_recording and not di:#Start recording
+            if self.triggered_recording and not self.manual_recording and not di:#Stop recording
                 self.stop_recording()
-            elif not self.triggered_recording and not self.manual_recording and di:#Stop recording
+            elif not self.triggered_recording and not self.manual_recording and di:#Start recording
                 self.start_recording()
             self.triggered_recording = di#controlled by digital input, it expects that during recording it is set to HIGH otherwise to LOW
         
@@ -153,7 +153,7 @@ class ArenaTracker(gui.SimpleAppWindow):
                 self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
             coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Channel'], self.parameters['Threshold'])
             f=numpy.copy(self.frame)
-            if coo!=None and not numpy.isnan(coo[0]) and self.record and numpy.nan != coo[0]:
+            if coo!=None and not numpy.isnan(coo[0]) and (self.triggered_recording or self.manual_recording) and numpy.nan != coo[0]:
                 if self.parameters['Show channel only']:
                     for i in range(3):
                         if i!=self.parameters['Channel']:
