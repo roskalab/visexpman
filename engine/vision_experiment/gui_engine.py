@@ -29,7 +29,7 @@ except ImportError:
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io
-from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile
+from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
 
 class GUIDataItem(object):
@@ -71,7 +71,7 @@ class ExperimentHandler(object):
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
-            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.PLATFORM not in ['ao_cortical', 'resonant', 'behav',  'retinal']:
+            if hasattr(self.machine_config, 'SYNC_RECORDER_CHANNELS') and self.machine_config.ENABLE_SYNC=='main':
                 if self.machine_config.PLATFORM=='elphys':
                     limits = {}
                     limits['min_ao_voltage'] = -5.0
@@ -94,7 +94,6 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.eye_camera_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
-        self.continuous_recording=False
             
     def start_eye_camera(self):
         if not self.eye_camera_running:
@@ -204,12 +203,14 @@ class ExperimentHandler(object):
         experiment_parameters['user']=self.machine_config.user
         experiment_parameters['machine_config']=self.machine_config.__class__.__name__
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  "elphys"]:
-            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
-        else:
-            experiment_parameters['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),experiment_parameters['id'])
+        if self.machine_config.user=='common':
+            root=self.machine_config.EXPERIMENT_DATA_PATH
+        else:#Multiple users
+            root=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+        experiment_parameters['outfolder']=os.path.join(root, utils.timestamp2ymd(time.time(), separator=''))
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
+        experiment_parameters['outfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters,prefix = 'data')
         if self.machine_config.PLATFORM=='us_cortical':
             for pn in ['Protocol', 'Number of Trials', 'Motor Positions', 'Enable Eye Camera']:
                 experiment_parameters[pn]=self.guidata.read(pn)
@@ -233,6 +234,8 @@ class ExperimentHandler(object):
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
+        if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
+            experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         return experiment_parameters
             
     def start_batch(self):
@@ -295,17 +298,13 @@ class ExperimentHandler(object):
                 self.start_experiment(experiment_parameters=self.batch[0])
                 self.batch=self.batch[1:]
                 
-    def mesc_connect(self):
-        self.mesc_handler('init')
-        
-    def start_continuous_recording(self):
-        self.continuous_recording=True
-        self.start_experiment()
+    def connect(self):
+        self.microscope_handler('init')
         
     def start_experiment(self, experiment_parameters=None):
-        if self.machine_config.PLATFORM=='resonant':
-            if 'stim' not in self.connected_nodes or 'mesc' not in self.connected_nodes:
-                missing_connections=[conn for conn in ['mesc', 'stim'] if conn not in self.connected_nodes]
+        if self.machine_config.PLATFORM in ['2p',  'resonant']:
+            if 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
+                missing_connections=[conn for conn in [self.microscope.name, 'stim'] if conn not in self.connected_nodes]
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
@@ -330,6 +329,7 @@ class ExperimentHandler(object):
             self.sync_recorder.start_daq(ai_sample_rate = sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
+            self.printc('Signal recording started')
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             self.stop_eye_camera()
             self.printc('Saving eye video')
@@ -350,7 +350,8 @@ class ExperimentHandler(object):
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
         elif self.machine_config.PLATFORM=='elphys':
-            self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+            if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
+                self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
             introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
@@ -413,7 +414,7 @@ class ExperimentHandler(object):
                 self.printc('Terminating eye camera recording')
                 self.eyecamdata=self.cam.stop()
                 if hasattr(self.eyecamdata, 'keys'):
-                    self.eyecamdata['fps']=self.guidata.read('Eye Camera Frame Rate')
+                    self.eyecamdata['fps']=self.current_experiment_parameters['Eye Camera Frame Rate']
                     self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
                 else:
                     self.printc(self.eyecamdata)
@@ -428,6 +429,7 @@ class ExperimentHandler(object):
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
         fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "data" if self.machine_config.PLATFORM=='elphys' else 'sync' )
+        self.printc('WARNING: Fix this filename generation!!!!')
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
@@ -450,23 +452,23 @@ class ExperimentHandler(object):
                     self.printc('Tempfile cannot be removed')
                 self.printc('Sync data saved to {0}'.format(fn))
             if hasattr(self,  'eyecamdata'):
-                fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'eyecam')
-                self.eyecamfile=fn
+                self.eyecamfile=self.current_experiment_parameters['eyecamfilename']
+                self.printc(('test',  self.eyecamfile))
                 if hasattr(self.eyecamdata, 'keys'):
-                    self.printc('Saving eye camera data to {0}'.format(fn))
-                    h=hdf5io.Hdf5io(fn)
+                    self.printc('Saving eye camera data to {0}'.format(self.eyecamfile))
+                    h=hdf5io.Hdf5io(self.eyecamfile)
                     h.cam=self.eyecamdata
                     h.save('cam')
                     h.close()
                     #Backup file
-                    dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.current_experiment_parameters['outfolder']).split(os.sep)[-2:]))
-                    if not os.path.exists(dst):
-                        os.makedirs(dst)
-                    try:
-                        shutil.copy(fn, dst)
-                        self.printc('Backup saved to {0}'.format(dst))
-                    except:
-                        raise RuntimeError('Saving {0} to backup failed'.format(fn))
+#                    dst=os.path.join(self.machine_config.BACKUP_PATH, 'raw', os.path.join(*str(self.current_experiment_parameters['outfolder']).split(os.sep)[-2:]))
+#                    if not os.path.exists(dst):
+#                        os.makedirs(dst)
+#                    try:
+#                        shutil.copy(fn, dst)
+#                        self.printc('Backup saved to {0}'.format(dst))
+#                    except:
+#                        raise RuntimeError('Saving {0} to backup failed'.format(fn))
                 else:
                     self.printc('Camera data cannot be saved because of error')
             if self.santiago_setup:
@@ -493,14 +495,10 @@ class ExperimentHandler(object):
                     pass
                 self.printc('Rawdata archived')
             elif self.machine_config.PLATFORM=='ao_cortical':
+                raise RuntimeError("Is it used at all?")
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
-            elif self.machine_config.PLATFORM=='resonant':
-                self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters,prefix = 'data')
-                #Convert to mat file except for Dani
-                if self.machine_config.user!='daniel':
-                    experiment_data.hdf52mat(self.outputfilename)
-                    self.printc('{0} converted to mat'.format(self.outputfilename))
-            if not (self.machine_config.PLATFORM in ['retinal', 'ao_cortical', 'resonant', "elphys"]):#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p']):#On ao_cortical sync signal calculation and check is done by stim
+                raise RuntimeError('On which platform it is really needed?')
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
                 h.sync2time()
@@ -519,10 +517,16 @@ class ExperimentHandler(object):
                 self.printc('{0} converted to mat'.format(fn))
                 sync=hdf5io.read_item(fn,  "sync")
                 self.to_gui.put({'plot_title': os.path.dirname(fn)+'<br>'+os.path.basename(fn)})
-                self._plot_elphys(sync)
+                if self.guidata.read('Displayed signal length')==0:
+                    self._plot_elphys(sync)
         self.to_gui.put({'update_status':'idle'})
         
-    def _plot_elphys(self, sync,  display_all=True):
+    def enable_plot_signals(self,enable):
+        self.plot_signal_enable=enable
+        if hasattr(self, 'live_data'):
+            self._plot_elphys(self.live_data)
+        
+    def _plot_elphys(self, sync):
         #Filter rawdata
         if self.guidata.read('Enable Filter')==True:
             order=self.guidata.filter_order.v
@@ -535,47 +539,82 @@ class ExperimentHandler(object):
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]
-        #Scale elphys
-        
-        if self.experiment_running:
-            unit="mV / pA" if "current" in self.stimuluso.__class__.__name__.lower() else "pA / mV"
-            scale=self.guidata.read(("Current" if "voltage" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
-            command_scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Command Sensitivity")
-        else:
-            fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
-            unit = "mV / pA" if "current" in os.path.basename(fn).lower() else "pA / mV"
-            scale=self.guidata.read(("Current" if "voltage" in os.path.basename(fn).lower() else "Voltage")+" Gain")
-            command_scale=self.guidata.read(("Current" if "current" in os.path.basename(fn).lower() else "Voltage")+" Command Sensitivity")
-        scale*=1e-3
-        if self.guidata.read('Show raw voltage'):
-            scale=1
-            command_scale=1
-        unit='Red / Green: '+unit
-        if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and not display_all:
+        if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and self.guidata.read('Displayed signal length')>0:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
             index=0
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         t=t[index:]
-        cmd_disp_ena=self.guidata.read('Show Command Trace')
-        stim_disp_ena=self.guidata.read('Show Stimulus Trace')
-        n=1+int(cmd_disp_ena)+int(stim_disp_ena)
-        x=n*[t]
-        y=[self.filtered[index:]/scale]
-        cc=[[255, 0, 0]]
-        if stim_disp_ena:
-            y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
-            cc.append([0, 0, 255])
-        if cmd_disp_ena:
-            y.append(sync[index:, self.machine_config.COMMAND_SYNC_CHANNEL_INDEX]*command_scale)
-            cc.append([0, 255, 0])
-        self.y=y
-        self.sync=sync
-        labels={"left": unit,  "bottom": "time [s]"}
-        self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
-        self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
-
-
+        if self.machine_config.AMPLIFIER_TYPE=='patch':
+            #Scale elphys
+            if self.experiment_running:
+                unit="mV / pA" if "current" in self.stimuluso.__class__.__name__.lower() else "pA / mV"
+                scale=self.guidata.read(("Current" if "voltage" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
+                command_scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Command Sensitivity")
+            else:
+                fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
+                unit = "mV / pA" if "current" in os.path.basename(fn).lower() else "pA / mV"
+                scale=self.guidata.read(("Current" if "voltage" in os.path.basename(fn).lower() else "Voltage")+" Gain")
+                command_scale=self.guidata.read(("Current" if "current" in os.path.basename(fn).lower() else "Voltage")+" Command Sensitivity")
+            scale*=1e-3
+            if self.guidata.read('Show raw voltage'):
+                scale=1
+                command_scale=1
+            unit='Red / Green: '+unit
+            cmd_disp_ena=self.guidata.read('Show Command Trace')
+            stim_disp_ena=self.guidata.read('Show Stimulus Trace')
+            n=1+int(cmd_disp_ena)+int(stim_disp_ena)
+            x=n*[t]
+            y=[self.filtered[index:]/scale]
+            cc=[[255, 0, 0]]
+            if stim_disp_ena:
+                y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
+                cc.append([0, 0, 255])
+            if cmd_disp_ena:
+                y.append(sync[index:, self.machine_config.COMMAND_SYNC_CHANNEL_INDEX]*command_scale)
+                cc.append([0, 255, 0])
+            self.y=y
+            self.sync=sync
+            labels={"left": unit,  "bottom": "time [s]"}
+            self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
+            self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
+        elif self.machine_config.AMPLIFIER_TYPE=='differential' :
+            n=sync.shape[1]
+            x=n*[t]
+            y=[sync[index:,i] for i in range(n)]
+            if hasattr(self.machine_config, 'CHANNEL_SCALE'):
+                y=[y[i]*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
+            cc=[colors.get_color(i,unit=False) for i in range(n)]
+            cc_html=[('#%02x%02x%02x' % (cci[0], cci[1], cci[2])).upper() for cci in cc]
+            labels={"left": '',  "bottom": "time [s]"}
+            xleft=[]
+            yleft=[]
+            ccleft=[]
+            xright=[]
+            yright=[]
+            ccright=[]
+            left_title=''
+            right_title=''
+            for i in range(len(self.plot_signal_enable['left'])):
+                if self.plot_signal_enable['left'][i]:
+                    xleft.append(x[i])
+                    yleft.append(y[i])
+                    ccleft.append(cc[i])
+                    last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
+                    if len(self.machine_config.CHANNEL_UNITS[i])>0:
+                        left_title+=last_value
+                if self.plot_signal_enable['right'][i]:
+                    xright.append(x[i])
+                    yright.append(y[i])
+                    ccright.append(cc[i])
+                    last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
+                    if len(self.machine_config.CHANNEL_UNITS[i])>0:
+                        right_title+=last_value
+            self.to_gui.put({'display_roi_curve': [xright, yright, None, None, {'plot_average':False, "colors":ccright,  "labels": labels}]})
+            self.to_gui.put({'curves2plot2': [xleft, yleft, None, None, {'plot_average':False, "colors":ccleft,  "labels": labels}]})
+            self.to_gui.put({'plot_title': right_title})
+            self.to_gui.put({'plot2_title': left_title})
+            
     def _remerge_files(self,folder,hdf5fold):
         if not self.santiago_setup:
             return
@@ -686,14 +725,13 @@ class ExperimentHandler(object):
         fileop.write_text_file(csvfn3, txtlines3)
         self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))
         
-        
     def read_sync_recorder(self):
         d=self.sync_recorder.read_ai()
         if hasattr(d,  "dtype"):
             self.live_data=numpy.concatenate((self.live_data,d))
             self.last_ai_read=d
             if self.live_data.shape[0]>0:
-                self._plot_elphys(self.live_data,  display_all=False)
+                self._plot_elphys(self.live_data)
             self.daqdatafile.add(d)
             
     def _stop_sync_recorder(self):
@@ -725,17 +763,16 @@ class ExperimentHandler(object):
         self.eyecamera2screen()
         if self.sync_recording_started:
             self.read_sync_recorder()
-            if not self.guidata.read('Infinite Recording') and self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
+            if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
                 self.finish_experiment()
                 self.save_experiment_files()
-                if self.continuous_recording:
+                if self.guidata.read('Infinite Recording'):
                     self.start_experiment() 
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
 
     def stop_experiment(self):
-        self.continuous_recording=False
         if self.batch_running:
             self.batch_running=False
             self.batch=[]
@@ -760,7 +797,9 @@ class ExperimentHandler(object):
             self._stop_sync_recorder()
         if self.machine_config.PLATFORM=='elphys':
             self.finish_experiment()
-            self.save_experiment_files()            
+            self.save_experiment_files()
+            #When infinite recording stopped, live_data erased
+            self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
         self.experiment_running=False
         self.to_gui.put({'update_status':'idle'})
         self.printc('Experiment stopped')
@@ -778,7 +817,7 @@ class ExperimentHandler(object):
         if trigger_name == 'stim started':
             self.printc('WARNING: no stim started trigger timeout implemented')
         elif trigger_name == 'stim done':
-            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal']:
+            if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal', '2p',  'resonant']:
                 self.enable_check_network_status=True
             self.finish_experiment()
         elif trigger_name=='stim data ready':
@@ -789,22 +828,50 @@ class ExperimentHandler(object):
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
             elif self.machine_config.PLATFORM=='resonant':
                 if self.machine_config.ENABLE_MESC_SAVE:
-                    self.printc('MESc saves data to {0}'.format(self.outputfilename))
-                    self.mesc.save(fileop.replace_extension(self.outputfilename,  '.mesc'))
+                    self.printc('MESc saves data to {0}'.format(self.current_experiment_parameters['outfilename']))
+                    self.mesc.save(fileop.replace_extension(self.current_experiment_parameters['outfilename'],  '.mesc'))
                 else:
-                    self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.outputfilename)))
+                    self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.current_experiment_parameters['outfilename'])))
+            elif self.machine_config.PLATFORM=='2p':
+                fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
+                self.printc('Save 2p data to {0}'.format(fn))
+                self.microscope.save(fn)
         elif trigger_name=='stim error':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:
                 self.enable_check_network_status=True
             elif self.machine_config.PLATFORM=='resonant':
                 self.printc('Stop mesc recording, might still running')
                 try:
-                    self.mesc_handler('stop')
+                    self.microscope_handler('stop')
+                except:
+                    pass#Ignore errors
+            elif self.machine_config.PLATFORM=='2p':
+                self.printc('Stop two photon microscope recording, might still running')
+                try:
+                    self.microscope.stop()
                 except:
                     pass#Ignore errors
             self.finish_experiment()
             self.save_experiment_files(aborted=True)
-            self.printc('Experiment finished with error')            
+            self.printc('Experiment finished with error')
+            
+    def microscope_handler(self,command):
+        if self.machine_config.PLATFORM=='resonant':#This is temporary, should be eliminated
+            self.mesc_handler(command)
+        elif self.machine_config.PLATFORM=='2p':
+            if command=='init':
+                for u in ['common', self.machine_config.user]:
+                    import visexpman
+                    microscope_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.machine_config.MICROSCOPE_INTERFACE,  
+                                                    required_ancestors = visexpman.engine.hardware_interface.microscope.TwoPhotonMicroscopeInterface, direct=False)
+                    if len(microscope_class) == 1:
+                        microscope_class = microscope_class[0][1]
+                        break
+                self.microscope=microscope_class()
+            else:
+                res=getattr(self.microscope, command)()
+                self.send({'{0} command result'.format(command):res}, 'stim')
+                
             
     def mesc_handler(self, command):
         if command=='init':
@@ -820,6 +887,7 @@ class ExperimentHandler(object):
             if not self.mesc.connected:
                 self.printc('No connection to MESc')
                 return
+            self.mesc.galvo=self.guidata.read('Enable Galvo')
             res=getattr(self.mesc,  command)()
             self.printc('mesc command: {0}, {1}'.format(command,  res))
             self.send({'mesc {0} command result'.format(command):res}, 'stim')
@@ -856,10 +924,10 @@ class ExperimentHandler(object):
         self.stop_eye_camera()
 
     def init_experiment_handler(self):
-        self.mesc_handler('init')
+        self.microscope_handler('init')
 
     def close_experiment_handler(self):
-        self.mesc_handler('close')
+        self.microscope_handler('close')
 
 class Analysis(object):
     def __init__(self,machine_config):
@@ -1651,7 +1719,7 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal',  "elphys"] or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal',  "elphys", '2p', 'behav'] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return
@@ -1899,12 +1967,16 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             if self.mes_connection_status:
                 n_connected += 1
                 self.connected_nodes+='stim-mes '
-        elif self.machine_config.PLATFORM=='resonant':
+        elif self.machine_config.PLATFORM in ['2p', 'resonant']:
             n_connections+=1
             if hasattr(self, 'mesc'):
                 if self.mesc.ping():
                     n_connected += 1
                     self.connected_nodes+='mesc '
+            elif hasattr(self, 'microscope'):
+                if self.microscope.ping():
+                    n_connected += 1
+                    self.connected_nodes+=self.microscope.name+' '
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
@@ -1921,7 +1993,9 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 elif 'mes_connection_status' in msg:
                     self.mes_connection_status=msg['mes_connection_status']
                 elif 'mesc' in msg and hasattr(self,  'mesc_handler'):
-                    self.mesc_handler(msg['mesc'])
+                    self.microscope_handler(msg['mesc'])#TODO: eliminate this
+                elif '2p' in msg and hasattr(self, 'microscope_handler'):
+                    self.microscope_handler(msg['2p'])
                     
         
     def run(self):
@@ -2183,6 +2257,7 @@ class CaImagingEngine(GUIEngine):
             
     def _prepare_datafile(self):
         if self.imaging_parameters['save2file']:
+            raise RuntimeError('Fix filename generation')
             self.datafile = hdf5io.Hdf5io(experiment_data.get_recording_path(self.imaging_parameters, self.machine_config, prefix = 'ca'),filelocking=False)
             self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
             self.image_size = (len(self.imaging_parameters['channels']), self.imaging_parameters['size']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['size']['col'] * self.imaging_parameters['resolution'])

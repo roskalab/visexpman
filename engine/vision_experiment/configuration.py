@@ -24,6 +24,8 @@ BehavioralConfig:
 IntrinsicConfig:
     Intrinsic imaging platform.
     Platform name: intrinsic
+TwoPhotonConfig: (2p)
+    Generalized platform for setups with two photon microscope. Device specific interface class is provided by machine config
 '''
 import os
 import sys
@@ -76,7 +78,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
+        PLATFORM = ['undefined', ['2p', 'retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
@@ -159,6 +161,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         WAIT4TRIGGER_ENABLED=False
         CAMERA_TRIGGER_ENABLE=False
         
+        ENABLE_SYNC=['off', ['off', 'stim', 'main']]#Subclass must set these values
+        
         ############# Graphical User Interface related ######################
         GUI = {}
         GUI['GREEN_LABELING_SUGGESTIONS'] = ['',
@@ -198,7 +202,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''        
         #== Paths ==
-        DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'        
     
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
@@ -266,9 +269,17 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         if 'hdf5' not in os.path.split(filename)[1]:
             raise RuntimeError('Gamma calibration file is expected in hdf5 format: {0}'.format(filename))
         import hdf5io
-        import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
 
+class TwoPhotonConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = '2p'
+        EXPERIMENT_FILE_FORMAT='mat'
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA=False
+        COORDINATE_SYSTEM='center'
+        self._create_parameters_from_locals(locals())
+        
 class RetinalConfig(VisionExperimentConfig):
     '''
     Base configuration for retinal setups with elphys/ca imaging
@@ -399,8 +410,9 @@ class HiMEAConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'hi_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
+        COORDINATE_SYSTEM='center'
+        USE_MEADATAFILE_PREFIX=False
         self.KEYS['start stimulus'] = 'e'
-        STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
         
 class ElectroporationConfig(VisionExperimentConfig):

@@ -45,7 +45,7 @@ def convert_int_color(color):
     else:
         return (int(color * 255.0),  int(color * 255.0),  int(color * 255.0))
         
-def get_color(index):
+def get_color(index,unit=True):
     '''
     Generate a color:
     index   color
@@ -64,6 +64,9 @@ def get_color(index):
           0,1,1,
           ],dtype=numpy.float)
     c=numpy.concatenate((c,0.5*c, numpy.array([1,0.5,0,])))
+    if not unit:
+        c*=255
+        c=numpy.cast['uint8'](c)
     if index>=c.shape[0]/3:
         raise RuntimeError('No more colors')
     return list(c[index*3:(index+1)*3])

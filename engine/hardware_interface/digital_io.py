@@ -405,6 +405,7 @@ class DigitalIO(object):
         Port values:
         daq: ['Dev1/port0/line0','Dev1/port0/line1']
         ioboard, usb-uart: COM5, /dev/ttyUSB0 ...
+        arduino: command 1 sets pin 10, command 2 sets pin 9, command 0 clears both pins.
         '''
         self.type=type
         if type=='daq':
@@ -415,6 +416,8 @@ class DigitalIO(object):
             self.hwhandler=serial.Serial(port)
             for i in range(2):
                 self.set_pin(i, 0)
+        elif type=='arduino':
+            self.hwhandler=serial.Serial(port, 9600)
         elif type==None:
             pass
         else:
@@ -440,6 +443,11 @@ class DigitalIO(object):
                 self.hwhandler.setRTS(not bool(state))
             else:
                 raise ValueError('Invalid pin: {0}'.format(pin))
+        elif self.type=='arduino':
+            if state:
+                self.hwhandler.write('{0}'.format(pin+1))
+            else:
+                self.hwhandler.write(chr(ord('a')+pin))
             
     def close(self):
         if self.type==None:

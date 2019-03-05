@@ -40,6 +40,7 @@ IOBoardCommands::IOBoardCommands(void)
   imaging_pulse_counter=0;
   EICRA|=3<<2;//INT1/PIN2 rising edge
   EIMSK|=1<<1;  
+  micros_offset=0;
 #endif
   sei();
 }
@@ -261,7 +262,11 @@ void IOBoardCommands::run(void)
     {
         micros_offset=micros();
         Serial.println(micros_offset);
-    }    
+    }
+    else if ((strcmp(command,"clock_read")==0)&&(nparams==0))
+    {
+        Serial.println(micros()-micros_offset);
+    }
 #endif
     else
     {

@@ -483,8 +483,8 @@ def get_user_module_folder(config):
     Returns folder path where user's stimulation files or other source files reside
     '''
     if '--vu' in sys.argv:
-        visexpu_module_name=sys.argv[sys.argv.index('--vu')+1]
-        return os.path.join(os.path.dirname(visexpman_package_path()), visexpu_module_name, 'users', config.user)
+        import visexpman
+        return os.path.join(os.path.dirname(sys.modules[visexpman.USER_MODULE].__file__), config.user)
     else:
         return os.path.join(visexpman_package_path(), 'users', config.user)
 

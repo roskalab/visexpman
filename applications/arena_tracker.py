@@ -6,7 +6,7 @@ except ImportError:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
-import cv2,logging,numpy,time,pyqtgraph, os, sys
+import logging,numpy,time,pyqtgraph, os, sys,cv2
 from visexpman.engine.generic import gui,introspect,utils
 from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
@@ -70,6 +70,15 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.cam_timer.start(33)#ms
         self.connect(self.cam_timer, QtCore.SIGNAL('timeout()'), self.update_camera_image)
         
+        self.statusbar=self.statusBar()
+        self.statusbar.status=QtGui.QLabel('Idle', self)
+        self.statusbar.addPermanentWidget(self.statusbar.status)
+        self.statusbar.status.setStyleSheet('background:gray;')
+        self.statusbar.recording_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.recording_status)
+        self.statusbar.recording_status.setStyleSheet('background:gray;')
+        
+        
     def parameter_changed(self):
         self.parameters=self.cw.paramw.get_parameter_tree(return_dict=True)
         
@@ -109,11 +118,15 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.camera.set_filename(fn)
         self.track=[]
         logging.info('Saving video to {0}'.format(fn))
+        self.statusbar.recording_status.setStyleSheet('background:red;')
+        self.statusbar.recording_status.setText('Camera recording')
         
     def stop_recording(self):
         logging.info('Stopped video recording')
         self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
         self.camera.close_file()
+        self.statusbar.recording_status.setStyleSheet('background:gray;')
+        self.statusbar.recording_status.setText('')
         
     def recording_start_stop(self):
         if self.is_camera and self.parameters['Enable trigger']:
