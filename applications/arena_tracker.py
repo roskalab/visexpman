@@ -71,9 +71,6 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.connect(self.cam_timer, QtCore.SIGNAL('timeout()'), self.update_camera_image)
         
         self.statusbar=self.statusBar()
-        self.statusbar.status=QtGui.QLabel('Idle', self)
-        self.statusbar.addPermanentWidget(self.statusbar.status)
-        self.statusbar.status.setStyleSheet('background:gray;')
         self.statusbar.recording_status=QtGui.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.recording_status)
         self.statusbar.recording_status.setStyleSheet('background:gray;')
@@ -172,7 +169,7 @@ class ArenaTracker(gui.SimpleAppWindow):
                         if i!=self.parameters['Channel']:
                             f[:,:,i]=0
                 self.track.append(coo)
-                if self.parameters['Showtrack']:
+                if self.parameters['Show track']:
                     for coo in self.track:
                         f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
             self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
