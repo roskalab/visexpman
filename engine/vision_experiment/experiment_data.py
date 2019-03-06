@@ -286,6 +286,18 @@ class CaImagingData(supcl):
                 raise NotImplementedError()
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
+            
+    def check_runhweel_signals(self):
+        '''
+        Returns True if valid runwheel signal is detected. 
+        Valid runwheel signal is a two channel binary signal
+        '''
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        channels= self.configs['machine_config']['RUNHWEEL_SIGNAL_CHANNELS'] if 'RUNHWEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        return all([any(signal.signal2binary(sync[:,channel])) for channel in channels])
         
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
@@ -1459,12 +1471,21 @@ class TestExperimentData(unittest.TestCase):
         import scipy.io
         yscanner2sync(scipy.io.loadmat(f)['recorded'][:,3])
         
+    @unittest.skip("")
     def test_14_mes2mat(self):
         folder='/home/rz/mysoftware/data/mesfiles'
         for f in os.listdir(folder):
             if '.mes' in f:
                 print(f)
                 mes2mat(os.path.join(folder, f))
+                
+    def test_15_check_runhweel_signal(self):
+        folder='/home/rz/mysoftware/data/runwheel'
+        for f in fileop.listdir(folder):
+            c=CaImagingData(f)
+            print f, c.check_runhweel_signals()
+            c.close()
+        pass
         
 def find_rois(meanimage):
     from skimage import filter

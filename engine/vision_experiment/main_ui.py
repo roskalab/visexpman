@@ -869,6 +869,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
+            self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):
             if isinstance(self.machine_config.SETUP_SETTINGS, list):
                 self.params_config.extend(self.machine_config.SETUP_SETTINGS)

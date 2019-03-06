@@ -226,7 +226,7 @@ class ExperimentHandler(object):
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         elif self.machine_config.PLATFORM=='resonant':
-            for pn in ['Eye Camera Frame Rate', 'Enable Eye Camera']:
+            for pn in ['Eye Camera Frame Rate', 'Enable Eye Camera', 'Runwheel attached']:
                 experiment_parameters[pn]=self.guidata.read(pn)
         elif self.machine_config.PLATFORM=='elphys':
             experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
