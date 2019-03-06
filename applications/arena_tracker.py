@@ -6,8 +6,9 @@ except ImportError:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
+qt_app = Qt.QApplication([])
 import logging,numpy,time,pyqtgraph, os, sys,cv2
-from visexpman.engine.generic import gui,introspect,utils
+from visexpman.engine.generic import gui,introspect,utils, fileop
 from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
 from visexpman.engine.vision_experiment import experiment_data
@@ -189,6 +190,17 @@ class ArenaTracker(gui.SimpleAppWindow):
             self.stop_recording()
             self.triggered_recording=False
             self.manual_recording=False
+            
+    def convert_folder_action(self):
+        foldername=self.ask4foldername('Select hdf5 video file folder',  self.datafolder)
+        files=fileop.listdir(foldername)
+        p=gui.Progressbar(len(files), autoclose=True)
+        p.show()
+        for f in files:
+            if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(os.path.splitext(f)[0]+'.mp4'):
+                logging.info(f)
+            p.update(files.index(f)+1)
+        
         
     def exit_action(self):
         if self.is_camera:
