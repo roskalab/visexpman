@@ -297,7 +297,7 @@ class CaImagingData(supcl):
         self.load('configs')
         channels= self.configs['machine_config']['RUNHWEEL_SIGNAL_CHANNELS'] if 'RUNHWEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
         sync=signal.from_16bit(self.sync,self.sync_scaling)
-        return all([any(signal.signal2binary(sync[:,channel])) for channel in channels])
+        return all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
         
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
@@ -1483,7 +1483,7 @@ class TestExperimentData(unittest.TestCase):
         folder='/home/rz/mysoftware/data/runwheel'
         for f in fileop.listdir(folder):
             c=CaImagingData(f)
-            print f, c.check_runhweel_signals()
+            print((f, c.check_runhweel_signals()))
             c.close()
         pass
         
