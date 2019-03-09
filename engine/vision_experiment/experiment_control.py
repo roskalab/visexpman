@@ -845,7 +845,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.datafile.close()
                 self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
                 raise RuntimeError(traceback.format_exc())
-        if 'Runwheel attached' in self.parameters:
+        if 'Runwheel attached' in self.parameters and self.parameters['Runwheel attached']:
+            self.printl('Check runwheel signals')
             if not self.datafile.check_runhweel_signals():
                 self.send({'notify':['Warning', 'No runwheel signal detected, check connections!']})
                 
