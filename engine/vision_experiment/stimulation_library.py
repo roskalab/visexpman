@@ -80,7 +80,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.frame_counter += 1
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
-            self.frame_rates.append(self.screen.frame_rate)
+            if self.machine_config.SCREEN_MODE=='pygame':
+                self.frame_rates.append(self.screen.frame_rate)
+            elif self.machine_config.SCREEN_MODE=='psychopy':
+                #implement frame rate calculation here (psychopy screen)
+                self.flip_time = time.time()
+                if not hasattr(self,  'frame_times'):
+                    self.frame_times=[]
+                if hasattr(self, 'flip_time_previous'):
+                    frame_rate = 1.0 / (self.flip_time - self.flip_time_previous)
+                    self.frame_rates.append(frame_rate)
+                    self.frame_times.append(self.flip_time)
+                self.flip_time_previous=self.flip_time
+                    
         if self.machine_config.ENABLE_CHECK_ABORT:
             self.check_abort()
         

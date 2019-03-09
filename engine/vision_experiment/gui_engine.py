@@ -133,7 +133,7 @@ class ExperimentHandler(object):
         if not os.path.exists(filename):
             self.printc('{0} does not exists'.format(filename))
             return
-        if os.path.basename(os.path.dirname(filename))=='common':
+        if os.path.basename(os.path.dirname(filename))=='common' and self.machine_config.user!='common':#Stimulus edit is not allowed at multiuser setups
             self.notify('Warning', 'Common stimulus files cannot be opened for editing')
             return
         lines=fileop.read_text_file(filename).split('\n')
@@ -848,7 +848,8 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='2p':
                 self.printc('Stop two photon microscope recording, might still running')
                 try:
-                    self.microscope.stop()
+                    if self.experiment_running:
+                        self.microscope.stop()
                 except:
                     pass#Ignore errors
             self.finish_experiment()
@@ -869,6 +870,10 @@ class ExperimentHandler(object):
                         break
                 self.microscope=microscope_class()
             else:
+                if hasattr(self,  'current_experiment_parameters'):
+                    self.microscope.experiment_parameters=self.current_experiment_parameters
+                self.microscope.machine_config=self.machine_config
+                self.microscope.guiengine=self
                 res=getattr(self.microscope, command)()
                 self.send({'{0} command result'.format(command):res}, 'stim')
                 

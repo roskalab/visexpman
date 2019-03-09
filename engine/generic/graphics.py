@@ -145,11 +145,17 @@ class Screen(object):
     #            self.screen.set_mouse_visible(False)
 
     def create_psychopy_screen(self):
-        from psychopy import visual
+        from psychopy import visual, monitors
         kwargs={'size':(self.screen_resolution['col'],self.screen_resolution['row']), 'fullscr' :self.config.FULLSCREEN, 'screen':0, 'allowGUI':False, 'allowStencil':False,
              'color':[-1,-1,-1], 'colorSpace':'rgb','blendMode':'avg'}
-        if self.config.PSYCHOPY_MONITOR_NAME!=None:
+        if hasattr(self.config, 'PSYCHOPY_MONITOR_NAME') and self.config.PSYCHOPY_MONITOR_NAME!=None:
             kwargs['monitor']=self.config.PSYCHOPY_MONITOR_NAME
+        else:
+            m=monitors.Monitor('stimmonitor')
+            m.setDistance(self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/10.)
+            m.setWidth(self.machine_config.SCREEN_WIDTH/10.)
+            m.setSizePix((self.screen_resolution['col'],self.screen_resolution['row']))
+            kwargs['monitor']=m
         self.screen = visual.Window(**kwargs)
         
     def close_screen(self):
