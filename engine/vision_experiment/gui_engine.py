@@ -832,6 +832,9 @@ class ExperimentHandler(object):
                     self.mesc.save(fileop.replace_extension(self.current_experiment_parameters['outfilename'],  '.mesc'))
                 else:
                     self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.current_experiment_parameters['outfilename'])))
+                self.printc('Sync data folder to rldata')
+                import dirsync
+                dirsync.sync(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.BACKUP_PATH, 'sync', only=['.*hdf5$', '.*mesc$'])
             elif self.machine_config.PLATFORM=='2p':
                 fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
                 self.printc('Save 2p data to {0}'.format(fn))
