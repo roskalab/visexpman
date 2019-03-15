@@ -811,7 +811,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
         setattr(self.datafile, 'software_environment',experiment_data.pack_software_environment())
         setattr(self.datafile, 'configs', experiment_data.pack_configs(self))
-        self.datafile.frame_times=self.screen.frame_times
+        self.datafile.frame_times=self.frame_times if self.machine_config.SCREEN_MODE=='psychopy' else self.screen.frame_times
 #        elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
 #            self.datafile['software_environment'] = experiment_data.pack_software_environment()
 #            self.datafile['configs'] = experiment_data.pack_configs(self)
