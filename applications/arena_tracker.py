@@ -6,13 +6,14 @@ except ImportError:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
-import cv2,logging,numpy,time,pyqtgraph, os, sys
-from visexpman.engine.generic import gui,introspect,utils
+qt_app = Qt.QApplication([])
+import logging,numpy,time,pyqtgraph, os, sys,cv2
+from visexpman.engine.generic import gui,introspect,utils, fileop
 from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
 from visexpman.engine.vision_experiment import experiment_data
 
-TEST=True
+TEST=not True
 
 class CWidget(QtGui.QWidget):
     '''
@@ -25,7 +26,7 @@ class CWidget(QtGui.QWidget):
         self.image.setFixedWidth(640)
         self.image.setFixedHeight(480)
         self.params_config=[
-                            {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
+                            {'name': 'Enable trigger', 'type': 'bool', 'value': True}, 
                             {'name': 'Show track', 'type': 'bool', 'value': True}, 
                             {'name': 'Threshold', 'type': 'int', 'value': 200},
                             {'name': 'Enable ROI cut', 'type': 'bool', 'value': True},
@@ -70,6 +71,12 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.cam_timer.start(33)#ms
         self.connect(self.cam_timer, QtCore.SIGNAL('timeout()'), self.update_camera_image)
         
+        self.statusbar=self.statusBar()
+        self.statusbar.recording_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.recording_status)
+        self.statusbar.recording_status.setStyleSheet('background:gray;')
+        
+        
     def parameter_changed(self):
         self.parameters=self.cw.paramw.get_parameter_tree(return_dict=True)
         
@@ -93,7 +100,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         logging.info('Camera initialized')
         self.triggered_recording=False
         self.manual_recording=False
-        self.dio=digital_io.DigitalIO('usb-uart', 'COM4')
+        self.dio=digital_io.DigitalIO('usb-uart', 'COM3')
         self.dio.set_pin(1, 0)
         
     def ttl_pulse(self):
@@ -109,21 +116,25 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.camera.set_filename(fn)
         self.track=[]
         logging.info('Saving video to {0}'.format(fn))
+        self.statusbar.recording_status.setStyleSheet('background:red;')
+        self.statusbar.recording_status.setText('Camera recording')
         
     def stop_recording(self):
         logging.info('Stopped video recording')
         self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
         self.camera.close_file()
+        self.statusbar.recording_status.setStyleSheet('background:gray;')
+        self.statusbar.recording_status.setText('')
         
     def recording_start_stop(self):
         if self.is_camera and self.parameters['Enable trigger']:
             if not TEST:
-                di=self.read_digital_input()
+                di=False in [self.read_digital_input() for i in range(10000)]
             else:
                 di= self.parameters['Override trigger']
-            if self.triggered_recording and not self.manual_recording and not di:#Start recording
+            if self.triggered_recording and not self.manual_recording and not di:#Stop recording
                 self.stop_recording()
-            elif not self.triggered_recording and not self.manual_recording and di:#Stop recording
+            elif not self.triggered_recording and not self.manual_recording and di:#Start recording
                 self.start_recording()
             self.triggered_recording = di#controlled by digital input, it expects that during recording it is set to HIGH otherwise to LOW
         
@@ -153,13 +164,13 @@ class ArenaTracker(gui.SimpleAppWindow):
                 self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
             coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Channel'], self.parameters['Threshold'])
             f=numpy.copy(self.frame)
-            if coo!=None and not numpy.isnan(coo[0]) and self.record and numpy.nan != coo[0]:
+            if coo!=None and not numpy.isnan(coo[0]) and (self.triggered_recording or self.manual_recording) and numpy.nan != coo[0]:
                 if self.parameters['Show channel only']:
                     for i in range(3):
                         if i!=self.parameters['Channel']:
                             f[:,:,i]=0
                 self.track.append(coo)
-                if self.parameters['Showtrack']:
+                if self.parameters['Show track']:
                     for coo in self.track:
                         f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
             self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
@@ -179,6 +190,17 @@ class ArenaTracker(gui.SimpleAppWindow):
             self.stop_recording()
             self.triggered_recording=False
             self.manual_recording=False
+            
+    def convert_folder_action(self):
+        foldername=self.ask4foldername('Select hdf5 video file folder',  self.datafolder)
+        files=fileop.listdir(foldername)
+        p=gui.Progressbar(len(files), autoclose=True)
+        p.show()
+        for f in files:
+            if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(os.path.splitext(f)[0]+'.mp4'):
+                logging.info(f)
+            p.update(files.index(f)+1)
+        
         
     def exit_action(self):
         if self.is_camera:

@@ -594,13 +594,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.send({'trigger':'stim error'})
                     raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
                         .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))
-            self.outputfilename=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = prefix)
+            self.outputfilename=self.parameters['outfilename']
             #Computational intensive precalculations for stimulus
             self.prepare()
             #Control/synchronization with platform specific recording devices
             time.sleep(0.1)
             try:
                 if self.machine_config.ENABLE_SYNC=='stim':
+                    self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
@@ -644,8 +645,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.abort=True
                         self.send({'trigger':'stim error'})
                 elif self.machine_config.PLATFORM == 'resonant':
-                    self.sync_recording_duration=self.parameters['duration']
-                    self.start_sync_recording()
                     self.send({'mesc':'start'})
                     time.sleep(1.5)
                     response=self.recv()
@@ -720,11 +719,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
                 if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p']:
                     self.send({'trigger':'stim data ready'})
-                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
-                    self._backup(self.datafilename)
-                    self.printl('{0} backed up'.format(self.datafilename))
-                elif self.machine_config.PLATFORM in ['standalone']:
-                    experiment_data.hdf52mat(self.outputfilename)
+#                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
+#                    self._backup(self.datafilename)
+#                    self.printl('{0} backed up'.format(self.datafilename))
             else:
                 self.printl('Stimulation stopped')
             if self.machine_config.PLATFORM=='mc_mea':
@@ -811,14 +808,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Pack software enviroment and configs
         '''
-        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            setattr(self.datafile, 'software_environment',experiment_data.pack_software_environment())
-            setattr(self.datafile, 'configs', experiment_data.pack_configs(self))
-            self.datafile.frame_times=self.screen.frame_times
-        elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
-            self.datafile['software_environment'] = experiment_data.pack_software_environment()
-            self.datafile['configs'] = experiment_data.pack_configs(self)
-            self.datafile['frame_times']=self.screen.frame_times
+#        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+        setattr(self.datafile, 'software_environment',experiment_data.pack_software_environment())
+        setattr(self.datafile, 'configs', experiment_data.pack_configs(self))
+        self.datafile.frame_times=self.frame_times if self.machine_config.SCREEN_MODE=='psychopy' else self.screen.frame_times
+#        elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
+#            self.datafile['software_environment'] = experiment_data.pack_software_environment()
+#            self.datafile['configs'] = experiment_data.pack_configs(self)
+#            self.datafile['frame_times']=self.screen.frame_times
         
     def _save2file(self):
         '''
@@ -826,60 +823,65 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         self._blocks2table()
         variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block']#['experiment_name', 'experiment_config_name', 'frame_times']
-        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            self.datafile = experiment_data.CaImagingData(self.outputfilename)
-            self._prepare_data2save()
-            [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
-            for v in variables2save :
-                if hasattr(self.datafile, v):
-                    print(v)
-                    self.printl(v)
-                    self.datafile.save(v)
-            #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
-            if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
-                self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
-                self.datafile.save(['sync', 'sync_scaling'])
-                self.datafile.sync2time()
-                try:
-                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
-                except:
-                    self.datafile.corrupt_timing=True
-                    self.datafile.save('corrupt_timing')
-                    self.datafile.close()
-                    self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
-                    raise RuntimeError(traceback.format_exc())
-            self.datafile.close()
-            #Convert to mat file except for Dani
-            if self.machine_config.user!='daniel' and self.machine_config.PLATFORM in ['resonant']:
-                experiment_data.hdf52mat(self.outputfilename)
-                self.printl('{0} converted to mat'.format(self.outputfilename))
-            self.datafilename=self.datafile.filename
-        elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
-            self.datafile = {}
-            self._prepare_data2save()
-            for v in variables2save:
-                if hasattr(self, v):
-                    self.datafile[v] = getattr(self,v)
-            self._data2matfile_compatible()
-            if self.machine_config.PLATFORM == 'hi_mea' and self.machine_config.USE_MEADATAFILE_PREFIX:
-                #the latest file's name with a specific format
-                latest_file = fileop.find_latest(os.path.split(experiment_data.get_user_experiment_data_folder(self.parameters))[0],extension=None)#TODO: extension tbd
-                if latest_file is None:
-                    filename_prefix = ''
-                else:
-                    filename_prefix = str(os.path.split(latest_file)[1].replace(os.path.splitext(latest_file)[1],'')[:-1])
-                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
-                fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
-            else:
-                if self.machine_config.PLATFORM == 'epos':
-                    filename_prefix = ''
-                else:
-                    filename_prefix = 'stim'
-                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
-            self.datafilename=fn
-            scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
+#        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+        self.datafile = experiment_data.CaImagingData(self.outputfilename)
+        self._prepare_data2save()
+        [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
+        for v in variables2save :
+            if hasattr(self.datafile, v):
+                print(v)
+                self.printl(v)
+                self.datafile.save(v)
+        #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
+        if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
+            self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
+            self.datafile.save(['sync', 'sync_scaling'])
+            self.datafile.sync2time()
+            try:
+                self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+            except:
+                self.datafile.corrupt_timing=True
+                self.datafile.save('corrupt_timing')
+                self.datafile.close()
+                self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
+                raise RuntimeError(traceback.format_exc())
+        if 'Runwheel attached' in self.parameters and self.parameters['Runwheel attached']:
+            self.printl('Check runwheel signals')
+            if not self.datafile.check_runhweel_signals():
+                self.send({'notify':['Warning', 'No runwheel signal detected, check connections!']})
+                
+        self.datafile.close()
+        #Convert to mat file except for Dani
+        if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':
+            experiment_data.hdf52mat(self.outputfilename)
+            self.printl('{0} converted to mat'.format(self.outputfilename))
+        self.datafilename=self.datafile.filename
+#        elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
+#            self.datafile = {}
+#            self._prepare_data2save()
+#            for v in variables2save:
+#                if hasattr(self, v):
+#                    self.datafile[v] = getattr(self,v)
+#            self._data2matfile_compatible()
+#            if self.machine_config.PLATFORM == 'hi_mea' and self.machine_config.USE_MEADATAFILE_PREFIX:
+#                #the latest file's name with a specific format
+#                latest_file = fileop.find_latest(os.path.split(experiment_data.get_user_experiment_data_folder(self.parameters))[0],extension=None)#TODO: extension tbd
+#                if latest_file is None:
+#                    filename_prefix = ''
+#                else:
+#                    filename_prefix = str(os.path.split(latest_file)[1].replace(os.path.splitext(latest_file)[1],'')[:-1])
+#                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
+#                fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
+#            else:
+#                if self.machine_config.PLATFORM == 'epos':
+#                    filename_prefix = ''
+#                else:
+#                    filename_prefix = 'stim'
+#                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
+#            self.datafilename=fn
+#            scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
             
-    def _backup(self, filename):
+    def _backup(self, filename):#Maybe obsolete?
         bupaths=[self.machine_config.BACKUP_PATH]
         for bupath in bupaths:
             dst=os.path.join(bupath, 'raw',  os.path.join(*str(self.parameters['outfolder']).split(os.sep)[-2:]))

@@ -51,7 +51,7 @@ def get_recording_name(parameters, separator):
 def get_recording_path(config, parameters, prefix = '', filename_only=False):
     if prefix != '':
         prefix = prefix + '_'
-    fn=prefix + get_recording_name(parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
+    fn=prefix + get_recording_name(parameters, '_')+'.hdf5'#+config.EXPERIMENT_FILE_FORMAT
     return os.path.join(get_user_experiment_data_folder(parameters), fn)
     
 def get_user_experiment_data_folder(parameters):
@@ -206,7 +206,7 @@ class CaImagingData(supcl):
     
     '''
     def __init__(self,filename, **kwargs):
-        hdf5io.Hdf5io.__init__(self, filename, filelocking=False)
+        hdf5io.Hdf5io.__init__(self, filename)
         if os.path.exists(filename):
             self.file_info = os.stat(filename)
         
@@ -286,6 +286,18 @@ class CaImagingData(supcl):
                 raise NotImplementedError()
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
+            
+    def check_runhweel_signals(self):
+        '''
+        Returns True if valid runwheel signal is detected. 
+        Valid runwheel signal is a two channel binary signal
+        '''
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        channels= self.configs['machine_config']['RUNHWEEL_SIGNAL_CHANNELS'] if 'RUNHWEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        return all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
         
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
@@ -1459,12 +1471,21 @@ class TestExperimentData(unittest.TestCase):
         import scipy.io
         yscanner2sync(scipy.io.loadmat(f)['recorded'][:,3])
         
+    @unittest.skip("")
     def test_14_mes2mat(self):
         folder='/home/rz/mysoftware/data/mesfiles'
         for f in os.listdir(folder):
             if '.mes' in f:
                 print(f)
                 mes2mat(os.path.join(folder, f))
+                
+    def test_15_check_runhweel_signal(self):
+        folder='/home/rz/mysoftware/data/runwheel'
+        for f in fileop.listdir(folder):
+            c=CaImagingData(f)
+            print((f, c.check_runhweel_signals()))
+            c.close()
+        pass
         
 def find_rois(meanimage):
     from skimage import filter
@@ -1546,6 +1567,8 @@ def yscanner2sync(waveform):
 def hdf52mat(filename, scale_sync=False):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
+    if not hasattr(hh, 'h5f'):
+        raise NotImplementedError('add dd support!')
     try:
         rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
     except:

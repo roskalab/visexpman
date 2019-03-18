@@ -80,7 +80,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.frame_counter += 1
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
-            self.frame_rates.append(self.screen.frame_rate)
+            if self.machine_config.SCREEN_MODE=='pygame':
+                self.frame_rates.append(self.screen.frame_rate)
+            elif self.machine_config.SCREEN_MODE=='psychopy':
+                #implement frame rate calculation here (psychopy screen)
+                self.flip_time = time.time()
+                if not hasattr(self,  'frame_times'):
+                    self.frame_times=[]
+                if hasattr(self, 'flip_time_previous'):
+                    frame_rate = 1.0 / (self.flip_time - self.flip_time_previous)
+                    self.frame_rates.append(frame_rate)
+                    self.frame_times.append(self.flip_time)
+                self.flip_time_previous=self.flip_time
+                    
         if self.machine_config.ENABLE_CHECK_ABORT:
             self.check_abort()
         
@@ -759,7 +771,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
 #            import pdb;pdb.set_trace()
             texture = self.config.GAMMA_CORRECTION(texture)
         texture=numpy.rollaxis(numpy.array(3*[texture]),0,3)
-        tex_coo, vertices=self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=texture_orientation,position=position)
+        position_pix=utils.rc((position['row']*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE,  position['col']*self.machine_config.SCREEN_UM_TO_PIXEL_SCALE))
+        tex_coo, vertices=self._init_texture(utils.rc((size_pixel,size_pixel)),orientation=texture_orientation,position=position_pix)
         for frame_i in range(nframes):
             glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[1], texture.shape[0], 0, GL_RGB, GL_FLOAT, texture)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -977,7 +990,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                              ])
         t,rect=self._init_texture(utils.cr(display_area_adjusted),orientation,texture_coordinates,set_vertices=False,enable_texture=False)
         if mask_size!=None:
-            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1, offset=max(pos_adjusted))
+            mask=self._generate_mask_vertices(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, resolution=1, offset=max(map(abs,  pos_adjusted)))
             vertices=numpy.append(rect,mask,axis=0)
             vertices+=numpy.array([pos_adjusted])
         else:
@@ -1700,8 +1713,8 @@ class StimulationHelpers(Stimulations):
     def _generate_mask_vertices(self, mask_size_pixel, resolution=0.5, offset=0):
         circle_vertices=geometry.circle_vertices([mask_size_pixel]*2,  resolution = resolution)+0*numpy.array([[100,0]])
         #Convert circle to its complementer shape being composed of rectangles
-        screen_width=self.config.SCREEN_RESOLUTION['col']+offset*2
-        screen_height=self.config.SCREEN_RESOLUTION['row']+offset*2
+        screen_width=self.config.SCREEN_RESOLUTION['col']+abs(offset)*2
+        screen_height=self.config.SCREEN_RESOLUTION['row']+abs(offset)*2
         rect_width=screen_width/2+circle_vertices[:,0].min()
         x1=-screen_width/2+rect_width/2
         x2=screen_width/2-rect_width/2
