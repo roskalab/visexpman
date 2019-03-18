@@ -1898,7 +1898,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.guidata.add('mes_hash', hash, 'hash/mes_hash')
             else:
                 self.guidata.mes_hash.v=meshash
-        self.printc('Software hash saved')
+        self.printc('Software hash saved: {0}'.format(hash))
         self.save_context()
     
     def check_software_hash(self):
