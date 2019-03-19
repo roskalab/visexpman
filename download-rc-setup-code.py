@@ -3,7 +3,7 @@ if getpass.getuser()!='hd':
     path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'engine','generic')
     sys.path.insert(0,path)#This is needed for importing fileop
     import fileop
-    pw=fileop.read_text_file(os.path.join(path,'..','..','..', '..','jobhandler','pw.txt')).title()
+    pw=fileop.read_text_file(os.path.join(path,'..','..','..', '..','jobhandler','pw1.txt')).title()
     host=platform.uname()[1]
     print host
     if host in ['microscopy-3d', 'Fu238D-DDF19D', 'FEMTO-0195', 'fu244i-850c8d']:

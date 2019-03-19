@@ -135,7 +135,7 @@ class Flowmeter(object):
 class SLI_2000Flowmeter(object):
     def __init__(self):
         self.response_time = 0.05
-        self.s=serial.Serial(port='COM7' if os.name=='nt' else '/dev/ttyUSB0',baudrate=115200,timeout=0.3)
+        self.s=serial.Serial(port='COM5' if os.name=='nt' else '/dev/ttyUSB0',baudrate=115200,timeout=0.3)
         self.cmd_SetResolutionto14bit = [0x7E, 0x00, 0x41, 0x01, 0x0C, 0xB1,0x7E]
         self.resp_SetResolutionto14bit = [0x7E, 0x00, 0x41, 0x0, 0x0, 0xBE,0x7E]
         self.cmd_DeviceReset = [0x7E, 0x00, 0xD3, 0x0, 0x2C,0x7E]
