@@ -663,6 +663,11 @@ class ExperimentHandler(object):
                 self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self.stimuluso)
                 self.daqdatafile.hdf5.parameters=self.current_experiment_parameters
                 self.daqdatafile.hdf5.save('parameters')
+                if 'Flowrate' in self.machine_config.CHANNEL_NAMES:
+                    self.daqdatafile.hdf5.flow_rates=self.flow_rates
+                    self.daqdatafile.hdf5.flow_rate_times=self.flow_rate_times
+                    self.daqdatafile.hdf5.save('flow_rate_times')
+                    self.daqdatafile.hdf5.save('flow_rates')
             else:
                 self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self)
             self.daqdatafile.hdf5.save('configs')
@@ -1983,7 +1988,7 @@ class ElphysEngine():
     def read_flowmeter(self):
         if not hasattr(self, 'flowmeter'):
             from visexpman.engine.hardware_interface.flowmeter import SLI_2000Flowmeter
-            self.flowmeter=SLI_2000Flowmeter()
+            self.flowmeter=SLI_2000Flowmeter(self.machine_config.FLOWMETER_PORT)
             self.flow_rates=[]
             self.flow_rate_times=[]
             self.live_data.shape[0]
