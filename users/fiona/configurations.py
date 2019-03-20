@@ -263,6 +263,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = False
         #CAPTURE_PATH = os.path.join(v_drive_data_folder,'capture')
         #=== experiment specific ===
+        self.SMALL_SCREEN=False
         if '--projector'in sys.argv:
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
             self.SCREEN_UPSIDE_DOWN=False
@@ -270,6 +271,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm HERE YOU CAN ADJUST SCREEN  - MOUSE EYE DISTANCE
             gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical.hdf5')
         elif '--small_screen'in sys.argv:
+            self.SMALL_SCREEN=True
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
             self.SCREEN_UPSIDE_DOWN=False
             SCREEN_RESOLUTION = utils.cr([800, 600])
@@ -401,7 +403,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         SYNC_SIGNAL_MIN_AMPLITUDE = 1.3
         
         #gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical_monitor.hdf5')
-        print gamma_corr_filename
+        #print gamma_corr_filename
         if 0 and os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
