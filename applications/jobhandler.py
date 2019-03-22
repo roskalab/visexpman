@@ -1,4 +1,4 @@
-import os,tables,unittest,sys,shutil,time,traceback,logging,getpass,hdf5io,numpy
+import os,tables,unittest,sys,shutil,time,traceback,logging,getpass,hdf5io,numpy,pdb
 from visexpman.engine.generic import fileop,utils,introspect, videofile
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.analysis import aod
@@ -252,8 +252,8 @@ class Jobhandler(object):
         fileswage=[]
         for f in files:
             age=fileop.file_age(f)
-            processed_message='{0} processed'.format(os.path.basename(f))
-            if age>120 and processed_message not in self.prev_log and filter in os.path.basename(f):
+            processed_message='Converted {0}'.format(f)
+            if age>120 and processed_message not in self.prev_log and filter in os.path.basename(f) and not os.path.exists(fileop.replace_extension(f, '.mp4')):
                 fileswage.append([f,age])
         if len(fileswage)==0:
             return
@@ -276,6 +276,7 @@ class Jobhandler(object):
                 hh.close()
                 shutil.copy(localout, videofilename)
                 map(os.remove, [localin, localout])
+                logging.info('Converted {0}'.format(f))
             logging.info('{0} processed'.format(1))
             
     def __del__(self):
