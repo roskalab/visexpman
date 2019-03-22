@@ -1,4 +1,4 @@
-import copy,os
+import copy,os,multiprocessing
 import socket
 import time
 import numpy
@@ -239,6 +239,59 @@ class ScreenAndKeyboardHandler(StimulationScreen):
         #Send command to queue
         if command != None:
             self.keyboard_command_queue.put(command)
+
+class CaptureImagingTrigger(multiprocessing.Process):
+    '''
+    With the help of IOboard it measures imaging frquency
+    Captures imaging triggers
+    '''
+    def __init__(self, port, std_limits):
+        multiprocessing.Process.__init__(self)
+        self.port=port
+        self.std_limits=std_limits
+        self.command=multiprocessing.Queue()
+        self.trigger=multiprocessing.Queue()
+        self.fps=multiprocessing.Queue()
+        
+    def run(self):
+        import serial
+        from visexpman.engine.generic import counter
+        self.counter=counter.Counter()
+        self.s=serial.Serial(self.port, 1000000,timeout=0.005)   
+        fps_sent=False
+        fps_acknowledge=False
+        phase_sent=False
+        while True:
+            if not self.command.empty():
+                command=self.command.get()
+                if command=='terminate':
+                    break
+            else:
+                command=None
+            #Expected message: fps,std\r\n where fps is always 3 digit and std is 2 digit
+            self.wait_serial(8)
+            msg=self.s.read(8)
+            if not fps_sent:
+                std=msg.split(',')[1]
+                if std<self.std_limits['stable']:
+                    fps_sent=True
+                    self.fps.put(float(msg.split(',')[0]))
+            elif not fps_acknowledge:
+                if command=='fps_acknowledge':
+                    fps_acknowledge=True
+            elif not phase_sent:
+                self.trigger.put('phase')
+                phase_sent=True
+        self.s.close()
+        
+    def wait_serial(self,n):
+        if os.name!='nt':
+            return
+        while True:
+            if self.s.inWaiting()==n:
+                break
+            time.sleep(0)
+        
     
 class TestCaImagingScreen(unittest.TestCase):
     def setUp(self):
@@ -260,7 +313,7 @@ class TestCaImagingScreen(unittest.TestCase):
             [os.remove(f) for f in fn]
         return frame
         
-        
+    @unittest.skip('')
     def test_01_image_display(self):
         frame_saving_shifted=True
         cai = CaImagingScreen(self.config)     
@@ -313,6 +366,9 @@ class TestCaImagingScreen(unittest.TestCase):
         cai.refresh()
         frame=self._get_captured_frame()
         #TODO: test for median filter
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

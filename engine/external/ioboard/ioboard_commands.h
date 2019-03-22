@@ -43,19 +43,6 @@ class IOBoardCommands:public Comm {
         float elongate_output_pin;
         float elongate_duration;
         float elongate_delay;
-#if ENABLE_STIMULUS_PHASE_LOCKING
-        //Variables for phase locking stimulus
-        unsigned long last_imaging_pulse_ts;
-        unsigned long last_stimulus_pulse_ts;        
-        unsigned long imaging_timestamps[TIMING_BUFFER_SIZE];
-        unsigned long stimulus_timestamps[TIMING_BUFFER_SIZE];
-        unsigned char imaging_timestamp_index;
-        unsigned char stimulus_timestamp_index;
-        unsigned long imaging_frame_interval;
-        phase_lock_state_t phase_lock_state;
-        unsigned long imaging_pulse_counter;
-        unsigned long micros_offset;
-#endif
         void set_pin(float pin,float value);
         void pulse(float pin,float duration);
         void waveform(float base_frequency, float frequency_range, float modulation_frequency);
@@ -63,4 +50,12 @@ class IOBoardCommands:public Comm {
         void stop_read_pins(void);
         void stop_waveform(void);
         void read_pins(unsigned char force);
+        
+        int enable_fps_measurement;
+        unsigned long fps_buffer[TIMING_BUFFER_SIZE];
+        unsigned char fps_buffer_index;
+        unsigned long frame_interval_mean;
+        unsigned long frame_interval_std_sqr;
+        long frame_intervals[TIMING_BUFFER_SIZE];
+        unsigned long pulse_counter;
 };

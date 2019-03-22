@@ -989,7 +989,7 @@ class TestFileops(unittest.TestCase):
         numpy.testing.assert_array_almost_equal(h.sync/s['scale']-s['offset'],dd,3)
         h.close()
         
-    @unittest.skip('')    
+    @unittest.skip('')
     def test_05_move2zip(self):
         from visexpman.engine.generic import introspect
         with introspect.Timer(''):
