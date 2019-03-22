@@ -245,22 +245,31 @@ class CaptureImagingTrigger(multiprocessing.Process):
     With the help of IOboard it measures imaging frquency
     Captures imaging triggers
     '''
-    def __init__(self, port, std_limits):
+    def __init__(self, port, std_limits,  buffer_size=16):
         multiprocessing.Process.__init__(self)
         self.port=port
         self.std_limits=std_limits
         self.command=multiprocessing.Queue()
         self.trigger=multiprocessing.Queue()
         self.fps=multiprocessing.Queue()
+        self.log=multiprocessing.Queue()
+        self.buffer_size=buffer_size
         
     def run(self):
         import serial
-        from visexpman.engine.generic import counter
-        self.counter=counter.Counter()
-        self.s=serial.Serial(self.port, 1000000,timeout=0.005)   
+        self.s=serial.Serial(self.port, 1000000,timeout=0.005)
+        time.sleep(2.5)
+        self.s.write('fps_meas,1\r\n')
+        time.sleep(0.1)
+        r=self.s.read(100)
+        frame_interval_buffer=numpy.zeros(self.buffer_size)
+        buffer_index=0
         fps_sent=False
         fps_acknowledge=False
         phase_sent=False
+        pulse_counter=0
+        self.log.put(r)
+        self.log.put('Prep done')
         while True:
             if not self.command.empty():
                 command=self.command.get()
@@ -268,20 +277,31 @@ class CaptureImagingTrigger(multiprocessing.Process):
                     break
             else:
                 command=None
-            #Expected message: fps,std\r\n where fps is always 3 digit and std is 2 digit
-            self.wait_serial(8)
-            msg=self.s.read(8)
-            if not fps_sent:
-                std=msg.split(',')[1]
-                if std<self.std_limits['stable']:
+            self.wait_serial(5)
+            msg=self.s.read(5)
+            self.log.put(msg)
+            try:
+                frame_interval_buffer[buffer_index]=int(msg)
+            except ValueError:
+                continue
+            buffer_index+=1
+            pulse_counter+=1
+            if buffer_index==self.buffer_size:
+                buffer_index=0
+            frame_interval_std=frame_interval_buffer.std()
+            if not fps_sent and pulse_counter>self.buffer_size:
+                frame_interval_mean=frame_interval_buffer.mean()
+                if frame_interval_std<self.std_limits['stable']:
                     fps_sent=True
-                    self.fps.put(float(msg.split(',')[0]))
+                    self.fps.put(frame_interval_mean)
             elif not fps_acknowledge:
                 if command=='fps_acknowledge':
                     fps_acknowledge=True
             elif not phase_sent:
                 self.trigger.put('phase')
                 phase_sent=True
+        self.s.write('fps_meas,0\r\n')
+        time.sleep(0.1)
         self.s.close()
         
     def wait_serial(self,n):

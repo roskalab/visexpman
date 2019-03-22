@@ -43,6 +43,7 @@ IOBoardCommands::IOBoardCommands(void)
   frame_interval_mean=0;
   frame_interval_std_sqr=0;
   pulse_counter=0;
+  timestamp_buffer_prev=millis();
 }
 
 void IOBoardCommands::run(void)
@@ -244,7 +245,7 @@ void IOBoardCommands::run(void)
     }
     else if ((strcmp(command,"fps_meas")==0)&&(nparams==1))
     {
-      enable_fps_measurement=int(par[2]);
+      enable_fps_measurement=int(par[0]);
       if (enable_fps_measurement==1)
       {
         pulse_counter=0;
@@ -255,7 +256,7 @@ void IOBoardCommands::run(void)
       if (debug==1)
       {
         Serial.print("fps_meas: ");
-        Serial.println(par[2]);
+        Serial.println(par[0]);
       }
     }
     else
@@ -360,11 +361,25 @@ void IOBoardCommands::int0_isr(void)
   else
   {
     //Here comes fps measurement
-    Serial.print(frame_interval_mean);
-    Serial.print(",");    
-    Serial.println(frame_interval_std_sqr);
+    timestamp_buffer=millis();
+    dt=timestamp_buffer-timestamp_buffer_prev;
+    if (dt<10)
+    {
+      Serial.print("00");
+    }
+    else if (dt<100)
+    {
+      Serial.print("0");
+    }
+    if (dt<1000)
+      Serial.println(dt);
+    //Serial.print(",");    
+    //Serial.println(frame_interval_std_sqr);
+
+    timestamp_buffer_prev=timestamp_buffer;
+    /*
     pulse_counter++;
-    fps_buffer[fps_buffer_index]=micros();
+    fps_buffer[fps_buffer_index]=millis();
     fps_buffer_index++;
     if (fps_buffer_index==TIMING_BUFFER_SIZE)
     {
@@ -391,17 +406,22 @@ void IOBoardCommands::int0_isr(void)
           frame_intervals[i]=0;
         }
       }
+      frame_interval_mean/=(TIMING_BUFFER_SIZE-1);
       frame_interval_std_sqr=0;
       static long buff;
+      Serial.print("!");
       for(i=0;i<TIMING_BUFFER_SIZE;i++)
       {
+        Serial.print(frame_intervals[i]);
+        Serial.print(",");
         if (frame_intervals[i]!=0)
         {
           buff=frame_intervals[i]-frame_interval_mean;
           frame_interval_std_sqr+=buff*buff;
         }
       }
-    }
+      Serial.print(".");
+    }*/
   }
 }
       
