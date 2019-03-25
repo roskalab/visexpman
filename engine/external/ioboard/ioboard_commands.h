@@ -57,5 +57,6 @@ class IOBoardCommands:public Comm {
         unsigned long frame_interval_mean;
         unsigned long frame_interval_std_sqr;
         long frame_intervals[TIMING_BUFFER_SIZE];
-        unsigned long pulse_counter;
+        unsigned long pulse_counter, timestamp_buffer, timestamp_buffer_prev;
+        int dt;
 };

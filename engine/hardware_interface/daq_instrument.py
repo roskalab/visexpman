@@ -1116,6 +1116,7 @@ class AnalogIO(instrument.Instrument):
             if self.enable_ai:
                 self.analog_input.ClearTask()
         
+#obsolete
 class AnalogPulse(AnalogIO):
     '''
     1. User interface:
@@ -1222,6 +1223,16 @@ class AnalogPulse(AnalogIO):
 #         print '\nout: {0}, {1}, {2}' .format(round(time.time() - 1319024000,3), self.state, command)
         
 
+def generate_pulses(channel,  duration,  pulse_width,  frequency,  fsample=1000):
+    onsamples=int(pulse_width*fsample)
+    offsamples=int(1.0/frequency*fsample)-onsamples
+    repeats=duration*frequency
+    wf=numpy.array([numpy.tile(numpy.concatenate((numpy.zeros(offsamples/2),  5*numpy.ones(onsamples),  numpy.zeros(offsamples/2))), repeats)])
+    return set_waveform_start(channel,wf,sample_rate = fsample)[0]
+    
+
+    
+    
 #=== TESTS ===
 class InvalidTestConfig(configuration.Config):
     def _create_application_parameters(self):
