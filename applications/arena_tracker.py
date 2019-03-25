@@ -194,13 +194,18 @@ class ArenaTracker(gui.SimpleAppWindow):
     def convert_folder_action(self):
         foldername=self.ask4foldername('Select hdf5 video file folder',  self.datafolder)
         files=fileop.listdir(foldername)
-        p=gui.Progressbar(len(files), autoclose=True)
+        p=gui.Progressbar(100, 'Conversion progress',  autoclose=True)
         p.show()
+        logging.info('Conversion started')
         for f in files:
-            if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(os.path.splitext(f)[0]+'.mp4'):
-                logging.info(f)
-            p.update(files.index(f)+1)
-        
+            if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(os.path.splitext(f)[0]+'.mat'):
+                print f
+                experiment_data.hdf52mat(f)
+                prog=int((files.index(f)+1)/float(len(files))*100)
+                p.update(prog)
+                print prog
+                time.sleep(100e-3)
+        logging.info('{0} folder complete'.format(foldername))
         
     def exit_action(self):
         if self.is_camera:
