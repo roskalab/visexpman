@@ -164,15 +164,17 @@ class ArenaTracker(gui.SimpleAppWindow):
                 self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
             coo=behavioral_data.extract_mouse_position(self.frame, self.parameters['Channel'], self.parameters['Threshold'])
             f=numpy.copy(self.frame)
+            if self.triggered_recording or self.manual_recording:
+                self.track.append(coo)
             if coo!=None and not numpy.isnan(coo[0]) and (self.triggered_recording or self.manual_recording) and numpy.nan != coo[0]:
                 if self.parameters['Show channel only']:
                     for i in range(3):
                         if i!=self.parameters['Channel']:
                             f[:,:,i]=0
-                self.track.append(coo)
                 if self.parameters['Show track']:
                     for coo in self.track:
-                        f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
+                        if not numpy.isnan(coo[0]):
+                            f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
             self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
         
     def closeEvent(self, e):
