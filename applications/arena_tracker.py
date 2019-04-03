@@ -7,9 +7,9 @@ except ImportError:
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
 qt_app = Qt.QApplication([])
-import logging,numpy,time,pyqtgraph, os, sys,cv2,serial
-from visexpman.engine.generic import gui,introspect,utils, fileop
-from visexpman.engine.hardware_interface import camera_interface, digital_io
+import logging,numpy,time,pyqtgraph, os, sys,cv2, hdf5io
+from visexpman.engine.generic import gui,introspect,utils, fileop, signal
+from visexpman.engine.hardware_interface import camera_interface, digital_io, daq_instrument
 from visexpman.engine.analysis import behavioral_data
 from visexpman.engine.vision_experiment import experiment_data
 
@@ -26,10 +26,10 @@ class CWidget(QtGui.QWidget):
         self.image.setFixedWidth(640)
         self.image.setFixedHeight(480)
         self.params_config=[
-                            {'name': 'Enable trigger', 'type': 'bool', 'value': True}, 
+                            {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
                             {'name': 'Show track', 'type': 'bool', 'value': True}, 
                             {'name': 'Threshold', 'type': 'int', 'value': 200},
-                            {'name': 'Enable ROI cut', 'type': 'bool', 'value': True},
+                            {'name': 'Enable ROI cut', 'type': 'bool', 'value': False},
                             {'name': 'ROI x1', 'type': 'int', 'value': 200},
                             {'name': 'ROI y1', 'type': 'int', 'value': 200},
                             {'name': 'ROI x2', 'type': 'int', 'value': 400},
@@ -49,7 +49,9 @@ class CWidget(QtGui.QWidget):
 class ArenaTracker(gui.SimpleAppWindow):
     def __init__(self):
         self.datafolder='c:\\Data'
-        self.frame_rate=30
+        self.FRAME_RATE=30
+        self.FSAMPLE_AI=2000
+        self.MAX_RECORDING_DURATION=600#10 minutes
         self.init()
         gui.SimpleAppWindow.__init__(self)
         
@@ -59,7 +61,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.debugw.setFixedHeight(150)
         self.debugw.setMaximumWidth(700)        
         self.maximized=False
-        toolbar_buttons = ['record', 'stop', 'exit']
+        toolbar_buttons = ['record', 'stop', 'convert_folder', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.cw=CWidget(self)#Creating the central widget which contains the image, the plot and the control widgets
@@ -68,7 +70,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.cw.paramw.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.parameter_changed()
         self.cam_timer=QtCore.QTimer()
-        self.cam_timer.start(33)#ms
+        self.cam_timer.start(1000/self.FRAME_RATE/2)#ms
         self.connect(self.cam_timer, QtCore.SIGNAL('timeout()'), self.update_camera_image)
         
         self.statusbar=self.statusBar()
@@ -82,7 +84,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def init(self):
         dt=utils.timestamp2ymdhms(time.time(), filename=True)
-        root='/tmp' if os.name!='nt' else 'x:\\behavioral2\\log'
+        root='/tmp' if os.name!='nt' else 'c:\\Data\\log'#'x:\\behavioral2\\log'
         self.logfile=os.path.join(root, 'log_{0}.txt'.format(dt))
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -91,7 +93,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         h=480
         self.is_camera='--iscamera' in sys.argv
         if self.is_camera:
-            self.camera=camera_interface.ImagingSourceCamera(self.frame_rate)
+            self.camera=camera_interface.ImagingSourceCamera(self.FRAME_RATE)
             self.camera.start()
         else:
             self.camera = cv2.VideoCapture(2)#Initialize video capturing
@@ -133,17 +135,32 @@ class ArenaTracker(gui.SimpleAppWindow):
         return self.dio.hwhandler.getCTS()
         
     def start_recording(self):
-        fn=os.path.join(self.datafolder, 'camera_{0}.hdf5'.format(experiment_data.get_id()))
-        self.camera.set_filename(fn)
+        self.fn=os.path.join(self.datafolder, 'camera_{0}.hdf5'.format(experiment_data.get_id()))
+        #self.camera.set_filename(fn)
         self.track=[]
-        logging.info('Saving video to {0}'.format(fn))
+        self.frames=[]
         self.statusbar.recording_status.setStyleSheet('background:red;')
         self.statusbar.recording_status.setText('Camera recording')
+        self.frame_counter=0
+        self.t0=time.time()
+        self.ai=daq_instrument.SimpleAnalogIn('Dev1/ai0:1',  self.FSAMPLE_AI, self.MAX_RECORDING_DURATION,  finite=False )
         
     def stop_recording(self):
-        logging.info('Stopped video recording')
-        self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
-        self.camera.close_file()
+        logging.info('Stopped video recording, recorded {0} frames'.format(self.frame_counter))
+        h=hdf5io.Hdf5io(self.fn)
+        h.track=numpy.array(self.track)
+        h.ic_frames=numpy.array(self.frames)
+        self.sync=self.ai.finish()
+        h.sync=self.sync
+        h.config=introspect.cap_attributes2dict(self)
+        h.parameters=self.parameters
+        h.save(['track', 'ic_frames',  'sync',  'config', 'parameters'])
+        h.close()
+        logging.info('Saved video to {0}'.format(self.fn))
+        camera_fps=1.0/numpy.diff(signal.trigger_indexes(self.sync[:,1])/float(self.FSAMPLE_AI))[1::2]
+        logging.info('Camera frame rate mean: {0:0.1f}, std {1:0.1f}'.format(camera_fps.mean(),  camera_fps.std()))
+#        self.camera.datafile.create_array(self.camera.datafile.root, 'track', numpy.array(self.track))
+#        self.camera.close_file()
         self.statusbar.recording_status.setStyleSheet('background:gray;')
         self.statusbar.recording_status.setText('')
         
@@ -164,8 +181,11 @@ class ArenaTracker(gui.SimpleAppWindow):
         
     def read_camera(self):
         if self.is_camera:
-            frame=self.camera.read(save=self.manual_recording or self.triggered_recording)
-            self.ttl_pulse()
+            frame=self.camera.read(save=False)#self.manual_recording or self.triggered_recording)
+            if (self.triggered_recording or self.manual_recording) and hasattr(frame, 'dtype'):
+                self.ttl_pulse()
+                self.frame_counter+=1
+                self.frames.append(frame)
             if hasattr(frame,  'dtype'):
                 f=numpy.rollaxis(numpy.array([frame]*3), 0, 3)
                 return f
@@ -183,6 +203,8 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.frame=self.read_camera()
         self.recording_start_stop()
         if hasattr(self.frame, 'dtype'):
+#            self.cw.image.set_image(numpy.rot90(numpy.fliplr(self.frame)))
+#            return
             self.vframe=self.frame
             if self.parameters['Enable ROI cut']:
                 self.frame=self.frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
@@ -195,11 +217,13 @@ class ArenaTracker(gui.SimpleAppWindow):
                     for i in range(3):
                         if i!=self.parameters['Channel']:
                             f[:,:,i]=0
+                #self.track.append(coo)
                 if self.parameters['Show track']:
                     for coo in self.track:
                         if not numpy.isnan(coo[0]):
                             f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
-            self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
+            if not hasattr(self, "frame_counter") or ((self.triggered_recording or self.manual_recording) and self.frame_counter%4==0):
+                self.cw.image.set_image(numpy.rot90(numpy.flipud(f)))
         
     def closeEvent(self, e):
         e.accept()
@@ -216,6 +240,7 @@ class ArenaTracker(gui.SimpleAppWindow):
             self.stop_recording()
             self.triggered_recording=False
             self.manual_recording=False
+            ual_recording=False
             
     def convert_folder_action(self):
         foldername=self.ask4foldername('Select hdf5 video file folder',  self.datafolder)
