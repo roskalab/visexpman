@@ -7,7 +7,7 @@ except ImportError:
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
 qt_app = Qt.QApplication([])
-import logging,numpy,time,pyqtgraph, os, sys,cv2
+import logging,numpy,time,pyqtgraph, os, sys,cv2,serial
 from visexpman.engine.generic import gui,introspect,utils, fileop
 from visexpman.engine.hardware_interface import camera_interface, digital_io
 from visexpman.engine.analysis import behavioral_data
@@ -102,6 +102,27 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.manual_recording=False
         self.dio=digital_io.DigitalIO('usb-uart', 'COM3')
         self.dio.set_pin(1, 0)
+        self.ioboard=serial.Serial('COM5', 1000000, timeout=1)
+        self.trigger_detector_enabled=False
+        time.sleep(2)
+        self.disable_trigger()
+        
+    def enable_trigger(self):
+        if not self.trigger_detector_enabled:
+            self.ioboard.write('wait_trigger,1\r\n')
+            logging.info(self.iobaord.read(100))
+            self.trigger_detector_enabled=True
+        
+    def disable_trigger(self):
+        self.ioboard.write('wait_trigger,0\r\n')
+        logging.info(self.iobaord.read(100))    
+        self.trigger_detector_enabled=False
+        
+    def istriggered(self):
+        res= self.ioboard.inWaiting()==13
+        if res:
+            logging.info(self.ioboard.read(13))
+        return res
         
     def ttl_pulse(self):
         self.dio.set_pin(1, 1)
@@ -127,9 +148,12 @@ class ArenaTracker(gui.SimpleAppWindow):
         self.statusbar.recording_status.setText('')
         
     def recording_start_stop(self):
+        #Trigger enabled only if no recording is ongoing and trigger is enabled in Settings
+        if (not self.triggered_recording or not self.manual_recording) and self.parameters['Enable trigger']:
+            self.enable_trigger()
         if self.is_camera and self.parameters['Enable trigger']:
             if not TEST:
-                di=False in [self.read_digital_input() for i in range(10000)]
+                di=self.istriggered()
             else:
                 di= self.parameters['Override trigger']
             if self.triggered_recording and not self.manual_recording and not di:#Stop recording
@@ -216,6 +240,7 @@ class ArenaTracker(gui.SimpleAppWindow):
         else:
             self.camera.release()#Stop camera operation
         self.dio.close()
+        self.ioboard.close()
         self.close()
         
 
