@@ -223,8 +223,9 @@ class Jobhandler(object):
     Starting it:
         python -c "from visexpman.applications import jobhandler;jobhandler.Jobhandler('/mnt/resonant_data/Data')"
     '''
-    def __init__(self, folder, job, lock_timeout=60):
+    def __init__(self, folder, job, lock_timeout=60, max_retries=2):
         self.folder=folder
+        self.max_retries=max_retries
         self.lockfile='/tmp/{0}-jobhandler-lock.txt'.format(job)
         self.logfile = os.path.join('/data/software/log', 'jobhandler_{0}.txt'.format(job))
         if not hasattr(self, job):
@@ -245,6 +246,7 @@ class Jobhandler(object):
             getattr(self, job)()
         except:
             logging.error(traceback.format_exc())
+            logging.info('{0} failed'.format(self.filename))
             
     def get_next_file(self, filter):
         files=fileop.find_files_and_folders(self.folder,extension='hdf5')[1]
@@ -253,7 +255,12 @@ class Jobhandler(object):
         for f in files:
             age=fileop.file_age(f)
             processed_message='Converted {0}'.format(f)
-            if age>120 and processed_message not in self.prev_log and filter in os.path.basename(f) and not os.path.exists(fileop.replace_extension(f, '.mp4')):
+            error_message='{0} failed'.format(f)
+            if age>120 and\
+                    processed_message not in self.prev_log and \
+                    self.prev_log.count(error_message)<self.max_retries and \
+                    filter in os.path.basename(f) and \
+                    not os.path.exists(fileop.replace_extension(f, '.mp4')):
                 fileswage.append([f,age])
         if len(fileswage)==0:
             return
@@ -261,6 +268,7 @@ class Jobhandler(object):
 
     def eye2mp4(self):
         f=self.get_next_file('eye')
+        self.filename=f
         if f != None:
             localin=os.path.join('/tmp', os.path.basename(f))
             localout=fileop.replace_extension(localin, '.mp4')
@@ -278,6 +286,9 @@ class Jobhandler(object):
                 map(os.remove, [localin, localout])
                 logging.info('Converted {0}'.format(f))
             logging.info('{0} processed'.format(1))
+            tmpfolder=os.path.join(os.path.expanduser('~'), 'vf')
+            if os.path.exists(tmpfolder):
+                shutil.rmtree(folder)
             
     def __del__(self):
         logging.info('Removing lock file')
