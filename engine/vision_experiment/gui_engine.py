@@ -2069,7 +2069,7 @@ class ElphysEngine():
             x=n*[t]
             y=[sync[index:,i] for i in range(n)]
             if hasattr(self.machine_config, 'CHANNEL_SCALE'):
-                y=[y[i]*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
+                y=[(y[i]-self.machine_config.CHANNEL_OFFSET[i])*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
             cc=[colors.get_color(i,unit=False) for i in range(n)]
             cc_html=[('#%02x%02x%02x' % (cci[0], cci[1], cci[2])).upper() for cci in cc]
             labels={"left": '',  "bottom": "time [s]"}
