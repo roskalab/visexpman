@@ -272,7 +272,7 @@ void IOBoardCommands::run(void)
     {        
         if (int(par[0])==1)
         {
-          function_state=TRIGGER_DETECTOR;
+          function_state=START_TRIGGER_DETECTOR;
         }
         else
         {
@@ -293,6 +293,7 @@ void IOBoardCommands::run(void)
       #endif
     }
   }
+  always_run();
 }
 /*
 PortD 5,6,7 pins ara valid outputs, these values are accepted as channel
@@ -402,9 +403,14 @@ void IOBoardCommands::int0_isr(void)
         //Serial.println(frame_interval_std_sqr);
         timestamp_buffer_prev=timestamp_buffer;
         break;
-    case TRIGGER_DETECTOR:
-        Serial.println('Rising edge');
-        function_state=NO;
+    case START_TRIGGER_DETECTOR:
+        Serial.println("Start trigger");
+        function_state=STOP_TRIGGER_DETECTOR;
+        last_pulse_ts=millis();
+        break;
+
+    case STOP_TRIGGER_DETECTOR:
+        last_pulse_ts=millis();
         break;
  }
 }
@@ -414,4 +420,27 @@ void IOBoardCommands::int0_isr(void)
 void IOBoardCommands::int1_isr(void)
 {
   
+}
+void IOBoardCommands::always_run(void)
+{
+  cli();
+  run_always_ts=millis();
+  switch (function_state)
+  {    
+    case STOP_TRIGGER_DETECTOR:
+      /*Serial.print(run_always_ts);
+      Serial.print(" ");
+      Serial.print(last_pulse_ts);
+      Serial.print(" ");
+      Serial.println(run_always_ts-last_pulse_ts);*/
+      if ((run_always_ts-last_pulse_ts) > STOP_TRIGGER_TIMEOUT)
+      {
+        Serial.println("Stop trigger");
+        function_state=NO;
+      }
+      break;
+    default:
+      break;
+  }
+  sei();
 }
