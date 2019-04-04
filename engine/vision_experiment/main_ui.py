@@ -520,6 +520,8 @@ class MainUI(gui.VisexpmanMainWindow):
         self._init_variables()
         self._start_engine(gui_engine.MainUIEngine(self.machine_config, self.logger, self.socket_queues))
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
+        if hasattr(self.machine_config, 'GUI_POS_X'):
+            self.move(self.machine_config.GUI_POS_X, self.machine_config.GUI_POS_Y)
         self._set_window_title()
         #Set up toobar
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal']:

@@ -33,16 +33,19 @@ IOBoardCommands::IOBoardCommands(void)
 
   EICRA|=3;//INT0/PIN2 rising edge
   EIMSK|=1;
-#if ENABLE_STIMULUS_PHASE_LOCKING
-  imaging_timestamp_index=0;
-  stimulus_timestamp_index=0;
-  phase_lock_state=NOT_RUNNING;
-  imaging_pulse_counter=0;
   EICRA|=3<<2;//INT1/PIN2 rising edge
   EIMSK|=1<<1;  
-  micros_offset=0;
-#endif
   sei();
+  
+  
+  enable_fps_measurement=0;
+  fps_buffer_index=0;
+  frame_interval_mean=0;
+  frame_interval_std_sqr=0;
+  pulse_counter=0;
+  timestamp_buffer_prev=millis();
+  
+  function_state=ELONGATE_PULSE;
 }
 
 void IOBoardCommands::run(void)
@@ -203,6 +206,7 @@ void IOBoardCommands::run(void)
       {
         elongate_state=OFF;
         EIMSK&=~1;
+        function_state=NO;
       }
       else
       {
@@ -225,6 +229,7 @@ void IOBoardCommands::run(void)
         else
         {
           elongate_state=ON;
+          function_state=ELONGATE_PULSE;
           EIMSK|=1;
           elongate_output_pin=par[2];
           elongate_duration=par[3]-INT0_LATENCY_US;
@@ -242,32 +247,44 @@ void IOBoardCommands::run(void)
         Serial.println(elongate_state);
       }
     }
-#if ENABLE_STIMULUS_PHASE_LOCKING
-    else if ((strcmp(command,"measure_fps")==0)&&(nparams==0))
+    else if ((strcmp(command,"fps_meas")==0)&&(nparams==1))
     {
-        phase_lock_state=MEASURE_FPS;
-        Serial.println("OK");      
+      enable_fps_measurement=int(par[0]);
+      if (enable_fps_measurement==1)
+      {
+        function_state=FPS_MEASUREMENT;
+        pulse_counter=0;
+        fps_buffer_index=0;
+        frame_interval_mean=0;
+        frame_interval_std_sqr=0;        
+      }
+      else
+      {
+          function_state=NO;
+      }
+      if (debug==1)
+      {
+        Serial.print("fps_meas: ");
+        Serial.println(par[0]);
+      }
     }
-    else if ((strcmp(command,"stop_fpsmeas")==0)&&(nparams==0))
-    {
-        phase_lock_state=NOT_RUNNING;
-        Serial.println("OK");      
+    else if ((strcmp(command,"wait_trigger")==0)&&(nparams==1))
+    {        
+        if (int(par[0])==1)
+        {
+          function_state=START_TRIGGER_DETECTOR;
+        }
+        else
+        {
+          function_state=NO;
+        }
+        if (debug==1)
+        {
+          Serial.print("wait_tigger: ");
+          Serial.println(par[0]);
+        }
+
     }
-    else if ((strcmp(command,"read_fps")==0)&&(nparams==0))
-    {
-        phase_lock_state=NOT_RUNNING;
-        Serial.println(imaging_frame_interval/(TIMING_BUFFER_SIZE-1));
-    }    
-    else if ((strcmp(command,"clock_reset")==0)&&(nparams==0))
-    {
-        micros_offset=micros();
-        Serial.println(micros_offset);
-    }
-    else if ((strcmp(command,"clock_read")==0)&&(nparams==0))
-    {
-        Serial.println(micros()-micros_offset);
-    }
-#endif
     else
     {
       #if (PLATFORM==ARDUINO_UNO)
@@ -276,6 +293,7 @@ void IOBoardCommands::run(void)
       #endif
     }
   }
+  always_run();
 }
 /*
 PortD 5,6,7 pins ara valid outputs, these values are accepted as channel
@@ -353,62 +371,76 @@ void IOBoardCommands::stop_waveform(void)
 }
 void IOBoardCommands::int0_isr(void)
 {
-#if (!ENABLE_STIMULUS_PHASE_LOCKING)
-    if (elongate_state==ON)
-    {
-      if (elongate_delay>0.0)
-      {
-          delayMicroseconds((unsigned long)(elongate_delay));
-      }
-      set_pin(elongate_output_pin,1.0);
-      //Serial.print("I");
-      delayMicroseconds((unsigned long)(elongate_duration));
-      set_pin(elongate_output_pin,0.0);
-    }
-#else
-    static int i;
-    last_imaging_pulse_ts=micros();
-    imaging_timestamps[imaging_timestamp_index]=last_imaging_pulse_ts;
-    imaging_timestamp_index++;
-    imaging_pulse_counter++;
-    if (imaging_timestamp_index==TIMING_BUFFER_SIZE)
-    {
-      imaging_timestamp_index=0;
-    }
-    switch (phase_lock_state)
-    {
-      case MEASURE_FPS:
-        if (imaging_pulse_counter>TIMING_BUFFER_SIZE)//buffer is not empty
-        {
-          imaging_frame_interval=0;
-          for(i=0;i<TIMING_BUFFER_SIZE;i++)
-          {
-             if ((i==0) && (imaging_timestamps[i]>imaging_timestamps[TIMING_BUFFER_SIZE-1]))
-             {
-               imaging_frame_interval+=imaging_timestamps[i]-imaging_timestamps[TIMING_BUFFER_SIZE-1];
-             }
-             else if (imaging_timestamps[i]>imaging_timestamps[i-1])
-             {
-                imaging_frame_interval+=imaging_timestamps[i]-imaging_timestamps[i-1];
-             }
-          }
-        }
+  switch (function_state)
+  {
+      case NO:
         break;
-    }
-#endif
-  
+      case ELONGATE_PULSE:
+        if (elongate_delay>0.0)
+        {
+            delayMicroseconds((unsigned long)(elongate_delay));
+        }
+        set_pin(elongate_output_pin,1.0);
+        //Serial.print("I");
+        delayMicroseconds((unsigned long)(elongate_duration));
+        set_pin(elongate_output_pin,0.0);
+        break;
+    case FPS_MEASUREMENT:
+        //Here comes fps measurement
+        timestamp_buffer=millis();
+        dt=timestamp_buffer-timestamp_buffer_prev;
+        if (dt<10)
+        {
+          Serial.print("00");
+        }
+        else if (dt<100)
+        {
+          Serial.print("0");
+        }
+        if (dt<1000)
+          Serial.println(dt);
+        //Serial.print(",");
+        //Serial.println(frame_interval_std_sqr);
+        timestamp_buffer_prev=timestamp_buffer;
+        break;
+    case START_TRIGGER_DETECTOR:
+        Serial.println("Start trigger");
+        function_state=STOP_TRIGGER_DETECTOR;
+        last_pulse_ts=millis();
+        break;
+
+    case STOP_TRIGGER_DETECTOR:
+        last_pulse_ts=millis();
+        break;
+ }
 }
+      
+      
+
 void IOBoardCommands::int1_isr(void)
 {
-#if ENABLE_STIMULUS_PHASE_LOCKING
-    last_stimulus_pulse_ts=micros();
-    stimulus_timestamps[stimulus_timestamp_index]=last_stimulus_pulse_ts;    
-    stimulus_timestamp_index++;
-    if (stimulus_timestamp_index==TIMING_BUFFER_SIZE)
-    {
-      stimulus_timestamp_index=0;
-    }
-    Serial.println(last_stimulus_pulse_ts);
-#endif
   
+}
+void IOBoardCommands::always_run(void)
+{
+  cli();
+  run_always_ts=millis();
+  switch (function_state)
+  {    
+    case STOP_TRIGGER_DETECTOR:
+      /*Serial.print(run_always_ts);
+      Serial.print(" ");
+      Serial.print(last_pulse_ts);
+      Serial.print(" ");
+      Serial.println(run_always_ts-last_pulse_ts);*/
+      if ((run_always_ts-last_pulse_ts) > STOP_TRIGGER_TIMEOUT)
+      {
+        Serial.println("Stop trigger");
+        function_state=NO;
+      }
+      break;
+    default:
+      break;
+  }
+  sei();
 }

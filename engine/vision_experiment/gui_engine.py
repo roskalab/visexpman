@@ -429,13 +429,13 @@ class ExperimentHandler(object):
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
         fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "data" if self.machine_config.PLATFORM=='elphys' else 'sync' )
-        self.printc('WARNING: Fix this filename generation!!!!')
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
             if hasattr(self, 'eye_camera_filename'):
                 os.remove(self.eye_camera_filename)
         else:
+            self.printc('WARNING: Fix this filename generation!!!!: fn variabla')
             if hasattr(self, 'daqdatafile'):
                 #shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
                 if not os.path.exists(os.path.dirname(fn)):
@@ -639,6 +639,9 @@ class ExperimentHandler(object):
     def read_sync_recorder(self):
         self.syncreadout=self.sync_recorder.read_ai()
         if hasattr(self.syncreadout,  "dtype"):
+            maxnsamples=int(self.machine_config.SYNC_RECORDER_SAMPLE_RATE*self.machine_config.LIVE_SIGNAL_LENGTH*2)#max 5 minutes
+            if self.live_data.shape[0]>maxnsamples:
+                self.live_data=self.live_data[-maxnsamples:,:]
             self.live_data=numpy.concatenate((self.live_data,self.syncreadout))
             self.last_ai_read=self.syncreadout
             if self.live_data.shape[0]>0:
@@ -1984,6 +1987,16 @@ class ElphysEngine():
         elif hasattr(self, 'flowmeter'):
             self.flowmeter.close()
             del self.flowmeter
+            
+        if not hasattr(self, 'last_mem_check'):
+            self.last_mem_check=time.time()
+        if time.time()-self.last_mem_check>60:
+            import os
+            import psutil
+            process = psutil.Process(os.getpid())
+            self.printc((process.get_memory_info()[0]/1024/1024))
+            self.last_mem_check=time.time()
+            
     
     def read_flowmeter(self):
         if not hasattr(self, 'flowmeter'):
