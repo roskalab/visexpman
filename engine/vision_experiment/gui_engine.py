@@ -1981,7 +1981,9 @@ class ElphysEngine():
     '''
     Elphys platform specific methods separated from gui engine
     '''
-    def run_always_elphys_engine(self):            
+    def run_always_elphys_engine(self):
+        if self.machine_config.PLATFORM!='elphys':
+            return
         if self.sync_recording_started:
             self.flow_rate=self.read_flowmeter()
         elif hasattr(self, 'flowmeter'):
