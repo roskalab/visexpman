@@ -238,10 +238,7 @@ class ExperimentHandler(object):
             experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         return experiment_parameters
             
-    def start_batch(self):
-        if self.machine_config.PLATFORM not in ['rc_cortical', 'us_cortical']:
-            self.notify('Warning', 'Batch experiments are not supported on {0} platform'.format(self.machine_config.PLATFORM ))
-            return
+    def start_batch_experiment(self):
         if self.batch_running:
             self.notify('Warning', 'Batch is already running')
             return
@@ -283,6 +280,21 @@ class ExperimentHandler(object):
                     par['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),par['id'])
                     self.batch.append(par)
             [self.printc('Batch generated: {0}/{1} um' .format(b['id'], b['motor position'])) for b in self.batch]
+        elif self.machine_config.PLATFORM == '2p':
+            if self.guidata.read('Enable tile scan'):
+                raise NotImplementedError()
+            if self.guidata.read('Z start')<self.guidata.read('Z end'):
+                raise ValueError('Z start shall be bigger than Z end')
+            elif self.guidata.read('Z step')<0:
+                raise ValueError('Z step shall be greater than 0')
+                zs=self.guidata.read('Z start')
+                ze=self.guidata.read('Z end')
+                zst=self.guidata.read('Z step')
+            depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
+            for d in depths:
+                par=copy.deepcopy(experiment_parameters)
+                par['depth']=d
+                self.batch.append(par)
         elif self.machine_config.PLATFORM == 'rc_cortical':
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
         self.batch_running=True
@@ -307,6 +319,9 @@ class ExperimentHandler(object):
                 missing_connections=[conn for conn in [self.microscope.name, 'stim'] if conn not in self.connected_nodes]
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
+            #Set z
+            if 'depth' in experiment_parameters:
+                self.microscope.set_z(experiment_parameters['depth'])
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:

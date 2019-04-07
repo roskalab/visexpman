@@ -529,13 +529,16 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM=='mc_mea':
             toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
-            toolbar_buttons = ['start_experiment', 'start_batch', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM in ['ao_cortical', '2p', 'resonant']:
             toolbar_buttons = ['start_experiment', 'stop', 'connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
+        if self.machine_config.ENABLE_BATCH_EXPERIMENT:
+            toolbar_buttons.insert(1,'start_batch_experiment')
+            
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
@@ -872,6 +875,23 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
+        if self.macine_config.ENABLE_BATCH_EXPERIMENT:
+            #Append batch experiment settings
+            self.params_config.append(
+            {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
+                    {'name': 'Z start', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Z end', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Z step', 'type': 'float', 'value': 10,  'suffix': 'um'},
+                    {'name': 'Enable tile scan', 'type': 'bool', 'value': False},
+                    {'name': 'X start', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'X end', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Y start', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Y end', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Tile overlap', 'type': 'float', 'value': 50,  'suffix': 'um'},
+                    {'name': 'Tile Field of View X', 'type': 'float', 'value': 300,  'suffix': 'um'},
+                    {'name': 'Tile Field of View Y', 'type': 'float', 'value': 300,  'suffix': 'um'},
+                    ]},
+            )
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):
             if isinstance(self.machine_config.SETUP_SETTINGS, list):
                 self.params_config.extend(self.machine_config.SETUP_SETTINGS)
@@ -882,8 +902,8 @@ class MainUI(gui.VisexpmanMainWindow):
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
         
-    def start_batch_action(self):
-        self.to_engine.put({'function': 'start_batch', 'args':[]})
+    def start_batch_experiment_action(self):
+        self.to_engine.put({'function': 'start_batch_experiment', 'args':[]})
         
     def stop_action(self):
         self.to_engine.put({'function': 'stop_experiment', 'args':[]})
