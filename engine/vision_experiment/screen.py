@@ -245,9 +245,10 @@ class CaptureImagingTrigger(multiprocessing.Process):
     With the help of IOboard it measures imaging frquency
     Captures imaging triggers
     '''
-    def __init__(self, port, std_limits,  buffer_size=16):
+    def __init__(self, port, std_limits,  buffer_size=16, fps=40):
         multiprocessing.Process.__init__(self)
         self.port=port
+        self.tfps=fps
         self.std_limits=std_limits
         self.command=multiprocessing.Queue()
         self.trigger=multiprocessing.Queue()
@@ -259,6 +260,8 @@ class CaptureImagingTrigger(multiprocessing.Process):
         import serial
         self.s=serial.Serial(self.port, 1000000,timeout=0.005)
         time.sleep(2.5)
+        self.s.write('waveform,{0},0,0\r\n'.format(int(self.tfps)))
+        time.sleep(1)
         self.s.write('fps_meas,1\r\n')
         time.sleep(0.1)
         r=self.s.read(100)
@@ -301,6 +304,7 @@ class CaptureImagingTrigger(multiprocessing.Process):
                 self.trigger.put('phase')
                 phase_sent=True
         self.s.write('fps_meas,0\r\n')
+        self.s.write('stop\r\n')
         time.sleep(0.1)
         self.s.close()
         

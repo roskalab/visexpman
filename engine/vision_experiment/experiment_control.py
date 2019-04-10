@@ -586,6 +586,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.parameters['stimclass']=self.__class__.__name__
                 else:
                     self.parameters['stimclass']=self.experiment_config.__class__.__name__
+                self.parameters['outfilename']=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = 'data')
                 from visexpman.engine.vision_experiment.experiment import get_experiment_duration
                 self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
             #Check if main_ui user and machine config class matches with stim's
