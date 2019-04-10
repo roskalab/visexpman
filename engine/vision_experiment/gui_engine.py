@@ -238,10 +238,7 @@ class ExperimentHandler(object):
             experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         return experiment_parameters
             
-    def start_batch(self):
-        if self.machine_config.PLATFORM not in ['rc_cortical', 'us_cortical']:
-            self.notify('Warning', 'Batch experiments are not supported on {0} platform'.format(self.machine_config.PLATFORM ))
-            return
+    def start_batch_experiment(self):
         if self.batch_running:
             self.notify('Warning', 'Batch is already running')
             return
@@ -283,6 +280,21 @@ class ExperimentHandler(object):
                     par['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),par['id'])
                     self.batch.append(par)
             [self.printc('Batch generated: {0}/{1} um' .format(b['id'], b['motor position'])) for b in self.batch]
+        elif self.machine_config.PLATFORM == '2p':
+            if self.guidata.read('Enable tile scan'):
+                raise NotImplementedError()
+            if self.guidata.read('Z start')<self.guidata.read('Z end'):
+                raise ValueError('Z start shall be bigger than Z end')
+            elif self.guidata.read('Z step')<0:
+                raise ValueError('Z step shall be greater than 0')
+                zs=self.guidata.read('Z start')
+                ze=self.guidata.read('Z end')
+                zst=self.guidata.read('Z step')
+            depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
+            for d in depths:
+                par=copy.deepcopy(experiment_parameters)
+                par['depth']=d
+                self.batch.append(par)
         elif self.machine_config.PLATFORM == 'rc_cortical':
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
         self.batch_running=True
@@ -307,6 +319,9 @@ class ExperimentHandler(object):
                 missing_connections=[conn for conn in [self.microscope.name, 'stim'] if conn not in self.connected_nodes]
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
+            #Set z
+            if 'depth' in experiment_parameters:
+                self.microscope.set_z(experiment_parameters['depth'])
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:
@@ -429,13 +444,13 @@ class ExperimentHandler(object):
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
         fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "data" if self.machine_config.PLATFORM=='elphys' else 'sync' )
-        self.printc('WARNING: Fix this filename generation!!!!')
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
             if hasattr(self, 'eye_camera_filename'):
                 os.remove(self.eye_camera_filename)
         else:
+            self.printc('WARNING: Fix this filename generation!!!!: fn variabla')
             if hasattr(self, 'daqdatafile'):
                 #shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
                 if not os.path.exists(os.path.dirname(fn)):
@@ -639,6 +654,9 @@ class ExperimentHandler(object):
     def read_sync_recorder(self):
         self.syncreadout=self.sync_recorder.read_ai()
         if hasattr(self.syncreadout,  "dtype"):
+            maxnsamples=int(self.machine_config.SYNC_RECORDER_SAMPLE_RATE*self.machine_config.LIVE_SIGNAL_LENGTH*2)#max 5 minutes
+            if self.live_data.shape[0]>maxnsamples:
+                self.live_data=self.live_data[-maxnsamples:,:]
             self.live_data=numpy.concatenate((self.live_data,self.syncreadout))
             self.last_ai_read=self.syncreadout
             if self.live_data.shape[0]>0:
@@ -1978,12 +1996,24 @@ class ElphysEngine():
     '''
     Elphys platform specific methods separated from gui engine
     '''
-    def run_always_elphys_engine(self):            
+    def run_always_elphys_engine(self):
+        if self.machine_config.PLATFORM!='elphys':
+            return
         if self.sync_recording_started:
             self.flow_rate=self.read_flowmeter()
         elif hasattr(self, 'flowmeter'):
             self.flowmeter.close()
             del self.flowmeter
+            
+        if not hasattr(self, 'last_mem_check'):
+            self.last_mem_check=time.time()
+        if time.time()-self.last_mem_check>60:
+            import os
+            import psutil
+            process = psutil.Process(os.getpid())
+            self.printc((process.get_memory_info()[0]/1024/1024))
+            self.last_mem_check=time.time()
+            
     
     def read_flowmeter(self):
         if not hasattr(self, 'flowmeter'):
@@ -2056,7 +2086,7 @@ class ElphysEngine():
             x=n*[t]
             y=[sync[index:,i] for i in range(n)]
             if hasattr(self.machine_config, 'CHANNEL_SCALE'):
-                y=[y[i]*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
+                y=[(y[i]-self.machine_config.CHANNEL_OFFSET[i])*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
             cc=[colors.get_color(i,unit=False) for i in range(n)]
             cc_html=[('#%02x%02x%02x' % (cci[0], cci[1], cci[2])).upper() for cci in cc]
             labels={"left": '',  "bottom": "time [s]"}

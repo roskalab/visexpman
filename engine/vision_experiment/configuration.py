@@ -162,6 +162,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         CAMERA_TRIGGER_ENABLE=False
         
         ENABLE_SYNC=['off', ['off', 'stim', 'main']]#Subclass must set these values
+        ENABLE_BATCH_EXPERIMENT=False
         
         ############# Graphical User Interface related ######################
         GUI = {}

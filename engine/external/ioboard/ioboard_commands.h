@@ -17,6 +17,15 @@ typedef enum phase_lock_state_t {
 
 #endif
 
+typedef enum function_state_t {
+   NO,
+   ELONGATE_PULSE,
+   FPS_MEASUREMENT,
+   START_TRIGGER_DETECTOR,
+   STOP_TRIGGER_DETECTOR,
+} function_state_t;
+
+
 class IOBoardCommands:public Comm {
     public:
         IOBoardCommands(void);
@@ -59,4 +68,7 @@ class IOBoardCommands:public Comm {
         long frame_intervals[TIMING_BUFFER_SIZE];
         unsigned long pulse_counter, timestamp_buffer, timestamp_buffer_prev;
         int dt;
+        function_state_t function_state;
+        unsigned long last_pulse_ts, run_always_ts;
+        void always_run(void);
 };

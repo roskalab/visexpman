@@ -17,3 +17,5 @@
 #define INT0_LATENCY_US 24
 
 #define TIMING_BUFFER_SIZE 16
+
+#define STOP_TRIGGER_TIMEOUT 500 //ms
