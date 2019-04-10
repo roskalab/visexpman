@@ -163,6 +163,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ENABLE_SYNC=['off', ['off', 'stim', 'main']]#Subclass must set these values
         ENABLE_BATCH_EXPERIMENT=False
+        ENABLE_EYE_CAMERA=False
         
         ############# Graphical User Interface related ######################
         GUI = {}

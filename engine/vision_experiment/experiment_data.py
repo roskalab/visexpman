@@ -299,6 +299,17 @@ class CaImagingData(supcl):
         sync=signal.from_16bit(self.sync,self.sync_scaling)
         return all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
         
+    def is_runhweel_powered(self):
+        import scipy.signal
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        sync=signal.from_16bit(c.sync,c.sync_scaling)
+        filter=scipy.signal.butter(2,20./c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')
+        filtered=scipy.signal.filtfilt(filter[0],filter[1], sync[:,3]).real
+        frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
+        return abs(frequencies.mean()-50)>5
+        
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
         loads 2d representation of ca imaging data with scaling information
@@ -1478,7 +1489,8 @@ class TestExperimentData(unittest.TestCase):
             if '.mes' in f:
                 print(f)
                 mes2mat(os.path.join(folder, f))
-                
+    
+    @unittest.skip("")
     def test_15_check_runhweel_signal(self):
         folder='/home/rz/mysoftware/data/runwheel'
         for f in fileop.listdir(folder):
@@ -1486,6 +1498,29 @@ class TestExperimentData(unittest.TestCase):
             print((f, c.check_runhweel_signals()))
             c.close()
         pass
+        
+    def test_16_50Hz_in_runwheel(self):
+        fn=r'X:\resonant-setup\Data\fiona\20190402\data_MovingGratingNoMarchingConfig_201904021220172.hdf5'
+        c=CaImagingData(fn)
+        import scipy.signal
+        c.load('sync')
+        c.load('sync_scaling')
+        c.load('configs')
+        sync=signal.from_16bit(c.sync,c.sync_scaling)
+        filter=scipy.signal.butter(2,20./c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')
+        filtered=scipy.signal.filtfilt(filter[0],filter[1], sync[:,3]).real
+        frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
+        res=abs(frequencies.mean()-50)<5
+            
+        from pylab import plot, show,figure
+        figure(1)
+        plot(sync[:,4]);plot(sync[:,3])
+        figure(2)
+        plot(filtered)
+        figure(3)        
+        plot(sync[:,4]-sync[:,3])
+        show()
+        c.close()
         
 def find_rois(meanimage):
     from skimage import filter

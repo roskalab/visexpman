@@ -246,7 +246,7 @@ class IOBoard(object):
         if port == None and id != None:
             #Find device by ID
             port=find_port(id)
-        self.s=serial.Serial(port, baudrate=115200,timeout=timeout)
+        self.s=serial.Serial(port, baudrate=1000000,timeout=timeout)
         self.initial_wait=initial_wait
         self.t0=time.time()
         self.wait_done=False

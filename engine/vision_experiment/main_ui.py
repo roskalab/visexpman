@@ -545,7 +545,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.statusbar.status=QtGui.QLabel('Idle', self)
         self.statusbar.addPermanentWidget(self.statusbar.status)
         self.statusbar.status.setStyleSheet('background:gray;')
-        if self.machine_config.PLATFORM in ['resonant']:
+        if self.machine_config.ENABLE_EYE_CAMERA:
             self.statusbar.camera_status=QtGui.QLabel('', self)
             self.statusbar.addPermanentWidget(self.statusbar.camera_status)
             self.statusbar.camera_status.setStyleSheet('background:gray;')
@@ -572,7 +572,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
-            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip', '*.mesc'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
@@ -586,7 +586,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.analysis, 'Data Files')
         if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.PLATFORM in ['resonant']:
+        if self.machine_config.ENABLE_EYE_CAMERA:
             self.eye_camera=gui.Image(self)
             self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
@@ -786,7 +786,7 @@ class MainUI(gui.VisexpmanMainWindow):
             fw2=[]
             
         self.params_config = [
-                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
+                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea'], 'children': [#'expanded' : True
                     {'name': 'Name', 'type': 'str', 'value': ''},
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
@@ -853,6 +853,10 @@ class MainUI(gui.VisexpmanMainWindow):
                             ]},  ]               
                         )
                 self.params_config[-1]['children'].extend(pars)
+        if self.machine_config.ENABLE_EYE_CAMERA:
+            self.params_config[0]['expanded']=True
+            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
+            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
         if self.machine_config.PLATFORM=='mc_mea':
             self.params_config[0]['children'].extend([
                 {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
@@ -867,15 +871,11 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Motor Positions', 'type': 'str', 'value': ''},
                     ]},
             )
-            self.params_config[0]['expanded']=True
-            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
         elif self.machine_config.PLATFORM=='resonant':
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
-        if self.macine_config.ENABLE_BATCH_EXPERIMENT:
+        if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             #Append batch experiment settings
             self.params_config.append(
             {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True

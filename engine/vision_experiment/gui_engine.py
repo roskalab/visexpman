@@ -225,15 +225,16 @@ class ExperimentHandler(object):
                 wt=self.machine_config.MES_RECORD_START_WAITTIME_LONG_RECORDING
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
-        elif self.machine_config.PLATFORM=='resonant':
-            for pn in ['Eye Camera Frame Rate', 'Enable Eye Camera', 'Runwheel attached']:
-                experiment_parameters[pn]=self.guidata.read(pn)
         elif self.machine_config.PLATFORM=='elphys':
             experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
             experiment_parameters['Current Gain']=self.guidata.read('Current Gain')
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
+        for pn in ['Eye Camera Frame Rate', 'Enable Eye Camera', 'Runwheel attached']:
+            v=self.guidata.read(pn)
+            if v!=None:
+                experiment_parameters[pn]=v
         if 'Enable Eye Camera' in experiment_parameters and experiment_parameters['Enable Eye Camera']:
             experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         return experiment_parameters
@@ -287,21 +288,24 @@ class ExperimentHandler(object):
                 raise ValueError('Z start shall be bigger than Z end')
             elif self.guidata.read('Z step')<0:
                 raise ValueError('Z step shall be greater than 0')
-                zs=self.guidata.read('Z start')
-                ze=self.guidata.read('Z end')
-                zst=self.guidata.read('Z step')
+            zs=self.guidata.read('Z start')
+            ze=self.guidata.read('Z end')
+            zst=self.guidata.read('Z step')
             depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
+            self.batch=[]
             for d in depths:
                 par=copy.deepcopy(experiment_parameters)
                 par['depth']=d
                 self.batch.append(par)
+            self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um' .format(b['id'], b['depth']) for b in self.batch]))
         elif self.machine_config.PLATFORM == 'rc_cortical':
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
         self.batch_running=True
         
     def check_batch(self):
         if self.batch_running:
-            if not self.experiment_running and time.time()-self.experiment_finish_time>self.machine_config.WAIT_BETWEEN_BATCH_JOBS:
+            if not self.experiment_running and time.time()-self.experiment_finish_time>self.machine_config.WAIT_BETWEEN_BATCH_JOBS and \
+                 'stim' in self.connected_nodes and (hasattr(self,  'microscope') and self.microscope.name in self.connected_nodes):
                 if len(self.batch)==0:
                     self.batch_running=False
                     self.notify('Info', 'Batch finished')
@@ -315,13 +319,14 @@ class ExperimentHandler(object):
         
     def start_experiment(self, experiment_parameters=None):
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
-            if 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
+            if not hasattr(self, 'connected_nodes') or 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
                 missing_connections=[conn for conn in [self.microscope.name, 'stim'] if conn not in self.connected_nodes]
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
             #Set z
-            if 'depth' in experiment_parameters:
+            if hasattr(experiment_parameters, 'keys') and 'depth' in experiment_parameters:
                 self.microscope.set_z(experiment_parameters['depth'])
+                self.printc('Set z to {0} um'.format(experiment_parameters['depth']))
         if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
             return
         if self.sync_recording_started or self.experiment_running:
@@ -350,10 +355,11 @@ class ExperimentHandler(object):
             self.printc('Saving eye video')
             self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'),  self.machine_config)
             self.printc('Starting eye camera recording')
-            self.to_gui.put({'update_camera_status':'camera recording'})
             self.cam.start()
             if not self.cam.wait():
-                raise RuntimeError('Camera did not start')
+                errormsg=self.cam.error.get() if not self.cam.error.empty() else ''
+                raise RuntimeError('Camera did not start: {0}'.format(errormsg))
+            self.to_gui.put({'update_camera_status':'camera recording'})
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -429,6 +435,8 @@ class ExperimentHandler(object):
                 self.printc('Terminating eye camera recording')
                 self.eyecamdata=self.cam.stop()
                 if hasattr(self.eyecamdata, 'keys'):
+                    measured_fps=1/numpy.diff(self.eyecamdata['timestamps'])
+                    self.printc('Frame rate mean: {0} Hz, std: {1} Hz'.format(measured_fps.mean(),  measured_fps.std()))
                     self.eyecamdata['fps']=self.current_experiment_parameters['Eye Camera Frame Rate']
                     self.printc('{0} dropped frames detected in eyecamera recording'.format(self.eyecamdata['dropped_frames'][0]))
                 else:
@@ -711,7 +719,7 @@ class ExperimentHandler(object):
             self.batch_running=False
             self.batch=[]
             if self.ask4confirmation('Terminate only batch?'):
-                self.printc('Batch terminated')
+                self.printc('Batch terminated, current recording is left running')
                 return
         self.printc('Aborting experiment, please wait...')
         if self.machine_config.PLATFORM=='retinal':
@@ -754,6 +762,17 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal', '2p',  'resonant']:
                 self.enable_check_network_status=True
             self.finish_experiment()
+#        elif trigger_name=='sync recording started':
+#            if self.experiment_running and 'Enable Eye Camera' in self.current_experiment_parameters and self.current_experiment_parameters['Enable Eye Camera']:
+#                self.stop_eye_camera()
+#                self.printc('Saving eye video')
+#                self.cam=camera_interface.CameraRecorderProcess(self.guidata.read('Eye Camera Frame Rate'),  self.machine_config)
+#                self.printc('Starting eye camera recording')
+#                self.cam.start()
+#                if not self.cam.wait():
+#                    errormsg=self.cam.error.get() if not self.cam.error.empty() else ''
+#                    raise RuntimeError('Camera did not start: {0}'.format(errormsg))
+#                self.to_gui.put({'update_camera_status':'camera recording'})
         elif trigger_name=='stim data ready':
             self.save_experiment_files()
             self.printc('Experiment ready')
@@ -1878,7 +1897,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         return result
         
     def notify(self,title,message):
-        self.log.info('Notify: {0}, {1}'.format(title, message), 'engine')
+        self.printc('Notify: {0}, {1}'.format(title, message))
         self.to_gui.put({'notify':{'title': title, 'msg':message}})
         
     def update_widget_status(self, status):

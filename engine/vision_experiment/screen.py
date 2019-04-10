@@ -162,14 +162,15 @@ class StimulationScreen(graphics.Screen):
         
     def _display_bullseye(self):
         if self.show_bullseye:
+            sc=utils.cr(self.stim_context['screen_center'])
             if self.bullseye_type == 'L':
-                self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, self.stim_context['screen_center'])
+                self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
             elif self.bullseye_type == 'square':
-                self.draw_square(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, self.stim_context['screen_center'])
+                self.draw_square(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
             elif self.bullseye_type == 'bullseye':
-                self.render_image(self.bullseye_image, position = self.stim_context['screen_center'], stretch = self.bullseye_stretch_factor*self.bullseye_size)
+                self.render_image(self.bullseye_image, position = sc, stretch = self.bullseye_stretch_factor*self.bullseye_size)
             elif self.bullseye_type == 'spot':
-                self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = self.stim_context['screen_center'])
+                self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = sc)
             
     def refresh_non_experiment_screen(self, flip = True):
         '''

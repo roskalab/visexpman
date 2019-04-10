@@ -604,6 +604,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.ENABLE_SYNC=='stim':
                     self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
+#                    self.send({'trigger':'sync recording started'})
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
                     self.start_sync_recording()
@@ -837,19 +838,21 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
             self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
             self.datafile.save(['sync', 'sync_scaling'])
-            self.datafile.sync2time()
             try:
+                self.datafile.sync2time()
                 self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
             except:
                 self.datafile.corrupt_timing=True
                 self.datafile.save('corrupt_timing')
                 self.datafile.close()
+                self.printl(traceback.format_exc())
                 self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
-                raise RuntimeError(traceback.format_exc())
         if 'Runwheel attached' in self.parameters and self.parameters['Runwheel attached']:
             self.printl('Check runwheel signals')
             if not self.datafile.check_runhweel_signals():
-                self.send({'notify':['Warning', 'No runwheel signal detected, check connections!']})
+                self.send({'notify':['Warning', 'No runwheel signal detected, check connections and Runwheel power supply!']})
+            if self.datafile.is_runhweel_powered():
+                self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
                 
         self.datafile.close()
         #Convert to mat file except for Dani

@@ -369,7 +369,7 @@ class CameraRecorderProcess(multiprocessing.Process):
         self.command=multiprocessing.Queue(5)
         self.data=multiprocessing.Queue(2)
         self.frame=multiprocessing.Queue(10)
-        self.error=multiprocessing.Queue(2)
+        self.error=multiprocessing.Queue(5)
         self.started=multiprocessing.Queue(1)
         self.frame_rate=frame_rate
         self.machine_config=config
@@ -378,30 +378,35 @@ class CameraRecorderProcess(multiprocessing.Process):
     def run(self):
         try:
             if self.machine_config!=None and not self.machine_config.CAMERA_TIMING_ON_STIM:
-                self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT)
+                self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT,  timeout=3e-3, initial_wait=3)
                 self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
             self.cam=ImagingSourceCamera(self.frame_rate)
             self.cam.start()
             if 0 and hasattr(self,  'io'):
                 self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  1)
             self.started.put(True)
+            pulsemsg='pulse,{0},{1}\r\n'.format(self.machine_config.CAMERA_TIMING_PIN, 5)
+            if sys.version_info[0] == 3:
+                pulsemsg=bytes(pulsemsg,'utf-8')
             while True:
                 time.sleep(0.5/self.frame_rate)
-                self.cam.save()
-                if hasattr(self,  'io'):
-                    self.io.pulse(self.machine_config.CAMERA_TIMING_PIN,  5e-3)
-                if len(self.cam.frames)>0:
-                    self.frame.put(self.cam.frames[-1])
+                if self.cam.save():
+                    if hasattr(self,  'io'):
+                        self.io.s.write(pulsemsg)
+                        #self.io.pulse(self.machine_config.CAMERA_TIMING_PIN,  5e-3)
+                    if len(self.cam.frames)%3==1:
+                        self.frame.put(self.cam.frames[-1])
                 if not self.command.empty():
                     if self.command.get()=='stop':
                         self.cam.stop()
                         break
-            if hasattr(self,  'io'):
-                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
+#            if hasattr(self,  'io'):
+#                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
             if hasattr(self,  'io'):
                 self.io.close()
             dropped_frames=self.cam.mark_dropped_frames()
-            data={'frames': self.cam.frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
+            frames=numpy.array(self.cam.frames)
+            data={'frames': frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
             self.data.put(data)
             self.cam.close()
         except:
