@@ -79,7 +79,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['2p', 'retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'undefined']]
-        USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
+        USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis', 'cam': 'Camera'}
         
         ############## File/Filesystem related ###############
         FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
@@ -160,8 +160,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_SHUTTER = False
         WAIT4TRIGGER_ENABLED=False
         CAMERA_TRIGGER_ENABLE=False
+        DEFAULT_CAMERA_FRAME_RATE=[30, [15,60]]
         
-        ENABLE_SYNC=['off', ['off', 'stim', 'main']]#Subclass must set these values
+        ENABLE_SYNC=['off', ['off', 'stim', 'main', 'camera']]#Subclass must set these values
         ENABLE_BATCH_EXPERIMENT=False
         ENABLE_EYE_CAMERA=False
         
