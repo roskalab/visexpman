@@ -9,6 +9,7 @@ except ImportError:
     import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop
+from visexpman.engine.hardware_interface import camera_interface
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 
 class Camera(gui.VisexpmanMainWindow):
@@ -37,7 +38,7 @@ class Camera(gui.VisexpmanMainWindow):
         self.image = gui.Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['2p', 'ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
-        self.datafilebrowser = main_ui.DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
+        self.datafilebrowser = main_ui.DataFileBrowser(self, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
@@ -46,9 +47,7 @@ class Camera(gui.VisexpmanMainWindow):
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
-        self.load_all_parameters()
         self.show()
-        self.main_tab.currentChanged.connect(self.tab_changed)
         
         self.update_image_timer=QtCore.QTimer()
         self.update_image_timer.start(1000/self.machine_config.DEFAULT_CAMERA_FRAME_RATE/3)#ms
@@ -56,7 +55,6 @@ class Camera(gui.VisexpmanMainWindow):
         
         #Set size of widgets
         self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
-        self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
 
@@ -85,7 +83,10 @@ class Camera(gui.VisexpmanMainWindow):
                 {'name': 'Channel', 'type': 'int', 'value': 0},
                 {'name': 'Show channel only', 'type': 'bool', 'value': False},
                     ]
-        self.params_config.append(params)
+        self.params_config.extend(params)
+        
+    def parameter_changed(self):
+        self.parameters=self.params.get_parameter_tree(return_dict=True)
         
     def record_action(self):
         self.to_engine.put({'function': 'record', 'args':[]})
@@ -94,8 +95,10 @@ class Camera(gui.VisexpmanMainWindow):
         self.to_engine.put({'function': 'stop', 'args':[]})
             
     def convert_folder_action(self):
-        #This is handled by main GUI process, delegating it to gui engine would make progress bar handling more complicated
-        foldername=self.ask4foldername('Select hdf5 video file folder',  self.machine_config.EXPERIMENT_DATA_PATH)
+        #This is handled by main GUI process, delegating it to gui engine would make progress bar handling more complicated        
+        foldername = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select hdf5 video file folder', self.machine_config.EXPERIMENT_DATA_PATH))
+        if os.name=='nt':
+            foldername=foldername.replace('/','\\')
         files=fileop.listdir(foldername)
         p=gui.Progressbar(100, 'Conversion progress',  autoclose=True)
         p.show()
