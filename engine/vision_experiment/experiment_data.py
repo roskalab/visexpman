@@ -305,9 +305,9 @@ class CaImagingData(supcl):
         self.load('sync_scaling')
         self.load('configs')
         sync=signal.from_16bit(c.sync,c.sync_scaling)
-        filter=scipy.signal.butter(2,20./c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')
+        filter=scipy.signal.butter(2,20./self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')# second order filter passing signals above 20 Hz
         filtered=scipy.signal.filtfilt(filter[0],filter[1], sync[:,3]).real
-        frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
+        frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
         return abs(frequencies.mean()-50)>5
         
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):

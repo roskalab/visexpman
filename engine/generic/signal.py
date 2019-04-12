@@ -225,6 +225,14 @@ def trigger_indexes(trigger,threshold=0.3, abs_threshold=None):
 def detect_edges(signal, threshold):
     return numpy.nonzero(numpy.diff(numpy.where(signal>threshold,1,0)))[0]+1
     
+def calculate_frame_rate(sig, fsample, threshold=2.5):
+    '''
+    From a pulse train frame rate is calculated for each pulse interval
+    '''
+    ts=trigger_indexes(sig)/float(fsample)
+    fps=1.0/numpy.diff(ts)[1::2]
+    return fps,  fps.mean(),  fps.std()
+    
 def generate_bins(signal, binsize):
     '''
     generate bins such that it is aligned to binsize

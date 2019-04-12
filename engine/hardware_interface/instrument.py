@@ -43,6 +43,8 @@ class InstrumentProcess(threading.Thread, log.LoggerHelper):
         self.join()
             
     def printl(self,msg, loglevel='info'):
+        if self.log==None:
+            return
         if hasattr(self.log, loglevel):
             logfunc = getattr(self.log,loglevel)
         elif hasattr(self, loglevel):

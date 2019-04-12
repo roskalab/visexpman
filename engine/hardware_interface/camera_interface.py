@@ -438,8 +438,9 @@ class CameraRecorderProcess(multiprocessing.Process):
         return res
         
 class ImagingSourceCameraHandler(multiprocessing.Process):
-    def __init__(self, frame_rate, ioboard_com,  filename=None):
+    def __init__(self, frame_rate, exposure_time,  ioboard_com,  filename=None):
         self.frame_rate=frame_rate
+        self.exposure_time=exposure_time
         self.filename=filename
         self.ioboard_com=ioboard_com
         multiprocessing.Process.__init__(self)
@@ -460,24 +461,32 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             ch= lib.Kamera_verbinden(lib.Kamera_finden()[0])
             if ch.open()!=1:
                 raise RuntimeError()
-            ch.set_exposure(1.0/self.frame_rate)
+            ch.set_exposure(self.exposure_time)
             ch.StartLive()
             self.frame_counter=0
             timestamps=[]
             import serial
             io=serial.Serial(self.ioboard_com, baudrate=1000000, timeout=1e-3)
             time.sleep(2)
+            w=1.0/self.frame_rate-4e-3
+            w=1e-3
+            tlast=time.time()
             while True:
-                if ch.SnapImage()==1:
-                    frame=ch.GetImage()
-                    timestamps.append(time.time())
-                    io.write('pulse,5,3\r\n')
-                    io.reset_input_buffer()
-                    self.frame.put(frame)
-                    self.frame_counter+=1
-                    if self.display_frame.empty():
-                        self.display_frame.put(frame)
-                time.sleep(1e-3)
+                now=time.time()
+                if now-tlast>1.0/self.frame_rate:
+                    if ch.SnapImage()==1:
+                        frame=ch.GetImage()
+                        tlast=now
+                        if self.filename!=None:
+                            timestamps.append(time.time())
+                        io.write('pulse,5,3\r\n')
+                        io.reset_input_buffer()
+                        if self.filename!=None:
+                            self.frame.put(frame)
+                        self.frame_counter+=1
+                        if self.display_frame.empty():
+                            self.display_frame.put(frame)
+                time.sleep(w)
                 if not self.command.empty():
                     self.frame.put('terminate')#stop saver
                     self.log.put("Stop received")
@@ -501,9 +510,12 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
         time.sleep(0.4)
         while not self.log.empty():
             print self.log.get()
-        ts=self.timestamps.get()
-        while self.log.empty():
-            time.sleep(1)
+        if self.filename!=None:
+            ts=self.timestamps.get()
+            while self.log.empty():
+                time.sleep(1)
+        else:
+            ts=[]
         self.terminate()
         return ts
         
@@ -524,7 +536,7 @@ class SaverProcess(multiprocessing.Process):
                     break
                 else:
                     self.datafile.root.frames.append(numpy.expand_dims(frame,0))
-                    time.sleep(1e-3)
+                    time.sleep(5e-3)
             else:
                 time.sleep(5e-3)
         self.datafile.root.frames.flush()
@@ -599,7 +611,7 @@ class TestCamera(unittest.TestCase):
             fn='c:\\Data\\test{0}.hdf5'.format(time.time())
             from visexpman.engine.hardware_interface import daq_instrument
             ai=daq_instrument.SimpleAnalogIn('Dev1/ai6:7', 1000, 600, finite=False)
-            cc=ImagingSourceCameraHandler(35, 'COM6',  filename=fn)
+            cc=ImagingSourceCameraHandler(35, 1/60., 'COM6',  filename=fn)
             cc.start()
             time.sleep(30)
             ts=cc.stop()
