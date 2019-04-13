@@ -262,8 +262,6 @@ class ArenaTracker(gui.SimpleAppWindow):
             self.ioboard.close()
         self.close()
         
-
-        
 if __name__ == '__main__':
     #introspect.kill_other_python_processes()
     gui = ArenaTracker()

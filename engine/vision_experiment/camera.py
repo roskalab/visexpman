@@ -1,4 +1,4 @@
-import os,time, numpy, hdf5io, traceback, multiprocessing
+import os,time, numpy, hdf5io, traceback, multiprocessing, serial
 try:
     import PyQt4.Qt as Qt
     import PyQt4.QtGui as QtGui
@@ -56,7 +56,11 @@ class Camera(gui.VisexpmanMainWindow):
         self.parameter_changed()
         self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3, self.machine_config.CAMERA_IO_PORT)
         self.camerahandler.start()
-        
+        self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
+        self.trigger_detector_enabled=False
+        self.start_trigger=False
+        self.stop_trigger=False
+        time.sleep(2)
 #        if self.machine_config.ENABLE_SYNC=='camera':
 #            self.daqqueues = {'command': multiprocessing.Queue(), 
 #                                'response': multiprocessing.Queue(), 
@@ -67,8 +71,8 @@ class Camera(gui.VisexpmanMainWindow):
 #            limits['min_ai_voltage'] = -5.0
 #            limits['max_ai_voltage'] = 5.0
 #            limits['timeout'] = self.machine_config.DAQ_TIMEOUT
-#            self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.daqqueues, None, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
-#            self.sync_recorder.start()
+#            self.ai=daq_instrument.AnalogIOProcess('daq', self.daqqueues, None, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
+#            self.ai.start()
         
         #Set size of widgets
         self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
@@ -82,7 +86,7 @@ class Camera(gui.VisexpmanMainWindow):
             trigger_value = 'network' 
             params=[]
         elif self.machine_config.PLATFORM in ['behav']:
-            trigger_value='ttl pulses'
+            trigger_value='TTL pulses'
             params=[
                 {'name': 'Show track', 'type': 'bool', 'value': True}, 
                 {'name': 'Threshold', 'type': 'int', 'value': 200},
@@ -91,10 +95,10 @@ class Camera(gui.VisexpmanMainWindow):
             trigger_value='manual'
             params=[]
         self.params_config = [
-                {'name': 'Trigger', 'type': 'list', 'values': ['manual', 'network', 'ttl pulses'], 'value': trigger_value},
+                {'name': 'Trigger', 'type': 'list', 'values': ['manual', 'network', 'TTL pulses'], 'value': trigger_value},
                 {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
-                {'name': 'Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'},
-                {'name': 'Exposure time', 'type': 'float', 'value': 20, 'siPrefix': True, 'suffix': 'ms'},
+                {'name': 'Frame Rate', 'type': 'float', 'value': 25, 'siPrefix': True, 'suffix': 'Hz'},
+                {'name': 'Exposure time', 'type': 'float', 'value': 39, 'siPrefix': True, 'suffix': 'ms'},
                 {'name': 'Enable ROI cut', 'type': 'bool', 'value': False},
                 {'name': 'ROI x1', 'type': 'int', 'value': 200},
                 {'name': 'ROI y1', 'type': 'int', 'value': 200},
@@ -116,8 +120,8 @@ class Camera(gui.VisexpmanMainWindow):
             self.camerahandler.stop()
             if self.machine_config.ENABLE_SYNC=='camera':
                 self.ai=daq_instrument.SimpleAnalogIn(self.machine_config.SYNC_RECORDER_CHANNELS, self.machine_config.SYNC_RECORDER_SAMPLE_RATE, self.machine_config.MAX_RECORDING_DURATION,  finite=False)
-#                d=self.sync_recorder.read_ai()#Empty ai buffer
-#                self.sync_recorder.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
+#                d=self.ai.read_ai()#Empty ai buffer
+#                self.ai.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
 #                                ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
                 msg='Camera&Sync recording'
             else:
@@ -139,10 +143,11 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Stop video recording')
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
-            self.camerahandler.stop()
+            ts, log=self.camerahandler.stop()
+            self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()
-#                res=self.sync_recorder.stop_daq()
+#                res=self.ai.stop_daq()
 #                try:
 #                    self.sync, n=res
 #                except:
@@ -151,9 +156,9 @@ class Camera(gui.VisexpmanMainWindow):
 #                for i in range(self.sync.shape[0]-1):
 #                    concatenated=numpy.concatenate((concatenated,  self.sync[i+1]))
 #                self.sync=concatenated
-                hdf5io.save_item(self.fn,  'sync',  self.sync)
-                hdf5io.save_item(self.fn,  'parameters',  self.parameters)
-                hdf5io.save_item(self.fn,  'machine_config',  self.machine_config.todict())
+                hdf5io.save_item(self.fn, 'sync', self.sync)
+                hdf5io.save_item(self.fn, 'parameters',  self.parameters)
+                hdf5io.save_item(self.fn, 'machine_config',  self.machine_config.todict())
                 self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TBEHAV_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
                 self.printc('Measured frame rate is {0:.2f} Hz, std: {1:.2f}, recorded {2} frames'.format(fpsmean, fpsstd,  self.fps_values.shape[0]+1))
             self.printc('Saved to {0}'.format(self.fn))
@@ -219,14 +224,44 @@ class Camera(gui.VisexpmanMainWindow):
                 if self.recording:
                     dt=time.time()-self.tstart
                     self.image.plot.setTitle('{0} s'.format(int(dt)))
-                    
+                self.trigger_handler()
         except:
             self.printc(traceback.format_exc())
         
     def exit_action(self):
         self.camerahandler.stop()
-#        if hasattr(self, 'sync_recorder'):
-#            self.sync_recorder.queues['command'].put('terminate')
-#            self.sync_recorder.join()
+        self.ioboard.close()
+#        if hasattr(self, 'ai'):
+#            self.ai.queues['command'].put('terminate')
+#            self.ai.join()
         self.close()
+        
+    def trigger_handler(self):
+        if self.ioboard.isOpen():
+            if not self.trigger_detector_enabled and self.parameters['Trigger']=='TTL pulses':
+                self.enable_trigger()
+            elif self.trigger_detector_enabled and self.parameters['Trigger']!='TTL pulses':
+                self.disable_trigger()
+            if self.trigger_detector_enabled:
+                readout=self.ioboard.read(20)
+                if len(readout)>0:
+                    self.printc(readout)
+                self.start_trigger= 'Start trigger' in readout
+                self.stop_trigger='Stop trigger' in readout
+                if self.start_trigger and self.parameters['Enable trigger']:
+                    self.start_recording()
+                if self.stop_trigger and self.parameters['Enable trigger']:
+                    self.trigger_detector_enabled=False
+                    self.stop_recording()
     
+    def enable_trigger(self):
+        if not self.trigger_detector_enabled:
+            self.ioboard.write('wait_trigger,1\r\n')
+            self.printc(self.ioboard.read(100))
+            self.trigger_detector_enabled=True
+        
+    def disable_trigger(self):
+        if self.trigger_detector_enabled:
+            self.ioboard.write('wait_trigger,0\r\n')
+            self.printc(self.ioboard.read(100))    
+            self.trigger_detector_enabled=False

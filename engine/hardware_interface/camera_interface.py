@@ -458,16 +458,26 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             from visexpur.tis import tisgrabber_import
             lib=tisgrabber_import.TIS_grabber()
             lib.InitLibrary()
-            ch= lib.Kamera_verbinden(lib.Kamera_finden()[0])
+            camera_name=lib.Kamera_finden()[0]
+            ch= lib.Kamera_verbinden(camera_name)
             if ch.open()!=1:
                 raise RuntimeError()
             ch.set_exposure(self.exposure_time)
             ch.StartLive()
+            self.log.put('Connected to {0}'.format(camera_name))
             self.frame_counter=0
             timestamps=[]
-            import serial
-            io=serial.Serial(self.ioboard_com, baudrate=1000000, timeout=1e-3)
-            time.sleep(2)
+            self.ioboard='line' not in self.ioboard_com
+            if self.ioboard:
+                import serial
+                io=serial.Serial(self.ioboard_com, baudrate=1000000, timeout=1e-3)
+                time.sleep(2)
+            else:
+                import PyDAQmx
+                import PyDAQmx.DAQmxConstants as DAQmxConstants
+                digital_output = PyDAQmx.Task()
+                digital_output.CreateDOChan(self.ioboard_com,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            
             w=1.0/self.frame_rate-4e-3
             w=1e-3
             tlast=time.time()
@@ -479,8 +489,25 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
                         tlast=now
                         if self.filename!=None:
                             timestamps.append(time.time())
-                        io.write('pulse,5,3\r\n')
-                        io.reset_input_buffer()
+                        if self.ioboard:
+                            io.write('pulse,5,3\r\n')
+                            io.reset_input_buffer()
+                        else:
+                            digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(1)], dtype=numpy.uint8),
+                                    None,
+                                    None)
+                            time.sleep(1e-3)
+                            digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(0)], dtype=numpy.uint8),
+                                    None,
+                                    None)
                         if self.filename!=None:
                             self.frame.put(frame)
                         self.frame_counter+=1
@@ -494,7 +521,10 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             self.timestamps.put(timestamps)
             ch.StopLive()
             ch.close()
-            io.close()
+            if self.ioboard:
+                io.close()
+            else:
+                digital_output.ClearTask()
             if hasattr(self,  'saver'):
                 while self.saver.done.empty():
                     time.sleep(1)
@@ -508,8 +538,9 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
     def stop(self):
         self.command.put('terminate')
         time.sleep(0.4)
+        log=[]
         while not self.log.empty():
-            print self.log.get()
+            log.append(self.log.get())
         if self.filename!=None:
             ts=self.timestamps.get()
             while self.log.empty():
@@ -517,7 +548,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
         else:
             ts=[]
         self.terminate()
-        return ts
+        return ts, log
         
 class SaverProcess(multiprocessing.Process):
     def __init__(self, filename, data):
@@ -529,6 +560,7 @@ class SaverProcess(multiprocessing.Process):
     def run(self):
         self.datafile=tables.open_file(self.filename, 'w')
         self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='zlib', shuffle = 1))
+        ct=0
         while True:
             if not self.dataq.empty():
                 frame=self.dataq.get()
@@ -537,6 +569,9 @@ class SaverProcess(multiprocessing.Process):
                 else:
                     self.datafile.root.frames.append(numpy.expand_dims(frame,0))
                     time.sleep(5e-3)
+                    ct+=1
+                    if ct%3==1:
+                        self.datafile.root.frames.flush()
             else:
                 time.sleep(5e-3)
         self.datafile.root.frames.flush()
