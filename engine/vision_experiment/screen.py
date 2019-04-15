@@ -162,7 +162,7 @@ class StimulationScreen(graphics.Screen):
         
     def _display_bullseye(self):
         if self.show_bullseye:
-            sc=utils.cr(self.stim_context['screen_center'])
+            sc=utils.cr((self.stim_context['screen_center'][0], self.stim_context['screen_center'][1]))
             if self.bullseye_type == 'L':
                 self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
             elif self.bullseye_type == 'square':

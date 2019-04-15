@@ -28,7 +28,7 @@ except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
 
@@ -169,6 +169,12 @@ class ExperimentHandler(object):
                 self.start_eye_camera()
             else:
                 self.stop_eye_camera()
+        elif parameter_name=='Filterwheel':
+            f=self.guidata.read('Filterwheel')
+            v=self.machine_config.FILTERWHEEL_FILTERS[f]
+            self.printc('Set filterwheel to {0}/{1}'.format(f,v))
+            res=instrument.set_filterwheel(v, self.machine_config.FILTERHWEEL_PORT, self.machine_config.FILTERHWEEL_BAUDRATE)
+            self.printc(res)
             
     def _get_experiment_parameters(self):
         '''

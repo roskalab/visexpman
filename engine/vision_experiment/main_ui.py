@@ -527,7 +527,7 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal']:
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
-            toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM in ['ao_cortical', '2p', 'resonant']:
@@ -618,7 +618,8 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab.currentChanged.connect(self.tab_changed)
         #Set size of widgets
         self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
-        self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
+        if hasattr(self, 'plot'):
+            self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -776,14 +777,11 @@ class MainUI(gui.VisexpmanMainWindow):
                 self._set_window_title(tag=' !'+msg['permanent_warning'])
                 
     def _init_variables(self):
-        if hasattr(self.machine_config,'FILTERWHEEL'):
-            fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
+        if hasattr(self.machine_config,'FILTERWHEEL_FILTERS'):
+            fw1=self.machine_config.FILTERWHEEL_FILTERS.keys()
             fw1.sort()
-            fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
-            fw2.sort()
         else:
             fw1=[]
-            fw2=[]
             
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea'], 'children': [#'expanded' : True
@@ -800,9 +798,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     ]},
                     ]
         if len(fw1)>0:
-            self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
-        if len(fw2)>0:
-            self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
+            self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
         if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
         if self.machine_config.PLATFORM in ['retinal','ao_cortical']:
@@ -857,12 +853,10 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
-        if self.machine_config.PLATFORM=='mc_mea':
-            self.params_config[0]['children'].extend([
-                {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
-                {'name': 'ND filter', 'type': 'str', 'value': ''},
-                {'name': 'Comment', 'type': 'str', 'value': ''},
-            ])
+#        if self.machine_config.PLATFORM=='mc_mea':
+#            self.params_config[0]['children'].extend([
+#                {'name': 'Comment', 'type': 'str', 'value': ''},
+#            ])
         elif self.machine_config.PLATFORM=='us_cortical':
             self.params_config.append(
             {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True

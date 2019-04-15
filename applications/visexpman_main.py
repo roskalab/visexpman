@@ -51,7 +51,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         else:
             self.stim_context = {}
         if not 'screen_center' in self.stim_context:
-            self.stim_context['screen_center'] = self.config.SCREEN_CENTER
+            self.stim_context['screen_center'] = (self.config.SCREEN_CENTER['col'], self.config.SCREEN_CENTER['row'])
         if not 'background_color' in self.stim_context:
             self.stim_context['background_color'] = self.config.BACKGROUND_COLOR
         if not 'user_background_color' in self.stim_context:
