@@ -32,6 +32,10 @@ class Camera(gui.VisexpmanMainWindow):
         self.statusbar.recording_status=QtGui.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.recording_status)
         self.statusbar.recording_status.setStyleSheet('background:gray;')
+        
+        self.statusbar.trigger_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.trigger_status)
+        self.statusbar.recording_status.setStyleSheet('background:gray;')
 
         #Add dockable widgets
         self.debug = gui.Debug(self)
@@ -82,6 +86,7 @@ class Camera(gui.VisexpmanMainWindow):
     def _init_variables(self):
         self.recording=False
         self.track=[]
+        self.trigger_state='off'
         if self.machine_config.PLATFORM in ['2p', 'resonant']:
             trigger_value = 'network' 
             params=[]
@@ -113,6 +118,9 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if self.recording:
                 return
+            if 1000/self.parameters['Frame Rate']<self.parameters['Exposure time']:
+                QtGui.QMessageBox.question(self, 'Warning', 'Exposure time is too long for this frame rate!', QtGui.QMessageBox.Ok)
+                return
             self.recording=True
             self.printc('Start video recording')
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
@@ -140,9 +148,11 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if not self.recording:
                 return
-            self.printc('Stop video recording')
+            t0=time.time()
+            self.printc('Stop video recording, please wait...')
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
+            QtCore.QCoreApplication.instance().processEvents()
             ts, log=self.camerahandler.stop()
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
@@ -161,14 +171,32 @@ class Camera(gui.VisexpmanMainWindow):
                 hdf5io.save_item(self.fn, 'machine_config',  self.machine_config.todict())
                 self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TBEHAV_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
                 self.printc('Measured frame rate is {0:.2f} Hz, std: {1:.2f}, recorded {2} frames'.format(fpsmean, fpsstd,  self.fps_values.shape[0]+1))
+                self.check_camera_timing_signal()
+                if self.trigger_state=='stopped':#check if nvista camera was also recording
+                    self.check_nvista_camera_timing()
             self.printc('Saved to {0}'.format(self.fn))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT)
             self.camerahandler.start()        
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
+            self.printc('Save time {0} s'.format(int(time.time()-t0)))
         except:
             self.printc(traceback.format_exc())
+            
+    def check_camera_timing_signal(self):
+        timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        length=self.sync.shape[0]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        two_frame_time=self.parameters['Exposure time']*1e-3*2
+        if timestamps[0]<two_frame_time or timestamps[-1]>length-two_frame_time:
+            QtGui.QMessageBox.question(self, 'Warning', 'Beginning or end of camra timing signal may not be recorder properly!', QtGui.QMessageBox.Ok)
+            
+    def check_nvista_camera_timing(self):
+        timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        fps=1/numpy.diff(timestamps[::2])
+        self.printc('nVista camera frame rate: {0:.1f} Hz, std: {1:.1f} Hz'.format(fps.mean(), fps.std()))
+        if fps.mean()>60 or fps.mean()<4:
+            raise ValueError('Invalid nVIsta camera frame rate: {0}'.format(fps.mean()))
         
     def parameter_changed(self):
         self.parameters=self.params.get_parameter_tree(return_dict=True)
@@ -183,21 +211,28 @@ class Camera(gui.VisexpmanMainWindow):
         #This is handled by main GUI process, delegating it to gui engine would make progress bar handling more complicated        
         try:
             foldername = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select hdf5 video file folder', self.machine_config.EXPERIMENT_DATA_PATH))
+            if foldername=='': return
             if os.name=='nt':
                 foldername=foldername.replace('/','\\')
             files=fileop.listdir(foldername)
             p=gui.Progressbar(100, 'Conversion progress',  autoclose=True)
             p.show()
             self.printc('Conversion started')
+            self.statusbar.recording_status.setStyleSheet('background:yellow;')
+            self.statusbar.recording_status.setText('Processing')
+            QtCore.QCoreApplication.instance().processEvents()
+            time.sleep(0.5)
             for f in files:
-                if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(os.path.splitext(f)[0]+'.mat'):
-                    print f
+                if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat')):
+                    print(f)
                     experiment_data.hdf52mat(f)
                     prog=int((files.index(f)+1)/float(len(files))*100)
                     p.update(prog)
-                    print prog
+                    QtCore.QCoreApplication.instance().processEvents()
                     time.sleep(100e-3)
             self.printc('{0} folder complete'.format(foldername))
+            self.statusbar.recording_status.setStyleSheet('background:gray;')
+            self.statusbar.recording_status.setText('Ready')
         except:
             self.printc(traceback.format_exc())
     
@@ -237,22 +272,47 @@ class Camera(gui.VisexpmanMainWindow):
         self.close()
         
     def trigger_handler(self):
-        if self.ioboard.isOpen():
-            if not self.trigger_detector_enabled and self.parameters['Trigger']=='TTL pulses':
+        if self.trigger_state=='off':
+            if self.ioboard.isOpen() and self.parameters['Trigger']=='TTL pulses' and self.parameters['Enable trigger']:
                 self.enable_trigger()
-            elif self.trigger_detector_enabled and self.parameters['Trigger']!='TTL pulses':
-                self.disable_trigger()
-            if self.trigger_detector_enabled:
-                readout=self.ioboard.read(20)
-                if len(readout)>0:
-                    self.printc(readout)
-                self.start_trigger= 'Start trigger' in readout
-                self.stop_trigger='Stop trigger' in readout
-                if self.start_trigger and self.parameters['Enable trigger']:
+                self.trigger_state='waiting'
+        elif self.trigger_state=='waiting':
+            readout=self.ioboard.read(20)
+            if len(readout)>0:
+                self.printc(readout)
+            if 'Start trigger' in readout:
+                if self.parameters['Enable trigger'] and not self.recording:
+                    self.trigger_state='started'
                     self.start_recording()
-                if self.stop_trigger and self.parameters['Enable trigger']:
-                    self.trigger_detector_enabled=False
-                    self.stop_recording()
+                else:
+                    self.disable_trigger()
+                    self.enable_trigger()
+            elif self.parameters['Trigger']!='TTL pulses' or not self.parameters['Enable trigger'] :
+                self.disable_trigger()
+                self.trigger_state='off'
+        elif self.trigger_state=='started':
+            readout=self.ioboard.read(20)
+            if len(readout)>0:
+                self.printc(readout)
+            if 'Stop trigger' in readout and self.recording:
+                self.trigger_state='stopped'
+                self.stop_recording()
+            elif not self.recording:#manually stopped
+                self.trigger_state='stopped'
+        elif self.trigger_state=='stopped':
+            self.disable_trigger()
+            self.enable_trigger()
+            self.trigger_state='waiting'
+        if self.trigger_state=='off':
+            color='grey'
+        elif self.trigger_state=='waiting':
+            color='yellow'
+        elif self.trigger_state=='started':
+            color='red'
+        elif self.trigger_state=='stopped':
+            color='orange'
+        self.statusbar.trigger_status.setStyleSheet('background:{0};'.format(color))
+        self.statusbar.trigger_status.setText('trigger status: {0}'.format(self.trigger_state))
     
     def enable_trigger(self):
         if not self.trigger_detector_enabled:

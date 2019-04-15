@@ -438,7 +438,7 @@ class CameraRecorderProcess(multiprocessing.Process):
         return res
         
 class ImagingSourceCameraHandler(multiprocessing.Process):
-    def __init__(self, frame_rate, exposure_time,  ioboard_com,  filename=None):
+    def __init__(self, frame_rate, exposure_time, ioboard_com, filename=None):
         self.frame_rate=frame_rate
         self.exposure_time=exposure_time
         self.filename=filename
@@ -453,7 +453,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
     def run(self):
         try:
             if self.filename!=None:
-                self.saver=SaverProcess(self.filename,  self.frame)
+                self.saver=SaverProcess(self.filename,  self.frame,  10*self.frame_rate)
                 self.saver.start()
             from visexpur.tis import tisgrabber_import
             lib=tisgrabber_import.TIS_grabber()
@@ -537,7 +537,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             
     def stop(self):
         self.command.put('terminate')
-        time.sleep(0.4)
+        time.sleep(0.3)
         log=[]
         while not self.log.empty():
             log.append(self.log.get())
@@ -551,9 +551,10 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
         return ts, log
         
 class SaverProcess(multiprocessing.Process):
-    def __init__(self, filename, data):
+    def __init__(self, filename, data,  chunksize):
         self.filename=filename
         self.dataq=data
+        self.chunksize=chunksize
         self.done=multiprocessing.Queue()
         multiprocessing.Process.__init__(self)
         
@@ -561,17 +562,25 @@ class SaverProcess(multiprocessing.Process):
         self.datafile=tables.open_file(self.filename, 'w')
         self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='zlib', shuffle = 1))
         ct=0
+        chunk=[]
         while True:
             if not self.dataq.empty():
                 frame=self.dataq.get()
                 if not hasattr(frame,  'dtype'):
+                    self.datafile.root.frames.append(numpy.array(chunk))
+                    chunk=[]
                     break
                 else:
-                    self.datafile.root.frames.append(numpy.expand_dims(frame,0))
+                    chunk.append(frame)
+                    if len(chunk)==self.chunksize:
+                        self.datafile.root.frames.append(numpy.array(chunk))
+                        self.datafile.root.frames.flush()
+                        chunk=[]
+#                    self.datafile.root.frames.append(numpy.expand_dims(frame,0))
                     time.sleep(5e-3)
                     ct+=1
-                    if ct%3==1:
-                        self.datafile.root.frames.flush()
+#                    if ct%3==1:
+#                        self.datafile.root.frames.flush()
             else:
                 time.sleep(5e-3)
         self.datafile.root.frames.flush()
