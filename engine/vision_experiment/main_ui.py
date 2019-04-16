@@ -545,10 +545,6 @@ class MainUI(gui.VisexpmanMainWindow):
         self.statusbar.status=QtGui.QLabel('Idle', self)
         self.statusbar.addPermanentWidget(self.statusbar.status)
         self.statusbar.status.setStyleSheet('background:gray;')
-        if self.machine_config.ENABLE_EYE_CAMERA:
-            self.statusbar.camera_status=QtGui.QLabel('', self)
-            self.statusbar.addPermanentWidget(self.statusbar.camera_status)
-            self.statusbar.camera_status.setStyleSheet('background:gray;')
         #Add dockable widgets
         self.debug = gui.Debug(self)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
@@ -586,9 +582,6 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.analysis, 'Data Files')
         if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.ENABLE_EYE_CAMERA:
-            self.eye_camera=gui.Image(self)
-            self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
         if self.machine_config.PLATFORM in ["elphys"]:
             self.plot2 = gui.Plot(self)
@@ -745,13 +738,6 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.statusbar.camera_status.setText(msg['update_camera_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
-            elif 'eye_camera_image' in msg:
-                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 'all')
-                h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
-                if h<self.machine_config.GUI_HEIGHT*0.5: h=self.machine_config.GUI_HEIGHT*0.5
-                self.eye_camera.setFixedHeight(h)
-                self.eye_camera.plot.setTitle(time.time())
-                #self.eye_camera.img.setLevels([0,255])
             elif 'plot_sync' in msg:
                 x,y=msg['plot_sync']
                 self.p=gui.Plot(None)
@@ -849,10 +835,6 @@ class MainUI(gui.VisexpmanMainWindow):
                             ]},  ]               
                         )
                 self.params_config[-1]['children'].extend(pars)
-        if self.machine_config.ENABLE_EYE_CAMERA:
-            self.params_config[0]['expanded']=True
-            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
 #        if self.machine_config.PLATFORM=='mc_mea':
 #            self.params_config[0]['children'].extend([
 #                {'name': 'Comment', 'type': 'str', 'value': ''},
@@ -869,6 +851,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
+        elif self.machine_config.PLATFORM=='2p':
+            self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             #Append batch experiment settings
             self.params_config.append(

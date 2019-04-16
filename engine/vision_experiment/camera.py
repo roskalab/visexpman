@@ -60,10 +60,11 @@ class Camera(gui.VisexpmanMainWindow):
         self.parameter_changed()
         self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3, self.machine_config.CAMERA_IO_PORT)
         self.camerahandler.start()
-        self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
-        self.trigger_detector_enabled=False
-        self.start_trigger=False
-        self.stop_trigger=False
+        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
+            self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
+            self.trigger_detector_enabled=False
+            self.start_trigger=False
+            self.stop_trigger=False
         time.sleep(2)
 #        if self.machine_config.ENABLE_SYNC=='camera':
 #            self.daqqueues = {'command': multiprocessing.Queue(), 
@@ -114,7 +115,7 @@ class Camera(gui.VisexpmanMainWindow):
                     ]
         self.params_config.extend(params)
         
-    def start_recording(self):
+    def start_recording(self,  experiment_parameters=None):
         try:
             if self.recording:
                 return
@@ -134,7 +135,10 @@ class Camera(gui.VisexpmanMainWindow):
                 msg='Camera&Sync recording'
             else:
                 msg='Camera recording'
-            self.fn=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, '{1}_{0}.hdf5'.format(experiment_data.get_id(),  self.machine_config.FILENAME_TAG))
+            if 'eyecamfilename' in experiment_parameters:
+                self.fn=experiment_parameters['eyecamfilename']
+            else:
+                self.fn=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, '{1}_{0}.hdf5'.format(experiment_data.get_id(),  self.machine_config.FILENAME_TAG))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn)
             self.camerahandler.start()
             self.tstart=time.time()
@@ -196,7 +200,7 @@ class Camera(gui.VisexpmanMainWindow):
         fps=1/numpy.diff(timestamps[::2])
         self.printc('nVista camera frame rate: {0:.1f} Hz, std: {1:.1f} Hz'.format(fps.mean(), fps.std()))
         if fps.mean()>60 or fps.mean()<4:
-            raise ValueError('Invalid nVIsta camera frame rate: {0}'.format(fps.mean()))
+            self.printc('Invalid nVIsta camera frame rate: {0}'.format(fps.mean()))
         
     def parameter_changed(self):
         self.parameters=self.params.get_parameter_tree(return_dict=True)
@@ -243,7 +247,7 @@ class Camera(gui.VisexpmanMainWindow):
                 if self.parameters['Enable ROI cut']:
                     frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
                 f=numpy.copy(frame)
-                if 'Channel' in self.parameters:
+                if 'Channel' in self.parameters and 'Threshold' in self.parameters:
                     coo=behavioral_data.extract_mouse_position(frame, self.parameters['Channel'], self.parameters['Threshold'])
                     self.track.append(coo)
                     if coo!=None and not numpy.isnan(coo[0]) and self.recording and numpy.nan != coo[0]:
@@ -259,17 +263,29 @@ class Camera(gui.VisexpmanMainWindow):
                 if self.recording:
                     dt=time.time()-self.tstart
                     self.image.plot.setTitle('{0} s'.format(int(dt)))
-                self.trigger_handler()
+                if hasattr(self,  'ioboard'):
+                    self.trigger_handler()
+                self.socket_handler()
         except:
             self.printc(traceback.format_exc())
         
     def exit_action(self):
         self.camerahandler.stop()
-        self.ioboard.close()
+        if hasattr(self,  'ioboard'):
+            self.ioboard.close()
 #        if hasattr(self, 'ai'):
 #            self.ai.queues['command'].put('terminate')
 #            self.ai.join()
         self.close()
+        
+    def socket_handler(self):
+        if not self.socket_queues['cam']['fromsocket'].empty():
+            command=self.socket_queues['cam']['fromsocket'].get()
+            try:
+                if 'function' in command:
+                    getattr(self,  command['function'])(*command['args'])
+            except:
+                self.socket_queues['cam']['tosocket'].put({'trigger': 'cam error'})
         
     def trigger_handler(self):
         if self.trigger_state=='off':
