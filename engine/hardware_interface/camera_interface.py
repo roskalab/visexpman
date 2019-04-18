@@ -438,11 +438,12 @@ class CameraRecorderProcess(multiprocessing.Process):
         return res
         
 class ImagingSourceCameraHandler(multiprocessing.Process):
-    def __init__(self, frame_rate, exposure_time, ioboard_com, filename=None):
+    def __init__(self, frame_rate, exposure_time, ioboard_com, filename=None, watermark=False):
         self.frame_rate=frame_rate
         self.exposure_time=exposure_time
         self.filename=filename
         self.ioboard_com=ioboard_com
+        self.watermark=watermark
         multiprocessing.Process.__init__(self)
         self.command=multiprocessing.Queue()
         self.log=multiprocessing.Queue()
@@ -453,7 +454,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
     def run(self):
         try:
             if self.filename!=None:
-                self.saver=SaverProcess(self.filename,  self.frame,  10*self.frame_rate)
+                self.saver=SaverProcess(self.filename,  self.frame, 100)
                 self.saver.start()
             from visexpur.tis import tisgrabber_import
             lib=tisgrabber_import.TIS_grabber()
@@ -485,7 +486,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
                 now=time.time()
                 if now-tlast>1.0/self.frame_rate:
                     if ch.SnapImage()==1:
-                        frame=ch.GetImage()
+                        frame=numpy.copy(ch.GetImage())
                         tlast=now
                         if self.filename!=None:
                             timestamps.append(time.time())
@@ -508,6 +509,11 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
                                     numpy.array([int(0)], dtype=numpy.uint8),
                                     None,
                                     None)
+                        if self.watermark:
+                            low=self.frame_counter%256
+                            high=self.frame_counter/256
+                            frame[0, 0, :]=high
+                            frame[0, 1, :]=low
                         if self.filename!=None:
                             self.frame.put(frame)
                         self.frame_counter+=1
@@ -545,6 +551,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             ts=self.timestamps.get()
             while self.log.empty():
                 time.sleep(1)
+            log.append(self.log.get())
         else:
             ts=[]
         self.terminate()
@@ -560,29 +567,36 @@ class SaverProcess(multiprocessing.Process):
         
     def run(self):
         self.datafile=tables.open_file(self.filename, 'w')
-        self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 'Frames', filters=tables.Filters(complevel=5, complib='zlib', shuffle = 1))
+        self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 
+                            'Frames', 
+                            filters=tables.Filters(complevel=2, complib='zlib', shuffle = 1), 
+                            )
         ct=0
         chunk=[]
+        frames=[]
         while True:
             if not self.dataq.empty():
                 frame=self.dataq.get()
                 if not hasattr(frame,  'dtype'):
-                    self.datafile.root.frames.append(numpy.array(chunk))
+                    if len(chunk)>0:
+                        self.datafile.root.frames.append(numpy.array(chunk))
                     chunk=[]
                     break
                 else:
+#                    frames.append(frame)
                     chunk.append(frame)
                     if len(chunk)==self.chunksize:
                         self.datafile.root.frames.append(numpy.array(chunk))
                         self.datafile.root.frames.flush()
                         chunk=[]
-#                    self.datafile.root.frames.append(numpy.expand_dims(frame,0))
-                    time.sleep(5e-3)
+                    else:
+                        time.sleep(1e-3)
                     ct+=1
 #                    if ct%3==1:
 #                        self.datafile.root.frames.flush()
             else:
                 time.sleep(5e-3)
+#        self.datafile.root.frames.append(numpy.array(frames))
         self.datafile.root.frames.flush()
         self.datafile.close()
         self.done.put(True)

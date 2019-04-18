@@ -135,11 +135,11 @@ class Camera(gui.VisexpmanMainWindow):
                 msg='Camera&Sync recording'
             else:
                 msg='Camera recording'
-            if 'eyecamfilename' in experiment_parameters:
+            if hasattr(experiment_parameters, 'keys') and 'eyecamfilename' in experiment_parameters:
                 self.fn=experiment_parameters['eyecamfilename']
             else:
-                self.fn=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, '{1}_{0}.hdf5'.format(experiment_data.get_id(),  self.machine_config.FILENAME_TAG))
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn)
+                self.fn=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, '{1}_{0}.hdf5'.format(experiment_data.get_id(),  self.machine_config.CAMFILENAME_TAG))
+            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
             self.tstart=time.time()
             self.statusbar.recording_status.setStyleSheet('background:red;')
@@ -201,6 +201,17 @@ class Camera(gui.VisexpmanMainWindow):
         self.printc('nVista camera frame rate: {0:.1f} Hz, std: {1:.1f} Hz'.format(fps.mean(), fps.std()))
         if fps.mean()>60 or fps.mean()<4:
             self.printc('Invalid nVIsta camera frame rate: {0}'.format(fps.mean()))
+            
+    def check_video(self):
+        import hdf5io
+        self.fframes=hdf5io.read_item(self.fn,  'frames')
+        self.ct=[]
+        for f in self.fframes:
+            ct=f[0, 0, 0]*256+f[0, 1, 0]
+            self.ct.append(ct)
+        if (numpy.diff(self.ct)!=1).any():
+            raise RuntimeError(numpy.diff(self.ct))
+            
         
     def parameter_changed(self):
         self.parameters=self.params.get_parameter_tree(return_dict=True)
