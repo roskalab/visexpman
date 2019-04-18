@@ -295,9 +295,21 @@ class CaImagingData(supcl):
         self.load('sync')
         self.load('sync_scaling')
         self.load('configs')
-        channels= self.configs['machine_config']['RUNHWEEL_SIGNAL_CHANNELS'] if 'RUNHWEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
+        channels= self.configs['machine_config']['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
         sync=signal.from_16bit(self.sync,self.sync_scaling)
         return all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
+        
+    def is_runhweel_powered(self):
+        import scipy.signal
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        channels= self.configs['machine_config']['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
+        filter=scipy.signal.butter(2,20./self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')
+        filtered=scipy.signal.filtfilt(filter[0],filter[1], sync[:,channels[-1]]).real
+        frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
+        return abs(frequencies.mean()-50)>5
         
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
@@ -1582,6 +1594,8 @@ def hdf52mat(filename, scale_sync=False):
         mat_data[rnt]=hh.findvar(rn)
         if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
+        elif mat_data[rnt]==None:
+            mat_data[rnt]='None'
     if scale_sync and hasattr(hh,'sync') and hasattr(hh,'sync_scaling'):
         mat_data['sync']=signal.from_16bit(mat_data['sync'], mat_data['sync_scaling'])
     if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:

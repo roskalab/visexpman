@@ -847,8 +847,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 raise RuntimeError(traceback.format_exc())
         if 'Runwheel attached' in self.parameters and self.parameters['Runwheel attached']:
             self.printl('Check runwheel signals')
-            if not self.datafile.check_runhweel_signals():
-                self.send({'notify':['Warning', 'No runwheel signal detected, check connections!']})
+            res=self.datafile.check_runhweel_signals()
+            self.printl('Runwheel signal checked: {0}'.format(res))
+            if not res:
+                self.send({'notify':['Warning', 'No runwheel signal detected, check connections and Runwheel power supply!']})
+            res=self.datafile.is_runhweel_powered()
+            self.printl('Runwheel power status: {0}'.format(res))
+            if not res:
+                self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
+            
                 
         self.datafile.close()
         #Convert to mat file except for Dani
