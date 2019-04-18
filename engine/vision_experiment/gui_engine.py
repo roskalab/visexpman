@@ -1621,14 +1621,27 @@ class Analysis(object):
             else:
                 raise NotImplementedError(sync.dtype.name)
             fs=h.findvar('configs')['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
-            h.close()
             x=[]
             y=[]
             t=numpy.arange(sync.shape[0])*(1.0/fs)
             for ch in range(sync.shape[1]):
                 x.append(t)
-                y.append(sync[:,ch]+numpy.ceil(ch*sync.max()))
+                spacing=sync.max() if sync.max()>10 else 10
+                y.append(sync[:,ch]+numpy.ceil(ch*spacing))
+            self.sync=sync
             self.to_gui.put({'plot_sync':[x,y]})
+            if self.guidata.read('Runwheel attached')==True:
+                mc=h.findvar('configs')['machine_config']
+                channels=mc['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in mc else [3, 4]
+                chab=self.sync[:,channels]
+#                cha=numpy.nonzero(numpy.diff(numpy.where(chab[:, 0]>2.5), 1, 0))[0][0::2]
+                cha=signal.trigger_indexes(numpy.where(chab[:, 0]>2.5, 5, 0))[0::2]
+                signs=numpy.where(chab[cha+2, 0]>2.5, 1, -1)[1:]
+                dfi=2*numpy.pi/360
+                speed=dfi/numpy.diff(cha/float(fs))*signs
+                t=(cha/float(fs))[1:]
+                self.to_gui.put({'plot_speed':[[t],[speed]]})
+            h.close()
         else:
             raise NotImplementedError()
             

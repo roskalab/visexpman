@@ -748,6 +748,16 @@ class MainUI(gui.VisexpmanMainWindow):
                     pp.append({'name': (str(i)), 'pen':c})
                 self.p.update_curves(x,y,plotparams=pp)
                 self.p.show()
+            elif 'plot_speed' in msg:
+                x,y=msg['plot_speed']
+                self.p2=gui.Plot(None)
+                pp=[]
+                for i in range(len(x)):
+                    c=colors.get_color(i)
+                    c=(numpy.array(c)*255).tolist()
+                    pp.append({'name': (str(i)), 'pen':c})
+                self.p2.update_curves(x,y,plotparams=pp)
+                self.p2.show()
 #                self.pb = Progressbar(10)
 #                self.pb.show()
             elif 'add_comment' in msg:

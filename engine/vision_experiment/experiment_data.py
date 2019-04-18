@@ -652,11 +652,16 @@ def pack_software_environment(experiment_source_code = None):
         vap=fileop.visexpA_package_path()
         if vap != None:
             visexpman_module_paths.extend(fileop.find_files_and_folders(vap,extension='py')[1])
+        import sys
+        vufolder=os.path.dirname(sys.modules[str(sys.argv[sys.argv.index('--vu')+1])].__file__)
+        visexpman_module_paths.extend(fileop.find_files_and_folders(vufolder,extension='py')[1])
         for module_path in visexpman_module_paths:
             if 'visexpA' in module_path:
                 zip_path = '/visexpA' + module_path.split('visexpA')[-1]
             elif 'visexpman' in module_path:
                 zip_path = '/visexpman' + module_path.split('visexpman')[-1]
+            elif 'visexpu' in module_path:
+                zip_path = '/visexpu' + module_path.split('visexpu')[-1]
             if os.path.exists(module_path):
                 zipfile_handler.write(module_path, zip_path)
         if tostream:
