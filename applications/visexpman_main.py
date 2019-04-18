@@ -51,7 +51,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         else:
             self.stim_context = {}
         if not 'screen_center' in self.stim_context:
-            self.stim_context['screen_center'] = self.config.SCREEN_CENTER
+            self.stim_context['screen_center'] = (self.config.SCREEN_CENTER['col'], self.config.SCREEN_CENTER['row'])
         if not 'background_color' in self.stim_context:
             self.stim_context['background_color'] = self.config.BACKGROUND_COLOR
         if not 'user_background_color' in self.stim_context:
@@ -501,6 +501,13 @@ def run_ca_imaging(context, timeout = None):
     context['logger'].start()
     from visexpman.engine.vision_experiment import ca_imaging
     ca_imaging.CaImaging(context=context)
+    
+def run_cam(context, timeout=None):
+    context['logger'].add_source('engine')
+    context['logger'].start()
+    from visexpman.engine.vision_experiment import camera
+    camera.Camera(context=context)
+    
     
 
 def stimulation_tester(user, machine_config, experiment_config, **kwargs):

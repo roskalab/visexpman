@@ -417,7 +417,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             raise RuntimeError('Parameter size is provided in an unsupported format')
         size_pixel = utils.rc_x_const(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)
         if hasattr(self, 'screen_center') and enable_centering:
-            pos_with_offset = utils.rc_add(pos, self.screen_center)
+            pos_with_offset = utils.rc_add(pos, utils.cr(self.screen_center))
         else:
             pos_with_offset = pos
         pos_pixel = utils.rc_x_const(pos_with_offset, self.config.SCREEN_UM_TO_PIXEL_SCALE)

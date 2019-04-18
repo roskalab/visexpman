@@ -884,7 +884,6 @@ def download_folder(server, user, src,dst,port=22,password=None):
     ssh.close()
     os.remove(localzip)
     
-    
 ################# End of functions ####################  
 
 import unittest

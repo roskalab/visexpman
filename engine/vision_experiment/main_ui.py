@@ -527,25 +527,24 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal']:
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'find_cells', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile', 'exit']
         elif self.machine_config.PLATFORM=='mc_mea':
-            toolbar_buttons = ['start_experiment', 'stop', 'convert_stimulus_to_video', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM=='us_cortical':
-            toolbar_buttons = ['start_experiment', 'start_batch', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM in ['ao_cortical', '2p', 'resonant']:
             toolbar_buttons = ['start_experiment', 'stop', 'connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
+        if self.machine_config.ENABLE_BATCH_EXPERIMENT:
+            toolbar_buttons.insert(1,'start_batch_experiment')
+            
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         self.statusbar=self.statusBar()
         self.statusbar.status=QtGui.QLabel('Idle', self)
         self.statusbar.addPermanentWidget(self.statusbar.status)
         self.statusbar.status.setStyleSheet('background:gray;')
-        if self.machine_config.PLATFORM in ['resonant']:
-            self.statusbar.camera_status=QtGui.QLabel('', self)
-            self.statusbar.addPermanentWidget(self.statusbar.camera_status)
-            self.statusbar.camera_status.setStyleSheet('background:gray;')
         #Add dockable widgets
         self.debug = gui.Debug(self)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
@@ -569,7 +568,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
-            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip'])
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip', '*.mesc'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
@@ -583,9 +582,6 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.analysis, 'Data Files')
         if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
-        if self.machine_config.PLATFORM in ['resonant']:
-            self.eye_camera=gui.Image(self)
-            self.main_tab.addTab(self.eye_camera, 'Eye camera')
         self.main_tab.addTab(self.params, 'Settings')
         if self.machine_config.PLATFORM in ["elphys"]:
             self.plot2 = gui.Plot(self)
@@ -615,7 +611,8 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab.currentChanged.connect(self.tab_changed)
         #Set size of widgets
         self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
-        self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
+        if hasattr(self, 'plot'):
+            self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -741,13 +738,6 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.statusbar.camera_status.setText(msg['update_camera_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
-            elif 'eye_camera_image' in msg:
-                self.eye_camera.set_image(msg['eye_camera_image'], color_channel = 'all')
-                h=self.eye_camera.width()*float(msg['eye_camera_image'].shape[1])/float(msg['eye_camera_image'].shape[0])
-                if h<self.machine_config.GUI_HEIGHT*0.5: h=self.machine_config.GUI_HEIGHT*0.5
-                self.eye_camera.setFixedHeight(h)
-                self.eye_camera.plot.setTitle(time.time())
-                #self.eye_camera.img.setLevels([0,255])
             elif 'plot_sync' in msg:
                 x,y=msg['plot_sync']
                 self.p=gui.Plot(None)
@@ -773,17 +763,14 @@ class MainUI(gui.VisexpmanMainWindow):
                 self._set_window_title(tag=' !'+msg['permanent_warning'])
                 
     def _init_variables(self):
-        if hasattr(self.machine_config,'FILTERWHEEL'):
-            fw1=self.machine_config.FILTERWHEEL[0]['filters'].keys()
+        if hasattr(self.machine_config,'FILTERWHEEL_FILTERS'):
+            fw1=self.machine_config.FILTERWHEEL_FILTERS.keys()
             fw1.sort()
-            fw2=[] if len(self.machine_config.FILTERWHEEL)==1 else self.machine_config.FILTERWHEEL[1]['filters'].keys()
-            fw2.sort()
         else:
             fw1=[]
-            fw2=[]
             
         self.params_config = [
-                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM=='mc_mea', 'children': [#'expanded' : True
+                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea'], 'children': [#'expanded' : True
                     {'name': 'Name', 'type': 'str', 'value': ''},
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
@@ -797,9 +784,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     ]},
                     ]
         if len(fw1)>0:
-            self.params_config[1]['children'].append({'name': 'Filterwheel 1', 'type': 'list', 'values': fw1, 'value': ''})
-        if len(fw2)>0:
-            self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})            
+            self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
         if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
         if self.machine_config.PLATFORM in ['retinal','ao_cortical']:
@@ -850,12 +835,10 @@ class MainUI(gui.VisexpmanMainWindow):
                             ]},  ]               
                         )
                 self.params_config[-1]['children'].extend(pars)
-        if self.machine_config.PLATFORM=='mc_mea':
-            self.params_config[0]['children'].extend([
-                {'name': 'Bandpass filter', 'type': 'str', 'value': ''},
-                {'name': 'ND filter', 'type': 'str', 'value': ''},
-                {'name': 'Comment', 'type': 'str', 'value': ''},
-            ])
+#        if self.machine_config.PLATFORM=='mc_mea':
+#            self.params_config[0]['children'].extend([
+#                {'name': 'Comment', 'type': 'str', 'value': ''},
+#            ])
         elif self.machine_config.PLATFORM=='us_cortical':
             self.params_config.append(
             {'name': 'Ultrasound', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
@@ -864,14 +847,29 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Motor Positions', 'type': 'str', 'value': ''},
                     ]},
             )
-            self.params_config[0]['expanded']=True
-            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
         elif self.machine_config.PLATFORM=='resonant':
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Enable Eye Camera', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Eye Camera Frame Rate', 'type': 'float', 'value': 30, 'siPrefix': True, 'suffix': 'Hz'})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
+        elif self.machine_config.PLATFORM=='2p':
+            self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
+        if self.machine_config.ENABLE_BATCH_EXPERIMENT:
+            #Append batch experiment settings
+            self.params_config.append(
+            {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
+                    {'name': 'Z start', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Z end', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Z step', 'type': 'float', 'value': 10,  'suffix': 'um'},
+                    {'name': 'Enable tile scan', 'type': 'bool', 'value': False},
+                    {'name': 'X start', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'X end', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Y start', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Y end', 'type': 'float', 'value': 0,  'suffix': 'um'},
+                    {'name': 'Tile overlap', 'type': 'float', 'value': 50,  'suffix': 'um'},
+                    {'name': 'Tile Field of View X', 'type': 'float', 'value': 300,  'suffix': 'um'},
+                    {'name': 'Tile Field of View Y', 'type': 'float', 'value': 300,  'suffix': 'um'},
+                    ]},
+            )
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):
             if isinstance(self.machine_config.SETUP_SETTINGS, list):
                 self.params_config.extend(self.machine_config.SETUP_SETTINGS)
@@ -882,8 +880,8 @@ class MainUI(gui.VisexpmanMainWindow):
     def start_experiment_action(self):
         self.to_engine.put({'function': 'start_experiment', 'args':[]})
         
-    def start_batch_action(self):
-        self.to_engine.put({'function': 'start_batch', 'args':[]})
+    def start_batch_experiment_action(self):
+        self.to_engine.put({'function': 'start_batch_experiment', 'args':[]})
         
     def stop_action(self):
         self.to_engine.put({'function': 'stop_experiment', 'args':[]})

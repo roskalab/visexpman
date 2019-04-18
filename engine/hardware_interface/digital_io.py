@@ -242,11 +242,11 @@ class IOBoard(object):
     io.pulse(5,10)#10 ms pulse on pin5 
     io.close()
     '''
-    def __init__(self,port,timeout=0.3, id=None,initial_wait=0.5):
+    def __init__(self,port,timeout=0.3, id=None,initial_wait=0.5,  baudrate=115200):
         if port == None and id != None:
             #Find device by ID
             port=find_port(id)
-        self.s=serial.Serial(port, baudrate=115200,timeout=timeout)
+        self.s=serial.Serial(port, baudrate=baudrate,timeout=timeout)
         self.initial_wait=initial_wait
         self.t0=time.time()
         self.wait_done=False
