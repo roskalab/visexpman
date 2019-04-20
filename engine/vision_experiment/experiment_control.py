@@ -849,13 +849,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
         if 'Runwheel attached' in self.parameters and self.parameters['Runwheel attached']:
             self.printl('Check runwheel signals')
-            res=self.datafile.check_runhweel_signals()
-            self.printl('Runwheel signal checked: {0}'.format(res))
-            if not res:
+            high_low_levels, powered, signals_connected=self.datafile.check_runwheel_signals()
+            self.printl('Runwheel signal checked: high low transitions: {0}, powered: {1}, signals connected: {2}'.format(high_low_levels, powered, signals_connected))
+            if not high_low_levels or not signals_connected:
                 self.send({'notify':['Warning', 'No runwheel signal detected, check connections and Runwheel power supply!']})
-            res=self.datafile.is_runhweel_powered()
-            self.printl('Runwheel power status: {0}'.format(res))
-            if not res:
+            if not powered:
                 self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
         self.datafile.close()
         #Convert to mat file except for Dani

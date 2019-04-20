@@ -287,7 +287,7 @@ class CaImagingData(supcl):
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
             
-    def check_runhweel_signals(self):
+    def check_runwheel_signals(self):
         '''
         Returns True if valid runwheel signal is detected. 
         Valid runwheel signal is a two channel binary signal
@@ -297,19 +297,37 @@ class CaImagingData(supcl):
         self.load('configs')
         channels= self.configs['machine_config']['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
         sync=signal.from_16bit(self.sync,self.sync_scaling)
-        return all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
-        
-    def is_runhweel_powered(self):
+        high_low_levels= all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
         import scipy.signal
-        self.load('sync')
-        self.load('sync_scaling')
-        self.load('configs')
-        sync=signal.from_16bit(self.sync,self.sync_scaling)
-        channels= self.configs['machine_config']['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
         filter=scipy.signal.butter(2,20./self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')
         filtered=scipy.signal.filtfilt(filter[0],filter[1], sync[:,channels[-1]]).real
         frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
-        return abs(frequencies.mean()-50)>5
+        powered=abs(frequencies.mean()-50)>5
+        #Check unconnected runwheel/runwheel voltage level
+        max_voltage_level=numpy.histogram(sync[:,channels[0]])[1][-2]
+        signals_connected = max_voltage_level>6
+        return high_low_levels, powered, signals_connected
+        
+    def encoder2speed(self):
+        '''
+        Converts raw encoder signal to angular speed
+        '''
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        mc=self.configs['machine_config']
+        fs=self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        channels=mc['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in mc else [3, 4]
+        chab=sync[:,channels]
+        cha=signal.trigger_indexes(numpy.where(chab[:, 0]>2.5, 5, 0))
+        offset=1 if chab[cha[0]-1, 0]>2.5 else 0
+        cha=cha[offset::2]
+        signs=numpy.where(chab[cha+2, 1]>2.5, 1, -1)[1:]
+        dfi=2*numpy.pi/360#360 pulses per revolution
+        speed=dfi/numpy.diff(cha/float(fs))*signs
+        t=(cha/float(fs))[1:]
+        return t,speed
         
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
@@ -1501,10 +1519,11 @@ class TestExperimentData(unittest.TestCase):
         folder='/home/rz/mysoftware/data/runwheel'
         for f in fileop.listdir(folder):
             c=CaImagingData(f)
-            print((f, c.check_runhweel_signals()))
+            print((f, c.check_runwheel_signals()))
             c.close()
         pass
         
+    @unittest.skip("")
     def test_16_50Hz_in_runwheel(self):
         fn=r'X:\resonant-setup\Data\fiona\20190402\data_MovingGratingNoMarchingConfig_201904021220172.hdf5'
         c=CaImagingData(fn)
@@ -1526,6 +1545,14 @@ class TestExperimentData(unittest.TestCase):
         figure(3)        
         plot(sync[:,4]-sync[:,3])
         show()
+        c.close()
+        
+    def test_encoder_signal_conversion(self):
+        fn='/home/rz/mysoftware/data/runwheel/new/data_F275_1R__MovingGratingFiona3x_201904121635262.hdf5'
+#        fn='/home/rz/mysoftware/data/runwheel/new/data_F272_1L__MovingGratingFiona3x_201904041353542.hdf5'
+        c=CaImagingData(fn)
+        c.encoder2speed()
+        c.check_runwheel_signals()
         c.close()
         
 def find_rois(meanimage):
