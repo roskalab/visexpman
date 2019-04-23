@@ -285,7 +285,8 @@ class ExperimentHandler(object):
     def start_experiment(self, experiment_parameters=None):
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if not hasattr(self, 'connected_nodes') or 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
-                missing_connections=[conn for conn in [self.microscope.name, 'stim'] if conn not in self.connected_nodes]
+                scope_name=self.microscope.name if hasattr(self,  'microscope') else ''
+                missing_connections=[conn for conn in [scope_name, 'stim'] if conn not in self.connected_nodes]
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
             #Set z

@@ -650,13 +650,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.send({'mesc':'start'})
                     time.sleep(1.5)
                     response=self.recv()
-                    if not hasattr(response, 'keys') or not response['mesc start command result']:
+                    self.mesc_error=True
+                    #Sometimes message is sent over in  {u'mesc start command result': True} format and this is not detected
+                    if hasattr(response, 'keys') and (('mesc start command result' in response and response['mesc start command result']) or (u'mesc start command result' in response and response[u'mesc start command result'])):
+                        self.mesc_error=False
+                    if self.mesc_error:
                         self.abort=True
                         self.mesc_error=True
                         self.printl('MESc did not start, aborting stimulus')
                         self.send({'trigger':'stim error'})
-                    else:
-                        self.mesc_error=False
                 elif self.machine_config.PLATFORM == '2p':
                     self.send({'2p': 'start'})
                     time.sleep(1.5)
