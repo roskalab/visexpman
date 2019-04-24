@@ -166,6 +166,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
+            hdf5io.save_item(self.fn, 'timestamps', self.ts)
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()

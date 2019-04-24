@@ -1810,7 +1810,100 @@ def mes2mat(filename):
         dataout['height_um']=pixel_size_um*rawdata.shape[1]*pixel_size_um
         scipy.io.savemat(fileop.replace_extension(filename, '.mat'), dataout,do_compression=True)
     
+class Copier(multiprocessing.Process):
+    '''
+    Copies unprocessed files to server and copies back processed files to local disk
+        From src to dst files between 2 minute and 1 week age are copied if their extension is hdf5 or mesc
+        and do not exists at dst.
+        From dst to src mp4 files are copied if does not exists, hdf5 and mat files are copied if file at dst is newer than
+        at src (merged hdf5 with mesc data+converted mat file)
+        
+    '''
+    def __init__(self, src, dst):
+        multiprocessing.Process.__init__(self)
+        self.src=src
+        self.dst=dst
+        self.command=multiprocessing.Queue()
+        self.log=multiprocessing.Queue()
+        
+    def suspend(self):
+        self.command.put('suspend')
 
+    def resume(self):
+        self.command.put('resume')
+        
+    def printl(self):
+        logs=[]
+        while not self.log.empty():
+            logs.append(self.log.get())
+        return logs
+            
+        
+    def close(self):
+        self.command.put('terminate')
+    
+    def run(self):
+        self.run=True
+        self.backcopy=False
+        while True:
+            if not self.command.empty():
+                cmd=self.command.get()
+                if cmd=='terminate':
+                    break
+                elif cmd=='suspend':
+                    self.run=False
+                elif cmd=='resume':
+                    self.run=True
+            try:
+                if self.run:
+                    #Find out which file to copy next
+                    now=time.time()
+                    files2copy=[]
+                    files=fileop.find_files_and_folder(self.src if not self.backcopy else self.dst)[0]
+                    if self.backcopy:
+                        for f in files:
+                            fileage=os.path.getmtime(f)
+                            srcf=f.replace(self.dst, self.src)
+                            if fileage<now-2*60:
+                                continue
+                            #Copy hdf5 files that are newer on dst
+                            if os.path.splitext(f)[1] in ['.hdf5', '.mat']  and fileage>os.path.getmtime(srcf):
+                                files2copy.append((fileage, f, srcf))
+                            elif os.path.splitext(f)[1] =='.mp4' and not os.path.exists(srcf):
+                                files2copy.append((fileage, f, srcf))
+                    else:
+                        for f in files:
+                            fileage=os.path.getmtime(f)
+                            if fileage>now-1*60 and fileage<now-7*86400 and os.path.splitext(f)[1] in ['.hdf5', '.mesc']:
+                                #Generate dst path
+                                dstf=f.replace(self.src, self.dst)
+                                #Copy all hdf5 and mesc files that do not exists on dst
+                                if not os.path.exists(dstf):
+                                    if not os.path.exists(os.path.dirname(dstf)):
+                                        os.makedirs(os.path.dirname(dstf))
+                                    files2copy.append((fileage, f, dstf))
+                    #Find most recent and copy that
+                    files2copy.sort()
+                    most_recent=files2copy[-1]
+                    shutil.copy(most_recent[1], most_recent[2])
+                    self.log.put(most_recent[1:])
+                    self.backcopy=not self.backcopy
+                            
+                else:
+                    time.sleep(1)
+            except:
+                import traceback
+                e=traceback.format_exc()
+                self.log.put(e)
+            
+        
+
+class Test(unittest.TestCase):
+    def setUp(self):
+        pass
+        
+    def tearDown(self):
+        pass
 
 if __name__=='__main__':
     unittest.main()

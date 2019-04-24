@@ -92,6 +92,13 @@ class ExperimentHandler(object):
             self.sync_recording_started=False
             self.batch_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
+        if self.machine_config.user=='common':
+            self.dataroot=self.machine_config.EXPERIMENT_DATA_PATH
+        else:#Multiple users
+            self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+        if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
+            self.copier=experiment_data.Copier(self.dataroot, self.machine_config.BACKUP_PATH)
+            self.start()
             
     
     
@@ -169,11 +176,7 @@ class ExperimentHandler(object):
         experiment_parameters['user']=self.machine_config.user
         experiment_parameters['machine_config']=self.machine_config.__class__.__name__
         #Outfolder is date+id. Later all the files will be merged from id this folder
-        if self.machine_config.user=='common':
-            root=self.machine_config.EXPERIMENT_DATA_PATH
-        else:#Multiple users
-            root=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
-        experiment_parameters['outfolder']=os.path.join(root, utils.timestamp2ymd(time.time(), separator=''))
+        experiment_parameters['outfolder']=os.path.join(self.dataroot, utils.timestamp2ymd(time.time(), separator=''))
         if not os.path.exists(experiment_parameters['outfolder']):
             os.makedirs(experiment_parameters['outfolder'])
         experiment_parameters['outfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters,prefix = 'data')
@@ -345,6 +348,8 @@ class ExperimentHandler(object):
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        if hasattr(self, 'copier'):
+            self.copier.suspend()
         self.start_time=time.time()
         if self.machine_config.PLATFORM=='ao_cortical':
             self.printc('{1} experiment is starting, mes recording length is {2:.0f} ms, stimulus duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass'], experiment_parameters['mes_record_time']))
@@ -392,6 +397,8 @@ class ExperimentHandler(object):
             self._stop_sync_recorder()
             self.experiment_running=False
             self.experiment_finish_time=time.time()
+        if hasattr(self, 'copier'):
+            self.copier.resume()
         self.to_gui.put({'update_status':'idle'})
             
     def save_experiment_files(self, aborted=False):
@@ -635,6 +642,9 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
+        if hasattr(self, 'copier'):
+            for l in self.copier.printl():
+                self.printc(l)
 
     def stop_experiment(self):
         if self.batch_running:
@@ -811,6 +821,8 @@ class ExperimentHandler(object):
 
     def close_experiment_handler(self):
         self.microscope_handler('close')
+        if hasattr(self, 'copier'):
+            self.copier.close()
 
 class Analysis(object):
     def __init__(self,machine_config):
