@@ -341,9 +341,10 @@ class ExperimentHandler(object):
                 self._stop_sync_recorder()
                 return
         else:
-            self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
             if 'Record Eyecamera' in experiment_parameters and experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
+                time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
+            self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         self.start_time=time.time()
         if self.machine_config.PLATFORM=='ao_cortical':
             self.printc('{1} experiment is starting, mes recording length is {2:.0f} ms, stimulus duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass'], experiment_parameters['mes_record_time']))
@@ -704,9 +705,9 @@ class ExperimentHandler(object):
                     self.mesc.save(fileop.replace_extension(self.current_experiment_parameters['outfilename'],  '.mesc'))
                 else:
                     self.printc('Go to MESc processing window and add " {0} " to comment'.format(os.path.basename(self.current_experiment_parameters['outfilename'])))
-                self.printc('Sync data folder to rldata')
-                import dirsync
-                dirsync.sync(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.BACKUP_PATH, 'sync', only=['.*hdf5$', '.*mesc$'])
+#                self.printc('Sync data folder to rldata')
+#                import dirsync
+#                dirsync.sync(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.BACKUP_PATH, 'sync', only=['.*hdf5$', '.*mesc$'])
             elif self.machine_config.PLATFORM=='2p':
                 fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
                 self.printc('Save 2p data to {0}'.format(fn))

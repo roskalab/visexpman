@@ -727,15 +727,6 @@ class MainUI(gui.VisexpmanMainWindow):
                 elif msg['update_status']=='busy':
                     self.statusbar.status.setStyleSheet('background:yellow;')
                 self.statusbar.status.setText(msg['update_status'].capitalize())
-            elif 'update_camera_status' in msg:
-                if hasattr(self.statusbar, 'camera_status'):
-                    if msg['update_camera_status']=='camera off':
-                        self.statusbar.camera_status.setStyleSheet('background:gray;')
-                    elif msg['update_camera_status']=='camera on':
-                        self.statusbar.camera_status.setStyleSheet('background:orange;')
-                    elif msg['update_camera_status']=='camera recording':
-                        self.statusbar.camera_status.setStyleSheet('background:red;')
-                    self.statusbar.camera_status.setText(msg['update_camera_status'].capitalize())
             elif 'highlight_multiple_rois' in msg:
                 self.image.highlight_roi(msg['highlight_multiple_rois'][0])
             elif 'plot_sync' in msg:
@@ -861,7 +852,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['expanded']=True
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
-        elif self.machine_config.PLATFORM=='2p':
+            self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
+        elif self.machine_config.PLATFORM in ['2p']:
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             #Append batch experiment settings

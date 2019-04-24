@@ -308,6 +308,13 @@ class CaImagingData(supcl):
         signals_connected = max_voltage_level>6
         return high_low_levels, powered, signals_connected
         
+    def sync_frame_rate(self, channel):
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        return signal.calculate_frame_rate(sync[:, channel], self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'], threshold=2.5)
+        
     def encoder2speed(self):
         '''
         Converts raw encoder signal to angular speed

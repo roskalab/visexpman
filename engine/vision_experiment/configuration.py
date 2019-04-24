@@ -198,6 +198,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]]
         self.MOUSE_1_VISUAL_DEGREE_ON_RETINA=300.0/10.0
         BACKUPTIME=[-1,[-1,24]]
+        CAMERA_PRETRIGGER_TIME=[0, [0, 50]]
         self._create_parameters_from_locals(locals())#this function call is compulsory
 
     def _calculate_parameters(self):

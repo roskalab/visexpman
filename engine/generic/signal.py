@@ -215,7 +215,7 @@ def signal2binary(waveform):
     
 def trigger_indexes(trigger,threshold=0.3, abs_threshold=None):
     '''
-    Indexes of rising edges in trigger are returned
+    Indexes of rising and falling edges in trigger are returned
     '''
     if abs_threshold!=None and trigger.max()<abs_threshold:
         return numpy.array([])
@@ -229,8 +229,8 @@ def calculate_frame_rate(sig, fsample, threshold=2.5):
     '''
     From a pulse train frame rate is calculated for each pulse interval
     '''
-    ts=trigger_indexes(sig)/float(fsample)
-    fps=1.0/numpy.diff(ts)[1::2]
+    ts=detect_edges(sig, threshold)/float(fsample)
+    fps=1.0/numpy.diff(ts[1::2])
     return fps,  fps.mean(),  fps.std()
     
 def generate_bins(signal, binsize):

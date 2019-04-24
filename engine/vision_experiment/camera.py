@@ -8,7 +8,7 @@ except ImportError:
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
 
-from visexpman.engine.generic import gui,fileop, signal
+from visexpman.engine.generic import gui,fileop, signal, utils
 from visexpman.engine.hardware_interface import camera_interface, daq_instrument
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 from visexpman.engine.analysis import behavioral_data
@@ -21,8 +21,8 @@ class Camera(gui.VisexpmanMainWindow):
         self.setWindowIcon(gui.get_icon('behav'))
         self._init_variables()
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
-        if hasattr(self.machine_config, 'GUI_POS_X'):
-            self.move(self.machine_config.GUI_POS_X, self.machine_config.GUI_POS_Y)
+        if hasattr(self.machine_config, 'CAMERA_GUI_POS_X'):
+            self.move(self.machine_config.CAMERA_GUI_POS_X, self.machine_config.CAMERA_GUI_POS_Y)
         self._set_window_title()
         toolbar_buttons = ['record', 'stop', 'convert_folder', 'exit']
             
@@ -55,10 +55,11 @@ class Camera(gui.VisexpmanMainWindow):
         self.show()
         
         self.update_image_timer=QtCore.QTimer()
+        self.update_image_timer.timeout.connect(self.update_image)
         self.update_image_timer.start(1000/self.machine_config.DEFAULT_CAMERA_FRAME_RATE/3)#ms
-        self.connect(self.update_image_timer, QtCore.SIGNAL('timeout()'), self.update_image)
+        
         self.parameter_changed()
-        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3, self.machine_config.CAMERA_IO_PORT)
+        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3, None)
         self.camerahandler.start()
         if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
             self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
@@ -138,15 +139,22 @@ class Camera(gui.VisexpmanMainWindow):
             if hasattr(experiment_parameters, 'keys') and 'eyecamfilename' in experiment_parameters:
                 self.fn=experiment_parameters['eyecamfilename']
             else:
-                self.fn=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, '{1}_{0}.hdf5'.format(experiment_data.get_id(),  self.machine_config.CAMFILENAME_TAG))
+                outfolder=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
+                if not os.path.exists(outfolder):
+                    os.makedirs(outfolder)
+                self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': experiment_data.get_id()},prefix = self.machine_config.CAMFILENAME_TAG)
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
+            import psutil
+            p = psutil.Process(self.camerahandler.pid)
+            p.nice(psutil.HIGH_PRIORITY_CLASS)
             self.tstart=time.time()
             self.statusbar.recording_status.setStyleSheet('background:red;')
             self.statusbar.recording_status.setText(msg)
             self.track=[]
         except:
             self.printc(traceback.format_exc())
+            self.send({'trigger': 'cam error'})
         
     def stop_recording(self):
         try:
@@ -157,7 +165,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
-            ts, log=self.camerahandler.stop()
+            self.ts, log=self.camerahandler.stop()
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()
@@ -178,15 +186,19 @@ class Camera(gui.VisexpmanMainWindow):
                 self.check_camera_timing_signal()
                 if self.trigger_state=='stopped':#check if nvista camera was also recording
                     self.check_nvista_camera_timing()
+            else:
+                self.printc('mean: {0} Hz,  std: {1} Hz'.format(1/numpy.mean(numpy.diff(self.ts)), 1/numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT)
+            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  None)
             self.camerahandler.start()        
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
             self.printc('Save time {0} s'.format(int(time.time()-t0)))
         except:
-            self.printc(traceback.format_exc())
+            e=traceback.format_exc()
+            self.printc(e)
+            self.send({'trigger': 'cam error'})
             
     def check_camera_timing_signal(self):
         timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
@@ -253,6 +265,8 @@ class Camera(gui.VisexpmanMainWindow):
     
     def update_image(self):
         try:
+            if not self.camerahandler.log.empty():
+                self.printc(self.camerahandler.log.get())
             if not self.camerahandler.display_frame.empty():
                 frame=self.camerahandler.display_frame.get()
                 if self.parameters['Enable ROI cut']:
@@ -274,7 +288,7 @@ class Camera(gui.VisexpmanMainWindow):
                 if self.recording:
                     dt=time.time()-self.tstart
                     self.image.plot.setTitle('{0} s'.format(int(dt)))
-                if hasattr(self,  'ioboard'):
+                if hasattr(self, 'ioboard'):
                     self.trigger_handler()
                 self.socket_handler()
         except:

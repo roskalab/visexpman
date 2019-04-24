@@ -842,13 +842,16 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.datafile.save(['sync', 'sync_scaling'])
             try:
                 self.datafile.sync2time()
-                self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                self.datafile.check_timing(check_frame_rate=self.check_frame_rate)                
             except:
                 self.datafile.corrupt_timing=True
                 self.datafile.save('corrupt_timing')
-                self.datafile.close()
                 self.printl(traceback.format_exc())
                 self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
+        if 'Record Eyecamera' in self.parameters and self.parameters['Record Eyecamera']:
+            fps_values, fpsmean,  fpsstd=self.datafile.sync_frame_rate(self.machine_config.TBEHAV_SYNC_INDEX)
+            bins=[min(fps_values), fpsmean-fpsstd/2,  fpsmean+fpsstd/2,  max(fps_values)]
+            self.printl('Eye camera mean frame rate: {0} Hz,  std: {1} Hz,  number of frames {2}, Hist: {3}, {4}'.format(fpsmean, fpsstd, len(fps_values), *numpy.histogram(fps_values, bins)))
         if 'Runwheel attached' in self.parameters and self.parameters['Runwheel attached']:
             self.printl('Check runwheel signals')
             high_low_levels, powered, signals_connected=self.datafile.check_runwheel_signals()

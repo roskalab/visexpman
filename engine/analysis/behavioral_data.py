@@ -807,7 +807,7 @@ class TestBehavAnalysis(unittest.TestCase):
                         out[:, :img.shape[1],  :]=f
                         out[:, -img.shape[1]:,  :]=img
                         Image.fromarray(out).save('c:\\temp\\img\\{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  blue_angle))
-                        print framect
+                        print(framect)
                         framect+=1
                         pass
                     except:

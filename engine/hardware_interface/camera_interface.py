@@ -468,16 +468,17 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             self.log.put('Connected to {0}'.format(camera_name))
             self.frame_counter=0
             timestamps=[]
-            self.ioboard='line' not in self.ioboard_com
-            if self.ioboard:
-                import serial
-                io=serial.Serial(self.ioboard_com, baudrate=1000000, timeout=1e-3)
-                time.sleep(2)
-            else:
-                import PyDAQmx
-                import PyDAQmx.DAQmxConstants as DAQmxConstants
-                digital_output = PyDAQmx.Task()
-                digital_output.CreateDOChan(self.ioboard_com,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            if self.ioboard_com!=None:
+                self.ioboard='line' not in self.ioboard_com
+                if self.ioboard:
+                    import serial
+                    io=serial.Serial(self.ioboard_com, baudrate=115200, timeout=1e-3)
+                    time.sleep(2)
+                else:
+                    import PyDAQmx
+                    import PyDAQmx.DAQmxConstants as DAQmxConstants
+                    digital_output = PyDAQmx.Task()
+                    digital_output.CreateDOChan(self.ioboard_com,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
             
             w=1.0/self.frame_rate-4e-3
             w=1e-3
@@ -490,25 +491,29 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
                         tlast=now
                         if self.filename!=None:
                             timestamps.append(time.time())
-                        if self.ioboard:
-                            io.write('pulse,5,3\r\n')
-                            io.reset_input_buffer()
-                        else:
-                            digital_output.WriteDigitalLines(1,
-                                    True,
-                                    1.0,
-                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                    numpy.array([int(1)], dtype=numpy.uint8),
-                                    None,
-                                    None)
-                            time.sleep(1e-3)
-                            digital_output.WriteDigitalLines(1,
-                                    True,
-                                    1.0,
-                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                    numpy.array([int(0)], dtype=numpy.uint8),
-                                    None,
-                                    None)
+                        if self.ioboard_com!=None:
+                            if self.ioboard:
+                                cmd='pulse,5,3\r\n'
+                                if sys.version_info.major==3:
+                                    cmd=bytes(cmd, 'utf-8')
+                                io.write(cmd)
+                                io.reset_input_buffer()
+                            else:
+                                digital_output.WriteDigitalLines(1,
+                                        True,
+                                        1.0,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        numpy.array([int(1)], dtype=numpy.uint8),
+                                        None,
+                                        None)
+                                time.sleep(1e-3)
+                                digital_output.WriteDigitalLines(1,
+                                        True,
+                                        1.0,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        numpy.array([int(0)], dtype=numpy.uint8),
+                                        None,
+                                        None)
                         if self.watermark:
                             low=self.frame_counter%256
                             high=self.frame_counter/256
@@ -527,10 +532,11 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             self.timestamps.put(timestamps)
             ch.StopLive()
             ch.close()
-            if self.ioboard:
-                io.close()
-            else:
-                digital_output.ClearTask()
+            if self.ioboard_com!=None:
+                if self.ioboard:
+                    io.close()
+                else:
+                    digital_output.ClearTask()
             if hasattr(self,  'saver'):
                 while self.saver.done.empty():
                     time.sleep(1)
@@ -673,10 +679,10 @@ class TestCamera(unittest.TestCase):
             cc.start()
             time.sleep(30)
             ts=cc.stop()
-            print 1/numpy.diff(ts), (1/numpy.diff(ts)).mean() , (1/numpy.diff(ts)).std(),  len(ts)
+            print(1/numpy.diff(ts), (1/numpy.diff(ts)).mean() , (1/numpy.diff(ts)).std(),  len(ts))
             import hdf5io
             nframes=hdf5io.read_item(fn,  'frames').shape
-            print nframes
+            print(nframes)
             data=ai.finish()
             from pylab import plot, show
             plot(data[:, 0]);show()
