@@ -223,7 +223,7 @@ class Jobhandler(object):
     Starting it:
         python -c "from visexpman.applications import jobhandler;jobhandler.Jobhandler('/mnt/resonant_data/Data')"
     '''
-    def __init__(self, folder, job, lock_timeout=60, max_retries=2):
+    def __init__(self, folder, job, lock_timeout=60, max_retries=3):
         self.folder=folder
         self.max_retries=max_retries
         self.lockfile='/tmp/{0}-jobhandler-lock.txt'.format(job)
@@ -277,10 +277,11 @@ class Jobhandler(object):
                 logging.info('Converting {0} to {1}'.format(f, videofilename))
                 shutil.copy(f,localin)
                 hh=hdf5io.Hdf5io(localin)
-                hh.load('cam')
-                fps=hh.cam['fps']
+                hh.load('frames')
+                hh.load('parameters')
+                fps=hh.parameters['Frame Rate']
                 logging.info('fps is {0}'.format(fps))
-                videofile.array2mp4(numpy.array(hh.cam['frames'],dtype=numpy.uint8), localout, fps, tempdir=os.path.expanduser('~'))
+                videofile.array2mp4(numpy.array(hh.frames,dtype=numpy.uint8), localout, fps, tempdir=os.path.expanduser('~'))
                 hh.close()
                 shutil.copy(localout, videofilename)
                 map(os.remove, [localin, localout])
@@ -288,7 +289,7 @@ class Jobhandler(object):
             logging.info('{0} processed'.format(1))
             tmpfolder=os.path.join(os.path.expanduser('~'), 'vf')
             if os.path.exists(tmpfolder):
-                shutil.rmtree(folder)
+                shutil.rmtree(tmpfolder)
             
     def __del__(self):
         logging.info('Removing lock file')

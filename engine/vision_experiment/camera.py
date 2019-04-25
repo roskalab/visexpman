@@ -167,6 +167,7 @@ class Camera(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
             hdf5io.save_item(self.fn, 'timestamps', self.ts)
+            hdf5io.save_item(self.fn, 'parameters',  self.parameters)
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()
@@ -180,7 +181,6 @@ class Camera(gui.VisexpmanMainWindow):
 #                    concatenated=numpy.concatenate((concatenated,  self.sync[i+1]))
 #                self.sync=concatenated
                 hdf5io.save_item(self.fn, 'sync', self.sync)
-                hdf5io.save_item(self.fn, 'parameters',  self.parameters)
                 hdf5io.save_item(self.fn, 'machine_config',  self.machine_config.todict())
                 self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TBEHAV_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
                 self.printc('Measured frame rate is {0:.2f} Hz, std: {1:.2f}, recorded {2} frames'.format(fpsmean, fpsstd,  self.fps_values.shape[0]+1))
@@ -288,7 +288,7 @@ class Camera(gui.VisexpmanMainWindow):
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
                 if self.recording:
                     dt=time.time()-self.tstart
-                    self.image.plot.setTitle('{0} s'.format(int(dt)))
+                    self.image.plot.setTitle('{0} s/{1}'.format(int(dt),  f.mean()))
                 if hasattr(self, 'ioboard'):
                     self.trigger_handler()
                 self.socket_handler()

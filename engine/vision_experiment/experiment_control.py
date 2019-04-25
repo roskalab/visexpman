@@ -596,6 +596,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
                         .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))
             self.outputfilename=self.parameters['outfilename']
+            self.partial_save=self.parameters.get('Offer Partial Save', False)
             #Computational intensive precalculations for stimulus
             self.prepare()
             #Control/synchronization with platform specific recording devices
@@ -679,6 +680,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.abort=True
                 self.send({'trigger':'stim error'})
                 self.printl(traceback.format_exc())
+                self.partial_save=False#if failed before starting stimulus, no partial data is saved
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             self._start_frame_capture()
             try:
@@ -715,10 +717,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 #Make sure that imaging recording finishes before terminating sync recording
                 time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
             if self.machine_config.ENABLE_SYNC=='stim':
-                self.analog_input.finish_daq_activity(abort = self.abort)
+                self.analog_input.finish_daq_activity(abort = self.abort and not self.partial_save)
                 self.printl('Sync signal recording finished')
             #Saving data
-            if not self.abort:
+            if not self.abort or self.partial_save:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
                 if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p']:
@@ -825,6 +827,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Certain variables are saved to hdf5 file
         '''
+        self.parameters['partial_data']=self.abort
         self._blocks2table()
         variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block']#['experiment_name', 'experiment_config_name', 'frame_times']
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
@@ -842,7 +845,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.datafile.save(['sync', 'sync_scaling'])
             try:
                 self.datafile.sync2time()
-                self.datafile.check_timing(check_frame_rate=self.check_frame_rate)                
+                if self.parameters['partial_data']:
+                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                else:
+                    self.printl("Timing signal check is skipped at partial data")
             except:
                 self.datafile.corrupt_timing=True
                 self.datafile.save('corrupt_timing')

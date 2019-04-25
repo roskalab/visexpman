@@ -853,6 +853,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
+            self.params_config[0]['children'].append({'name': 'Offer Partial Save', 'type': 'bool', 'value': False})
         elif self.machine_config.PLATFORM in ['2p']:
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:

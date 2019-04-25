@@ -114,6 +114,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
             self._connect()
         except:
             if hasattr(self.log, 'error'):
+                import traceback
                 self.log.error(traceback.format_exc(),self.socket_name)
             return#In this case perhaps it is better to end the process
         while True:

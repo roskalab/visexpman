@@ -241,6 +241,14 @@ class CaImagingData(supcl):
             raise RuntimeError('Initial voltage level of stimulus timing signal is too high: {0} V'.format(sig[0]))
         self.tstim=signal.trigger_indexes(sig)/fsample
         self.save(['timg', 'tstim'])
+        #Convert camera timing signals to timestamps
+        self.load('parameters')
+        if self.parameters.get('Record Eyecamera', False):
+            sig=sync[:,self.configs['machine_config']['TBEHAV_SYNC_INDEX']]
+            if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+                raise RuntimeError('Camera timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+            self.tcam=signal.trigger_indexes(sig)[::2]/fsample
+            self.save('tcam')
         
     def crop_timg(self):
         for vn in ['configs', 'raw_data', 'timg']:
@@ -284,6 +292,9 @@ class CaImagingData(supcl):
                     errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
             else:
                 raise NotImplementedError()
+        if hasattr(self,  'tcam'):
+            if not (self.tcam[0]<self.tstim[0] and self.tcam[-1]>self.tstim[-1]):
+                errors.append('{0} of stimulus was not recorded with eyecamera'.format('Beginning' if self.tcam[0]>self.tstim[0] else 'End') )
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
             
@@ -1859,12 +1870,12 @@ class Copier(multiprocessing.Process):
                     #Find out which file to copy next
                     now=time.time()
                     files2copy=[]
-                    files=fileop.find_files_and_folder(self.src if not self.backcopy else self.dst)[0]
+                    files=fileop.find_files_and_folders(self.src if not self.backcopy else self.dst)[1]
                     if self.backcopy:
                         for f in files:
-                            fileage=os.path.getmtime(f)
+                            fileage=now-os.path.getmtime(f)
                             srcf=f.replace(self.dst, self.src)
-                            if fileage<now-2*60:
+                            if fileage<2*60:
                                 continue
                             #Copy hdf5 files that are newer on dst
                             if os.path.splitext(f)[1] in ['.hdf5', '.mat']  and fileage>os.path.getmtime(srcf):
@@ -1872,9 +1883,11 @@ class Copier(multiprocessing.Process):
                             elif os.path.splitext(f)[1] =='.mp4' and not os.path.exists(srcf):
                                 files2copy.append((fileage, f, srcf))
                     else:
+#                        self.log.put([os.path.getmtime(f)-now for f in files])
                         for f in files:
-                            fileage=os.path.getmtime(f)
-                            if fileage>now-1*60 and fileage<now-7*86400 and os.path.splitext(f)[1] in ['.hdf5', '.mesc']:
+                            fileage=now-os.path.getmtime(f)
+#                            self.log.put((f, fileage, os.path.splitext(f)[1]))
+                            if fileage>1*60 and fileage<7*86400 and os.path.splitext(f)[1] in ['.hdf5', '.mesc']:
                                 #Generate dst path
                                 dstf=f.replace(self.src, self.dst)
                                 #Copy all hdf5 and mesc files that do not exists on dst
@@ -1884,9 +1897,11 @@ class Copier(multiprocessing.Process):
                                     files2copy.append((fileage, f, dstf))
                     #Find most recent and copy that
                     files2copy.sort()
-                    most_recent=files2copy[-1]
-                    shutil.copy(most_recent[1], most_recent[2])
-                    self.log.put(most_recent[1:])
+#                    self.log.put(files2copy)
+                    if len(files2copy)>0:
+                        most_recent=files2copy[-1]
+                        shutil.copy(most_recent[1], most_recent[2])
+                        self.log.put('Copy {0} to {1}'.format(most_recent[1],  most_recent[2]))
                     self.backcopy=not self.backcopy
                             
                 else:

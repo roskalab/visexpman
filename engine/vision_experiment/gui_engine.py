@@ -97,8 +97,8 @@ class ExperimentHandler(object):
         else:#Multiple users
             self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
         if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
-            self.copier=experiment_data.Copier(self.dataroot, self.machine_config.BACKUP_PATH)
-            self.start()
+            self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user))
+            self.copier.start()
             
     
     
@@ -200,7 +200,7 @@ class ExperimentHandler(object):
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
-        for pn in ['Runwheel attached',  'Record Eyecamera']:
+        for pn in ['Runwheel attached',  'Record Eyecamera',  'Offer Partial Save']:
             v=self.guidata.read(pn)
             if v!=None:
                 experiment_parameters[pn]=v
@@ -350,6 +350,7 @@ class ExperimentHandler(object):
             self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if hasattr(self, 'copier'):
             self.copier.suspend()
+            self.printc('Suspend copier')
         self.start_time=time.time()
         if self.machine_config.PLATFORM=='ao_cortical':
             self.printc('{1} experiment is starting, mes recording length is {2:.0f} ms, stimulus duration is {0:.0f} s'.format(experiment_parameters['duration'], experiment_parameters['stimclass'], experiment_parameters['mes_record_time']))
@@ -398,6 +399,7 @@ class ExperimentHandler(object):
             self.experiment_running=False
             self.experiment_finish_time=time.time()
         if hasattr(self, 'copier'):
+            self.printc('Resume copier')
             self.copier.resume()
         self.to_gui.put({'update_status':'idle'})
             
@@ -654,6 +656,8 @@ class ExperimentHandler(object):
                 self.printc('Batch terminated, current recording is left running')
                 return
         self.printc('Aborting experiment, please wait...')
+        if self.current_experiment_parameters.get('Offer Partial Save', False):
+            self.printc('Saving partial data')
         if self.machine_config.PLATFORM=='retinal':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
         if self.machine_config.PLATFORM=='elphys':
