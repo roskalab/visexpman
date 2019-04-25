@@ -713,6 +713,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.send({'mesc':'stop'})
             elif self.machine_config.PLATFORM == '2p':
                 self.send({'2p': 'stop'})
+            elif self.machine_config.PLATFORM == 'mc_mea':
+                self.printl("Stop MC Mea recording")
+                self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
+                self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,0)
             if self.machine_config.PLATFORM in [ 'retinal']:
                 #Make sure that imaging recording finishes before terminating sync recording
                 time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
@@ -723,7 +727,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if not self.abort or self.partial_save:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p']:
+                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea']:
                     self.send({'trigger':'stim data ready'})
 #                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
 #                    self._backup(self.datafilename)

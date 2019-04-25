@@ -200,6 +200,9 @@ class ExperimentHandler(object):
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
+        elif self.machine_config.PLATFORM=='mc_mea':
+            experiment_parameters['mcd_file']=self.latest_mcd_file
+            self.printc('MEA data is being saved to {0}'.format(self.latest_mcd_file))
         for pn in ['Runwheel attached',  'Record Eyecamera',  'Offer Partial Save']:
             v=self.guidata.read(pn)
             if v!=None:
@@ -279,13 +282,40 @@ class ExperimentHandler(object):
                     self.notify('Info', 'Batch finished')
                     return
                 self.printc('Starting next batch item, {0} left'.format(len(self.batch)))
-                self.start_experiment(experiment_parameters=self.batch[0])
+                self.start_experiment(experiment_parameters=self.batch[0], manually_started=False)
                 self.batch=self.batch[1:]
+                
+    def mc_mea_trigger(self):
+        '''
+        If a new file (max 5 second age) is found in MC_DATA_FOLDER folder, an experiment is initiated, checked in every 5 second
+        '''
+        if self.guidata.read('MC Rack New File Trigger Enable') and not self.experiment_running:
+            self.mcd_check_period=5
+            now=time.time()
+            if not hasattr(self, 'last_mcd_check'):
+                self.last_mcd_check=now
+            dt=now-self.last_mcd_check
+            if dt>self.mcd_check_period:
+                self.last_mcd_check=now
+                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
+                if self.latest_mcd_file==None:
+                    return
+                dt=now-os.path.getmtime(self.latest_mcd_file)
+                if dt<2*self.mcd_check_period:
+                    self.start_experiment(manually_started=False)
                 
     def connect(self):
         self.microscope_handler('init')
         
-    def start_experiment(self, experiment_parameters=None):
+    def start_experiment(self, experiment_parameters=None, manually_started=True):
+        if self.machine_config.PLATFORM in 'mc_mea':
+            if manually_started:
+                if self.guidata.read('MC Rack New File Trigger Enable')==True:
+                    self.notify('Warning', 'MC Rack new file trigger enabled, cannot start experiment manually')
+                    return
+                else:
+                    raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
+                        
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if not hasattr(self, 'connected_nodes') or 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
                 scope_name=self.microscope.name if hasattr(self,  'microscope') else ''
@@ -296,8 +326,6 @@ class ExperimentHandler(object):
             if hasattr(experiment_parameters, 'keys') and 'depth' in experiment_parameters:
                 self.microscope.set_z(experiment_parameters['depth'])
                 self.printc('Set z to {0} um'.format(experiment_parameters['depth']))
-        if self.machine_config.PLATFORM=='mc_mea' and not self.check_mcd_recording_started():
-            return
         if self.sync_recording_started or self.experiment_running:
             self.notify('Warning', 'Experiment already running')
             return
@@ -366,25 +394,31 @@ class ExperimentHandler(object):
         self.to_gui.put({'update_status':'busy'})   
         self.printc('Finishing experiment...')
         if self.machine_config.PLATFORM=='mc_mea':
-            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
-                #Find latest mcd file and save experiment metadata to the same folder
-                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
-                txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
-                        .format(\
-                        self.guidata.read('name'),
-                        self.guidata.read('Bandpass filter'),
-                        self.guidata.read('ND filter'),
-                        self.guidata.read('Comment'))
-                for k,v in self.current_experiment_parameters.items():
-                    if k !='stimulus_source_code' or k!='status':
-                        txt+='{0}\t{1}\r'.format(k,v)
-                txt+=self.current_experiment_parameters['stimulus_source_code']
-                outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
-                if os.path.exists(outfile):
-                    if not self.ask4confirmation('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
-                        return
-                fileop.write_text_file(outfile,txt)
-                self.printc('Experiment info saved to {0}'.format(outfile))
+            #Copy mcd file to outfolder:
+            time.sleep(3)
+            dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
+            self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
+            shutil.move(self.current_experiment_parameters['mcd_file'], dst)
+            
+#            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
+#                #Find latest mcd file and save experiment metadata to the same folder
+#                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
+#                txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
+#                        .format(\
+#                        self.guidata.read('name'),
+#                        self.guidata.read('Bandpass filter'),
+#                        self.guidata.read('ND filter'),
+#                        self.guidata.read('Comment'))
+#                for k,v in self.current_experiment_parameters.items():
+#                    if k !='stimulus_source_code' or k!='status':
+#                        txt+='{0}\t{1}\r'.format(k,v)
+#                txt+=self.current_experiment_parameters['stimulus_source_code']
+#                outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
+#                if os.path.exists(outfile):
+#                    if not self.ask4confirmation('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
+#                        return
+#                fileop.write_text_file(outfile,txt)
+#                self.printc('Experiment info saved to {0}'.format(outfile))
         else:
             if self.santiago_setup:
                 t0=time.time()
@@ -401,6 +435,8 @@ class ExperimentHandler(object):
         if hasattr(self, 'copier'):
             self.printc('Resume copier')
             self.copier.resume()
+        self.experiment_running=False
+        self.experiment_finish_time=time.time()
         self.to_gui.put({'update_status':'idle'})
             
     def save_experiment_files(self, aborted=False):
@@ -452,7 +488,7 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 raise RuntimeError("Is it used at all?")
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
-            if not (self.machine_config.PLATFORM in ['2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p']):#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p','mc_mea']):#On ao_cortical sync signal calculation and check is done by stim
                 raise RuntimeError('On which platform it is really needed?')
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
@@ -634,13 +670,14 @@ class ExperimentHandler(object):
     def run_always_experiment_handler(self):
         now=time.time()
         self.check_batch()
+        self.mc_mea_trigger()
         if self.sync_recording_started:
             self.read_sync_recorder()
             if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
                 self.finish_experiment()
                 self.save_experiment_files()
                 if self.guidata.read('Infinite Recording'):
-                    self.start_experiment() 
+                    self.start_experiment(manually_started=False) 
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
@@ -677,16 +714,7 @@ class ExperimentHandler(object):
         self.experiment_running=False
         self.to_gui.put({'update_status':'idle'})
         self.printc('Experiment stopped')
-        
-    def check_mcd_recording_started(self):
-        if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
-            #Find latest mcd file and save experiment metadata to the same folder
-            dt=time.time()-os.path.getmtime(fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd'))
-            res=True
-            if dt>5:
-                res= self.ask4confirmation('MEA recording may not be started, do you want to continue?')
-            return res
-        
+                   
     def trigger_handler(self,trigger_name):
         if trigger_name == 'stim started':
             self.printc('WARNING: no stim started trigger timeout implemented')

@@ -564,11 +564,11 @@ class MainUI(gui.VisexpmanMainWindow):
         self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
         if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
-        if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p']:
+        if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p', 'mc_mea']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
             filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
-            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip', '*.mesc'])
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip', '*.mesc', '*.mcd'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
             self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
@@ -578,7 +578,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
-        if self.machine_config.PLATFORM in ['elphys', 'retinal', 'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p']:
+        if self.machine_config.PLATFORM in ['elphys', 'retinal', 'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p', 'mc_mea']:
             self.main_tab.addTab(self.analysis, 'Data Files')
         if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
@@ -784,6 +784,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
                     ]},
                     ]
+        if self.machine_config.PLATFORM in ['mc_mea']:
+            self.params_config[0]['children'].append({'name': 'MC Rack New File Trigger Enable', 'type': 'bool', 'value': False})
         if len(fw1)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
         if self.machine_config.PLATFORM in ['retinal']:
