@@ -745,6 +745,7 @@ class TestBehavAnalysis(unittest.TestCase):
         
     def test_07_extract_mouse_position(self):
         folder=r'c:\temp\20190416'
+        folder='/tmp'
         from skimage.color import rgb2hsv
         files=fileop.listdir_fullpath(folder)
         coordinates={}
@@ -761,24 +762,28 @@ class TestBehavAnalysis(unittest.TestCase):
             for f in frames:
 #                with introspect.Timer():
                     #Find brightest area
+                    framect+=1
+#                    if framect%6!=0:
+#                        continue
                     try:
                         coo=numpy.array([int(c.mean()) for c in numpy.where(f.sum(axis=2)>3*threshold)])
                         #Cut roi and detect red and green dots
                         roi_size=20
                         saturation_threshold=0.6
-                        roi=rgb2hsv(f[coo[0]-roi_size: coo[0]+roi_size, coo[1]-roi_size: coo[1]+roi_size, :])
+                        value_threshold=0.4
+                        roirgb=f[coo[0]-roi_size: coo[0]+roi_size, coo[1]-roi_size: coo[1]+roi_size, :]
+                        roi=rgb2hsv(roirgb)
+                        roi[:,:,1]*=numpy.where(roi[:,:,2]>value_threshold,1,0)#Set saturation to 0 where value is low -> exclude these pixels from color detection
                         try:
-                            green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<0.05, roi[:, :, 1]>saturation_threshold ))])
+                            green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<0.05, roi[:, :, 1]>saturation_threshold))])
                             green+=coo-roi_size
                         except:
                             green=numpy.array([0, 0])
+                            
+                        blue= numpy.array([int(c.mean()) for c in numpy.where(roirgb[:,:,2]>threshold)])
+                        blue+=coo-roi_size
                         try:
-                            blue=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.666)<0.05, roi[:, :, 1]>saturation_threshold ))])
-                        except:
-                            blue=numpy.array([0, 0])
-                            blue+=coo-roi_size
-                        try:
-                            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(roi[:, :, 0]<0.05, roi[:, :, 1]>saturation_threshold ))])
+                            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(roi[:, :, 0]<0.05, roi[:, :, 1]>saturation_threshold))])
                             red+=coo-roi_size
                         except:
                             red=numpy.array([0, 0])
@@ -801,18 +806,26 @@ class TestBehavAnalysis(unittest.TestCase):
                             img[green[0]+i, green[1], 0]=0
                             img[green[0], green[1]+i, 2]=0
                             img[green[0]+i, green[1], 2]=0
-                        blue_angle=numpy.degrees((numpy.arctan2(*(blue-red))-numpy.arctan2(*(blue-green)))/2)
-                        coordinates[filename].append([framect,  red,  green, blue,  blue_angle])
+                        
+#                        redblue=-numpy.arctan2(*(blue-red))
+#                        redgreen=-numpy.arctan2(*(green-red))
+#                        dangle=abs(redblue-redgreen)/2
+#                        red_angle=numpy.degrees(redblue+dangle)
+                        red_angle=numpy.degrees(numpy.arctan2(*(0.5*(blue-green)+blue-red)))
+                        coordinates[filename].append([framect,  red,  green, blue,  red_angle])
                         out=numpy.zeros((img.shape[0],  img.shape[1]*2, 3), dtype=numpy.uint8)
                         out[:, :img.shape[1],  :]=f
                         out[:, -img.shape[1]:,  :]=img
-                        Image.fromarray(out).save('c:\\temp\\img\\{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  blue_angle))
+                        outfolder=r'c:\temp\img'
+                        outfolder='/tmp/img'
+                        Image.fromarray(out).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
                         print(framect)
-                        framect+=1
                         pass
                     except:
-                        import pdb
-                        pdb.set_trace()
+                        import traceback
+                        print traceback.format_exc()
+#                        import pdb
+#                        pdb.set_trace()
 #            if res!=None:
 #                coo.append(res)
         utils.object2array(coordinates).tofile('c:\\temp\\coo.bin')
