@@ -711,7 +711,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
             elif self.machine_config.PLATFORM == 'resonant':
-                if not self.mesc_error and not self.parameters.get('Stimulus Only', False):
+                if not self.parameters.get('Stimulus Only', False) and not self.mesc_error:
                     self.send({'mesc':'stop'})
             elif self.machine_config.PLATFORM == '2p':
                 if not self.parameters.get('Stimulus Only', False):
@@ -851,11 +851,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
             self.datafile.save(['sync', 'sync_scaling'])
             try:
-                self.datafile.sync2time()
-                if self.parameters['partial_data']:
-                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
-                else:
-                    self.printl("Timing signal check is skipped at partial data")
+                if not self.parameters.get('Stimulus Only', False):
+                    self.datafile.sync2time()
+                    if not self.parameters['partial_data']:
+                        self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                    else:
+                        self.printl("Timing signal check is skipped at partial data")
             except:
                 self.datafile.corrupt_timing=True
                 self.datafile.save('corrupt_timing')

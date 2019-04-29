@@ -724,6 +724,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     self.statusbar.status.setStyleSheet('background:gray;')
                 elif msg['update_status']=='recording':
                     self.statusbar.status.setStyleSheet('background:red;')
+                elif msg['update_status']=='stimulus only':
+                    self.statusbar.status.setStyleSheet('background:orange;')
                 elif msg['update_status']=='busy':
                     self.statusbar.status.setStyleSheet('background:yellow;')
                 self.statusbar.status.setText(msg['update_status'].capitalize())

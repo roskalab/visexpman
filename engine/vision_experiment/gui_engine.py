@@ -388,7 +388,10 @@ class ExperimentHandler(object):
         self.current_experiment_parameters=experiment_parameters
         self.experiment_running=True
         self.experiment_start_time=time.time()
-        self.to_gui.put({'update_status':'recording'})
+        if experiment_parameters.get('Stimulus Only', False):
+            self.to_gui.put({'update_status':'stimulus only'})
+        else:
+            self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
         self.to_gui.put({'update_status':'busy'})   
@@ -742,7 +745,7 @@ class ExperimentHandler(object):
                 msg='Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.'
                 self.notify('Info', 'Experiment ready'+'\r\n'+msg)
             elif self.machine_config.PLATFORM=='resonant':
-                if self.machine_config.ENABLE_MESC_SAVE:
+                if self.machine_config.ENABLE_MESC_SAVE and not self.current_experiment_parameters.get('Stimulus Only', False):
                     self.printc('MESc saves data to {0}'.format(self.current_experiment_parameters['outfilename']))
                     self.mesc.save(fileop.replace_extension(self.current_experiment_parameters['outfilename'],  '.mesc'))
                 else:

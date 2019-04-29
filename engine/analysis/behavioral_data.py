@@ -823,7 +823,7 @@ class TestBehavAnalysis(unittest.TestCase):
                         pass
                     except:
                         import traceback
-                        print traceback.format_exc()
+                        print(traceback.format_exc())
 #                        import pdb
 #                        pdb.set_trace()
 #            if res!=None:
