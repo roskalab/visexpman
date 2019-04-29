@@ -660,6 +660,75 @@ def extract_mouse_position(im, channel,threshold=100):
     
     x,y=numpy.nonzero(mask)
     return x.mean(), y.mean()
+    
+def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold=0.6, value_threshold=0.4, debug=False):
+    from skimage.color import rgb2hsv
+    result=True
+    #Clear watermark which is used for video integrity check
+    image[0, 0]=0
+    image[0, 1]=0
+    coo=numpy.array([int(c.mean()) for c in numpy.where(image.sum(axis=2)>3*threshold)])
+    #Cut roi and detect red and green dots
+    roirgb=image[coo[0]-roi_size: coo[0]+roi_size, coo[1]-roi_size: coo[1]+roi_size, :]
+    roi=rgb2hsv(roirgb)
+    roi[:,:,1]*=numpy.where(roi[:,:,2]>value_threshold,1,0)#Set saturation to 0 where value is low -> exclude these pixels from color detection
+    try:
+        green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<0.05, roi[:, :, 1]>saturation_threshold))])
+        green+=coo-roi_size
+    except:
+        green=numpy.array([0, 0])
+        result=False
+        
+    try:
+        blue= numpy.array([int(c.mean()) for c in numpy.where(roirgb[:,:,2]>threshold)])
+        blue+=coo-roi_size
+    except:
+        blue=numpy.array([0, 0])
+        result=False
+    try:
+        red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(roi[:, :, 0]<0.05, roi[:, :, 1]>saturation_threshold))])
+        red+=coo-roi_size
+    except:
+        red=numpy.array([0, 0])
+        result=False
+    red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))
+    animal_position=numpy.cast['int']((red+green+blue)/3.)
+    if debug:
+        img=numpy.rollaxis(numpy.array(3*[numpy.copy(image.sum(axis=2)/3)]), 0, 3)
+        for i in range(-2, 3):
+            img[animal_position[0]+i,  animal_position[1], :]=255
+            img[animal_position[0],  animal_position[1]+i, :]=255
+        for i in range(-2, 3):
+            img[red[0]+i,  red[1], 0]=255
+            img[red[0],  red[1]+i, 0]=255
+            img[red[0]+i,  red[1], 1:2]=0
+            img[red[0],  red[1]+i, 1:2]=0
+        for i in range(-2, 3):
+            img[blue[0], blue[1]+i, 2]=255
+            img[blue[0]+i, blue[1], 2]=255
+            img[blue[0]+i, blue[1], 0:1]=0
+            img[blue[0], blue[1]+i, 0:1]=0
+        for i in range(-2, 3):
+            img[green[0]+i, green[1], 1]=255
+            img[green[0], green[1]+i, 1]=255
+            img[green[0], green[1]+i, 0]=0
+            img[green[0]+i, green[1], 0]=0
+            img[green[0], green[1]+i, 2]=0
+            img[green[0]+i, green[1], 2]=0
+            out=numpy.zeros((img.shape[0],  img.shape[1]*2, 3), dtype=numpy.uint8)
+            out[:, :img.shape[1],  :]=image
+            out[:, -img.shape[1]:,  :]=img
+    else:
+        out=None
+    if 0:
+        from PIL import Image, ImageDraw, ImageFont
+        font = ImageFont.truetype("arial", 10)
+        out=image[coo[0]-roi_size: coo[0]+roi_size, coo[1]-roi_size: coo[1]+roi_size, :]
+        img=Image.fromarray(numpy.cast['uint8'](out))
+        draw = ImageDraw.Draw(img)
+        draw.text((0, 0),"{0}".format(int(red_angle)),(255,255,255),font=font)
+        out=numpy.asarray(img)
+    return result, animal_position, red_angle, red, green, blue, out
 
 class TestBehavAnalysis(unittest.TestCase):
     @unittest.skip('')
@@ -746,19 +815,27 @@ class TestBehavAnalysis(unittest.TestCase):
     def test_07_extract_mouse_position(self):
         folder=r'c:\temp\20190416'
         folder='/tmp'
-        from skimage.color import rgb2hsv
+        folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
+        
+        from PIL import Image
         files=fileop.listdir_fullpath(folder)
+        files.sort()
         coordinates={}
+        files=['c:\\temp\\behav_201904261056350.hdf5']
         for filename in files:
-            if 'hdf5' not in filename: continue
-            frames=hdf5io.read_item(filename,  'frames')
-            from PIL import Image
+            if 'png' in filename:
+                frames=[numpy.asarray(Image.open(f)) for f in files]
+            elif 'hdf5' not in filename: continue
+            else:
+                frames=hdf5io.read_item(filename,  'frames')
+            
             coo=[]
-            threshold=100
+            
     #        files.sort()
             framect=0
             coordinates[filename]=[]
 #            frames=frames[::100]
+            results=0
             for f in frames:
 #                with introspect.Timer():
                     #Find brightest area
@@ -766,68 +843,19 @@ class TestBehavAnalysis(unittest.TestCase):
 #                    if framect%6!=0:
 #                        continue
                     try:
-                        coo=numpy.array([int(c.mean()) for c in numpy.where(f.sum(axis=2)>3*threshold)])
-                        #Cut roi and detect red and green dots
-                        roi_size=20
-                        saturation_threshold=0.6
-                        value_threshold=0.4
-                        roirgb=f[coo[0]-roi_size: coo[0]+roi_size, coo[1]-roi_size: coo[1]+roi_size, :]
-                        roi=rgb2hsv(roirgb)
-                        roi[:,:,1]*=numpy.where(roi[:,:,2]>value_threshold,1,0)#Set saturation to 0 where value is low -> exclude these pixels from color detection
-                        try:
-                            green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<0.05, roi[:, :, 1]>saturation_threshold))])
-                            green+=coo-roi_size
-                        except:
-                            green=numpy.array([0, 0])
-                            
-                        blue= numpy.array([int(c.mean()) for c in numpy.where(roirgb[:,:,2]>threshold)])
-                        blue+=coo-roi_size
-                        try:
-                            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(roi[:, :, 0]<0.05, roi[:, :, 1]>saturation_threshold))])
-                            red+=coo-roi_size
-                        except:
-                            red=numpy.array([0, 0])
-                        #Debug image:
-                        img=numpy.rollaxis(numpy.array(3*[numpy.copy(f.sum(axis=2)/3)]), 0, 3)
-                        for i in range(-2, 3):
-                            img[red[0]+i,  red[1], 0]=255
-                            img[red[0],  red[1]+i, 0]=255
-                            img[red[0]+i,  red[1], 1:2]=0
-                            img[red[0],  red[1]+i, 1:2]=0
-                        for i in range(-2, 3):
-                            img[blue[0], blue[1]+i, 2]=255
-                            img[blue[0]+i, blue[1], 2]=255
-                            img[blue[0]+i, blue[1], 0:1]=0
-                            img[blue[0], blue[1]+i, 0:1]=0
-                        for i in range(-2, 3):
-                            img[green[0]+i, green[1], 1]=255
-                            img[green[0], green[1]+i, 1]=255
-                            img[green[0], green[1]+i, 0]=0
-                            img[green[0]+i, green[1], 0]=0
-                            img[green[0], green[1]+i, 2]=0
-                            img[green[0]+i, green[1], 2]=0
-                        
-#                        redblue=-numpy.arctan2(*(blue-red))
-#                        redgreen=-numpy.arctan2(*(green-red))
-#                        dangle=abs(redblue-redgreen)/2
-#                        red_angle=numpy.degrees(redblue+dangle)
-                        red_angle=numpy.degrees(numpy.arctan2(*(0.5*(blue-green)+blue-red)))
-                        coordinates[filename].append([framect,  red,  green, blue,  red_angle])
-                        out=numpy.zeros((img.shape[0],  img.shape[1]*2, 3), dtype=numpy.uint8)
-                        out[:, :img.shape[1],  :]=f
-                        out[:, -img.shape[1]:,  :]=img
+                        result, position, red_angle, red, green, blue, debug=mouse_head_direction(f, roi_size=20, threshold=80,  saturation_threshold=0.6, value_threshold=0.4, debug=True)
+                        results+=int(result)
                         outfolder=r'c:\temp\img'
-                        outfolder='/tmp/img'
-                        Image.fromarray(out).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
-                        print(framect)
+                        #outfolder='/tmp/img'
+                        Image.fromarray(debug).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
+                        print((framect, result))
                         pass
                     except:
                         import traceback
                         print(traceback.format_exc())
-#                        import pdb
-#                        pdb.set_trace()
-#            if res!=None:
-#                coo.append(res)
+            if 'png' in filename:
+                break
+            print ((results,  frames.shape))
         utils.object2array(coordinates).tofile('c:\\temp\\coo.bin')
         from pylab import plot,show
         coo=numpy.array(coo)

@@ -58,7 +58,14 @@ class Camera(gui.VisexpmanMainWindow):
         self.update_image_timer.timeout.connect(self.update_image)
         self.update_image_timer.start(1000/self.machine_config.DEFAULT_CAMERA_FRAME_RATE/3)#ms
         
-        self.parameter_changed()
+        #Load context/saved settings if available
+        self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
+        if os.path.exists(self.context_filename):
+            context_stream = numpy.load(self.context_filename)
+            self.parameters=utils.array2object(context_stream)
+        else:
+            self.parameter_changed()
+        self.load_all_parameters()
         self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3, None)
         self.camerahandler.start()
         if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
@@ -111,10 +118,12 @@ class Camera(gui.VisexpmanMainWindow):
                 {'name': 'ROI y1', 'type': 'int', 'value': 200},
                 {'name': 'ROI x2', 'type': 'int', 'value': 400},
                 {'name': 'ROI y2', 'type': 'int', 'value': 400},
-                {'name': 'Channel', 'type': 'int', 'value': 0},
-                {'name': 'Show channel only', 'type': 'bool', 'value': False},
                     ]
         self.params_config.extend(params)
+        
+    def save_context(self):
+        context_stream=utils.object2array(self.parameters)
+        numpy.save(self.context_filename,context_stream)
         
     def start_recording(self,  experiment_parameters=None):
         try:
@@ -273,18 +282,14 @@ class Camera(gui.VisexpmanMainWindow):
                 if self.parameters['Enable ROI cut']:
                     frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
                 f=numpy.copy(frame)
-                if 'Channel' in self.parameters and 'Threshold' in self.parameters:
-                    coo=behavioral_data.extract_mouse_position(frame, self.parameters['Channel'], self.parameters['Threshold'])
-                    self.track.append(coo)
-                    if coo!=None and not numpy.isnan(coo[0]) and self.recording and numpy.nan != coo[0]:
-                        if self.parameters['Show channel only']:
-                            for i in range(3):
-                                if i!=self.parameters['Channel']:
-                                    f[:,:,i]=0
-                        if self.parameters['Show track']:
-                            for coo in self.track:
-                                if not numpy.isnan(coo[0]):
-                                    f[int(coo[0]), int(coo[1])]=numpy.array([0,255,0],dtype=f.dtype)
+                self.f=f
+                if self.machine_config.PLATFORM=='behav':
+                    if self.recording:
+                        result, position, red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=80,  saturation_threshold=0.6, value_threshold=0.4)
+                        self.track.append(position)
+                    if self.parameters.get('Show track', False):
+                        for p in self.track:
+                            f[int(p[0]), int(p[1])]=numpy.array([0,255,0],dtype=f.dtype)
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
                 if self.recording:
                     dt=time.time()-self.tstart
@@ -296,6 +301,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc(traceback.format_exc())
         
     def exit_action(self):
+        self.save_context()
         self.camerahandler.stop()
         if hasattr(self,  'ioboard'):
             self.ioboard.close()

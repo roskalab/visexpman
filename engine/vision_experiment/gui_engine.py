@@ -1990,8 +1990,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             self.printc('{0} file is closed'.format(self.datafile.filename))
         
     def close(self):
-        self.save_context()   
-
+        self.save_context()
        
 class ElphysEngine():
     '''
