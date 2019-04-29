@@ -203,7 +203,7 @@ class ExperimentHandler(object):
         elif self.machine_config.PLATFORM=='mc_mea':
             experiment_parameters['mcd_file']=self.latest_mcd_file
             self.printc('MEA data is being saved to {0}'.format(self.latest_mcd_file))
-        for pn in ['Runwheel attached',  'Record Eyecamera',  'Offer Partial Save']:
+        for pn in ['Runwheel attached',  'Record Eyecamera',  'Offer Partial Save', 'Stimulus Only']:
             v=self.guidata.read(pn)
             if v!=None:
                 experiment_parameters[pn]=v

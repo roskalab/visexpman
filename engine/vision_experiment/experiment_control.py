@@ -648,27 +648,29 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.abort=True
                         self.send({'trigger':'stim error'})
                 elif self.machine_config.PLATFORM == 'resonant':
-                    self.send({'mesc':'start'})
-                    time.sleep(1.5)
-                    response=self.recv()
-                    self.mesc_error=True
-                    #Sometimes message is sent over in  {u'mesc start command result': True} format and this is not detected
-                    if hasattr(response, 'keys') and (('mesc start command result' in response and response['mesc start command result']) or (u'mesc start command result' in response and response[u'mesc start command result'])):
-                        self.mesc_error=False
-                    if self.mesc_error:
-                        self.abort=True
+                    if not self.parameters.get('Stimulus Only', False):
+                        self.send({'mesc':'start'})
+                        time.sleep(1.5)
+                        response=self.recv()
                         self.mesc_error=True
-                        self.printl('MESc did not start, aborting stimulus')
-                        self.send({'trigger':'stim error'})
+                        #Sometimes message is sent over in  {u'mesc start command result': True} format and this is not detected
+                        if hasattr(response, 'keys') and (('mesc start command result' in response and response['mesc start command result']) or (u'mesc start command result' in response and response[u'mesc start command result'])):
+                            self.mesc_error=False
+                        if self.mesc_error:
+                            self.abort=True
+                            self.mesc_error=True
+                            self.printl('MESc did not start, aborting stimulus')
+                            self.send({'trigger':'stim error'})
                 elif self.machine_config.PLATFORM == '2p':
-                    self.send({'2p': 'start'})
-                    time.sleep(1.5)
-                    response=self.recv()
-                    if not hasattr(response, 'keys') or not response['start command result']:
-                        self.abort=True
-                        self.printl('Two photon recording did not start, aborting stimulus')
-                        self.send({'trigger':'stim error'})
-                        self.send({'2p': 'stop'})
+                    if not self.parameters.get('Stimulus Only', False):
+                        self.send({'2p': 'start'})
+                        time.sleep(1.5)
+                        response=self.recv()
+                        if not hasattr(response, 'keys') or not response['start command result']:
+                            self.abort=True
+                            self.printl('Two photon recording did not start, aborting stimulus')
+                            self.send({'trigger':'stim error'})
+                            self.send({'2p': 'stop'})
                 elif self.machine_config.PLATFORM == 'behav':
                     self.sync_recording_duration=self.machine_config.EXPERIMENT_MAXIMUM_DURATION*60
                     self.start_sync_recording()
@@ -709,10 +711,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
             elif self.machine_config.PLATFORM == 'resonant':
-                if not self.mesc_error:
+                if not self.mesc_error and not self.parameters.get('Stimulus Only', False):
                     self.send({'mesc':'stop'})
             elif self.machine_config.PLATFORM == '2p':
-                self.send({'2p': 'stop'})
+                if not self.parameters.get('Stimulus Only', False):
+                    self.send({'2p': 'stop'})
             elif self.machine_config.PLATFORM == 'mc_mea':
                 self.printl("Stop MC Mea recording")
                 self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
