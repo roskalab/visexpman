@@ -252,7 +252,7 @@ class ExperimentHandler(object):
                     par['outfolder']=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,  utils.timestamp2ymd(time.time(), separator=''),par['id'])
                     self.batch.append(par)
             [self.printc('Batch generated: {0}/{1} um' .format(b['id'], b['motor position'])) for b in self.batch]
-        elif self.machine_config.PLATFORM == '2p':
+        elif self.machine_config.ENABLE_BATCH_EXPERIMENT:
             if self.guidata.read('Enable tile scan'):
                 raise NotImplementedError()
             if self.guidata.read('Z start')<self.guidata.read('Z end'):
@@ -267,7 +267,8 @@ class ExperimentHandler(object):
             for d in depths:
                 par=copy.deepcopy(experiment_parameters)
                 par['depth']=d
-                self.batch.append(par)
+                par=self.guidata.read('Repeats')*[par]
+                self.batch.extend(par)
             self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um' .format(b['id'], b['depth']) for b in self.batch]))
         elif self.machine_config.PLATFORM == 'rc_cortical':
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
@@ -315,7 +316,6 @@ class ExperimentHandler(object):
                     return
                 else:
                     raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
-                        
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if not hasattr(self, 'connected_nodes') or 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
                 scope_name=self.microscope.name if hasattr(self,  'microscope') else ''
@@ -323,7 +323,7 @@ class ExperimentHandler(object):
                 self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
                 return
             #Set z
-            if hasattr(experiment_parameters, 'keys') and 'depth' in experiment_parameters:
+            if hasattr(experiment_parameters, 'keys') and 'depth' in experiment_parameters and hasattr(self.microscope, 'set_z'):
                 self.microscope.set_z(experiment_parameters['depth'])
                 self.printc('Set z to {0} um'.format(experiment_parameters['depth']))
         if self.sync_recording_started or self.experiment_running:
@@ -807,6 +807,7 @@ class ExperimentHandler(object):
             if self.machine_config.PLATFORM=='resonant':
                 from visexpman.engine.hardware_interface import mesc_interface
                 self.mesc=mesc_interface.MescapiInterface()
+                self.microscope=self.mesc
                 self.printc('mesc init {0} successful'.format('not' if not self.mesc.connected else ''))
         elif command=='close':
             if hasattr(self, 'mesc'):

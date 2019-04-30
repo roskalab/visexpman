@@ -866,6 +866,7 @@ class MainUI(gui.VisexpmanMainWindow):
             #Append batch experiment settings
             self.params_config.append(
             {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
+                    {'name': 'Repeats', 'type': 'int', 'value': 1},
                     {'name': 'Z start', 'type': 'float', 'value': 0,  'suffix': 'um'},
                     {'name': 'Z end', 'type': 'float', 'value': 0,  'suffix': 'um'},
                     {'name': 'Z step', 'type': 'float', 'value': 10,  'suffix': 'um'},
