@@ -1650,7 +1650,7 @@ def gammatext2hdf5(filename):
 def yscanner2sync(waveform):
     pass
     
-def hdf52mat(filename, scale_sync=False):
+def hdf52mat(filename, scale_sync=False, exclude=[]):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
     if not hasattr(hh, 'h5f'):
@@ -1661,6 +1661,8 @@ def hdf52mat(filename, scale_sync=False):
         rootnodes=[v for v in hh.h5f.root._v_children.keys() if v not in ignore_nodes]
     mat_data={}
     for rn in rootnodes:
+        if rn in exclude:
+            continue
         if os.path.basename(filename).split('_')[-2] in rn:
             rnt='idnode'
         else:

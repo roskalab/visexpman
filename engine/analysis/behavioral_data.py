@@ -672,9 +672,13 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     roirgb=image[coo[0]-roi_size: coo[0]+roi_size, coo[1]-roi_size: coo[1]+roi_size, :]
     roi=rgb2hsv(roirgb)
     roi[:,:,1]*=numpy.where(roi[:,:,2]>value_threshold,1,0)#Set saturation to 0 where value is low -> exclude these pixels from color detection
+    animal_position=numpy.zeros(2)
+    led_ct=0
     try:
         green=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(abs(roi[:, :, 0]-0.333)<0.05, roi[:, :, 1]>saturation_threshold))])
         green+=coo-roi_size
+        animal_position+=green
+        led_ct+=1
     except:
         green=numpy.array([0, 0])
         result=False
@@ -682,17 +686,21 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     try:
         blue= numpy.array([int(c.mean()) for c in numpy.where(roirgb[:,:,2]>threshold)])
         blue+=coo-roi_size
+        animal_position+=blue
+        led_ct+=1
     except:
         blue=numpy.array([0, 0])
         result=False
     try:
-        red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(roi[:, :, 0]<0.05, roi[:, :, 1]>saturation_threshold))])
+        red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<0.05,  roi[:, :, 0]>0.95), roi[:, :, 1]>saturation_threshold))])
         red+=coo-roi_size
+        animal_position+=red
+        led_ct+=1
     except:
         red=numpy.array([0, 0])
         result=False
-    red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))
-    animal_position=numpy.cast['int']((red+green+blue)/3.)
+    red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))    
+    animal_position=numpy.cast['int']((animal_position)/float(led_ct))
     if debug:
         img=numpy.rollaxis(numpy.array(3*[numpy.copy(image.sum(axis=2)/3)]), 0, 3)
         for i in range(-2, 3):

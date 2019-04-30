@@ -103,7 +103,8 @@ class Camera(gui.VisexpmanMainWindow):
             trigger_value='TTL pulses'
             params=[
                 {'name': 'Show track', 'type': 'bool', 'value': True}, 
-                {'name': 'Threshold', 'type': 'int', 'value': 200},
+                {'name': 'Threshold', 'type': 'int', 'value': 80},
+                {'name': 'Show color LEDs', 'type': 'bool', 'value': False}, 
                 ]
         else:
             trigger_value='manual'
@@ -208,7 +209,8 @@ class Camera(gui.VisexpmanMainWindow):
         except:
             e=traceback.format_exc()
             self.printc(e)
-            self.send({'trigger': 'cam error'})
+            if hasattr(self,  'send'):
+                self.send({'trigger': 'cam error'})
             
     def check_camera_timing_signal(self):
         timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
@@ -262,7 +264,7 @@ class Camera(gui.VisexpmanMainWindow):
             for f in files:
                 if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat')):
                     print(f)
-                    experiment_data.hdf52mat(f)
+                    self.convert_file(f)
                     prog=int((files.index(f)+1)/float(len(files))*100)
                     p.update(prog)
                     QtCore.QCoreApplication.instance().processEvents()
@@ -272,6 +274,28 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText('Ready')
         except:
             self.printc(traceback.format_exc())
+    
+    
+    def convert_file(self, filename):
+        h=hdf5io.Hdf5io(filename)
+        h.load('frames')
+        h.head_direction=[]
+        h.led_positions=[]
+        h.head_position=[]
+        ct=0
+        h.frame_indexes=[]
+        for f in h.frames:
+            result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+            print((result, position, self.red_angle, red, green, blue))
+            if result:
+                h.head_direction.append(self.red_angle)
+                h.led_positions.append([red, green, blue])
+                h.head_position.append(position)
+                h.frame_indexes.append(ct)
+            ct+=1
+        h.save(['head_direction',  'led_positions',  'head_position',  'frame_indexes'])
+        h.close()
+        experiment_data.hdf52mat(filename,  scale_sync=True, exclude=['frames'])
     
     def update_image(self):
         try:
@@ -284,16 +308,23 @@ class Camera(gui.VisexpmanMainWindow):
                 f=numpy.copy(frame)
                 self.f=f
                 if self.machine_config.PLATFORM=='behav':
-                    if self.recording:
-                        result, position, red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=80,  saturation_threshold=0.6, value_threshold=0.4)
-                        self.track.append(position)
+                    if self.recording or self.parameters.get('Show color LEDs', False):
+                        result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                        if self.recording:
+                            self.track.append(self.position)
+                        if self.parameters.get('Show color LEDs', False):
+                            f[int(self.red[0]), int(self.red[1])]=numpy.array([127, 127,127],dtype=f.dtype)
+                            f[int(self.green[0]), int(self.green[1])]=numpy.array([127,127,127],dtype=f.dtype)
+                            f[int(self.blue[0]), int(self.blue[1])]=numpy.array([127,127, 127],dtype=f.dtype)
+                            #f[int(self.position[0]), int(self.position[1])]=numpy.array([255,255, 255],dtype=f.dtype)
                     if self.parameters.get('Show track', False):
                         for p in self.track:
-                            f[int(p[0]), int(p[1])]=numpy.array([0,255,0],dtype=f.dtype)
+                            f[int(p[0]), int(p[1])]=numpy.array([255,255,255],dtype=f.dtype)
+                    
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
                 if self.recording:
                     dt=time.time()-self.tstart
-                    self.image.plot.setTitle('{0} s/{1}'.format(int(dt),  f.mean()))
+                    self.image.plot.setTitle('{0} s/head direction: {1:0.1f}'.format(int(dt),  self.red_angle if hasattr(self,  'red_angle') else ''))
                 if hasattr(self, 'ioboard'):
                     self.trigger_handler()
                 self.socket_handler()
