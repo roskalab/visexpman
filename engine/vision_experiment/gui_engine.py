@@ -99,8 +99,6 @@ class ExperimentHandler(object):
         if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
             self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user))
             self.copier.start()
-            
-    
     
     def open_stimulus_file(self, filename, classname):
         if not os.path.exists(filename):
@@ -265,13 +263,17 @@ class ExperimentHandler(object):
             depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
             self.batch=[]
             for d in depths:
-                par=copy.deepcopy(experiment_parameters)
-                par['depth']=d
-                par=self.guidata.read('Repeats')*[par]
-                self.batch.extend(par)
+                for r in range(self.guidata.read('Repeats')):
+                    par=copy.deepcopy(experiment_parameters)
+                    time.sleep(0.2)
+                    par['id']=experiment_data.get_id()
+                    par['depth']=d
+                    par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
+                    self.batch.append(par)
             self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um' .format(b['id'], b['depth']) for b in self.batch]))
         elif self.machine_config.PLATFORM == 'rc_cortical':
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
+        self.fullbatch=copy.deepcopy(self.batch)
         self.batch_running=True
         
     def check_batch(self):
@@ -433,12 +435,11 @@ class ExperimentHandler(object):
                         break
                     time.sleep(1)
             self._stop_sync_recorder()
-            self.experiment_running=False
-            self.experiment_finish_time=time.time()
+#            self.experiment_running=False
+            #self.experiment_finish_time=time.time()
         if hasattr(self, 'copier'):
             self.printc('Resume copier')
             self.copier.resume()
-        self.experiment_running=False
         self.experiment_finish_time=time.time()
         self.to_gui.put({'update_status':'idle'})
             
@@ -678,6 +679,7 @@ class ExperimentHandler(object):
             self.read_sync_recorder()
             if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
                 self.finish_experiment()
+                self.experiment_running=False
                 self.save_experiment_files()
                 if self.guidata.read('Infinite Recording'):
                     self.start_experiment(manually_started=False) 
@@ -692,7 +694,7 @@ class ExperimentHandler(object):
         if self.batch_running:
             self.batch_running=False
             self.batch=[]
-            if self.ask4confirmation('Terminate only batch?'):
+            if self.ask4confirmation('Batch terminated, do you want to keep current recording running?'):
                 self.printc('Batch terminated, current recording is left running')
                 return
         self.printc('Aborting experiment, please wait...')
@@ -711,6 +713,7 @@ class ExperimentHandler(object):
             self._stop_sync_recorder()
         if self.machine_config.PLATFORM=='elphys':
             self.finish_experiment()
+            self.experiment_running=False
             self.save_experiment_files()
             #When infinite recording stopped, live_data erased
             self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
@@ -757,6 +760,8 @@ class ExperimentHandler(object):
                 fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
                 self.printc('Save 2p data to {0}'.format(fn))
                 self.microscope.save(fn)
+            self.experiment_running=False
+            self.experiment_finish_time=time.time()
         elif trigger_name=='stim error' or trigger_name=='cam error':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:
                 self.enable_check_network_status=True
@@ -778,6 +783,8 @@ class ExperimentHandler(object):
             elif trigger_name=='stim error':
                 self.send({'function': 'stop_recording','args':[]},'cam')
             self.finish_experiment()
+            self.experiment_running=False
+            self.experiment_finish_time=time.time()
             self.save_experiment_files(aborted=True)
             self.printc('Experiment finished with error')
             
@@ -808,6 +815,7 @@ class ExperimentHandler(object):
                 from visexpman.engine.hardware_interface import mesc_interface
                 self.mesc=mesc_interface.MescapiInterface()
                 self.microscope=self.mesc
+                self.microscope.name='mesc'
                 self.printc('mesc init {0} successful'.format('not' if not self.mesc.connected else ''))
         elif command=='close':
             if hasattr(self, 'mesc'):
@@ -1658,6 +1666,7 @@ class Analysis(object):
                 if not self.ask4confirmation('File might be opened by other applications. Opening it might lead to file corruption. Continue?'):
                     return
             self.fn=filename
+            self.printc('Opening {0}'.format(filename))
             h=hdf5io.Hdf5io(filename)
             scale=h.findvar('sync_scaling')
             self.printc(scale)
@@ -1691,6 +1700,9 @@ class Analysis(object):
                 speed=dfi/numpy.diff(cha/float(fs))*signs
                 t=(cha/float(fs))[1:]
                 self.to_gui.put({'plot_speed':[[t],[speed]]})
+            self.timg=h.findvar('timg')
+            self.tstim=h.findvar('tstim')
+            self.tcam=h.findvar('tcam')
             h.close()
         else:
             raise NotImplementedError()

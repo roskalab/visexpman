@@ -247,7 +247,11 @@ class CaImagingData(supcl):
             sig=sync[:,self.configs['machine_config']['TBEHAV_SYNC_INDEX']]
             if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
                 raise RuntimeError('Camera timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+            #Ignore first transient pulses that are longer than 10 ms
+            long_pulses=numpy.where(numpy.diff(signal.trigger_indexes(sig))[::2]>10e-3*fsample)[0]
             self.tcam=signal.trigger_indexes(sig)[::2]/fsample
+            if long_pulses.shape[0]>0:
+                self.tcam=self.tcam[long_pulses.shape[0]:]
             self.save('tcam')
         
     def crop_timg(self):
@@ -1878,6 +1882,8 @@ class Copier(multiprocessing.Process):
                             fileage=now-os.path.getmtime(f)
                             srcf=f.replace(self.dst, self.src)
                             if fileage<2*60:
+                                continue
+                            if not os.path.exists(srcf):
                                 continue
                             #Copy hdf5 files that are newer on dst
                             if os.path.splitext(f)[1] in ['.hdf5', '.mat']  and fileage>os.path.getmtime(srcf):

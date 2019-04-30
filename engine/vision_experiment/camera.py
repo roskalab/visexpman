@@ -324,7 +324,10 @@ class Camera(gui.VisexpmanMainWindow):
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
                 if self.recording:
                     dt=time.time()-self.tstart
-                    self.image.plot.setTitle('{0} s/head direction: {1:0.1f}'.format(int(dt),  self.red_angle if hasattr(self,  'red_angle') else ''))
+                    title='{0} s'.format(int(dt))
+                    if hasattr(self,  'red_angle'):
+                        title+='/head direction: {1:0.1f}'.format(self.red_angle)
+                    self.image.plot.setTitle(title)
                 if hasattr(self, 'ioboard'):
                     self.trigger_handler()
                 self.socket_handler()
