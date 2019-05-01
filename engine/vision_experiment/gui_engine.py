@@ -201,7 +201,7 @@ class ExperimentHandler(object):
         elif self.machine_config.PLATFORM=='mc_mea':
             experiment_parameters['mcd_file']=self.latest_mcd_file
             self.printc('MEA data is being saved to {0}'.format(self.latest_mcd_file))
-        for pn in ['Runwheel attached',  'Record Eyecamera',  'Offer Partial Save', 'Stimulus Only']:
+        for pn in ['Runwheel attached',  'Record Eyecamera',  'Partial Save', 'Stimulus Only']:
             v=self.guidata.read(pn)
             if v!=None:
                 experiment_parameters[pn]=v
@@ -698,7 +698,7 @@ class ExperimentHandler(object):
                 self.printc('Batch terminated, current recording is left running')
                 return
         self.printc('Aborting experiment, please wait...')
-        if self.current_experiment_parameters.get('Offer Partial Save', False):
+        if self.current_experiment_parameters.get('Partial Save', False):
             self.printc('Saving partial data')
         if self.machine_config.PLATFORM=='retinal':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
@@ -1689,7 +1689,8 @@ class Analysis(object):
                 y.append(sync[:,ch]+numpy.ceil(ch*spacing))
             self.sync=sync
             self.to_gui.put({'plot_sync':[x,y]})
-            if self.guidata.read('Runwheel attached')==True:
+            h.load('parameters')
+            if h.parameters['Runwheel attached']==True:
                 mc=h.findvar('configs')['machine_config']
                 channels=mc['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in mc else [3, 4]
                 chab=self.sync[:,channels]
@@ -1697,9 +1698,10 @@ class Analysis(object):
                 cha=signal.trigger_indexes(numpy.where(chab[:, 0]>2.5, 5, 0))[0::2]
                 signs=numpy.where(chab[cha+2, 0]>2.5, 1, -1)[1:]
                 dfi=2*numpy.pi/360
-                speed=dfi/numpy.diff(cha/float(fs))*signs
+                self.speed=dfi/numpy.diff(cha/float(fs))*signs
                 t=(cha/float(fs))[1:]
-                self.to_gui.put({'plot_speed':[[t],[speed]]})
+                if self.speed.shape[0]>0:
+                    self.to_gui.put({'plot_speed':[[t],[self.speed]]})
             self.timg=h.findvar('timg')
             self.tstim=h.findvar('tstim')
             self.tcam=h.findvar('tcam')

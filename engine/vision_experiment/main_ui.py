@@ -734,6 +734,7 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'plot_sync' in msg:
                 x,y=msg['plot_sync']
                 self.p=gui.Plot(None)
+                self.p.move(200, 200)
                 pp=[]
                 for i in range(len(x)):
                     c=colors.get_color(i)
@@ -744,6 +745,7 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'plot_speed' in msg:
                 x,y=msg['plot_speed']
                 self.p2=gui.Plot(None)
+                self.p2.move(100, 100)
                 pp=[]
                 for i in range(len(x)):
                     c=colors.get_color(i)
@@ -857,7 +859,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Enable Galvo', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
-            self.params_config[0]['children'].append({'name': 'Offer Partial Save', 'type': 'bool', 'value': False})
+            self.params_config[0]['children'].append({'name': 'Partial Save', 'type': 'bool', 'value': False})
         elif self.machine_config.PLATFORM in ['2p']:
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
         if self.machine_config.PLATFORM in ['2p', 'resonant']:

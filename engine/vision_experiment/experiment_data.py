@@ -1854,7 +1854,6 @@ class Copier(multiprocessing.Process):
         while not self.log.empty():
             logs.append(self.log.get())
         return logs
-            
         
     def close(self):
         self.command.put('terminate')
@@ -1883,7 +1882,7 @@ class Copier(multiprocessing.Process):
                             srcf=f.replace(self.dst, self.src)
                             if fileage<2*60:
                                 continue
-                            if not os.path.exists(srcf):
+                            if not os.path.exists(srcf) and os.path.splitext(f)[1] !='.mp4' :
                                 continue
                             #Copy hdf5 files that are newer on dst
                             if os.path.splitext(f)[1] in ['.hdf5', '.mat']  and fileage>os.path.getmtime(srcf):
@@ -1895,7 +1894,7 @@ class Copier(multiprocessing.Process):
                         for f in files:
                             fileage=now-os.path.getmtime(f)
 #                            self.log.put((f, fileage, os.path.splitext(f)[1]))
-                            if fileage>1*60 and fileage<7*86400 and os.path.splitext(f)[1] in ['.hdf5', '.mesc']:
+                            if fileage>2*60 and fileage<7*86400 and os.path.splitext(f)[1] in ['.hdf5', '.mesc']:
                                 #Generate dst path
                                 dstf=f.replace(self.src, self.dst)
                                 #Copy all hdf5 and mesc files that do not exists on dst
@@ -1909,6 +1908,9 @@ class Copier(multiprocessing.Process):
                     if len(files2copy)>0:
                         most_recent=files2copy[-1]
                         shutil.copy(most_recent[1], most_recent[2])
+                        import filecmp
+                        if not filecmp.cmp(most_recent[1], most_recent[2]):
+                            os.remove(most_recent[2])
                         self.log.put('Copy {0} to {1}'.format(most_recent[1],  most_recent[2]))
                     self.backcopy=not self.backcopy
                             

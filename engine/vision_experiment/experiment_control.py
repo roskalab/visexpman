@@ -862,7 +862,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.datafile.save('corrupt_timing')
                 self.printl(traceback.format_exc())
                 self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
-        if 'Record Eyecamera' in self.parameters and self.parameters['Record Eyecamera']:
+        if 0 and 'Record Eyecamera' in self.parameters and self.parameters['Record Eyecamera']:
             fps_values, fpsmean,  fpsstd=self.datafile.sync_frame_rate(self.machine_config.TBEHAV_SYNC_INDEX)
             bins=[min(fps_values), fpsmean-fpsstd/2,  fpsmean+fpsstd/2,  max(fps_values)]
             self.printl('Eye camera mean frame rate: {0} Hz,  std: {1} Hz,  number of frames {2}, Hist: {3}, {4}'.format(fpsmean, fpsstd, len(fps_values), *numpy.histogram(fps_values, bins)))
@@ -871,7 +871,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             high_low_levels, powered, signals_connected=self.datafile.check_runwheel_signals()
             self.printl('Runwheel signal checked: high low transitions: {0}, powered: {1}, signals connected: {2}'.format(high_low_levels, powered, signals_connected))
             if not high_low_levels or not signals_connected:
-                self.send({'notify':['Warning', 'No runwheel signal detected, check connections and Runwheel power supply!']})
+                self.send({'notify':['Warning', 'No runwheel signal detected, check connections and runwheel power supply!']})
             if not powered:
                 self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
         self.datafile.close()

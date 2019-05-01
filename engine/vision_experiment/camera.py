@@ -126,6 +126,12 @@ class Camera(gui.VisexpmanMainWindow):
         context_stream=utils.object2array(self.parameters)
         numpy.save(self.context_filename,context_stream)
         
+    def restart_camera(self):
+        self.printc('Restart camera')
+        self.camerahandler.stop()
+        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  None)
+        self.camerahandler.start()
+    
     def start_recording(self,  experiment_parameters=None):
         try:
             if self.recording:
@@ -165,7 +171,7 @@ class Camera(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
             self.send({'trigger': 'cam error'})
-        
+            
     def stop_recording(self):
         try:
             if not self.recording:
@@ -176,7 +182,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
-            hdf5io.save_item(self.fn, 'timestamps', self.ts)
+            hdf5io.save_item(self.fn, 'camera_timestamps', self.ts)
             hdf5io.save_item(self.fn, 'parameters',  self.parameters)
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
@@ -201,7 +207,7 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc('mean: {0} Hz,  std: {1} Hz'.format(1/numpy.mean(numpy.diff(self.ts)), 1/numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  None)
-            self.camerahandler.start()        
+            self.camerahandler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
@@ -238,7 +244,10 @@ class Camera(gui.VisexpmanMainWindow):
             
         
     def parameter_changed(self):
-        self.parameters=self.params.get_parameter_tree(return_dict=True)
+        newparams=self.params.get_parameter_tree(return_dict=True)
+        if hasattr(self,  'parameters') and (newparams['Frame Rate']!=self.parameters['Frame Rate'] or newparams['Exposure time']!=self.parameters['Exposure time']):
+            self.restart_camera()
+        self.parameters=newparams
         
     def record_action(self):
         self.start_recording()

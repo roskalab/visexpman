@@ -242,6 +242,8 @@ class Jobhandler(object):
             fileop.write_text_file(self.lockfile, 'locked')
         else:
             logging.warning('Locked')
+            self.keep_lock_file=True
+            return
         try:
             getattr(self, job)()
         except:
@@ -279,6 +281,9 @@ class Jobhandler(object):
                 hh=hdf5io.Hdf5io(localin)
                 hh.load('frames')
                 hh.load('parameters')
+                if not hasattr(hh,  'parameters'):
+                    import pdb;pdb.set_trace()
+                
                 fps=hh.parameters['Frame Rate']
                 logging.info('fps is {0}'.format(fps))
                 videofile.array2mp4(numpy.array(hh.frames,dtype=numpy.uint8), localout, fps, tempdir=os.path.expanduser('~'))
@@ -292,9 +297,10 @@ class Jobhandler(object):
                 shutil.rmtree(tmpfolder)
             
     def __del__(self):
-        logging.info('Removing lock file')
-        os.remove(self.lockfile)
-        logging.info('Done')
+        if not hasattr(self, 'keep_lock_file'):
+            logging.info('Removing lock file')
+            os.remove(self.lockfile)
+            logging.info('Done')
     
 
 class TestJobhandler(unittest.TestCase):
