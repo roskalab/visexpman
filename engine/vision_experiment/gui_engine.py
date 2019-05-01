@@ -441,7 +441,6 @@ class ExperimentHandler(object):
             self.printc('Resume copier')
             self.copier.resume()
         self.experiment_finish_time=time.time()
-        self.to_gui.put({'update_status':'idle'})
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
@@ -718,7 +717,6 @@ class ExperimentHandler(object):
             #When infinite recording stopped, live_data erased
             self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
         self.experiment_running=False
-        self.to_gui.put({'update_status':'idle'})
         self.printc('Experiment stopped')
                    
     def trigger_handler(self,trigger_name):
@@ -761,6 +759,7 @@ class ExperimentHandler(object):
                 self.printc('Save 2p data to {0}'.format(fn))
                 self.microscope.save(fn)
             self.experiment_running=False
+            self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
         elif trigger_name=='stim error' or trigger_name=='cam error':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:
@@ -784,6 +783,7 @@ class ExperimentHandler(object):
                 self.send({'function': 'stop_recording','args':[]},'cam')
             self.finish_experiment()
             self.experiment_running=False
+            self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
             self.save_experiment_files(aborted=True)
             self.printc('Experiment finished with error')

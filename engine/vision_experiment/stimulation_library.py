@@ -1023,9 +1023,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if mask_size!=None:
                 glColor3fv(colors.convert_color(mask_color, self.config))
                 for shi in range(vertices.shape[0]/4-1):
-#                    try:
+                    try:
                         glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
-#                    except:
+                    except:
+                        msg=[duration, white_bar_width, display_area, orientation, starting_phase, velocity, duty_cycle, mask_size, mask_color]
+                        import traceback
+                        raise RuntimeError(str(msg)+' '+traceback.format_exc())
 #                        import pdb;pdb;set_trace()
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             glEnable(GL_TEXTURE_2D)
