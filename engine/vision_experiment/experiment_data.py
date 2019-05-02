@@ -1674,7 +1674,7 @@ def hdf52mat(filename, scale_sync=False, exclude=[]):
         mat_data[rnt]=hh.findvar(rn)
         if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
-        elif mat_data[rnt]==None:
+        elif mat_data[rnt] is None:
             mat_data[rnt]='None'
     if scale_sync and hasattr(hh,'sync') and hasattr(hh,'sync_scaling'):
         mat_data['sync']=signal.from_16bit(mat_data['sync'], mat_data['sync_scaling'])

@@ -42,8 +42,8 @@ class Camera(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)        
         self.image = gui.Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
-        filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['2p', 'ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
-        self.datafilebrowser = main_ui.DataFileBrowser(self, filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
+        self.filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user)# if self.machine_config.PLATFORM in ['2p', 'ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
+        self.datafilebrowser = main_ui.DataFileBrowser(self, self.filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
@@ -127,10 +127,11 @@ class Camera(gui.VisexpmanMainWindow):
         numpy.save(self.context_filename,context_stream)
         
     def restart_camera(self):
-        self.printc('Restart camera')
-        self.camerahandler.stop()
-        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  None)
-        self.camerahandler.start()
+        if hasattr(self, 'camerahandler'):
+            self.printc('Restart camera')
+            self.camerahandler.stop()
+            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  None)
+            self.camerahandler.start()
     
     def start_recording(self,  experiment_parameters=None):
         try:
@@ -182,8 +183,8 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
-            hdf5io.save_item(self.fn, 'camera_timestamps', self.ts)
-            hdf5io.save_item(self.fn, 'parameters',  self.parameters)
+            hdf5io.save_item(self.fn, 'timestamps', self.ts)
+            hdf5io.save_item(self.fn, 'parameters', self.parameters)
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()
@@ -258,7 +259,8 @@ class Camera(gui.VisexpmanMainWindow):
     def convert_folder_action(self):
         #This is handled by main GUI process, delegating it to gui engine would make progress bar handling more complicated        
         try:
-            foldername = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select hdf5 video file folder', self.machine_config.EXPERIMENT_DATA_PATH))
+            if self.recording: return
+            foldername = str(QtGui.QFileDialog.getExistingDirectory(self, 'Select hdf5 video file folder', self.filebrowserroot))
             if foldername=='': return
             if os.name=='nt':
                 foldername=foldername.replace('/','\\')
@@ -279,20 +281,35 @@ class Camera(gui.VisexpmanMainWindow):
                     QtCore.QCoreApplication.instance().processEvents()
                     time.sleep(100e-3)
             self.printc('{0} folder complete'.format(foldername))
-            self.statusbar.recording_status.setStyleSheet('background:gray;')
-            self.statusbar.recording_status.setText('Ready')
         except:
             self.printc(traceback.format_exc())
+        self.statusbar.recording_status.setStyleSheet('background:gray;')
+        self.statusbar.recording_status.setText('Ready')
     
     
     def convert_file(self, filename):
         h=hdf5io.Hdf5io(filename)
         h.load('frames')
+        h.load('machine_config')
+        h.load('parameters')
+        h.load('sync')
+        #Make parameters and machine config compatible with matlab's hdf5io
+        p={}
+        for k, v in h.parameters.items():
+            if isinstance(v, bool):
+                v=int(v)
+            p[k.replace(' ', '_').lower()]=v
+        for k, v in h.machine_config.items():
+            if isinstance(v, bool):
+                h.machine_config[k]=int(v)
+        h.parameters=p
         h.head_direction=[]
         h.led_positions=[]
         h.head_position=[]
         ct=0
         h.frame_indexes=[]
+        h.tnvista=signal.trigger_indexes(h.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        h.tbehav=signal.trigger_indexes(h.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         for f in h.frames:
             result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
             print((result, position, self.red_angle, red, green, blue))
@@ -302,7 +319,7 @@ class Camera(gui.VisexpmanMainWindow):
                 h.head_position.append(position)
                 h.frame_indexes.append(ct)
             ct+=1
-        h.save(['head_direction',  'led_positions',  'head_position',  'frame_indexes'])
+        h.save(['head_direction',  'led_positions',  'head_position',  'frame_indexes',  'tnvista', 'tbehav', 'machine_config',  'parameters'])
         h.close()
         experiment_data.hdf52mat(filename,  scale_sync=True, exclude=['frames'])
     
@@ -318,13 +335,17 @@ class Camera(gui.VisexpmanMainWindow):
                 self.f=f
                 if self.machine_config.PLATFORM=='behav':
                     if self.recording or self.parameters.get('Show color LEDs', False):
-                        result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                        try:
+                            result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                        except:
+                            self.printc('Tracking problem')
+                            numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  f)
                         if self.recording:
                             self.track.append(self.position)
                         if self.parameters.get('Show color LEDs', False):
-                            f[int(self.red[0]), int(self.red[1])]=numpy.array([127, 127,127],dtype=f.dtype)
-                            f[int(self.green[0]), int(self.green[1])]=numpy.array([127,127,127],dtype=f.dtype)
-                            f[int(self.blue[0]), int(self.blue[1])]=numpy.array([127,127, 127],dtype=f.dtype)
+                            f[int(self.red[0]), int(self.red[1])]=numpy.array([255, 255,0],dtype=f.dtype)
+                            f[int(self.green[0]), int(self.green[1])]=numpy.array([255,255,0],dtype=f.dtype)
+                            f[int(self.blue[0]), int(self.blue[1])]=numpy.array([255,255, 0],dtype=f.dtype)
                             #f[int(self.position[0]), int(self.position[1])]=numpy.array([255,255, 255],dtype=f.dtype)
                     if self.parameters.get('Show track', False):
                         for p in self.track:
@@ -335,7 +356,7 @@ class Camera(gui.VisexpmanMainWindow):
                     dt=time.time()-self.tstart
                     title='{0} s'.format(int(dt))
                     if hasattr(self,  'red_angle'):
-                        title+='/head direction: {1:0.1f}'.format(self.red_angle)
+                        title+='/head direction: {0:0.1f}'.format(self.red_angle)
                     self.image.plot.setTitle(title)
                 if hasattr(self, 'ioboard'):
                     self.trigger_handler()
