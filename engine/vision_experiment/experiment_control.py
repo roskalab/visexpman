@@ -596,7 +596,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
                         .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))
             self.outputfilename=self.parameters['outfilename']
-            self.partial_save=self.parameters.get('Offer Partial Save', False)
+            self.partial_save=self.parameters.get('Partial Save', False)
             #Computational intensive precalculations for stimulus
             self.prepare()
             #Control/synchronization with platform specific recording devices
@@ -851,12 +851,11 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
             self.datafile.save(['sync', 'sync_scaling'])
             try:
-                if not self.parameters.get('Stimulus Only', False):
+                if not self.parameters.get('Stimulus Only', False) and not self.parameters['partial_data']:
                     self.datafile.sync2time()
-                    if not self.parameters['partial_data']:
-                        self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
-                    else:
-                        self.printl("Timing signal check is skipped at partial data")
+                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                else:
+                    self.printl("Timing signal check is skipped at partial data")
             except:
                 self.datafile.corrupt_timing=True
                 self.datafile.save('corrupt_timing')

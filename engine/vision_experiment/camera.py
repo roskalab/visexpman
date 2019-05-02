@@ -47,7 +47,9 @@ class Camera(gui.VisexpmanMainWindow):
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
-        self.main_tab.addTab(self.datafilebrowser, 'Data Files')
+        if self.machine_config.PLATFORM=='behav':
+            self.datafilebrowser = main_ui.DataFileBrowser(self, filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
+            self.main_tab.addTab(self.datafilebrowser, 'Data Files')        
         self.main_tab.addTab(self.params, 'Settings')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -111,7 +113,7 @@ class Camera(gui.VisexpmanMainWindow):
             params=[]
         self.params_config = [
                 {'name': 'Trigger', 'type': 'list', 'values': ['manual', 'network', 'TTL pulses'], 'value': trigger_value},
-                {'name': 'Enable trigger', 'type': 'bool', 'value': False}, 
+                {'name': 'Enable trigger', 'type': 'bool', 'value': False,   'readonly': self.machine_config.PLATFORM!='behav'}, 
                 {'name': 'Frame Rate', 'type': 'float', 'value': 25, 'siPrefix': True, 'suffix': 'Hz'},
                 {'name': 'Exposure time', 'type': 'float', 'value': 39, 'siPrefix': True, 'suffix': 'ms'},
                 {'name': 'Enable ROI cut', 'type': 'bool', 'value': False},
