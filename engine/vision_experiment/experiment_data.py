@@ -253,6 +253,12 @@ class CaImagingData(supcl):
             if long_pulses.shape[0]>0:
                 self.tcam=self.tcam[long_pulses.shape[0]:]
             self.save('tcam')
+        if 'TSTIMFRAME_SYNC_INDEX' in self.configs['machine_config']:
+            sig=sync[:,self.configs['machine_config']['TSTIMFRAME_SYNC_INDEX']]
+            if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+                raise RuntimeError('Stimulus frame timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+            self.tstimframe=signal.trigger_indexes(sig)[::2]/fsample
+            self.save('tstimframe')
         
     def crop_timg(self):
         for vn in ['configs', 'raw_data', 'timg']:

@@ -269,6 +269,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['depth']=d
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
+                    par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
                     self.batch.append(par)
             self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um' .format(b['id'], b['depth']) for b in self.batch]))
         elif self.machine_config.PLATFORM == 'rc_cortical':
