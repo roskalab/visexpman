@@ -699,7 +699,13 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     except:
         red=numpy.array([0, 0])
         result=False
-    red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))    
+    
+    if (red==numpy.array([0, 0])).all():
+        red_angle=numpy.degrees(numpy.arctan2(*(blue-green)))-90
+        if red_angle<-180:
+            red_angle+=360
+    else:
+        red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))
     animal_position=numpy.cast['int']((animal_position)/float(led_ct))
     if debug:
         img=numpy.rollaxis(numpy.array(3*[numpy.copy(image.sum(axis=2)/3)]), 0, 3)
@@ -829,7 +835,7 @@ class TestBehavAnalysis(unittest.TestCase):
         files=fileop.listdir_fullpath(folder)
         files.sort()
         coordinates={}
-        files=['c:\\temp\\behav_201904261056350.hdf5']
+#        files=['c:\\temp\\behav_201904261056350.hdf5']
         for filename in files:
             if 'png' in filename:
                 frames=[numpy.asarray(Image.open(f)) for f in files]
@@ -851,10 +857,11 @@ class TestBehavAnalysis(unittest.TestCase):
 #                    if framect%6!=0:
 #                        continue
                     try:
+                        f=numpy.copy(f)
                         result, position, red_angle, red, green, blue, debug=mouse_head_direction(f, roi_size=20, threshold=80,  saturation_threshold=0.6, value_threshold=0.4, debug=True)
                         results+=int(result)
                         outfolder=r'c:\temp\img'
-                        #outfolder='/tmp/img'
+                        outfolder='/tmp/img'
                         Image.fromarray(debug).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
                         print((framect, result))
                         pass
