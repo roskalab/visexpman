@@ -310,8 +310,8 @@ class Camera(gui.VisexpmanMainWindow):
         h.head_position=[]
         ct=0
         h.frame_indexes=[]
-        h.tnvista=signal.trigger_indexes(h.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-        h.tbehav=signal.trigger_indexes(h.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        h.tnvista=signal.trigger_indexes(h.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        h.tbehav=signal.trigger_indexes(h.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         for f in h.frames:
             result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
             print((result, position, self.red_angle, red, green, blue))
