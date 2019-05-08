@@ -704,6 +704,7 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         red_angle=numpy.degrees(numpy.arctan2(*(blue-green)))-90
         if red_angle<-180:
             red_angle+=360
+        result=True
     else:
         red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))
     animal_position=numpy.cast['int']((animal_position)/float(led_ct))
