@@ -132,7 +132,7 @@ class ExperimentHandler(object):
             else:
                 self.send({'function': 'set_context_variable','args':['background_color',self.guidata.read('Grey Level')*1e-2]},'stim')            
         elif parameter_name == 'Stimulus Center X' or parameter_name == 'Stimulus Center Y':
-            v=utils.rc((self.guidata.read('Stimulus Center Y'), self.guidata.read('Stimulus Center X')))
+            v=[self.guidata.read('Stimulus Center X'), self.guidata.read('Stimulus Center Y')]
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')
         elif parameter_name=='Filterwheel':
             f=self.guidata.read('Filterwheel')
@@ -198,7 +198,7 @@ class ExperimentHandler(object):
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
-        elif self.machine_config.PLATFORM=='mc_mea':
+        elif self.machine_config.PLATFORM=='mc_mea' and hasattr(self,'latest_mcd_file'):
             experiment_parameters['mcd_file']=self.latest_mcd_file
             self.printc('MEA data is being saved to {0}'.format(self.latest_mcd_file))
         for pn in ['Runwheel attached',  'Record Eyecamera',  'Partial Save', 'Stimulus Only']:
@@ -318,7 +318,7 @@ class ExperimentHandler(object):
                     self.notify('Warning', 'MC Rack new file trigger enabled, cannot start experiment manually')
                     return
                 else:
-                    raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
+                    pass#raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if not hasattr(self, 'connected_nodes') or 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
                 scope_name=self.microscope.name if hasattr(self,  'microscope') else ''
@@ -402,9 +402,10 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='mc_mea':
             #Copy mcd file to outfolder:
             time.sleep(3)
-            dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
-            self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
-            shutil.move(self.current_experiment_parameters['mcd_file'], dst)
+            if 'mcd_file' in self.current_experiment_parameters:
+                dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
+                self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
+                shutil.move(self.current_experiment_parameters['mcd_file'], dst)
             
 #            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
 #                #Find latest mcd file and save experiment metadata to the same folder
