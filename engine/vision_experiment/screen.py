@@ -164,16 +164,25 @@ class StimulationScreen(graphics.Screen):
         if self.show_bullseye:
             sc=utils.cr((self.stim_context['screen_center'][0], self.stim_context['screen_center'][1]))
             if self.config.SCREEN_MODE=='psychopy':
-                from OpenGL.GL import glColor3fv
-                glColor3fv((1.0,1.0,1.0))
-            if self.bullseye_type == 'L':
-                self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
-            elif self.bullseye_type == 'square':
-                self.draw_square(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
-            elif self.bullseye_type == 'bullseye':
-                self.render_image(self.bullseye_image, position = sc, stretch = self.bullseye_stretch_factor*self.bullseye_size)
-            elif self.bullseye_type == 'spot':
-                self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = sc)
+                if not hasattr(self, 'be'):
+                    from psychopy import visual
+                    fn=os.path.join(fileop.visexpman_package_path(), 'data', 'images', 'bullseye.bmp')
+                    self.be=visual.ImageStim(self.screen, image=fn, units='cm', pos=(0.0, 0.0), size=self.bullseye_size/10000.)#convert um to cm
+                    self.be.setAutoDraw(True)
+            else:
+                if self.bullseye_type == 'L':
+                    self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
+                elif self.bullseye_type == 'square':
+                    self.draw_square(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
+                elif self.bullseye_type == 'bullseye':
+                    self.render_image(self.bullseye_image, position = sc, stretch = self.bullseye_stretch_factor*self.bullseye_size)
+                elif self.bullseye_type == 'spot':
+                    self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = sc)
+        else:
+            if hasattr(self, 'be'):
+                self.be.setAutoDraw(False)
+                del self.be
+                
             
     def refresh_non_experiment_screen(self, flip = True):
         '''

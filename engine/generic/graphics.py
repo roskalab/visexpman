@@ -152,8 +152,8 @@ class Screen(object):
             kwargs['monitor']=self.config.PSYCHOPY_MONITOR_NAME
         else:
             m=monitors.Monitor('stimmonitor')
-            m.setDistance(self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/10.)#mm is converted to cm
-            m.setWidth(self.machine_config.SCREEN_WIDTH/10.)
+            m.setDistance(self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/10.0)#mm is converted to cm
+            m.setWidth(self.machine_config.SCREEN_WIDTH/10.)#Converting from mm to cm
             m.setSizePix((self.screen_resolution['col'],self.screen_resolution['row']))
             kwargs['monitor']=m
         self.screen = visual.Window(**kwargs)
