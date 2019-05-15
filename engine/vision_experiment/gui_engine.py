@@ -312,6 +312,7 @@ class ExperimentHandler(object):
         self.microscope_handler('init')
         
     def start_experiment(self, experiment_parameters=None, manually_started=True):
+        self.aborted=False
         if self.machine_config.PLATFORM in 'mc_mea':
             if manually_started:
                 if self.guidata.read('MC Rack New File Trigger Enable')==True:
@@ -402,7 +403,7 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='mc_mea':
             #Copy mcd file to outfolder:
             time.sleep(3)
-            if 'mcd_file' in self.current_experiment_parameters:
+            if not self.aborted and 'mcd_file' in self.current_experiment_parameters:
                 dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
                 self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
                 shutil.move(self.current_experiment_parameters['mcd_file'], dst)
@@ -692,6 +693,7 @@ class ExperimentHandler(object):
                 self.printc(l)
 
     def stop_experiment(self):
+        self.aborted=True
         if self.batch_running:
             self.batch_running=False
             self.batch=[]
