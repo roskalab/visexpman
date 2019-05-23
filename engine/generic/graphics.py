@@ -156,6 +156,7 @@ class Screen(object):
             m.setWidth(self.machine_config.SCREEN_WIDTH/10.)#Converting from mm to cm
             m.setSizePix((self.screen_resolution['col'],self.screen_resolution['row']))
             kwargs['monitor']=m
+            kwargs['pos']=(self.config.SCREEN_POSITION['col'],self.config.SCREEN_POSITION['row'])
         self.screen = visual.Window(**kwargs)
         
     def close_screen(self):

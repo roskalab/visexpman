@@ -378,6 +378,7 @@ class Camera(gui.VisexpmanMainWindow):
                             except:
                                 self.printc('Tracking problem')
                                 numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  numpy.array(p))
+                                self.log(traceback.format_exc())
                     
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
                 if self.recording:

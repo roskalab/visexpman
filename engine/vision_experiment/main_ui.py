@@ -784,8 +784,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
-                    {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
+                    {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     ]},
                     ]
         if self.machine_config.PLATFORM in ['mc_mea']:
