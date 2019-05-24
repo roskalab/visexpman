@@ -47,7 +47,7 @@ class Camera(gui.VisexpmanMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
         if self.machine_config.PLATFORM=='behav':
-            self.datafilebrowser = main_ui.DataFileBrowser(self, filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
+            self.datafilebrowser = main_ui.DataFileBrowser(self, self.filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
             self.main_tab.addTab(self.datafilebrowser, 'Data Files')        
         self.main_tab.addTab(self.params, 'Settings')
         self.main_tab.setCurrentIndex(0)
@@ -364,6 +364,8 @@ class Camera(gui.VisexpmanMainWindow):
                         except:
                             self.printc('Tracking problem')
                             numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  f)
+                            self.log(traceback.format_exc())
+                            
                         if self.recording:
                             self.track.append(self.position)
                         if self.parameters.get('Show color LEDs', False):
