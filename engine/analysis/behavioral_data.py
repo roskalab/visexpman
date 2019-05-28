@@ -680,7 +680,7 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         animal_position+=green
         led_ct+=1
     except:
-        green=numpy.array([0, 0])
+        green=numpy.array([numpy.NaN, numpy.NaN])
         result=False
         
     try:
@@ -689,7 +689,7 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         animal_position+=blue
         led_ct+=1
     except:
-        blue=numpy.array([0, 0])
+        blue=numpy.array([numpy.NaN, numpy.NaN])
         result=False
     try:
         red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<0.05,  roi[:, :, 0]>0.95), roi[:, :, 1]>saturation_threshold))])
@@ -697,18 +697,23 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         animal_position+=red
         led_ct+=1
     except:
-        red=numpy.array([0, 0])
+        red=numpy.array([numpy.NaN, numpy.NaN])
         result=False
     
-    if (red==numpy.array([0, 0])).all():
+    if numpy.isnan(red).all():
         red_angle=numpy.degrees(numpy.arctan2(*(blue-green)))-90
         if red_angle<-180:
             red_angle+=360
         result=True
-    elif (green==numpy.array([0, 0])).all():
+    elif numpy.isnan(green).all():
         red_angle=numpy.degrees(numpy.arctan2(*(blue-red)))
+        result=True
+    elif numpy.isnan(blue).all():
+        red_angle=numpy.degrees(numpy.arctan2(*(green-red)))
+        result=True
     else:
         red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))
+        result=True
     animal_position=numpy.cast['int']((animal_position)/float(led_ct))
     if debug:
         img=numpy.rollaxis(numpy.array(3*[numpy.copy(image.sum(axis=2)/3)]), 0, 3)
