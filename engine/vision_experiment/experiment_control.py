@@ -661,6 +661,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                             self.mesc_error=True
                             self.printl('MESc did not start, aborting stimulus')
                             self.send({'trigger':'stim error'})
+                        time.sleep(2)#ensure that imaging hass started. MESc start takes some time.
                 elif self.machine_config.PLATFORM == '2p':
                     if not self.parameters.get('Stimulus Only', False):
                         self.send({'2p': 'start'})
@@ -843,7 +844,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
         for v in variables2save :
             if hasattr(self.datafile, v):
-                print(v)
                 self.printl(v)
                 self.datafile.save(v)
         #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]

@@ -42,7 +42,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glBindTexture(GL_TEXTURE_2D, self.grating_texture)
                 glPixelStorei(GL_UNPACK_ALIGNMENT,1)
             except:
-                print('TODO: opengl calls do not work')
+                print('TODO: opengl calls do not work in stimulation library')
         #Calculate axis factors
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
@@ -2227,7 +2227,8 @@ class AdvancedStimulation(StimulationHelpers):
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + ')', source='stim')
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
         if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories})
+            trajectories2sfi=[{'row': ti['row'], 'col': ti['col']} for ti in trajectories]
+            self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories2sfi})
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_timing_pulse = False)
         for block in range(len(trajectories)):
             self.show_shape(shape = shape,  pos = trajectories[block], 

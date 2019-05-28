@@ -100,7 +100,7 @@ class Screen(object):
         try:
             self.image_texture_id = glGenTextures(1)
         except:
-            print('TODO: opengl calls do not work')
+            print('TODO: opengl calls do not work in graphics')
         self.initialization()
         
     def init_flip_variables(self):
@@ -152,10 +152,11 @@ class Screen(object):
             kwargs['monitor']=self.config.PSYCHOPY_MONITOR_NAME
         else:
             m=monitors.Monitor('stimmonitor')
-            m.setDistance(self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/10.)
-            m.setWidth(self.machine_config.SCREEN_WIDTH/10.)
+            m.setDistance(self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/10.0)#mm is converted to cm
+            m.setWidth(self.machine_config.SCREEN_WIDTH/10.)#Converting from mm to cm
             m.setSizePix((self.screen_resolution['col'],self.screen_resolution['row']))
             kwargs['monitor']=m
+            kwargs['pos']=(self.config.SCREEN_POSITION['col'],self.config.SCREEN_POSITION['row'])
         self.screen = visual.Window(**kwargs)
         
     def close_screen(self):

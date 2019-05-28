@@ -43,12 +43,11 @@ class Camera(gui.VisexpmanMainWindow):
         self.image = gui.Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         self.filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user)# if self.machine_config.PLATFORM in ['2p', 'ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
-        self.datafilebrowser = main_ui.DataFileBrowser(self, self.filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
         if self.machine_config.PLATFORM=='behav':
-            self.datafilebrowser = main_ui.DataFileBrowser(self, filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
+            self.datafilebrowser = main_ui.DataFileBrowser(self, self.filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
             self.main_tab.addTab(self.datafilebrowser, 'Data Files')        
         self.main_tab.addTab(self.params, 'Settings')
         self.main_tab.setCurrentIndex(0)
@@ -140,7 +139,9 @@ class Camera(gui.VisexpmanMainWindow):
             if self.recording:
                 return
             if 1000/self.parameters['Frame Rate']<self.parameters['Exposure time']:
-                QtGui.QMessageBox.question(self, 'Warning', 'Exposure time is too long for this frame rate!', QtGui.QMessageBox.Ok)
+                msg='Exposure time is too long for this frame rate!'
+                self.printc(msg)
+                QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
                 return
             self.recording=True
             self.printc('Start video recording')
@@ -226,7 +227,9 @@ class Camera(gui.VisexpmanMainWindow):
         length=self.sync.shape[0]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         two_frame_time=self.parameters['Exposure time']*1e-3*2
         if timestamps[0]<two_frame_time or timestamps[-1]>length-two_frame_time:
-            QtGui.QMessageBox.question(self, 'Warning', 'Beginning or end of camra timing signal may not be recorder properly!', QtGui.QMessageBox.Ok)
+            msg='Beginning or end of camra timing signal may not be recorder properly!'
+            self.printc(msg)
+            QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
             
     def check_nvista_camera_timing(self):
         timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
@@ -277,7 +280,10 @@ class Camera(gui.VisexpmanMainWindow):
             for f in files:
                 if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat')):
                     print(f)
-                    self.convert_file(f)
+                    try:
+                        self.convert_file(f)
+                    except:
+                        self.printc(traceback.format_exc(), popup_error=False)
                     prog=int((files.index(f)+1)/float(len(files))*100)
                     p.update(prog)
                     QtCore.QCoreApplication.instance().processEvents()
@@ -291,7 +297,6 @@ class Camera(gui.VisexpmanMainWindow):
     
     def convert_file(self, filename):
         h=hdf5io.Hdf5io(filename)
-        h.load('frames')
         h.load('machine_config')
         h.load('parameters')
         h.load('sync')
@@ -312,15 +317,32 @@ class Camera(gui.VisexpmanMainWindow):
         h.frame_indexes=[]
         h.tnvista=signal.trigger_indexes(h.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         h.tbehav=signal.trigger_indexes(h.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-        for f in h.frames:
-            result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
-            print((result, position, self.red_angle, red, green, blue))
-            if result:
-                h.head_direction.append(self.red_angle)
-                h.led_positions.append([red, green, blue])
-                h.head_position.append(position)
-                h.frame_indexes.append(ct)
-            ct+=1
+        nframes=h.h5f.root.frames.shape[0]
+        chunksize=1000
+        nchunks=nframes/chunksize
+        p=gui.Progressbar(100, 'Processing status',  autoclose=True)
+        p.move(200, 100)
+        p.show()
+        for chunki in range(nchunks):
+            frames=h.h5f.root.frames.read(chunki*chunksize,  (chunki+1)*chunksize)
+            self.printc((frames[0, 0, :2, 0]*numpy.array([256,1])).sum())#Just to see if frames are loaded in the right order
+            prog=100*chunki/nchunks
+            p.update(prog)
+            QtCore.QCoreApplication.instance().processEvents()
+            for f in frames:
+                try:
+                    result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                    print((result, position, self.red_angle, red, green, blue))
+                    if result:
+                        h.head_direction.append(self.red_angle)
+                        h.led_positions.append([red, green, blue])
+                        h.head_position.append(position)
+                        h.frame_indexes.append(ct)
+                    ct+=1
+                except:
+                    self.printc(traceback.format_exc(), popup_error=False)
+                    ct+=1
+                    continue
         h.save(['head_direction',  'led_positions',  'head_position',  'frame_indexes',  'tnvista', 'tbehav', 'machine_config',  'parameters'])
         h.close()
         experiment_data.hdf52mat(filename,  scale_sync=True, exclude=['frames'])
@@ -342,6 +364,8 @@ class Camera(gui.VisexpmanMainWindow):
                         except:
                             self.printc('Tracking problem')
                             numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  f)
+                            self.log(traceback.format_exc())
+                            
                         if self.recording:
                             self.track.append(self.position)
                         if self.parameters.get('Show color LEDs', False):
@@ -351,7 +375,12 @@ class Camera(gui.VisexpmanMainWindow):
                             #f[int(self.position[0]), int(self.position[1])]=numpy.array([255,255, 255],dtype=f.dtype)
                     if self.parameters.get('Show track', False):
                         for p in self.track:
-                            f[int(p[0]), int(p[1])]=numpy.array([255,255,255],dtype=f.dtype)
+                            try:
+                                f[int(p[0]), int(p[1])]=numpy.array([255,255,255],dtype=f.dtype)
+                            except:
+                                self.printc('Tracking problem')
+                                numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  numpy.array(p))
+                                self.log(traceback.format_exc())
                     
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
                 if self.recording:
