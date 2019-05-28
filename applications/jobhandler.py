@@ -223,9 +223,10 @@ class Jobhandler(object):
     Starting it:
         python -c "from visexpman.applications import jobhandler;jobhandler.Jobhandler('/mnt/resonant_data/Data')"
     '''
-    def __init__(self, folder, job, lock_timeout=60, max_retries=3):
+    def __init__(self, folder, job, lock_timeout=60, max_retries=4):
         self.folder=folder
         self.max_retries=max_retries
+        self.datatmp='/data/tmp'
         self.lockfile='/tmp/{0}-jobhandler-lock.txt'.format(job)
         self.logfile = os.path.join('/data/software/log', 'jobhandler_{0}.txt'.format(job))
         if not hasattr(self, job):
@@ -239,6 +240,8 @@ class Jobhandler(object):
                     format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
         self.locked= os.path.exists(self.lockfile) and fileop.file_age(self.lockfile)<lock_timeout*60
         if not self.locked:
+            logging.info('Clean up datatmp')
+            [os.remove(f) for f in  fileop.listdir(self.datatmp)]
             fileop.write_text_file(self.lockfile, 'locked')
         else:
             logging.warning('Locked')
@@ -272,7 +275,7 @@ class Jobhandler(object):
         f=self.get_next_file('eye')
         self.filename=f
         if f != None:
-            localin=os.path.join('/tmp', os.path.basename(f))
+            localin=os.path.join(self.datatmp, os.path.basename(f))
             localout=fileop.replace_extension(localin, '.mp4')
             videofilename=fileop.replace_extension(f, '.mp4')
             if not os.path.exists(videofilename):
@@ -281,7 +284,7 @@ class Jobhandler(object):
                 hh=hdf5io.Hdf5io(localin)
                 hh.load('frames')
                 hh.load('parameters')
-                if not hasattr(hh,  'parameters'):
+                if not hasattr(hh,  'parameters') and 0:
                     import pdb;pdb.set_trace()
                 
                 fps=hh.parameters['Frame Rate']
