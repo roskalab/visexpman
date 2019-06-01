@@ -162,13 +162,18 @@ class StimulationScreen(graphics.Screen):
         
     def _display_bullseye(self):
         if self.show_bullseye:
-            sc=utils.cr((self.stim_context['screen_center'][0], self.stim_context['screen_center'][1]))
+            try:
+                sc=utils.cr((self.stim_context['screen_center'][0], self.stim_context['screen_center'][1]))
+            except:
+                sc=utils.rc((0,0))
             if self.config.SCREEN_MODE=='psychopy':
                 if not hasattr(self, 'be'):
                     from psychopy import visual
                     fn=os.path.join(fileop.visexpman_package_path(), 'data', 'images', 'bullseye.bmp')
                     #Later: self.be=visual.ImageStim(self.screen, image=fn, units='cm', pos=(0.0, 0.0), size=self.bullseye_size/10000.)#convert um to cm
-                    self.be=visual.ImageStim(self.screen, image=fn, units='pix', pos=(0.0, 0.0), size=self.bullseye_size)#convert um to cm
+                    pixel_size=self.config.SCREEN_WIDTH/float(self.config.SCREEN_RESOLUTION['col'])
+                    s=self.bullseye_size*1e-4/pixel_size
+                    self.be=visual.ImageStim(self.screen, image=fn, units='pix', pos=(-s/2,0), size=s)#convert um to cm
                     self.be.setAutoDraw(True)
             else:
                 if self.bullseye_type == 'L':

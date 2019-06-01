@@ -119,6 +119,7 @@ class ExperimentHandler(object):
         Depending on which parameter changed certain things has to be recalculated
         '''
         if parameter_name == 'Bullseye On':
+            self.send({'function': 'set_variable','args':['bullseye_size',self.guidata.read('Bullseye Size')]},'stim')
             self.send({'function': 'toggle_bullseye','args':[self.guidata.read('Bullseye On')]},'stim')
         elif parameter_name == 'Bullseye Size':
             self.send({'function': 'set_variable','args':['bullseye_size',self.guidata.read('Bullseye Size')]},'stim')
