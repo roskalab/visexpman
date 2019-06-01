@@ -320,6 +320,8 @@ class Camera(gui.VisexpmanMainWindow):
         nframes=h.h5f.root.frames.shape[0]
         chunksize=1000
         nchunks=nframes/chunksize
+        if nchunks==0:
+            nchunks=1
         p=gui.Progressbar(100, 'Processing status',  autoclose=True)
         p.move(200, 100)
         p.show()
@@ -364,7 +366,7 @@ class Camera(gui.VisexpmanMainWindow):
                         except:
                             self.printc('Tracking problem')
                             numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  f)
-                            self.log(traceback.format_exc())
+                            self.logger.info(traceback.format_exc())
                             
                         if self.recording:
                             self.track.append(self.position)
