@@ -1,5 +1,8 @@
 import socket,subprocess,psutil,time,json,unittest,os,sys
-from visexpman.engine.generic import fileop
+try:
+    from visexpman.engine.generic import fileop
+except ImportError:
+    pass
 if 1:
     try:
         import mescapi

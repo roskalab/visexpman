@@ -115,7 +115,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
     def _write2statusbar(self,txt):
         self.statusbar.showMessage(txt)
         
-    def printc(self, text, logonly = False):
+    def printc(self, text, logonly = False, popup_error=True):
         '''
         text is displayed on console and logged to logfile
         '''
@@ -125,7 +125,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
             self.debug.log.update(self.text)
         loglevels = ['warning', 'error']
         loglevel = [l for l in loglevels if l in text.lower()]
-        if 'error' in text.lower():
+        if 'error' in text.lower() and popup_error:
             QtGui.QMessageBox.question(self, 'Error', text, QtGui.QMessageBox.Ok)
         if len(loglevel)>0:
             loglevel = loglevel[0]
@@ -154,26 +154,35 @@ class VisexpmanMainWindow(Qt.QMainWindow):
     def load_all_parameters(self):
         values, paths, refs = self.params.get_parameter_tree()
         paths = ['/'.join(p) for p in paths]
-        for item in self.engine.guidata.to_dict():
-            mwname = item['path'].split('/')[0]
-            if mwname == 'params':
+        if hasattr(self, 'engine'):
+            for item in self.engine.guidata.to_dict():
+                mwname = item['path'].split('/')[0]
+                if mwname == 'params':
+                    try:
+                        r = refs[paths.index([p for p in paths if p == item['path']][0])]
+                    except IndexError:
+                        continue
+                    r.setValue(item['value'])
+                    r.setDefault(item['value'])
+                elif mwname == 'stimulusbrowser':
+                    self.stimulusbrowser.select_stimulus(item['value'])
+                elif mwname == 'hash':
+                    continue
+                else:
+                    ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
+                    wname = ref.__class__.__name__.lower()
+                    if 'checkbox' in wname:
+                        ref.setCheckState(2 if item['value'] else 0)
+                    elif 'qtabwidget' in wname:
+                        ref.setCurrentIndex(item['value'])
+        else:
+            for k, v in self.parameters.items():
                 try:
-                    r = refs[paths.index([p for p in paths if p == item['path']][0])]
+                    r = refs[paths.index([p for p in paths if k in p][0])]
                 except IndexError:
                     continue
-                r.setValue(item['value'])
-                r.setDefault(item['value'])
-            elif mwname == 'stimulusbrowser':
-                self.stimulusbrowser.select_stimulus(item['value'])
-            elif mwname == 'hash':
-                continue
-            else:
-                ref = introspect.string2objectreference(self, 'self.'+item['path'].replace('/','.'))
-                wname = ref.__class__.__name__.lower()
-                if 'checkbox' in wname:
-                    ref.setCheckState(2 if item['value'] else 0)
-                elif 'qtabwidget' in wname:
-                    ref.setCurrentIndex(item['value'])
+                r.setValue(v)
+                r.setDefault(v)
         
     def closeEvent(self, e):
         e.accept()
@@ -342,7 +351,8 @@ class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
             selfw = parent.parent
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os}, text = 'self: main gui widget, numpy, utils, fileop, signal, os')
+        from visexpman.engine.vision_experiment import experiment_data
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os,  'experiment_data':experiment_data}, text = 'self: main gui widget, numpy, utils, fileop, signal, os, experiment_data')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):

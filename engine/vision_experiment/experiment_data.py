@@ -241,6 +241,24 @@ class CaImagingData(supcl):
             raise RuntimeError('Initial voltage level of stimulus timing signal is too high: {0} V'.format(sig[0]))
         self.tstim=signal.trigger_indexes(sig)/fsample
         self.save(['timg', 'tstim'])
+        #Convert camera timing signals to timestamps
+        self.load('parameters')
+        if self.parameters.get('Record Eyecamera', False):
+            sig=sync[:,self.configs['machine_config']['TBEHAV_SYNC_INDEX']]
+            if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+                raise RuntimeError('Camera timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+            #Ignore first transient pulses that are longer than 10 ms
+            long_pulses=numpy.where(numpy.diff(signal.trigger_indexes(sig))[::2]>10e-3*fsample)[0]
+            self.tcam=signal.trigger_indexes(sig)[::2]/fsample
+            if long_pulses.shape[0]>0:
+                self.tcam=self.tcam[long_pulses.shape[0]:]
+            self.save('tcam')
+        if 'TSTIMFRAME_SYNC_INDEX' in self.configs['machine_config']:
+            sig=sync[:,self.configs['machine_config']['TSTIMFRAME_SYNC_INDEX']]
+            if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+                raise RuntimeError('Stimulus frame timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+            self.tstimframe=signal.trigger_indexes(sig)[::2]/fsample
+            self.save('tstimframe')
         
     def crop_timg(self):
         for vn in ['configs', 'raw_data', 'timg']:
@@ -284,10 +302,13 @@ class CaImagingData(supcl):
                     errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
             else:
                 raise NotImplementedError()
+        if hasattr(self,  'tcam'):
+            if not (self.tcam[0]<self.tstim[0] and self.tcam[-1]>self.tstim[-1]):
+                errors.append('{0} of stimulus was not recorded with eyecamera'.format('Beginning' if self.tcam[0]>self.tstim[0] else 'End') )
         if len(errors)>0:
             raise RuntimeError('\r\n'.join(errors))
             
-    def check_runhweel_signals(self):
+    def check_runwheel_signals(self):
         '''
         Returns True if valid runwheel signal is detected. 
         Valid runwheel signal is a two channel binary signal
@@ -295,9 +316,46 @@ class CaImagingData(supcl):
         self.load('sync')
         self.load('sync_scaling')
         self.load('configs')
-        channels= self.configs['machine_config']['RUNHWEEL_SIGNAL_CHANNELS'] if 'RUNHWEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
+        channels= self.configs['machine_config']['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in  self.configs['machine_config'] else [3,4]
         sync=signal.from_16bit(self.sync,self.sync_scaling)
-        return all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
+        high_low_levels= all([any(numpy.where(sync[:,channel]>2.0, True,  False)) for channel in channels])#2 V seems to be a reasnable threshold
+        import scipy.signal
+        filter=scipy.signal.butter(2,20./self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')
+        filtered=scipy.signal.filtfilt(filter[0],filter[1], sync[:,channels[-1]]).real
+        frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
+        powered=abs(frequencies.mean()-50)>5
+        #Check unconnected runwheel/runwheel voltage level
+        max_voltage_level=numpy.histogram(sync[:,channels[0]])[1][-2]
+        signals_connected = max_voltage_level>6
+        return high_low_levels, powered, signals_connected
+        
+    def sync_frame_rate(self, channel):
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        return signal.calculate_frame_rate(sync[:, channel], self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'], threshold=2.5)
+        
+    def encoder2speed(self):
+        '''
+        Converts raw encoder signal to angular speed
+        '''
+        self.load('sync')
+        self.load('sync_scaling')
+        self.load('configs')
+        mc=self.configs['machine_config']
+        fs=self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']
+        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        channels=mc['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in mc else [3, 4]
+        chab=sync[:,channels]
+        cha=signal.trigger_indexes(numpy.where(chab[:, 0]>2.5, 5, 0))
+        offset=1 if chab[cha[0]-1, 0]>2.5 else 0
+        cha=cha[offset::2]
+        signs=numpy.where(chab[cha+2, 1]>2.5, 1, -1)[1:]
+        dfi=2*numpy.pi/360#360 pulses per revolution
+        speed=dfi/numpy.diff(cha/float(fs))*signs
+        t=(cha/float(fs))[1:]
+        return t,speed
         
     def get_image(self, image_type='mip', load_raw=True, motion_correction=False):
         '''
@@ -640,11 +698,16 @@ def pack_software_environment(experiment_source_code = None):
         vap=fileop.visexpA_package_path()
         if vap != None:
             visexpman_module_paths.extend(fileop.find_files_and_folders(vap,extension='py')[1])
+        import sys
+        vufolder=os.path.dirname(sys.modules[str(sys.argv[sys.argv.index('--vu')+1])].__file__)
+        visexpman_module_paths.extend(fileop.find_files_and_folders(vufolder,extension='py')[1])
         for module_path in visexpman_module_paths:
             if 'visexpA' in module_path:
                 zip_path = '/visexpA' + module_path.split('visexpA')[-1]
             elif 'visexpman' in module_path:
                 zip_path = '/visexpman' + module_path.split('visexpman')[-1]
+            elif 'visexpu' in module_path:
+                zip_path = '/visexpu' + module_path.split('visexpu')[-1]
             if os.path.exists(module_path):
                 zipfile_handler.write(module_path, zip_path)
         if tostream:
@@ -1478,14 +1541,47 @@ class TestExperimentData(unittest.TestCase):
             if '.mes' in f:
                 print(f)
                 mes2mat(os.path.join(folder, f))
-                
+    
+    @unittest.skip("")
     def test_15_check_runhweel_signal(self):
         folder='/home/rz/mysoftware/data/runwheel'
         for f in fileop.listdir(folder):
             c=CaImagingData(f)
-            print((f, c.check_runhweel_signals()))
+            print((f, c.check_runwheel_signals()))
             c.close()
         pass
+        
+    @unittest.skip("")
+    def test_16_50Hz_in_runwheel(self):
+        fn=r'X:\resonant-setup\Data\fiona\20190402\data_MovingGratingNoMarchingConfig_201904021220172.hdf5'
+        c=CaImagingData(fn)
+        import scipy.signal
+        c.load('sync')
+        c.load('sync_scaling')
+        c.load('configs')
+        sync=signal.from_16bit(c.sync,c.sync_scaling)
+        filter=scipy.signal.butter(2,20./c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'],'high')
+        filtered=scipy.signal.filtfilt(filter[0],filter[1], sync[:,3]).real
+        frequencies=1/(numpy.diff(numpy.where(numpy.diff(numpy.where(filtered>0,1,0))>0)[0])/float(c.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE']))
+        res=abs(frequencies.mean()-50)<5
+            
+        from pylab import plot, show,figure
+        figure(1)
+        plot(sync[:,4]);plot(sync[:,3])
+        figure(2)
+        plot(filtered)
+        figure(3)        
+        plot(sync[:,4]-sync[:,3])
+        show()
+        c.close()
+        
+    def test_encoder_signal_conversion(self):
+        fn='/home/rz/mysoftware/data/runwheel/new/data_F275_1R__MovingGratingFiona3x_201904121635262.hdf5'
+#        fn='/home/rz/mysoftware/data/runwheel/new/data_F272_1L__MovingGratingFiona3x_201904041353542.hdf5'
+        c=CaImagingData(fn)
+        c.encoder2speed()
+        c.check_runwheel_signals()
+        c.close()
         
 def find_rois(meanimage):
     from skimage import filter
@@ -1564,7 +1660,7 @@ def gammatext2hdf5(filename):
 def yscanner2sync(waveform):
     pass
     
-def hdf52mat(filename, scale_sync=False):
+def hdf52mat(filename, scale_sync=False, exclude=[]):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
     if not hasattr(hh, 'h5f'):
@@ -1575,6 +1671,8 @@ def hdf52mat(filename, scale_sync=False):
         rootnodes=[v for v in hh.h5f.root._v_children.keys() if v not in ignore_nodes]
     mat_data={}
     for rn in rootnodes:
+        if rn in exclude:
+            continue
         if os.path.basename(filename).split('_')[-2] in rn:
             rnt='idnode'
         else:
@@ -1582,6 +1680,8 @@ def hdf52mat(filename, scale_sync=False):
         mat_data[rnt]=hh.findvar(rn)
         if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
             mat_data[rnt]=0
+        elif mat_data[rnt] is None:
+            mat_data[rnt]='None'
     if scale_sync and hasattr(hh,'sync') and hasattr(hh,'sync_scaling'):
         mat_data['sync']=signal.from_16bit(mat_data['sync'], mat_data['sync_scaling'])
     if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
@@ -1733,7 +1833,108 @@ def mes2mat(filename):
         dataout['height_um']=pixel_size_um*rawdata.shape[1]*pixel_size_um
         scipy.io.savemat(fileop.replace_extension(filename, '.mat'), dataout,do_compression=True)
     
+class Copier(multiprocessing.Process):
+    '''
+    Copies unprocessed files to server and copies back processed files to local disk
+        From src to dst files between 2 minute and 1 week age are copied if their extension is hdf5 or mesc
+        and do not exists at dst.
+        From dst to src mp4 files are copied if does not exists, hdf5 and mat files are copied if file at dst is newer than
+        at src (merged hdf5 with mesc data+converted mat file)
+        
+    '''
+    def __init__(self, src, dst):
+        multiprocessing.Process.__init__(self)
+        self.src=src
+        self.dst=dst
+        self.command=multiprocessing.Queue()
+        self.log=multiprocessing.Queue()
+        
+    def suspend(self):
+        self.command.put('suspend')
 
+    def resume(self):
+        self.command.put('resume')
+        
+    def printl(self):
+        logs=[]
+        while not self.log.empty():
+            logs.append(self.log.get())
+        return logs
+        
+    def close(self):
+        self.command.put('terminate')
+    
+    def run(self):
+        self.run=True
+        self.backcopy=False
+        while True:
+            if not self.command.empty():
+                cmd=self.command.get()
+                if cmd=='terminate':
+                    break
+                elif cmd=='suspend':
+                    self.run=False
+                elif cmd=='resume':
+                    self.run=True
+            try:
+                if self.run:
+                    #Find out which file to copy next
+                    now=time.time()
+                    files2copy=[]
+                    files=fileop.find_files_and_folders(self.src if not self.backcopy else self.dst)[1]
+                    if self.backcopy:
+                        for f in files:
+                            fileage=now-os.path.getmtime(f)
+                            srcf=f.replace(self.dst, self.src)
+                            if fileage<2*60:
+                                continue
+                            if not os.path.exists(srcf) and os.path.splitext(f)[1] !='.mp4' :
+                                continue
+                            #Copy hdf5 files that are newer on dst
+                            if os.path.splitext(f)[1] in ['.hdf5', '.mat']  and fileage>os.path.getmtime(srcf):
+                                files2copy.append((fileage, f, srcf))
+                            elif os.path.splitext(f)[1] =='.mp4' and not os.path.exists(srcf):
+                                files2copy.append((fileage, f, srcf))
+                    else:
+#                        self.log.put([os.path.getmtime(f)-now for f in files])
+                        for f in files:
+                            fileage=now-os.path.getmtime(f)
+#                            self.log.put((f, fileage, os.path.splitext(f)[1]))
+                            if fileage>2*60 and fileage<7*86400 and os.path.splitext(f)[1] in ['.hdf5', '.mesc']:
+                                #Generate dst path
+                                dstf=f.replace(self.src, self.dst)
+                                #Copy all hdf5 and mesc files that do not exists on dst
+                                if not os.path.exists(dstf):
+                                    if not os.path.exists(os.path.dirname(dstf)):
+                                        os.makedirs(os.path.dirname(dstf))
+                                    files2copy.append((fileage, f, dstf))
+                    #Find most recent and copy that
+                    files2copy.sort()
+#                    self.log.put(files2copy)
+                    if len(files2copy)>0:
+                        most_recent=files2copy[-1]
+                        shutil.copy(most_recent[1], most_recent[2])
+                        import filecmp
+                        if not filecmp.cmp(most_recent[1], most_recent[2]):
+                            os.remove(most_recent[2])
+                        self.log.put('Copy {0} to {1}'.format(most_recent[1],  most_recent[2]))
+                    self.backcopy=not self.backcopy
+                            
+                else:
+                    time.sleep(1)
+            except:
+                import traceback
+                e=traceback.format_exc()
+                self.log.put(e)
+            
+        
+
+class Test(unittest.TestCase):
+    def setUp(self):
+        pass
+        
+    def tearDown(self):
+        pass
 
 if __name__=='__main__':
     unittest.main()

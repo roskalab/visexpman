@@ -1,4 +1,4 @@
-import copy,visexpman,sys, multiprocessing
+import copy,visexpman,sys, multiprocessing, threading
 from visexpman.engine.generic.introspect import Timer
 import numpy
 from contextlib import closing
@@ -369,7 +369,7 @@ class CameraRecorderProcess(multiprocessing.Process):
         self.command=multiprocessing.Queue(5)
         self.data=multiprocessing.Queue(2)
         self.frame=multiprocessing.Queue(10)
-        self.error=multiprocessing.Queue(2)
+        self.error=multiprocessing.Queue(5)
         self.started=multiprocessing.Queue(1)
         self.frame_rate=frame_rate
         self.machine_config=config
@@ -378,30 +378,35 @@ class CameraRecorderProcess(multiprocessing.Process):
     def run(self):
         try:
             if self.machine_config!=None and not self.machine_config.CAMERA_TIMING_ON_STIM:
-                self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT)
+                self.io=digital_io.IOBoard(self.machine_config.CAMERA_IO_PORT,  timeout=3e-3, initial_wait=3)
                 self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
             self.cam=ImagingSourceCamera(self.frame_rate)
             self.cam.start()
             if 0 and hasattr(self,  'io'):
                 self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  1)
             self.started.put(True)
+            pulsemsg='pulse,{0},{1}\r\n'.format(self.machine_config.CAMERA_TIMING_PIN, 5)
+            if sys.version_info[0] == 3:
+                pulsemsg=bytes(pulsemsg,'utf-8')
             while True:
                 time.sleep(0.5/self.frame_rate)
-                self.cam.save()
-                if hasattr(self,  'io'):
-                    self.io.pulse(self.machine_config.CAMERA_TIMING_PIN,  5e-3)
-                if len(self.cam.frames)>0:
-                    self.frame.put(self.cam.frames[-1])
+                if self.cam.save():
+                    if hasattr(self,  'io'):
+                        self.io.s.write(pulsemsg)
+                        #self.io.pulse(self.machine_config.CAMERA_TIMING_PIN,  5e-3)
+                    if len(self.cam.frames)%3==1:
+                        self.frame.put(self.cam.frames[-1])
                 if not self.command.empty():
                     if self.command.get()=='stop':
                         self.cam.stop()
                         break
-            if hasattr(self,  'io'):
-                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
+#            if hasattr(self,  'io'):
+#                self.io.set_pin(self.machine_config.CAMERA_TIMING_PIN,  0)
             if hasattr(self,  'io'):
                 self.io.close()
             dropped_frames=self.cam.mark_dropped_frames()
-            data={'frames': self.cam.frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
+            frames=numpy.array(self.cam.frames)
+            data={'frames': frames, 'timestamps': self.cam.timestamps,  'dropped_frames': dropped_frames}
             self.data.put(data)
             self.cam.close()
         except:
@@ -431,7 +436,176 @@ class CameraRecorderProcess(multiprocessing.Process):
                 res=False
                 break
         return res
-                
+        
+class ImagingSourceCameraHandler(multiprocessing.Process):
+    def __init__(self, frame_rate, exposure_time, ioboard_com, filename=None, watermark=False):
+        self.frame_rate=frame_rate
+        self.exposure_time=exposure_time
+        self.filename=filename
+        self.ioboard_com=ioboard_com
+        self.watermark=watermark
+        multiprocessing.Process.__init__(self)
+        self.command=multiprocessing.Queue()
+        self.log=multiprocessing.Queue()
+        self.frame=multiprocessing.Queue()
+        self.timestamps=multiprocessing.Queue()
+        self.display_frame=multiprocessing.Queue(1)
+        
+    def run(self):
+        try:
+            if self.filename!=None:
+                self.saver=SaverProcess(self.filename,  self.frame, 100)
+                self.saver.start()
+            from visexpur.tis import tisgrabber_import
+            lib=tisgrabber_import.TIS_grabber()
+            lib.InitLibrary()
+            camera_name=lib.Kamera_finden()[0]
+            ch= lib.Kamera_verbinden(camera_name)
+            if ch.open()!=1:
+                raise RuntimeError()
+            ch.set_exposure(self.exposure_time)
+            ch.StartLive()
+            self.log.put('Connected to {0}'.format(camera_name))
+            self.frame_counter=0
+            timestamps=[]
+            if self.ioboard_com!=None:
+                self.ioboard='line' not in self.ioboard_com
+                if self.ioboard:
+                    import serial
+                    io=serial.Serial(self.ioboard_com, baudrate=115200, timeout=1e-3)
+                    time.sleep(2)
+                else:
+                    import PyDAQmx
+                    import PyDAQmx.DAQmxConstants as DAQmxConstants
+                    digital_output = PyDAQmx.Task()
+                    digital_output.CreateDOChan(self.ioboard_com,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            
+            w=1.0/self.frame_rate-4e-3
+            w=1e-3
+            tlast=time.time()
+            while True:
+                now=time.time()
+                if now-tlast>1.0/self.frame_rate:
+                    if ch.SnapImage()==1:
+                        frame=numpy.copy(ch.GetImage())
+                        tlast=now
+                        if self.filename!=None:
+                            timestamps.append(time.time())
+                        if self.ioboard_com!=None:
+                            if self.ioboard:
+                                cmd='pulse,5,3\r\n'
+                                if sys.version_info.major==3:
+                                    cmd=bytes(cmd, 'utf-8')
+                                io.write(cmd)
+                                io.reset_input_buffer()
+                            else:
+                                digital_output.WriteDigitalLines(1,
+                                        True,
+                                        1.0,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        numpy.array([int(1)], dtype=numpy.uint8),
+                                        None,
+                                        None)
+                                time.sleep(1e-3)
+                                digital_output.WriteDigitalLines(1,
+                                        True,
+                                        1.0,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        numpy.array([int(0)], dtype=numpy.uint8),
+                                        None,
+                                        None)
+                        if self.watermark:
+                            low=self.frame_counter%256
+                            high=self.frame_counter/256
+                            frame[0, 0, :]=high
+                            frame[0, 1, :]=low
+                        if self.filename!=None:
+                            self.frame.put(frame)
+                        self.frame_counter+=1
+                        if self.display_frame.empty():
+                            self.display_frame.put(frame)
+                time.sleep(w)
+                if not self.command.empty():
+                    self.frame.put('terminate')#stop saver
+                    self.log.put("Stop received")
+                    break
+            self.timestamps.put(timestamps)
+            ch.StopLive()
+            ch.close()
+            if self.ioboard_com!=None:
+                if self.ioboard:
+                    io.close()
+                else:
+                    digital_output.ClearTask()
+            if hasattr(self,  'saver'):
+                while self.saver.done.empty():
+                    time.sleep(1)
+                self.saver.terminate()
+                self.saver.join()
+            self.log.put('Camera process ended')
+        except:
+            import traceback
+            self.log.put(traceback.format_exc())
+            
+    def stop(self):
+        self.command.put('terminate')
+        time.sleep(0.3)
+        log=[]
+        while not self.log.empty():
+            log.append(self.log.get())
+        if self.filename!=None:
+            ts=self.timestamps.get()
+            while self.log.empty():
+                time.sleep(1)
+            log.append(self.log.get())
+        else:
+            ts=[]
+        self.terminate()
+        return ts, log
+        
+class SaverProcess(multiprocessing.Process):
+    def __init__(self, filename, data,  chunksize):
+        self.filename=filename
+        self.dataq=data
+        self.chunksize=chunksize
+        self.done=multiprocessing.Queue()
+        multiprocessing.Process.__init__(self)
+        
+    def run(self):
+        self.datafile=tables.open_file(self.filename, 'w')
+        self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 
+                            'Frames', 
+                            filters=tables.Filters(complevel=2, complib='zlib', shuffle = 1), 
+                            )
+        ct=0
+        chunk=[]
+        frames=[]
+        while True:
+            if not self.dataq.empty():
+                frame=self.dataq.get()
+                if not hasattr(frame,  'dtype'):
+                    if len(chunk)>0:
+                        self.datafile.root.frames.append(numpy.array(chunk))
+                    chunk=[]
+                    break
+                else:
+#                    frames.append(frame)
+                    chunk.append(frame)
+                    if len(chunk)==self.chunksize:
+                        self.datafile.root.frames.append(numpy.array(chunk))
+                        self.datafile.root.frames.flush()
+                        chunk=[]
+                    else:
+                        time.sleep(1e-3)
+                    ct+=1
+#                    if ct%3==1:
+#                        self.datafile.root.frames.flush()
+            else:
+                time.sleep(5e-3)
+#        self.datafile.root.frames.append(numpy.array(frames))
+        self.datafile.root.frames.flush()
+        self.datafile.close()
+        self.done.put(True)
         
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):
@@ -498,20 +672,28 @@ class TestCamera(unittest.TestCase):
     def test_04_camera_process(self):
         for i in range(3):
             print(i)
-            c=CameraRecorderProcess(30)
-            c.start()
-            time.sleep(10)
-            res=c.stop()
-            print(res)
-            time.sleep(5)
-            while not c.frame.empty():
-                resf=c.frame.get()
-            print(c.frame.empty())
-            c.terminate()
-            c.join()
+            fn='c:\\Data\\test{0}.hdf5'.format(time.time())
+            from visexpman.engine.hardware_interface import daq_instrument
+            ai=daq_instrument.SimpleAnalogIn('Dev1/ai6:7', 1000, 600, finite=False)
+            cc=ImagingSourceCameraHandler(35, 1/60., 'COM6',  filename=fn)
+            cc.start()
+            time.sleep(30)
+            ts=cc.stop()
+            print(1/numpy.diff(ts), (1/numpy.diff(ts)).mean() , (1/numpy.diff(ts)).std(),  len(ts))
+            import hdf5io
+            nframes=hdf5io.read_item(fn,  'frames').shape
+            print(nframes)
+            data=ai.finish()
+            from pylab import plot, show
+            plot(data[:, 0]);show()
+#            while cc.log.empty():
+#                time.sleep(1)
+#            
+#            cc.terminate()
+            break
         print('done')
-        import pdb
-        pdb.set_trace()
+#        import pdb
+#        pdb.set_trace()
         
         
 def simple_camera():

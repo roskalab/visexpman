@@ -42,7 +42,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glBindTexture(GL_TEXTURE_2D, self.grating_texture)
                 glPixelStorei(GL_UNPACK_ALIGNMENT,1)
             except:
-                print('TODO: opengl calls do not work')
+                print('TODO: opengl calls do not work in stimulation library')
         #Calculate axis factors
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
@@ -417,7 +417,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             raise RuntimeError('Parameter size is provided in an unsupported format')
         size_pixel = utils.rc_x_const(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)
         if hasattr(self, 'screen_center') and enable_centering:
-            pos_with_offset = utils.rc_add(pos, self.screen_center)
+            pos_with_offset = utils.rc_add(pos, utils.cr(self.screen_center))
         else:
             pos_with_offset = pos
         pos_pixel = utils.rc_x_const(pos_with_offset, self.config.SCREEN_UM_TO_PIXEL_SCALE)
@@ -1023,7 +1023,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if mask_size!=None:
                 glColor3fv(colors.convert_color(mask_color, self.config))
                 for shi in range(vertices.shape[0]/4-1):
-                    glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+                    try:
+                        glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
+                    except:
+                        msg=[duration, white_bar_width, display_area, orientation, starting_phase, velocity, duty_cycle, mask_size, mask_color]
+                        import traceback
+                        raise RuntimeError(str(msg)+' '+traceback.format_exc())
+#                        import pdb;pdb;set_trace()
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             glEnable(GL_TEXTURE_2D)
             glColor3fv((1.0,1.0,1.0))
@@ -2221,7 +2227,8 @@ class AdvancedStimulation(StimulationHelpers):
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + ')', source='stim')
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,center,pause,moving_range,shape_starts_from_edge)
         if save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories})
+            trajectories2sfi=[{'row': ti['row'], 'col': ti['col']} for ti in trajectories]
+            self._save_stimulus_frame_info(inspect.currentframe(),parameters={'trajectories':trajectories2sfi})
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_timing_pulse = False)
         for block in range(len(trajectories)):
             self.show_shape(shape = shape,  pos = trajectories[block], 

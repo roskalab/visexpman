@@ -586,6 +586,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.parameters['stimclass']=self.__class__.__name__
                 else:
                     self.parameters['stimclass']=self.experiment_config.__class__.__name__
+                self.parameters['outfilename']=experiment_data.get_recording_path(self.machine_config, self.parameters,prefix = 'data')
                 from visexpman.engine.vision_experiment.experiment import get_experiment_duration
                 self.parameters['duration']=get_experiment_duration(self.parameters['stimclass'], self.config)                    
             #Check if main_ui user and machine config class matches with stim's
@@ -595,6 +596,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     raise RuntimeError('Stim and Visexpman GUI user or machine config does not match: {0},{1},{2},{3}'\
                         .format(self.parameters['user'], self.machine_config.user, self.parameters['machine_config'], self.machine_config.__class__.__name__))
             self.outputfilename=self.parameters['outfilename']
+            self.partial_save=self.parameters.get('Partial Save', False)
             #Computational intensive precalculations for stimulus
             self.prepare()
             #Control/synchronization with platform specific recording devices
@@ -603,6 +605,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.ENABLE_SYNC=='stim':
                     self.sync_recording_duration=self.parameters['duration']
                     self.start_sync_recording()
+#                    self.send({'trigger':'sync recording started'})
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
                     self.start_sync_recording()
@@ -645,25 +648,30 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                         self.abort=True
                         self.send({'trigger':'stim error'})
                 elif self.machine_config.PLATFORM == 'resonant':
-                    self.send({'mesc':'start'})
-                    time.sleep(1.5)
-                    response=self.recv()
-                    if not hasattr(response, 'keys') or not response['mesc start command result']:
-                        self.abort=True
+                    if not self.parameters.get('Stimulus Only', False):
+                        self.send({'mesc':'start'})
+                        time.sleep(1.5)
+                        response=self.recv()
                         self.mesc_error=True
-                        self.printl('MESc did not start, aborting stimulus')
-                        self.send({'trigger':'stim error'})
-                    else:
-                        self.mesc_error=False
+                        #Sometimes message is sent over in  {u'mesc start command result': True} format and this is not detected
+                        if hasattr(response, 'keys') and (('mesc start command result' in response and response['mesc start command result']) or (u'mesc start command result' in response and response[u'mesc start command result'])):
+                            self.mesc_error=False
+                        if self.mesc_error:
+                            self.abort=True
+                            self.mesc_error=True
+                            self.printl('MESc did not start, aborting stimulus')
+                            self.send({'trigger':'stim error'})
+                        time.sleep(2)#ensure that imaging hass started. MESc start takes some time.
                 elif self.machine_config.PLATFORM == '2p':
-                    self.send({'2p': 'start'})
-                    time.sleep(1.5)
-                    response=self.recv()
-                    if not hasattr(response, 'keys') or not response['start command result']:
-                        self.abort=True
-                        self.printl('Two photon recording did not start, aborting stimulus')
-                        self.send({'trigger':'stim error'})
-                        self.send({'2p': 'stop'})
+                    if not self.parameters.get('Stimulus Only', False):
+                        self.send({'2p': 'start'})
+                        time.sleep(1.5)
+                        response=self.recv()
+                        if not hasattr(response, 'keys') or not response['start command result']:
+                            self.abort=True
+                            self.printl('Two photon recording did not start, aborting stimulus')
+                            self.send({'trigger':'stim error'})
+                            self.send({'2p': 'stop'})
                 elif self.machine_config.PLATFORM == 'behav':
                     self.sync_recording_duration=self.machine_config.EXPERIMENT_MAXIMUM_DURATION*60
                     self.start_sync_recording()
@@ -675,6 +683,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.abort=True
                 self.send({'trigger':'stim error'})
                 self.printl(traceback.format_exc())
+                self.partial_save=False#if failed before starting stimulus, no partial data is saved
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
             self._start_frame_capture()
             try:
@@ -703,21 +712,26 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 self.wait4ao()
             elif self.machine_config.PLATFORM == 'resonant':
-                if not self.mesc_error:
+                if not self.parameters.get('Stimulus Only', False) and not self.mesc_error:
                     self.send({'mesc':'stop'})
             elif self.machine_config.PLATFORM == '2p':
-                self.send({'2p': 'stop'})
+                if not self.parameters.get('Stimulus Only', False):
+                    self.send({'2p': 'stop'})
+            elif self.machine_config.PLATFORM == 'mc_mea':
+                self.printl("Stop MC Mea recording")
+                self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
+                self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,0)
             if self.machine_config.PLATFORM in [ 'retinal']:
                 #Make sure that imaging recording finishes before terminating sync recording
                 time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
             if self.machine_config.ENABLE_SYNC=='stim':
-                self.analog_input.finish_daq_activity(abort = self.abort)
+                self.analog_input.finish_daq_activity(abort = self.abort and not self.partial_save)
                 self.printl('Sync signal recording finished')
             #Saving data
-            if not self.abort:
+            if not self.abort or self.partial_save:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p']:
+                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea']:
                     self.send({'trigger':'stim data ready'})
 #                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
 #                    self._backup(self.datafilename)
@@ -821,6 +835,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Certain variables are saved to hdf5 file
         '''
+        self.parameters['partial_data']=self.abort
         self._blocks2table()
         variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block']#['experiment_name', 'experiment_config_name', 'frame_times']
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
@@ -829,27 +844,35 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
         for v in variables2save :
             if hasattr(self.datafile, v):
-                print(v)
                 self.printl(v)
                 self.datafile.save(v)
         #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
         if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
             self.datafile.sync, self.datafile.sync_scaling=signal.to_16bit(self.analog_input.ai_data)
             self.datafile.save(['sync', 'sync_scaling'])
-            self.datafile.sync2time()
             try:
-                self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                if not self.parameters.get('Stimulus Only', False) and not self.parameters['partial_data']:
+                    self.datafile.sync2time()
+                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                else:
+                    self.printl("Timing signal check is skipped at partial data")
             except:
                 self.datafile.corrupt_timing=True
                 self.datafile.save('corrupt_timing')
-                self.datafile.close()
+                self.printl(traceback.format_exc())
                 self.printl('{0} saved but timing signal is corrupt'.format(self.datafile.filename))
-                raise RuntimeError(traceback.format_exc())
+        if 0 and 'Record Eyecamera' in self.parameters and self.parameters['Record Eyecamera']:
+            fps_values, fpsmean,  fpsstd=self.datafile.sync_frame_rate(self.machine_config.TBEHAV_SYNC_INDEX)
+            bins=[min(fps_values), fpsmean-fpsstd/2,  fpsmean+fpsstd/2,  max(fps_values)]
+            self.printl('Eye camera mean frame rate: {0} Hz,  std: {1} Hz,  number of frames {2}, Hist: {3}, {4}'.format(fpsmean, fpsstd, len(fps_values), *numpy.histogram(fps_values, bins)))
         if 'Runwheel attached' in self.parameters and self.parameters['Runwheel attached']:
             self.printl('Check runwheel signals')
-            if not self.datafile.check_runhweel_signals():
-                self.send({'notify':['Warning', 'No runwheel signal detected, check connections!']})
-                
+            high_low_levels, powered, signals_connected=self.datafile.check_runwheel_signals()
+            self.printl('Runwheel signal checked: high low transitions: {0}, powered: {1}, signals connected: {2}'.format(high_low_levels, powered, signals_connected))
+            if not high_low_levels or not signals_connected:
+                self.send({'notify':['Warning', 'No runwheel signal detected, check connections and runwheel power supply!']})
+            if not powered:
+                self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
         self.datafile.close()
         #Convert to mat file except for Dani
         if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':

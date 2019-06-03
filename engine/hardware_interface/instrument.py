@@ -43,6 +43,8 @@ class InstrumentProcess(threading.Thread, log.LoggerHelper):
         self.join()
             
     def printl(self,msg, loglevel='info'):
+        if self.log==None:
+            return
         if hasattr(self.log, loglevel):
             logfunc = getattr(self.log,loglevel)
         elif hasattr(self, loglevel):
@@ -296,14 +298,16 @@ class Shutter(Instrument):
                 except AttributeError:
                     pass
 
-def set_filterwheel(filter, config):
+def set_filterwheel(filter, port, baudrate):
     '''
     config is expected to have port baudrate and filters keys
     '''
-    serial_port = serial.Serial(port = config['port'], baudrate = config['baudrate'])
-    serial_port.write('pos='+str(config['filters'][filter]) +'\r')
-    time.sleep(2)
+    serial_port = serial.Serial(port = port, baudrate = baudrate,timeout=1)
+    serial_port.write('pos='+str(filter) +'\r')
+    time.sleep(1)
+    res=serial_port.read(100)
     serial_port.close()
+    return res
 
 class testConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):        

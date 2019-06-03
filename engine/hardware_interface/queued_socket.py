@@ -91,6 +91,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 if state:
                     break
                 time.sleep(0.1)
+            super(QueuedSocket, self).terminate()
             self.join()
         
     def _connect(self):
@@ -112,8 +113,8 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
         try:
             self._connect()
         except:
-            import traceback
             if hasattr(self.log, 'error'):
+                import traceback
                 self.log.error(traceback.format_exc(),self.socket_name)
             return#In this case perhaps it is better to end the process
         while True:
@@ -197,7 +198,6 @@ def get_queues(sockets):
         queues[k]['fromsocket'] = v.socket_queues['fromsocket']
         queues[k]['tosocket'] = v.socket_queues['tosocket']
     return queues
-    
     
 def stop_sockets(sockets):
     [s.terminate() for s in sockets.values() if s.is_alive()]

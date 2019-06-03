@@ -162,14 +162,33 @@ class StimulationScreen(graphics.Screen):
         
     def _display_bullseye(self):
         if self.show_bullseye:
-            if self.bullseye_type == 'L':
-                self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, self.stim_context['screen_center'])
-            elif self.bullseye_type == 'square':
-                self.draw_square(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, self.stim_context['screen_center'])
-            elif self.bullseye_type == 'bullseye':
-                self.render_image(self.bullseye_image, position = self.stim_context['screen_center'], stretch = self.bullseye_stretch_factor*self.bullseye_size)
-            elif self.bullseye_type == 'spot':
-                self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = self.stim_context['screen_center'])
+            try:
+                sc=utils.cr((self.stim_context['screen_center'][0], self.stim_context['screen_center'][1]))
+            except:
+                sc=utils.rc((0,0))
+            if self.config.SCREEN_MODE=='psychopy':
+                if not hasattr(self, 'be'):
+                    from psychopy import visual
+                    fn=os.path.join(fileop.visexpman_package_path(), 'data', 'images', 'bullseye.bmp')
+                    #Later: self.be=visual.ImageStim(self.screen, image=fn, units='cm', pos=(0.0, 0.0), size=self.bullseye_size/10000.)#convert um to cm
+                    pixel_size=self.config.SCREEN_WIDTH/float(self.config.SCREEN_RESOLUTION['col'])
+                    s=self.bullseye_size*1e-4/pixel_size
+                    self.be=visual.ImageStim(self.screen, image=fn, units='pix', pos=(-s/2,0), size=s)#convert um to cm
+                    self.be.setAutoDraw(True)
+            else:
+                if self.bullseye_type == 'L':
+                    self.draw_L(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
+                elif self.bullseye_type == 'square':
+                    self.draw_square(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, sc)
+                elif self.bullseye_type == 'bullseye':
+                    self.render_image(self.bullseye_image, position = sc, stretch = self.bullseye_stretch_factor*self.bullseye_size)
+                elif self.bullseye_type == 'spot':
+                    self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = sc)
+        else:
+            if hasattr(self, 'be'):
+                self.be.setAutoDraw(False)
+                del self.be
+                
             
     def refresh_non_experiment_screen(self, flip = True):
         '''
@@ -245,9 +264,10 @@ class CaptureImagingTrigger(multiprocessing.Process):
     With the help of IOboard it measures imaging frquency
     Captures imaging triggers
     '''
-    def __init__(self, port, std_limits,  buffer_size=16):
+    def __init__(self, port, std_limits,  buffer_size=16, fps=40):
         multiprocessing.Process.__init__(self)
         self.port=port
+        self.tfps=fps
         self.std_limits=std_limits
         self.command=multiprocessing.Queue()
         self.trigger=multiprocessing.Queue()
@@ -259,6 +279,8 @@ class CaptureImagingTrigger(multiprocessing.Process):
         import serial
         self.s=serial.Serial(self.port, 1000000,timeout=0.005)
         time.sleep(2.5)
+        self.s.write('waveform,{0},0,0\r\n'.format(int(self.tfps)))
+        time.sleep(1)
         self.s.write('fps_meas,1\r\n')
         time.sleep(0.1)
         r=self.s.read(100)
@@ -301,6 +323,7 @@ class CaptureImagingTrigger(multiprocessing.Process):
                 self.trigger.put('phase')
                 phase_sent=True
         self.s.write('fps_meas,0\r\n')
+        self.s.write('stop\r\n')
         time.sleep(0.1)
         self.s.close()
         

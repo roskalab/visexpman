@@ -223,8 +223,10 @@ class Jobhandler(object):
     Starting it:
         python -c "from visexpman.applications import jobhandler;jobhandler.Jobhandler('/mnt/resonant_data/Data')"
     '''
-    def __init__(self, folder, job, lock_timeout=60):
+    def __init__(self, folder, job, lock_timeout=60, max_retries=4):
         self.folder=folder
+        self.max_retries=max_retries
+        self.datatmp='/data/tmp'
         self.lockfile='/tmp/{0}-jobhandler-lock.txt'.format(job)
         self.logfile = os.path.join('/data/software/log', 'jobhandler_{0}.txt'.format(job))
         if not hasattr(self, job):
@@ -238,13 +240,18 @@ class Jobhandler(object):
                     format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
         self.locked= os.path.exists(self.lockfile) and fileop.file_age(self.lockfile)<lock_timeout*60
         if not self.locked:
+            logging.info('Clean up datatmp')
+            [os.remove(f) for f in  fileop.listdir(self.datatmp)]
             fileop.write_text_file(self.lockfile, 'locked')
         else:
             logging.warning('Locked')
+            self.keep_lock_file=True
+            return
         try:
             getattr(self, job)()
         except:
             logging.error(traceback.format_exc())
+            logging.info('{0} failed'.format(self.filename))
             
     def get_next_file(self, filter):
         files=fileop.find_files_and_folders(self.folder,extension='hdf5')[1]
@@ -253,7 +260,12 @@ class Jobhandler(object):
         for f in files:
             age=fileop.file_age(f)
             processed_message='Converted {0}'.format(f)
-            if age>120 and processed_message not in self.prev_log and filter in os.path.basename(f) and not os.path.exists(fileop.replace_extension(f, '.mp4')):
+            error_message='{0} failed'.format(f)
+            if age>120 and\
+                    processed_message not in self.prev_log and \
+                    self.prev_log.count(error_message)<self.max_retries and \
+                    filter in os.path.basename(f) and \
+                    not os.path.exists(fileop.replace_extension(f, '.mp4')):
                 fileswage.append([f,age])
         if len(fileswage)==0:
             return
@@ -261,28 +273,37 @@ class Jobhandler(object):
 
     def eye2mp4(self):
         f=self.get_next_file('eye')
+        self.filename=f
         if f != None:
-            localin=os.path.join('/tmp', os.path.basename(f))
+            localin=os.path.join(self.datatmp, os.path.basename(f))
             localout=fileop.replace_extension(localin, '.mp4')
             videofilename=fileop.replace_extension(f, '.mp4')
             if not os.path.exists(videofilename):
                 logging.info('Converting {0} to {1}'.format(f, videofilename))
                 shutil.copy(f,localin)
                 hh=hdf5io.Hdf5io(localin)
-                hh.load('cam')
-                fps=hh.cam['fps']
+                hh.load('frames')
+                hh.load('parameters')
+                if not hasattr(hh,  'parameters') and 0:
+                    import pdb;pdb.set_trace()
+                
+                fps=hh.parameters['Frame Rate']
                 logging.info('fps is {0}'.format(fps))
-                videofile.array2mp4(numpy.array(hh.cam['frames'],dtype=numpy.uint8), localout, fps, tempdir=os.path.expanduser('~'))
+                videofile.array2mp4(numpy.array(hh.frames,dtype=numpy.uint8), localout, fps, tempdir=os.path.expanduser('~'))
                 hh.close()
                 shutil.copy(localout, videofilename)
                 map(os.remove, [localin, localout])
                 logging.info('Converted {0}'.format(f))
             logging.info('{0} processed'.format(1))
+            tmpfolder=os.path.join(os.path.expanduser('~'), 'vf')
+            if os.path.exists(tmpfolder):
+                shutil.rmtree(tmpfolder)
             
     def __del__(self):
-        logging.info('Removing lock file')
-        os.remove(self.lockfile)
-        logging.info('Done')
+        if not hasattr(self, 'keep_lock_file'):
+            logging.info('Removing lock file')
+            os.remove(self.lockfile)
+            logging.info('Done')
     
 
 class TestJobhandler(unittest.TestCase):
