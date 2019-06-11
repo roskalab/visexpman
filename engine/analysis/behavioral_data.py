@@ -667,9 +667,30 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     #Clear watermark which is used for video integrity check
     image[0, 0]=0
     image[0, 1]=0
-    coo=numpy.array([int(c.mean()) for c in numpy.where(image.sum(axis=2)>3*threshold)])
+    try:
+        coo=numpy.array([int(c.mean()) for c in numpy.where(image.sum(axis=2)>3*threshold)])
+    except ValueError:#Image too dim
+        result=False
+        animal_position=numpy.array([numpy.NaN, numpy.NaN])
+        red=numpy.array([numpy.NaN, numpy.NaN])
+        green=numpy.array([numpy.NaN, numpy.NaN])
+        blue=numpy.array([numpy.NaN, numpy.NaN])
+        red_angle=numpy.NaN
+        return result, animal_position, red_angle, red, green, blue, None
     #Cut roi and detect red and green dots
-    roirgb=image[coo[0]-roi_size: coo[0]+roi_size, coo[1]-roi_size: coo[1]+roi_size, :]
+    startx=coo[0]-roi_size
+    starty=coo[1]-roi_size
+    endx=coo[0]+roi_size
+    endy=coo[1]+roi_size
+    if startx<0:
+        startx=0
+    if starty<0:
+        starty=0
+    if endx>image.shape[0]-1:
+        endx=image.shape[0]-1
+    if endy>image.shape[1]-1:
+        endy=image.shape[1]-1
+    roirgb=image[startx: endx, starty: endy, :]
     roi=rgb2hsv(roirgb)
     roi[:,:,1]*=numpy.where(roi[:,:,2]>value_threshold,1,0)#Set saturation to 0 where value is low -> exclude these pixels from color detection
     animal_position=numpy.zeros(2)
@@ -720,26 +741,29 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         for i in range(-2, 3):
             img[animal_position[0]+i,  animal_position[1], :]=255
             img[animal_position[0],  animal_position[1]+i, :]=255
-        for i in range(-2, 3):
-            img[red[0]+i,  red[1], 0]=255
-            img[red[0],  red[1]+i, 0]=255
-            img[red[0]+i,  red[1], 1:2]=0
-            img[red[0],  red[1]+i, 1:2]=0
-        for i in range(-2, 3):
-            img[blue[0], blue[1]+i, 2]=255
-            img[blue[0]+i, blue[1], 2]=255
-            img[blue[0]+i, blue[1], 0:1]=0
-            img[blue[0], blue[1]+i, 0:1]=0
-        for i in range(-2, 3):
-            img[green[0]+i, green[1], 1]=255
-            img[green[0], green[1]+i, 1]=255
-            img[green[0], green[1]+i, 0]=0
-            img[green[0]+i, green[1], 0]=0
-            img[green[0], green[1]+i, 2]=0
-            img[green[0]+i, green[1], 2]=0
-            out=numpy.zeros((img.shape[0],  img.shape[1]*2, 3), dtype=numpy.uint8)
-            out[:, :img.shape[1],  :]=image
-            out[:, -img.shape[1]:,  :]=img
+        if not numpy.isnan(red).any():
+            for i in range(-2, 3):
+                img[red[0]+i,  red[1], 0]=255
+                img[red[0],  red[1]+i, 0]=255
+                img[red[0]+i,  red[1], 1:2]=0
+                img[red[0],  red[1]+i, 1:2]=0
+        if not numpy.isnan(blue).any():
+            for i in range(-2, 3):
+                img[blue[0], blue[1]+i, 2]=255
+                img[blue[0]+i, blue[1], 2]=255
+                img[blue[0]+i, blue[1], 0:1]=0
+                img[blue[0], blue[1]+i, 0:1]=0
+        if not numpy.isnan(green).any():
+            for i in range(-2, 3):
+                img[green[0]+i, green[1], 1]=255
+                img[green[0], green[1]+i, 1]=255
+                img[green[0], green[1]+i, 0]=0
+                img[green[0]+i, green[1], 0]=0
+                img[green[0], green[1]+i, 2]=0
+                img[green[0]+i, green[1], 2]=0
+        out=numpy.zeros((img.shape[0],  img.shape[1]*2, 3), dtype=numpy.uint8)
+        out[:, :img.shape[1],  :]=image
+        out[:, -img.shape[1]:,  :]=img
     else:
         out=None
     if 0:
@@ -837,7 +861,7 @@ class TestBehavAnalysis(unittest.TestCase):
     def test_07_extract_mouse_position(self):
         folder=r'c:\temp\20190416'
         folder='/tmp'
-        folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
+        #folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
         
         from PIL import Image
         files=fileop.listdir_fullpath(folder)

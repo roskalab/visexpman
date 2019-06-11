@@ -170,7 +170,7 @@ class LEDStimulator(gui.SimpleAppWindow):
         tperiod=1.0/self.settings['Stimulus Rate']
         phase_shift=int(tperiod*self.ao_sample_rate*self.settings['Phase Shift']/360.)
         duty_cycle=self.settings['LED on time']*1e-3/tperiod
-        nrepeats=numpy.ceil(self.settings['Tmin']/tperiod)
+        nrepeats=int(numpy.ceil(self.settings['Tmin']/tperiod))
         self.waveform=self.settings['LED Voltage']*numpy.tile(numpy.concatenate((numpy.ones(int(tperiod*self.ao_sample_rate*duty_cycle)),
                 numpy.zeros(int(tperiod*self.ao_sample_rate*(1-duty_cycle))))), nrepeats)
         phase_shifted=numpy.roll(self.waveform, phase_shift)

@@ -170,10 +170,9 @@ class StimulationScreen(graphics.Screen):
                 if not hasattr(self, 'be'):
                     from psychopy import visual
                     fn=os.path.join(fileop.visexpman_package_path(), 'data', 'images', 'bullseye.bmp')
-                    #Later: self.be=visual.ImageStim(self.screen, image=fn, units='cm', pos=(0.0, 0.0), size=self.bullseye_size/10000.)#convert um to cm
                     pixel_size=self.config.SCREEN_WIDTH/float(self.config.SCREEN_RESOLUTION['col'])
                     s=self.bullseye_size*1e-4/pixel_size
-                    self.be=visual.ImageStim(self.screen, image=fn, units='pix', pos=(-s/2,0), size=s)#convert um to cm
+                    self.be=visual.ImageStim(self.screen, image=fn, units='pix', pos=(0*s,0), size=s)#convert um to cm
                     self.be.setAutoDraw(True)
             else:
                 if self.bullseye_type == 'L':
