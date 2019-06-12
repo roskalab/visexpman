@@ -172,7 +172,7 @@ class StimulationScreen(graphics.Screen):
                     fn=os.path.join(fileop.visexpman_package_path(), 'data', 'images', 'bullseye.bmp')
                     pixel_size=self.config.SCREEN_WIDTH/float(self.config.SCREEN_RESOLUTION['col'])
                     s=self.bullseye_size*1e-4/pixel_size
-                    self.be=visual.ImageStim(self.screen, image=fn, units='pix', pos=(0*s,0), size=s)#convert um to cm
+                    self.be=visual.ImageStim(self.screen, image=fn, units='pix', pos=(sc['col'],0), size=s)#convert um to cm
                     self.be.setAutoDraw(True)
             else:
                 if self.bullseye_type == 'L':

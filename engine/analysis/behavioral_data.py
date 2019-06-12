@@ -735,7 +735,10 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     else:
         red_angle=numpy.degrees(numpy.arctan2(*(-0.5*(blue-green)+blue-red)))
         result=True
-    animal_position=numpy.cast['int']((animal_position)/float(led_ct))
+    if led_ct==0:
+        animal_position=numpy.array([numpy.NaN, numpy.NaN])
+    else:
+        animal_position=numpy.cast['int']((animal_position)/float(led_ct))
     if debug:
         img=numpy.rollaxis(numpy.array(3*[numpy.copy(image.sum(axis=2)/3)]), 0, 3)
         for i in range(-2, 3):
@@ -860,7 +863,7 @@ class TestBehavAnalysis(unittest.TestCase):
         
     def test_07_extract_mouse_position(self):
         folder=r'c:\temp\20190416'
-        folder='/tmp'
+        folder='/tmp/frames'
         #folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
         
         from PIL import Image
@@ -894,7 +897,8 @@ class TestBehavAnalysis(unittest.TestCase):
                         results+=int(result)
                         outfolder=r'c:\temp\img'
                         outfolder='/tmp/img'
-                        Image.fromarray(debug).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
+                        if os.path.exists(outfolder):
+                            Image.fromarray(debug).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
                         print((framect, result))
                         pass
                     except:
@@ -903,7 +907,7 @@ class TestBehavAnalysis(unittest.TestCase):
             if 'png' in filename:
                 break
             print ((results,  frames.shape))
-        utils.object2array(coordinates).tofile('c:\\temp\\coo.bin')
+#        utils.object2array(coordinates).tofile('c:\\temp\\coo.bin')
         from pylab import plot,show
         coo=numpy.array(coo)
         plot(coo[:,0])

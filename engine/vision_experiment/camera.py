@@ -276,12 +276,20 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Processing')
             QtCore.QCoreApplication.instance().processEvents()
+            dst=os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(foldername))
+            if not os.path.exists(dst):
+                os.mkdir(dst)
             time.sleep(0.5)
             for f in files:
                 if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat')):
                     print(f)
                     try:
                         self.convert_file(f)
+                        #Copy files
+                        import shutil
+                        shutil.copy(f,dst)
+                        shutil.copy(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat'),dst)
+                        self.printc('Copied to {0}'.format(dst))
                     except:
                         self.printc(traceback.format_exc(), popup_error=False)
                     prog=int((files.index(f)+1)/float(len(files))*100)
