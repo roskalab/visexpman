@@ -137,9 +137,20 @@ class ExperimentHandler(object):
             self.send({'function': 'set_context_variable','args':['screen_center',v]},'stim')
         elif parameter_name=='Filterwheel':
             f=self.guidata.read('Filterwheel')
-            v=self.machine_config.FILTERWHEEL_FILTERS[f]
+            if isinstance(self.machine_config.FILTERWHEEL_FILTERS,  list):
+                v=self.machine_config.FILTERWHEEL_FILTERS[0][f]
+                port=self.machine_config.FILTERHWEEL_PORT[0]
+            else:
+                v=self.machine_config.FILTERWHEEL_FILTERS[f]
+                port=self.machine_config.FILTERHWEEL_PORT
             self.printc('Set filterwheel to {0}/{1}'.format(f,v))
-            res=instrument.set_filterwheel(v, self.machine_config.FILTERHWEEL_PORT, self.machine_config.FILTERHWEEL_BAUDRATE)
+            res=instrument.set_filterwheel(v, port, self.machine_config.FILTERHWEEL_BAUDRATE)
+            self.printc(res)
+        elif parameter_name=='Filterwheel 2':
+            f=self.guidata.read('Filterwheel 2')
+            v=self.machine_config.FILTERWHEEL_FILTERS[1][f]
+            self.printc('Set filterwheel to {0}/{1}'.format(f,v))
+            res=instrument.set_filterwheel(v, self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
             self.printc(res)
             
     def _get_experiment_parameters(self):
@@ -2027,7 +2038,7 @@ class ElphysEngine():
             
         if not hasattr(self, 'last_mem_check'):
             self.last_mem_check=time.time()
-        if time.time()-self.last_mem_check>60:
+        if time.time()-self.last_mem_check>60 and 0:
             import os
             import psutil
             process = psutil.Process(os.getpid())

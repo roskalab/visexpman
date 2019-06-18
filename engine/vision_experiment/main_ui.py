@@ -769,10 +769,17 @@ class MainUI(gui.VisexpmanMainWindow):
                 
     def _init_variables(self):
         if hasattr(self.machine_config,'FILTERWHEEL_FILTERS'):
-            fw1=self.machine_config.FILTERWHEEL_FILTERS.keys()
+            if isinstance(self.machine_config.FILTERWHEEL_FILTERS, list):
+                fw1=self.machine_config.FILTERWHEEL_FILTERS[0].keys()
+                fw2=self.machine_config.FILTERWHEEL_FILTERS[1].keys()
+                fw2.sort()
+            else:
+                fw1=self.machine_config.FILTERWHEEL_FILTERS.keys()
+                fw2=[]
             fw1.sort()
         else:
             fw1=[]
+            fw2=[]
             
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea'], 'children': [#'expanded' : True
@@ -792,6 +799,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'MC Rack New File Trigger Enable', 'type': 'bool', 'value': False})
         if len(fw1)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
+        if len(fw2)>0:
+            self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})
         if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
         if self.machine_config.PLATFORM in ['retinal','ao_cortical']:

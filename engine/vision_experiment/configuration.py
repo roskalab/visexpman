@@ -1,9 +1,9 @@
 '''
 VisionExperimentConfig: 
         contains common parameters, that are used on all experiment platforms. These are visual stimulation, networking, paths
-ElphysRetinalCaImagingConfig: 
+ElphysConfig: 
         inherits VisionExperimentConfig and expands it with retinal ca imaging  and electrophisiology specific parameters that are not used on other platforms.
-        Platform name: elphys_retinal_ca
+        Platform name: elphys
 RcCorticalCaImagingConfig, AoCorticalCaImagingConfig, ResonantConfig
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
         Platform name: rc_cortical or ao_cortical, resonant
@@ -284,7 +284,7 @@ class TwoPhotonConfig(VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         self._create_parameters_from_locals(locals())
         
-class RetinalConfig(VisionExperimentConfig):
+class RetinalConfig(VisionExperimentConfig):#Obsolete?
     '''
     Base configuration for retinal setups with elphys/ca imaging
     '''
