@@ -227,7 +227,7 @@ class CaImagingData(supcl):
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         sync=signal.from_16bit(self.sync,self.sync_scaling)
         sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
-        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
+        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
             raise RuntimeError('Imaging timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
         self.timg=signal.trigger_indexes(sig)[::2]/fsample
         if 'laser' in str(self.parameters['stimclass']).lower():
@@ -280,7 +280,7 @@ class CaImagingData(supcl):
         errors=[]
         if self.timg.shape[0]==0:
             errors.append('No imaging sync signal detected.')
-        if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]):
+        if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]) and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
             errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
         if check_frame_rate:
             #Check frame rate
