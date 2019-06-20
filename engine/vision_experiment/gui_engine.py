@@ -213,7 +213,10 @@ class ExperimentHandler(object):
         elif self.machine_config.PLATFORM=='mc_mea' and hasattr(self,'latest_mcd_file'):
             experiment_parameters['mcd_file']=self.latest_mcd_file
             self.printc('MEA data is being saved to {0}'.format(self.latest_mcd_file))
-        for pn in ['Runwheel attached',  'Record Eyecamera',  'Partial Save', 'Stimulus Only', 'Filterwheel', 'Filterwheel 2']:
+        parameter_names=['Runwheel attached',  'Record Eyecamera',  'Partial Save', 'Stimulus Only', 'Filterwheel', 'Filterwheel 2']
+        if hasattr(self.machine_config,  "GUI_SETTINGS_TO_STIM"):
+            parameter_names.extend(self.machine_config.GUI_SETTINGS_TO_STIM)
+        for pn in parameter_names:
             v=self.guidata.read(pn)
             if v!=None:
                 experiment_parameters[pn]=v
@@ -506,7 +509,7 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 raise RuntimeError("Is it used at all?")
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
-            if not (self.machine_config.PLATFORM in ['2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p','mc_mea']):#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['behav', '2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p','mc_mea']):#On ao_cortical sync signal calculation and check is done by stim
                 raise RuntimeError('On which platform it is really needed?')
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)
@@ -644,6 +647,9 @@ class ExperimentHandler(object):
         fileop.write_text_file(csvfn2, txtlines2)
         fileop.write_text_file(csvfn3, txtlines3)
         self.printc('Timing information exported to {0} and {1}'.format(csvfn1, csvfn2, csvfn3))
+        
+    def pulse(self, n):
+        self.send({'function': 'pulse','args':[n]},'stim')
         
     def read_sync_recorder(self):
         self.syncreadout=self.sync_recorder.read_ai()
@@ -796,7 +802,8 @@ class ExperimentHandler(object):
             if trigger_name=='cam error':
                 self.send({'function': 'stop_all','args':[]},'stim')
             elif trigger_name=='stim error':
-                self.send({'function': 'stop_recording','args':[]},'cam')
+                if 'cam' in self.machine_config.CONNECTIONS.keys():
+                    self.send({'function': 'stop_recording','args':[]},'cam')
             self.finish_experiment()
             self.experiment_running=False
             self.to_gui.put({'update_status':'idle'})
@@ -1706,7 +1713,7 @@ class Analysis(object):
             self.sync=sync
             self.to_gui.put({'plot_sync':[x,y]})
             h.load('parameters')
-            if h.parameters['Runwheel attached']==True:
+            if 'Runwheel attached' in h.parameters and h.parameters['Runwheel attached']==True:
                 mc=h.findvar('configs')['machine_config']
                 channels=mc['RUNWHEEL_SIGNAL_CHANNELS'] if 'RUNWHEEL_SIGNAL_CHANNELS' in mc else [3, 4]
                 chab=self.sync[:,channels]

@@ -604,6 +604,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             try:
                 if self.machine_config.ENABLE_SYNC=='stim':
                     self.sync_recording_duration=self.parameters['duration']
+                    if self.sync_recording_duration<0:
+                        self.sync_recording_duration=self.machine_config.EXPERIMENT_MAXIMUM_DURATION*60
                     self.start_sync_recording()
 #                    self.send({'trigger':'sync recording started'})
                 if self.machine_config.PLATFORM=='ao_cortical':
@@ -672,9 +674,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                             self.printl('Two photon recording did not start, aborting stimulus')
                             self.send({'trigger':'stim error'})
                             self.send({'2p': 'stop'})
-                elif self.machine_config.PLATFORM == 'behav':
-                    self.sync_recording_duration=self.machine_config.EXPERIMENT_MAXIMUM_DURATION*60
-                    self.start_sync_recording()
                 if self.machine_config.CAMERA_TRIGGER_ENABLE:
                     self.camera_trigger.set_waveform(self.machine_config.CAMERA_TRIGGER_FRAME_RATE,0,0)
                     time.sleep(self.machine_config.CAMERA_PRE_STIM_WAIT)
@@ -731,7 +730,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if not self.abort or self.partial_save:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea']:
+                if self.machine_config.PLATFORM in ['behav','retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea']:
                     self.send({'trigger':'stim data ready'})
 #                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
 #                    self._backup(self.datafilename)
