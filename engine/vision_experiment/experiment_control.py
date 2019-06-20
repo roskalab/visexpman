@@ -744,7 +744,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
                 self.log.info(fri, source = 'stim')
                 expfr=self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD and not self.abort:
+                self.enable_frame_rate_error=not (self.machine_config.PLATFORM=='behav' and float(self.frame_counter)/expfr<30)
+                if abs((expfr-self.frame_rates.mean())/expfr)>self.machine_config.FRAME_RATE_ERROR_THRESHOLD and not self.abort and enable_frame_rate_error:
                     raise RuntimeError('Mean frame rate {0} does not match with expected frame {1}'.format(self.frame_rates.mean(), expfr))
         except:
             self.send({'trigger':'stim error'})
@@ -852,7 +853,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             try:
                 if not self.parameters.get('Stimulus Only', False) and not self.parameters['partial_data']:
                     self.datafile.sync2time()
-                    self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
+                    if hasattr(self, 'enable_frame_rate_error') and self.enable_frame_rate_error:
+                        self.datafile.check_timing(check_frame_rate=self.check_frame_rate)
                 else:
                     self.printl("Timing signal check is skipped at partial data")
             except:

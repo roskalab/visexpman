@@ -533,7 +533,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM in ['ao_cortical', '2p', 'resonant']:
             toolbar_buttons = ['start_experiment', 'stop', 'connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         elif self.machine_config.PLATFORM =='behav':
-            toolbar_buttons = ['start_experiment', 'stop', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
