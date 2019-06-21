@@ -247,7 +247,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             duration: duration of stimulus, 0.0: one frame time, -1.0: forever, 
                     any other value is interpreted in seconds        
         '''
-        if color == None:
+        if color is None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
             color_to_set = colors.convert_color(color, self.config)

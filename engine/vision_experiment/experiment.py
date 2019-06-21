@@ -263,6 +263,8 @@ class BehavioralProtocol(threading.Thread):
 def get_experiment_duration(experiment_config_class, config, source=None):
     if '_'in experiment_config_class:
         raise ExperimentConfigError('Stimulus name cannot contain _ character')
+    if not config.CHECK_STIMULUS_DURATION:
+        return 0
     if source is None:
         stimulus_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)
         if len(stimulus_class)==1:

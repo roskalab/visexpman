@@ -124,7 +124,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         VISUAL_ANGLE_TO_UM_SCALE = [300.0/10.0, [0, 10000]]#300 um corresponds to 10 degrees of visual field
         SCREEN_PIXEL_WIDTH = [1.0, [1e-10, 10e5]] #Needs to be defined in in vivo setups. Otherwise identical to SCREEN_UM_TO_PIXEL_SCALE
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [0.0, [0, 1000.0]] #mm
-        
+        CHECK_STIMULUS_DURATION=True
         ########## Commands #############
         KEYS = {}
         KEYS['abort'] = 'a'

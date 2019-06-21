@@ -638,9 +638,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.camera.start()
                     self.camera.trigger.set()  # starts acquisition
                 elif self.machine_config.PLATFORM in ['standalone','epos']:
-                    if self.machine_config.PLATFORM=='standalone':#Might break on Miao's setup
-                        self.sync_recording_duration=self.parameters['duration']
-                        self.start_sync_recording()
                     self.printl('Waiting for external trigger')
                     if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
                         import threading
