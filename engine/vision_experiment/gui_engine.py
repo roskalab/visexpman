@@ -651,6 +651,9 @@ class ExperimentHandler(object):
     def pulse(self, n):
         self.send({'function': 'pulse','args':[n]},'stim')
         
+    def read_position(self):
+        self.send({'function': 'position','args':[]},'stim')
+        
     def read_sync_recorder(self):
         self.syncreadout=self.sync_recorder.read_ai()
         if hasattr(self.syncreadout,  "dtype"):
