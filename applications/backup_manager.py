@@ -173,6 +173,42 @@ class BackupManager(object):
             self.copy(copy)
         logging.info('Done')
         
+def sync(src,dst):
+    '''
+    All files are copied from src to dst maintaining directory structure. 
+    Files in dst are overwritten if they are different.
+    '''
+    from visexpman.engine.generic import fileop
+    src_files=fileop.find_files_and_folders(src)[1]
+    dst_files=[f.replace(src,dst) for f in src_files]
+    for i in range(len(src_files)):
+        if not os.path.exists(os.path.dirname(dst_files[i])):
+            os.makedirs(os.path.dirname(dst_files[i]))
+        copy=(os.path.exists(dst_files[i]) and not filecmp.cmp(src_files[i],dst_files[i])) or not os.path.exists(dst_files[i])
+        if copy:
+            shutil.copy2(src_files[i], dst_files[i])
+            logging.info('Copy {0} to {1}'.format(src_files[i],dst_files[i]))
+            
+def clean(src,dst,fileage):
+    '''
+    Files in src are cleaned up if they exists in dst and older than fileage (in days)
+    '''
+    from visexpman.engine.generic import fileop
+    src_files=fileop.find_files_and_folders(src)[1]
+    dst_files=[f.replace(src,dst) for f in src_files]
+    fileage_threshold=time.time()-86400*fileage
+    for i in range(len(src_files)):
+        if os.path.exists(dst_files[i]) and filecmp.cmp(src_files[i],dst_files[i]) and os.path.getmtime(src_files[i])<fileage_threshold:
+            os.remove(src_files[i])
+            logging.info('Delete {0}'.format(src_files[i]))
+    
+    
+            
+class TestSync(unittest.TestCase):
+    def test(self):
+        sync('/tmp/src','/tmp/dst')
+    
+        
 class TestStimulationPatterns(unittest.TestCase):
     def setUp(self):
         self.config=TestConfig()
