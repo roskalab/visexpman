@@ -226,10 +226,13 @@ class CaImagingData(supcl):
             raise NotImplementedError()
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         sync=signal.from_16bit(self.sync,self.sync_scaling)
-        sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
-        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
-            raise RuntimeError('Imaging timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
-        self.timg=signal.trigger_indexes(sig)[::2]/fsample
+        if 'TIMG_SYNC_INDEX' in self.configs['machine_config']:
+            sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
+            if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
+                raise RuntimeError('Imaging timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+            self.timg=signal.trigger_indexes(sig)[::2]/fsample
+        else:
+            self.timg=numpy.array([])
         if 'laser' in str(self.parameters['stimclass']).lower():
             index=self.configs['machine_config']['TSTIM_LASER_SYNC_INDEX']
         else:

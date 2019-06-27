@@ -493,8 +493,9 @@ def set_waveform_start(channels,waveform,sample_rate = 100000):
     analog_output.StartTask()
     return analog_output, wf_duration
     
-def set_waveform_finish(analog_output, timeout):
-    analog_output.WaitUntilTaskDone(timeout+1.0)
+def set_waveform_finish(analog_output, timeout,wait=True):
+    if wait:
+	analog_output.WaitUntilTaskDone(timeout+1.0)
     analog_output.StopTask()                            
     analog_output.ClearTask()
     
