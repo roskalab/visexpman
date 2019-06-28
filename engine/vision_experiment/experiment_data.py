@@ -1911,6 +1911,9 @@ class Copier(multiprocessing.Process):
                                     if not os.path.exists(os.path.dirname(dstf)):
                                         os.makedirs(os.path.dirname(dstf))
                                     files2copy.append((fileage, f, dstf))
+                                    if os.path.splitext(f)[1]=='.mesc':
+                                        dstf2=dstf.replace('.mesc','_mesc.hdf5')
+                                        files2copy.append((fileage, f, dstf2))
                     #Find most recent and copy that
                     files2copy.sort()
 #                    self.log.put(files2copy)
