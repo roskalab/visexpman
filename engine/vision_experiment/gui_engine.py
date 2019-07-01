@@ -97,7 +97,7 @@ class ExperimentHandler(object):
         else:#Multiple users
             self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
         if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
-            self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user))
+            self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user), rename_mesc=self.machine_config.RENAME_MESC_FILES)
             self.copier.start()
     
     def open_stimulus_file(self, filename, classname):
