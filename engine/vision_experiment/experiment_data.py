@@ -238,7 +238,7 @@ class CaImagingData(supcl):
         else:
             index=self.configs['machine_config']['TSTIM_SYNC_INDEX']
         sig=sync[:,index]
-        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['user']!='daniel':
+        if self.configs['machine_config']['ENABLE_TSIM_CHECK'] and sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['user']!='daniel':
             raise RuntimeError('Stimulus timing signal maximum amplitude is only {0:0.2f} V. Check connections'.format(sig.max()))
         if sig[0]>0.5:
             raise RuntimeError('Initial voltage level of stimulus timing signal is too high: {0} V'.format(sig[0]))
