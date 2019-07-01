@@ -1910,11 +1910,16 @@ class Copier(multiprocessing.Process):
                                 #Copy all hdf5 and mesc files that do not exists on dst
                                 if not os.path.exists(dstf):
                                     if not os.path.exists(os.path.dirname(dstf)):
-                                        os.makedirs(os.path.dirname(dstf))
-                                    files2copy.append((fileage, f, dstf))
-                                    if self.rename_mesc and os.path.splitext(f)[1]=='.mesc':
-                                        dstf2=dstf.replace('.mesc','_mesc.hdf5')
-                                        files2copy.append((fileage, f, dstf2))
+                                        os.makedirs(os.path.dirname(dstf))                                    
+                                    if self.rename_mesc:
+                                        if os.path.splitext(f)[1]=='.mesc':
+                                            dstf2=dstf.replace('.mesc','_mesc.hdf5')
+                                            shutil.move(f, f.replace('.mesc','_mesc.hdf5'))
+                                            files2copy.append((fileage, f, dstf2))
+                                        else:
+                                            files2copy.append((fileage, f, dstf))
+                                    else:
+                                        files2copy.append((fileage, f, dstf))
                     #Find most recent and copy that
                     files2copy.sort()
 #                    self.log.put(files2copy)
