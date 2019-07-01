@@ -495,9 +495,9 @@ def set_waveform_start(channels,waveform,sample_rate = 100000):
     
 def set_waveform_finish(analog_output, timeout,wait=True):
     if wait:
-	analog_output.WaitUntilTaskDone(timeout+1.0)
-    analog_output.StopTask()                            
-    analog_output.ClearTask()
+        analog_output.WaitUntilTaskDone(timeout+1.0)
+        analog_output.StopTask()                            
+        analog_output.ClearTask()
     
 def init_daq_queues():
     return {'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
