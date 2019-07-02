@@ -226,16 +226,19 @@ class CaImagingData(supcl):
             raise NotImplementedError()
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
         sync=signal.from_16bit(self.sync,self.sync_scaling)
-        sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
-        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
-            raise RuntimeError('Imaging timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
-        self.timg=signal.trigger_indexes(sig)[::2]/fsample
+        if 'TIMG_SYNC_INDEX' in self.configs['machine_config']:
+            sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
+            if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
+                raise RuntimeError('Imaging timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+            self.timg=signal.trigger_indexes(sig)[::2]/fsample
+        else:
+            self.timg=numpy.array([])
         if 'laser' in str(self.parameters['stimclass']).lower():
             index=self.configs['machine_config']['TSTIM_LASER_SYNC_INDEX']
         else:
             index=self.configs['machine_config']['TSTIM_SYNC_INDEX']
         sig=sync[:,index]
-        if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['user']!='daniel':
+        if self.configs['machine_config']['ENABLE_TSIM_CHECK'] and sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['user']!='daniel':
             raise RuntimeError('Stimulus timing signal maximum amplitude is only {0:0.2f} V. Check connections'.format(sig.max()))
         if sig[0]>0.5:
             raise RuntimeError('Initial voltage level of stimulus timing signal is too high: {0} V'.format(sig[0]))
@@ -1842,10 +1845,11 @@ class Copier(multiprocessing.Process):
         at src (merged hdf5 with mesc data+converted mat file)
         
     '''
-    def __init__(self, src, dst):
+    def __init__(self, src, dst, rename_mesc=False):
         multiprocessing.Process.__init__(self)
         self.src=src
         self.dst=dst
+        self.rename_mesc=rename_mesc
         self.command=multiprocessing.Queue()
         self.log=multiprocessing.Queue()
         
@@ -1906,8 +1910,16 @@ class Copier(multiprocessing.Process):
                                 #Copy all hdf5 and mesc files that do not exists on dst
                                 if not os.path.exists(dstf):
                                     if not os.path.exists(os.path.dirname(dstf)):
-                                        os.makedirs(os.path.dirname(dstf))
-                                    files2copy.append((fileage, f, dstf))
+                                        os.makedirs(os.path.dirname(dstf))                                    
+                                    if self.rename_mesc:
+                                        if os.path.splitext(f)[1]=='.mesc':
+                                            dstf2=dstf.replace('.mesc','_mesc.hdf5')
+                                            shutil.move(f, f.replace('.mesc','_mesc.hdf5'))
+                                            files2copy.append((fileage, f, dstf2))
+                                        else:
+                                            files2copy.append((fileage, f, dstf))
+                                    else:
+                                        files2copy.append((fileage, f, dstf))
                     #Find most recent and copy that
                     files2copy.sort()
 #                    self.log.put(files2copy)

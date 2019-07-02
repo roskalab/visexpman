@@ -161,6 +161,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         WAIT4TRIGGER_ENABLED=False
         CAMERA_TRIGGER_ENABLE=False
         DEFAULT_CAMERA_FRAME_RATE=[15, [15,60]]
+        ENABLE_TSIM_CHECK=True
         
         ENABLE_SYNC=['off', ['off', 'stim', 'main', 'camera']]#Subclass must set these values
         ENABLE_BATCH_EXPERIMENT=False
