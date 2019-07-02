@@ -584,10 +584,14 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.params, 'Settings')
         if self.machine_config.PLATFORM in ["elphys"]:
-            self.plot2 = gui.Plot(self)
-            self.select_plot_signal=SelectPlotSignals(self)
-            self.main_tab.addTab(self.plot2, 'Plot')
-            self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
+            if self.machine_config.AMPLIFIER_TYPE=='differential':
+                self.plot2 = gui.Plot(self)
+                self.select_plot_signal=SelectPlotSignals(self)
+                self.main_tab.addTab(self.plot2, 'Plot')
+                self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
+            elif self.machine_config.AMPLIFIER_TYPE=='patch':
+                self.electrical_stimulus=QtGui.QWidget(self)
+                self.main_tab.addTab(self.electrical_stimulus, 'Electrical Stimulus')
         if self.machine_config.PLATFORM in ['tbd']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
@@ -832,12 +836,12 @@ class MainUI(gui.VisexpmanMainWindow):
                     pars=[{'name': 'Gain', 'type': 'int', 'value': 10000.0, 'siPrefix': True,}]
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
                     pars=[
+                                {'name': 'Clamp Mode', 'type': 'list', 'value': '',  'values': ['Voltage Clamp', 'Current Clamp', 'Electrical Stimulus']},
+                                
                                 {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/nA'},
                                 {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
                                 {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
                                 {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
-                                {'name': 'Show Command Trace', 'type': 'bool', 'value': True},
-                                {'name': 'Show Stimulus Trace', 'type': 'bool', 'value': False},
                                 {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
                                 {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
                                 {'name': 'Y min', 'type': 'float', 'value': 0},
@@ -845,8 +849,7 @@ class MainUI(gui.VisexpmanMainWindow):
                                 ]
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [
-                            {'name': 'Infinite Recording', 'type': 'bool', 'value': True},
-                            {'name': 'Displayed signal length', 'type': 'float', 'value': 60,  'suffix': 's'},
+                            
                             
                             ]},  ]               
                         )
