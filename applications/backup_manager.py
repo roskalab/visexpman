@@ -1,4 +1,4 @@
-import os,shutil,time,logging,datetime,filecmp,subprocess,Queue,threading,traceback,sys
+import os,shutil,time,logging,datetime,filecmp,subprocess,Queue,threading,traceback,sys,pdb
 import unittest
 
 class Config(object):
@@ -184,10 +184,13 @@ def sync(src,dst):
     for i in range(len(src_files)):
         if not os.path.exists(os.path.dirname(dst_files[i])):
             os.makedirs(os.path.dirname(dst_files[i]))
-        copy=(os.path.exists(dst_files[i]) and not filecmp.cmp(src_files[i],dst_files[i])) or not os.path.exists(dst_files[i])
+        try:
+            copy=(os.path.exists(dst_files[i]) and not filecmp.cmp(src_files[i], dst_files[i],shallow=True)) or not os.path.exists(dst_files[i])
+        except:
+            copy=True
         if copy:
             shutil.copy2(src_files[i], dst_files[i])
-            logging.info('Copy {0} to {1}'.format(src_files[i],dst_files[i]))
+            logging.info('Copy {0} to {1} ({2}/{3})'.format(src_files[i],dst_files[i], i, len(src_files)))
             
 def clean(src,dst,fileage):
     '''
