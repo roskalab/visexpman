@@ -213,9 +213,10 @@ class ExperimentHandler(object):
         elif self.machine_config.PLATFORM=='mc_mea' and hasattr(self,'latest_mcd_file'):
             experiment_parameters['mcd_file']=self.latest_mcd_file
             self.printc('MEA data is being saved to {0}'.format(self.latest_mcd_file))
-        parameter_names=['Runwheel attached',  'Record Eyecamera',  'Partial Save', 'Stimulus Only', 'Filterwheel', 'Filterwheel 2']
-        if hasattr(self.machine_config,  "GUI_SETTINGS_TO_STIM"):
-            parameter_names.extend(self.machine_config.GUI_SETTINGS_TO_STIM)
+        #parameter_names=['Runwheel attached',  'Record Eyecamera',  'Partial Save', 'Stimulus Only', 'Filterwheel', 'Filterwheel 2']
+        parameter_names=[i['name'] for i in self.guidata.to_dict()]#Take all values from Settings
+#        if hasattr(self.machine_config,  "GUI_SETTINGS_TO_STIM"):
+#            parameter_names.extend(self.machine_config.GUI_SETTINGS_TO_STIM)
         for pn in parameter_names:
             v=self.guidata.read(pn)
             if v!=None:
