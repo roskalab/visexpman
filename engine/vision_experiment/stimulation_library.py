@@ -139,9 +139,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def _append_to_stimulus_frame_info(self,values):
         self.stimulus_frame_info[-1]['parameters'].update(values)
             
-    def trigger_pulse(self, pin, width,polarity=True):
+    def timing_pulse(self, pin, width,polarity=True):
         '''
-        Generates trigger pulses
+        Generates timing pulse
         '''
         if hasattr(self, 'digital_io'):
             self.digital_io.set_pin(pin, int(polarity))
@@ -153,7 +153,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         Generates frame trigger pulses
         '''
         if self.config.FRAME_TIMING_PIN!=-1:
-            self.trigger_pulse(self.config.FRAME_TIMING_PIN, self.config.FRAME_TIMING_PULSE_WIDTH)
+            self.timing_pulse(self.config.FRAME_TIMING_PIN, self.config.FRAME_TIMING_PULSE_WIDTH)
             
     def block_start(self, block_name = 'stimulus function'):
         if hasattr(self, 'digital_io'):

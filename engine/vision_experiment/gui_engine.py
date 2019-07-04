@@ -366,6 +366,9 @@ class ExperimentHandler(object):
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
             self.printc('Signal recording started')
+        if self.machine_config.PLATFORM in ['exvivo_elphys', 'elphys']:
+            if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
+                self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -376,9 +379,7 @@ class ExperimentHandler(object):
             stimulus_source_code=[v for k, v in experiment_parameters.items() if 'experiment_config_source_code' in k][0]
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
-        elif self.machine_config.PLATFORM=='elphys':
-            if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
-                self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+        elif self.machine_config.PLATFORM=='exvivo_elphys':
             introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
@@ -462,7 +463,7 @@ class ExperimentHandler(object):
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
-        fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "data" if self.machine_config.PLATFORM=='elphys' else 'sync' )
+        fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "sync")
         if aborted:
             if hasattr(self, 'daqdatafile'):
                 os.remove(self.daqdatafile.filename)
@@ -680,7 +681,7 @@ class ExperimentHandler(object):
                 d=d[0]
             elif d.shape[0]!=0:
                 self.daqdatafile.add(d)
-            if self.machine_config.PLATFORM=="elphys":
+            if self.machine_config.PLATFORM=="exvivo_elphys":
                 self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self.stimuluso)
                 self.daqdatafile.hdf5.parameters=self.current_experiment_parameters
                 self.daqdatafile.hdf5.save('parameters')
@@ -690,8 +691,7 @@ class ExperimentHandler(object):
                     self.daqdatafile.hdf5.save('flow_rate_times')
                     self.daqdatafile.hdf5.save('flow_rates')
             else:
-                self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self)
-            self.daqdatafile.hdf5.save('configs')
+                pass
             self.daqdatafile.close()
             
     def run_always_experiment_handler(self):
@@ -700,7 +700,7 @@ class ExperimentHandler(object):
         self.mc_mea_trigger()
         if self.sync_recording_started:
             self.read_sync_recorder()
-            if self.machine_config.PLATFORM=="elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
+            if self.machine_config.PLATFORM=="exvivo_elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
                 self.finish_experiment()
                 self.experiment_running=False
                 self.save_experiment_files()
@@ -726,7 +726,7 @@ class ExperimentHandler(object):
             self.printc('Saving partial data')
         if self.machine_config.PLATFORM=='retinal':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
-        if self.machine_config.PLATFORM=='elphys':
+        if self.machine_config.PLATFORM=='exvivo_elphys':
             self.stimuluso.stop()
             time.sleep(0.5)
         self.send({'function': 'stop_all','args':[]},'stim')
@@ -2040,7 +2040,7 @@ class ElphysEngine():
     def run_always_elphys_engine(self):
         if self.machine_config.PLATFORM!='elphys':
             return
-        if self.sync_recording_started:
+        if self.sync_recording_started and self.machine_config.PLATFORM=='exvivo_elphys':
             self.flow_rate=self.read_flowmeter()
         elif hasattr(self, 'flowmeter'):
             self.flowmeter.close()
@@ -2082,7 +2082,7 @@ class ElphysEngine():
                 self.filter=scipy.signal.butter(order,frq/sample_rate,'high')
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]).real
         else:
-            self.filtered=sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]
+            self.filtered=sync[:,self.machine_config.ELPHYS_INDEX]
         if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and self.guidata.read('Displayed signal length')>0:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
@@ -2090,6 +2090,7 @@ class ElphysEngine():
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         t=t[index:]
         if self.machine_config.AMPLIFIER_TYPE=='patch':
+            return#TMP
             #Scale elphys
             if self.experiment_running:
                 unit="mV / pA" if "current" in self.stimuluso.__class__.__name__.lower() else "pA / mV"

@@ -14,7 +14,7 @@ def experiment_choices(experiment_list):
     '''
     return '\n'.join([str(i)+' '+experiment_list[i][1].__name__ for i in range(len(experiment_list))])
     
-class CaImagingScreen(graphics.Screen):
+class CaImagingScreen(graphics.Screen):#OBSOLETE
     '''
     Graphical screen of ca-imaging application
     '''
