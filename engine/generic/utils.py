@@ -1310,7 +1310,7 @@ class TestUtils(unittest.TestCase):
         
     def test_20_push(self):
         import fileop
-        push2git('rlvivo1.fmi.ch', 'rz', 'ATxmega16A4', '/tmp/visexpman', 'commit msg', 'test')
+        push2git('rlvivo1.fmi.ch', 'rz', 'XXX', '/tmp/visexpman', 'commit msg', 'test')
         
 def shuffle_positions_avoid_adjacent(positions,shape_distance):
     remaining=copy.deepcopy(positions)
