@@ -205,11 +205,18 @@ class ExperimentHandler(object):
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         elif self.machine_config.PLATFORM=='elphys':
+            mode=self.guidata.read('Clamp Mode')
+            if 'Electrical' in mode:
+                raise NotImplementedError()
+            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
+            command=self.guidata.read('Clamp '+mode.split()[0])
+            experiment_parameters['Command Voltage']=command/sensitivity
             experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
             experiment_parameters['Current Gain']=self.guidata.read('Current Gain')
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
             experiment_parameters['Current Command Sensitivity']=self.guidata.read('Current Command Sensitivity')
             experiment_parameters['Voltage Command Sensitivity']=self.guidata.read('Voltage Command Sensitivity')
+            
         elif self.machine_config.PLATFORM=='mc_mea' and hasattr(self,'latest_mcd_file'):
             experiment_parameters['mcd_file']=self.latest_mcd_file
             self.printc('MEA data is being saved to {0}'.format(self.latest_mcd_file))
@@ -367,6 +374,9 @@ class ExperimentHandler(object):
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
             self.printc('Signal recording started')
+        if self.machine_config.PLATFORM in ['elphys']:
+            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, experiment_parameters['Command Voltage'])
+            self.printc('Set clamp signal to {0} V'.format(experiment_parameters['Command Voltage']))
         if self.machine_config.PLATFORM in ['exvivo_elphys', 'elphys']:
             if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
                 self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
@@ -415,6 +425,8 @@ class ExperimentHandler(object):
             self.to_gui.put({'update_status':'recording'})
         
     def finish_experiment(self):
+        if not self.experiment_running:
+            return
         self.to_gui.put({'update_status':'busy'})   
         self.printc('Finishing experiment...')
         if self.machine_config.PLATFORM=='mc_mea':
@@ -461,20 +473,32 @@ class ExperimentHandler(object):
             self.printc('Resume copier')
             self.copier.resume()
         self.experiment_finish_time=time.time()
+        if self.machine_config.PLATFORM in ['elphys']:
+            self.printc('Set clamp signal to 0V')
+            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
+
             
     def save_experiment_files(self, aborted=False):
         self.to_gui.put({'update_status':'busy'})   
         fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = "sync")
         if aborted:
-            if hasattr(self, 'daqdatafile'):
+            if hasattr(self, 'daqdatafile') and os.path.exists(self.daqdatafile.filename):
                 os.remove(self.daqdatafile.filename)
         else:
-            self.printc('WARNING: Fix this filename generation!!!!: fn variabla')
             if hasattr(self, 'daqdatafile'):
                 #shutil.copy(self.daqdatafile.filename, os.path.join(tempfile.gettempdir(), os.path.basename(fn)))
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
-                shutil.copy(self.daqdatafile.filename,fn)
+                #Here comes merging datafiles if stim computer is available
+                if 'stim' in self.machine_config.CONNECTIONS:
+                    outfile=self.current_experiment_parameters['outfilename']
+                    fileop.merge_hdf5_files(self.daqdatafile.filename, outfile)
+                    self.printc('Sync data merged to {0}'.format(outfile))
+                    experiment_data.hdf52mat(outfile, scale_sync=True)
+                    self.printc('{0} converted to mat'.format(outfile))
+                else:
+                    shutil.copy(self.daqdatafile.filename,fn)
+                    self.printc('Sync data saved to {0}'.format(fn))
                 if self.santiago_setup:
                     #Make a local copy of sync file
                     localfn=os.path.join('c:\\Data\\santiago-setup', os.path.basename(fn))
@@ -484,7 +508,6 @@ class ExperimentHandler(object):
                     os.remove(self.daqdatafile.filename)
                 except:
                     self.printc('Tempfile cannot be removed')
-                self.printc('Sync data saved to {0}'.format(fn))
             if self.santiago_setup:
                 from visexpman.users.zoltan import legacy
                 self.printc('Merging datafiles, please wait...')
@@ -526,13 +549,18 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-            if self.machine_config.PLATFORM=='elphys':
-                experiment_data.hdf52mat(fn, scale_sync=False)
-                self.printc('{0} converted to mat'.format(fn))
-                sync=hdf5io.read_item(fn,  "sync")
-                self.to_gui.put({'plot_title': os.path.dirname(fn)+'<br>'+os.path.basename(fn)})
-                if self.guidata.read('Displayed signal length')==0:
-                    self._plot_elphys(sync)
+            if self.machine_config.PLATFORM=='elphys' and not aborted:
+                hh=experiment_data.CaImagingData(outfile)
+                hh.load()
+                self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
+#                if self.guidata.read('Displayed signal length')==0:
+#                    self._plot_elphys(hh.sync)
+                try:
+                    hh.sync2time()
+                    hh.check_timing(check_frame_rate=True)
+                except:
+                    self.printc(traceback.format_exc())
+                hh.close()
         self.to_gui.put({'update_status':'idle'})
         
     def enable_plot_signals(self,enable):
@@ -737,9 +765,10 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         if self.machine_config.PLATFORM=='elphys':
-            self.finish_experiment()
+            if 'stim' not in self.machine_config.CONNECTIONS:
+                self.finish_experiment()
             self.experiment_running=False
-            self.save_experiment_files()
+            self.save_experiment_files(self.aborted)
             #When infinite recording stopped, live_data erased
             self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
         self.experiment_running=False
@@ -2081,7 +2110,7 @@ class ElphysEngine():
                 self.filter=scipy.signal.butter(order,frq/sample_rate,'low')
             else:
                 self.filter=scipy.signal.butter(order,frq/sample_rate,'high')
-            self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_SYNC_CHANNEL_INDEX]).real
+            self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_INDEX]
         if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and self.guidata.read('Displayed signal length')>0:
@@ -2091,17 +2120,17 @@ class ElphysEngine():
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         t=t[index:]
         if self.machine_config.AMPLIFIER_TYPE=='patch':
-            return#TMP
+            mode=self.guidata.read('Clamp Mode')
             #Scale elphys
-            if self.experiment_running:
-                unit="mV / pA" if "current" in self.stimuluso.__class__.__name__.lower() else "pA / mV"
-                scale=self.guidata.read(("Current" if "voltage" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Gain")
-                command_scale=self.guidata.read(("Current" if "current" in self.stimuluso.__class__.__name__.lower() else "Voltage")+" Command Sensitivity")
-            else:
-                fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
-                unit = "mV / pA" if "current" in os.path.basename(fn).lower() else "pA / mV"
-                scale=self.guidata.read(("Current" if "voltage" in os.path.basename(fn).lower() else "Voltage")+" Gain")
-                command_scale=self.guidata.read(("Current" if "current" in os.path.basename(fn).lower() else "Voltage")+" Command Sensitivity")
+            if 'Voltage' in mode:
+                unit='pA'
+                scale=self.guidata.read('Current Gain')
+                command_scale=self.guidata.read("Voltage Command Sensitivity")
+            elif 'Current' in mode:
+                unit='mV'
+                scale=self.guidata.read('Voltage Gain')
+                command_scale=self.guidata.read("Current Command Sensitivity")
+            fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             scale*=1e-3
             if self.guidata.read('Show raw voltage'):
                 scale=1
@@ -2109,7 +2138,7 @@ class ElphysEngine():
             unit='Red / Green: '+unit
             cmd_disp_ena=self.guidata.read('Show Command Trace')
             stim_disp_ena=self.guidata.read('Show Stimulus Trace')
-            n=1+int(cmd_disp_ena)+int(stim_disp_ena)
+            n=1+int(cmd_disp_ena)+int(stim_disp_ena)+1
             x=n*[t]
             y=[self.filtered[index:]/scale]
             cc=[[255, 0, 0]]
@@ -2117,13 +2146,16 @@ class ElphysEngine():
                 y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
                 cc.append([0, 0, 255])
             if cmd_disp_ena:
-                y.append(sync[index:, self.machine_config.COMMAND_SYNC_CHANNEL_INDEX]*command_scale)
+                y.append(sync[index:, self.machine_config.ELPHYSCOMMAND_INDEX]*command_scale)
                 cc.append([0, 255, 0])
+            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
+            cc.append([0, 0, 255])
             self.y=y
             self.sync=sync
             labels={"left": unit,  "bottom": "time [s]"}
             self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
-            self.to_gui.put({'display_roi_curve': [x, y, None, None, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
+            tsync=None#Later display block trigger
+            self.to_gui.put({'display_roi_curve': [x, y, None, tsync, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
         elif self.machine_config.AMPLIFIER_TYPE=='differential' :
             n=sync.shape[1]
             x=n*[t]

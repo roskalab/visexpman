@@ -222,10 +222,13 @@ class CaImagingData(supcl):
                 return
         for vn in ['sync', 'configs', 'sync_scaling', 'parameters']:
             self.load(vn)
-        if self.sync.dtype.name not in ['float', 'uint8', 'uint16', 'float64']:
-            raise NotImplementedError()
+        if self.sync.dtype.name not in ['float', 'uint8', 'uint16', 'float64', 'float32']:
+            raise NotImplementedError('{0}'.format(self.sync.dtype.name))
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
-        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        if hasattr(self, 'sync_scaling'):
+            sync=signal.from_16bit(self.sync,self.sync_scaling)
+        else:
+            sync=self.sync
         if 'TIMG_SYNC_INDEX' in self.configs['machine_config']:
             sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
             if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:

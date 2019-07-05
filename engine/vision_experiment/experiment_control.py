@@ -873,7 +873,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
         self.datafile.close()
         #Convert to mat file except for Dani
-        if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':
+        if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat' and self.machine_config.PLATFORM not in ['elphys']:
             experiment_data.hdf52mat(self.outputfilename)
             self.printl('{0} converted to mat'.format(self.outputfilename))
         self.datafilename=self.datafile.filename
