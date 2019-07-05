@@ -32,7 +32,7 @@ import warnings
 def exp(t,tconst, a,b):
     return a*numpy.exp(-t/tconst)+b
     
-def sigmoid(t, t0, sigma,a,b):
+def sigmoid(t, t0=0, sigma=1,a=1,b=0):
     return a/(1+numpy.exp(-(t-t0)/sigma))+b
     
 def calculate_trace_parameters(trace, tstim, timg,baseline_length):
