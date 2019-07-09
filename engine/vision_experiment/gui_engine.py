@@ -208,9 +208,9 @@ class ExperimentHandler(object):
             mode=self.guidata.read('Clamp Mode')
             if 'Electrical' in mode:
                 raise NotImplementedError()
-            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
-            command=self.guidata.read('Clamp '+mode.split()[0])
-            experiment_parameters['Command Voltage']=command/sensitivity
+#            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
+#            command=self.guidata.read('Clamp '+mode.split()[0])
+#            experiment_parameters['Command Voltage']=command/sensitivity
             experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
             experiment_parameters['Current Gain']=self.guidata.read('Current Gain')
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
@@ -374,9 +374,9 @@ class ExperimentHandler(object):
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
             self.printc('Signal recording started')
-        if self.machine_config.PLATFORM in ['elphys']:
-            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, experiment_parameters['Command Voltage'])
-            self.printc('Set clamp signal to {0} V'.format(experiment_parameters['Command Voltage']))
+#        if self.machine_config.PLATFORM in ['elphys']:
+#            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, experiment_parameters['Command Voltage'])
+#            self.printc('Set clamp signal to {0:.1f} V'.format(experiment_parameters['Command Voltage']))
         if self.machine_config.PLATFORM in ['exvivo_elphys', 'elphys']:
             if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
                 self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
@@ -473,9 +473,9 @@ class ExperimentHandler(object):
             self.printc('Resume copier')
             self.copier.resume()
         self.experiment_finish_time=time.time()
-        if self.machine_config.PLATFORM in ['elphys']:
-            self.printc('Set clamp signal to 0V')
-            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
+#        if self.machine_config.PLATFORM in ['elphys']:
+#            self.printc('Set clamp signal to 0V')
+#            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
 
             
     def save_experiment_files(self, aborted=False):
@@ -2123,7 +2123,7 @@ class ElphysEngine():
             mode=self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
-                unit='pA'
+                unit='nA'
                 scale=self.guidata.read('Current Gain')
                 command_scale=self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
@@ -2133,28 +2133,27 @@ class ElphysEngine():
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             scale*=1e-3
             if self.guidata.read('Show raw voltage'):
-                scale=1
-                command_scale=1
+                scale=1.0
+                command_scale=1.0
             unit='Red / Green: '+unit
-            cmd_disp_ena=self.guidata.read('Show Command Trace')
-            stim_disp_ena=self.guidata.read('Show Stimulus Trace')
-            n=1+int(cmd_disp_ena)+int(stim_disp_ena)+1
+            cmd_disp_ena=False#self.guidata.read('Show Command Trace')
+            stim_disp_ena=True#self.guidata.read('Show Stimulus Trace')
+            n=1+int(cmd_disp_ena)
             x=n*[t]
             y=[self.filtered[index:]/scale]
             cc=[[255, 0, 0]]
-            if stim_disp_ena:
-                y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
-                cc.append([0, 0, 255])
             if cmd_disp_ena:
                 y.append(sync[index:, self.machine_config.ELPHYSCOMMAND_INDEX]*command_scale)
                 cc.append([0, 255, 0])
-            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
-            cc.append([0, 0, 255])
+#            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
+#            cc.append([0, 0, 255])
             self.y=y
             self.sync=sync
             labels={"left": unit,  "bottom": "time [s]"}
             self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
-            tsync=None#Later display block trigger
+            tsync=signal.detect_edges(sync[0:, self.machine_config.TSTIM_SYNC_INDEX],2.5)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            if tsync.shape[0]%2==1:
+                tsync=numpy.append(tsync,  (sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
             self.to_gui.put({'display_roi_curve': [x, y, None, tsync, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
         elif self.machine_config.AMPLIFIER_TYPE=='differential' :
             n=sync.shape[1]

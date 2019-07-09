@@ -839,12 +839,12 @@ class MainUI(gui.VisexpmanMainWindow):
                     pars=[
                                 {'name': 'Clamp Mode', 'type': 'list', 'value': '',  'values': ['Voltage Clamp', 'Current Clamp', 'Electrical Stimulus']},
                                 
-                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
-                                {'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' nA'},
-                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/nA'},
+#                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
+#                                {'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' pA'},
+                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/pA'},
                                 {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
-                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
-                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
+#                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
+#                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
                                 {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
                                 {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
                                 {'name': 'Y min', 'type': 'float', 'value': 0},
