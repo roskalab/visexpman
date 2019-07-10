@@ -372,6 +372,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self._flip(frame_timing_pulse = True)
             if self.abort:
                 break
+                
+    def show_video(self, fn, position = (0, 0),  stretch=1.0):
+        import skvideo.io
+        skvideo.setFFmpegPath(fileop.visexpman_package_path())#ffmpeg.exe and ffprobe shall be located here
+        self.video = skvideo.io.vread(fname = fn)
+        for i in range(self.video.shape[0]):
+            if self.machine_config.ENABLE_TIME_INDEXING:
+                index=self._get_frame_index()
+            else:
+                index=i
+            self._show_image(self.video[index],0,utils.cr((position[0], position[1])),stretch, True)
+            if self.abort:
+                break
 
     def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  
                 background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, 
