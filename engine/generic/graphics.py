@@ -195,8 +195,8 @@ class Screen(object):
                 self.draw_scene()
                 self.flip()
                 for event in pygame.event.get():
-                    if event.type == 5 or event.type == 6:
-                        self.run_loop = False
+                    #Not sure why is this necessaryif event.type == 5 or event.type == 6:
+                        #self.run_loop = False
                     if event.type == pygame.KEYDOWN:
                         key_pressed = pygame.key.name(event.key)
                         if key_pressed == 'escape':
