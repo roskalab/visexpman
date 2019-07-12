@@ -2113,10 +2113,11 @@ class ElphysEngine():
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_INDEX]
-        if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and self.guidata.read('Displayed signal length')>0:
+        if self.guidata.read('Displayed signal length')>0:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
             index=0
+        self.iindex=index
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         t=t[index:]
         if self.machine_config.AMPLIFIER_TYPE=='patch':

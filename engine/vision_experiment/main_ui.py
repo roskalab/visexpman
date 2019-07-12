@@ -561,7 +561,10 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
             self._add_dockable_widget('Plot', d, d, self.plot)
-        self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
+        subfolders=['common', self.machine_config.user] 
+        if hasattr(self.machine_config,  'SECONDARY_USER'):#Stimuli of this user are loaded into stimulus tree
+            subfolders.append(self.machine_config.SECONDARY_USER)
+        self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), subfolders)
         if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
         if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p', 'mc_mea']:
@@ -837,6 +840,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     pars=[{'name': 'Gain', 'type': 'int', 'value': 10000.0, 'siPrefix': True,}]
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
                     pars=[
+                                {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
                                 {'name': 'Clamp Mode', 'type': 'list', 'value': '',  'values': ['Voltage Clamp', 'Current Clamp', 'Electrical Stimulus']},
                                 
 #                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
