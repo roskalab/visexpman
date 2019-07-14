@@ -376,7 +376,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_video(self, fn, position = (0, 0),  stretch=1.0):
         import skvideo.io
         skvideo.setFFmpegPath(fileop.visexpman_package_path())#ffmpeg.exe and ffprobe shall be located here
-        self.video = skvideo.io.vread(fname = fn)
+        self.video = numpy.cast['float'](skvideo.io.vread(fname = fn))/255.
         for i in range(self.video.shape[0]):
             if self.machine_config.ENABLE_TIME_INDEXING:
                 index=self._get_frame_index()

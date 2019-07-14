@@ -383,6 +383,7 @@ class Screen(object):
             image=numpy.rollaxis(numpy.array([image]*3), 0, 3)
         if hasattr(position, 'dtype'):#Phasing out row/col format
             position=(position['col'], position['row'])
+        
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         scale = 1.0 if position_in_pixel else self.config.SCREEN_UM_TO_PIXEL_SCALE
         vertices = numpy.array([
