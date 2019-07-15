@@ -185,7 +185,8 @@ def sync(src,dst):
         if not os.path.exists(os.path.dirname(dst_files[i])):
             os.makedirs(os.path.dirname(dst_files[i]))
         try:
-            copy=(os.path.exists(dst_files[i]) and not filecmp.cmp(src_files[i], dst_files[i],shallow=True)) or not os.path.exists(dst_files[i])
+#            copy=(os.path.exists(dst_files[i]) and not filecmp.cmp(src_files[i], dst_files[i],shallow=True)) or not os.path.exists(dst_files[i])
+            copy=not os.path.exists(dst_files[i]) or (os.path.exists(dst_files[i]) and os.path.getsize(src_files[i]) !=os.path.getsize(dst_files[i]))
         except:
             copy=True
         if copy:
