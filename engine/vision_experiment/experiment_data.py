@@ -1848,11 +1848,10 @@ class Copier(multiprocessing.Process):
         at src (merged hdf5 with mesc data+converted mat file)
         
     '''
-    def __init__(self, src, dst, rename_mesc=False):
+    def __init__(self, src, dst):
         multiprocessing.Process.__init__(self)
         self.src=src
         self.dst=dst
-        self.rename_mesc=rename_mesc
         self.command=multiprocessing.Queue()
         self.log=multiprocessing.Queue()
         
@@ -1914,15 +1913,7 @@ class Copier(multiprocessing.Process):
                                 if not os.path.exists(dstf):
                                     if not os.path.exists(os.path.dirname(dstf)):
                                         os.makedirs(os.path.dirname(dstf))                                    
-                                    if self.rename_mesc:
-                                        if os.path.splitext(f)[1]=='.mesc':
-                                            dstf2=dstf.replace('.mesc','_mesc.hdf5')
-                                            shutil.move(f, f.replace('.mesc','_mesc.hdf5'))
-                                            files2copy.append((fileage, f, dstf2))
-                                        else:
-                                            files2copy.append((fileage, f, dstf))
-                                    else:
-                                        files2copy.append((fileage, f, dstf))
+                                    files2copy.append((fileage, f, dstf))
                     #Find most recent and copy that
                     files2copy.sort()
 #                    self.log.put(files2copy)

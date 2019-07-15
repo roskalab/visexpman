@@ -97,7 +97,7 @@ class ExperimentHandler(object):
         else:#Multiple users
             self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
         if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
-            self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user), rename_mesc=self.machine_config.RENAME_MESC_FILES)
+            self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user))
             self.copier.start()
     
     def open_stimulus_file(self, filename, classname):
@@ -466,6 +466,7 @@ class ExperimentHandler(object):
                         self.printc('Timeout')
                         break
                     time.sleep(1)
+            time.sleep(1)
             self._stop_sync_recorder()
 #            self.experiment_running=False
             #self.experiment_finish_time=time.time()
@@ -751,7 +752,7 @@ class ExperimentHandler(object):
                 self.printc('Batch terminated, current recording is left running')
                 return
         self.printc('Aborting experiment, please wait...')
-        if self.current_experiment_parameters.get('Partial Save', False):
+        if hasattr(self, 'current_experiment_parameters') and self.current_experiment_parameters.get('Partial Save', False):
             self.printc('Saving partial data')
         if self.machine_config.PLATFORM=='retinal':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
@@ -970,7 +971,7 @@ class Analysis(object):
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
-            self._plot_elphys(sync)
+            self._plot_elphys(sync,  full_view=True)
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys"]:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
             self.image_scale=self.datafile.scale
@@ -2100,7 +2101,7 @@ class ElphysEngine():
         return fr
     
     
-    def _plot_elphys(self, sync):
+    def _plot_elphys(self, sync, full_view=False):
         #Filter rawdata
         if self.guidata.read('Enable Filter')==True:
             order=self.guidata.filter_order.v
@@ -2113,7 +2114,7 @@ class ElphysEngine():
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_INDEX]
-        if self.guidata.read('Displayed signal length')>0:
+        if self.guidata.read('Displayed signal length')>0 and not full_view:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
             index=0
@@ -2152,9 +2153,15 @@ class ElphysEngine():
             self.sync=sync
             labels={"left": unit,  "bottom": "time [s]"}
             self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
-            tsync=signal.detect_edges(sync[0:, self.machine_config.TSTIM_SYNC_INDEX],2.5)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            thr=2.5
+            sig=sync[index:, self.machine_config.TSTIM_SYNC_INDEX]
+            tsync=signal.detect_edges(sig,thr)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            if sig[0]>thr:
+                tsync=numpy.insert(tsync, 0, 0)
             if tsync.shape[0]%2==1:
-                tsync=numpy.append(tsync,  (sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+                tsync=numpy.append(tsync,  (sig.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+            tsync+=t[0]
+            self.to_gui.put({'plot_title': ''})
             self.to_gui.put({'display_roi_curve': [x, y, None, tsync, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
         elif self.machine_config.AMPLIFIER_TYPE=='differential' :
             n=sync.shape[1]
