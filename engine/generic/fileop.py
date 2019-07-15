@@ -884,6 +884,18 @@ def download_folder(server, user, src,dst,port=22,password=None):
     ssh.close()
     os.remove(localzip)
     
+def merge_hdf5_files(src,dst):
+    import hdf5io
+    srch=hdf5io.Hdf5io(src)
+    src_root_nodes=[v for v in srch.h5f.root._v_children.keys()]
+    dsth=hdf5io.Hdf5io(dst)
+    for n in src_root_nodes:
+        srch.load(n)
+        setattr(dsth,n,getattr(srch,n))
+        dsth.save(n)
+    srch.close()
+    dsth.close()
+    
 ################# End of functions ####################  
 
 import unittest
@@ -1000,6 +1012,9 @@ class TestFileops(unittest.TestCase):
         from visexpman.engine.generic import introspect
         with introspect.Timer():
             download_folder('192.168.1.4', 'rz','/data/codes/visexpman', '/tmp',9128)
+            
+    def test_07_merge_hdf5files(self):
+        merge_hdf5_files('/tmp/sync_MovingGratingShort_201907041723175.hdf5', '/tmp/data_MovingGratingShort_201907041723175.hdf5')
         
 if __name__=='__main__':
 #    import sys

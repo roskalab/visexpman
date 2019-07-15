@@ -139,9 +139,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def _append_to_stimulus_frame_info(self,values):
         self.stimulus_frame_info[-1]['parameters'].update(values)
             
-    def trigger_pulse(self, pin, width,polarity=True):
+    def timing_pulse(self, pin, width,polarity=True):
         '''
-        Generates trigger pulses
+        Generates timing pulse
         '''
         if hasattr(self, 'digital_io'):
             self.digital_io.set_pin(pin, int(polarity))
@@ -153,7 +153,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         Generates frame trigger pulses
         '''
         if self.config.FRAME_TIMING_PIN!=-1:
-            self.trigger_pulse(self.config.FRAME_TIMING_PIN, self.config.FRAME_TIMING_PULSE_WIDTH)
+            self.timing_pulse(self.config.FRAME_TIMING_PIN, self.config.FRAME_TIMING_PULSE_WIDTH)
             
     def block_start(self, block_name = 'stimulus function'):
         if hasattr(self, 'digital_io'):
@@ -370,6 +370,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     self.screen.render_image(image, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._flip(frame_timing_pulse = True)
+            if self.abort:
+                break
+                
+    def show_video(self, fn, position = (0, 0),  stretch=1.0):
+        import skvideo.io
+        skvideo.setFFmpegPath(fileop.visexpman_package_path())#ffmpeg.exe and ffprobe shall be located here
+        self.video = numpy.cast['float'](skvideo.io.vread(fname = fn))/255.
+        for i in range(self.video.shape[0]):
+            if self.machine_config.ENABLE_TIME_INDEXING:
+                index=self._get_frame_index()
+            else:
+                index=i
+            self._show_image(self.video[index],0,utils.cr((position[0], position[1])),stretch, True)
             if self.abort:
                 break
 

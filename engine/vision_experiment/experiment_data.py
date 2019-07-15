@@ -222,10 +222,13 @@ class CaImagingData(supcl):
                 return
         for vn in ['sync', 'configs', 'sync_scaling', 'parameters']:
             self.load(vn)
-        if self.sync.dtype.name not in ['float', 'uint8', 'uint16', 'float64']:
-            raise NotImplementedError()
+        if self.sync.dtype.name not in ['float', 'uint8', 'uint16', 'float64', 'float32']:
+            raise NotImplementedError('{0}'.format(self.sync.dtype.name))
         fsample=float(self.configs['machine_config']['SYNC_RECORDER_SAMPLE_RATE'])
-        sync=signal.from_16bit(self.sync,self.sync_scaling)
+        if hasattr(self, 'sync_scaling'):
+            sync=signal.from_16bit(self.sync,self.sync_scaling)
+        else:
+            sync=self.sync
         if 'TIMG_SYNC_INDEX' in self.configs['machine_config']:
             sig=sync[:,self.configs['machine_config']['TIMG_SYNC_INDEX']]
             if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE'] and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
@@ -281,9 +284,9 @@ class CaImagingData(supcl):
             
     def check_timing(self, check_frame_rate=True):
         errors=[]
-        if self.timg.shape[0]==0:
+        if self.timg.shape[0]==0 and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
             errors.append('No imaging sync signal detected.')
-        if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]) and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
+        elif not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]) and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
             errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
         if check_frame_rate:
             #Check frame rate
@@ -735,7 +738,7 @@ def pack_configs(self):
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
             if configs[confname].has_key('GAMMA_CORRECTION'):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
-    if not configs.has_key('experiment_config'):
+    if not configs.has_key('experiment_config') and hasattr(self, 'config2dict') :
         configs['experiment_config']=self.config2dict()
     from visexpman.engine.vision_experiment import experiment
     if hasattr(self,  'experiment_config') :

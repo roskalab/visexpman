@@ -692,7 +692,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self._stop_frame_capture()
             self.log.resume()
             #Terminate recording devices
-            if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav', '2p']:
+            if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav', '2p', 'elphys']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
@@ -727,7 +727,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if not self.abort or self.partial_save:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['behav','retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea']:
+                if self.machine_config.PLATFORM in ['behav','retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea', 'elphys']:
                     self.send({'trigger':'stim data ready'})
 #                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
 #                    self._backup(self.datafilename)
@@ -752,6 +752,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
 
     def close(self):
         if hasattr(self, 'digital_io') and hasattr(self.digital_io, 'close'):
+                self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 0)
+                self.digital_io.set_pin(self.config.FRAME_TIMING_PIN, 0)
                 self.digital_io.close()
         if hasattr(self, 'camera_trigger'):
             self.camera_trigger.close()
@@ -873,7 +875,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
         self.datafile.close()
         #Convert to mat file except for Dani
-        if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':
+        if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat' and self.machine_config.PLATFORM not in ['elphys']:
             experiment_data.hdf52mat(self.outputfilename)
             self.printl('{0} converted to mat'.format(self.outputfilename))
         self.datafilename=self.datafile.filename

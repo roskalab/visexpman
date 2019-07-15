@@ -195,8 +195,8 @@ class Screen(object):
                 self.draw_scene()
                 self.flip()
                 for event in pygame.event.get():
-                    if event.type == 5 or event.type == 6:
-                        self.run_loop = False
+                    #Not sure why is this necessaryif event.type == 5 or event.type == 6:
+                        #self.run_loop = False
                     if event.type == pygame.KEYDOWN:
                         key_pressed = pygame.key.name(event.key)
                         if key_pressed == 'escape':
@@ -381,14 +381,19 @@ class Screen(object):
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
         if len(image.shape)==2:
             image=numpy.rollaxis(numpy.array([image]*3), 0, 3)
+        if hasattr(position, 'dtype'):#Phasing out row/col format
+            position=(position['col'], position['row'])
+        
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         scale = 1.0 if position_in_pixel else self.config.SCREEN_UM_TO_PIXEL_SCALE
         vertices = numpy.array([
-                                [position['col']*scale + 0.5 * image.shape[1]*stretch, position['row']*scale - 0.5 * image.shape[0]*stretch],
-                                [position['col']*scale + 0.5 * image.shape[1]*stretch, position['row']*scale + 0.5 * image.shape[0]*stretch],
-                                [position['col']*scale - 0.5 * image.shape[1]*stretch, position['row']*scale + 0.5 * image.shape[0]*stretch],
-                                [position['col']*scale - 0.5 * image.shape[1]*stretch, position['row']*scale - 0.5 * image.shape[0]*stretch],
+                                [position[0]*scale + 0.5 * image.shape[1]*stretch, position[1]*scale - 0.5 * image.shape[0]*stretch],
+                                [position[0]*scale + 0.5 * image.shape[1]*stretch, position[1]*scale + 0.5 * image.shape[0]*stretch],
+                                [position[0]*scale - 0.5 * image.shape[1]*stretch, position[1]*scale + 0.5 * image.shape[0]*stretch],
+                                [position[0]*scale - 0.5 * image.shape[1]*stretch, position[1]*scale - 0.5 * image.shape[0]*stretch],
                                 ])
+        if len(vertices.shape)==3:
+            vertices=vertices[:,:,0]
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         dt = GL_FLOAT

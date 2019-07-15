@@ -561,7 +561,10 @@ class MainUI(gui.VisexpmanMainWindow):
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
             self._add_dockable_widget('Plot', d, d, self.plot)
-        self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), ['common', self.machine_config.user] )
+        subfolders=['common', self.machine_config.user] 
+        if hasattr(self.machine_config,  'SECONDARY_USER'):#Stimuli of this user are loaded into stimulus tree
+            subfolders.append(self.machine_config.SECONDARY_USER)
+        self.stimulusbrowser = StimulusTree(self, os.path.dirname(fileop.get_user_module_folder(self.machine_config)), subfolders)
         if self.machine_config.PLATFORM in ['retinal']:
             self.cellbrowser=CellBrowser(self)
         if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p', 'mc_mea']:
@@ -615,6 +618,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab.currentChanged.connect(self.tab_changed)
         #Set size of widgets
         self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
+        self.main_tab.setMinimumHeight(self.machine_config.GUI_HEIGHT*0.3)
         if hasattr(self, 'plot'):
             self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
         if QtCore.QCoreApplication.instance() is not None:
@@ -659,7 +663,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.image.remove_all_rois()
                 [self.image.add_roi(r[0],r[1], r[2:], movable=False) for r in msg['display_roi_rectangles']]
                 self.printc('Displaying {0} rois'.format(len(msg['display_roi_rectangles'])))
-            elif 'display_roi_curve' in msg:
+            elif 'display_roi_curve' in msg:#Also serves as a main plot for non imaging data
                 timg, curve, index, tsync,options = msg['display_roi_curve']
                 self.timg=timg
                 self.curve=curve
@@ -790,7 +794,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Name', 'type': 'str', 'value': ''},
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
-                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
+                {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['elphys', 'mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
@@ -836,12 +840,15 @@ class MainUI(gui.VisexpmanMainWindow):
                     pars=[{'name': 'Gain', 'type': 'int', 'value': 10000.0, 'siPrefix': True,}]
                 elif self.machine_config.AMPLIFIER_TYPE=='patch':
                     pars=[
+                                {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
                                 {'name': 'Clamp Mode', 'type': 'list', 'value': '',  'values': ['Voltage Clamp', 'Current Clamp', 'Electrical Stimulus']},
                                 
-                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/nA'},
+#                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
+#                                {'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' pA'},
+                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/pA'},
                                 {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
-                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
-                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
+#                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
+#                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
                                 {'name': 'Show raw voltage', 'type': 'bool', 'value': False},
                                 {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
                                 {'name': 'Y min', 'type': 'float', 'value': 0},
