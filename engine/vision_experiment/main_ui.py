@@ -369,7 +369,7 @@ class DataFileBrowser(gui.FileTree):
         delete_action = QtGui.QAction('Remove recording', self)
         delete_action.triggered.connect(self.delete_action)
         self.menu.addAction(delete_action)
-        plot_action = QtGui.QAction('Plot timing signals', self)
+        plot_action = QtGui.QAction('Plot recorded signals', self)
         plot_action.triggered.connect(self.plot_action)
         self.menu.addAction(plot_action)
         add_comment_action=QtGui.QAction('Comment', self)
@@ -582,7 +582,7 @@ class MainUI(gui.VisexpmanMainWindow):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.stimulusbrowser, 'Stimulus Files')
         if self.machine_config.PLATFORM in ['elphys', 'retinal', 'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p', 'mc_mea']:
-            self.main_tab.addTab(self.analysis, 'Data Files')
+            self.main_tab.addTab(self.analysis, 'Data')
         if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.params, 'Settings')
