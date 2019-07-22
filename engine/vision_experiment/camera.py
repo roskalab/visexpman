@@ -188,7 +188,15 @@ class Camera(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
             hdf5io.save_item(self.fn, 'timestamps', self.ts)
-            hdf5io.save_item(self.fn, 'parameters', self.parameters)
+            if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
+                miniscope_datafolder=self.find_miniscope_data()
+                if os.path.exists(miniscope_datafolder):
+                    import copy
+                    parameters=copy.deepcopy(self.parameters)
+                    parameters['miniscope data']=miniscope_datafolder
+                    hdf5io.save_item(self.fn, 'parameters', parameters)
+            else:
+                hdf5io.save_item(self.fn, 'parameters', self.parameters)
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()
@@ -488,3 +496,16 @@ class Camera(gui.VisexpmanMainWindow):
 #            self.printc(self.ioboard.read(100))    
             self.trigger_detector.close()
             self.trigger_detector_enabled=False
+
+    def find_miniscope_data(self):
+        time_struct = time.localtime(time.time())
+        d='{2:0=2}_{1:0=2}_{0:0=4}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday)
+        folder=os.path.join(self.machine_config.MINISCOPE_DATA_PATH, d)
+        #Latest folder:
+        fns = [fn for fn in fileop.listdir_fullpath(folder) if os.path.isdir(fn)]
+        if len(fns) == 0:
+            return
+        fns_dates = map(os.path.getmtime, fns)
+        latest_file_index = fns_dates.index(max(fns_dates))
+        return fns[latest_file_index]
+        
