@@ -9,7 +9,7 @@ except ImportError:
     import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop, signal, utils
-from visexpman.engine.hardware_interface import camera_interface, daq_instrument
+from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 from visexpman.engine.analysis import behavioral_data
 
@@ -69,12 +69,13 @@ class Camera(gui.VisexpmanMainWindow):
         self.load_all_parameters()
         self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3, None)
         self.camerahandler.start()
-        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
-            self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
-            self.trigger_detector_enabled=False
-            self.start_trigger=False
-            self.stop_trigger=False
-        time.sleep(2)
+        self.trigger_detector_enabled=False
+#        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
+#            self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
+#            self.trigger_detector_enabled=False
+#            self.start_trigger=False
+#            self.stop_trigger=False
+#        time.sleep(2)
 #        if self.machine_config.ENABLE_SYNC=='camera':
 #            self.daqqueues = {'command': multiprocessing.Queue(), 
 #                                'response': multiprocessing.Queue(), 
@@ -187,7 +188,15 @@ class Camera(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
             hdf5io.save_item(self.fn, 'timestamps', self.ts)
-            hdf5io.save_item(self.fn, 'parameters', self.parameters)
+            if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
+                miniscope_datafolder=self.find_miniscope_data()
+                if os.path.exists(miniscope_datafolder):
+                    import copy
+                    parameters=copy.deepcopy(self.parameters)
+                    parameters['miniscope data']=miniscope_datafolder
+                    hdf5io.save_item(self.fn, 'parameters', parameters)
+            else:
+                hdf5io.save_item(self.fn, 'parameters', self.parameters)
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()
@@ -386,11 +395,13 @@ class Camera(gui.VisexpmanMainWindow):
                     if self.parameters.get('Show track', False):
                         for p in self.track:
                             try:
+                                if numpy.isnan(p[0]):
+                                    continue  
                                 f[int(p[0]), int(p[1])]=numpy.array([255,255,255],dtype=f.dtype)
                             except:
-                                self.printc('Tracking problem')
+                                self.printc('Track display problem')
                                 numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  numpy.array(p))
-                                self.logging.info(traceback.format_exc())
+                                self.logger.info(traceback.format_exc())
                     
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
                 if self.recording:
@@ -399,7 +410,7 @@ class Camera(gui.VisexpmanMainWindow):
                     if hasattr(self,  'red_angle'):
                         title+='/head direction: {0:0.1f}'.format(self.red_angle)
                     self.image.plot.setTitle(title)
-                if hasattr(self, 'ioboard'):
+                if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
                     self.trigger_handler()
                 self.socket_handler()
         except:
@@ -408,8 +419,8 @@ class Camera(gui.VisexpmanMainWindow):
     def exit_action(self):
         self.save_context()
         self.camerahandler.stop()
-        if hasattr(self,  'ioboard'):
-            self.ioboard.close()
+#        if hasattr(self,  'ioboard'):
+#            self.ioboard.close()
 #        if hasattr(self, 'ai'):
 #            self.ai.queues['command'].put('terminate')
 #            self.ai.join()
@@ -426,16 +437,18 @@ class Camera(gui.VisexpmanMainWindow):
         
     def trigger_handler(self):
         if self.trigger_state=='off':
-            if self.ioboard.isOpen() and self.parameters['Trigger']=='TTL pulses' and self.parameters['Enable trigger']:
+            if self.parameters['Trigger']=='TTL pulses' and self.parameters['Enable trigger']:
                 self.enable_trigger()
                 self.trigger_state='waiting'
+                self.printc('New trigger status: '+self.trigger_state)
         elif self.trigger_state=='waiting':
-            readout=self.ioboard.read(20)
-            if len(readout)>0:
+            readout=self.trigger_detector.detect()
+            if readout !='none':
                 self.printc(readout)
-            if 'Start trigger' in readout:
+            if readout=='on':
                 if self.parameters['Enable trigger'] and not self.recording:
                     self.trigger_state='started'
+                    self.printc('New trigger status: '+self.trigger_state)
                     self.start_recording()
                 else:
                     self.disable_trigger()
@@ -444,18 +457,21 @@ class Camera(gui.VisexpmanMainWindow):
                 self.disable_trigger()
                 self.trigger_state='off'
         elif self.trigger_state=='started':
-            readout=self.ioboard.read(20)
-            if len(readout)>0:
+            readout=self.trigger_detector.detect()
+            if readout !='none':
                 self.printc(readout)
-            if 'Stop trigger' in readout and self.recording:
+            if readout == 'off' and self.recording:
                 self.trigger_state='stopped'
+                self.printc('New trigger status: '+self.trigger_state)
                 self.stop_recording()
             elif not self.recording:#manually stopped
                 self.trigger_state='stopped'
+                self.printc(self.trigger_state)
         elif self.trigger_state=='stopped':
             self.disable_trigger()
             self.enable_trigger()
             self.trigger_state='waiting'
+            self.printc('New trigger status: '+self.trigger_state)
         if self.trigger_state=='off':
             color='grey'
         elif self.trigger_state=='waiting':
@@ -469,12 +485,27 @@ class Camera(gui.VisexpmanMainWindow):
     
     def enable_trigger(self):
         if not self.trigger_detector_enabled:
-            self.ioboard.write('wait_trigger,1\r\n')
-            self.printc(self.ioboard.read(100))
+            self.trigger_detector=digital_io.TriggerDetector(self.machine_config.TRIGGER_DETECTOR_PORT,self.machine_config.TRIGGER_TIMEOUT)
+#            self.ioboard.write('wait_trigger,1\r\n')
+#            self.printc(self.ioboard.read(100))
             self.trigger_detector_enabled=True
         
     def disable_trigger(self):
         if self.trigger_detector_enabled:
-            self.ioboard.write('wait_trigger,0\r\n')
-            self.printc(self.ioboard.read(100))    
+#            self.ioboard.write('wait_trigger,0\r\n')
+#            self.printc(self.ioboard.read(100))    
+            self.trigger_detector.close()
             self.trigger_detector_enabled=False
+
+    def find_miniscope_data(self):
+        time_struct = time.localtime(time.time())
+        d='{2:0=2}_{1:0=2}_{0:0=4}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday)
+        folder=os.path.join(self.machine_config.MINISCOPE_DATA_PATH, d)
+        #Latest folder:
+        fns = [fn for fn in fileop.listdir_fullpath(folder) if os.path.isdir(fn)]
+        if len(fns) == 0:
+            return
+        fns_dates = map(os.path.getmtime, fns)
+        latest_file_index = fns_dates.index(max(fns_dates))
+        return fns[latest_file_index]
+        

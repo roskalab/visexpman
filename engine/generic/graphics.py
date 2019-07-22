@@ -130,7 +130,10 @@ class Screen(object):
             if self.config.FULLSCREEN:            
                 flags = flags | pygame.FULLSCREEN
             self.screen = pygame.display.set_mode((self.screen_resolution['col'], self.screen_resolution['row']), flags)
-            pygame.display.set_caption(utils.get_window_title(self.config))
+            try:
+                pygame.display.set_caption(utils.get_window_title(self.config))
+            except:
+                pygame.display.set_caption('No title')
     #            glxext_arb.glXSwapIntervalSGI(0)
             #Hide mouse cursor
             pygame.mouse.set_visible(not self.config.FULLSCREEN)
