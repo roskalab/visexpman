@@ -81,6 +81,10 @@ class ExperimentHandler(object):
                     limits['timeout'] = self.machine_config.DAQ_TIMEOUT
                 else:
                     limits=None
+                dev=self.machine_config.SYNC_RECORDER_CHANNELS.split('/')[0]
+                res=daq_instrument.is_device_present(dev)
+                if not res:
+                    raise IOError('{0} device is not present in system. Make sure that it is configured properly.'.format(dev))
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
                 self.sync_recorder.start()
             self.sync_recording_started=False
