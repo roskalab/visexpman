@@ -87,6 +87,13 @@ class WaveformGenerator(multiprocessing.Process, daqmxtask):
         self.StopTask()
         self.ClearTask()
 
+def is_device_present(dev):
+    try:
+        res=PyDAQmx.SelfTestDevice(dev)==0
+    except:
+        res=False
+    return res
+
 def analogio(ai_channel,ao_channel,sample_rate,waveform,timeout=1, action=None, aimode=default_aimode, ailimit=5):
     try:
         n_ai_channels=numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1
