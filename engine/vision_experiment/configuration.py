@@ -78,7 +78,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DIGITAL_PORT_PIN_RANGE = [-1, 7]#-1 for disabling
         
         ############## General platform parameters ###############
-        PLATFORM = ['undefined', ['2p', 'retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'exvivo_elphys', 'undefined']]
+        PLATFORM = ['undefined', ['2p', 'retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'erg', 'undefined']]
         USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis', 'cam': 'Camera'}
         
         ############## File/Filesystem related ###############

@@ -587,14 +587,13 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.params, 'Settings')
         if self.machine_config.PLATFORM in ["elphys"]:
-            if self.machine_config.AMPLIFIER_TYPE=='differential':
-                self.plot2 = gui.Plot(self)
-                self.select_plot_signal=SelectPlotSignals(self)
-                self.main_tab.addTab(self.plot2, 'Plot')
-                self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
-            elif self.machine_config.AMPLIFIER_TYPE=='patch':
-                self.electrical_stimulus=QtGui.QWidget(self)
-                self.main_tab.addTab(self.electrical_stimulus, 'Electrical Stimulus')
+            self.electrical_stimulus=QtGui.QWidget(self)
+            self.main_tab.addTab(self.electrical_stimulus, 'Electrical Stimulus')
+        if self.machine_config.PLATFORM in ["erg"]:
+            self.plot2 = gui.Plot(self)
+            self.select_plot_signal=SelectPlotSignals(self)
+            self.main_tab.addTab(self.plot2, 'Plot')
+            self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
         if self.machine_config.PLATFORM in ['tbd']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
@@ -836,10 +835,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
         elif self.machine_config.PLATFORM in ['elphys']:
-                if self.machine_config.AMPLIFIER_TYPE=='differential':
-                    pars=[{'name': 'Gain', 'type': 'int', 'value': 10000.0, 'siPrefix': True,}]
-                elif self.machine_config.AMPLIFIER_TYPE=='patch':
-                    pars=[
+                pars=[
                                 {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
                                 {'name': 'Clamp Mode', 'type': 'list', 'value': '',  'values': ['Voltage Clamp', 'Current Clamp', 'Electrical Stimulus']},
                                 
