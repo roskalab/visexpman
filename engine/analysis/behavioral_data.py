@@ -862,8 +862,8 @@ class TestBehavAnalysis(unittest.TestCase):
         #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
         
     def test_07_extract_mouse_position(self):
-        folder=r'c:\temp\20190416'
-        folder='/data/data/user/Zoltan/20190715_Miao_behav/tracking lost'
+        folder=r'c:\temp'
+#        folder='/data/data/user/Zoltan/20190715_Miao_behav/tracking lost'
         
         #folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
         
@@ -871,7 +871,8 @@ class TestBehavAnalysis(unittest.TestCase):
         files=fileop.listdir_fullpath(folder)
         files.sort()
         coordinates={}
-#        files=['c:\\temp\\behav_201904261056350.hdf5']
+        files=['/data/tmp/behav_201907251628326.hdf5']
+        files=[r'x:\tmp\behav_201907251628326.hdf5']
         for filename in files:
             if 'png' in filename:
                 frames=[numpy.asarray(Image.open(f)) for f in files]

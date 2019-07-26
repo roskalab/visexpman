@@ -583,7 +583,7 @@ class TestTriggerDetector(unittest.TestCase):
             if time.time()-t0>wf.shape[1]/float(fs):
                 break
             res.append(td.detect())
-            print res[-1], td.counter
+            print (res[-1], td.counter)
             time.sleep(1)
         daq_instrument.set_waveform_finish(analog_output, wf_duration)
         self.assertEqual(len([i for i in res if i=='on']), repeats)

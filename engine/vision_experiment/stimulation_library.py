@@ -389,8 +389,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def get_video_duration(self, fn):
         import skvideo.io
         skvideo.setFFmpegPath(os.path.dirname(fileop.visexpman_package_path()))#ffmpeg.exe and ffprobe shall be located here
-        self.video = numpy.cast['float'](skvideo.io.vread(fname = fn))/255.
-        return float(self.video.shape[0])/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        metadata = skvideo.io.ffprobe(fn)
+        return float([v for k,v in metadata['video'].items() if 'duration' in k][1])
 
     def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  
                 background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, 
