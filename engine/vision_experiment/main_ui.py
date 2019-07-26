@@ -536,6 +536,8 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
+        elif self.machine_config.PLATFORM =='erg':
+            toolbar_buttons = ['start_experiment', 'stop', 'exit']
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             toolbar_buttons.insert(1,'start_batch_experiment')
             
@@ -556,7 +558,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.adjust.low.setValue(0)
             self.adjust.high.setValue(99)
             self._add_dockable_widget('Image adjust', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.adjust)
-        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys", '2p', 'resonant']:
+        if self.machine_config.PLATFORM in ['elphys_retinal_ca', 'retinal', 'ao_cortical',  "elphys", 'erg', '2p', 'resonant']:
             self.plot = gui.Plot(self)
             self.plot.plot.setLabels(bottom='sec')
             d=QtCore.Qt.BottomDockWidgetArea if hasattr(self,  "image") else QtCore.Qt.RightDockWidgetArea
@@ -591,9 +593,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.main_tab.addTab(self.electrical_stimulus, 'Electrical Stimulus')
         if self.machine_config.PLATFORM in ["erg"]:
             self.plot2 = gui.Plot(self)
-            self.select_plot_signal=SelectPlotSignals(self)
-            self.main_tab.addTab(self.plot2, 'Plot')
-            self.main_tab.addTab(self.select_plot_signal, 'Select Plot Signals')
+            self.main_tab.addTab(self.plot2, 'Sensor signals')
         if self.machine_config.PLATFORM in ['tbd']:
             self.advanced=Advanced(self)
             self.main_tab.addTab(self.advanced, 'Advanced')
@@ -616,8 +616,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
         self.main_tab.currentChanged.connect(self.tab_changed)
         #Set size of widgets
-        self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
-        self.main_tab.setMinimumHeight(self.machine_config.GUI_HEIGHT*0.3)
+        self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.35)
+        self.main_tab.setMinimumHeight(self.machine_config.GUI_HEIGHT*0.4)
         if hasattr(self, 'plot'):
             self.plot.setFixedWidth(self.machine_config.GUI_WIDTH*0.5)
         if QtCore.QCoreApplication.instance() is not None:

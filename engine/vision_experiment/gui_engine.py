@@ -1822,6 +1822,12 @@ class Analysis(object):
         
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
+        
+class UserGUIEngine(object):
+    def run(self):
+        '''
+        Users should subclass from this to define user gui engine
+        '''
     
 class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
     '''
@@ -1849,6 +1855,16 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.enable_check_network_status=enable_network
         self.enable_network=enable_network
         self.mes_connection_status=False
+        if hasattr(self.machine_config, 'USER_GUI_ENGINE'):
+            for u in ['common', self.machine_config.user]:
+                import visexpman
+                user_gui_engine_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.machine_config.USER_GUI_ENGINE,  
+                                                    required_ancestors = UserGUIEngine, direct=False)
+                if len(user_gui_engine_class ) == 1:
+                    user_gui_engine_class  = user_gui_engine_class [0][1]
+                    break
+            self.user_gui_engine=user_gui_engine_class ()
+            
         
     def load_context(self):
         self.guidata = GUIData()
@@ -1998,6 +2014,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.last_run = time.time()#helps determining whether the engine still runs
                 for fn in run_always:
                     getattr(self, fn)()
+                if hasattr(self, 'user_gui_engine'):
+                    self.user_gui_engine.run(self)
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:
