@@ -747,9 +747,12 @@ def pack_configs(self):
         else:
             sc=self.parameters['experiment_config_source_code']
         cn=self.experiment_config.__class__.__name__
-    else:
+    elif hasattr(self, 'parameters'):
         sc=self.parameters['stimulus_source_code']
         cn=self.__class__.__name__
+    else:
+        sc=None
+        cn=None
     if sc ==None:
         parameters=self.experiment_config.get_all_parameters()
     else:
