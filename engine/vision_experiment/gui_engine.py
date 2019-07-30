@@ -385,7 +385,8 @@ class ExperimentHandler(object):
             if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
                 self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
             if self.guidata.read('Block Projector'):
-                res=instrument.set_filterwheel('Block', self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
+                self.printc('Open projector lightpath')
+                res=instrument.set_filterwheel(self.machine_config.FILTERWHEEL_FILTERS[1]['empty'], self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
                 self.printc(res)
         if self.machine_config.PLATFORM in ['erg']:
             experiment_parameters=self.user_gui_engine.start_experiment(experiment_parameters)
@@ -475,7 +476,8 @@ class ExperimentHandler(object):
         self.experiment_finish_time=time.time()
         if self.machine_config.PLATFORM in ['elphys']:
             if self.guidata.read('Block Projector'):
-                res=instrument.set_filterwheel('Empty', self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
+                self.printc('Block projector lightpath')
+                res=instrument.set_filterwheel(self.machine_config.FILTERWHEEL_FILTERS[1]['block'], self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
                 self.printc(res)
 
 #            self.printc('Set clamp signal to 0V')

@@ -516,8 +516,8 @@ class PolarPlot(pyqtgraph.GraphicsLayoutWidget):
             circle = pyqtgraph.QtGui.QGraphicsEllipseItem(-r, -r, r*2, r*2)
             circle.setPen(pyqtgraph.mkPen(0.2))
             self.plot.addItem(circle)
-        radius=kwargs.get('values')
-        theta=numpy.radians(kwargs.get('angles'))
+        radius=kwargs.get('radius')
+        theta=numpy.radians(kwargs.get('theta'))
         # Transform to cartesian and plot
         x = radius * numpy.cos(theta)
         y = radius * numpy.sin(theta)
