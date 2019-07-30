@@ -284,9 +284,9 @@ class CaImagingData(supcl):
             
     def check_timing(self, check_frame_rate=True):
         errors=[]
-        if self.timg.shape[0]==0:
+        if self.timg.shape[0]==0 and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
             errors.append('No imaging sync signal detected.')
-        if not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]) and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
+        elif not (self.timg[0]<self.tstim[0] and self.timg[-1]>self.tstim[-1]) and self.configs['machine_config']['TIMG_SYNC_INDEX']!=-1:
             errors.append('{0} of stimulus was not imaged'.format('Beginning' if self.timg[0]>self.tstim[0] else 'End') )
         if check_frame_rate:
             #Check frame rate
@@ -747,9 +747,12 @@ def pack_configs(self):
         else:
             sc=self.parameters['experiment_config_source_code']
         cn=self.experiment_config.__class__.__name__
-    else:
+    elif hasattr(self, 'parameters'):
         sc=self.parameters['stimulus_source_code']
         cn=self.__class__.__name__
+    else:
+        sc=None
+        cn=None
     if sc ==None:
         parameters=self.experiment_config.get_all_parameters()
     else:
@@ -1848,11 +1851,10 @@ class Copier(multiprocessing.Process):
         at src (merged hdf5 with mesc data+converted mat file)
         
     '''
-    def __init__(self, src, dst, rename_mesc=False):
+    def __init__(self, src, dst):
         multiprocessing.Process.__init__(self)
         self.src=src
         self.dst=dst
-        self.rename_mesc=rename_mesc
         self.command=multiprocessing.Queue()
         self.log=multiprocessing.Queue()
         
@@ -1914,15 +1916,7 @@ class Copier(multiprocessing.Process):
                                 if not os.path.exists(dstf):
                                     if not os.path.exists(os.path.dirname(dstf)):
                                         os.makedirs(os.path.dirname(dstf))                                    
-                                    if self.rename_mesc:
-                                        if os.path.splitext(f)[1]=='.mesc':
-                                            dstf2=dstf.replace('.mesc','_mesc.hdf5')
-                                            shutil.move(f, f.replace('.mesc','_mesc.hdf5'))
-                                            files2copy.append((fileage, f, dstf2))
-                                        else:
-                                            files2copy.append((fileage, f, dstf))
-                                    else:
-                                        files2copy.append((fileage, f, dstf))
+                                    files2copy.append((fileage, f, dstf))
                     #Find most recent and copy that
                     files2copy.sort()
 #                    self.log.put(files2copy)

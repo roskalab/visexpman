@@ -18,76 +18,6 @@ try:
 except ImportError:
     import queue as Queue
 
-#OBSOLETE
-class SerialPortDigitalIO(instrument.Instrument):
-    '''
-    Serial port lines are controlled as digital io lines
-    pin 0: orange
-    pin1: green
-    input pin: brown
-    '''
-    def init_instrument(self):
-        if isinstance(self.config.DIGITAL_IO_PORT, list) and len(self.config.DIGITAL_IO_PORT)>1:
-            self.s = []
-            for port in self.config.DIGITAL_IO_PORT:
-                self.s.append(serial.Serial(port))
-        else:
-            self.s = [serial.Serial(self.config.DIGITAL_IO_PORT)]
-            
-    def clear_pins(self):
-        if isinstance(self.config.DIGITAL_IO_PORT, list):
-            n = len(self.config.DIGITAL_IO_PORT)
-        else:
-            n=1
-        for i in range(n):
-            self.set_data_bit(i*2,0)
-            self.set_data_bit(i*2+1,0)
-        
-    def release_instrument(self):
-        for s in self.s:
-            s.close()
-
-    def pulse(self, channel, width, log=True):
-        self.set_data_bit(channel, False, log = log)
-        self.set_data_bit(channel, True, log = log)
-        time.sleep(width)
-        self.set_data_bit(channel, False, log = log)
-
-    def set_pin(self, channel,value):
-        self.set_data_bit(channel, value)
-        
-    def set_data_bit(self, channel, value, log = True):
-        '''
-        channel 0: TX (orange wire on usb-uart converter)
-        channel 1: RTS (green wire on usb-uart converter)
-        '''
-        device_id = channel/2
-        if len(self.s)-1 < device_id:
-            raise RuntimeError('Invalid data bit')
-        if channel%2 == 0:
-            if hasattr(self.s[device_id], 'setBreak'):
-                self.s[device_id].setBreak(not bool(value))
-            else:
-                self.s[device_id].sendBreak(not bool(value))
-        elif channel%2 == 1:
-            self.s[device_id].setRTS(not bool(value))
-        if log:
-            self.log_during_experiment('Serial DIO pin {0} set to {1}'.format(channel, value))
-            
-    def read_pin(self,channel=0,inverted=False):
-        '''
-        pin 0: cts
-        Theoretically receiving brake via rx could be pin 1 but no function available for that in pyserial
-        '''
-        if channel == 0:
-            v= self.s[0].getCTS()
-            if inverted:
-                return not v
-            else:
-                return v
-        else:
-            raise NotImplementedError()
-            
 class Photointerrupter(threading.Thread):
     def __init__(self, config):
         threading.Thread.__init__(self)
@@ -453,6 +383,46 @@ class DigitalIO(object):
         if self.type==None:
             return
         self.hwhandler.close()
+        
+class TriggerDetector():
+    '''
+    Signals trigger on when a pulse train starts and signals trigger off when pulse train is over.
+    It uses an NI  daq device's counter
+    '''
+    def __init__(self, device_id, timeout):
+        self.read = DAQmxTypes.ctypes.c_long()
+        self.data = numpy.zeros((1,), dtype=numpy.float64)
+        self.timeout=timeout
+        self.counter=0
+        self.enc=PyDAQmx.Task()
+        self.enc.CreateCICountEdgesChan(device_id+'/ctr0',"enc",DAQmxConstants.DAQmx_Val_Rising, self.counter, DAQmxConstants.DAQmx_Val_CountUp)
+        self.enc.StartTask()
+        self.last_change=time.time()
+        self.state=False
+
+        
+    def read_counter(self):
+        self.enc.ReadCounterF64(DAQmxConstants.DAQmx_Val_Auto, -1, self.data, 1000, DAQmxTypes.byref(self.read), None)
+        return self.data[0]
+        
+    def detect(self):
+        event='none'
+        counter=self.read_counter()
+        now=time.time()
+        if counter!=self.counter:
+            self.last_change=now
+            self.counter=counter
+            if not self.state:
+                self.state=True
+                event='on'
+        if now-self.last_change>self.timeout and self.state:
+            self.state=False
+            event='off'
+        return event
+         
+    def close(self):
+        self.enc.StopTask()
+        self.enc.ClearTask()
            
 class TestConfig(object):
     def __init__(self):
@@ -590,6 +560,36 @@ class TestDigitalIO(unittest.TestCase):
         print(d.read())
         print(d.read())
         d.close()
+        
+class TestTriggerDetector(unittest.TestCase):
+    def test(self):
+        '''
+        For testing connect AO0 with PFI0
+        '''
+        from visexpman.engine.hardware_interface import daq_instrument
+        from pylab import plot,show
+        fs=1000
+        repeats=3
+        wf=3.3*numpy.concatenate((numpy.zeros(3000), numpy.tile(numpy.concatenate((numpy.zeros(100), numpy.ones(50), numpy.zeros(1000))), 30), numpy.zeros(3000)))
+        wf=numpy.tile(wf,repeats)
+        plot(wf)
+        show()
+        wf=wf.reshape(1,wf.shape[0])
+        analog_output, wf_duration = daq_instrument.set_waveform_start('Dev3/ao0',wf,sample_rate = fs)
+        t0=time.time()
+        td=TriggerDetector('Dev3', 1.5)
+        res=[]
+        while True:
+            if time.time()-t0>wf.shape[1]/float(fs):
+                break
+            res.append(td.detect())
+            print (res[-1], td.counter)
+            time.sleep(1)
+        daq_instrument.set_waveform_finish(analog_output, wf_duration)
+        self.assertEqual(len([i for i in res if i=='on']), repeats)
+        self.assertEqual(len([i for i in res if i=='off']), repeats)
+        td.close()
+
 
 if __name__ == '__main__':
     unittest.main()

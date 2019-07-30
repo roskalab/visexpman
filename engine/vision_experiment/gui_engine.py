@@ -81,6 +81,10 @@ class ExperimentHandler(object):
                     limits['timeout'] = self.machine_config.DAQ_TIMEOUT
                 else:
                     limits=None
+                dev=self.machine_config.SYNC_RECORDER_CHANNELS.split('/')[0]
+                res=daq_instrument.is_device_present(dev)
+                if not res:
+                    raise IOError('{0} device is not present in system. Make sure that it is configured properly.'.format(dev))
                 self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
                 self.sync_recorder.start()
             self.sync_recording_started=False
@@ -97,7 +101,7 @@ class ExperimentHandler(object):
         else:#Multiple users
             self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
         if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
-            self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user), rename_mesc=self.machine_config.RENAME_MESC_FILES)
+            self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user))
             self.copier.start()
     
     def open_stimulus_file(self, filename, classname):
@@ -208,9 +212,9 @@ class ExperimentHandler(object):
             mode=self.guidata.read('Clamp Mode')
             if 'Electrical' in mode:
                 raise NotImplementedError()
-            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
-            command=self.guidata.read('Clamp '+mode.split()[0])
-            experiment_parameters['Command Voltage']=command/sensitivity
+#            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
+#            command=self.guidata.read('Clamp '+mode.split()[0])
+#            experiment_parameters['Command Voltage']=command/sensitivity
             experiment_parameters['Recording Sample Rate']=self.guidata.read('Recording Sample Rate')
             experiment_parameters['Current Gain']=self.guidata.read('Current Gain')
             experiment_parameters['Voltage Gain']=self.guidata.read('Voltage Gain')
@@ -374,12 +378,15 @@ class ExperimentHandler(object):
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
             self.printc('Signal recording started')
+#        if self.machine_config.PLATFORM in ['elphys']:
+#            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, experiment_parameters['Command Voltage'])
+#            self.printc('Set clamp signal to {0:.1f} V'.format(experiment_parameters['Command Voltage']))
         if self.machine_config.PLATFORM in ['elphys']:
-            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, experiment_parameters['Command Voltage'])
-            self.printc('Set clamp signal to {0} V'.format(experiment_parameters['Command Voltage']))
-        if self.machine_config.PLATFORM in ['exvivo_elphys', 'elphys']:
             if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
                 self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+        if self.machine_config.PLATFORM in ['erg']:
+            experiment_parameters=self.user_gui_engine.start_experiment(experiment_parameters)
+            self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -390,23 +397,12 @@ class ExperimentHandler(object):
             stimulus_source_code=[v for k, v in experiment_parameters.items() if 'experiment_config_source_code' in k][0]
             cmd='SOCexecute_experimentEOC{0}EOP'.format(stimulus_source_code.replace('\n', '<newline>').replace('=', '<equal>').replace(',', '<comma>').replace('#OUTPATH', experiment_parameters['outfolder'].replace('\\', '\\\\')))
             utils.send_udp(self.machine_config.CONNECTIONS['stim']['ip']['stim'],446,cmd)
-        elif self.machine_config.PLATFORM=='exvivo_elphys':
-            introspect.import_code(experiment_parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
-            experiment_module = __import__('experiment_module')
-            self.stimuluso = getattr(experiment_module, experiment_parameters['stimclass'])(self.machine_config, parameters=experiment_parameters,
-                                                                                                  log=self.log)
-            time.sleep(0.3)#Ensure that analog recording started
-            try:
-                self.stimuluso.run()
-            except:
-                self.printc(traceback.format_exc())
-                self._stop_sync_recorder()
-                return
         else:
             if 'Record Eyecamera' in experiment_parameters and experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
-            self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+            if self.machine_config.PLATFORM not in ['erg']:
+                self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if hasattr(self, 'copier'):
             self.copier.suspend()
             self.printc('Suspend copier')
@@ -466,6 +462,7 @@ class ExperimentHandler(object):
                         self.printc('Timeout')
                         break
                     time.sleep(1)
+            time.sleep(1)
             self._stop_sync_recorder()
 #            self.experiment_running=False
             #self.experiment_finish_time=time.time()
@@ -473,9 +470,9 @@ class ExperimentHandler(object):
             self.printc('Resume copier')
             self.copier.resume()
         self.experiment_finish_time=time.time()
-        if self.machine_config.PLATFORM in ['elphys']:
-            self.printc('Set clamp signal to 0V')
-            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
+#        if self.machine_config.PLATFORM in ['elphys']:
+#            self.printc('Set clamp signal to 0V')
+#            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
 
             
     def save_experiment_files(self, aborted=False):
@@ -710,15 +707,6 @@ class ExperimentHandler(object):
                 d=d[0]
             elif d.shape[0]!=0:
                 self.daqdatafile.add(d)
-            if self.machine_config.PLATFORM=="exvivo_elphys":
-                self.daqdatafile.hdf5.configs=experiment_data.pack_configs(self.stimuluso)
-                self.daqdatafile.hdf5.parameters=self.current_experiment_parameters
-                self.daqdatafile.hdf5.save('parameters')
-                if 'Flowrate' in self.machine_config.CHANNEL_NAMES:
-                    self.daqdatafile.hdf5.flow_rates=self.flow_rates
-                    self.daqdatafile.hdf5.flow_rate_times=self.flow_rate_times
-                    self.daqdatafile.hdf5.save('flow_rate_times')
-                    self.daqdatafile.hdf5.save('flow_rates')
             else:
                 pass
             self.daqdatafile.close()
@@ -729,12 +717,6 @@ class ExperimentHandler(object):
         self.mc_mea_trigger()
         if self.sync_recording_started:
             self.read_sync_recorder()
-            if self.machine_config.PLATFORM=="exvivo_elphys" and now-self.experiment_start_time>self.current_experiment_parameters['duration']+self.machine_config.AI_RECORDING_OVERHEAD:
-                self.finish_experiment()
-                self.experiment_running=False
-                self.save_experiment_files()
-                if self.guidata.read('Infinite Recording'):
-                    self.start_experiment(manually_started=False) 
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
@@ -751,13 +733,10 @@ class ExperimentHandler(object):
                 self.printc('Batch terminated, current recording is left running')
                 return
         self.printc('Aborting experiment, please wait...')
-        if self.current_experiment_parameters.get('Partial Save', False):
+        if hasattr(self, 'current_experiment_parameters') and self.current_experiment_parameters.get('Partial Save', False):
             self.printc('Saving partial data')
         if self.machine_config.PLATFORM=='retinal':
             self.send({'function': 'stop_all','args':[]},'ca_imaging')
-        if self.machine_config.PLATFORM=='exvivo_elphys':
-            self.stimuluso.stop()
-            time.sleep(0.5)
         self.send({'function': 'stop_all','args':[]},'stim')
         if 'Record Eyecamera' in self.current_experiment_parameters and self.current_experiment_parameters['Record Eyecamera']:
             self.send({'function': 'stop_recording','args':[]},'cam')
@@ -771,6 +750,11 @@ class ExperimentHandler(object):
             self.save_experiment_files(self.aborted)
             #When infinite recording stopped, live_data erased
             self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+        if self.machine_config.PLATFORM in ['erg']:
+            self.to_gui.put({'update_status':'busy'})   
+            self.printc('Finishing experiment...')
+            experiment_parameters=self.user_gui_engine.stop_experiment()
+            self.to_gui.put({'update_status':'idle'})
         self.experiment_running=False
         self.printc('Experiment stopped')
                    
@@ -970,7 +954,7 @@ class Analysis(object):
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
-            self._plot_elphys(sync)
+            self._plot_elphys(sync,  full_view=True)
         if self.machine_config.PLATFORM not in  ['resonant',  "elphys"]:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
             self.image_scale=self.datafile.scale
@@ -1847,6 +1831,21 @@ class Analysis(object):
         
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
+        
+class UserGUIEngine(object):
+    def __init__(self,parent):
+        self.printc=parent.printc
+        self.machine_config=parent.machine_config
+        self.parent = parent
+        self.init()
+        
+    def init(self):
+        pass
+        
+    def run(self):
+        '''
+        Users should subclass from this to define user gui engine
+        '''
     
 class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
     '''
@@ -1874,6 +1873,16 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.enable_check_network_status=enable_network
         self.enable_network=enable_network
         self.mes_connection_status=False
+        if hasattr(self.machine_config, 'USER_GUI_ENGINE'):
+            for u in ['common', self.machine_config.user]:
+                import visexpman
+                user_gui_engine_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.machine_config.USER_GUI_ENGINE,  
+                                                    required_ancestors = UserGUIEngine, direct=False)
+                if len(user_gui_engine_class ) == 1:
+                    user_gui_engine_class  = user_gui_engine_class [0][1]
+                    break
+            self.user_gui_engine=user_gui_engine_class (self)
+            
         
     def load_context(self):
         self.guidata = GUIData()
@@ -2023,6 +2032,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.last_run = time.time()#helps determining whether the engine still runs
                 for fn in run_always:
                     getattr(self, fn)()
+                if hasattr(self, 'user_gui_engine'):
+                    self.user_gui_engine.run()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:
@@ -2070,12 +2081,6 @@ class ElphysEngine():
     def run_always_elphys_engine(self):
         if self.machine_config.PLATFORM!='elphys':
             return
-        if self.sync_recording_started and self.machine_config.PLATFORM=='exvivo_elphys':
-            self.flow_rate=self.read_flowmeter()
-        elif hasattr(self, 'flowmeter'):
-            self.flowmeter.close()
-            del self.flowmeter
-            
         if not hasattr(self, 'last_mem_check'):
             self.last_mem_check=time.time()
         if time.time()-self.last_mem_check>60 and 0:
@@ -2100,7 +2105,9 @@ class ElphysEngine():
         return fr
     
     
-    def _plot_elphys(self, sync):
+    def _plot_elphys(self, sync, full_view=False):
+        if self.machine_config.PLATFORM in ['erg']:
+            return
         #Filter rawdata
         if self.guidata.read('Enable Filter')==True:
             order=self.guidata.filter_order.v
@@ -2113,17 +2120,18 @@ class ElphysEngine():
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_INDEX]
-        if hasattr(self.machine_config,  "LIVE_SIGNAL_LENGTH") and self.guidata.read('Displayed signal length')>0:
+        if self.guidata.read('Displayed signal length')>0 and not full_view:
             index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         else:
             index=0
+        self.iindex=index
         t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         t=t[index:]
-        if self.machine_config.AMPLIFIER_TYPE=='patch':
+        if self.machine_config.PLATFORM=='elphys':
             mode=self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
-                unit='pA'
+                unit='nA'
                 scale=self.guidata.read('Current Gain')
                 command_scale=self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
@@ -2133,79 +2141,84 @@ class ElphysEngine():
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             scale*=1e-3
             if self.guidata.read('Show raw voltage'):
-                scale=1
-                command_scale=1
+                scale=1.0
+                command_scale=1.0
             unit='Red / Green: '+unit
-            cmd_disp_ena=self.guidata.read('Show Command Trace')
-            stim_disp_ena=self.guidata.read('Show Stimulus Trace')
-            n=1+int(cmd_disp_ena)+int(stim_disp_ena)+1
+            cmd_disp_ena=False#self.guidata.read('Show Command Trace')
+            stim_disp_ena=True#self.guidata.read('Show Stimulus Trace')
+            n=1+int(cmd_disp_ena)
             x=n*[t]
             y=[self.filtered[index:]/scale]
             cc=[[255, 0, 0]]
-            if stim_disp_ena:
-                y.append(sync[index:, self.machine_config.STIM_SYNC_CHANNEL_INDEX])
-                cc.append([0, 0, 255])
             if cmd_disp_ena:
                 y.append(sync[index:, self.machine_config.ELPHYSCOMMAND_INDEX]*command_scale)
                 cc.append([0, 255, 0])
-            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
-            cc.append([0, 0, 255])
+#            y.append(sync[index:,  self.machine_config.TSTIM_SYNC_INDEX])
+#            cc.append([0, 0, 255])
             self.y=y
             self.sync=sync
             labels={"left": unit,  "bottom": "time [s]"}
             self.yrange=[self.guidata.read('Y min'),  self.guidata.read('Y max')] if not self.guidata.read('Y axis autoscale') else None
-            tsync=None#Later display block trigger
+            thr=2.5
+            sig=sync[index:, self.machine_config.TSTIM_SYNC_INDEX]
+            tsync=signal.detect_edges(sig,thr)/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            if sig[0]>thr:
+                tsync=numpy.insert(tsync, 0, 0)
+            if tsync.shape[0]%2==1:
+                tsync=numpy.append(tsync,  (sig.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+            tsync+=t[0]
+            self.to_gui.put({'plot_title': ''})
             self.to_gui.put({'display_roi_curve': [x, y, None, tsync, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
-        elif self.machine_config.AMPLIFIER_TYPE=='differential' :
-            n=sync.shape[1]
-            x=n*[t]
-            y=[sync[index:,i] for i in range(n)]
-            if hasattr(self.machine_config, 'CHANNEL_SCALE'):
-                y=[(y[i]-self.machine_config.CHANNEL_OFFSET[i])*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
-            cc=[colors.get_color(i,unit=False) for i in range(n)]
-            cc_html=[('#%02x%02x%02x' % (cci[0], cci[1], cci[2])).upper() for cci in cc]
-            labels={"left": '',  "bottom": "time [s]"}
-            xleft=[]
-            yleft=[]
-            ccleft=[]
-            xright=[]
-            yright=[]
-            ccright=[]
-            left_title=''
-            right_title=''
-            self.t=t
-            flow_rate_times=[f-self.flow_rate_times[0] for f in self.flow_rate_times]
-            fr=numpy.array([[flow_rate_times[i], self.flow_rates[i]] for i in range(len(self.flow_rates)) if max(t)>flow_rate_times[i] and min(t)<flow_rate_times[i]])
-            for i in range(len(self.plot_signal_enable['left'])):
-                if self.plot_signal_enable['left'][i]:
-                    if self.machine_config.CHANNEL_NAMES[i]=='Flowrate':
-                        if fr.shape[0]>0:
-                            xleft.append(fr[:,0])
-                            yleft.append(fr[:,1])
-                            ccleft.append(('#%02x%02x%02x' % (255, 200, 100)).upper())
-                            last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(yleft[-1][-1], self.machine_config.CHANNEL_UNITS[i], ccleft[-1])
-                            
-                    else:
-                        xleft.append(x[i])
-                        yleft.append(y[i])
-                        ccleft.append(cc[i])
-                        last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
-                    if len(self.machine_config.CHANNEL_UNITS[i])>0:
-                        left_title+=last_value
-                if self.plot_signal_enable['right'][i]:
-                    if self.machine_config.CHANNEL_NAMES[i]=='Flowrate':
-                        pass
-                    else:
-                        xright.append(x[i])
-                        yright.append(y[i])
-                        ccright.append(cc[i])
-                        last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
-                        if len(self.machine_config.CHANNEL_UNITS[i])>0:
-                            right_title+=last_value
-            self.to_gui.put({'display_roi_curve': [xright, yright, None, None, {'plot_average':False, "colors":ccright,  "labels": labels}]})
-            self.to_gui.put({'curves2plot2': [xleft, yleft, None, None, {'plot_average':False, "colors":ccleft,  "labels": labels}]})
-            self.to_gui.put({'plot_title': right_title})
-            self.to_gui.put({'plot2_title': left_title})   
+#        elif self.machine_config.AMPLIFIER_TYPE=='differential' :
+#            n=sync.shape[1]
+#            x=n*[t]
+#            y=[sync[index:,i] for i in range(n)]
+#            if hasattr(self.machine_config, 'CHANNEL_SCALE'):
+#                y=[(y[i]-self.machine_config.CHANNEL_OFFSET[i])*self.machine_config.CHANNEL_SCALE[i] for i in range(n)]
+#            cc=[colors.get_color(i,unit=False) for i in range(n)]
+#            cc_html=[('#%02x%02x%02x' % (cci[0], cci[1], cci[2])).upper() for cci in cc]
+#            labels={"left": '',  "bottom": "time [s]"}
+#            xleft=[]
+#            yleft=[]
+#            ccleft=[]
+#            xright=[]
+#            yright=[]
+#            ccright=[]
+#            left_title=''
+#            right_title=''
+#            self.t=t
+#            flow_rate_times=[f-self.flow_rate_times[0] for f in self.flow_rate_times]
+#            fr=numpy.array([[flow_rate_times[i], self.flow_rates[i]] for i in range(len(self.flow_rates)) if max(t)>flow_rate_times[i] and min(t)<flow_rate_times[i]])
+#            for i in range(len(self.plot_signal_enable['left'])):
+#                if self.plot_signal_enable['left'][i]:
+#                    if self.machine_config.CHANNEL_NAMES[i]=='Flowrate':
+#                        if fr.shape[0]>0:
+#                            xleft.append(fr[:,0])
+#                            yleft.append(fr[:,1])
+#                            ccleft.append(('#%02x%02x%02x' % (255, 200, 100)).upper())
+#                            last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(yleft[-1][-1], self.machine_config.CHANNEL_UNITS[i], ccleft[-1])
+#                            
+#                    else:
+#                        xleft.append(x[i])
+#                        yleft.append(y[i])
+#                        ccleft.append(cc[i])
+#                        last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
+#                    if len(self.machine_config.CHANNEL_UNITS[i])>0:
+#                        left_title+=last_value
+#                if self.plot_signal_enable['right'][i]:
+#                    if self.machine_config.CHANNEL_NAMES[i]=='Flowrate':
+#                        pass
+#                    else:
+#                        xright.append(x[i])
+#                        yright.append(y[i])
+#                        ccright.append(cc[i])
+#                        last_value='<font color="{2}">{0:0.1f} {1}</font>, '.format(y[i][-1], self.machine_config.CHANNEL_UNITS[i], cc_html[i])
+#                        if len(self.machine_config.CHANNEL_UNITS[i])>0:
+#                            right_title+=last_value
+#            self.to_gui.put({'display_roi_curve': [xright, yright, None, None, {'plot_average':False, "colors":ccright,  "labels": labels}]})
+#            self.to_gui.put({'curves2plot2': [xleft, yleft, None, None, {'plot_average':False, "colors":ccleft,  "labels": labels}]})
+#            self.to_gui.put({'plot_title': right_title})
+#            self.to_gui.put({'plot2_title': left_title})   
            
 class MainUIEngine(GUIEngine,Analysis,ExperimentHandler, ElphysEngine):
     def __init__(self, machine_config, log, socket_queues, unittest=False):

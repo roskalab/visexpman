@@ -1,6 +1,6 @@
 #TODO: low volt/high/mid voltage?? volt instead of all voltage values
 #TODO: color assignment
-import hdf5io,unittest,numpy,os,multiprocessing
+import hdf5io,unittest,numpy,os,multiprocessing,pdb
 from visexpman.engine.generic import introspect,fileop,utils,signal
 from visexpman.engine.vision_experiment import experiment_data
 from pylab import *
@@ -862,15 +862,17 @@ class TestBehavAnalysis(unittest.TestCase):
         #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
         
     def test_07_extract_mouse_position(self):
-        folder=r'c:\temp\20190416'
-        folder='/tmp/frames'
+        folder=r'c:\temp'
+#        folder='/data/data/user/Zoltan/20190715_Miao_behav/tracking lost'
+        
         #folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
         
         from PIL import Image
         files=fileop.listdir_fullpath(folder)
         files.sort()
         coordinates={}
-#        files=['c:\\temp\\behav_201904261056350.hdf5']
+        files=['/data/tmp/behav_201907251628326.hdf5']
+        files=[r'x:\tmp\behav_201907251628326.hdf5']
         for filename in files:
             if 'png' in filename:
                 frames=[numpy.asarray(Image.open(f)) for f in files]
@@ -885,6 +887,7 @@ class TestBehavAnalysis(unittest.TestCase):
             coordinates[filename]=[]
 #            frames=frames[::100]
             results=0
+            nanct=0
             for f in frames:
 #                with introspect.Timer():
                     #Find brightest area
@@ -899,14 +902,17 @@ class TestBehavAnalysis(unittest.TestCase):
                         outfolder='/tmp/img'
                         if os.path.exists(outfolder):
                             Image.fromarray(debug).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
-                        print((framect, result))
+                        print((framect, result, position, red_angle, red, green, blue))
+                        if numpy.isnan(position).any():
+                            nanct+=1
                         pass
                     except:
                         import traceback
                         print(traceback.format_exc())
+                        pdb.set_trace()
             if 'png' in filename:
                 break
-            print ((results,  frames.shape))
+            print ((results,  frames.shape, nanct))
 #        utils.object2array(coordinates).tofile('c:\\temp\\coo.bin')
         from pylab import plot,show
         coo=numpy.array(coo)
