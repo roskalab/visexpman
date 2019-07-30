@@ -741,9 +741,10 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         animal_position=numpy.cast['int']((animal_position)/float(led_ct))
     if debug:
         img=numpy.rollaxis(numpy.array(3*[numpy.copy(image.sum(axis=2)/3)]), 0, 3)
-        for i in range(-2, 3):
-            img[animal_position[0]+i,  animal_position[1], :]=255
-            img[animal_position[0],  animal_position[1]+i, :]=255
+        if not numpy.isnan(animal_position).any():
+            for i in range(-2, 3):
+                img[animal_position[0]+i,  animal_position[1], :]=255
+                img[animal_position[0],  animal_position[1]+i, :]=255
         if not numpy.isnan(red).any():
             for i in range(-2, 3):
                 img[red[0]+i,  red[1], 0]=255
@@ -864,7 +865,7 @@ class TestBehavAnalysis(unittest.TestCase):
     def test_07_extract_mouse_position(self):
         folder=r'c:\temp\20190416'
         folder='/data/data/user/Zoltan/20190715_Miao_behav/tracking lost'
-        
+        folder='/tmp'
         #folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
         
         from PIL import Image
@@ -877,7 +878,18 @@ class TestBehavAnalysis(unittest.TestCase):
                 frames=[numpy.asarray(Image.open(f)) for f in files]
             elif 'hdf5' not in filename: continue
             else:
-                frames=hdf5io.read_item(filename,  'frames')
+                hh=hdf5io.Hdf5io(filename)
+                nframes=hh.h5f.root.frames.shape[0]
+                chunksize=1000
+                nchunks=nframes/chunksize
+                if nchunks==0:
+                    nchunks=1
+#                for chunki in range(nchunks):
+                print nchunks
+                chunki=0
+                frames=hh.h5f.root.frames.read(chunki*chunksize,  (chunki+1)*chunksize)
+                hh.close()
+                #frames=hdf5io.read_item(filename,  'frames')
             
             coo=[]
             
@@ -903,6 +915,7 @@ class TestBehavAnalysis(unittest.TestCase):
                             Image.fromarray(debug).save(os.path.join(outfolder,'{0}_{1:0=5}_{2:.1f}.png'.format(os.path.basename(filename),  framect,  red_angle)))
                         print((framect, result, position, red_angle, red, green, blue))
                         if numpy.isnan(position).any():
+                            result, position, red_angle, red, green, blue, debug=mouse_head_direction(f, roi_size=20, threshold=80,  saturation_threshold=0.6, value_threshold=0.4, debug=True)
                             nanct+=1
                         pass
                     except:

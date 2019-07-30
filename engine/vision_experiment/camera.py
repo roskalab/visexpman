@@ -106,6 +106,7 @@ class Camera(gui.VisexpmanMainWindow):
             params=[
                 {'name': 'Show track', 'type': 'bool', 'value': True}, 
                 {'name': 'Threshold', 'type': 'int', 'value': 80},
+                {'name': 'ROI size', 'type': 'int', 'value': 20},
                 {'name': 'Show color LEDs', 'type': 'bool', 'value': False}, 
                 ]
         else:
@@ -350,7 +351,7 @@ class Camera(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
             for f in frames:
                 try:
-                    result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                    result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['ROI size'], threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
                     print((result, position, self.red_angle, red, green, blue))
                     if result:
                         h.head_direction.append(self.red_angle)
@@ -379,7 +380,7 @@ class Camera(gui.VisexpmanMainWindow):
                 if self.machine_config.PLATFORM=='behav':
                     if self.recording or self.parameters.get('Show color LEDs', False):
                         try:
-                            result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=20, threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                            result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['ROI size'], threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
                         except:
                             self.printc('Tracking problem')
                             numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  f)

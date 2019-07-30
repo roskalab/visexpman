@@ -40,6 +40,16 @@ def array2mp4(array, videofile, fps, tempdir=None):
         Image.fromarray(array[i]).save(os.path.join(folder, 'f{0:0=5}.png'.format(i)))
     images2mpeg4(folder, videofile, fps)
     
+def videofile2hdf5(fn):
+    import skvideo.io,numpy,hdf5io
+    skvideo.setFFmpegPath(os.path.dirname(fileop.visexpman_package_path()))#ffmpeg.exe and ffprobe shall be located here
+    video = numpy.cast['float'](skvideo.io.vread(fname = fn))/255.
+    h=hdf5io.Hdf5io(os.path.splitext(fn)[0]+'.hdf5')
+    h.video=video
+    h.save('video')
+    h.close()
+    
+    
 class TestVideoFile(unittest.TestCase):
     def test_01_frame_rate(self):
         folder = '/home/rz/codes/data//181214_Lema_offcell'
