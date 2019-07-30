@@ -79,7 +79,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['2p', 'retinal', 'elphys', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','us_cortical', 'standalone', 'smallapp', 'intrinsic', 'resonant', 'exvivo_elphys', 'undefined']]
-        USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis', 'cam': 'Camera'}
+        USER_INTERFACE_NAMES = {'main_ui':'Vision Experiment Manager', '2p': 'Two Photon Imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis', 'cam': 'Camera'}
         
         ############## File/Filesystem related ###############
         FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]

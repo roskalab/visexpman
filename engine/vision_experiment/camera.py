@@ -34,15 +34,13 @@ class Camera(gui.VisexpmanMainWindow):
         self.statusbar.recording_status.setStyleSheet('background:gray;')
         
         self.statusbar.trigger_status=QtGui.QLabel('', self)
-        self.statusbar.addPermanentWidget(self.statusbar.trigger_status)
         self.statusbar.recording_status.setStyleSheet('background:gray;')
 
-        #Add dockable widgets
         self.debug = gui.Debug(self)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)        
         self.image = gui.Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
-        self.filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user)# if self.machine_config.PLATFORM in ['2p', 'ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
+        self.filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
@@ -58,8 +56,7 @@ class Camera(gui.VisexpmanMainWindow):
         self.update_image_timer=QtCore.QTimer()
         self.update_image_timer.timeout.connect(self.update_image)
         self.update_image_timer.start(1000/self.machine_config.DEFAULT_CAMERA_FRAME_RATE/3)#ms
-        
-        #Load context/saved settings if available
+            
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         if os.path.exists(self.context_filename):
             context_stream = numpy.load(self.context_filename)
@@ -88,7 +85,6 @@ class Camera(gui.VisexpmanMainWindow):
 #            self.ai=daq_instrument.AnalogIOProcess('daq', self.daqqueues, None, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
 #            self.ai.start()
         
-        #Set size of widgets
         self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT*0.4)
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
