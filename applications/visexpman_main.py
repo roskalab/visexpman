@@ -496,11 +496,11 @@ def run_stim(context, timeout = None):
     context['logger'].start()
     stim.run(timeout=timeout)
     
-def run_ca_imaging(context, timeout = None):
+def run_2p(context, timeout = None):
     context['logger'].add_source('engine')
     context['logger'].start()
-    from visexpman.engine.vision_experiment import ca_imaging
-    ca_imaging.CaImaging(context=context)
+    from visexpman.engine.vision_experiment import two_photon
+    two_photon.TwoPhotonImaging(context=context)
     
 def run_cam(context, timeout=None):
     context['logger'].add_source('engine')

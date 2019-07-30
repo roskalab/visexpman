@@ -27,7 +27,7 @@ try:
 except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
-from visexpman.engine.analysis import cone_data,aod
+from visexpman.engine.analysis import cone_data,aod,elphys
 from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
@@ -384,6 +384,12 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM in ['elphys']:
             if not self.guidata.read('Infinite Recording') or not hasattr(self, 'live_data'):
                 self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+            if self.guidata.read('Block Projector'):
+                res=instrument.set_filterwheel('Block', self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
+                self.printc(res)
+        if self.machine_config.PLATFORM in ['erg']:
+            experiment_parameters=self.user_gui_engine.start_experiment(experiment_parameters)
+            self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
         if self.santiago_setup:
             time.sleep(1)
             #UDP command for sending duration and path to imaging
@@ -398,7 +404,8 @@ class ExperimentHandler(object):
             if 'Record Eyecamera' in experiment_parameters and experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
-            self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+            if self.machine_config.PLATFORM not in ['erg']:
+                self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if hasattr(self, 'copier'):
             self.copier.suspend()
             self.printc('Suspend copier')
@@ -466,7 +473,11 @@ class ExperimentHandler(object):
             self.printc('Resume copier')
             self.copier.resume()
         self.experiment_finish_time=time.time()
-#        if self.machine_config.PLATFORM in ['elphys']:
+        if self.machine_config.PLATFORM in ['elphys']:
+            if self.guidata.read('Block Projector'):
+                res=instrument.set_filterwheel('Empty', self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
+                self.printc(res)
+
 #            self.printc('Set clamp signal to 0V')
 #            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
 
@@ -746,6 +757,11 @@ class ExperimentHandler(object):
             self.save_experiment_files(self.aborted)
             #When infinite recording stopped, live_data erased
             self.live_data=numpy.empty((0,self.machine_config.N_AI_CHANNELS))
+        if self.machine_config.PLATFORM in ['erg']:
+            self.to_gui.put({'update_status':'busy'})   
+            self.printc('Finishing experiment...')
+            experiment_parameters=self.user_gui_engine.stop_experiment()
+            self.to_gui.put({'update_status':'idle'})
         self.experiment_running=False
         self.printc('Experiment stopped')
                    
@@ -1757,6 +1773,10 @@ class Analysis(object):
             self.printc('{0} comment saved to {1}'.format(comment, self.hcomment.filename))
             self.hcomment.close()
             
+    def spikes2polar(self,filename):
+        self.to_gui.put({'polar_plot':[elphys.spikes2polar(filename)]})
+        
+        
         
         
     def fix_files(self,folder):
@@ -1822,6 +1842,21 @@ class Analysis(object):
         
     def close_analysis(self):
         self._check_unsaved_rois(warning_only=True)
+        
+class UserGUIEngine(object):
+    def __init__(self,parent):
+        self.printc=parent.printc
+        self.machine_config=parent.machine_config
+        self.parent = parent
+        self.init()
+        
+    def init(self):
+        pass
+        
+    def run(self):
+        '''
+        Users should subclass from this to define user gui engine
+        '''
     
 class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
     '''
@@ -1849,6 +1884,16 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.enable_check_network_status=enable_network
         self.enable_network=enable_network
         self.mes_connection_status=False
+        if hasattr(self.machine_config, 'USER_GUI_ENGINE'):
+            for u in ['common', self.machine_config.user]:
+                import visexpman
+                user_gui_engine_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.machine_config.USER_GUI_ENGINE,  
+                                                    required_ancestors = UserGUIEngine, direct=False)
+                if len(user_gui_engine_class ) == 1:
+                    user_gui_engine_class  = user_gui_engine_class [0][1]
+                    break
+            self.user_gui_engine=user_gui_engine_class (self)
+            
         
     def load_context(self):
         self.guidata = GUIData()
@@ -1998,6 +2043,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
                 self.last_run = time.time()#helps determining whether the engine still runs
                 for fn in run_always:
                     getattr(self, fn)()
+                if hasattr(self, 'user_gui_engine'):
+                    self.user_gui_engine.run()
                 if self.enable_check_network_status:
                     self.check_network_status()
                 if self.enable_network:
@@ -2070,6 +2117,8 @@ class ElphysEngine():
     
     
     def _plot_elphys(self, sync, full_view=False):
+        if self.machine_config.PLATFORM in ['erg']:
+            return
         #Filter rawdata
         if self.guidata.read('Enable Filter')==True:
             order=self.guidata.filter_order.v

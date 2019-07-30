@@ -866,13 +866,14 @@ class TestBehavAnalysis(unittest.TestCase):
         folder=r'c:\temp\20190416'
         folder='/data/data/user/Zoltan/20190715_Miao_behav/tracking lost'
         folder='/tmp'
-        #folder=os.path.join(fileop.visexpman_package_path()+'-testdata', 'data', 'head_direction')
+        folder=r'c:\temp'
         
         from PIL import Image
         files=fileop.listdir_fullpath(folder)
         files.sort()
         coordinates={}
-#        files=['c:\\temp\\behav_201904261056350.hdf5']
+        files=['/data/tmp/behav_201907251628326.hdf5']
+        files=[r'x:\tmp\behav_201907251628326.hdf5']
         for filename in files:
             if 'png' in filename:
                 frames=[numpy.asarray(Image.open(f)) for f in files]
