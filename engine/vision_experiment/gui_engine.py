@@ -809,6 +809,8 @@ class ExperimentHandler(object):
             self.experiment_running=False
             self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
+            if self.machine_config.PLATFORM in ['elphys']:
+                self.spikes2polar(self.current_experiment_parameters['outfilename'])
         elif trigger_name=='stim error' or trigger_name=='cam error':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:
                 self.enable_check_network_status=True
@@ -1019,6 +1021,8 @@ class Analysis(object):
                 self._roi_area2image()
         self.datafile.close()
         self._bouton_analysis()
+        if self.machine_config.PLATFORM in ['elphys']:
+            self.spikes2polar(filename)
 
     def _remove_dropped_frame_timestamps(self,h=None):
         if h == None:
@@ -1776,6 +1780,7 @@ class Analysis(object):
             self.hcomment.close()
             
     def spikes2polar(self,filename):
+        self.printc("Display polar plot")
         self.to_gui.put({'polar_plot':[elphys.spikes2polar(filename)]})
         
         

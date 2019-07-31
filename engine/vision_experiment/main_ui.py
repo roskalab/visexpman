@@ -776,8 +776,10 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'polar_plot' in msg:
                 img=msg['polar_plot'][0][1]
                 self.p=gui.Image(None)
-                self.p.set_image(img)
+                self.p.set_image(numpy.fliplr(numpy.flipud(numpy.rot90(img))))
                 self.p.move(200, 200)
+                self.p.setMinimumWidth(img.shape[0])
+                self.p.setMinimumHeight(img.shape[1])
                 self.p.show()
                 
     def _init_variables(self):
