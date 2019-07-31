@@ -505,25 +505,6 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
             
-class PolarPlot(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent,**kwargs):
-        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
-        self.plot = pyqtgraph.plot()
-        self.plot.setAspectLocked()
-        self.plot.addLine(x=0, pen=0.2)
-        self.plot.addLine(y=0, pen=0.2)
-        for r in range(2, 20, 2):
-            circle = pyqtgraph.QtGui.QGraphicsEllipseItem(-r, -r, r*2, r*2)
-            circle.setPen(pyqtgraph.mkPen(0.2))
-            self.plot.addItem(circle)
-        radius=kwargs.get('radius')
-        theta=numpy.radians(kwargs.get('theta'))
-        # Transform to cartesian and plot
-        x = radius * numpy.cos(theta)
-        y = radius * numpy.sin(theta)
-        self.plot.plot(x, y)
-
-            
 class TimeAxisItemHHmm(pyqtgraph.AxisItem):
     def __init__(self, *args, **kwargs):
         pyqtgraph.AxisItem.__init__(self,*args, **kwargs)

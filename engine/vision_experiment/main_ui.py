@@ -774,11 +774,9 @@ class MainUI(gui.VisexpmanMainWindow):
             elif 'permanent_warning' in msg:
                 self._set_window_title(tag=' !'+msg['permanent_warning'])
             elif 'polar_plot' in msg:
-                v=msg['polar_plot'][0]
-                th=numpy.array(v.keys())
-                ii=th.argsort()
-                r=numpy.array(v.values())[ii]
-                self.p=gui.PolarPlot(None,theta=th,radius=r)
+                img=msg['polar_plot'][0][1]
+                self.p=gui.Image(None)
+                self.p.set_image(img)
                 self.p.move(200, 200)
                 self.p.show()
                 
