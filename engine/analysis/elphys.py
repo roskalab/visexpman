@@ -61,7 +61,7 @@ def extract_erg_repetitions(elphys,stim,fsample, pretrigger=1.0):
     rising_edges=rising_edges[numpy.where(rising_edges<roi_end)[0]]
     falling_edges=falling_edges[numpy.where(falling_edges>roi_start)[0]]
     if rising_edges.shape[0]!=falling_edges.shape[0]:
-        raise RuntimeError((rising_edges.shape[0],falling_edges.shape[0]))
+        return
     window_start=rising_edges[0:-1]-pretrigger_samples
     window_end=rising_edges[1:]-pretrigger_samples
     stim_start= rising_edges[0:-1]

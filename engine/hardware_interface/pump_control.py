@@ -12,8 +12,9 @@ class HarvardPeristalticPump(serial.Serial):
         '''
         rate is expected in ul/minute unit
         '''
-        print self.command('rate {0} ul/m'.format(rate))
-        print self.command('run')
+        res= self.command('rate {0} ul/m'.format(rate))
+        res+= self.command('run')
+        return res
         
     def is_running(self):
         '''
@@ -22,7 +23,7 @@ class HarvardPeristalticPump(serial.Serial):
         return self.command('fvolume')!=0
         
     def stop(self):
-        self.command('stop')
+        return self.command('stop')
         
 def set_ismatec_ecoline_pump(channel, speed):
     '''

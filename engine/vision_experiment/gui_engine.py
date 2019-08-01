@@ -28,7 +28,7 @@ except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod,elphys
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument,pump_control
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
 
@@ -156,6 +156,17 @@ class ExperimentHandler(object):
             self.printc('Set filterwheel to {0}/{1}'.format(f,v))
             res=instrument.set_filterwheel(v, self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
             self.printc(res)
+        elif parameter_name=='Perfusion Flow Rate':
+            new_flow_rate=self.guidata.read('Perfusion Flow Rate')
+            pc=pump_control.HarvardPeristalticPump(self.machine_config.PERFUSION_PUMP_SERIAL_PORT)
+            if new_flow_rate==0:
+                self.printc(pc.stop())
+            else:
+                self.printc(pc.run(new_flow_rate))
+                time.sleep(1)
+                if not pc.is_running():
+                    raise IOErrror('Pump is not running, please press green Run button (bottom right side) to enable run/command mode')
+                
             
     def _get_experiment_parameters(self):
         '''
@@ -959,14 +970,14 @@ class Analysis(object):
         self.filename = filename
         self.printc('Opening {0}'.format(filename))
         self.datafile = experiment_data.CaImagingData(filename)
-        if self.machine_config.PLATFORM not in ["elphys"]:
+        if self.machine_config.PLATFORM not in ["elphys",'erg']:#Stimulus timing is visualized differently for this type of data.
             self.datafile.sync2time(recreate=self.santiago_setup)
             self.to_gui.put({'image_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
         else:
             self.to_gui.put({'plot_title': os.path.dirname(self.filename)+'<br>'+os.path.basename(self.filename)})
             sync=self.datafile.findvar("sync")
             self._plot_elphys(sync,  full_view=True)
-        if self.machine_config.PLATFORM not in  ['resonant',  "elphys"]:#Do not load imaging data
+        if self.machine_config.PLATFORM not in  ['resonant',  "elphys", 'erg']:#Do not load imaging data
             self.datafile.get_image(image_type=self.guidata.read('3d to 2d Image Function'),motion_correction=self.guidata.read('Motion Correction'))
             self.image_scale=self.datafile.scale
             self.meanimage=self.datafile.image
@@ -975,7 +986,7 @@ class Analysis(object):
             self.to_gui.put({'send_image_data' :[self.meanimage, self.image_scale, None]})
         if self.santiago_setup and 0:
             self._remove_dropped_frame_timestamps()
-        if self.machine_config.PLATFORM not in ["elphys"]:
+        if self.machine_config.PLATFORM not in ["elphys",'erg']:
             self.tstim=self.datafile.tstim
             self.timg=self.datafile.timg
             if self.santiago_setup:
@@ -987,7 +998,7 @@ class Analysis(object):
                 self.notify('Error', msg)
                 raise RuntimeError(msg)
         self.experiment_name= self.datafile.findvar('parameters')['stimclass']
-        if self.machine_config.PLATFORM not in ['resonant',  "elphys"]:
+        if self.machine_config.PLATFORM not in ['resonant',  "elphys", 'erg']:
             if self.machine_config.PLATFORM != 'ao_cortical':
                 self._recalculate_background()
             try:
@@ -1023,6 +1034,8 @@ class Analysis(object):
         self._bouton_analysis()
         if self.machine_config.PLATFORM in ['elphys']:
             self.spikes2polar(filename)
+        if hasattr(self, 'user_gui_engine') and hasattr(self.user_gui_engine,'open_datafile'):
+            self.user_gui_engine.open_datafile(self.filename)
 
     def _remove_dropped_frame_timestamps(self,h=None):
         if h == None:
@@ -1907,6 +1920,8 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         if os.path.exists(self.context_filename):
             context_stream = numpy.load(self.context_filename)
             self.guidata.from_dict(utils.array2object(context_stream))
+            if hasattr(self.guidata, 'perfusion_flow_rate'):#It should always startup with 0 ul/min
+                self.guidata.perfusion_flow_rate.v=0
         else:
             self.printc('Warning: Restart gui because parameters are not in guidata')#TODO: fix it!!!
 
