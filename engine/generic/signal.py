@@ -207,6 +207,10 @@ def find_bead_center_and_width(curve):
     edges = numpy.nonzero(numpy.diff(numpy.where(curve>threshold,1,0)))[0]
     return edges.mean(), edges.max()-edges.min(),threshold#center,bead size
     
+def isbinary(waveform):
+    bins=numpy.histogram(waveform, bins = 10)[1]
+    return bins[-2]-bins[1]>0.8#If difference between upper and lower bins is above 0.8 V
+
 def signal2binary(waveform):
     '''
     Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)

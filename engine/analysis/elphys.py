@@ -46,7 +46,34 @@ def spikes2polar(fn,threshold=10):
     plotimg=numpy.asarray(Image.open(fn))[:,:,:3]
     return spike_count, plotimg
     
-    
+def extract_erg_repetitions(elphys,stim,fsample, pretrigger=1.0):
+    if not signal.isbinary(stim):
+        return
+    rising_edges=numpy.where(numpy.diff(numpy.cast['int'](signal.signal2binary(stim)))==1)[0]+1
+    falling_edges=numpy.where(numpy.diff(numpy.cast['int'](signal.signal2binary(stim)))==-1)[0]+1
+    if falling_edges.shape[0]==0 or rising_edges.shape[0]<2:
+        return
+    pretrigger_samples=int(pretrigger*fsample)
+    roi_start=rising_edges[numpy.where(rising_edges-pretrigger_samples>0)[0]][0]
+    roi_end=falling_edges[-1]
+    if roi_start>roi_end:
+        return
+    rising_edges=rising_edges[numpy.where(rising_edges<roi_end)[0]]
+    falling_edges=falling_edges[numpy.where(falling_edges>roi_start)[0]]
+    if rising_edges.shape[0]!=falling_edges.shape[0]:
+        raise RuntimeError((rising_edges.shape[0],falling_edges.shape[0]))
+    window_start=rising_edges[0:-1]-pretrigger_samples
+    window_end=rising_edges[1:]-pretrigger_samples
+    stim_start= rising_edges[0:-1]
+    stim_end= falling_edges[0:-1]
+    elphys_repetitions=[]
+    for i in range(window_start.shape[0]):
+        elphys_repetitions.append(elphys[window_start[i]:window_end[i]])
+    elphys_repetitions=numpy.array(elphys_repetitions)
+    elphys_average=elphys_repetitions.mean(axis=0)
+    stim_start_index=int((stim_start-window_start).mean())#Within repetiton window
+    stim_end_index=int((stim_end-window_start).mean())#Within repetiton window
+    return elphys_repetitions, elphys_average, stim_start_index, stim_end_index
 
 def peristimulus_histogram(waveform, stimulus_timing, fsample, binsize, spike_threshold):
     tspike=numpy.where(numpy.diff(numpy.where(waveform>spike_threshold, 1, 0))==1)[0]/float(fsample)
@@ -71,6 +98,16 @@ class TestElphysAnalysis(unittest.TestCase):
         folder=os.path.join(os.path.dirname(fileop.visexpman_package_path()),'visexpman-testdata', 'data','spikes')
         for f in fileop.listdir(folder):
             spikes2polar(f)
+            
+    def test_03_erg(self):
+        import hdf5io
+        fn=os.path.join(os.path.dirname(os.path.dirname(fileop.visexpman_package_path())), 'visexpman-testdata', 'erg.hdf5')
+        e=hdf5io.read_item(fn,'elphys')
+        s=hdf5io.read_item(fn,'stim')
+        fs=hdf5io.read_item(fn,'fsample')
+        for i in range(len(e)):
+            extract_erg_repetitions(e[i],s[i],fs,1)
+        
         
 if __name__ == "__main__":    
     unittest.main()
