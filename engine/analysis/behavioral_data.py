@@ -886,7 +886,7 @@ class TestBehavAnalysis(unittest.TestCase):
                 if nchunks==0:
                     nchunks=1
 #                for chunki in range(nchunks):
-                print nchunks
+                print (nchunks)
                 chunki=0
                 frames=hh.h5f.root.frames.read(chunki*chunksize,  (chunki+1)*chunksize)
                 hh.close()

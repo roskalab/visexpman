@@ -373,10 +373,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
                 
-    def show_video(self, fn, position = (0, 0),  stretch=1.0):
-        import skvideo.io
-        skvideo.setFFmpegPath(os.path.dirname(fileop.visexpman_package_path()))#ffmpeg.exe and ffprobe shall be located here
-        self.video = numpy.cast['float'](skvideo.io.vread(fname = fn))/255.
+    def show_video(self, fn, position = (0, 0),  stretch=1.0,  load_video=True):
+        if load_video:
+            self.read_video(fn)
         for i in range(self.video.shape[0]):
             if self.machine_config.ENABLE_TIME_INDEXING:
                 index=self._get_frame_index()
@@ -385,6 +384,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._show_image(self.video[index],0,utils.cr((position[0], position[1])),stretch, True)
             if self.abort:
                 break
+                
+    def read_video(self, fn):
+        import skvideo.io
+        skvideo.setFFmpegPath(os.path.dirname(fileop.visexpman_package_path()))#ffmpeg.exe and ffprobe shall be located here
+        self.video =skvideo.io.vread(fname = fn)
+        self.video = numpy.cast['float'](self.video)
+        self.video /= 255.
                 
     def get_video_duration(self, fn):
         import skvideo.io

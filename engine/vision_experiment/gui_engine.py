@@ -359,11 +359,16 @@ class ExperimentHandler(object):
                 else:
                     pass#raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
-            if not hasattr(self, 'connected_nodes') or 'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
-                scope_name=self.microscope.name if hasattr(self,  'microscope') else ''
-                missing_connections=[conn for conn in [scope_name, 'stim'] if conn not in self.connected_nodes]
-                self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
-                return
+            if self.machine_config.PLATFORM in ['2p',  'resonant']:
+                if self.guidata.read('Stimulus Only') and 'stim' not in self.connected_nodes:
+                    self.notify('Warning', 'Stim connection required.')
+                    return
+                if not self.guidata.read('Stimulus Only'):
+                    if not hasattr(self, 'connected_nodes') or  'stim' not in self.connected_nodes or (hasattr(self,  'microscope') and self.microscope.name not in self.connected_nodes):
+                        scope_name=self.microscope.name if hasattr(self,  'microscope') else ''
+                        missing_connections=[conn for conn in [scope_name, 'stim'] if conn not in self.connected_nodes]
+                        self.notify('Warning', '{0} connection(s) required.'.format(','.join(missing_connections)))
+                        return
             #Set z
             if hasattr(experiment_parameters, 'keys') and 'depth' in experiment_parameters and hasattr(self.microscope, 'set_z'):
                 self.microscope.set_z(experiment_parameters['depth'])

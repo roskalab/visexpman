@@ -92,7 +92,7 @@ class TestElphysAnalysis(unittest.TestCase):
         trig=numpy.zeros_like(wf)
         trig[:pulse.shape[0]]=pulse
         spike_threshold=4
-        print peristimulus_histogram(wf, trig, fsample, binsize, spike_threshold)
+        print(peristimulus_histogram(wf, trig, fsample, binsize, spike_threshold))
         
     def test_02_spikes2polar(self):
         folder=os.path.join(os.path.dirname(fileop.visexpman_package_path()),'visexpman-testdata', 'data','spikes')
