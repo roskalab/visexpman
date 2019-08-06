@@ -704,7 +704,7 @@ class ExperimentHandler(object):
     def read_sync_recorder(self):
         self.syncreadout=self.sync_recorder.read_ai()
         if hasattr(self.syncreadout,  "dtype"):
-            maxnsamples=int(self.machine_config.SYNC_RECORDER_SAMPLE_RATE*self.machine_config.LIVE_SIGNAL_LENGTH*2)#max 5 minutes
+            maxnsamples=int(self.machine_config.SYNC_RECORDER_SAMPLE_RATE*self.machine_config.LIVE_SIGNAL_LENGTH)#max 5 minutes
             if self.live_data.shape[0]>maxnsamples:
                 self.live_data=self.live_data[-maxnsamples:,:]
             self.live_data=numpy.concatenate((self.live_data,self.syncreadout))

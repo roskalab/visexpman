@@ -776,6 +776,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             self.number_of_ai_samples = int(self.ai_record_time * self.ai_sample_rate)
         self.finite_samples = kwargs.get('finite_samples', False)
         self.printl('Daq started with parameters: {0}'.format(kwargs))
+        self.printl('ai samples: {0}'.format(self.number_of_ai_samples))
         self._configure_timing(self.finite_samples) #this cannot be done during init because the lenght of the signal is not known before waveform is set
         if self.enable_ao:
             self._write_waveform()
