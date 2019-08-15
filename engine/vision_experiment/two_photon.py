@@ -47,8 +47,25 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab.addTab(self.params, 'Settings')    
         
+        self.video_player = QtGui.QWidget()
         self.referenceimage = gui.Image(self)
+        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.slider.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.slider.setTickPosition(QtGui.QSlider.TicksBothSides)
+        self.slider.setTickInterval(self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
+        self.slider.setSingleStep(1)
+        self.slider.setPageStep(self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(0)
+        self.slider.valueChanged.connect(self.frame_select)
+        
+        self.vplayout = QtGui.QVBoxLayout()
+        self.vplayout.addWidget(self.referenceimage)
+        self.vplayout.addWidget(self.slider)
+        
+        self.video_player.setLayout(self.vplayout)
         self.main_tab.addTab(self.referenceimage, 'Reference Image')
+        
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
@@ -96,9 +113,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def update_image(self) :
         if(self.frame is not None):
             self.image.set_image(self.frame)
-        
     
-    def approximate(self, value):#RZ: I would rename it to roundint
+    def roundint(self, value):
         return int(round(value))
         
     def _init_variables(self):
@@ -129,78 +145,95 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.params_config.extend(params)
         
     def generate_waveform(self):
-        line_length = self.approximate(self.image_width * self.image_resolution) + self.new_line
-        total_lines = self.approximate(self.image_height * self.image_resolution)
-        self.sampsperchan = line_length * total_lines + self.new_frame
+        line_length = self.roundint(self.image_width * self.image_resolution) + self.new_line
+        total_lines = self.roundint(self.image_height * self.image_resolution)
         
-        x_min = self.machine_config.LOW_PEAK + self.machine_config.OFFSET_VOLTAGE
-        x_max = self.machine_config.HIGH_PEAK + self.machine_config.OFFSET_VOLTAGE
+        self.new_frame = line_length
+        self.sampsperchan = (line_length - 1) * total_lines + self.new_frame
+        self.printc(self.sampsperchan)
         
-        y_min = self.machine_config.LOW_PEAK + self.machine_config.OFFSET_VOLTAGE
-        y_max = self.machine_config.HIGH_PEAK + self.machine_config.OFFSET_VOLTAGE
+        x_min = -self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE
+        x_max = self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE
         
-        x_min *= self.machine_config.OPTICAL_CORRECTION * self.parameters['Image Width']
-        y_min *= self.machine_config.OPTICAL_CORRECTION * self.parameters['Image Height']
-        x_max *= self.machine_config.OPTICAL_CORRECTION * self.parameters['Image Width']
-        y_max *= self.machine_config.OPTICAL_CORRECTION * self.parameters['Image Height']
+        y_min = -self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE
+        y_max = self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE
         
+        # X signal
         ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - self.new_line)
-        ramp_down_x = numpy.linspace(x_max, x_min, num=self.new_line)
+        ramp_down_x = numpy.linspace(x_max, x_min, num=self.new_line + 1)[1:-1]
         waveform_x = numpy.concatenate((ramp_up_x,  ramp_down_x))
         waveform_x = numpy.tile(waveform_x, total_lines)
-        waveform_x = numpy.append(waveform_x, numpy.full(self.new_frame, x_min))
-
-        ramp_up_y = numpy.linspace(y_min, y_max, num=total_lines)
-        ramp_up_y = numpy.repeat(ramp_up_y, line_length)
+        waveform_x = numpy.append(waveform_x, numpy.full(self.new_frame, x_min)) # wait for Y to return        
+        
+        # Linear Y signal
+        ramp_up_y = numpy.linspace(y_min, y_max, num=(line_length-1) * total_lines)        
         ramp_down_y = numpy.linspace(y_max, y_min, num=self.new_frame)
         waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
         
-        phase = self.approximate(self.parameters['Projector Control Phase'] * self.machine_config.AO_SAMPLE_RATE)
-        pulse_width = self.approximate(self.parameters['Projector Control Pulse Width'] * self.machine_config.AO_SAMPLE_RATE)
-        projector_control = numpy.zeros(line_length - self.new_line + phase)
+        '''
+        # Stepped Y signal
+        ramp_up_y = numpy.linspace(y_min, y_max, num=total_lines)
+        ramp_up_y = numpy.repeat(ramp_up_y, line_length - 1)
+        ramp_down_y = numpy.linspace(y_max, y_min, num=self.new_frame)
+        waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
+        '''
+        
+        # Projector control
+        phase = self.roundint(self.parameters['Projector Control Phase'] * self.machine_config.AO_SAMPLE_RATE)
+        pulse_width = self.roundint(self.parameters['Projector Control Pulse Width'] * self.machine_config.AO_SAMPLE_RATE)
+        projector_control = numpy.zeros(line_length - self.new_line - 1 + phase)
         
         if(phase + pulse_width > self.new_line):
             pulse_width -= (self.new_line - phase)
             projector_control = numpy.append(projector_control,  numpy.ones(self.new_line - phase) * self.machine_config.PROJECTOR_CONTROL_PEAK)
             projector_control[:pulse_width] = numpy.ones(pulse_width) * self.machine_config.PROJECTOR_CONTROL_PEAK
+            self.printc("Generating long projector control pulse")
         else:
             projector_control = numpy.append(projector_control,  numpy.ones(pulse_width) * self.machine_config.PROJECTOR_CONTROL_PEAK)
-            projector_control = numpy.append(projector_control,  numpy.ones(self.new_line - phase - pulse_width) * self.machine_config.PROJECTOR_CONTROL_PEAK)
-        projector_control = numpy.tile(projector_control, total_lines)
+            projector_control = numpy.append(projector_control,  numpy.zeros(self.new_line - phase - pulse_width))
+            self.printc("Generating short projector control pulse")
+        projector_control = numpy.tile(projector_control, total_lines)        
         projector_control = numpy.append(projector_control, numpy.zeros(self.new_frame))
         
-        hold_5ms = self.approximate(0.005 * self.machine_config.AO_SAMPLE_RATE)
+        #Frame timing
+        hold_time = self.roundint(self.machine_config.FRAME_TIMING_HOLD * self.machine_config.AO_SAMPLE_RATE)
         old_frame = numpy.zeros(self.sampsperchan - self.new_frame)
         
-        if(hold_5ms > self.new_frame):
-            hold_5ms -= self.new_frame
-            old_frame[:hold_5ms] = numpy.ones(hold_5ms) * self.machine_config.FRAME_TIMING_PEAK
+        if(hold_time > self.new_frame):
+            hold_time -= self.new_frame
+            old_frame[:hold_time] = numpy.ones(hold_time) * self.machine_config.FRAME_TIMING_PEAK
             begin_new_frame = numpy.ones(self.new_frame) * self.machine_config.FRAME_TIMING_PEAK
+            self.printc("Generating long frame timing pulse")
         else:
             begin_new_frame = numpy.zeros(self.new_frame)
-            begin_new_frame[:hold_5ms] = numpy.ones(hold_5ms) * self.machine_config.FRAME_TIMING_PEAK  
+            begin_new_frame[:hold_time] = numpy.ones(hold_time) * self.machine_config.FRAME_TIMING_PEAK  
+            self.printc("Generating short frame timing pulse")
             
         frame_timing = numpy.concatenate((old_frame,  begin_new_frame))
         
         if not (len(waveform_x) == len(waveform_y) == len(projector_control) == len(frame_timing)):
             self.printc("Error during waveform generation! Number of samples are different.")
+            self.printc(len(waveform_x))
+            self.printc(len(waveform_y))
+            self.printc(len(projector_control))
+            self.printc(len(frame_timing))
         
-        #RZ: igy plottolhato is
         self.waveform_x=waveform_x
         self.waveform_y=waveform_y
         self.projector_control=projector_control
         self.frame_timing=frame_timing
         self.waveform = numpy.concatenate((waveform_x,  waveform_y,  projector_control,  frame_timing))
+        self.plot()
         
     def plot(self):
         from pylab import plot, show
         i=0
-        t=numpy.arange(self.waveform_y.shape[0])/float(self.machine_config.AO_SAMPLE_RATE)*1e3
-        for s in [self.waveform_x, self.waveform_y, self.projector_control, self.frame_timing]:
-            plot(s+i*10)
+        t=numpy.arange(self.waveform_y.shape[0]) / float(self.machine_config.AO_SAMPLE_RATE) * 1e3
+        for s in [self.projector_control, self.waveform_x, self.waveform_y, self.frame_timing]:
+            #plot(s+i*10) # WP: added t <- arrays were plot by their default indexes (number of samples) and not by msecs
+            plot(t, s+i*10)
             i+=1
         show()
-        
         
     def record_action(self):
         if(self.scanning):
@@ -210,40 +243,40 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.image_width = self.parameters['Image Width']
         self.image_height = self.parameters['Image Height']
         self.image_resolution = self.parameters['Resolution']
-        self.new_line = self.approximate(self.parameters['X Return Time'] * self.machine_config.AO_SAMPLE_RATE)
-        self.new_frame = self.new_line #or replace with expected number of samples for y return
+        self.new_line = self.roundint(self.parameters['X Return Time'] * self.machine_config.AO_SAMPLE_RATE) # including max and min values too! needed to remove later
+        self.new_frame = self.new_line #will be overwritten
         
-        self.frame = numpy.empty((self.approximate(self.image_width * self.image_resolution), self.approximate(self.image_height * self.image_resolution), 3),  dtype = int)
+        self.frame = numpy.empty((self.roundint(self.image_width * self.image_resolution), self.roundint(self.image_height * self.image_resolution), 3),  dtype = int)
         self.generate_waveform()
 
         self.analog_output = Task()
         self.analog_output.CreateAOVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ao0",
             "pos_x",
-            self.machine_config.LOW_PEAK + self.machine_config.OFFSET_VOLTAGE,
-            self.machine_config.HIGH_PEAK + self.machine_config.OFFSET_VOLTAGE,
+            -self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE,
+            self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE,
             PyDAQmx.DAQmx_Val_Volts,
             None)
         self.analog_output.CreateAOVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ao1",
             "pos_y",
-            self.machine_config.LOW_PEAK + self.machine_config.OFFSET_VOLTAGE,
-            self.machine_config.HIGH_PEAK + self.machine_config.OFFSET_VOLTAGE,
+            -self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE,
+            self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE,
             PyDAQmx.DAQmx_Val_Volts,
             None)
         ''' IMPORTANT, but commented out while using test hardware
         self.analog_output.CreateAOVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ao2",
             "projector_control",
-            self.machine_config.HIGH_PEAK + self.machine_config.OFFSET_VOLTAGE,
-            self.machine_config.LOW_PEAK + self.machine_config.OFFSET_VOLTAGE,
+            -self.machine_config.PROJECTOR_CONTROL_PEAK,
+            self.machine_config.PROJECTOR_CONTROL_PEAK,
             PyDAQmx.DAQmx_Val_Volts,
             None)
         self.analog_output.CreateAOVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ao3",
             "frame_timing",
-            self.machine_config.HIGH_PEAK + self.machine_config.OFFSET_VOLTAGE,
-            self.machine_config.LOW_PEAK + self.machine_config.OFFSET_VOLTAGE,
+            -self.machine_config.FRAME_TIMING_PEAK,
+            self.machine_config.FRAME_TIMING_PEAK,
             PyDAQmx.DAQmx_Val_Volts,
             None)            
         '''
@@ -268,7 +301,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.machine_config.AI_SAMPLE_RATE,
             PyDAQmx.DAQmx_Val_Rising,
             PyDAQmx.DAQmx_Val_ContSamps,
-            self.approximate(self.image_width * self.image_resolution) * self.approximate(self.image_height * self.image_resolution))
+            self.roundint(self.image_width * self.image_resolution) * self.roundint(self.image_height * self.image_resolution))
         
         self.shutter = Task()
         self.shutter.CreateDOChan(
@@ -283,6 +316,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             numpy.array([int(1)], dtype=numpy.uint8),
             None,
             None)
+        self.printc('Open shutter')
             
         self.analog_output.WriteAnalogF64(
             self.sampsperchan, 
@@ -297,10 +331,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.recording_status.setText('Scanning...')
 
     def scan_frame(self):
-        for i in range(0, self.approximate(self.image_width * self.image_resolution)):
-            for j in range(0,  self.approximate(self.image_height * self.image_resolution)):
-                self.frame[i, j, 0] = self.approximate(256.0 / self.image_width * self.image_resolution * i)
-                self.frame[i, j, 1] = self.approximate(256.0 / self.image_height * self.image_resolution * j)
+        for i in range(0, self.roundint(self.image_width * self.image_resolution)):
+            for j in range(0,  self.roundint(self.image_height * self.image_resolution)):
+                self.frame[i, j, 0] = self.roundint(256.0 / self.image_width * self.image_resolution * i)
+                self.frame[i, j, 1] = self.roundint(256.0 / self.image_height * self.image_resolution * j)
                 self.frame[i, j, 2] = 0
         pass
         
@@ -351,20 +385,62 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.record_action()
         
     def open_reference_image_action(self):
+        # Save demo:
+        self.image_width = self.parameters['Image Width']
+        self.image_height = self.parameters['Image Height']
+        self.image_resolution = self.parameters['Resolution']
+        
+        #TODO: dynamic memory access, or allocate space that big enough for the imaging data
+        imaging_data = numpy.ndarray(shape=(20, 3, self.roundint(self.image_width * self.image_resolution), self.roundint(self.image_height * self.image_resolution)), dtype=int)
+        demo_frame = numpy.empty((3, imaging_data.shape[2], imaging_data.shape[3]),  dtype = int)
+        
+        for i in range(0, self.roundint(self.image_width * self.image_resolution)):
+            for j in range(0,  self.roundint(self.image_height * self.image_resolution)):
+                demo_frame[0, i, j] = self.roundint(256.0 / self.image_width * self.image_resolution * i)
+                demo_frame[1, i, j] = self.roundint(256.0 / self.image_width * self.image_resolution * j)
+                demo_frame[2, i, j] = 0
+        
+        for n in range(0,  20):
+            imaging_data[n] = demo_frame
+        hdf5io.save_item("C:\Data\\test.hdf5", 'imaging_data', imaging_data, overwrite=True)
+        
+        demo_frame[2] = demo_frame[1]
+        hdf5io.save_item("C:\Data\\test.hdf5", 'preview', numpy.moveaxis(demo_frame, 0,  -1))
+        
+        # Load demo:
         fname = QtGui.QFileDialog.getOpenFileName(self, 'Open Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5')
-        print fname
-        if (fname==''):
+        if (str(fname)=='' or not os.path.exists(str(fname))):
             return
+        self.printc(str(fname))
         
-        h=hdf5io.Hdf5io(str(fname))
-        ref = numpy.empty((100,  120, 3),  dtype = int)
+        h=hdf5io.Hdf5io(str(fname)) 
+        h.load('preview')
+        h.load('imaging_data')
+        self.slider.setMaximum(0)
+        self.slider.setValue(0)
         
-        #TODO: actual image loading & processing here
+        #loading process takes too long, might be inconvenient waiting for it to complete - TODO: put it in background task (?)
+        # current solution: save a preview image separately and load it first. problem: gui doesn't update :/
+        self.referenceimage.set_image(h.preview)
+        self.main_tab.setCurrentIndex(1)
+        Qt.QApplication.processEvents()  # update Gui (user cannot do anything during the following nested loop)
         
+        self.video = numpy.empty((h.imaging_data.shape[0], h.imaging_data.shape[2], h.imaging_data.shape[3], 3),  dtype = int)
+        
+        for n in range(0,  h.imaging_data.shape[0]):
+            for i in range(0, h.imaging_data.shape[2]):
+                for j in range(0, h.imaging_data.shape[3]):
+                    self.video[n, i, j, 0] = h.imaging_data[n,  0,  i,  j]
+                    self.video[n, i, j, 1] = h.imaging_data[n,  1,  i,  j]
+                    self.video[n, i, j, 2] = 0
+                
+        self.slider.setMaximum(h.imaging_data.shape[0] - 1)
         h.close()
         
-        self.referenceimage.set_image(ref)
-        self.main_tab.setCurrentIndex(1)
+        self.printc("Imaging data loaded successfully")
+        
+    def frame_select(self, position):
+        self.referenceimage.set_image(self.video[position])
         
     def exit_action(self):
         self.stop_action()
