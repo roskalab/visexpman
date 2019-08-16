@@ -94,13 +94,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def parameter_changed(self):
         newparams=self.params.get_parameter_tree(return_dict=True)
         
-        # trying to keep projector control signal properties in a valid range ...
         if hasattr(self, 'parameters') and\
             (newparams['Image Width']!=self.parameters['Image Width'] or\
             newparams['Resolution']!=self.parameters['Resolution'] or\
-            newparams['X Return Time']!=self.parameters['X Return Time']):
-                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-self.parameters['Image Width'] * self.parameters['Resolution'] / self.machine_config.AO_SAMPLE_RATE, self.parameters['X Return Time'] - 0.000001))
-                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, self.parameters['Image Width'] * self.parameters['Resolution'] / self.machine_config.AO_SAMPLE_RATE))
+            newparams['X Return Time']!=self.parameters['X Return Time'] or\
+            newparams['Projector Control Pulse Width']!=self.parameters['Projector Control Pulse Width']):
+                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
+                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
+                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
         self.parameters=newparams
         
         if(self.scanning):
@@ -110,9 +111,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         context_stream=utils.object2array(self.parameters)
         numpy.save(self.context_filename,context_stream)
         
-    def update_image(self) :
+    def update_image(self):
         if(self.frame is not None):
-            self.image.set_image(self.frame)
+            self.image.set_image(numpy.rot90(self.frame, 3))
+            #Note: image data is only rotated before display!
     
     def roundint(self, value):
         return int(round(value))
@@ -134,23 +136,23 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.shortest_sample = 1.0 / self.machine_config.AO_SAMPLE_RATE
         
         self.params_config = [
-                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/' + 'u' + 'm'},
-                {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (3, 300), 'step': 1, 'siPrefix': True, 'suffix': ' ' + 'u' + 'm'},
-                {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (3, 300), 'step': 1, 'siPrefix': True, 'suffix': ' ' + 'u' + 'm'},
-                #{'name': 'Optical Correction', 'type': 'float', 'value': 1.0000, 'decimals': 5, 'step' : 0.0001, 'siPrefix': True}, #moved to machine config
-                {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': 0.000001, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': 0.000001, 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': 0.000001, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 's'}
+                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/um'},
+                {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (10, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (10, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 's'},
+                {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 's'},
+                {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 's'}
+                #Maximum for Projector Control Pulse Width and limits for Projector Control Phase aren't set yet!
             ]
         self.params_config.extend(params)
         
     def generate_waveform(self):
-        line_length = self.roundint(self.image_width * self.image_resolution) + self.new_line
+        line_length = self.roundint(self.image_width * self.image_resolution) + self.return_x_samps
         total_lines = self.roundint(self.image_height * self.image_resolution)
         
-        self.new_frame = line_length
-        self.sampsperchan = (line_length - 1) * total_lines + self.new_frame
-        self.printc(self.sampsperchan)
+        self.return_y_samps = line_length
+        self.AO_sampsperchan = (line_length - 1) * total_lines + self.return_y_samps
+        self.printc(self.AO_sampsperchan)
         
         x_min = -self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE
         x_max = self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE
@@ -159,53 +161,65 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         y_max = self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE
         
         # X signal
-        ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - self.new_line)
-        ramp_down_x = numpy.linspace(x_max, x_min, num=self.new_line + 1)[1:-1]
+        ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - self.return_x_samps)
+        ramp_down_x = numpy.linspace(x_max, x_min, num=self.return_x_samps + 1)[1:-1]
         waveform_x = numpy.concatenate((ramp_up_x,  ramp_down_x))
         waveform_x = numpy.tile(waveform_x, total_lines)
-        waveform_x = numpy.append(waveform_x, numpy.full(self.new_frame, x_min)) # wait for Y to return        
+        waveform_x = numpy.append(waveform_x, numpy.full(self.return_y_samps, x_min)) # wait for Y to return        
         
         # Linear Y signal
-        ramp_up_y = numpy.linspace(y_min, y_max, num=(line_length-1) * total_lines)        
-        ramp_down_y = numpy.linspace(y_max, y_min, num=self.new_frame)
+        ramp_up_y = numpy.linspace(y_min, y_max, num=self.AO_sampsperchan - self.return_y_samps + 1)      
+        ramp_down_y = numpy.linspace(y_max, y_min, num=self.return_y_samps)[1:]
         waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
         
         '''
         # Stepped Y signal
         ramp_up_y = numpy.linspace(y_min, y_max, num=total_lines)
         ramp_up_y = numpy.repeat(ramp_up_y, line_length - 1)
-        ramp_down_y = numpy.linspace(y_max, y_min, num=self.new_frame)
+        ramp_down_y = numpy.linspace(y_max, y_min, num=self.return_y_samps)
         waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
-        '''
+        ''' 
         
         # Projector control
         phase = self.roundint(self.parameters['Projector Control Phase'] * self.machine_config.AO_SAMPLE_RATE)
         pulse_width = self.roundint(self.parameters['Projector Control Pulse Width'] * self.machine_config.AO_SAMPLE_RATE)
-        projector_control = numpy.zeros(line_length - self.new_line - 1 + phase)
         
-        if(phase + pulse_width > self.new_line):
-            pulse_width -= (self.new_line - phase)
-            projector_control = numpy.append(projector_control,  numpy.ones(self.new_line - phase) * self.machine_config.PROJECTOR_CONTROL_PEAK)
+        initial_shift = numpy.zeros(line_length - self.return_x_samps + phase)
+        single_period = numpy.ones(pulse_width) * self.machine_config.PROJECTOR_CONTROL_PEAK
+        single_period = numpy.append(single_period, numpy.zeros(line_length - pulse_width - 1))
+        projector_control = numpy.tile(single_period, total_lines)
+        projector_control = numpy.append(initial_shift, projector_control)
+        projector_control = projector_control[:-line_length + pulse_width + 1]
+        
+        projector_control = numpy.append(projector_control, numpy.zeros(self.return_y_samps + self.return_x_samps - pulse_width - phase - 1))
+        
+        '''
+        projector_control = numpy.zeros(line_length - self.return_x_samps - 1 + phase)
+        
+        if(phase + pulse_width > self.return_x_samps):
+            pulse_width -= (self.return_x_samps - phase)
+            projector_control = numpy.append(projector_control,  numpy.ones(self.return_x_samps - phase) * self.machine_config.PROJECTOR_CONTROL_PEAK)
             projector_control[:pulse_width] = numpy.ones(pulse_width) * self.machine_config.PROJECTOR_CONTROL_PEAK
             self.printc("Generating long projector control pulse")
         else:
             projector_control = numpy.append(projector_control,  numpy.ones(pulse_width) * self.machine_config.PROJECTOR_CONTROL_PEAK)
-            projector_control = numpy.append(projector_control,  numpy.zeros(self.new_line - phase - pulse_width))
+            projector_control = numpy.append(projector_control,  numpy.zeros(self.return_x_samps - phase - pulse_width))
             self.printc("Generating short projector control pulse")
         projector_control = numpy.tile(projector_control, total_lines)        
-        projector_control = numpy.append(projector_control, numpy.zeros(self.new_frame))
+        projector_control = numpy.append(projector_control, numpy.zeros(self.return_y_samps))
+        '''
         
         #Frame timing
         hold_time = self.roundint(self.machine_config.FRAME_TIMING_HOLD * self.machine_config.AO_SAMPLE_RATE)
-        old_frame = numpy.zeros(self.sampsperchan - self.new_frame)
+        old_frame = numpy.zeros(self.AO_sampsperchan - self.return_y_samps)
         
-        if(hold_time > self.new_frame):
-            hold_time -= self.new_frame
+        if(hold_time > self.return_y_samps):
+            hold_time -= self.return_y_samps
             old_frame[:hold_time] = numpy.ones(hold_time) * self.machine_config.FRAME_TIMING_PEAK
-            begin_new_frame = numpy.ones(self.new_frame) * self.machine_config.FRAME_TIMING_PEAK
+            begin_new_frame = numpy.ones(self.return_y_samps) * self.machine_config.FRAME_TIMING_PEAK
             self.printc("Generating long frame timing pulse")
         else:
-            begin_new_frame = numpy.zeros(self.new_frame)
+            begin_new_frame = numpy.zeros(self.return_y_samps)
             begin_new_frame[:hold_time] = numpy.ones(hold_time) * self.machine_config.FRAME_TIMING_PEAK  
             self.printc("Generating short frame timing pulse")
             
@@ -223,16 +237,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.projector_control=projector_control
         self.frame_timing=frame_timing
         self.waveform = numpy.concatenate((waveform_x,  waveform_y,  projector_control,  frame_timing))
-        self.plot()
+        #self.plot()
         
     def plot(self):
-        from pylab import plot, show
+        from pylab import plot, grid, show
         i=0
         t=numpy.arange(self.waveform_y.shape[0]) / float(self.machine_config.AO_SAMPLE_RATE) * 1e3
         for s in [self.projector_control, self.waveform_x, self.waveform_y, self.frame_timing]:
             #plot(s+i*10) # WP: added t <- arrays were plot by their default indexes (number of samples) and not by msecs
             plot(t, s+i*10)
             i+=1
+        grid(True)
         show()
         
     def record_action(self):
@@ -243,8 +258,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.image_width = self.parameters['Image Width']
         self.image_height = self.parameters['Image Height']
         self.image_resolution = self.parameters['Resolution']
-        self.new_line = self.roundint(self.parameters['X Return Time'] * self.machine_config.AO_SAMPLE_RATE) # including max and min values too! needed to remove later
-        self.new_frame = self.new_line #will be overwritten
+        self.return_x_samps = self.roundint(self.parameters['X Return Time'] * self.machine_config.AO_SAMPLE_RATE) # including max and min values too! needed to remove later
+        self.return_y_samps = self.return_x_samps #will be overwritten
         
         self.frame = numpy.empty((self.roundint(self.image_width * self.image_resolution), self.roundint(self.image_height * self.image_resolution), 3),  dtype = int)
         self.generate_waveform()
@@ -285,7 +300,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.machine_config.AO_SAMPLE_RATE,             
             PyDAQmx.DAQmx_Val_Rising,
             PyDAQmx.DAQmx_Val_ContSamps,
-            self.sampsperchan)
+            self.AO_sampsperchan)
         
         self.analog_input = Task()
         self.analog_input.CreateAIVoltageChan(
@@ -300,7 +315,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             "OnboardClock",
             self.machine_config.AI_SAMPLE_RATE,
             PyDAQmx.DAQmx_Val_Rising,
-            PyDAQmx.DAQmx_Val_ContSamps,
+            # configure ai for single samples yet
+            #PyDAQmx.DAQmx_Val_ContSamps,
+            PyDAQmx.DAQmx_Val_FiniteSamps,
             self.roundint(self.image_width * self.image_resolution) * self.roundint(self.image_height * self.image_resolution))
         
         self.shutter = Task()
@@ -319,24 +336,34 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.printc('Open shutter')
             
         self.analog_output.WriteAnalogF64(
-            self.sampsperchan, 
+            self.AO_sampsperchan, 
             True,
-            numpy.ceil(self.sampsperchan / self.machine_config.AO_SAMPLE_RATE) + 0.1,
+            numpy.ceil(self.AO_sampsperchan / self.machine_config.AO_SAMPLE_RATE) + 0.1,
             PyDAQmx.DAQmx_Val_GroupByChannel,
             self.waveform,
             None,
             None)
         
-        self.scan_timer.start(100.0)
+        self.scan_timer.start(500.0)
         self.statusbar.recording_status.setText('Scanning...')
 
     def scan_frame(self):
+        
+        self.analog_input.StartTask()
+        nsamples = self.roundint(self.image_width * self.image_resolution) * self.roundint(self.image_height * self.image_resolution)
+        data = numpy.zeros((2 * nsamples,), dtype=numpy.float64)
+        read = PyDAQmx.int32()
+        self.analog_input.ReadAnalogF64(nsamples, 10.0, PyDAQmx.DAQmx_Val_GroupByChannel,  data,  2 * nsamples, PyDAQmx.byref(read),  None)
+        self.analog_input.StopTask()
+        
+        data += min(data)
+        data *= self.roundint(256.0 / max(data))
+        
         for i in range(0, self.roundint(self.image_width * self.image_resolution)):
             for j in range(0,  self.roundint(self.image_height * self.image_resolution)):
-                self.frame[i, j, 0] = self.roundint(256.0 / self.image_width * self.image_resolution * i)
-                self.frame[i, j, 1] = self.roundint(256.0 / self.image_height * self.image_resolution * j)
+                self.frame[i, j, 0] = data[self.roundint(self.image_width * self.image_resolution) * i + j] # X
+                self.frame[i, j, 1] = data[nsamples - 1 + self.roundint(self.image_width * self.image_resolution)* i + j] # Y
                 self.frame[i, j, 2] = 0
-        pass
         
         '''        self.analog_input.ReadAnalogF64(int(self.ai_data.shape[0]/self.n_ai_channels),
                                         self.timeout,
@@ -354,42 +381,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.sensor.ReadAnalogF64(1, 10.0, PyDAQmx.DAQmx_Val_GroupByChannel, data, 1, PyDAQmx.byref(read), None)    #will overflow
         self.frame = numpy.empty((width,  height, 3),  dtype = int)'''
         
-    def stop_action(self):
-        if(not self.scanning):
-            return
-
-        self.scan_timer.stop()
-
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(0)], dtype=numpy.uint8),
-            None,
-            None)
-        self.printc("Close shutter")#RZ: Hasonlo uzenetekkel lehet jelezni a user (es magunk fele is), hogy mi tortenik
-        self.analog_input.StopTask()
-        self.analog_output.StopTask()
         
-        self.analog_input.ClearTask()
-        self.analog_output.ClearTask()
-        self.shutter.ClearTask()
-        
-        self.scanning = False        
-        self.statusbar.recording_status.setText('Stopped.')
-        
-    def restart_scan(self):
-        self.printc("Restart scan")
-        self.stop_action()
-        self.record_action()
-        
-    def open_reference_image_action(self):
+        '''
         # Save demo:
-        self.image_width = self.parameters['Image Width']
-        self.image_height = self.parameters['Image Height']
-        self.image_resolution = self.parameters['Resolution']
-        
         #TODO: dynamic memory access, or allocate space that big enough for the imaging data
         imaging_data = numpy.ndarray(shape=(20, 3, self.roundint(self.image_width * self.image_resolution), self.roundint(self.image_height * self.image_resolution)), dtype=int)
         demo_frame = numpy.empty((3, imaging_data.shape[2], imaging_data.shape[3]),  dtype = int)
@@ -406,12 +400,44 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         demo_frame[2] = demo_frame[1]
         hdf5io.save_item("C:\Data\\test.hdf5", 'preview', numpy.moveaxis(demo_frame, 0,  -1))
+        '''
         
-        # Load demo:
+    def stop_action(self):
+        if(not self.scanning):
+            return
+
+        self.scan_timer.stop()
+
+        self.shutter.WriteDigitalLines(
+            1,
+            True,
+            1.0,
+            PyDAQmx.DAQmx_Val_GroupByChannel,
+            numpy.array([int(0)], dtype=numpy.uint8),
+            None,
+            None)
+        self.printc("Close shutter")
+        self.analog_input.StopTask()
+        self.analog_output.StopTask()
+        
+        self.analog_input.ClearTask()
+        self.analog_output.ClearTask()
+        self.shutter.ClearTask()
+        
+        self.scanning = False        
+        self.statusbar.recording_status.setText('Stopped.')
+        
+    def restart_scan(self):
+        self.printc("Restart scan")
+        self.stop_action()
+        self.record_action()
+        
+    def open_reference_image_action(self):
+        
         fname = QtGui.QFileDialog.getOpenFileName(self, 'Open Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5')
         if (str(fname)=='' or not os.path.exists(str(fname))):
             return
-        self.printc(str(fname))
+        self.printc("Loading " + str(fname))
         
         h=hdf5io.Hdf5io(str(fname)) 
         h.load('preview')
@@ -419,20 +445,21 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.slider.setMaximum(0)
         self.slider.setValue(0)
         
-        #loading process takes too long, might be inconvenient waiting for it to complete - TODO: put it in background task (?)
-        # current solution: save a preview image separately and load it first. problem: gui doesn't update :/
+        #loading process takes very long, might be inconvenient waiting for it to complete - TODO: put it in background task (?)
+        # current solution: save a preview image separately and load it first.
         self.referenceimage.set_image(h.preview)
         self.main_tab.setCurrentIndex(1)
-        Qt.QApplication.processEvents()  # update Gui (user cannot do anything during the following nested loop)
+        Qt.QApplication.processEvents()  # update Gui (window freezed during the following nested loop)
         
-        self.video = numpy.empty((h.imaging_data.shape[0], h.imaging_data.shape[2], h.imaging_data.shape[3], 3),  dtype = int)
+        self.reference_video = numpy.empty((h.imaging_data.shape[0], h.imaging_data.shape[2], h.imaging_data.shape[3], 3),  dtype = int)
         
+        #TODO: shorten this stuff (is there a python magic indexing method or something?)
         for n in range(0,  h.imaging_data.shape[0]):
             for i in range(0, h.imaging_data.shape[2]):
                 for j in range(0, h.imaging_data.shape[3]):
-                    self.video[n, i, j, 0] = h.imaging_data[n,  0,  i,  j]
-                    self.video[n, i, j, 1] = h.imaging_data[n,  1,  i,  j]
-                    self.video[n, i, j, 2] = 0
+                    self.reference_video[n, i, j, 0] = h.imaging_data[n,  0,  i,  j]
+                    self.reference_video[n, i, j, 1] = h.imaging_data[n,  1,  i,  j]
+                    self.reference_video[n, i, j, 2] = 0
                 
         self.slider.setMaximum(h.imaging_data.shape[0] - 1)
         h.close()
@@ -440,7 +467,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.printc("Imaging data loaded successfully")
         
     def frame_select(self, position):
-        self.referenceimage.set_image(self.video[position])
+        self.referenceimage.set_image(numpy.rot90(self.reference_video[position], 3))
+        #Note: image data is only rotated before display!
         
     def exit_action(self):
         self.stop_action()
