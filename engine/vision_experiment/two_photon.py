@@ -64,7 +64,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.vplayout.addWidget(self.slider)
         
         self.video_player.setLayout(self.vplayout)
-        self.main_tab.addTab(self.referenceimage, 'Reference Image')
+        self.main_tab.addTab(self.video_player, 'Reference Image')        
         
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -236,7 +236,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.waveform_y=waveform_y
         self.projector_control=projector_control
         self.frame_timing=frame_timing
-        self.waveform = numpy.concatenate((waveform_x,  waveform_y,  projector_control,  frame_timing))
+        self.waveform = numpy.concatenate((projector_control,  frame_timing,  waveform_x,  waveform_y)) # order: x y pc ft
         #self.plot()
         
     def plot(self):
@@ -319,6 +319,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             #PyDAQmx.DAQmx_Val_ContSamps,
             PyDAQmx.DAQmx_Val_FiniteSamps,
             self.roundint(self.image_width * self.image_resolution) * self.roundint(self.image_height * self.image_resolution))
+        '''
+        Trying to synchronize - hardware does not support
+        self.analog_input.CfgDigEdgeStartTrig(            
+            "ao/StartTrigger",
+            PyDAQmx.DAQmx_Val_Rising)
+        '''
         
         self.shutter = Task()
         self.shutter.CreateDOChan(
@@ -344,11 +350,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             None,
             None)
         
-        self.scan_timer.start(500.0)
+        self.scan_timer.start(50.0)
+        self.iteration = False
         self.statusbar.recording_status.setText('Scanning...')
 
     def scan_frame(self):
         
+        self.iteration = not self.iteration
         self.analog_input.StartTask()
         nsamples = self.roundint(self.image_width * self.image_resolution) * self.roundint(self.image_height * self.image_resolution)
         data = numpy.zeros((2 * nsamples,), dtype=numpy.float64)
@@ -359,8 +367,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         data += min(data)
         data *= self.roundint(256.0 / max(data))
         
-        for i in range(0, self.roundint(self.image_width * self.image_resolution)):
-            for j in range(0,  self.roundint(self.image_height * self.image_resolution)):
+        for j in range(0, self.roundint(self.image_height * self.image_resolution)):
+            for i in range(0,  self.roundint(self.image_width * self.image_resolution)):
                 self.frame[i, j, 0] = data[self.roundint(self.image_width * self.image_resolution) * i + j] # X
                 self.frame[i, j, 1] = data[nsamples - 1 + self.roundint(self.image_width * self.image_resolution)* i + j] # Y
                 self.frame[i, j, 2] = 0
