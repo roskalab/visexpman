@@ -1,4 +1,6 @@
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial
+import scipy
+
 try:
     import PyQt4.Qt as Qt
     import PyQt4.QtGui as QtGui
@@ -26,7 +28,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['record', 'stop', 'open_reference_image', 'capture_frame', 'save',  'exit']
+        toolbar_buttons = ['record', 'stop', 'open_reference_image', 'capture_frame', 'record_z_stack', 'save', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
@@ -72,7 +74,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         if os.path.exists(self.context_filename):
             context_stream = numpy.load(self.context_filename)
-            self.parameters = utils.array2object(context_stream)
+            self.parameters = utils.array2object(context_stream)            
         else:
             self.parameter_changed()
         self.load_all_parameters()
@@ -90,11 +92,46 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
         
+    def _init_variables(self):
+        params=[]
+        
+        self.scanning = False
+        self.frame = None
+        self.ir_image = None
+        self.clipboard = None
+        
+        self.shortest_sample = 1.0 / self.machine_config.AIO_SAMPLE_RATE
+        
+        self.params_config = [
+                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/um'},
+                {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 's'},
+                {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 's'},
+                {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 's'}, 
+                #Maximum for Projector Control Pulse Width and limits for Projector Control Phase aren't set yet!
+                
+                {'name': 'Enable RED channel', 'type': 'bool', 'value': False},
+                {'name': 'Enable GREEN channel', 'type': 'bool', 'value': False},
+                {'name': 'Enable IR layer', 'type': 'bool', 'value': False},
+                
+                {'name': 'IR X Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
+                {'name': 'IR Y Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
+                {'name': 'IR X Scale', 'type': 'float', 'value': 1, 'min': 0.01, 'step': 0.01, 'siPrefix': False},
+                {'name': 'IR Y Scale', 'type': 'float', 'value': 1, 'min': 0.01, 'step': 0.01, 'siPrefix': False},
+                {'name': 'IR Rotation', 'type': 'int', 'value': 0, 'limits': (0, 359), 'step': 1, 'siPrefix': False, 'suffix': ' degrees'},
+                
+                {'name': 'Z Stack Min Depth', 'type': 'int', 'value': 150, 'limits': (0, 250), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Z Stack Max Depth', 'type': 'int', 'value': 300, 'limits': (250, 500), 'step' : 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Z Stack Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
+            ]
+        self.params_config.extend(params)
+        
     def parameter_changed(self):
         newparams=self.params.get_parameter_tree(return_dict=True)
         
-        if hasattr(self, 'parameters') and\
-            (newparams['Image Width']!=self.parameters['Image Width'] or\
+        if hasattr(self, 'parameters'):
+            if(newparams['Image Width']!=self.parameters['Image Width'] or\
             newparams['Image Height']!=self.parameters['Image Height'] or\
             newparams['Resolution']!=self.parameters['Resolution'] or\
             newparams['X Return Time']!=self.parameters['X Return Time'] or\
@@ -111,32 +148,21 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         context_stream=utils.object2array(self.parameters)
         numpy.save(self.context_filename,context_stream)
         
-    def update_image(self):
-        if(self.frame is not None):
-            self.image.set_image(self.frame)
-        
     def roundint(self, value):
         return int(round(value))
         
-    def _init_variables(self):
-        params=[]
+    def plot(self):
+        from pylab import plot, grid, show
+        i=0
+        t=numpy.arange(self.sampsperchan) / float(self.machine_config.AIO_SAMPLE_RATE) * 1e3
+        for s in [self.projector_control, self.waveform_x, self.waveform_y, self.frame_timing]:
+            plot(t, s+i*10)
+            i+=1
+        grid(True)
+        show()
         
-        self.scanning = False
-        self.frame = None
-        self.clipboard = None
         
-        self.shortest_sample = 1.0 / self.machine_config.AIO_SAMPLE_RATE
-        
-        self.params_config = [
-                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/um'},
-                {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 's'}
-                #Maximum for Projector Control Pulse Width and limits for Projector Control Phase aren't set yet!
-            ]
-        self.params_config.extend(params)
+######### Two Photon ###########
         
     def generate_waveform(self):
         line_length = self.roundint(self.image_width * self.image_resolution) + self.return_x_samps #Number of samples for scanning a line
@@ -175,6 +201,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         phase = self.roundint(self.parameters['Projector Control Phase'] * self.machine_config.AIO_SAMPLE_RATE)
         pulse_width = self.roundint(self.parameters['Projector Control Pulse Width'] * self.machine_config.AIO_SAMPLE_RATE)
         
+        #TODO: code below can be simplified using numpy.roll
         initial_shift = numpy.zeros(line_length - self.return_x_samps + phase)
         single_period = numpy.ones(pulse_width) * self.machine_config.PROJECTOR_CONTROL_PEAK
         single_period = numpy.append(single_period, numpy.zeros(line_length - pulse_width - 1))
@@ -215,21 +242,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.frame_timing=frame_timing
         self.waveform = numpy.concatenate((waveform_x,  waveform_y,  projector_control,  frame_timing)) #Order: X, Y PC, FT
         #self.plot()
-        
-    def plot(self):
-        from pylab import plot, grid, show
-        i=0
-        t=numpy.arange(self.sampsperchan) / float(self.machine_config.AIO_SAMPLE_RATE) * 1e3
-        for s in [self.projector_control, self.waveform_x, self.waveform_y, self.frame_timing]:
-            plot(t, s+i*10)
-            i+=1
-        grid(True)
-        show()
-        
+                
     def record_action(self):
         if(self.scanning):
             return
-        self.scanning = True
         
         self.image_width = self.parameters['Image Width']
         self.image_height = self.parameters['Image Height']
@@ -324,15 +340,21 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             None,
             None)
         
-        self.scan_timer.start(50.0)
+        self.scan_timer.start(300.0)
         self.statusbar.recording_status.setText('Scanning...')
         
+        self.scanning = True
+        
     def scan_frame(self):
+        
+        fps_start = time.time();
         
         data = numpy.empty((2 * self.sampsperchan,), dtype=numpy.float64)
         read = PyDAQmx.int32()
         
         self.analog_input.StartTask()
+        # TODO: ReadAnalogF64 consumes a lot of time! ( ~0.3s -> 5000 samps per sec 40*40px, 1px/um -> resulting a maximum of 3 fps ! )
+        # the remaining piece of code finishes in only 0.01s. Optimization is needed, if maximum 18 FPS for a 200x200px image is too low
         self.analog_input.ReadAnalogF64(
             self.sampsperchan,
             10.0,
@@ -345,7 +367,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         #Scaling pixel data
         data -= min(data)
-        data *= 255.0 / max(data)
+        data *= 255.0 / self.machine_config.BRIGHT_PIXEL_VOLTAGE #max(data)
+        # data = numpy.clip(...) is the way to go ???
         
         actual_width = self.roundint(self.image_width * self.image_resolution)
         actual_height = self.roundint(self.image_height * self.image_resolution)
@@ -358,7 +381,86 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.frame[i, j, 0] = data[samples_to_skip * j + i] #Test: X feedback - red
                 self.frame[i, j, 1] = data[self.sampsperchan + samples_to_skip * j + i] #Test: Y feedback - green
                 self.frame[i, j, 2] = 0
-       
+        
+        # Repeats are only needed if IR image resolution is more than 2P resolution.
+        #self.frame = self.frame.repeat(10, 0).repeat(10, 1)
+        
+        if self.parameters["Enable IR layer"]:
+            self.get_ir_image()
+            
+            scale = numpy.array([[1.0 / self.parameters["IR X Scale"], 0], [0, 1.0 / self.parameters["IR Y Scale"]]])
+        
+            # In the future, scipy.ndimage.geometric_transform might be the best solution instead of these:
+            self.ir_image = scipy.ndimage.zoom(self.ir_image, (self.parameters["IR X Scale"], self.parameters["IR Y Scale"]))
+            self.ir_image = scipy.ndimage.rotate(self.ir_image, self.parameters["IR Rotation"])
+        
+            # Put IR on canvas (with offset here!)
+            self.frame[max(0, self.parameters["IR X Offset"]) : min(self.ir_image.shape[0] + self.parameters["IR X Offset"], self.frame.shape[0]),
+                max(0, self.parameters["IR Y Offset"]) : min(self.ir_image.shape[1]  + self.parameters["IR Y Offset"], self.frame.shape[1]), 2] = \
+                self.ir_image[max(0, -self.parameters["IR X Offset"]) : min(self.ir_image.shape[0], self.frame.shape[0] - self.parameters["IR X Offset"]),
+                max(0, -self.parameters["IR Y Offset"]) : min(self.ir_image.shape[1], self.frame.shape[1] - self.parameters["IR Y Offset"])]
+        
+        if not self.parameters["Enable RED channel"]:
+            self.frame[:, :, 0:1] = 0
+        if not self.parameters["Enable GREEN channel"]:
+            self.frame[:, :, 1:2] = 0
+        
+        self.statusbar.recording_status.setText("Scanning... " + str(round(1.0/(time.time() - fps_start), 2)) + " FPS")
+        
+        '''
+        TODO: improve performance by replacing for loops above with something like these: 
+        # ===> UPDATE: no serious need of improvement: check out the commend near ReadAnalogF64 above!
+        
+        begin_of_return = numpy.arange(actual_width, self.sampsperchan, actual_width + self.return_x_samps - 1)
+        end_of_return = numpy.arange(actual_width + self.return_x_samps -1, self.sampsperchan, actual_width + self.return_x_samps -1)
+        boundaries = numpy.insert(end_of_return,  numpy.arange(len(begin_of_return)), begin_of_return)
+        red_ch = numpy.array(numpy.split(data, boundaries)[::2])
+        green_ch = numpy.array(numpy.split(data, boundaries + self.sampsperchan)[::2])
+        blue_ch = numpy.zeros(actual_width * actual_height)
+        
+        print actual_width * actual_height
+        print len(red_ch)
+        
+        self.frame = numpy.array([red_ch,  green_ch,  blue_ch])
+        '''
+        
+        '''
+        TODO: add binning
+        def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
+            binned_pmt_data = binning_data(rawdata, binning_factor)
+            if offset != 0:
+                binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
+            return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
+
+        def binning_data(data, factor):
+            #data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
+            return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
+        '''
+    
+    # ZMQ socket handler (mostly adopted from camera.py)
+    def socket_handler(self):
+        if not self.socket_queues['2p']['fromsocket'].empty():
+            command=self.socket_queues['2p']['fromsocket'].get()
+            try:
+                if 'function' in command:
+                    getattr(self,  command['function'])(*command['args']) # executes function with given args
+            except:
+                printc("Socket handler error!")
+    
+    #Change parameters remotely (for zmq use) accepts python dictionary as parameter
+    def change_params(self, param_set):
+        for name in param_set:
+            try:
+                self.params.params.param(name).items.keys()[0].param.setValue(param_set[name]);
+            except Exception as e:
+                self.socket_queues['2p']['tosocket'].put({'change_params': str(e)})
+    
+    def update_image(self):        
+        if(self.frame is not None):
+            self.image.set_image(self.frame)
+            
+        self.socket_handler()
+    
     def stop_action(self):
         if(not self.scanning):
             return
@@ -385,19 +487,28 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.recording_status.setText('Stopped')
         
     def restart_scan(self):
+
         self.printc("Restart scan")
         self.stop_action()
         self.record_action()
+    
+
+############## REFERENCE IMAGE ###################
+    
+    def open_reference_image_action(self, remote=False):
         
-    def open_reference_image_action(self):
+        if(remote!=False):
+            fname = remote
+        else:
+            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
         
-        fname = QtGui.QFileDialog.getOpenFileName(self, 'Open Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5')
-        if (str(fname)=='' or not os.path.exists(str(fname))):
+        if (fname=='' or not os.path.exists(fname)):
             return
-        self.printc("Loading " + str(fname))
-        self.statusbar.recording_status.setText('Loading ' + str(fname))
+            
+        self.printc("Loading " + fname)
+        self.statusbar.recording_status.setText('Loading ' + fname)
         
-        h=hdf5io.Hdf5io(str(fname))
+        h=hdf5io.Hdf5io(fname)
         h.load('preview')
         h.load('imaging_data')
         self.slider.setMaximum(0)
@@ -444,19 +555,65 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.slider.setValue(0)
         self.main_tab.setCurrentIndex(1)
     
-    def save_action(self):
+    def save_action(self, remote=False):
         #NOTE!: this function is only capable of saving captured frames
         
         if(self.clipboard is None):
-            self.printc("There's no image data to save. Record and capture it first!")
+            if(remote==False):
+                self.printc("There's no image data to save. Record and capture it first!")
+            else:
+                self.socket_queues['2p']['tosocket'].put({'save_action': "There's no image data to save. Record and capture it first!"})
             return
             
-        fname = QtGui.QFileDialog.getSaveFileName(self, 'Save Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5')
+        if(remote!=False):
+            fname = remote
+        else:
+            fname = str(QtGui.QFileDialog.getSaveFileName(self, 'Save Reference Image', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
+        
+        if (fname==''):
+            return
+            
+        hdf5io.save_item(fname, 'preview', self.clipboard, overwrite=True)
+        self.printc("Saving " + fname + " completed")
+    
+
+############## Z-STACK ###################
+    
+    def record_z_stack_action(self):
+        
+        self.record_action()
+        
+        while(self.scanning == False):
+            pass
+        
+        preview = numpy.copy(self.frame)
+        stack = [] # Dimensions : time, x,y, ch
+        
+        for i in range(self.parameters["Z Stack Min Depth"],  self.parameters["Z Stack Max Depth"],  self.parameters["Z Stack Step"]):
+            self.set_depth(i)
+            #stack.append(self.frame)
+        self.stop_action()
+        
+        stack = numpy.stack(stack)
+        stack = numpy.moveaxis(stack, 3, 1)
+        
+        fname = QtGui.QFileDialog.getSaveFileName(self, 'Save Recorded Z Stack', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5')
         if (str(fname)==''):
             return
-            
-        hdf5io.save_item(str(fname), 'preview', self.clipboard, overwrite=True)
+        
+        hdf5io.save_item(str(fname), 'imaging_data', stack, overwrite=True)
+        hdf5io.save_item(str(fname), 'preview', preview)
         self.printc("Saving " + str(fname) + " completed")
+    
+    def set_depth(self, depth):
+        pass
+    
+    def get_ir_image(self):
+        self.ir_image = numpy.full((400, 300), 80, dtype=int)
+        self.ir_image[180:220, :] = 0
+        self.ir_image[:, 130:170] = 0
+        #self.ir_image = numpy.random.randint(0, 75, size=(400, 300))
+        #done :)
     
     def exit_action(self):
         self.stop_action()
