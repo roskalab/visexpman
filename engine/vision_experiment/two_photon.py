@@ -89,6 +89,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.scan_timer=QtCore.QTimer()
         self.scan_timer.timeout.connect(self.scan_frame)
         
+        self.init_camera_udp()
+        
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
     
@@ -291,7 +293,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE,
             PyDAQmx.DAQmx_Val_Volts,
             None)
-        ''' TODO: IMPORTANT, but commented out while using test hardware
         self.analog_output.CreateAOVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ao2",
             "projector_control",
@@ -305,8 +306,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             -self.machine_config.FRAME_TIMING_PEAK,
             self.machine_config.FRAME_TIMING_PEAK,
             PyDAQmx.DAQmx_Val_Volts,
-            None)            
-        '''
+            None)
         self.analog_output.CfgSampClkTiming(
             "OnboardClock",
             self.machine_config.AIO_SAMPLE_RATE,
@@ -331,10 +331,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.sampsperchan)
         '''
         TODO: trying to synchronize - hardware does not support yet (i am not sure if this is the solution)
+        '''
         self.analog_input.CfgDigEdgeStartTrig(
             "ao/StartTrigger",
             PyDAQmx.DAQmx_Val_Rising)
-        '''
         
         self.shutter = Task()
         self.shutter.CreateDOChan(
@@ -645,18 +645,35 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         hdf5io.save_item(fname, 'preview', preview)
         self.printc("Saving " + fname + " completed")
         self.statusbar.recording_status.setText("Z Stack Recorded: " + fname)
+        
     
     def set_depth(self, depth):
-        #TODO: this
+        #TODO: implement in stage_control device specific protocol
         pass
+        
+    def init_camera_udp(self):
+        import socket
+        self.camera_udp=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        self.camera_udp.bind(("127.0.0.1", 8880))
     
     def get_ir_image(self):
-        #Demo: 4 blue rectangles
-        self.ir_image = numpy.full((400, 300), 80, dtype=int)
-        self.ir_image[180:220, :] = 0
-        self.ir_image[:, 130:170] = 0
-        #self.ir_image = numpy.random.randint(0, 75, size=(400, 300))
-        #done :)
+        data, addr = self.camera_udp.recvfrom(16009)
+        if 0:
+            #Demo: 4 blue rectangles
+            self.ir_image = numpy.full((400, 300), 80, dtype=int)
+            self.ir_image[180:220, :] = 0
+            self.ir_image[:, 130:170] = 0
+            #self.ir_image = numpy.random.randint(0, 75, size=(400, 300))
+            #done :)
+        else:
+            self.ir_image = numpy.zeros((800, 600))
+            pixels=data[6:-3]
+            data=data[0].decode()
+            if data[:5]=='start' and data[-3:]=='end':
+                frame_count=ord(data[5])
+                for i in range(20):#Every packet contains 20 lines
+                    line_index=frame_count*20+i
+                    self.ir_image[:, line_index]=pixels[i*self.ir_image.shape[0]: (i+1)*self.ir_image.shape[0]]
     
     def exit_action(self):
         self.stop_action()
