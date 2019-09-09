@@ -386,7 +386,7 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
             nchannels=nchannels[1]-nchannels[0]+1
-            self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None if self.machine_config.PLATFORM=="elphys" else [-5,5])
+            self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None)
             #Start sync signal recording
             sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             d=self.sync_recorder.read_ai()#Empty ai buffer
