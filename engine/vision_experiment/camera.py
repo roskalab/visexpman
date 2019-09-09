@@ -34,6 +34,7 @@ class Camera(gui.VisexpmanMainWindow):
         self.statusbar.recording_status.setStyleSheet('background:gray;')
         
         self.statusbar.trigger_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.trigger_status)
         self.statusbar.recording_status.setStyleSheet('background:gray;')
 
         self.debug = gui.Debug(self)
