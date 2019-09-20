@@ -164,6 +164,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             # Apply changed channel mask on loaded reference video - if there's any
             if(self.reference_video is not None):                
                 self.frame_select(self.slider.value())
+        else:
+            self.parameters=self.params.get_parameter_tree(return_dict=True)
     
     def save_context(self):
         context_stream=utils.object2array(self.parameters)
@@ -275,9 +277,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.image_resolution = self.parameters['Resolution']
         self.return_x_samps = self.roundint(self.parameters['X Return Time'] * self.machine_config.AIO_SAMPLE_RATE) # Including max and min values! (for more details see generate_waveform)
         self.return_y_samps = self.roundint(self.image_width * self.image_resolution) + self.return_x_samps # Will be equal to line_length in generate_waveform
-        
         self.generate_waveform()
-    
         self.analog_output = Task()
         self.analog_output.CreateAOVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ao0",
@@ -313,7 +313,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             PyDAQmx.DAQmx_Val_Rising,
             PyDAQmx.DAQmx_Val_ContSamps,
             self.sampsperchan)
-        
         self.analog_input = Task()
         self.analog_input.CreateAIVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ai0:1",
@@ -332,10 +331,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         '''
         TODO: trying to synchronize - hardware does not support yet (i am not sure if this is the solution)
         '''
-        self.analog_input.CfgDigEdgeStartTrig(
-            "ao/StartTrigger",
+        self.analog_output.CfgDigEdgeStartTrig(
+            "ai/StartTrigger",
             PyDAQmx.DAQmx_Val_Rising)
-        
         self.shutter = Task()
         self.shutter.CreateDOChan(
             self.machine_config.DAQ_DEV_ID + "/port0/line0",
@@ -350,7 +348,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             None,
             None)
         self.printc('Open shutter')
-            
         self.analog_output.WriteAnalogF64(
             self.sampsperchan,
             True,
@@ -359,10 +356,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.waveform,
             None,
             None)
-        
+        self.analog_input.StartTask()
         self.frame = numpy.zeros((self.roundint(self.image_width * self.image_resolution), self.roundint(self.image_height * self.image_resolution), 3),  dtype = int)
+        print 1
         self.scan_frame() # After changing parameters, this way is no need to wait for timer to scan the new frame + z tack will get a preview image
-        
         if(not self.z_stacking):
             self.scan_timer.start(30) # TODO: Adjust as needed!
             self.statusbar.recording_status.setText('Scanning...')
@@ -376,7 +373,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         data = numpy.empty((2 * self.sampsperchan,), dtype=numpy.float64) # Because 2 channel present
         read = PyDAQmx.int32()
         
-        self.analog_input.StartTask()
         # TODO: ReadAnalogF64 consumes a lot of time! ( ~0.3s -> 5000 samps per sec 40*40px, 1 px/um -> resulting a maximum of 3 fps ! )
         # the remaining piece of code finishes in only 0.01s. Optimization is needed, if maximum 18 FPS for a 200x200px image is too low
         self.analog_input.ReadAnalogF64(
@@ -387,8 +383,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             2 * self.sampsperchan,
             PyDAQmx.byref(read),
             None)
-        self.analog_input.StopTask()
-        
+        print 2
         # Scaling pixel data
         data -= min(data)
         data *= 255.0 / self.machine_config.BRIGHT_PIXEL_VOLTAGE # Instead of dividing by max(data) -> watherver, gui.Image automatically scales colours anyway in set_image function - check out!
@@ -449,7 +444,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText("Recording Z stack, frame number: " + str(len(self.z_stack)))
         else:
             self.statusbar.recording_status.setText("Scanning... " + str(round(1.0/(time.time() - fps_counter_start), 2)) + " FPS")
-        
+        print 3
         '''
         TODO: add binning (something like this) - when hardware can handle more then 5000 samps/sec
         def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
@@ -512,6 +507,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.socket_queues['2p']['tosocket'].put({'stop_action': "Z stacking is in progress, cannot abort manually."})
             return
     
+        self.analog_input.StopTask()
         self.scan_timer.stop()
     
         self.shutter.WriteDigitalLines(
@@ -613,7 +609,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 ############## Z-STACK ###################
     
     def record_z_stack_action(self, remote=None):
-        
+        raise NotImplementedError('reccord_action and stop_action shall be called for every depth')
         if(self.scanning):
             self.stop_action()
         
