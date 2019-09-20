@@ -1148,7 +1148,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             end_i = (shape_pointer + nshapes) * n_vertices
             if not are_same_shapes_over_frames:
                 shape_pointer = shape_pointer + nshapes
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 #            self._show_text()
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
