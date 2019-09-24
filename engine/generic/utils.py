@@ -1339,6 +1339,9 @@ def send_udp(ip,port,msg):
     import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, (ip, port))
+    
+def roundint(value):
+    return int(round(value))
             
 if __name__ == "__main__":
     module_names, visexpman_module_paths = imported_modules()

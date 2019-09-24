@@ -1,4 +1,4 @@
-import os,time, numpy, hdf5io, traceback, multiprocessing, serial
+import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest
 import scipy
 
 try:
@@ -16,6 +16,42 @@ from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_da
 
 import PyDAQmx
 from PyDAQmx import Task
+
+def generate_waveform(image_width,  image_height,  resolution,  **kwargs):
+    return_x_samps = utils.roundint(kwargs['x_flyback_time'] * kwargs['fsample'])
+    
+    line_length = utils.roundint(image_width * resolution) + return_x_samps # Number of samples for scanning a line
+    return_y_samps = line_length* kwargs['y_flyback_lines']
+    total_lines = utils.roundint(image_height * resolution)+kwargs['y_flyback_lines']
+    
+    # Calibrating control signal voltages
+    x_min = -kwargs['um2voltage']*image_width + kwargs.get('x_offset', 0)
+    x_max = kwargs['um2voltage']*image_width + kwargs.get('x_offset', 0)
+    
+    y_min = -kwargs['um2voltage']*image_width + kwargs.get('y_offset', 0)
+    y_max = kwargs['um2voltage']*image_width + kwargs.get('y_offset', 0)
+    
+    # X signal
+    ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - return_x_samps)
+    ramp_down_x = numpy.linspace(x_max, x_min, num=return_x_samps + 1)[1:-1] # Exclude extreme values (avoiding duplication during concatenation)
+    waveform_x = numpy.concatenate((ramp_up_x,  ramp_down_x))
+    waveform_x = numpy.tile(waveform_x, total_lines)
+
+    # Linear Y signal
+    ramp_up_y = numpy.linspace(y_min, y_max, num=waveform_x.shape[0] - return_y_samps)
+    ramp_down_y = numpy.linspace(y_max, y_min, num=return_y_samps) # Exclude maximum value
+    waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
+    
+    
+    # Projector control
+    phase = utils.roundint(kwargs.get('stim_phase', 0) * kwargs['fsample'])
+    pulse_width = utils.roundint(kwargs.get('stim_pulse_width', 0) * kwargs['fsample'])
+    ttl_voltage=kwargs.get('ttl_voltage', 3.3)
+    projector_control =numpy.tile(numpy.concatenate((numpy.zeros(ramp_up_x.shape[0]+phase), numpy.full(pulse_width,  ttl_voltage),  numpy.zeros(ramp_down_x.shape[0]-phase-pulse_width ))), total_lines)
+    
+    frame_timing=numpy.zeros_like(projector_control)
+    frame_timing[-utils.roundint(1e-3*kwargs['fsample']):]=ttl_voltage
+    return waveform_x,  waveform_y, projector_control,  frame_timing
 
 class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
@@ -170,141 +206,52 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def save_context(self):
         context_stream=utils.object2array(self.parameters)
         numpy.save(self.context_filename,context_stream)
-    
-    def roundint(self, value):
-        return int(round(value))
+
     
     def plot(self):
         from pylab import plot, grid, show
         i=0
-        t=numpy.arange(self.sampsperchan) / float(self.machine_config.AIO_SAMPLE_RATE) * 1e3
-        for s in [self.projector_control, self.waveform_x, self.waveform_y, self.frame_timing]:
-            plot(t, s+i*10)
-            i+=1
-        grid(True)
-        show()
+        t=numpy.arange(self.waveform_x.shape[0]) / float(self.machine_config.AIO_SAMPLE_RATE) * 1e3
+        y=[self.projector_control, self.waveform_x, self.waveform_y, self.frame_timing]
+        x=[t]*len(y)
+#        self.generate_waveform();self.plot()
+        self.p=gui.Plot(None)
+        self.p.setGeometry(100, 100, 500, 500)
+        self.p.update_curves(x, y,colors=[(255, 128, 0),  (0, 255, 0),  (0, 0, 255),  (255, 0, 0)])
+        self.p.show()
+        
+#        for s in :
+#            
+#            plot(t, s+i*10)
+#            i+=1
+#        grid(True)
+#        show()
     
 ######### Two Photon ###########
     
     def generate_waveform(self):
-        line_length = self.roundint(self.image_width * self.image_resolution) + self.return_x_samps # Number of samples for scanning a line
-        total_lines = self.roundint(self.image_height * self.image_resolution)
-        
-        self.sampsperchan = (line_length - 1) * total_lines + self.return_y_samps - 1
-        self.printc("Samples per channel: " + str(self.sampsperchan)) # Total number of samples for scanning a single frame
-        
-        # Calibrating control signal voltages
-        x_min = -self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE
-        x_max = self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE
-        
-        y_min = -self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE
-        y_max = self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE
-        
-        # X signal
-        ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - self.return_x_samps)
-        ramp_down_x = numpy.linspace(x_max, x_min, num=self.return_x_samps + 1)[1:-1] # Exclude extreme values (avoiding duplication during concatenation)
-        waveform_x = numpy.concatenate((ramp_up_x,  ramp_down_x))
-        waveform_x = numpy.tile(waveform_x, total_lines)
-        waveform_x = numpy.append(waveform_x, numpy.full(self.return_y_samps, x_min))[:-1] # Wait for Y to return
-        
-        # Linear Y signal
-        ramp_up_y = numpy.linspace(y_min, y_max, num=self.sampsperchan - self.return_y_samps + 1)
-        ramp_down_y = numpy.linspace(y_max, y_min, num=self.return_y_samps)[1:] # Exclude maximum value
-        waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
-        
-        '''
-        # Stepped Y signal - for future tests, probably
-        ramp_up_y = numpy.linspace(y_min, y_max, num=total_lines)
-        ramp_up_y = numpy.repeat(ramp_up_y, line_length - 1)
-        ramp_down_y = numpy.linspace(y_max, y_min, num=self.return_y_samps)
-        waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))[:-1]
-        '''
-        
-        # Projector control
-        phase = self.roundint(self.parameters['Projector Control Phase'] * self.machine_config.AIO_SAMPLE_RATE)
-        pulse_width = self.roundint(self.parameters['Projector Control Pulse Width'] * self.machine_config.AIO_SAMPLE_RATE)
-        
-        # TODO: code below can be simplified using numpy.roll (although, that would be as much work for me as creating this...)
-        initial_shift = numpy.zeros(line_length - self.return_x_samps + phase)
-        single_period = numpy.full(pulse_width, self.machine_config.PROJECTOR_CONTROL_PEAK)
-        single_period = numpy.append(single_period, numpy.zeros(line_length - pulse_width - 1))
-        projector_control = numpy.tile(single_period, total_lines) # Expand to all lines
-        projector_control = numpy.append(initial_shift, projector_control) # Offset the whole signal depending on phase
-        projector_control = projector_control[:-line_length + pulse_width + 1] # Cut off overflowed section
-        
-        projector_control = numpy.append(projector_control, numpy.zeros(self.return_y_samps + self.return_x_samps - pulse_width - phase - 1))[:-1] # Wait for Y to return
-        
-        # Frame timing
-        hold_time = self.roundint(self.machine_config.FRAME_TIMING_HOLD * self.machine_config.AIO_SAMPLE_RATE)
-        old_frame = numpy.zeros(self.sampsperchan - self.return_y_samps) #Zeros while old frame being scanned
-        
-        if(hold_time > self.return_y_samps):
-            # Hold time strectches into the next frame
-            hold_time -= self.return_y_samps
-            old_frame[:hold_time] = numpy.full(hold_time, self.machine_config.FRAME_TIMING_PEAK) # Extend hold till the end of the previous frame
-            begin_new_frame = numpy.full(self.return_y_samps, self.machine_config.FRAME_TIMING_PEAK) # Add the remaining section to the begining of the next one
-            self.printc("Generating long frame timing pulse")
-        else:
-            begin_new_frame = numpy.zeros(self.return_y_samps)
-            begin_new_frame[:hold_time] = numpy.full(hold_time,  self.machine_config.FRAME_TIMING_PEAK) # Simply add the hold_time section to its place
-            self.printc("Generating short frame timing pulse")
-            
-        frame_timing = numpy.concatenate((old_frame,  begin_new_frame)) # Assemble
-        
-        # Basic error detection (useful for debuggging!)
-        if not (len(waveform_x) == len(waveform_y) == len(projector_control) == len(frame_timing) == self.sampsperchan):
-            self.printc("Error during waveform generation! Number of samples are different.")
-            self.printc("Waveform X: " + str(len(waveform_x)))
-            self.printc("Waveform Y: " + str(len(waveform_y)))
-            self.printc("Projector Control: " + str(len(projector_control)))
-            self.printc("Frame Timing: " + str(len(frame_timing)))
-        
-        # Only needed for plot, to pass:    
-        self.waveform_x = waveform_x
-        self.waveform_y = waveform_y
-        self.projector_control = projector_control
-        self.frame_timing = frame_timing
-        
-        self.waveform = numpy.concatenate((waveform_x,  waveform_y,  projector_control,  frame_timing))[:-1] # Order: X, Y PC, FT
-        #self.plot()
+        self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing=generate_waveform(self.parameters['Image Width'],  
+                                                                                            self.parameters['Image Height'],  
+                                                                                            self.parameters['Resolution'],  
+                                                                                            x_flyback_time=self.parameters['X Return Time'],  
+                                                                                            y_flyback_lines=self.machine_config.Y_FLYBACK_LINES, 
+                                                                                            fsample=self.machine_config.AIO_SAMPLE_RATE,  
+                                                                                            um2voltage=self.machine_config.UM_TO_VOLTAGE,
+                                                                                            stim_pulse_width=self.parameters['Projector Control Pulse Width'])
+   
+#        self.plot()
     
     def record_action(self):
         if(self.scanning):
             return
-        
-        self.image_width = self.parameters['Image Width']
-        self.image_height = self.parameters['Image Height']
-        self.image_resolution = self.parameters['Resolution']
-        self.return_x_samps = self.roundint(self.parameters['X Return Time'] * self.machine_config.AIO_SAMPLE_RATE) # Including max and min values! (for more details see generate_waveform)
-        self.return_y_samps = self.roundint(self.image_width * self.image_resolution) + self.return_x_samps # Will be equal to line_length in generate_waveform
         self.generate_waveform()
+        self.waveform=numpy.array([self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing]).T
         self.analog_output = Task()
         self.analog_output.CreateAOVoltageChan(
-            self.machine_config.DAQ_DEV_ID + "/ao0",
-            "pos_x",
-            -self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE,
-            self.machine_config.UM_TO_VOLTAGE * self.image_width + self.machine_config.X_OFFSET_VOLTAGE,
-            PyDAQmx.DAQmx_Val_Volts,
-            None)
-        self.analog_output.CreateAOVoltageChan(
-            self.machine_config.DAQ_DEV_ID + "/ao1",
-            "pos_y",
-            -self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE,
-            self.machine_config.UM_TO_VOLTAGE * self.image_height + self.machine_config.Y_OFFSET_VOLTAGE,
-            PyDAQmx.DAQmx_Val_Volts,
-            None)
-        self.analog_output.CreateAOVoltageChan(
-            self.machine_config.DAQ_DEV_ID + "/ao2",
-            "projector_control",
-            -self.machine_config.PROJECTOR_CONTROL_PEAK,
-            self.machine_config.PROJECTOR_CONTROL_PEAK,
-            PyDAQmx.DAQmx_Val_Volts,
-            None)
-        self.analog_output.CreateAOVoltageChan(
-            self.machine_config.DAQ_DEV_ID + "/ao3",
-            "frame_timing",
-            -self.machine_config.FRAME_TIMING_PEAK,
-            self.machine_config.FRAME_TIMING_PEAK,
+            self.machine_config.DAQ_DEV_ID + "/ao0:3",
+            "wf",
+            -5.0,
+            5.0,
             PyDAQmx.DAQmx_Val_Volts,
             None)
         self.analog_output.CfgSampClkTiming(
@@ -312,7 +259,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.machine_config.AIO_SAMPLE_RATE,
             PyDAQmx.DAQmx_Val_Rising,
             PyDAQmx.DAQmx_Val_ContSamps,
-            self.sampsperchan)
+            self.waveform.shape[0])
+        print -2
         self.analog_input = Task()
         self.analog_input.CreateAIVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ai0:1",
@@ -322,15 +270,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             5.0,
             PyDAQmx.DAQmx_Val_Volts,
             None)
+        print -1
         self.analog_input.CfgSampClkTiming(
             "OnboardClock",
             self.machine_config.AIO_SAMPLE_RATE,
             PyDAQmx.DAQmx_Val_Rising,
             PyDAQmx.DAQmx_Val_FiniteSamps,
-            self.sampsperchan)
+            self.waveform.shape[0])
         '''
         TODO: trying to synchronize - hardware does not support yet (i am not sure if this is the solution)
         '''
+        print 1
         self.analog_output.CfgDigEdgeStartTrig(
             "ai/StartTrigger",
             PyDAQmx.DAQmx_Val_Rising)
@@ -347,18 +297,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             numpy.array([int(1)], dtype=numpy.uint8),
             None,
             None)
-        self.printc('Open shutter')
+        self.printc('Shutter opened')
         self.analog_output.WriteAnalogF64(
-            self.sampsperchan,
-            True,
-            numpy.ceil(self.sampsperchan / self.machine_config.AIO_SAMPLE_RATE),
+            self.waveform.shape[0],
+            False,
+            self.machine_config.DAQ_TIMEOUT,
             PyDAQmx.DAQmx_Val_GroupByChannel,
-            self.waveform,
+            numpy.copy(self.waveform),
             None,
             None)
         self.analog_input.StartTask()
-        self.frame = numpy.zeros((self.roundint(self.image_width * self.image_resolution), self.roundint(self.image_height * self.image_resolution), 3),  dtype = int)
-        print 1
+        self.frame = numpy.zeros((utils.roundint(self.image_width * self.image_resolution), utils.roundint(self.image_height * self.image_resolution), 3),  dtype = int)
+        print 2
         self.scan_frame() # After changing parameters, this way is no need to wait for timer to scan the new frame + z tack will get a preview image
         if(not self.z_stacking):
             self.scan_timer.start(30) # TODO: Adjust as needed!
@@ -388,8 +338,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         data -= min(data)
         data *= 255.0 / self.machine_config.BRIGHT_PIXEL_VOLTAGE # Instead of dividing by max(data) -> watherver, gui.Image automatically scales colours anyway in set_image function - check out!
         
-        actual_width = self.roundint(self.image_width * self.image_resolution)
-        actual_height = self.roundint(self.image_height * self.image_resolution)
+        actual_width = utils.roundint(self.image_width * self.image_resolution)
+        actual_height = utils.roundint(self.image_height * self.image_resolution)
         
         '''
         Optimized frame builder: (just a bit faster than the nested loops below)
@@ -675,3 +625,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.stop_action()
         self.save_context()
         self.close()
+
+class Test(unittest.TestCase):
+    def test(self):
+        generate_waveform(10,  10,  1,  x_flyback_time=200e-6,  y_flyback_lines=2, fsample=400000,  um2voltage=1e-2,  stim_pulse_width=100e-6)
+        
+if __name__=='__main__':
+    unittest.main()
