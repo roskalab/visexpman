@@ -252,7 +252,7 @@ class CaImagingData(supcl):
         if self.parameters.get('Record Eyecamera', False):
             sig=sync[:,self.configs['machine_config']['TBEHAV_SYNC_INDEX']]
             if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:
-                raise RuntimeError('Camera timing signal maximum amplitude is only {0:0.2f} V. Make sure that scan sync is enabled and connected'.format(sig.max()))
+                raise RuntimeError('Camera timing signal maximum amplitude is only {0:0.2f} V. Make sure that visexpman camera pplication is started'.format(sig.max()))
             #Ignore first transient pulses that are longer than 10 ms
             long_pulses=numpy.where(numpy.diff(signal.trigger_indexes(sig))[::2]>10e-3*fsample)[0]
             self.tcam=signal.trigger_indexes(sig)[::2]/fsample

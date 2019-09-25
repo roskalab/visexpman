@@ -1348,6 +1348,9 @@ def get_username():
     else:
         import pwd
         return pwd.getpwuid( os.getuid() )[ 0 ]
+    
+def roundint(value):
+    return int(round(value))
             
 if __name__ == "__main__":
     module_names, visexpman_module_paths = imported_modules()

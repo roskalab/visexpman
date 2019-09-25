@@ -601,6 +601,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.prepare()
             #Control/synchronization with platform specific recording devices
             time.sleep(0.1)
+            self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 0)#Reset pin
             try:
                 if self.machine_config.ENABLE_SYNC=='stim':
                     self.sync_recording_duration=self.parameters['duration']
@@ -687,6 +688,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.printl(traceback.format_exc())
                 self.partial_save=False#if failed before starting stimulus, no partial data is saved
             self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
+            self.experiment_start_timestamp=time.time()
             self._start_frame_capture()
             try:
                 self.printl('Starting stimulation {0}/{1}'.format(self.name,self.parameters['id']))
@@ -842,7 +844,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         self.parameters['partial_data']=self.abort
         self._blocks2table()
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block']#['experiment_name', 'experiment_config_name', 'frame_times']
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block', 'experiment_start_timestamp']#['experiment_name', 'experiment_config_name', 'frame_times']
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
         self.datafile = experiment_data.CaImagingData(self.outputfilename)
         self._prepare_data2save()
