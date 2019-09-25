@@ -21,3 +21,8 @@ class TwoPhotonMicroscopeInterface(object):
         
     def close(self):
         pass
+        
+    def finish_batch(self):
+        '''
+        Any action needed for finishing a batch experiment like setting back z position
+        '''

@@ -1339,6 +1339,15 @@ def send_udp(ip,port,msg):
     import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, (ip, port))
+
+def get_username():
+    import platform
+    if platform.system()=='Windows':
+        import getpass
+        return getpass.getuser()
+    else:
+        import pwd
+        return pwd.getpwuid( os.getuid() )[ 0 ]
             
 if __name__ == "__main__":
     module_names, visexpman_module_paths = imported_modules()
