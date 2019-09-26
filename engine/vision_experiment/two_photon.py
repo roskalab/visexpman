@@ -1,4 +1,4 @@
-import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest
+import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
 import scipy
 
 try:
@@ -15,7 +15,8 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 
 import PyDAQmx
-from PyDAQmx import Task
+import PyDAQmx.DAQmxConstants as DAQmxConstants
+import PyDAQmx.DAQmxTypes as DAQmxTypes
 
 def generate_waveform(image_width,  image_height,  resolution,  **kwargs):
     return_x_samps = utils.roundint(kwargs['x_flyback_time'] * kwargs['fsample'])
@@ -240,12 +241,99 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                                             stim_pulse_width=self.parameters['Projector Control Pulse Width'])
    
 #        self.plot()
+
+    def init_daq(self):
+        self.analog_output = PyDAQmx.Task()
+        self.analog_output.CreateAOVoltageChan(self.machine_config.DAQ_DEV_ID + "/ao0:3",
+                                                            'ao',
+                                                            -5.0, 
+                                                            5.0, 
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+        self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(self.machine_config.DAQ_DEV_ID), DAQmxConstants.DAQmx_Val_Rising)
+        self.analog_input = PyDAQmx.Task()
+        self.analog_input.CreateAIVoltageChan(self.machine_config.DAQ_DEV_ID + "/ai0:1",
+                                                            'ai',
+                                                            PyDAQmx.DAQmx_Val_RSE,
+                                                            -5.0, 
+                                                            5.0, 
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+        self.read = DAQmxTypes.int32()
+        self.ai_data = numpy.zeros(self.waveform.shape[0]*2, dtype=numpy.float64)
+        self.analog_output.CfgSampClkTiming("OnboardClock",
+                                            self.machine_config.AIO_SAMPLE_RATE,
+                                            DAQmxConstants.DAQmx_Val_Rising,
+                                            DAQmxConstants.DAQmx_Val_ContSamps,
+                                            self.waveform.shape[0])
+        self.analog_input.CfgSampClkTiming("OnboardClock",
+                                            self.machine_config.AIO_SAMPLE_RATE,
+                                            DAQmxConstants.DAQmx_Val_Rising,
+                                            DAQmxConstants.DAQmx_Val_ContSamps,
+                                            self.waveform.shape[0])
+        self.analog_output.WriteAnalogF64(self.waveform.shape[0],
+                                    False,
+                                    self.machine_config.DAQ_TIMEOUT,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    self.waveform,
+                                    None,
+                                    None)
+        self.analog_output.StartTask()
+        self.analog_input.StartTask()
+        self.shutter = PyDAQmx.Task()
+        self.shutter.CreateDOChan(
+            self.machine_config.DAQ_DEV_ID + "/port0/line0",
+            "shutter",
+            PyDAQmx.DAQmx_Val_GroupByChannel)
+        self.shutter.WriteDigitalLines(
+            1,
+            True,
+            1.0,
+            PyDAQmx.DAQmx_Val_GroupByChannel,
+            numpy.array([int(1)], dtype=numpy.uint8),
+            None,
+            None)
+            
+    def stop_daq(self):
+        self.shutter.WriteDigitalLines(
+            1,
+            True,
+            1.0,
+            PyDAQmx.DAQmx_Val_GroupByChannel,
+            numpy.array([int(0)], dtype=numpy.uint8),
+            None,
+            None)
+        self.read_daq()
+        self.analog_output.WaitUntilTaskDone(self.machine_config.DAQ_TIMEOUT)
+        self.analog_output.StopTask()
+        self.analog_input.StopTask()
+        
+    def read_daq(self):
+        try:
+            self.analog_input.ReadAnalogF64(self.waveform.shape[0],
+                                                self.machine_config.DAQ_TIMEOUT, 
+                                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                                self.ai_data,
+                                                self.waveform.shape[0]*2,
+                                                DAQmxTypes.byref(self.read),
+                                                None)
+        except PyDAQmx.DAQError:
+            pass
+        self.ai_data = self.ai_data[:self.read.value * 2]
+        self.ai_raw_data = self.ai_data
+        self.ai_data = self.ai_data.flatten('F').reshape((2, self.read.value)).transpose()
+        return copy.deepcopy(self.ai_data)
     
     def record_action(self):
-        if(self.scanning):
+        if self.scanning:
             return
         self.generate_waveform()
-        self.waveform=numpy.array([self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing]).T
+        self.waveform=numpy.array([self.waveform_x, self.waveform_y, self.projector_control,  self.frame_timing])
+        self.waveform=self.waveform.flatten()
+        #self.waveform=numpy.zeros_like(self.waveform)
+        self.init_daq()
+        return
+        
         self.analog_output = Task()
         self.analog_output.CreateAOVoltageChan(
             self.machine_config.DAQ_DEV_ID + "/ao0:3",
@@ -317,7 +405,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.scanning = True
     
     def scan_frame(self):
-        
+        self.read_daq()
+        return
         fps_counter_start = time.time()
         
         data = numpy.empty((2 * self.sampsperchan,), dtype=numpy.float64) # Because 2 channel present
