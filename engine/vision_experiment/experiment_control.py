@@ -665,8 +665,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 elif self.machine_config.PLATFORM == '2p':
                     if not self.parameters.get('Stimulus Only', False):
                         self.send({'2p': 'start'})
-                        time.sleep(1.5)
-                        response=self.recv()
+                        t0=time.time()
+                        while True:
+                            if time.time()-t0>5:
+                                break
+                            response=self.recv()
+                            if response!=None:
+                                break
+                            time.sleep(0.5)
                         if not hasattr(response, 'keys') or not response['start command result']:
                             self.abort=True
                             self.printl('Two photon recording did not start, aborting stimulus')
