@@ -871,11 +871,11 @@ class ExperimentHandler(object):
                         microscope_class = microscope_class[0][1]
                         break
                 self.microscope=microscope_class()
+                self.microscope.machine_config=self.machine_config
+                self.microscope.guiengine=self
             else:
                 if hasattr(self,  'current_experiment_parameters'):
                     self.microscope.experiment_parameters=self.current_experiment_parameters
-                self.microscope.machine_config=self.machine_config
-                self.microscope.guiengine=self
                 res=getattr(self.microscope, command)()
                 self.send({'{0} command result'.format(command):res}, 'stim')
             
