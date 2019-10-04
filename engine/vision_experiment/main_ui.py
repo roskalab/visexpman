@@ -795,10 +795,11 @@ class MainUI(gui.VisexpmanMainWindow):
         else:
             fw1=[]
             fw2=[]
-            
+        
+        name_name='Name' if not hasattr(self.machine_config,  'NAME_FIELD_NAME') else self.machine_config.NAME_FIELD_NAME
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea'], 'children': [#'expanded' : True
-                    {'name': 'Name', 'type': 'str', 'value': ''},
+                    {'name': name_name, 'type': 'str', 'value': ''},
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['elphys', 'mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    

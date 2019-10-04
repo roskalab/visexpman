@@ -12,6 +12,7 @@ import inspect
 import copy
 import select
 import subprocess
+import socket
 try:
     import cPickle as pickle
 except ImportError:
@@ -1336,9 +1337,21 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
     return shuffled,success
     
 def send_udp(ip,port,msg):
-    import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, (ip, port))
+    
+def sendrecv_udp(lip,  rip,  lport,  rport,  msg):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_socket.settimeout(1.0)
+    addr = (rip, rport)
+    client_socket.bind((lip, lport))
+    start = time.time()
+    client_socket.sendto(msg, addr)
+    try:
+        data, server = client_socket.recvfrom(1024)
+        return data
+    except socket.timeout:
+        return ''
 
 def get_username():
     import platform
