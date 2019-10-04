@@ -314,6 +314,7 @@ class ExperimentHandler(object):
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
         self.fullbatch=copy.deepcopy(self.batch)
         self.batch_running=True
+        self.microscope.start_batch()
         
     def check_batch(self):
         if self.batch_running:
@@ -822,6 +823,8 @@ class ExperimentHandler(object):
                 fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
                 self.printc('Save 2p data to {0}'.format(fn))
                 self.microscope.save(fn)
+                if self.batch_running and len(self.batch)==0:
+                    self.microscope.finish_batch()
             self.experiment_running=False
             self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
@@ -868,11 +871,11 @@ class ExperimentHandler(object):
                         microscope_class = microscope_class[0][1]
                         break
                 self.microscope=microscope_class()
+                self.microscope.machine_config=self.machine_config
+                self.microscope.guiengine=self
             else:
                 if hasattr(self,  'current_experiment_parameters'):
                     self.microscope.experiment_parameters=self.current_experiment_parameters
-                self.microscope.machine_config=self.machine_config
-                self.microscope.guiengine=self
                 res=getattr(self.microscope, command)()
                 self.send({'{0} command result'.format(command):res}, 'stim')
             

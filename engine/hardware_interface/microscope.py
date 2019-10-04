@@ -26,3 +26,8 @@ class TwoPhotonMicroscopeInterface(object):
         '''
         Any action needed for finishing a batch experiment like setting back z position
         '''
+        
+    def start_batch(self):
+        '''
+        Any action needed for starting a batch experiment like resetting z position
+        '''
