@@ -531,7 +531,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM=='us_cortical':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'convert_stimulus_to_video', 'exit']
         elif self.machine_config.PLATFORM in ['ao_cortical', '2p', 'resonant']:
-            toolbar_buttons = ['start_experiment', 'stop', 'connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'select_data_folder',  'connect', 'refresh_stimulus_files', 'previous_roi', 'next_roi', 'delete_roi', 'add_roi', 'save_rois', 'reset_datafile','exit']
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
@@ -572,12 +572,15 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p', 'mc_mea', 'erg']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
-            filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
+            #filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
+            filebrowserroot=self.engine.dataroot
             self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip', '*.mesc', '*.mcd'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
-            self.analysis.layout.addWidget(self.datafilebrowser, 0, 0)
-            self.analysis.layout.addWidget(self.analysis_helper, 1, 0)
+            self.data_folder_w = QtGui.QLabel('', self)
+            self.analysis.layout.addWidget(self.data_folder_w, 0, 0)
+            self.analysis.layout.addWidget(self.datafilebrowser, 1, 0)
+            self.analysis.layout.addWidget(self.analysis_helper, 2, 0)
             self.analysis.setLayout(self.analysis.layout)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
@@ -781,6 +784,9 @@ class MainUI(gui.VisexpmanMainWindow):
                 self.p.setMinimumWidth(img.shape[0])
                 self.p.setMinimumHeight(img.shape[1])
                 self.p.show()
+            elif 'set_data_folder' in msg:
+                self.data_folder_w.setText(msg['set_data_folder'])
+                self.datafilebrowser.set_root(msg['set_data_folder'])
                 
     def _init_variables(self):
         if hasattr(self.machine_config,'FILTERWHEEL_FILTERS'):
@@ -980,6 +986,13 @@ class MainUI(gui.VisexpmanMainWindow):
         
     def connect_action(self):
         self.to_engine.put({'function': 'connect', 'args':[]})
+        
+    def select_data_folder_action(self):
+        foldername = str(QtGui.QFileDialog.getExistingDirectory(self, "Select Data Folder", self.engine.dataroot))
+        if os.name=='nt':
+            foldername=foldername.replace('/','\\')
+        self.to_engine.put({'function': 'set_data_folder', 'args':[foldername]})
+        self.to_engine.put({'data': foldername, 'path': 'engine/dataroot', 'name': 'Root Data Folder'})
         
     def exit_action(self):
         if hasattr(self,  'exit_action_called'):

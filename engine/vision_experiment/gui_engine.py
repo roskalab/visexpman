@@ -96,13 +96,21 @@ class ExperimentHandler(object):
             self.sync_recording_started=False
             self.batch_running=False
         self.santiago_setup='santiago' in self.machine_config.__class__.__name__.lower()
-        if self.machine_config.user=='common':
-            self.dataroot=self.machine_config.EXPERIMENT_DATA_PATH
-        else:#Multiple users
-            self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+        self.dataroot=self.guidata.read("Data Root")
+        if self.dataroot is None:
+            if self.machine_config.user=='common':
+                self.dataroot=self.machine_config.EXPERIMENT_DATA_PATH
+            else:#Multiple users
+                self.dataroot=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user)
+        self.to_gui.put({'set_data_folder':self.dataroot})
         if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
             self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user))
             self.copier.start()
+            
+    def set_data_folder(self, folder):
+        self.dataroot=folder
+        self.to_gui.put({'set_data_folder':folder})
+        self.guidata.add('Data Root',  folder, 'engine/dataroot')
     
     def open_stimulus_file(self, filename, classname):
         if not os.path.exists(filename):
@@ -188,7 +196,7 @@ class ExperimentHandler(object):
         experiment_parameters = {}
         experiment_parameters['stimfile']=filename
         experiment_parameters['name']=self.guidata.read('Name')
-        if self.guidata.read('Name')!='':
+        if self.guidata.read('Name')!='' and self.guidata.read('Name') is not None:
             experiment_parameters['region_name']=self.guidata.read('Name')
         experiment_parameters['animal']=self.guidata.read('Animal')
         experiment_parameters['comment']=self.guidata.read('Comment')
@@ -823,11 +831,12 @@ class ExperimentHandler(object):
 #                import dirsync
 #                dirsync.sync(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.BACKUP_PATH, 'sync', only=['.*hdf5$', '.*mesc$'])
             elif self.machine_config.PLATFORM=='2p':
-                fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
-                self.printc('Save 2p data to {0}'.format(fn))
-                self.microscope.save(fn)
-                if self.batch_running and len(self.batch)==0:
-                    self.microscope.finish_batch()
+                if not self.current_experiment_parameters.get('Stimulus Only', False):
+                    fn=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.microscope.fileformat)
+                    self.printc('Save 2p data to {0}'.format(fn))
+                    self.microscope.save(fn)
+                    if self.batch_running and len(self.batch)==0:
+                        self.microscope.finish_batch()
             self.experiment_running=False
             self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
