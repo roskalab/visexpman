@@ -781,6 +781,9 @@ class ExperimentHandler(object):
             self.printc('Finishing experiment...')
             experiment_parameters=self.user_gui_engine.stop_experiment()
             self.to_gui.put({'update_status':'idle'})
+            if hasattr(self, 'copier'):
+                self.printc('Resume copier')
+                self.copier.resume()
         self.experiment_running=False
         self.printc('Experiment stopped')
                    
