@@ -572,7 +572,7 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM in ['elphys', 'retinal',  'ao_cortical', 'us_cortical', 'resonant',  'behav', '2p', 'mc_mea', 'erg']:
             self.analysis = QtGui.QWidget(self)
             self.analysis.parent=self
-            filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
+            #filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
             filebrowserroot=self.engine.dataroot
             self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip', '*.mesc', '*.mcd'])
             self.analysis_helper = AnalysisHelper(self.analysis)
