@@ -374,16 +374,39 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 break
                 
     def show_video(self, fn, position = (0, 0),  stretch=1.0,  load_video=True):
-        if load_video:
-            self.read_video(fn)
-        for i in range(self.video.shape[0]):
-            if self.machine_config.ENABLE_TIME_INDEXING:
-                index=self._get_frame_index()
-            else:
-                index=i
-            self._show_image(self.video[index],0,utils.cr((position[0], position[1])),stretch, True)
-            if self.abort:
-                break
+        if 0:
+            if load_video:
+                self.read_video(fn)
+            for i in range(self.video.shape[0]):
+                if self.machine_config.ENABLE_TIME_INDEXING:
+                    index=self._get_frame_index()
+                else:
+                    index=i
+                self._show_image(self.video[index],0,utils.cr((position[0], position[1])),stretch, True)
+                if self.abort:
+                    break
+        else:
+            import skvideo.io
+            t0=time.time()
+            dct=0
+            rct=0
+            frame_time=1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+            for frame in skvideo.io.vreader(fn):
+                rct+=1
+                dt=time.time()-t0
+                expected_time=rct*frame_time
+                if expected_time<dt:
+                    continue
+                if frame.shape[0]>800:
+                    frame_c=frame[::2,::2,:]
+                    stretch_c=2*stretch
+                else:
+                    stretch_c=stretch
+                    frame_c=frame
+                self._show_image(frame_c,0,utils.cr((position[0], position[1])),stretch_c, True)
+                dct+=1
+                if self.abort:
+                    break
                 
     def read_video(self, fn):
         import skvideo.io
@@ -1103,7 +1126,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if shape == 'circle':
             radius = 1.0
             vertices = geometry.circle_vertices([radius,  radius],  1.0/1.0)
-        elif shape == 'rectangle':
+        elif shape == 'square':
             vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
         else:
             raise RuntimeError('Unknown shape: {0}'.format(shape))

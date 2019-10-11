@@ -1673,28 +1673,40 @@ def hdf52mat(filename, scale_sync=False, exclude=[]):
     hh=hdf5io.Hdf5io(filename)
     ignore_nodes=['hashes']
     if not hasattr(hh, 'h5f'):
-        raise NotImplementedError('add dd support!')
-    try:
-        rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
-    except:
-        rootnodes=[v for v in hh.h5f.root._v_children.keys() if v not in ignore_nodes]
-    mat_data={}
-    for rn in rootnodes:
-        if rn in exclude:
-            continue
-        if os.path.basename(filename).split('_')[-2] in rn:
-            rnt='idnode'
-        else:
-            rnt=rn
-        mat_data[rnt]=hh.findvar(rn)
-        if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
-            mat_data[rnt]=0
-        elif mat_data[rnt] is None:
-            mat_data[rnt]='None'
-    if scale_sync and hasattr(hh,'sync') and hasattr(hh,'sync_scaling'):
-        mat_data['sync']=signal.from_16bit(mat_data['sync'], mat_data['sync_scaling'])
-    if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
-        del mat_data['soma_rois_manual_info']
+        mat_data=copy.deepcopy(hh._data)
+        for k in mat_data.keys():
+            if mat_data[k] is None:
+                mat_data[k]='None'
+            elif hasattr(mat_data[k], 'keys'):
+                if len(mat_data[k].keys())==0:
+                    mat_data[k]=0
+                else:
+                    for kk, v in mat_data[k].items():
+                        if v is None:
+                            mat_data[k][kk]='None'
+            
+    else:
+        try:
+            rootnodes=[v for v in dir(hh.h5f.root) if v[0]!='_' and v not in ignore_nodes]
+        except:
+            rootnodes=[v for v in hh.h5f.root._v_children.keys() if v not in ignore_nodes]
+        mat_data={}
+        for rn in rootnodes:
+            if rn in exclude:
+                continue
+            if os.path.basename(filename).split('_')[-2] in rn:
+                rnt='idnode'
+            else:
+                rnt=rn
+            mat_data[rnt]=hh.findvar(rn)
+            if hasattr(mat_data[rnt], 'keys') and len(mat_data[rnt].keys())==0:
+                mat_data[rnt]=0
+            elif mat_data[rnt] is None:
+                mat_data[rnt]='None'
+        if scale_sync and hasattr(hh,'sync') and hasattr(hh,'sync_scaling'):
+            mat_data['sync']=signal.from_16bit(mat_data['sync'], mat_data['sync_scaling'])
+        if 'soma_rois_manual_info' in mat_data and mat_data['soma_rois_manual_info']['roi_centers']=={}:
+            del mat_data['soma_rois_manual_info']
     hh.close()
     matfile=fileop.replace_extension(add_mat_tag(filename), '.mat')
     scipy.io.savemat(matfile, mat_data, oned_as = 'row', long_field_names=True,do_compression=True)
