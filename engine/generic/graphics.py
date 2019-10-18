@@ -384,6 +384,8 @@ class Screen(object):
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
         if len(image.shape)==2:
             image=numpy.rollaxis(numpy.array([image]*3), 0, 3)
+        if image.dtype==numpy.uint8:
+            image=numpy.cast['float'](image)/255
         if hasattr(position, 'dtype'):#Phasing out row/col format
             position=(position['col'], position['row'])
         
@@ -452,7 +454,10 @@ class Screen(object):
         
     def get_frame(self):
         pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
-        frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        try:
+            frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        except:
+            frame = Image.frombytes('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
         frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
         return numpy.asarray(frame)
         

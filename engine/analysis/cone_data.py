@@ -223,6 +223,8 @@ def find_repetitions(filename, folder, filter_by_stimulus_type = True):
     for fn, rois in aggregated_rois.items():
         if len(rois)>0 and rois is not None:#Skip if link exists but rois do not
             aggregated_rectangles[fn] = [r['rectangle'][:2] for r in rois]
+    if aggregated_rois.has_key(filename) and len(aggregated_rois[filename])==1:
+        return aggregated_rois[filename]
     #Match rois from different repetitions
     if not aggregated_rectangles.has_key(filename):
         raise RuntimeError('{0} does not contain rois. Make sure that rois are saved'.format(filename))
@@ -265,7 +267,7 @@ def compare_signatures(sig1, sig2):
         number_of_matches += 1 if numpy.where(abs(numpy.array(sig2)-sig1i).sum(axis=1)<1e-9)[0].shape[0] > 0 else 0
     return number_of_matches
     
-def aggregate_cells(folder):
+def aggregate_cells(folder,ignore_repetitions=False):
     '''
     Aggregates cell data from daatafiles in a folder including different stimuli and repetitions
     
@@ -275,6 +277,16 @@ def aggregate_cells(folder):
     skip_ids = []
     aggregated_cells = []
     allhdf5files.sort()
+    if ignore_repetitions:
+        rois=[]
+        for f in allhdf5files:
+            r=hdf5io.read_item(f, 'rois', filelocking=False)
+            if r==None: continue
+            for i in range(len(r)):
+                r[i]['filename']=os.path.splitext(os.path.basename(f))[0]
+            if isinstance(r,list):
+                rois.extend(r)
+        return rois
     for hdf5file in allhdf5files:
         print(allhdf5files.index(hdf5file)+1,len(allhdf5files), len(aggregated_cells))
         #Check if hdf5file is a valid recording file and hdf5file is not already processed during a previuous search for repetitions
@@ -490,6 +502,7 @@ class TestCA(unittest.TestCase):
             self.assertEqual(ref,parnames)
         self.assertTrue(all([hasattr(vv, 'shape') for vv in v.values() for v in parameter_distributions.values()]))
         
+    @unittest.skip('')
     def test_08_local_cell_detection(self):
         from visexpman.users.test.unittest_aggregator import prepare_test_data
         wf='/tmp/wf'
@@ -506,7 +519,7 @@ class TestCA(unittest.TestCase):
     
     @unittest.skip('')
     def test_debug(self):
-        aggregate_cells('/mnt/rzws/experiment_data/test')
+        aggregate_cells('/tmp/test')
     
 if __name__=='__main__':
     unittest.main()
