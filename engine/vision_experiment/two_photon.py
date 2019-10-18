@@ -59,6 +59,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def __init__(self, context):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
+        
         gui.VisexpmanMainWindow.__init__(self, context)
         self.setWindowIcon(gui.get_icon('behav'))
         self._init_variables()
@@ -127,6 +128,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.scan_timer.timeout.connect(self.scan_frame)
         
         self.init_camera_udp()
+        
+        self.queues = {'command': multiprocessing.Queue(), 
+                            'response': multiprocessing.Queue(), 
+                            'data': multiprocessing.Queue()}
+        
+        self.daq_process = daq_instrument.AnalogIOProcess('daq', self.queues, self.logger,
+                                ai_channels = self.machine_config.DAQ_DEV_ID + "/ai4:5",
+                                ao_channels= self.machine_config.DAQ_DEV_ID + "/ao0:3",
+                                limits=None)
+        self.daq_process.start()
         
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -243,43 +254,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #        self.plot()
 
     def init_daq(self):
-        self.analog_output = PyDAQmx.Task()
-        self.analog_output.CreateAOVoltageChan(self.machine_config.DAQ_DEV_ID + "/ao0:3",
-                                                            'ao',
-                                                            -5.0, 
-                                                            5.0, 
-                                                            DAQmxConstants.DAQmx_Val_Volts,
-                                                            None)
-        self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(self.machine_config.DAQ_DEV_ID), DAQmxConstants.DAQmx_Val_Rising)
-        self.analog_input = PyDAQmx.Task()
-        self.analog_input.CreateAIVoltageChan(self.machine_config.DAQ_DEV_ID + "/ai0:1",
-                                                            'ai',
-                                                            PyDAQmx.DAQmx_Val_RSE,
-                                                            -5.0, 
-                                                            5.0, 
-                                                            DAQmxConstants.DAQmx_Val_Volts,
-                                                            None)
-        self.read = DAQmxTypes.int32()
-        self.ai_data = numpy.zeros(self.waveform.shape[0]*2, dtype=numpy.float64)
-        self.analog_output.CfgSampClkTiming("OnboardClock",
-                                            self.machine_config.AIO_SAMPLE_RATE,
-                                            DAQmxConstants.DAQmx_Val_Rising,
-                                            DAQmxConstants.DAQmx_Val_ContSamps,
-                                            self.waveform.shape[0])
-        self.analog_input.CfgSampClkTiming("OnboardClock",
-                                            self.machine_config.AIO_SAMPLE_RATE,
-                                            DAQmxConstants.DAQmx_Val_Rising,
-                                            DAQmxConstants.DAQmx_Val_ContSamps,
-                                            self.waveform.shape[0])
-        self.analog_output.WriteAnalogF64(self.waveform.shape[0],
-                                    False,
-                                    self.machine_config.DAQ_TIMEOUT,
-                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                    self.waveform,
-                                    None,
-                                    None)
-        self.analog_output.StartTask()
-        self.analog_input.StartTask()
+        self.res = self.daq_process.start_daq(ai_sample_rate = self.machine_config.AIO_SAMPLE_RATE,
+                                                            ao_sample_rate = self.machine_config.AIO_SAMPLE_RATE,
+                                                            ao_waveform = self.waveform, 
+                                                            timeout = 30)
+
         self.shutter = PyDAQmx.Task()
         self.shutter.CreateDOChan(
             self.machine_config.DAQ_DEV_ID + "/port0/line0",
@@ -303,109 +282,32 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             numpy.array([int(0)], dtype=numpy.uint8),
             None,
             None)
-        self.read_daq()
-        self.analog_output.WaitUntilTaskDone(self.machine_config.DAQ_TIMEOUT)
-        self.analog_output.StopTask()
-        self.analog_input.StopTask()
-        
-    def read_daq(self):
-        try:
-            self.analog_input.ReadAnalogF64(self.waveform.shape[0],
-                                                self.machine_config.DAQ_TIMEOUT, 
-                                                DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                                self.ai_data,
-                                                self.waveform.shape[0]*2,
-                                                DAQmxTypes.byref(self.read),
-                                                None)
-        except PyDAQmx.DAQError:
-            pass
-        self.ai_data = self.ai_data[:self.read.value * 2]
-        self.ai_raw_data = self.ai_data
-        self.ai_data = self.ai_data.flatten('F').reshape((2, self.read.value)).transpose()
-        return copy.deepcopy(self.ai_data)
+        self.unread_data = self.daq_process.stop_daq()
+#        self.read_daq()
+#        self.analog_output.WaitUntilTaskDone(self.machine_config.DAQ_TIMEOUT)
+#        self.analog_output.StopTask()
+#        self.analog_input.StopTask()
     
     def record_action(self):
         if self.scanning:
             return
         self.generate_waveform()
         self.waveform=numpy.array([self.waveform_x, self.waveform_y, self.projector_control,  self.frame_timing])
-        self.waveform=self.waveform.flatten()
+#        self.waveform=self.waveform.flatten()
         #self.waveform=numpy.zeros_like(self.waveform)
-        self.init_daq()
-        return
-        
-        self.analog_output = Task()
-        self.analog_output.CreateAOVoltageChan(
-            self.machine_config.DAQ_DEV_ID + "/ao0:3",
-            "wf",
-            -5.0,
-            5.0,
-            PyDAQmx.DAQmx_Val_Volts,
-            None)
-        self.analog_output.CfgSampClkTiming(
-            "OnboardClock",
-            self.machine_config.AIO_SAMPLE_RATE,
-            PyDAQmx.DAQmx_Val_Rising,
-            PyDAQmx.DAQmx_Val_ContSamps,
-            self.waveform.shape[0])
-        print -2
-        self.analog_input = Task()
-        self.analog_input.CreateAIVoltageChan(
-            self.machine_config.DAQ_DEV_ID + "/ai0:1",
-            "sensor0,sensor1",
-            PyDAQmx.DAQmx_Val_RSE,
-            -5.0,
-            5.0,
-            PyDAQmx.DAQmx_Val_Volts,
-            None)
-        print -1
-        self.analog_input.CfgSampClkTiming(
-            "OnboardClock",
-            self.machine_config.AIO_SAMPLE_RATE,
-            PyDAQmx.DAQmx_Val_Rising,
-            PyDAQmx.DAQmx_Val_FiniteSamps,
-            self.waveform.shape[0])
-        '''
-        TODO: trying to synchronize - hardware does not support yet (i am not sure if this is the solution)
-        '''
-        print 1
-        self.analog_output.CfgDigEdgeStartTrig(
-            "ai/StartTrigger",
-            PyDAQmx.DAQmx_Val_Rising)
-        self.shutter = Task()
-        self.shutter.CreateDOChan(
-            self.machine_config.DAQ_DEV_ID + "/port0/line0",
-            "shutter",
-            PyDAQmx.DAQmx_Val_GroupByChannel)
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(1)], dtype=numpy.uint8),
-            None,
-            None)
-        self.printc('Shutter opened')
-        self.analog_output.WriteAnalogF64(
-            self.waveform.shape[0],
-            False,
-            self.machine_config.DAQ_TIMEOUT,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.copy(self.waveform),
-            None,
-            None)
-        self.analog_input.StartTask()
-        self.frame = numpy.zeros((utils.roundint(self.image_width * self.image_resolution), utils.roundint(self.image_height * self.image_resolution), 3),  dtype = int)
-        print 2
-        self.scan_frame() # After changing parameters, this way is no need to wait for timer to scan the new frame + z tack will get a preview image
-        if(not self.z_stacking):
-            self.scan_timer.start(30) # TODO: Adjust as needed!
-            self.statusbar.recording_status.setText('Scanning...')
-        
+        self.init_daq()        
         self.scanning = True
+        sample_time=self.waveform.shape[1]/float(self.machine_config.AIO_SAMPLE_RATE)
+        self.printc("Frame rate {0}".format(1/sample_time))
+        self.scan_timer.start(int(sample_time*1000))
+        self.statusbar.recording_status.setText('Recording')
+        self.statusbar.recording_status.setStyleSheet('background:red;')
     
     def scan_frame(self):
-        self.read_daq()
+        f=self.daq_process.read_ai()
+        if hasattr(f,  'dtype'):
+            self.frame = f
+            self.printc(self.frame.shape)
         return
         fps_counter_start = time.time()
         
@@ -532,7 +434,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
     def update_image(self):
         if(self.frame is not None):
-            self.image.set_image(self.mask_channel(self.frame))
+            try:
+                self.image.set_image(self.mask_channel(self.frame))
+            except:
+                self.printc("img disp problem")
         self.socket_handler()
     
     def stop_action(self, remote=None):
@@ -546,7 +451,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.socket_queues['2p']['tosocket'].put({'stop_action': "Z stacking is in progress, cannot abort manually."})
             return
     
-        self.analog_input.StopTask()
+       
         self.scan_timer.stop()
     
         self.shutter.WriteDigitalLines(
@@ -558,15 +463,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             None,
             None)
         self.printc("Close shutter")
-        self.analog_input.StopTask()
-        self.analog_output.StopTask()
-        
-        self.analog_input.ClearTask()
-        self.analog_output.ClearTask()
-        self.shutter.ClearTask()
+        self.stop_daq()
         
         self.scanning = False
-        self.statusbar.recording_status.setText('Stopped')
+        self.statusbar.recording_status.setText('Idle')
+        self.statusbar.recording_status.setStyleSheet('background:gray;')
         
     def restart_scan(self):
         self.stop_action()
@@ -713,6 +614,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def exit_action(self):
         self.stop_action()
         self.save_context()
+        self.daq_process.terminate()
         self.close()
 
 class Test(unittest.TestCase):

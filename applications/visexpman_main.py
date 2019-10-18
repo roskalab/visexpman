@@ -497,7 +497,7 @@ def run_stim(context, timeout = None):
     stim.run(timeout=timeout)
     
 def run_2p(context, timeout = None):
-    context['logger'].add_source('engine')
+    context['logger'].add_source('daq')
     context['logger'].start()
     from visexpman.engine.vision_experiment import two_photon
     two_photon.TwoPhotonImaging(context=context)
