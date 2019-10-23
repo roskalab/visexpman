@@ -373,7 +373,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
                 
-    def show_video(self, fn, position = (0, 0),  stretch=1.0,  load_video=True):
+    def show_video(self, fn, position = (0, 0),  stretch=1.0,  load_video=True, half_fps=False):
         if 0:
             if load_video:
                 self.read_video(fn)
@@ -393,16 +393,20 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             frame_time=1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
             for frame in skvideo.io.vreader(fn):
                 rct+=1
+                if rct%2==1 and half_fps:
+                    time.sleep(8e-6)
+                    continue
                 dt=time.time()-t0
                 expected_time=rct*frame_time
-                if expected_time<dt:
-                    continue
-                if frame.shape[0]>800:
+               # if expected_time<dt:
+                #    continue
+                if frame.shape[0]>500:
                     frame_c=frame[::2,::2,:]
                     stretch_c=2*stretch
                 else:
                     stretch_c=stretch
                     frame_c=frame
+                frame_c=numpy.cast['float'](frame_c)/255.
                 self._show_image(frame_c,0,utils.cr((position[0], position[1])),stretch_c, True)
                 dct+=1
                 if self.abort:
