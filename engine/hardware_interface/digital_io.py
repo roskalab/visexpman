@@ -63,7 +63,7 @@ class SerialPortDigitalIO(instrument.Instrument):
             if hasattr(self.s[device_id], 'setBreak'):
                 self.s[device_id].setBreak(not bool(value))
             else:
-                self.s[device_id].sendBreak(not bool(value))
+                self.s[device_id].sendBreak(0)
         elif channel%2 == 1:
             self.s[device_id].setRTS(not bool(value))
         if log:
