@@ -202,6 +202,15 @@ class Stimulus(stimulation_library.AdvancedStimulation):
                 d[vn]=getattr(self,vn)
         return d
         
+    def run_psychopy_stim(self):
+        #Disable timing signal control, will be handled by psychopy stimulus
+        self.digital_io.close()
+        del self.digital_io
+        stimulus_source=fileop.read_text_file(self.FILENAME)
+        self.SOURCE=stimulus_source
+        self.printl('Loaded {0}'.format(self.FILENAME))
+        exec(stimulus_source)
+        
 class BehavioralProtocol(threading.Thread):
 #class BehavioralProtocol(multiprocessing.Process):
     '''

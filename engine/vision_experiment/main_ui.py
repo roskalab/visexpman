@@ -574,6 +574,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.analysis.parent=self
             #filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user) if self.machine_config.PLATFORM in ['ao_cortical','resonant'] else self.machine_config.EXPERIMENT_DATA_PATH
             filebrowserroot=self.engine.dataroot
+            if not os.path.exists(filebrowserroot):
+                filebrowserroot=self.machine_config.EXPERIMENT_DATA_PATH
             self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.mp4', '*.zip', '*.mesc', '*.mcd'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
