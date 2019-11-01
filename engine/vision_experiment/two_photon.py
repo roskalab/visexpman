@@ -36,7 +36,11 @@ def generate_waveform(image_width,  image_height,  resolution,  **kwargs):
     ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - return_x_samps)
     ramp_down_x = numpy.linspace(x_max, x_min, num=return_x_samps + 1)[1:-1] # Exclude extreme values (avoiding duplication during concatenation)
     waveform_x = numpy.concatenate((ramp_up_x,  ramp_down_x))
+    scan_mask=numpy.concatenate((numpy.ones_like(ramp_up_x), numpy.zeros_like(ramp_down_x)))
     waveform_x = numpy.tile(waveform_x, total_lines)
+    scan_mask= numpy.tile(scan_mask, total_lines-kwargs['y_flyback_lines'])
+    scan_mask=numpy.pad(scan_mask, (0,waveform_x.shape[0]-scan_mask.shape[0]), 'constant')
+    
 
     # Linear Y signal
     ramp_up_y = numpy.linspace(y_min, y_max, num=waveform_x.shape[0] - return_y_samps)
@@ -52,7 +56,24 @@ def generate_waveform(image_width,  image_height,  resolution,  **kwargs):
     
     frame_timing=numpy.zeros_like(projector_control)
     frame_timing[-utils.roundint(1e-3*kwargs['fsample']):]=ttl_voltage
-    return waveform_x,  waveform_y, projector_control,  frame_timing
+    
+    #Calculate indexes for extractable parts of pmt signal
+    boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
+    
+    
+    return waveform_x,  waveform_y, projector_control,  frame_timing,  boundaries
+    
+def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
+    binned_pmt_data = binning_data(rawdata, binning_factor)
+    if offset != 0:
+        binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
+    return numpy.array((numpy.split(binned_pmt_data, boundaries)[0::2]))
+
+def binning_data(data, factor):
+    '''
+    data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
+    '''
+    return numpy.reshape(data, (int(data.shape[0]/factor), factor, data.shape[1])).mean(1)
 
 class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
@@ -157,7 +178,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.z_stack = None
         self.reference_video = None
         
-        self.shortest_sample = 1.0 / self.machine_config.AIO_SAMPLE_RATE
+        self.shortest_sample = 1.0 / self.machine_config.AO_SAMPLE_RATE
         
         self.params_config = [
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/um'},
@@ -178,8 +199,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'IR Y Scale', 'type': 'float', 'value': 1, 'min': 0.01, 'step': 0.01, 'siPrefix': False},
                 {'name': 'IR Rotation', 'type': 'int', 'value': 0, 'limits': (0, 359), 'step': 1, 'siPrefix': False, 'suffix': ' degrees'},
                 
-                {'name': 'Z Stack Min Depth', 'type': 'int', 'value': 150, 'limits': (0, 250), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Z Stack Max Depth', 'type': 'int', 'value': 300, 'limits': (250, 500), 'step' : 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Z Stack Start', 'type': 'int', 'value': 150, 'limits': (0, 250), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Z Stack End', 'type': 'int', 'value': 300, 'limits': (250, 500), 'step' : 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Z Stack Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
             ]
         self.params_config.extend(params)
@@ -199,7 +220,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             newparams['Resolution']!=self.parameters['Resolution'] or\
             newparams['X Return Time']!=self.parameters['X Return Time'] or\
             newparams['Projector Control Pulse Width']!=self.parameters['Projector Control Pulse Width']):
-                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AIO_SAMPLE_RATE - self.shortest_sample
+                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
                 self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
                 self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
                 self.parameters=newparams
@@ -223,7 +244,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def plot(self):
         from pylab import plot, grid, show
         i=0
-        t=numpy.arange(self.waveform_x.shape[0]) / float(self.machine_config.AIO_SAMPLE_RATE) * 1e3
+        t=numpy.arange(self.waveform_x.shape[0]) / float(self.machine_config.AO_SAMPLE_RATE) * 1e3
         y=[self.projector_control, self.waveform_x, self.waveform_y, self.frame_timing]
         x=[t]*len(y)
 #        self.generate_waveform();self.plot()
@@ -242,23 +263,22 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 ######### Two Photon ###########
     
     def generate_waveform(self):
-        self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing=generate_waveform(self.parameters['Image Width'],  
+        self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing,  self.boundaries=generate_waveform(self.parameters['Image Width'],  
                                                                                             self.parameters['Image Height'],  
                                                                                             self.parameters['Resolution'],  
                                                                                             x_flyback_time=self.parameters['X Return Time'],  
                                                                                             y_flyback_lines=self.machine_config.Y_FLYBACK_LINES, 
-                                                                                            fsample=self.machine_config.AIO_SAMPLE_RATE,  
+                                                                                            fsample=self.machine_config.AO_SAMPLE_RATE,  
                                                                                             um2voltage=self.machine_config.UM_TO_VOLTAGE,
                                                                                             stim_pulse_width=self.parameters['Projector Control Pulse Width'])
-   
 #        self.plot()
 
     def init_daq(self):
-        self.res = self.daq_process.start_daq(ai_sample_rate = self.machine_config.AIO_SAMPLE_RATE,
-                                                            ao_sample_rate = self.machine_config.AIO_SAMPLE_RATE,
+        self.res = self.daq_process.start_daq(ai_sample_rate = self.machine_config.AI_SAMPLE_RATE,
+                                                            ao_sample_rate = self.machine_config.AO_SAMPLE_RATE,
                                                             ao_waveform = self.waveform, 
                                                             timeout = 30)
-
+        self.binning_factor=self.machine_config.AI_SAMPLE_RATE/self.machine_config.AO_SAMPLE_RATE
         self.shutter = PyDAQmx.Task()
         self.shutter.CreateDOChan(
             self.machine_config.DAQ_DEV_ID + "/port0/line0",
@@ -297,7 +317,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         #self.waveform=numpy.zeros_like(self.waveform)
         self.init_daq()        
         self.scanning = True
-        sample_time=self.waveform.shape[1]/float(self.machine_config.AIO_SAMPLE_RATE)
+        sample_time=self.waveform.shape[1]/float(self.machine_config.AI_SAMPLE_RATE)
         self.printc("Frame rate {0}".format(1/sample_time))
         self.scan_timer.start(int(sample_time*1000))
         self.statusbar.recording_status.setText('Recording')
@@ -324,7 +344,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             2 * self.sampsperchan,
             PyDAQmx.byref(read),
             None)
-        print 2
+        print (2)
         # Scaling pixel data
         data -= min(data)
         data *= 255.0 / self.machine_config.BRIGHT_PIXEL_VOLTAGE # Instead of dividing by max(data) -> watherver, gui.Image automatically scales colours anyway in set_image function - check out!
@@ -385,7 +405,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText("Recording Z stack, frame number: " + str(len(self.z_stack)))
         else:
             self.statusbar.recording_status.setText("Scanning... " + str(round(1.0/(time.time() - fps_counter_start), 2)) + " FPS")
-        print 3
+        print (3)
         '''
         TODO: add binning (something like this) - when hardware can handle more then 5000 samps/sec
         def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
@@ -407,7 +427,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 if 'function' in command:
                     getattr(self,  command['function'])(*command['args']) # Executes function with given args
             except:
-                printc("Socket handler error!")
+                self.printc("Socket handler error!")
     
     # Change parameters remotely (for zmq use) takes python dictionary as parameter
     def change_params(self, param_set):
@@ -425,19 +445,20 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def mask_channel(self, source):
         canvas = numpy.copy(source)
         if not self.parameters["Enable RED channel"]:
-            canvas[:, :, 0:1] = 0
+            canvas[:, :, 0] = 0
         if not self.parameters["Enable GREEN channel"]:
-            canvas[:, :, 1:2] = 0
+            canvas[:, :, 1] = 0
         if not self.parameters["Enable IR layer"]:
-            canvas[:, :, 2:3] = 0
+            canvas[:, :, 2] = 0
         return canvas
     
     def update_image(self):
-        if(self.frame is not None):
-            try:
-                self.image.set_image(self.mask_channel(self.frame))
-            except:
-                self.printc("img disp problem")
+        if self.frame is not None and self.frame.shape[0]>0:
+            self.img=raw2frame(self.frame, self.binning_factor, self.boundaries, offset = 0)
+            self.img2display=numpy.zeros((self.img.shape[0], self.img.shape[1], 3))
+            self.img2display[:, :, :2]=self.img
+            self.image.set_image(self.mask_channel(self.img2display))
+            
         self.socket_handler()
     
     def stop_action(self, remote=None):
@@ -559,7 +580,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.record_action() # Without statring scan_timer! (self.z_stacking = True) scan_frame is being called 'manually' check out the for loop below!
         preview = numpy.copy(self.frame) # Preview image (self.frame) available right after record_action()
         
-        for i in range(self.parameters["Z Stack Min Depth"],  self.parameters["Z Stack Max Depth"],  self.parameters["Z Stack Step"]):
+        for i in range(self.parameters["Z Stack Start"],  self.parameters["Z Stack End"],  self.parameters["Z Stack Step"]):
             self.set_depth(i)
             Qt.QApplication.processEvents() # Update gui
             self.scan_frame()
