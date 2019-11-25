@@ -1340,9 +1340,9 @@ def send_udp(ip,port,msg):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, (ip, port))
     
-def sendrecv_udp(lip,  rip,  lport,  rport,  msg):
+def sendrecv_udp(lip,  rip,  lport,  rport,  msg, timeout=1.0):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client_socket.settimeout(1.0)
+    client_socket.settimeout(timeout)
     addr = (rip, rport)
     client_socket.bind((lip, lport))
     start = time.time()

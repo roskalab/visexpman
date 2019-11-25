@@ -298,7 +298,20 @@ class ExperimentHandler(object):
             [self.printc('Batch generated: {0}/{1} um' .format(b['id'], b['motor position'])) for b in self.batch]
         elif self.machine_config.ENABLE_BATCH_EXPERIMENT:
             if self.guidata.read('Enable tile scan'):
-                raise NotImplementedError()
+                xstepsize=(self.guidata.read('Tile Width')-self.guidata.read('Tile Overlap'))
+                ystepsize=(self.guidata.read('Tile Height')-self.guidata.read('Tile Overlap'))
+                nxsteps=numpy.ceil((self.guidata.read('X end')-self.guidata.read('X start'))/xstepsize)
+                nysteps=numpy.ceil((self.guidata.read('Y end')-self.guidata.read('Y start'))/ystepsize)
+                if nxsteps==0:
+                    nxsteps=1
+                if nysteps==0:
+                    nysteps=1
+                x_coordinates=numpy.arange(nxsteps)*xstepsize+self.guidata.read('X start')
+                y_coordinates=numpy.arange(nysteps)*ystepsize+self.guidata.read('Y start')
+                xx, yy=numpy.meshgrid(x_coordinates,  y_coordinates)
+                xx=xx.flatten()
+                yy=yy.flatten()
+                coords=zip(xx,yy)
             if self.guidata.read('Z start')<self.guidata.read('Z end'):
                 raise ValueError('Z start shall be bigger than Z end')
             elif self.guidata.read('Z step')<0:
@@ -308,6 +321,8 @@ class ExperimentHandler(object):
             zst=self.guidata.read('Z step')
             depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
             self.batch=[]
+            self.depths=depths
+            self.coords=coords
             for d in depths:
                 for r in range(self.guidata.read('Repeats')):
                     par=copy.deepcopy(experiment_parameters)
@@ -317,7 +332,22 @@ class ExperimentHandler(object):
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
                     self.batch.append(par)
-            self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um' .format(b['id'], b['depth']) for b in self.batch]))
+                    if self.guidata.read('Enable tile scan'):
+                        ref=copy.deepcopy(self.batch[-1])
+                        del self.batch[-1]
+                        for xpos,  ypos in coords:
+                            par=copy.deepcopy(ref)
+                            time.sleep(0.2)
+                            par['xpos']=xpos
+                            par['ypos']=ypos
+                            par['id']=experiment_data.get_id()
+                            par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
+                            par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                            self.batch.append(par)
+            if self.guidata.read('Enable tile scan'):
+                self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um, {2} um, {3} um' .format(b['id'], b['depth'],  b['xpos'],  b['ypos']) for b in self.batch]))
+            else:
+                self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um' .format(b['id'], b['depth']) for b in self.batch]))
         elif self.machine_config.PLATFORM == 'rc_cortical':
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
         self.fullbatch=copy.deepcopy(self.batch)
@@ -382,6 +412,10 @@ class ExperimentHandler(object):
             if hasattr(experiment_parameters, 'keys') and 'depth' in experiment_parameters and hasattr(self.microscope, 'set_z'):
                 self.microscope.set_z(experiment_parameters['depth'])
                 self.printc('Set z to {0} um'.format(experiment_parameters['depth']))
+            #Set xy
+            if hasattr(experiment_parameters, 'keys') and 'xpos' in experiment_parameters and hasattr(self.microscope, 'set_xy'):
+                self.microscope.set_xy(experiment_parameters['xpos'], experiment_parameters['ypos'])
+                self.printc('Set position to x={0} um, y={1} um'.format(experiment_parameters['xpos'], experiment_parameters['ypos']))
         if self.sync_recording_started or self.experiment_running:
             self.notify('Warning', 'Experiment already running')
             return

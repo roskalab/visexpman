@@ -911,8 +911,8 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Y start', 'type': 'float', 'value': 0,  'suffix': 'um'},
                     {'name': 'Y end', 'type': 'float', 'value': 0,  'suffix': 'um'},
                     {'name': 'Tile overlap', 'type': 'float', 'value': 50,  'suffix': 'um'},
-                    {'name': 'Tile Field of View X', 'type': 'float', 'value': 300,  'suffix': 'um'},
-                    {'name': 'Tile Field of View Y', 'type': 'float', 'value': 300,  'suffix': 'um'},
+                    {'name': 'Tile Width', 'type': 'float', 'value': 300,  'suffix': 'um'},
+                    {'name': 'Tile Height', 'type': 'float', 'value': 300,  'suffix': 'um'},
                     ]},
             )
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):
