@@ -116,7 +116,10 @@ class StimulationScreen(graphics.Screen):
         self.max_chars =  int(self.config.SCREEN_RESOLUTION['col']/(8+13.0))
         self.menu_text = 'cursors - adjust screen center, '
         commands = self.config.KEYS.keys()
-        commands.sort()
+        if hasattr(commands,  'sort'):
+            commands.sort()
+        else:
+            sorted(commands)
         for k in commands:
             self.menu_text+= '\n{0} - {1} '.format(self.config.KEYS[k], k)
         if self.config.PLATFORM in ['behav', 'epos', 'hi_mea', 'standalone', 'intrinsic']:

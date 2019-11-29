@@ -14,10 +14,7 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except:
     print ('No PyDAQmx')
-try:
-    import experiment_data
-except ImportError:
-    from visexpman.engine.vision_experiment import experiment_data
+from visexpman.engine.vision_experiment import experiment_data
 import visexpman.engine
 from visexpman.engine.generic import utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard

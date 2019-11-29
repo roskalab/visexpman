@@ -16,7 +16,7 @@ class QueuedSocketHelpers(object):
         
     def _get_queue(self, connection):
         if connection == None:
-            if self.socket_queues.has_key('fromsocket'):
+            if 'fromsocket' in self.socket_queues:
                 queue = self.socket_queues['fromsocket']
             elif len(self.socket_queues.keys())==1:
                 queue = self.socket_queues.values()[0]['fromsocket']

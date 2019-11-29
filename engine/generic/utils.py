@@ -1103,6 +1103,8 @@ def safe_has_key(var, key):
     if hasattr(var, 'has_key'):
         if var.has_key(key):
             result = True
+    elif hasattr(var, 'values') :
+        result= key in var
     return result
     
 def safe_istrue(obj, var):
