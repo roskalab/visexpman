@@ -42,11 +42,10 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
             return False
         if not hasattr(self, message['function']):
             return False
-        
-        args = message.get('args', [])
+        fargs = message.get('args', [])
         kwargs = message.get('kwargs', {})
         try:
-            getattr(self, message['function'])(*args, **kwargs)
+            getattr(self, message['function'])(*fargs, **kwargs)
             return True
         except:
             import traceback

@@ -223,6 +223,9 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
             self.printc('Save time {0} s'.format(int(time.time()-t0)))
+            if self.fps_values.shape[0]<10:
+                self.printc('Recording too short, file removed')
+                os.remove(self.fn)
         except:
             e=traceback.format_exc()
             self.printc(e)

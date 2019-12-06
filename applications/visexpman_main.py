@@ -5,7 +5,7 @@ Starter module of all Vision Experiment Manager applications
 -u zoltan -c CaImagingTestConfig -a stim
 -u zoltan -c CaImagingTestConfig -a main_ui --testmode 1
 '''
-import sys
+import sys, pdb
 import unittest
 import time
 import os.path
@@ -445,12 +445,12 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         
     def start_stimulus(self,parameters):
         #Create experiment config class from experiment source code
-        if parameters.has_key('experiment_config_source_code'):
+        if 'experiment_config_source_code' in parameters:
             introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.experiment_config = getattr(experiment_module, parameters['stimclass'])(self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
-        elif parameters.has_key('stimulus_source_code'):
+        elif 'stimulus_source_code' in parameters:
             introspect.import_code(parameters['stimulus_source_code'],'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.experiment_config = getattr(experiment_module, parameters['stimclass'])(self.config, self.socket_queues, \
@@ -526,14 +526,14 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
             'stimulation_device' : '', 
             'stimulus_only':True,
             'id':str(int(numpy.round(time.time(), 2)*100))}
-    if kwargs.has_key('stimulus_source_code'):
+    if 'stimulus_source_code' in kwargs:
         parameters['stimulus_source_code']=kwargs['stimulus_source_code']
-    if kwargs.has_key('experiment_config_source_code'):
+    if 'experiment_config_source_code' in kwargs:
         parameters['experiment_config_source_code']=kwargs['experiment_config_source_code']
         parameters['stimclass']=experiment_config
-    commands = [{'function': 'start_stimulus', 'args': [parameters]}]
-    commands.append({'function': 'exit_application'})
-    map(context['socket_queues']['stim']['fromsocket'].put, commands)
+    stim_commands = [{'function': 'start_stimulus', 'args': [parameters]}]
+    stim_commands.append({'function': 'exit_application'})
+    [context['socket_queues']['stim']['fromsocket'].put(c) for c in stim_commands]
     context['logger'].start()
     stim.run()
     visexpman.engine.stop_application(context)

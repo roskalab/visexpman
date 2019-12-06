@@ -11,10 +11,7 @@ except ImportError:
 from contextlib import closing
 import tables
 from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
-try:
-    import screen,experiment_control
-except ImportError:
-    from visexpman.engine.vision_experiment import screen,experiment_control
+from visexpman.engine.vision_experiment import screen,experiment_control
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
