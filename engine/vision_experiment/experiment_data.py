@@ -302,7 +302,10 @@ class CaImagingData(supcl):
                     raise RuntimeError('number of block start and block end timestamps do not match ({0}, {1})'.format(bsi,  bei))
                 expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
                 measured_block_durations = numpy.diff(self.tstim)[::2]
-                measured_frame_rate=(bei-bsi)/measured_block_durations
+                try:
+                    measured_frame_rate=(bei-bsi)/measured_block_durations
+                except ValueError:#TODO: Sometimes measured_block_durations is shorter than actual number of blocks. This shall be fixed but not critical
+                    measured_frame_rate=(bei-bsi)[:measured_block_durations.shape[0]]/measured_block_durations
                 error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
                 if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
                     errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))

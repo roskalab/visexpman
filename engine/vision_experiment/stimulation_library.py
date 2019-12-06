@@ -2123,6 +2123,10 @@ class AdvancedStimulation(StimulationHelpers):
             
             centers_x=numpy.linspace(angle_start_x+size_x*0.5,angle_end_x-size_x*0.5,ncolumns)
             centers_y=numpy.linspace(angle_start_y+size_y*0.5,angle_end_y-size_y*0.5,nrows)
+            
+            self.experiment_config.CENTERS_X_ANGLE=centers_x
+            self.experiment_config.CENTERS_Y_ANGLE=centers_y
+            
             #Convert angles to position ranges:
             edge1x=numpy.tan(centers_x-size_x*0.5)*d-dx
             edge2x=numpy.tan(centers_x+size_x*0.5)*d-dx
