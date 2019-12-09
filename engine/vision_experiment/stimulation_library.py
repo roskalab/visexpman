@@ -1829,6 +1829,8 @@ class StimulationHelpers(Stimulations):
             raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.format(expected_configs))
         
     def export2video(self, filename, img_format='png'):
+        print('Obsolete')
+        raise 
         if self.machine_config.ENABLE_FRAME_CAPTURE:
             videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
 
@@ -2284,7 +2286,7 @@ class AdvancedStimulation(StimulationHelpers):
         else:
             self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
         if moving_range is not None:
-            self.movement = moving_range+ shape_size
+            self.movement = moving_range
         
         trajectory_directions = []
         trajectories = []
