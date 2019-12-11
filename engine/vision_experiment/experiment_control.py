@@ -503,7 +503,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 3.0,
+                    'DAQ_TIMEOUT' : 30 if self.sync_recording_duration>800 else 3.0,
                     'SAMPLE_RATE'  :self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
                     'AI_CHANNEL' : self.machine_config.SYNC_RECORDER_CHANNELS,
                     'MAX_VOLTAGE' : 10.0,
@@ -511,7 +511,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     'DURATION_OF_AI_READ' : 2*self.sync_recording_duration,
                     'ENABLE' : True
                     },]
-        
+        if self.sync_recording_duration==0:
+            raise ValueError('Sync buffer is set to 0 because recording duration is 0. Please correct stimulus duration calculation')
         config=Conf()
         self.analog_input = daq_instrument.AnalogIO(config)
         self.sync_recorder_started=time.time()

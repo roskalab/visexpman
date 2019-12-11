@@ -2104,8 +2104,8 @@ class AdvancedStimulation(StimulationHelpers):
                 raise NotImplementedError("")
                 
             d=self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*0.1
-            dx=-self.machine_config.DISPLACEMENT_FROM_SCREEN_CENTER[0]
-            dy=-self.machine_config.DISPLACEMENT_FROM_SCREEN_CENTER[1]
+            dx=-self.experiment_config.DISPLACEMENT_FROM_SCREEN_CENTER[0]
+            dy=-self.experiment_config.DISPLACEMENT_FROM_SCREEN_CENTER[1]
             
             x1=self.machine_config.SCREEN_WIDTH*0.5-dx
             x2=self.machine_config.SCREEN_WIDTH*0.5+dx

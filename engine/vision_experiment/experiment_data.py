@@ -1951,9 +1951,27 @@ class Copier(multiprocessing.Process):
                 e=traceback.format_exc()
                 self.log.put(e)
             
+def read_mesc(fn, measurement_unit=None):
+    import tables
+    h=tables.open_file(fn)
+    data={}
+    comment={}
+    if not hasattr(h.root,'MSession_0'):
+        raise
+    for munit in h.root.MSession_0:
+        data[munit._v_name]={}
+        comment[munit._v_name]=''.join(map(chr, munit._v_attrs.Comment))[:-1]
         
+        for an in ['Channel_0', 'Channel_1']:
+            if hasattr(munit, an):
+                data[munit._v_name][an]=2**16-1-getattr(munit, an).read()
+    h.close()
+    return data, comment
 
 class Test(unittest.TestCase):
+    def test(self):
+        read_mesc('/tmp/pmt_saturation_at_different_LED_currents_and_flashing_patterns.mesc')
+        
     def setUp(self):
         pass
         
