@@ -78,6 +78,42 @@ class IRLaser980high(stimuli.LaserPulseC):
         self.NPULSES=5
         self.LASER_AMPLITUDE=[2.6, 2.8] #
 
+class IRLaser980high3(stimuli.LaserPulseC):
+    def _create_parameters(self):
+        stimuli.LaserPulseC._create_parameters(self)
+        self.INITIAL_DELAY=5 #
+        self.PULSE_DURATION=[100E-3]
+        self.PERIOD_TIME=[10.0]
+        self.NPULSES=5
+        self.LASER_AMPLITUDE=[2.25, 2.47, 2.6] #
+
+class IRLaser980high5(stimuli.LaserPulseC):
+    def _create_parameters(self):
+        stimuli.LaserPulseC._create_parameters(self)
+        self.INITIAL_DELAY=5 #
+        self.PULSE_DURATION=[100E-3]
+        self.PERIOD_TIME=[10.0]
+        self.NPULSES=5
+        self.LASER_AMPLITUDE=[1.75, 2.05, 2.25, 2.47, 2.6] #
+
+class IRLaser980high4(stimuli.LaserPulseC):
+    def _create_parameters(self):
+        stimuli.LaserPulseC._create_parameters(self)
+        self.INITIAL_DELAY=5 #
+        self.PULSE_DURATION=[100E-3]
+        self.PERIOD_TIME=[10.0]
+        self.NPULSES=5
+        self.LASER_AMPLITUDE=[2.05, 2.25, 2.47, 2.6] #
+
+class IRLaser910high3(stimuli.LaserPulseC):
+    def _create_parameters(self):
+        stimuli.LaserPulseC._create_parameters(self)
+        self.INITIAL_DELAY=5 #
+        self.PULSE_DURATION=[100E-3]
+        self.PERIOD_TIME=[10.0]
+        self.NPULSES=5
+        self.LASER_AMPLITUDE=[1.23, 1.3, 1.365] #
+
 class IRLaser980highwait(stimuli.LaserPulseC):
     def _create_parameters(self):
         stimuli.LaserPulseC._create_parameters(self)

@@ -449,7 +449,7 @@ def class_name(object):
     name = str(object.__class__)
     return name.split('\'')[1]
     
-def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_ancestors=[], direct=True):
+def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_ancestors=[], direct=True, verbose=False):
     '''Looks for the specified class, imports it and returns as class instance.
     Use cases:
     1. just specify user, others left as default: returns all classes
@@ -483,7 +483,8 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
                     class_list.append((m, attr[1]))
                     # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run
         except ImportError:
-            traceback.print_exc()
+            if verbose:
+                traceback.print_exc()
             pass
         except AttributeError:  # circular import case?
             print('Circular import error in fetch_classes. Needs more testing but likely this message can be silenced.')
