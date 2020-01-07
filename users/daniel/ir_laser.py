@@ -114,6 +114,16 @@ class IRLaser910high3(stimuli.LaserPulseC):
         self.NPULSES=5
         self.LASER_AMPLITUDE=[1.23, 1.3, 1.365] #
 
+class IRLaser910high4(stimuli.LaserPulseC):
+    def _create_parameters(self):
+        stimuli.LaserPulseC._create_parameters(self)
+        self.INITIAL_DELAY=5 #
+        self.PULSE_DURATION=[100E-3]
+        self.PERIOD_TIME=[10.0]
+        self.NPULSES=5
+        self.LASER_AMPLITUDE=[1.1, 1.23, 1.3, 1.365] #
+
+
 class IRLaser980highwait(stimuli.LaserPulseC):
     def _create_parameters(self):
         stimuli.LaserPulseC._create_parameters(self)
