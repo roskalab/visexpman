@@ -302,7 +302,10 @@ class CaImagingData(supcl):
                     raise RuntimeError('number of block start and block end timestamps do not match ({0}, {1})'.format(bsi,  bei))
                 expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
                 measured_block_durations = numpy.diff(self.tstim)[::2]
-                measured_frame_rate=(bei-bsi)/measured_block_durations
+                try:
+                    measured_frame_rate=(bei-bsi)/measured_block_durations
+                except ValueError:#TODO: Sometimes measured_block_durations is shorter than actual number of blocks. This shall be fixed but not critical
+                    measured_frame_rate=(bei-bsi)[:measured_block_durations.shape[0]]/measured_block_durations
                 error=measured_frame_rate-self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE']
                 if numpy.where(abs(error)>FRAME_RATE_TOLERANCE)[0].shape[0]>0:
                     errors.append('Measured frame rate(s): {0} Hz, mean : {2} Hz, expected frame rate: {1} Hz'.format(measured_frame_rate,self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'], measured_frame_rate.mean()))
@@ -1948,9 +1951,27 @@ class Copier(multiprocessing.Process):
                 e=traceback.format_exc()
                 self.log.put(e)
             
+def read_mesc(fn, measurement_unit=None):
+    import tables
+    h=tables.open_file(fn)
+    data={}
+    comment={}
+    if not hasattr(h.root,'MSession_0'):
+        raise
+    for munit in h.root.MSession_0:
+        data[munit._v_name]={}
+        comment[munit._v_name]=''.join(map(chr, munit._v_attrs.Comment))[:-1]
         
+        for an in ['Channel_0', 'Channel_1']:
+            if hasattr(munit, an):
+                data[munit._v_name][an]=2**16-1-getattr(munit, an).read()
+    h.close()
+    return data, comment
 
 class Test(unittest.TestCase):
+    def test(self):
+        read_mesc('/tmp/pmt_saturation_at_different_LED_currents_and_flashing_patterns.mesc')
+        
     def setUp(self):
         pass
         

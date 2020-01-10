@@ -1829,6 +1829,8 @@ class StimulationHelpers(Stimulations):
             raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.format(expected_configs))
         
     def export2video(self, filename, img_format='png'):
+        print('Obsolete')
+        raise 
         if self.machine_config.ENABLE_FRAME_CAPTURE:
             videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
 
@@ -2102,8 +2104,8 @@ class AdvancedStimulation(StimulationHelpers):
                 raise NotImplementedError("")
                 
             d=self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE*0.1
-            dx=-self.machine_config.DISPLACEMENT_FROM_SCREEN_CENTER[0]
-            dy=-self.machine_config.DISPLACEMENT_FROM_SCREEN_CENTER[1]
+            dx=-self.experiment_config.DISPLACEMENT_FROM_SCREEN_CENTER[0]
+            dy=-self.experiment_config.DISPLACEMENT_FROM_SCREEN_CENTER[1]
             
             x1=self.machine_config.SCREEN_WIDTH*0.5-dx
             x2=self.machine_config.SCREEN_WIDTH*0.5+dx
@@ -2120,6 +2122,10 @@ class AdvancedStimulation(StimulationHelpers):
             
             centers_x=numpy.linspace(angle_start_x+size_x*0.5,angle_end_x-size_x*0.5,ncolumns)
             centers_y=numpy.linspace(angle_start_y+size_y*0.5,angle_end_y-size_y*0.5,nrows)
+            
+            self.experiment_config.CENTERS_X_ANGLE=centers_x
+            self.experiment_config.CENTERS_Y_ANGLE=centers_y
+            
             #Convert angles to position ranges:
             edge1x=numpy.tan(centers_x-size_x*0.5)*d-dx
             edge2x=numpy.tan(centers_x+size_x*0.5)*d-dx
@@ -2280,7 +2286,7 @@ class AdvancedStimulation(StimulationHelpers):
         else:
             self.movement = min(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
         if moving_range is not None:
-            self.movement = moving_range+ shape_size
+            self.movement = moving_range
         
         trajectory_directions = []
         trajectories = []

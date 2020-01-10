@@ -107,6 +107,9 @@ class TestElphysAnalysis(unittest.TestCase):
         fs=hdf5io.read_item(fn,'fsample')
         for i in range(len(e)):
             extract_erg_repetitions(e[i],s[i],fs,1)
+            
+    def test_04_debug(self):
+        spikes2polar('/tmp/data_test_MovingGratingHumanFast_201912061944092.hdf5')
         
         
 if __name__ == "__main__":    

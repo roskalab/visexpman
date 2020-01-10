@@ -319,10 +319,14 @@ class ExperimentHandler(object):
             zs=self.guidata.read('Z start')
             ze=self.guidata.read('Z end')
             zst=self.guidata.read('Z step')
-            depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
+            if zst==0:
+                depths=numpy.array([zs])
+            else:
+                depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
             self.batch=[]
             self.depths=depths
-            self.coords=coords
+            if self.guidata.read('Enable tile scan'):
+                self.coords=coords
             for d in depths:
                 for r in range(self.guidata.read('Repeats')):
                     par=copy.deepcopy(experiment_parameters)
