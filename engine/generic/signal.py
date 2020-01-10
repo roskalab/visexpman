@@ -381,6 +381,14 @@ def generate_grating(orientation, width, size, sin=False):
     im=im[im.shape[0]/2-size[0]/2:im.shape[0]/2+size[0]/2, im.shape[1]/2-size[1]/2:im.shape[1]/2+size[1]/2]
     return im
     
+def digital2binary(data):
+    nbits=int(numpy.ceil(numpy.log2(data.max())))
+    out=numpy.zeros((nbits,  data.shape[0]), dtype=numpy.bool)
+    d=numpy.cast['int'](data)
+    for biti in range(nbits):
+        out[biti]=d&(2**biti)
+    return out
+    
     
     
 
@@ -586,6 +594,9 @@ class TestSignal(unittest.TestCase):
         for s, w, o, sinen in itertools.product(sizes, widths, orientations, sin):
             im=generate_grating(o,w,s,sinen)
             Image.fromarray(numpy.cast['uint8'](im*255)).save('/tmp/size {0} width {1}, orientation {2}_{3}.png'.format(s,w,o,sinen))
+            
+    def test_21_split_digital_channels(self):
+        digital2binary(numpy.array([0, 8, 10, 1, 0]))
             
         
     

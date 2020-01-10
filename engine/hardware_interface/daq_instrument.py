@@ -223,7 +223,7 @@ class SimpleAIO(object):
 class SimpleAnalogIn(object):
     def __init__(self,ai_channel,sample_rate,duration, timeout=1, finite=True,  diffmode=False):
         try:
-            self.n_ai_channels=int(numpy.diff(map(float, ai_channel.split('/')[1][2:].split(':')))[0]+1)
+            self.n_ai_channels=int(numpy.diff(list(map(float, ai_channel.split('/')[1][2:].split(':'))))[0]+1)
         except IndexError:
             raise NotImplementedError('Single channel not parsed')
         self.nsamples=int(duration*sample_rate)

@@ -376,7 +376,8 @@ class ParameterTable(ParameterTree):
             value = l.value()
             name = l.name()
             path = []
-            ref=copy.deepcopy(l)
+#            ref=copy.deepcopy(l)
+            ref=l
             while True:
                 if ref.parent() is None: break
                 else: 
