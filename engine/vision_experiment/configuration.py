@@ -232,6 +232,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         if self.COORDINATE_SYSTEM == 'ulcorner':
             self.SCREEN_CENTER_p.v = utils.rc((0.5 * self.SCREEN_SIZE_UM_p.v['row'], 0.5 * self.SCREEN_SIZE_UM_p.v['col']))
             
+        if hasattr(self, 'SCREEN_WIDTH') and hasattr(self, 'SCREEN_DISTANCE_FROM_MOUSE_EYE'):
+            #Assuming that both dimensions are in cm:
+            angle=numpy.degrees(2*numpy.arctan(0.5*self.SCREEN_WIDTH/self.SCREEN_DISTANCE_FROM_MOUSE_EYE))
+            self.SCREEN_ANGLE_RANGE_p = visexpman.engine.generic.parameter.Parameter(angle,range_=[-360,360])
+            
         ########### Projector gamma correction ############
         if hasattr(self, 'GAMMA_CORRECTION'):
             self.GAMMA_CORRECTION_CURVE = self.GAMMA_CORRECTION
