@@ -817,7 +817,6 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
-                    {'name': 'Block Projector', 'type': 'bool', 'value': False},
                     ]},
                     ]
         if self.machine_config.PLATFORM in ['mc_mea']:
@@ -826,6 +825,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel 2', 'type': 'list', 'values': fw2, 'value': ''})
+        if len(fw1)>0:
+            self.params_config[1]['children'].append({'name': 'Block Projector', 'type': 'bool', 'value': False})
         if self.machine_config.PLATFORM in ['retinal']:
             self.params_config[1]['children'].extend([{'name': 'Projector On', 'type': 'bool', 'value': False, },])
         if self.machine_config.PLATFORM in ['retinal','ao_cortical']:
@@ -1026,12 +1027,12 @@ class MainUI(gui.VisexpmanMainWindow):
         self.send_widget_status()
         for change in changes:
             #find out tree
-            ref = copy.deepcopy(change[0])
+            ref = change[0]
             tree = []
             while True:
                 if hasattr(ref, 'name') and callable(getattr(ref, 'name')):
                     tree.append(getattr(ref, 'name')())
-                    ref = copy.deepcopy(ref.parent())
+                    ref = ref.parent()
                 else:
                     break
             tree.reverse()

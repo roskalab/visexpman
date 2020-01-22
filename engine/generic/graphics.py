@@ -100,7 +100,7 @@ class Screen(object):
         try:
             self.image_texture_id = glGenTextures(1)
         except:
-            print('TODO: opengl calls do not work in graphics')
+            print('glGenTextures(1), TODO: opengl calls do not work in graphics')
         self.initialization()
         
     def init_flip_variables(self):

@@ -410,7 +410,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         '''
         Screen center, background color can be set with this function
         '''
-        if not self.stim_context.has_key(varname):
+        if varname not in self.stim_context:
             self.send('{0} context variable does not exists'.format(varname))
         else:
             self.stim_context[varname] = value

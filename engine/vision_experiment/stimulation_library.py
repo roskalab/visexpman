@@ -39,7 +39,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glBindTexture(GL_TEXTURE_2D, self.grating_texture)
                 glPixelStorei(GL_UNPACK_ALIGNMENT,1)
             except:
-                print('TODO: opengl calls do not work in stimulation library')
+                print('glGenTextures, TODO: opengl calls do not work in stimulation library')
         #Calculate axis factors
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
@@ -132,7 +132,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if hasattr(parameters,'has_key'):
             frame_info['parameters'].update(parameters)
         self.stimulus_frame_info.append(frame_info)
-        if is_last and self.stimulus_frame_info[-2].has_key('counter') and self.stimulus_frame_info[-1]['counter']<self.stimulus_frame_info[-2]['counter']:
+        if is_last and 'counter' in self.stimulus_frame_info[-2] and self.stimulus_frame_info[-1]['counter']<self.stimulus_frame_info[-2]['counter']:
             raise RuntimeError('frame counter value cannot decrease: {0}, {1}'.format(*self.stimulus_frame_info[-2:]))
             
     def _append_to_stimulus_frame_info(self,values):
