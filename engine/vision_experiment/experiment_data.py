@@ -739,9 +739,9 @@ def pack_configs(self):
         if hasattr(self, confname):#Experiment config might not be available
             configs['serialized'][confname] = copy.deepcopy(getattr(self,confname).serialize())
             configs[confname] = copy.deepcopy(getattr(self,confname).todict())
-            if configs[confname].has_key('GAMMA_CORRECTION'):
+            if 'GAMMA_CORRECTION' in configs[confname]:
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
-    if not configs.has_key('experiment_config') and hasattr(self, 'config2dict') :
+    if not 'experiment_config' in configs and hasattr(self, 'config2dict') :
         configs['experiment_config']=self.config2dict()
     from visexpman.engine.vision_experiment import experiment
     if hasattr(self,  'experiment_config') :
