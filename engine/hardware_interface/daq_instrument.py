@@ -932,12 +932,12 @@ class AnalogIO(instrument.Instrument):
             daq_config = {'ENABLE': False}
             self.daq_config = daq_config
         if os.name == 'nt' and self.daq_config['ENABLE']:            
-            if not self.daq_config.has_key('SAMPLE_RATE') and (\
-                (not self.daq_config.has_key('AO_SAMPLE_RATE') and not self.daq_config.has_key('AI_SAMPLE_RATE'))\
+            if 'SAMPLE_RATE' not in self.daq_config and (\
+                ('AO_SAMPLE_RATE' not in self.daq_config and 'AI_SAMPLE_RATE' not in self.daq_config)\
                 or\
-                (not self.daq_config.has_key('AI_SAMPLE_RATE') and (self.daq_config['ANALOG_CONFIG'] != 'ao'))\
+                ('AI_SAMPLE_RATE' not in self.daq_config and (self.daq_config['ANALOG_CONFIG'] != 'ao'))\
                 or\
-                (not self.daq_config.has_key('AO_SAMPLE_RATE') and (self.daq_config['ANALOG_CONFIG'] != 'ai'))\
+                ('AO_SAMPLE_RATE' not in self.daq_config and (self.daq_config['ANALOG_CONFIG'] != 'ai'))\
                 ):
                 #Exception shall be raised when none of these conditions are true:
                 #- SAMPLE_RATE defined 
@@ -945,7 +945,7 @@ class AnalogIO(instrument.Instrument):
                 #- AI_SAMPLE_RATE only and ANALOG_CONFIG = ai
                 #- AO_SAMPLE_RATE only and ANALOG_CONFIG = ao
                 raise RuntimeError('SAMPLE_RATE parameter or AO_SAMPLE_RATE, AI_SAMPLE_RATE parameters needs to be defined.')                
-            elif self.daq_config.has_key('SAMPLE_RATE'):            
+            elif 'SAMPLE_RATE' in self.daq_config:            
                 self.ai_sample_rate = self.daq_config['SAMPLE_RATE']
                 self.ao_sample_rate = self.daq_config['SAMPLE_RATE']
             else:
@@ -981,7 +981,7 @@ class AnalogIO(instrument.Instrument):
                 
             if self.enable_ai:
                 self.analog_input = PyDAQmx.Task()
-                if self.daq_config.has_key('AI_TERMINAL'):
+                if 'AI_TERMINAL' in self.daq_config:
                     terminal_config = self.daq_config['AI_TERMINAL']
                 else:
                     terminal_config = DAQmxConstants.DAQmx_Val_RSE #If PCI-6110 device is used: DAQmx_Val_PseudoDiff

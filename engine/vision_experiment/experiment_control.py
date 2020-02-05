@@ -850,6 +850,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         for v in variables2save :
             if hasattr(self.datafile, v):
                 self.printl(v)
+                if hasattr(self.machine_config, 'PICKLE_NODES'):
+                    if v in self.machine_config.PICKLE_NODES:
+                        setattr(self.datafile, v, utils.object2array(getattr(self.datafile, v)))
                 self.datafile.save(v)
         #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
         if hasattr(self, 'analog_input'):#Sync signals are recorded by stim

@@ -375,10 +375,10 @@ def generate_grating(orientation, width, size, sin=False):
         im=numpy.tile(waveform, im.shape[1]).reshape(im.shape)
     else:
         for rep in range(nperiods):
-            im[rep*period:rep*period+width]=1
+            im[int(rep*period):int(rep*period+width)]=1
     from PIL import Image
     im=numpy.asarray(Image.fromarray(im).rotate(orientation))
-    im=im[im.shape[0]/2-size[0]/2:im.shape[0]/2+size[0]/2, im.shape[1]/2-size[1]/2:im.shape[1]/2+size[1]/2]
+    im=im[int(im.shape[0]/2-size[0]/2):int(im.shape[0]/2+size[0]/2), int(im.shape[1]/2-size[1]/2):int(im.shape[1]/2+size[1]/2)]
     return im
     
 def digital2binary(data):
