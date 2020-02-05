@@ -297,7 +297,7 @@ def listdir(folder):
     '''
     files = os.listdir(folder)
     files.sort()
-    return map(os.path.join, len(files)*[folder],files)
+    return list(map(os.path.join, len(files)*[folder],files))
     
 def find_latest(path, extension=None):
     '''

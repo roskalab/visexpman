@@ -236,6 +236,8 @@ class CaImagingData(supcl):
             self.timg=signal.trigger_indexes(sig)[::2]/fsample
         else:
             self.timg=numpy.array([])
+        if hasattr(self.parameters,'dtype'):
+            self.parameters=utils.array2object(self.parameters)
         if 'laser' in str(self.parameters['stimclass']).lower():
             index=self.configs['machine_config']['TSTIM_LASER_SYNC_INDEX']
         else:
@@ -248,7 +250,8 @@ class CaImagingData(supcl):
         self.tstim=signal.trigger_indexes(sig)/fsample
         self.save(['timg', 'tstim'])
         #Convert camera timing signals to timestamps
-        self.load('parameters')
+        if not hasattr(self, 'parameters'):
+            self.load('parameters')
         if self.parameters.get('Record Eyecamera', False):
             sig=sync[:,self.configs['machine_config']['TBEHAV_SYNC_INDEX']]
             if sig.max()<self.configs['machine_config']['SYNC_SIGNAL_MIN_AMPLITUDE']:

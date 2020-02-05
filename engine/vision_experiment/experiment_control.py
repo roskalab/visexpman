@@ -788,6 +788,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         block_info=[sfi for sfi in self.stimulus_frame_info if 'block_name' in sfi]
         if len(block_info)==0: return
+        if len(block_info)%2==1: return
         #convert block names to column headers
         signatures=[b['block_name'] for b in block_info]
         if not isinstance(signatures[0],tuple):
@@ -801,7 +802,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             #none, all and both are reserved keywords
             enum_values=list(set([s[0] for s in signatures if s[0] not in ['none', 'all','both']]))
             enum_values.sort()
-            nblocks=len(block_info)/2
+            nblocks=int(len(block_info)/2)
             block_table=numpy.zeros((nblocks, len(enum_values)+2+len(signatures[0])-1))
             for bi in range(nblocks):
                 start=block_info[2*bi]
@@ -850,6 +851,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         for v in variables2save :
             if hasattr(self.datafile, v):
                 self.printl(v)
+                if hasattr(self.machine_config, 'PICKLE_NODES'):
+                    if v in self.machine_config.PICKLE_NODES:
+                        setattr(self.datafile, v, utils.object2array(getattr(self.datafile, v)))
                 self.datafile.save(v)
         #[self.datafile.save(v) for v in variables2save if hasattr(self.datafile, v)]
         if hasattr(self, 'analog_input'):#Sync signals are recorded by stim
