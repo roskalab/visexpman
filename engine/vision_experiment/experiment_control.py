@@ -884,6 +884,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if not powered:
                 self.send({'notify':['Warning', '50 Hz in runwheel signal, check runwheel power']})
         self.datafile.close()
+        self._sfi2txt()
         #Convert to mat file except for Dani
         if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat' and self.machine_config.PLATFORM not in ['elphys']:
             experiment_data.hdf52mat(self.outputfilename)
@@ -913,6 +914,18 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
 #                fn = experiment_data.get_recording_path(self.machine_config, self.parameters, prefix = filename_prefix)
 #            self.datafilename=fn
 #            scipy.io.savemat(fn, self.datafile, oned_as = 'column',do_compression=True) 
+
+    def _sfi2txt(self):
+        #Convert stimulus frame info to pickled text:
+        import cPickle as pickle
+        import tables
+        h=tables.open_file(self.datafile.filename,'a')
+        stimulus_frame_info_text=pickle.dumps(self.stimulus_frame_info)
+        sfi=numpy.fromstring(stimulus_frame_info_text,dtype=numpy.uint8)
+        ca=h.create_carray(h.root, 'stimulus_frame_info_text', tables.UInt8Atom(), sfi.shape)
+        ca[:]=sfi[:]
+        h.flush()
+        self.printl('Stimulus frame info saved as pickled')
             
     def _backup(self, filename):#Maybe obsolete?
         bupaths=[self.machine_config.BACKUP_PATH]
