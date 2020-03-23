@@ -988,6 +988,21 @@ class ExperimentHandler(object):
         self.microscope_handler('close')
         if hasattr(self, 'copier'):
             self.copier.close()
+            
+    def test(self, d):
+        wf=numpy.ones((2, 200))*5
+        
+        if d:
+            wf[0, 50:150]=0
+            wf[1, 25:125]=0
+        else:
+            wf[1, 50:150]=0
+#            wf[0, 50:150]=0
+            wf[0, 25:125]=0
+            
+        self.wf=numpy.tile(wf, 10)
+        self.printc(self.wf.shape)
+        daq_instrument.set_waveform('myDAQ1/ao0:1', self.wf, 1000)
 
 class Analysis(object):
     def __init__(self,machine_config):
