@@ -58,6 +58,33 @@ def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
     elif 'uint' in im.dtype.name:
         maxval = 2**(im.dtype.itemsize*8)-1
     return numpy.cast[im.dtype.name]((numpy.cast['float'](im)*weights).sum(axis=2)/(maxval*weights.sum())*maxval)
+    
+def split_object(im,max_iter=10):
+    '''
+    Applies binary erosion on im until it falls apart to at least two objects
+    '''
+    iterations=0
+    imin=numpy.copy(im)
+    while True:
+        eroded=scipy.ndimage.morphology.binary_erosion(imin)
+        labels, n=scipy.ndimage.label(eroded)
+        imin=eroded
+        iterations+=1
+        if n>1 or iterations==max_iter or n==0:
+            break
+    cp=labels[labels.shape[0]/2,labels.shape[1]/2]
+    if cp>0:
+        central_object=numpy.where(labels==cp,1,0)
+    elif n==2:
+        central_object=numpy.where(labels==1,1,0)
+    elif n==0:
+        central_object=im
+    else:
+        #select the biggest object
+        label_i=range(1,n+1)
+        ii=numpy.array([numpy.where(labels==li)[0].shape[0] for li in label_i]).argmax()
+        central_object=numpy.where(labels==label_i[ii],1,0)
+    return central_object,iterations
        
 ############## Waveform generation ##############
 def time_series(duration, fs):
@@ -598,7 +625,13 @@ class TestSignal(unittest.TestCase):
     def test_21_split_digital_channels(self):
         digital2binary(numpy.array([0, 8, 10, 1, 0]))
             
-        
+    def test_22_split_o(self):
+        im=numpy.load('/home/rz/mysoftware/visexpman-testdata/data/binary_object.npy')
+        split_object(im)
+        im=numpy.zeros((100,100),dtype=numpy.bool)
+        im[30:70,30:70]=True
+        im[40:60,40:60]=False
+        split_object(im,max_iter=100)
     
 
 if __name__=='__main__':
