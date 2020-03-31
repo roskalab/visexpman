@@ -903,17 +903,17 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config.append(
             {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
                     {'name': 'Repeats', 'type': 'int', 'value': 1},
-                    {'name': 'Z start', 'type': 'float', 'value': 0,  'suffix': 'um'},
-                    {'name': 'Z end', 'type': 'float', 'value': 0,  'suffix': 'um'},
-                    {'name': 'Z step', 'type': 'float', 'value': 10,  'suffix': 'um'},
+                    {'name': 'Z start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'Z end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'Z step', 'type': 'float', 'value': 10,  'suffix': 'um',  'decimals': 6},
                     {'name': 'Enable tile scan', 'type': 'bool', 'value': False},
-                    {'name': 'X start', 'type': 'float', 'value': 0,  'suffix': 'um'},
-                    {'name': 'X end', 'type': 'float', 'value': 0,  'suffix': 'um'},
-                    {'name': 'Y start', 'type': 'float', 'value': 0,  'suffix': 'um'},
-                    {'name': 'Y end', 'type': 'float', 'value': 0,  'suffix': 'um'},
-                    {'name': 'Tile overlap', 'type': 'float', 'value': 50,  'suffix': 'um'},
-                    {'name': 'Tile Width', 'type': 'float', 'value': 300,  'suffix': 'um'},
-                    {'name': 'Tile Height', 'type': 'float', 'value': 300,  'suffix': 'um'},
+                    {'name': 'X start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'X end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'Y start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'Y end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'Tile overlap', 'type': 'float', 'value': 50,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'Tile Width', 'type': 'float', 'value': 300,  'suffix': 'um',  'decimals': 6},
+                    {'name': 'Tile Height', 'type': 'float', 'value': 300,  'suffix': 'um',  'decimals': 6},
                     ]},
             )
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):

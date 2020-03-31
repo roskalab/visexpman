@@ -123,7 +123,7 @@ def application_init(**kwargs):
     context['user_interface_name'] = args['user_interface_name']
     context['command'] = multiprocessing.Queue()
     context['warning'] = []
-    if machine_config.PLATFORM=='ao_cortical':
+    if machine_config.PLATFORM=='ao_cortical' and args['user_interface_name']=='stim':
         from visexpman.engine.hardware_interface import network_interface
         command_relay_server = network_interface.CommandRelayServer(machine_config)
         mes_command=multiprocessing.Queue()
