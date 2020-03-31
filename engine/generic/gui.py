@@ -176,7 +176,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                     elif 'qtabwidget' in wname:
                         ref.setCurrentIndex(item['value'])
         else:
-            for k, v in self.parameters.items():
+            for k, v in self.settings.items():
                 try:
                     r = refs[paths.index([p for p in paths if k in p][0])]
                 except IndexError:

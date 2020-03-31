@@ -74,6 +74,32 @@ def binning_data(data, factor):
     data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
     '''
     return numpy.reshape(data, (int(data.shape[0]/factor), factor, data.shape[1])).mean(1)
+    
+class TwoPhotonFileSaver(object):
+    def __init__(self, nchannels, filename, datarange):
+        self.dataname='twop'
+        self.datarange=datarange
+        self.scale=(2**16-1)/(datarange[1]-datarange[0])
+        self.offset=-datarange[0]
+        import hdf5io,tables
+        self.hdf5 = hdf5io.Hdf5io(self.filename,filelocking=False)
+        setattr(self.hdf5,'2p_scale', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
+        self.hdf5.save('2p_scale')
+        datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
+        datatype = tables.UInt16Atom(self.nchannels)
+        setattr(self,self.dataname, self.hdf5.h5f.create_earray(self.hdf5.h5f.root, self.dataname, datatype, (0,),filters=datacompressor))
+        
+    def _scale(self,data):
+        clipped=numpy.where(data<self.datarange[0],self.datarange[0],data)
+        clipped=numpy.where(clipped>self.datarange[1],self.datarange[1],clipped)
+        return numpy.cast['uint16']((clipped+self.offset)*self.scale)
+    
+    def add(self, data):
+        getattr(self, self.dataname).append(self._scale(data))
+        self.hdf5.h5f.flush()
+        
+    def close(self):
+        self.hdf5.close()
 
 class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
@@ -92,6 +118,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.addToolBar(self.toolbar)
         
         self.statusbar=self.statusBar()
+        self.statusbar.info=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.info)
         self.statusbar.recording_status=QtGui.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.recording_status)
         
@@ -133,7 +161,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         if os.path.exists(self.context_filename):
             context_stream = numpy.load(self.context_filename)
-            self.parameters = utils.array2object(context_stream)
+            self.settings = utils.array2object(context_stream)
         else:
             self.parameter_changed()
         self.load_all_parameters()
@@ -181,6 +209,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.shortest_sample = 1.0 / self.machine_config.AO_SAMPLE_RATE
         
         self.params_config = [
+                {'name': 'Save', 'type': 'bool', 'value': True},
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/um'},
                 {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
@@ -189,9 +218,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 's'}, 
                 #Maximum for Projector Control Pulse Width and limits for Projector Control Phase aren't set yet!
                 
-                {'name': 'Enable RED channel', 'type': 'bool', 'value': True},
-                {'name': 'Enable GREEN channel', 'type': 'bool', 'value': True},
-                {'name': 'Enable IR layer', 'type': 'bool', 'value': True},
+                {'name': 'Show RED channel', 'type': 'bool', 'value': True},
+                {'name': 'Show GREEN channel', 'type': 'bool', 'value': True},
+                {'name': 'Show IR layer', 'type': 'bool', 'value': True},
+                {'name': 'Record Channel', 'type': 'list', 'value': '',  'values':['top', 'side',  'both']},
                 
                 {'name': 'IR X Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
                 {'name': 'IR Y Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
@@ -215,29 +245,29 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         newparams=self.params.get_parameter_tree(return_dict=True)
         
         if hasattr(self, 'parameters'):
-            if(newparams['Image Width']!=self.parameters['Image Width'] or\
-            newparams['Image Height']!=self.parameters['Image Height'] or\
-            newparams['Resolution']!=self.parameters['Resolution'] or\
-            newparams['X Return Time']!=self.parameters['X Return Time'] or\
-            newparams['Projector Control Pulse Width']!=self.parameters['Projector Control Pulse Width']):
+            if(newparams['Image Width']!=self.settings['Image Width'] or\
+            newparams['Image Height']!=self.settings['Image Height'] or\
+            newparams['Resolution']!=self.settings['Resolution'] or\
+            newparams['X Return Time']!=self.settings['X Return Time'] or\
+            newparams['Projector Control Pulse Width']!=self.settings['Projector Control Pulse Width']):
                 period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
                 self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
                 self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
-                self.parameters=newparams
+                self.settings=newparams
 
                 if(self.scanning):
                     self.restart_scan() # Only if new self.waveform needed for scanning (depending on the changed parameterrs)
             else:
-                self.parameters=newparams
+                self.settings=newparams
             
             # Apply changed channel mask on loaded reference video - if there's any
             if(self.reference_video is not None):                
                 self.frame_select(self.slider.value())
         else:
-            self.parameters=self.params.get_parameter_tree(return_dict=True)
+            self.settings=self.params.get_parameter_tree(return_dict=True)
     
     def save_context(self):
-        context_stream=utils.object2array(self.parameters)
+        context_stream=utils.object2array(self.settings)
         numpy.save(self.context_filename,context_stream)
 
     
@@ -263,15 +293,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 ######### Two Photon ###########
     
     def generate_waveform(self):
-        self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing,  self.boundaries=generate_waveform(self.parameters['Image Width'],  
-                                                                                            self.parameters['Image Height'],  
-                                                                                            self.parameters['Resolution'],  
-                                                                                            x_flyback_time=self.parameters['X Return Time'],  
+        self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing,  self.boundaries=generate_waveform(self.settings['Image Width'],  
+                                                                                            self.settings['Image Height'],  
+                                                                                            self.settings['Resolution'],  
+                                                                                            x_flyback_time=self.settings['X Return Time'],  
                                                                                             y_flyback_lines=self.machine_config.Y_FLYBACK_LINES, 
                                                                                             fsample=self.machine_config.AO_SAMPLE_RATE,  
                                                                                             um2voltage=self.machine_config.UM_TO_VOLTAGE,
-                                                                                            stim_pulse_width=self.parameters['Projector Control Pulse Width'])
-#        self.plot()
+                                                                                            stim_pulse_width=self.settings['Projector Control Pulse Width'])
+        self.fps2p=float(self.machine_config.AO_SAMPLE_RATE)/self.waveform_x.shape[0]
 
     def init_daq(self):
         self.res = self.daq_process.start_daq(ai_sample_rate = self.machine_config.AI_SAMPLE_RATE,
@@ -313,21 +343,30 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             return
         self.generate_waveform()
         self.waveform=numpy.array([self.waveform_x, self.waveform_y, self.projector_control,  self.frame_timing])
-#        self.waveform=self.waveform.flatten()
-        #self.waveform=numpy.zeros_like(self.waveform)
+        
+        if self.settings['Save']:
+            nchannels=2 if self.settings['Record Channel']=='both' else 1
+            fn=self.parameters['2pfilename'] if hasattr(self,  'parameters') else os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, '2p_{0}.hdf5'.format(experiment_data.get_id()))
+            self.file=fileop.DataAcquisitionFile(nchannels,"two_photon", [0, self.machine_config.MAX_PMT_VOLTAGE],filename=fn)
+            
+        
+        
+        
         self.init_daq()        
         self.scanning = True
         sample_time=self.waveform.shape[1]/float(self.machine_config.AI_SAMPLE_RATE)
-        self.printc("Frame rate {0}".format(1/sample_time))
+        #self.printc("Frame rate {0}".format(1/sample_time))
         self.scan_timer.start(int(sample_time*1000))
         self.statusbar.recording_status.setText('Recording')
         self.statusbar.recording_status.setStyleSheet('background:red;')
+        self.statusbar.info.setText('{0:0.0f} Hz'.format(self.fps2p))
     
     def scan_frame(self):
         f=self.daq_process.read_ai()
         if hasattr(f,  'dtype'):
             self.frame = f
-            self.printc(self.frame.shape)
+            if self.settings['Save']:
+                self.file.add(f)
         return
         fps_counter_start = time.time()
         
@@ -387,18 +426,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.get_ir_image()
         
-        scale = numpy.array([[1.0 / self.parameters["IR X Scale"], 0], [0, 1.0 / self.parameters["IR Y Scale"]]])
+        scale = numpy.array([[1.0 / self.settings["IR X Scale"], 0], [0, 1.0 / self.settings["IR Y Scale"]]])
         
         # In the future, scipy.ndimage.geometric_transform might be the best solution instead of these:
-        self.ir_image = scipy.ndimage.zoom(self.ir_image, (self.parameters["IR X Scale"], self.parameters["IR Y Scale"]))
-        self.ir_image = scipy.ndimage.rotate(self.ir_image, self.parameters["IR Rotation"])
+        self.ir_image = scipy.ndimage.zoom(self.ir_image, (self.settings["IR X Scale"], self.settings["IR Y Scale"]))
+        self.ir_image = scipy.ndimage.rotate(self.ir_image, self.settings["IR Rotation"])
         
         # Put IR on frame (with offset here!) moving overlapping pixels from ir into frame
         # Known issues: bounding box changes size depending on zoom and rotation, image anchor is the lower left corner, not the center of the current view
-        self.frame[max(0, self.parameters["IR X Offset"]) : min(self.ir_image.shape[0] + self.parameters["IR X Offset"], self.frame.shape[0]),
-            max(0, self.parameters["IR Y Offset"]) : min(self.ir_image.shape[1]  + self.parameters["IR Y Offset"], self.frame.shape[1]), 2] = \
-            self.ir_image[max(0, -self.parameters["IR X Offset"]) : min(self.ir_image.shape[0], self.frame.shape[0] - self.parameters["IR X Offset"]),
-            max(0, -self.parameters["IR Y Offset"]) : min(self.ir_image.shape[1], self.frame.shape[1] - self.parameters["IR Y Offset"])]
+        self.frame[max(0, self.settings["IR X Offset"]) : min(self.ir_image.shape[0] + self.settings["IR X Offset"], self.frame.shape[0]),
+            max(0, self.settings["IR Y Offset"]) : min(self.ir_image.shape[1]  + self.settings["IR Y Offset"], self.frame.shape[1]), 2] = \
+            self.ir_image[max(0, -self.settings["IR X Offset"]) : min(self.ir_image.shape[0], self.frame.shape[0] - self.settings["IR X Offset"]),
+            max(0, -self.settings["IR Y Offset"]) : min(self.ir_image.shape[1], self.frame.shape[1] - self.settings["IR Y Offset"])]
         
         if(self.z_stacking):
             self.z_stack.append(numpy.rollaxis(numpy.copy(self.frame), 2)) # Changing axis order to: ch, x, y
@@ -444,24 +483,35 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     # Applies channel mask to an image (which has all color channel!) and returns a copy of its modified version
     def mask_channel(self, source):
         canvas = numpy.copy(source)
-        if not self.parameters["Enable RED channel"]:
+        if not self.settings["Show RED channel"]:
             canvas[:, :, 0] = 0
-        if not self.parameters["Enable GREEN channel"]:
+        if not self.settings["Show GREEN channel"]:
             canvas[:, :, 1] = 0
-        if not self.parameters["Enable IR layer"]:
+        if not self.settings["Show IR layer"]:
             canvas[:, :, 2] = 0
         return canvas
+        
+    def generate_image_to_display(self):
+        '''
+        From raw image data generates merged/scaled/etc image
+        '''
+        self.img=raw2frame(self.frame, self.binning_factor, self.boundaries, offset = 0)
+        self.img2display=numpy.zeros((self.img.shape[0], self.img.shape[1], 3))
+        self.img2display[:, :, :2]=self.img
+        masked=self.mask_channel(self.img2display)
+        masked=numpy.where(masked>self.machine_config.MAX_PMT_VOLTAGE, self.machine_config.MAX_PMT_VOLTAGE, masked)
+        masked=numpy.where(masked<0.0, 0.0, masked)
+        masked/=self.machine_config.MAX_PMT_VOLTAGE
+        return masked
     
     def update_image(self):
         if self.frame is not None and self.frame.shape[0]>0:
-            self.img=raw2frame(self.frame, self.binning_factor, self.boundaries, offset = 0)
-            self.img2display=numpy.zeros((self.img.shape[0], self.img.shape[1], 3))
-            self.img2display[:, :, :2]=self.img
-            self.image.set_image(self.mask_channel(self.img2display))
-            
+            self.image.set_image(self.generate_image_to_display())
         self.socket_handler()
     
     def stop_action(self, remote=None):
+        if self.settings['Save']:
+            self.file.close()
         if(not self.scanning):
             return
             
@@ -489,6 +539,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.scanning = False
         self.statusbar.recording_status.setText('Idle')
         self.statusbar.recording_status.setStyleSheet('background:gray;')
+        self.statusbar.info.setText('')
         
     def restart_scan(self):
         self.stop_action()
@@ -580,7 +631,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.record_action() # Without statring scan_timer! (self.z_stacking = True) scan_frame is being called 'manually' check out the for loop below!
         preview = numpy.copy(self.frame) # Preview image (self.frame) available right after record_action()
         
-        for i in range(self.parameters["Z Stack Start"],  self.parameters["Z Stack End"],  self.parameters["Z Stack Step"]):
+        for i in range(self.settings["Z Stack Start"],  self.settings["Z Stack End"],  self.settings["Z Stack Step"]):
             self.set_depth(i)
             Qt.QApplication.processEvents() # Update gui
             self.scan_frame()
