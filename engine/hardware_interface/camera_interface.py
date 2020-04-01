@@ -572,11 +572,17 @@ class SaverProcess(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         
     def run(self):
-        self.datafile=tables.open_file(self.filename, 'w')
-        self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 
-                            'Frames', 
-                            filters=tables.Filters(complevel=2, complib='zlib', shuffle = 1), 
-                            )
+        if self.filename[-4:]=='hdf5':
+            self.datafile=tables.open_file(self.filename, 'w')
+            self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 
+                                'Frames', 
+                                filters=tables.Filters(complevel=2, complib='zlib', shuffle = 1), 
+                                )
+        elif self.filename[-3:]=='mp4':
+            fps=30
+            import skvideo.io
+            self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
+            
         ct=0
         chunk=[]
         frames=[]
@@ -592,9 +598,14 @@ class SaverProcess(multiprocessing.Process):
 #                    frames.append(frame)
                     chunk.append(frame)
                     if len(chunk)==self.chunksize:
-                        self.datafile.root.frames.append(numpy.array(chunk))
-                        self.datafile.root.frames.flush()
-                        chunk=[]
+                        if hasattr(self,  'datafile'):
+                            self.datafile.root.frames.append(numpy.array(chunk))
+                            self.datafile.root.frames.flush()
+                            chunk=[]
+                        elif hasattr(self,  'video_writer'):
+                            for fr in chunk:
+                                self.video_writer.writeFrame(numpy.rollaxis(numpy.array([fr]*3),0,3))
+                            
                     else:
                         time.sleep(1e-3)
                     ct+=1
@@ -603,8 +614,11 @@ class SaverProcess(multiprocessing.Process):
             else:
                 time.sleep(5e-3)
 #        self.datafile.root.frames.append(numpy.array(frames))
-        self.datafile.root.frames.flush()
-        self.datafile.close()
+        if hasattr(self,  'datafile'):
+            self.datafile.root.frames.flush()
+            self.datafile.close()
+        elif hasattr(self,  'video_writer'):
+            self.video_writer.close()
         self.done.put(True)
         
 class TestISConfig(configuration.Config):

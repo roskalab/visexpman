@@ -252,6 +252,7 @@ class ExperimentHandler(object):
             if v!=None:
                 experiment_parameters[pn]=v
         experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
+        #experiment_parameters['eyecamfilename']=fileop.replace_extension(experiment_parameters['eyecamfilename'], '.mp4')
         return experiment_parameters
             
     def start_batch_experiment(self):
@@ -403,6 +404,11 @@ class ExperimentHandler(object):
                     pass#raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if self.machine_config.PLATFORM in ['2p',  'resonant']:
+                if fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<30:
+                    self.notify('Warning', 'Less than 30 GB free space left, experiment does not start')
+                    return
+                elif fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<50:
+                    self.notify('Warning', 'Less than 50 GB free space left')
                 if self.guidata.read('Stimulus Only') and 'stim' not in self.connected_nodes:
                     self.notify('Warning', 'Stim connection required.')
                     return
