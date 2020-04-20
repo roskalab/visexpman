@@ -416,8 +416,17 @@ def digital2binary(data):
         out[biti]=d&(2**biti)
     return out
     
+def im2rgb(im):
+    return numpy.rollaxis(numpy.array([im]*3),0,3)
     
-    
+def label_image(img,label,scale=True):
+    out=numpy.zeros((img.shape[0],img.shape[1],3))
+    out[:,:,0]=label
+    out[:,:,1]=img
+    if scale:
+        return out/out.max()
+    else:
+        return out
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
