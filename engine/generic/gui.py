@@ -152,7 +152,9 @@ class VisexpmanMainWindow(Qt.QMainWindow):
             self.to_engine.put({'data': values[i], 'path': '/'.join(paths[i]), 'name': refs[i].name()})
             
     def load_all_parameters(self):
+#        print('AAA')
         values, paths, refs = self.params.get_parameter_tree()
+#        print('BBB')
         paths = ['/'.join(p) for p in paths]
         if hasattr(self, 'engine'):
             for item in self.engine.guidata.to_dict():
@@ -181,8 +183,11 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                     r = refs[paths.index([p for p in paths if k in p][0])]
                 except IndexError:
                     continue
+#                print((k, v, r))
+                import pdb
                 r.setValue(v)
                 r.setDefault(v)
+#        print('!!!')
         
     def closeEvent(self, e):
         e.accept()
@@ -372,9 +377,11 @@ class ParameterTable(ParameterTree):
         paths = []
         refs = []
         values = []
+#        print('!!!get_parameter_tree!!!')
         for l in leafes:
             value = l.value()
             name = l.name()
+#            print ((name, value))
             path = []
 #            ref=copy.deepcopy(l)
             ref=l

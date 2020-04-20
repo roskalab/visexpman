@@ -1,14 +1,9 @@
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
 import scipy
 
-try:
-    import PyQt4.Qt as Qt
-    import PyQt4.QtGui as QtGui
-    import PyQt4.QtCore as QtCore
-except ImportError:
-    import PyQt5.Qt as Qt
-    import PyQt5.QtGui as QtGui
-    import PyQt5.QtCore as QtCore
+import PyQt5.Qt as Qt
+import PyQt5.QtGui as QtGui
+import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop, signal, utils
 from visexpman.engine.hardware_interface import daq_instrument
@@ -108,12 +103,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             qt_app = Qt.QApplication([])
         
         gui.VisexpmanMainWindow.__init__(self, context)
-        self.setWindowIcon(gui.get_icon('behav'))
+        self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['record', 'stop', 'open_reference_image', 'capture_frame', 'record_z_stack', 'save', 'exit']
+        toolbar_buttons = ['start',  'snap', 'record', 'stop', 'zoom_in', 'zoom_out', 'open', 'save_to_reference', 'z_stack',  'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
@@ -124,69 +119,74 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.addPermanentWidget(self.statusbar.recording_status)
         
         self.debug = gui.Debug(self)
-        self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT * 0.4)
+        
         
         self.image = gui.Image(self)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         
         self.main_tab = QtGui.QTabWidget(self)
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab.addTab(self.params, 'Settings')
         
-        self.video_player = QtGui.QWidget()
-        self.referenceimage = gui.Image(self)
-        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.slider.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.slider.setTickPosition(QtGui.QSlider.TicksBothSides)
-        self.slider.setTickInterval(self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
-        self.slider.setSingleStep(1)
-        self.slider.setPageStep(self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
-        self.slider.setMinimum(0)
-        self.slider.setMaximum(0)
-        self.slider.valueChanged.connect(self.frame_select)
+#        self.video_player = QtGui.QWidget()
+#        self.referenceimage = gui.Image(self)
+        import pyqtgraph
+        self.referenceimage = pyqtgraph.ImageView()
+#        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+#        self.slider.setFocusPolicy(QtCore.Qt.StrongFocus)
+#        self.slider.setTickPosition(QtGui.QSlider.TicksBothSides)
+#        self.slider.setTickInterval(self.machine_config.IMAGE_DISPLAY_RATE)
+#        self.slider.setSingleStep(1)
+#        self.slider.setPageStep(self.machine_config.IMAGE_DISPLAY_RATE)
+#        self.slider.setMinimum(0)
+#        self.slider.setMaximum(0)
+#        self.slider.valueChanged.connect(self.frame_select)
         
-        self.vplayout = QtGui.QVBoxLayout()
-        self.vplayout.addWidget(self.referenceimage)
-        self.vplayout.addWidget(self.slider)
+#        self.vplayout = QtGui.QVBoxLayout()
+#        self.vplayout.addWidget(self.referenceimage)
+#        self.vplayout.addWidget(self.slider)
         
-        self.video_player.setLayout(self.vplayout)
-        self.main_tab.addTab(self.video_player, 'Reference Image')
+#        self.video_player.setLayout(self.vplayout)
+        self.main_tab.addTab(self.referenceimage, 'Reference Image')
         
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
+        
+        self.main_tab.setMinimumHeight(self.machine_config.GUI_HEIGHT * 0.5)
+        self.debug.setMaximumHeight(self.machine_config.GUI_HEIGHT * 0.3)
+        self.image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
+        self.image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
+
+        
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
+        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+        self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
+        
         
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         if os.path.exists(self.context_filename):
-            context_stream = numpy.load(self.context_filename)
-            self.settings = utils.array2object(context_stream)
+            try:
+                context_stream = numpy.load(self.context_filename)
+                self.settings = utils.array2object(context_stream)
+            except:#Context file was probab
+                self.parameter_changed()
         else:
             self.parameter_changed()
         self.load_all_parameters()
-        
         self.show()
         self.statusbar.recording_status.setText('Ready')
         
         self.update_image_timer=QtCore.QTimer()
         self.update_image_timer.timeout.connect(self.update_image)
-        self.update_image_timer.start(1000.0 / self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
+        self.update_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         
         self.scan_timer=QtCore.QTimer()
         self.scan_timer.timeout.connect(self.scan_frame)
-        
-        self.init_camera_udp()
         
         self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
         
-        self.daq_process = daq_instrument.AnalogIOProcess('daq', self.queues, self.logger,
-                                ai_channels = self.machine_config.DAQ_DEV_ID + "/ai4:5",
-                                ao_channels= self.machine_config.DAQ_DEV_ID + "/ao0:3",
-                                limits=None)
-        self.daq_process.start()
         
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -200,38 +200,45 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         # 3D numpy arrays, format: (X, Y, CH)
         self.frame = None
         self.ir_image = None
-        self.clipboard = None
         
         # 4D numpy arrays, format: (t, X, Y, CH)
         self.z_stack = None
-        self.reference_video = None
         
         self.shortest_sample = 1.0 / self.machine_config.AO_SAMPLE_RATE
         
+        image_filters=['', 'mean', 'MIP', 'median',  'histogram equalization']
+        file_formats=['.mat',  '.hdf5', '.tiff']
         self.params_config = [
-                {'name': 'Save', 'type': 'bool', 'value': True},
-                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/um'},
+                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
                 {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 's'}, 
-                #Maximum for Projector Control Pulse Width and limits for Projector Control Phase aren't set yet!
-                
-                {'name': 'Show RED channel', 'type': 'bool', 'value': True},
-                {'name': 'Show GREEN channel', 'type': 'bool', 'value': True},
-                {'name': 'Show IR layer', 'type': 'bool', 'value': True},
-                {'name': 'Record Channel', 'type': 'list', 'value': '',  'values':['top', 'side',  'both']},
-                
-                {'name': 'IR X Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
-                {'name': 'IR Y Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
-                {'name': 'IR X Scale', 'type': 'float', 'value': 1, 'min': 0.01, 'step': 0.01, 'siPrefix': False},
-                {'name': 'IR Y Scale', 'type': 'float', 'value': 1, 'min': 0.01, 'step': 0.01, 'siPrefix': False},
-                {'name': 'IR Rotation', 'type': 'int', 'value': 0, 'limits': (0, 359), 'step': 1, 'siPrefix': False, 'suffix': ' degrees'},
-                
-                {'name': 'Z Stack Start', 'type': 'int', 'value': 150, 'limits': (0, 250), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Z Stack End', 'type': 'int', 'value': 300, 'limits': (250, 500), 'step' : 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Z Stack Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
+                {'name': 'Enable Top', 'type': 'bool', 'value': True},
+                {'name': 'Enable Side', 'type': 'bool', 'value': True},
+                {'name': 'Enable IR', 'type': 'bool', 'value': True},
+                {'name': 'Image Filters', 'type': 'group', 'expanded' : False, 'children': [
+                    {'name': 'Top Channel', 'type': 'list', 'value': '',  'values': image_filters},
+                    {'name': 'Side Channel', 'type': 'list', 'value': '',  'values': image_filters},
+                    {'name': 'IR Channel', 'type': 'list', 'value': '',  'values': image_filters},
+                ]}, 
+                {'name': 'Infrared-2P overlay', 'type': 'group', 'expanded' : False, 'children': [
+                    {'name': 'Offset X', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' pixel'},
+                    {'name': 'Offset Y', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' pixel'},
+                    {'name': 'IR scale X', 'type': 'float', 'value': 1.0,},
+                    {'name': 'IR scale Y', 'type': 'float', 'value': 1.0,},
+                    {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
+                ]}, 
+                 {'name': 'Z stack', 'type': 'group', 'expanded' : False, 'children': [
+                    {'name': 'Start', 'type': 'int', 'value': 0,  'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'End', 'type': 'int', 'value': 0,  'step' : 1, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
+                ]}, 
+                {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
+                    {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 'us'},
+                    {'name': 'Enable Projector', 'type': 'bool', 'value': False},
+                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 'us'}, 
+                    {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 'us'},
+                    {'name': 'File format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
+                ]}, 
             ]
         self.params_config.extend(params)
     
@@ -241,7 +248,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.printc("Cannot change parameters while Z stacking is in proggress.")
             return
             # Feature (bug): 'Changed' parameter still stays there
-        
         newparams=self.params.get_parameter_tree(return_dict=True)
         
         if hasattr(self, 'parameters'):
@@ -338,6 +344,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #        self.analog_output.StopTask()
 #        self.analog_input.StopTask()
     
+    def start_action(self):
+        pass
+        
+    def snap_action(self):
+        pass
+        
     def record_action(self):
         if self.scanning:
             return
@@ -510,8 +522,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.socket_handler()
     
     def stop_action(self, remote=None):
-        if self.settings['Save']:
-            self.file.close()
         if(not self.scanning):
             return
             
@@ -547,6 +557,22 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.record_action()
     
 ############## REFERENCE IMAGE ###################
+
+    def open_action(self):
+        '''
+        Open a recording for display
+        ''', 
+        
+    def save_to_reference_action(self):
+        '''
+        Save current image to reference image widget
+        '''
+    
+    def zoom_in_action(self):
+        pass
+        
+    def zoom_out_action(self):
+        pass
     
     def open_reference_image_action(self, remote=None):
         
@@ -620,7 +646,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
 ############## Z-STACK ###################
     
-    def record_z_stack_action(self, remote=None):
+    def z_stack_action(self, remote=None):
         raise NotImplementedError('reccord_action and stop_action shall be called for every depth')
         if(self.scanning):
             self.stop_action()
@@ -658,11 +684,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def set_depth(self, depth):
         #TODO: implement in stage_control device specific protocol
         pass
-        
-    def init_camera_udp(self):
-        import socket
-        self.camera_udp=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        self.camera_udp.bind(("127.0.0.1", 8880))
     
     def get_ir_image(self):
         data, addr = self.camera_udp.recvfrom(16009)
