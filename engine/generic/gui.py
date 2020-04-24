@@ -398,7 +398,7 @@ class ParameterTable(ParameterTree):
         if return_dict:
             res = {}
             for i in range(len(paths)):
-                k=paths[i][-1]
+                k='/'.join(paths[i])
                 if variable_names:
                     k=stringop.to_variable_name(k)
                 res[k]=values[i]
@@ -561,6 +561,21 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.plot.showGrid(True,True,1.0)
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.rois = []
+        
+        if 0: #Experimental code for adding custom context menu
+            #Add LUT min/max slider to context menu
+            self.min=LabeledSlider(None,'Min')
+            self.min.input.setOrientation(QtCore.Qt.Horizontal)
+            self.min.input.valueChanged.connect(self.min_changed)
+            menu=self.plot.vb.menu
+            setmin= QtGui.QWidgetAction(menu)
+            setmin.setDefaultWidget(self.min)
+            menu.addAction(setmin)
+    
+    def min_changed(self):
+        self.min.valuelabel.setText(str(self.min.input.value()))
+        print(self.min.input.value())
+        self.img.setLevels([self.min.input.value()*1e-2,1.0]) 
         
     def set_image(self, image, color_channel=None, alpha = 0.8, imargs={}):
         self.rawimage=image
@@ -878,6 +893,25 @@ class LabeledCheckBox(QtGui.QWidget):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.labelw, 0, 0)
         self.layout.addWidget(self.input, 0, 1)
+        self.setLayout(self.layout)
+        
+class LabeledSlider(QtGui.QWidget):
+    def __init__(self, parent, label):
+        QtGui.QWidget.__init__(self, parent)
+        self.label = label
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.labelw = QtGui.QLabel(self.label, self)
+        self.input = QtGui.QSlider(self)
+        self.valuelabel= QtGui.QLabel('', self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.labelw, 0, 0)
+        self.layout.addWidget(self.input, 0, 1)
+        self.layout.addWidget(self.valuelabel, 0, 2)
         self.setLayout(self.layout)
         
 class PushButtonWithParameter(QtGui.QWidget):

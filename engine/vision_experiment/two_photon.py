@@ -14,7 +14,12 @@ import PyDAQmx.DAQmxConstants as DAQmxConstants
 import PyDAQmx.DAQmxTypes as DAQmxTypes
 
 def generate_waveform(image_width,  image_height,  resolution,  **kwargs):
+    MIN_RETURN_X_SAMPLES=10
     return_x_samps = utils.roundint(kwargs['x_flyback_time'] * kwargs['fsample'])
+    if return_x_samps<MIN_RETURN_X_SAMPLES:
+        raise ValueError('X flyback time is too short, number of flyback samples is {0}'.format(return_x_samps))
+    if kwargs['y_flyback_lines']<1:
+        raise ValueError('minimum value for y_flyback_lines is 1')
     
     line_length = utils.roundint(image_width * resolution) + return_x_samps # Number of samples for scanning a line
     return_y_samps = line_length* kwargs['y_flyback_lines']
@@ -108,7 +113,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['start',  'snap', 'record', 'stop', 'zoom_in', 'zoom_out', 'open', 'save_to_reference', 'z_stack',  'exit']
+        toolbar_buttons = ['start',  'snap', 'record', 'stop', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack',  'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
@@ -128,10 +133,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab.addTab(self.params, 'Settings')
         
-#        self.video_player = QtGui.QWidget()
-#        self.referenceimage = gui.Image(self)
-        import pyqtgraph
-        self.referenceimage = pyqtgraph.ImageView()
+        self.video_player = QtGui.QWidget()
+        self.saved_image = gui.Image(self)
+        
 #        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
 #        self.slider.setFocusPolicy(QtCore.Qt.StrongFocus)
 #        self.slider.setTickPosition(QtGui.QSlider.TicksBothSides)
@@ -142,12 +146,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #        self.slider.setMaximum(0)
 #        self.slider.valueChanged.connect(self.frame_select)
         
-#        self.vplayout = QtGui.QVBoxLayout()
+#        self.vplayout = QtGui.QHBoxLayout()
 #        self.vplayout.addWidget(self.referenceimage)
-#        self.vplayout.addWidget(self.slider)
+#        self.vplayout.addWidget(self.lut)
         
 #        self.video_player.setLayout(self.vplayout)
-        self.main_tab.addTab(self.referenceimage, 'Reference Image')
+        self.main_tab.addTab(self.saved_image, 'Saved Image')
         
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -156,7 +160,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.debug.setMaximumHeight(self.machine_config.GUI_HEIGHT * 0.3)
         self.image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
         self.image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
-
+        self.image.set_image(numpy.random.random((200, 200, 3)))
         
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
@@ -208,19 +212,25 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         image_filters=['', 'mean', 'MIP', 'median',  'histogram equalization']
         file_formats=['.mat',  '.hdf5', '.tiff']
+        
+        minmax_group=[{'name': 'Min', 'type': 'float', 'value': 0.0,},
+                                    {'name': 'Max', 'type': 'float', 'value': 1.0,}, 
+                                    {'name': 'Image filters', 'type': 'list', 'value': '',  'values': image_filters},]
+                                    
+        channels_group=[{'name': 'Top', 'type': 'group', 'expanded' : False, 'children': minmax_group}, 
+                                    {'name': 'Side', 'type': 'group', 'expanded' : False, 'children': minmax_group},
+                                    {'name': 'IR', 'type': 'group', 'expanded' : False, 'children': minmax_group}]
+        
         self.params_config = [
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
-                {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Scan Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Scan Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Enable Top', 'type': 'bool', 'value': True},
                 {'name': 'Enable Side', 'type': 'bool', 'value': True},
                 {'name': 'Enable IR', 'type': 'bool', 'value': True},
-                {'name': 'Image Filters', 'type': 'group', 'expanded' : False, 'children': [
-                    {'name': 'Top Channel', 'type': 'list', 'value': '',  'values': image_filters},
-                    {'name': 'Side Channel', 'type': 'list', 'value': '',  'values': image_filters},
-                    {'name': 'IR Channel', 'type': 'list', 'value': '',  'values': image_filters},
-                ]}, 
-                {'name': 'Infrared-2P overlay', 'type': 'group', 'expanded' : False, 'children': [
+                {'name': 'Live', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
+                {'name': 'Saved', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
+                {'name': 'Infrared-2P overlay', 'type': 'group',  'expanded' : False, 'children': [
                     {'name': 'Offset X', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' pixel'},
                     {'name': 'Offset Y', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' pixel'},
                     {'name': 'IR scale X', 'type': 'float', 'value': 1.0,},
@@ -233,10 +243,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
-                    {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 'us'},
                     {'name': 'Enable Projector', 'type': 'bool', 'value': False},
                     {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 'us'}, 
                     {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 'us'},
+                    {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
                     {'name': 'File format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                 ]}, 
             ]
@@ -563,7 +573,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         Open a recording for display
         ''', 
         
-    def save_to_reference_action(self):
+    def save_image_action(self):
         '''
         Save current image to reference image widget
         '''
@@ -711,8 +721,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.close()
 
 class Test(unittest.TestCase):
-    def test(self):
-        generate_waveform(10,  10,  1,  x_flyback_time=200e-6,  y_flyback_lines=2, fsample=400000,  um2voltage=1e-2,  stim_pulse_width=100e-6)
+    def test_waveform_generator(self):
+        #width,height, resolution, xflyback, yflyback, fsample, um2voltage, stim pulse width, expected result
+        test_cases=[[100, 100, 1, 200e-6, 2, 400e3, 0.01, 1e-3,  True], 
+                            [50, 50, 3, 200e-6, 2, 400e3, 0.01, 1e-3,  True], 
+                            [10, 10, 1, 200e-6, 2, 400e3, 0.01, 1e-3,  False], 
+                            [200, 200, 5, 200e-6, 2, 400e3, 0.01, 1e-3,  False], 
+                        ]
+        for ti in test_cases:
+            res=generate_waveform(ti[0],  ti[1],  ti[2],  x_flyback_time=ti[3],  y_flyback_lines=ti[4], fsample=ti[5],  um2voltage=ti[6],  stim_pulse_width=ti[7])
         
 if __name__=='__main__':
     unittest.main()
