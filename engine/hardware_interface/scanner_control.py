@@ -5,8 +5,12 @@ Classes related to two photon scanning:
 
 '''
 
-import numpy, unittest, pdb, itertools
+import numpy, unittest, pdb, itertools,multiprocessing,time,os
 from visexpman.engine.generic import utils
+from visexpman.engine.hardware_interface import instrument,daq
+import PyDAQmx
+import PyDAQmx.DAQmxConstants as DAQmxConstants
+import PyDAQmx.DAQmxTypes as DAQmxTypes
 
 class ScannerWaveform(object):
     '''
@@ -107,9 +111,126 @@ def rawpmt2image(rawdata, boundaries, binning_factor=1,  offset = 0):
     if offset != 0:
         binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
     return numpy.array((numpy.split(binned_pmt_data, boundaries)[0::2]))
+    
+class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
+    """
+    Queue interface for process control
+    Logger interface
+    File saving
+    Waveform generator+data acquisition synchronized
+    
+    """
+    def __init__(self, ai_channels,  ao_channels, logger, **kwargs):
+        self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
+        instrument.InstrumentProcess.__init__(self, 'daq', self.queues, logger)
+        daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'])
+        self.kwargs=kwargs
+        
+    def start(self):
+        instrument.InstrumentProcess.start(self)
+        
+    def start_(self, waveform, filename):
+        self.queues['command'].put(('start', waveform, filename))
+        
+    def stop(self):
+        self.queues['command'].put(('stop',))
+        
+    def open_shutter(self):
+        value=1
+        self.digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(value)], dtype=numpy.uint8),
+                                    None,
+                                    None)
+        self.printl('Shutter opened')
+        
+    def close_shutter(self):
+        value=0
+        self.digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(value)], dtype=numpy.uint8),
+                                    None,
+                                    None)
+        self.printl('Shutter closed')
+        
+    def run(self):
+        try:
+            self.digital_output = PyDAQmx.Task()
+            self.digital_output.CreateDOChan(self.kwargs['shutter_port'],'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            self.create_channels()
+            ct=0
+            self.running=False
+            while True:
+                if not self.queues['command'].empty():
+                    cmd=self.queues['command'].get()
+                    self.printl(cmd)
+                    if cmd[0]=='start':
+                        waveform=cmd[1]
+                        filename=cmd[2]
+                        #TODO: create file
+                        daq.SyncAnalogIO.start(self,  self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
+                        self.printl('Started to save to {0}'.format(filename))
+                        self.open_shutter()
+                        self.running=True
+                    elif cmd[0]=='stop':
+                        self.printl("Terminate recording")
+                        time.sleep(3)
+                        self.close_shutter()
+                        readout=daq.SyncAnalogIO.stop(self)
+                        self.running=False
+                        break
+                    else:
+                        self.printl("Unknown command: {0}".format(cmd))
+                        #TODO: save readout and close file
+                if self.running:
+                    data_chunk=self.read()
+                    if ct%self.kwargs['display_rate']==0:
+                        self.queues['data'].put(data_chunk)
+                time.sleep(0.1)
+            
+            
+            #Clean up
+            self.digital_output.ClearTask()
+        except:
+            import traceback
+            self.printl(traceback.format_exc())
+
 
         
 class Test(unittest.TestCase):
+    def test_recorder_process(self):
+        from visexpman.engine.generic import log,fileop
+        logfile=r'f:\tmp\log.txt'
+        if os.path.exists(logfile):
+            os.remove(logfile)
+        logger=log.Logger(filename=logfile)
+        logger.add_source('daq')
+        logger.start()
+        recorder=SyncAnalogIORecorder('Dev1/ai14:15','Dev1/ao0:1',logger,timeout=1,ai_sample_rate=800e3,ao_sample_rate=400e3,
+                        shutter_port='Dev1/port0/line0',display_rate=3)
+        recorder.start()
+        filename=r'f:\tmp\2pdata.hdf5'
+        waveform=numpy.array([numpy.linspace(1,2,50000), numpy.linspace(3,2,50000)])
+        time.sleep(0.5)
+        recorder.start_(waveform,filename)
+        time.sleep(2)
+        recorder.stop()
+        time.sleep(1)
+        self.assertFalse(recorder.queues['data'].empty())
+        while not recorder.queues['data'].empty():
+            readout=recorder.queues['data'].get()
+            numpy.testing.assert_almost_equal(waveform,readout[:,1::2],2)
+        self.assertFalse('error' in fileop.read_text_file(logfile).lower())
+        #TODO: check datafile
+        logger.flush()
+        logger.terminate()
+    
+    
+    
     @unittest.skip('')
     def test_waveform_generator(self):
         #Input parameter ranges
@@ -193,7 +314,7 @@ class Test(unittest.TestCase):
                 except:
                     pdb.set_trace()
                 
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_rawpmt2img(self):
         '''
         Generate valid scanning waveforms and feed them as raw pmt signals
