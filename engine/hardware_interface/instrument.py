@@ -18,7 +18,7 @@ try:
 except IOError:
     test_mode=False
     
-class InstrumentProcess(threading.Thread, log.LoggerHelper):
+class InstrumentProcess(multiprocessing.Process):
     '''
     Superclass of instrument control related operations that need to run in a separate process
     
@@ -28,30 +28,26 @@ class InstrumentProcess(threading.Thread, log.LoggerHelper):
     response: responses to commands are put here by the process
     data: data acquired by process
     '''
-    def __init__(self, instrument_name, queues, logger):
-        threading.Thread.__init__(self)
+    def __init__(self, queues, logfile):
+        multiprocessing.Process.__init__(self)
         self.queues = queues
-        self.log = logger
-        self.instrument_name = instrument_name
-        if hasattr(self.log, 'add_source'):
-            self.log.add_source(instrument_name)
-        elif hasattr(self.log, 'put'):
-            log.LoggerHelper.__init__(self, self.log)
+        self.logfile=logfile
+        
+    def setup_logger(self):
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+        handler = logging.FileHandler(self.logfile)        
+        handler.setFormatter(formatter)
+        self.logger = logging.getLogger(os.path.basename(self.logfile))
+        self.logger.setLevel(logging.INFO)
+        self.logger.addHandler(handler)
             
     def terminate(self):
         self.queues['command'].put('terminate')
-        self.join()
+        self.join(5)
+        multiprocessing.Process.terminate(self)
             
     def printl(self,msg, loglevel='info'):
-        if self.log==None:
-            return
-        if hasattr(self.log, loglevel):
-            logfunc = getattr(self.log,loglevel)
-        elif hasattr(self, loglevel):
-            logfunc = getattr(self,loglevel)
-        else:
-            return
-        logfunc(str(msg), self.instrument_name)
+        getattr(self.logger,loglevel)(msg)
 
 class Instrument(object):
     '''

@@ -1,3 +1,4 @@
+#OBSOLETE!!!!!
 import numpy
 import time
 from visexpman.engine.hardware_interface import instrument

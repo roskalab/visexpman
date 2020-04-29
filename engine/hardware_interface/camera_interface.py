@@ -1,3 +1,6 @@
+"""
+OBSOLETE, use camera.py instead
+"""
 import copy,visexpman,sys, multiprocessing, threading
 from visexpman.engine.generic.introspect import Timer
 import numpy

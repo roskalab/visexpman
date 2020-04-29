@@ -5,7 +5,7 @@ Classes related to two photon scanning:
 
 '''
 
-import numpy, unittest, pdb, itertools,multiprocessing,time,os
+import numpy, unittest, pdb, itertools,multiprocessing,time,os,tables
 from visexpman.engine.generic import utils
 from visexpman.engine.hardware_interface import instrument,daq
 import PyDAQmx
@@ -102,7 +102,7 @@ class ScannerWaveform(object):
         
 def binning_data(data, factor):
     '''
-    data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
+    data: two dimensional pmt data : 1. dim: pmt signal's time axis, 2. dim: channel
     '''
     return numpy.reshape(data, (int(data.shape[0]/factor), factor, data.shape[1])).mean(1)
 
@@ -120,17 +120,24 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     Waveform generator+data acquisition synchronized
     
     """
-    def __init__(self, ai_channels,  ao_channels, logger, **kwargs):
+    def __init__(self, ai_channels,  ao_channels, logfile, **kwargs):
+        self.logfile=logfile
         self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
-        instrument.InstrumentProcess.__init__(self, 'daq', self.queues, logger)
+        instrument.InstrumentProcess.__init__(self, self.queues, logfile)
         daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'])
         self.kwargs=kwargs
+        self.data_range_max=10
+        self.data_range_min=0
+        self.acquistion_rate=3
         
     def start(self):
         instrument.InstrumentProcess.start(self)
         
-    def start_(self, waveform, filename):
-        self.queues['command'].put(('start', waveform, filename))
+    def start_(self, waveform, filename, data_format):
+        """
+        data_format: dictionary containing channels to be saved and boundaries
+        """
+        self.queues['command'].put(('start', waveform, filename, data_format))
         
     def stop(self):
         self.queues['command'].put(('stop',))
@@ -156,9 +163,28 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                     None,
                                     None)
         self.printl('Shutter closed')
+    
+    def data2file(self,readout):
+        #Scale readout
+        clipped=numpy.where(readout>self.data_range_max,self.data_range_max,readout)
+        clipped=numpy.where(readout<self.data_range_min,self.data_range_min,clipped)
+        scaled=numpy.cast['uint16'](clipped/(self.data_range_max-self.data_range_min)*(2**16-1))
+        if self.frame_chunk_size>1:
+            split_data=numpy.split(scaled, (numpy.arange(self.frame_chunk_size,dtype=numpy.int)*int(readout.shape[1]/self.frame_chunk_size))[1:],axis=1)
+        else:
+            split_data=[scaled]
+        for chunk_ in split_data:
+            if 'channels' in self.data_format:
+                scaled=chunk_[self.data_format['channels']]
+                image=rawpmt2image(chunk_.T, self.data_format['boundaries'][1:], binning_factor=self.binning_factor,  offset = 0)
+            else:
+                image=chunk_[None,:]
+            self.data_handle.append(image[None,:])
+        return image
         
     def run(self):
         try:
+            self.setup_logger()
             self.digital_output = PyDAQmx.Task()
             self.digital_output.CreateDOChan(self.kwargs['shutter_port'],'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
             self.create_channels()
@@ -171,65 +197,109 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     if cmd[0]=='start':
                         waveform=cmd[1]
                         filename=cmd[2]
-                        #TODO: create file
+                        self.data_format=cmd[3]
+                        fh=tables.open_file(filename,'w')
+                        datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
+                        self.binning_factor=int(self.kwargs['ai_sample_rate']/self.kwargs['ao_sample_rate'])
+                        if self.data_format=={}:
+                            datatype = tables.UInt16Atom((1, 2, int(waveform.shape[1]*self.binning_factor)))
+                        elif 'boundaries' in self.data_format:
+                            image_width=int(numpy.diff(self.data_format['boundaries'])[0])
+                            image_height=int(self.data_format['boundaries'].shape[0]/2)
+                            datatype = tables.UInt16Atom((image_height, image_width, len(self.data_format['channels'])))
+                        self.data_handle=fh.create_earray(fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
+                        frame_rate= self.kwargs['ao_sample_rate']/waveform.shape[1]
+                        self.frame_chunk_size=int(numpy.ceil(frame_rate/self.acquistion_rate))
+                        waveform=numpy.tile(waveform,self.frame_chunk_size)
                         daq.SyncAnalogIO.start(self,  self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
                         self.open_shutter()
                         self.running=True
                     elif cmd[0]=='stop':
-                        self.printl("Terminate recording")
-                        time.sleep(3)
+                        self.printl("Stop recording")
                         self.close_shutter()
                         readout=daq.SyncAnalogIO.stop(self)
+                        self.data2file(readout)
+                        fh.close()
                         self.running=False
+                    elif cmd=='terminate':
+                        self.printl('Terminating')
                         break
                     else:
                         self.printl("Unknown command: {0}".format(cmd))
-                        #TODO: save readout and close file
                 if self.running:
                     data_chunk=self.read()
+                    frame=self.data2file(data_chunk)
                     if ct%self.kwargs['display_rate']==0:
-                        self.queues['data'].put(data_chunk)
+                        self.queues['data'].put(frame)
                 time.sleep(0.1)
-            
-            
             #Clean up
             self.digital_output.ClearTask()
         except:
             import traceback
             self.printl(traceback.format_exc())
-
-
-        
+            
 class Test(unittest.TestCase):
+    
     def test_recorder_process(self):
         from visexpman.engine.generic import log,fileop
-        logfile=r'f:\tmp\log.txt'
+        logfile=r'f:\tmp\log_{0}.txt'.format(time.time())
+        self.logfile=logfile
         if os.path.exists(logfile):
             os.remove(logfile)
-        logger=log.Logger(filename=logfile)
-        logger.add_source('daq')
-        logger.start()
-        recorder=SyncAnalogIORecorder('Dev1/ai14:15','Dev1/ao0:1',logger,timeout=1,ai_sample_rate=800e3,ao_sample_rate=400e3,
+        
+        recorder=SyncAnalogIORecorder('Dev1/ai14:15','Dev1/ao0:1',logfile,timeout=1,ai_sample_rate=800e3,ao_sample_rate=400e3,
                         shutter_port='Dev1/port0/line0',display_rate=3)
+        self.recorder=recorder
         recorder.start()
-        filename=r'f:\tmp\2pdata.hdf5'
-        waveform=numpy.array([numpy.linspace(1,2,50000), numpy.linspace(3,2,50000)])
+        filename=r'f:\tmp\2pdata_{0}.hdf5'.format(time.time())
+        waveform=numpy.array([numpy.linspace(1,2,150000), numpy.linspace(3,2,150000)])
         time.sleep(0.5)
-        recorder.start_(waveform,filename)
-        time.sleep(2)
+        recorder.start_(waveform,filename,{})
+        time.sleep(5)
         recorder.stop()
         time.sleep(1)
         self.assertFalse(recorder.queues['data'].empty())
         while not recorder.queues['data'].empty():
             readout=recorder.queues['data'].get()
-            numpy.testing.assert_almost_equal(waveform,readout[:,1::2],2)
+            numpy.testing.assert_almost_equal(waveform,readout[0,:,1::2]/(2**16-1)*10,2)
         self.assertFalse('error' in fileop.read_text_file(logfile).lower())
-        #TODO: check datafile
-        logger.flush()
-        logger.terminate()
-    
-    
+        fh=tables.open_file(filename,'r')
+        data=fh.root.twopdata.read()
+        for item in data:
+            numpy.testing.assert_almost_equal(waveform,item[0,:,1::2]/(2**16-1)*10,2)
+        fh.close()
+        time.sleep(2)
+        self.scan_test(100, 100, 3)
+        self.scan_test(100, 100, 1.5)
+        self.scan_test(200, 200, 1)
+        recorder.terminate()
+        
+    def scan_test(self,height, width, resolution):
+        from visexpman.engine.generic import fileop
+        #Generate a 2p waveform
+        sw=ScannerWaveform(fsample=400e3, scan_voltage_um_factor=1/128, projector_control_voltage=3.3, frame_timing_pulse_width=1e-3)
+        waveform_x,  waveform_y, projector_control,  frame_timing,  boundaries= sw.generate(height, width, resolution, 20, 2, 0, 0)
+        filename=r'f:\tmp\2pdata_{0}.hdf5'.format(time.time())
+        waveform=numpy.array([waveform_x,  waveform_y])
+        time.sleep(0.5)
+        self.recorder.start_(waveform,filename,{'boundaries': boundaries, 'channels':[0,1]})
+        time.sleep(5)
+        self.recorder.stop()
+        time.sleep(1)
+        self.assertFalse(self.recorder.queues['data'].empty())
+        while not self.recorder.queues['data'].empty():
+            readout=self.recorder.queues['data'].get()
+            self.assertTrue((numpy.diff(readout[:,:,1],axis=0)>=0).all())#Check gradient
+            readout[0,0,0]=0
+            self.assertTrue((numpy.diff(readout[:,:,0],axis=1)>=0).all())
+        self.assertFalse('error' in fileop.read_text_file(self.logfile).lower())
+        fh=tables.open_file(filename,'r')
+        data=fh.root.twopdata.read()
+        for item in data:
+            self.assertTrue((numpy.diff(item[:,:,1],axis=0)>=0).all())
+            self.assertTrue((numpy.diff(item[:,:,0],axis=1)>=0).all())
+        fh.close()
     
     @unittest.skip('')
     def test_waveform_generator(self):
