@@ -142,6 +142,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def stop(self):
         self.queues['command'].put(('stop',))
         
+    def read(self):
+        if not self.queues['data'].empty():
+            return self.queues['data'].get()
+        
     def open_shutter(self):
         value=1
         self.digital_output.WriteDigitalLines(1,
@@ -179,7 +183,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 image=rawpmt2image(chunk_.T, self.data_format['boundaries'][1:], binning_factor=self.binning_factor,  offset = 0)
             else:
                 image=chunk_[None,:]
-            self.data_handle.append(image[None,:])
+            if hasattr(self,'data_handle'):
+                self.data_handle.append(image[None,:])
         return image
         
     def run(self):
@@ -198,20 +203,24 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         waveform=cmd[1]
                         filename=cmd[2]
                         self.data_format=cmd[3]
-                        fh=tables.open_file(filename,'w')
-                        datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
                         self.binning_factor=int(self.kwargs['ai_sample_rate']/self.kwargs['ao_sample_rate'])
-                        if self.data_format=={}:
-                            datatype = tables.UInt16Atom((1, 2, int(waveform.shape[1]*self.binning_factor)))
-                        elif 'boundaries' in self.data_format:
-                            image_width=int(numpy.diff(self.data_format['boundaries'])[0])
-                            image_height=int(self.data_format['boundaries'].shape[0]/2)
-                            datatype = tables.UInt16Atom((image_height, image_width, len(self.data_format['channels'])))
-                        self.data_handle=fh.create_earray(fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
+                        if filename is not None:
+                            fh=tables.open_file(filename,'w')
+                            datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
+                            if self.data_format=={}:
+                                datatype = tables.UInt16Atom((1, 2, int(waveform.shape[1]*self.binning_factor)))
+                            elif 'boundaries' in self.data_format:
+                                image_width=int(numpy.diff(self.data_format['boundaries'])[0])
+                                image_height=int(self.data_format['boundaries'].shape[0]/2)
+                                datatype = tables.UInt16Atom((image_height, image_width, len(self.data_format['channels'])))
+                            self.data_handle=fh.create_earray(fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
+                        else:
+                            if hasattr(self, 'data_handle'):
+                                del self.data_handle
                         frame_rate= self.kwargs['ao_sample_rate']/waveform.shape[1]
                         self.frame_chunk_size=int(numpy.ceil(frame_rate/self.acquistion_rate))
                         waveform=numpy.tile(waveform,self.frame_chunk_size)
-                        daq.SyncAnalogIO.start(self,  self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
+                        daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
                         self.open_shutter()
                         self.running=True
@@ -219,8 +228,12 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl("Stop recording")
                         self.close_shutter()
                         readout=daq.SyncAnalogIO.stop(self)
-                        self.data2file(readout)
-                        fh.close()
+                        if hasattr(self,'data_handle'):
+                            if readout is not None:
+                                self.printl(readout.shape)
+                                self.data2file(readout)
+                            fh.close()
+                            self.printl('Closing file')
                         self.running=False
                     elif cmd=='terminate':
                         self.printl('Terminating')
@@ -228,7 +241,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     else:
                         self.printl("Unknown command: {0}".format(cmd))
                 if self.running:
-                    data_chunk=self.read()
+                    data_chunk=daq.SyncAnalogIO.read(self)
                     frame=self.data2file(data_chunk)
                     if ct%self.kwargs['display_rate']==0:
                         self.queues['data'].put(frame)
@@ -247,7 +260,6 @@ class Test(unittest.TestCase):
         self.logfile=logfile
         if os.path.exists(logfile):
             os.remove(logfile)
-        
         recorder=SyncAnalogIORecorder('Dev1/ai14:15','Dev1/ao0:1',logfile,timeout=1,ai_sample_rate=800e3,ao_sample_rate=400e3,
                         shutter_port='Dev1/port0/line0',display_rate=3)
         self.recorder=recorder
@@ -270,17 +282,18 @@ class Test(unittest.TestCase):
             numpy.testing.assert_almost_equal(waveform,item[0,:,1::2]/(2**16-1)*10,2)
         fh.close()
         time.sleep(2)
-        self.scan_test(100, 100, 3)
-        self.scan_test(100, 100, 1.5)
-        self.scan_test(200, 200, 1)
+        self.scan_test(100, 100, 3,True)
+        self.scan_test(100, 100, 1.5,True)
+        self.scan_test(200, 200, 1,True)
+        self.scan_test(200, 200, 1,False)
         recorder.terminate()
         
-    def scan_test(self,height, width, resolution):
+    def scan_test(self,height, width, resolution,save):
         from visexpman.engine.generic import fileop
         #Generate a 2p waveform
         sw=ScannerWaveform(fsample=400e3, scan_voltage_um_factor=1/128, projector_control_voltage=3.3, frame_timing_pulse_width=1e-3)
         waveform_x,  waveform_y, projector_control,  frame_timing,  boundaries= sw.generate(height, width, resolution, 20, 2, 0, 0)
-        filename=r'f:\tmp\2pdata_{0}.hdf5'.format(time.time())
+        filename=r'f:\tmp\2pdata_{0}.hdf5'.format(time.time()) if save else None
         waveform=numpy.array([waveform_x,  waveform_y])
         time.sleep(0.5)
         self.recorder.start_(waveform,filename,{'boundaries': boundaries, 'channels':[0,1]})
@@ -294,12 +307,13 @@ class Test(unittest.TestCase):
             readout[0,0,0]=0
             self.assertTrue((numpy.diff(readout[:,:,0],axis=1)>=0).all())
         self.assertFalse('error' in fileop.read_text_file(self.logfile).lower())
-        fh=tables.open_file(filename,'r')
-        data=fh.root.twopdata.read()
-        for item in data:
-            self.assertTrue((numpy.diff(item[:,:,1],axis=0)>=0).all())
-            self.assertTrue((numpy.diff(item[:,:,0],axis=1)>=0).all())
-        fh.close()
+        if filename is not None:
+            fh=tables.open_file(filename,'r')
+            data=fh.root.twopdata.read()
+            for item in data:
+                self.assertTrue((numpy.diff(item[:,:,1],axis=0)>=0).all())
+                self.assertTrue((numpy.diff(item[:,:,0],axis=1)>=0).all())
+            fh.close()
     
     @unittest.skip('')
     def test_waveform_generator(self):

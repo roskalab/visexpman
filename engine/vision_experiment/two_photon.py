@@ -6,100 +6,12 @@ import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop, signal, utils
-from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.engine.hardware_interface import daq,scanner_control,camera
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 
 import PyDAQmx
 import PyDAQmx.DAQmxConstants as DAQmxConstants
 import PyDAQmx.DAQmxTypes as DAQmxTypes
-
-def generate_waveform(image_width,  image_height,  resolution,  **kwargs):
-    MIN_RETURN_X_SAMPLES=10
-    return_x_samps = utils.roundint(kwargs['x_flyback_time'] * kwargs['fsample'])
-    if return_x_samps<MIN_RETURN_X_SAMPLES:
-        raise ValueError('X flyback time is too short, number of flyback samples is {0}'.format(return_x_samps))
-    if kwargs['y_flyback_lines']<1:
-        raise ValueError('minimum value for y_flyback_lines is 1')
-    
-    line_length = utils.roundint(image_width * resolution) + return_x_samps # Number of samples for scanning a line
-    return_y_samps = line_length* kwargs['y_flyback_lines']
-    total_lines = utils.roundint(image_height * resolution)+kwargs['y_flyback_lines']
-    
-    # Calibrating control signal voltages
-    x_min = -kwargs['um2voltage']*image_width + kwargs.get('x_offset', 0)
-    x_max = kwargs['um2voltage']*image_width + kwargs.get('x_offset', 0)
-    
-    y_min = -kwargs['um2voltage']*image_width + kwargs.get('y_offset', 0)
-    y_max = kwargs['um2voltage']*image_width + kwargs.get('y_offset', 0)
-    
-    # X signal
-    ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - return_x_samps)
-    ramp_down_x = numpy.linspace(x_max, x_min, num=return_x_samps + 1)[1:-1] # Exclude extreme values (avoiding duplication during concatenation)
-    waveform_x = numpy.concatenate((ramp_up_x,  ramp_down_x))
-    scan_mask=numpy.concatenate((numpy.ones_like(ramp_up_x), numpy.zeros_like(ramp_down_x)))
-    waveform_x = numpy.tile(waveform_x, total_lines)
-    scan_mask= numpy.tile(scan_mask, total_lines-kwargs['y_flyback_lines'])
-    scan_mask=numpy.pad(scan_mask, (0,waveform_x.shape[0]-scan_mask.shape[0]), 'constant')
-    
-
-    # Linear Y signal
-    ramp_up_y = numpy.linspace(y_min, y_max, num=waveform_x.shape[0] - return_y_samps)
-    ramp_down_y = numpy.linspace(y_max, y_min, num=return_y_samps) # Exclude maximum value
-    waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
-    
-    
-    # Projector control
-    phase = utils.roundint(kwargs.get('stim_phase', 0) * kwargs['fsample'])
-    pulse_width = utils.roundint(kwargs.get('stim_pulse_width', 0) * kwargs['fsample'])
-    ttl_voltage=kwargs.get('ttl_voltage', 3.3)
-    projector_control =numpy.tile(numpy.concatenate((numpy.zeros(ramp_up_x.shape[0]+phase), numpy.full(pulse_width,  ttl_voltage),  numpy.zeros(ramp_down_x.shape[0]-phase-pulse_width ))), total_lines)
-    
-    frame_timing=numpy.zeros_like(projector_control)
-    frame_timing[-utils.roundint(1e-3*kwargs['fsample']):]=ttl_voltage
-    
-    #Calculate indexes for extractable parts of pmt signal
-    boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
-    
-    
-    return waveform_x,  waveform_y, projector_control,  frame_timing,  boundaries
-    
-def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
-    binned_pmt_data = binning_data(rawdata, binning_factor)
-    if offset != 0:
-        binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
-    return numpy.array((numpy.split(binned_pmt_data, boundaries)[0::2]))
-
-def binning_data(data, factor):
-    '''
-    data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
-    '''
-    return numpy.reshape(data, (int(data.shape[0]/factor), factor, data.shape[1])).mean(1)
-    
-class TwoPhotonFileSaver(object):
-    def __init__(self, nchannels, filename, datarange):
-        self.dataname='twop'
-        self.datarange=datarange
-        self.scale=(2**16-1)/(datarange[1]-datarange[0])
-        self.offset=-datarange[0]
-        import hdf5io,tables
-        self.hdf5 = hdf5io.Hdf5io(self.filename,filelocking=False)
-        setattr(self.hdf5,'2p_scale', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
-        self.hdf5.save('2p_scale')
-        datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
-        datatype = tables.UInt16Atom(self.nchannels)
-        setattr(self,self.dataname, self.hdf5.h5f.create_earray(self.hdf5.h5f.root, self.dataname, datatype, (0,),filters=datacompressor))
-        
-    def _scale(self,data):
-        clipped=numpy.where(data<self.datarange[0],self.datarange[0],data)
-        clipped=numpy.where(clipped>self.datarange[1],self.datarange[1],clipped)
-        return numpy.cast['uint16']((clipped+self.offset)*self.scale)
-    
-    def add(self, data):
-        getattr(self, self.dataname).append(self._scale(data))
-        self.hdf5.h5f.flush()
-        
-    def close(self):
-        self.hdf5.close()
 
 class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
@@ -110,6 +22,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         gui.VisexpmanMainWindow.__init__(self, context)
         self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
+        self._init_hardware()
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
@@ -120,8 +33,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar=self.statusBar()
         self.statusbar.info=QtGui.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.info)
-        self.statusbar.recording_status=QtGui.QLabel('', self)
-        self.statusbar.addPermanentWidget(self.statusbar.recording_status)
+        self.statusbar.ircamera_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.ircamera_status)
+        self.statusbar.twop_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.twop_status)
         
         self.debug = gui.Debug(self)
         
@@ -178,7 +93,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.parameter_changed()
         self.load_all_parameters()
         self.show()
-        self.statusbar.recording_status.setText('Ready')
+        self.statusbar.twop_status.setText('Ready')
+        self.statusbar.ircamera_status.setText('Ready')
         
         self.update_image_timer=QtCore.QTimer()
         self.update_image_timer.timeout.connect(self.update_image)
@@ -225,9 +141,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
                 {'name': 'Scan Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Enable Top', 'type': 'bool', 'value': True},
-                {'name': 'Enable Side', 'type': 'bool', 'value': True},
-                {'name': 'Enable IR', 'type': 'bool', 'value': True},
+                {'name': 'Live IR', 'type': 'bool', 'value': True},
+                {'name': 'IR Exposure', 'type': 'int', 'value': 50, 'limits': (1, 1000), 'step': 1, 'siPrefix': True, 'suffix': 'ms'},
+                {'name': 'IR Gain', 'type': 'int', 'value': 1, 'limits': (0, 1000), 'step': 1},
+                {'name': 'Show Top', 'type': 'bool', 'value': True},
+                {'name': 'Show Side', 'type': 'bool', 'value': True},
+                {'name': 'Show IR', 'type': 'bool', 'value': True},
                 {'name': 'Live', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
                 {'name': 'Saved', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
                 {'name': 'Infrared-2P overlay', 'type': 'group',  'expanded' : False, 'children': [
@@ -244,13 +163,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Enable Projector', 'type': 'bool', 'value': False},
-                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 'us'}, 
-                    {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 'us'},
+                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'siPrefix': False, 'suffix': ' us'}, 
+                    {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': False, 'suffix': ' us'},
                     {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
+                    {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
                     {'name': 'File format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                 ]}, 
             ]
         self.params_config.extend(params)
+        self.twop_running=False
+        self.camera_running=False
     
     def parameter_changed(self):
         
@@ -260,25 +182,41 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             # Feature (bug): 'Changed' parameter still stays there
         newparams=self.params.get_parameter_tree(return_dict=True)
         
-        if hasattr(self, 'parameters'):
-            if(newparams['Image Width']!=self.settings['Image Width'] or\
-            newparams['Image Height']!=self.settings['Image Height'] or\
-            newparams['Resolution']!=self.settings['Resolution'] or\
-            newparams['X Return Time']!=self.settings['X Return Time'] or\
-            newparams['Projector Control Pulse Width']!=self.settings['Projector Control Pulse Width']):
-                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
-                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
-                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
-                self.settings=newparams
-
-                if(self.scanning):
-                    self.restart_scan() # Only if new self.waveform needed for scanning (depending on the changed parameterrs)
-            else:
-                self.settings=newparams
+        if hasattr(self, 'settings'):
+            if newparams['params/Live IR'] and not self.settings['params/Live IR']:
+                self.camera.start_()
+                self.printc('Start IR camera')
+                self.statusbar.ircamera_status.setText('IR Live')
+                self.statusbar.ircamera_status.setStyleSheet('background:orange;')
+                self.camera_running=True
+            elif not newparams['params/Live IR'] and self.settings['params/Live IR']:
+                self.camera.stop()
+                self.printc('Stop IR camera')
+                self.statusbar.ircamera_status.setText('Ready')
+                self.statusbar.ircamera_status.setStyleSheet('background:gray;')
+                self.camera_running=False
+            if newparams['params/IR Exposure'] != self.settings['params/IR Exposure']:
+                self.camera.set(exposure=int(newparams['params/IR Exposure']*1000))
+                self.printc('Exposure set to {0}'.format(newparams['params/IR Exposure']))
+            if newparams['params/IR Gain'] != self.settings['params/IR Gain']:
+                self.camera.set(gain=int(newparams['params/IR Gain']))
+                self.printc('Gain set to {0}'.format(newparams['params/IR Gain']))
             
-            # Apply changed channel mask on loaded reference video - if there's any
-            if(self.reference_video is not None):                
-                self.frame_select(self.slider.value())
+            
+#            if(newparams['Image Width']!=self.settings['Image Width'] or\
+#            newparams['Image Height']!=self.settings['Image Height'] or\
+#            newparams['Resolution']!=self.settings['Resolution'] or\
+#            newparams['X Return Time']!=self.settings['X Return Time'] or\
+#            newparams['Projector Control Pulse Width']!=self.settings['Projector Control Pulse Width']):
+#                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
+#                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
+#                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
+#                self.settings=newparams
+#
+#                if(self.scanning):
+#                    self.restart_scan() # Only if new self.waveform needed for scanning (depending on the changed parameterrs)
+#                
+            self.settings=newparams
         else:
             self.settings=self.params.get_parameter_tree(return_dict=True)
     
@@ -286,6 +224,26 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         context_stream=utils.object2array(self.settings)
         numpy.save(self.context_filename,context_stream)
 
+    def _init_hardware(self):
+        logfile=self.logger.filename.replace('2p', '2p_daq')
+        self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
+        self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
+                                                                        self.machine_config.AO_CHANNELS,
+                                                                        logfile,
+                                                                        timeout=1,
+                                                                        ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
+                                                                        ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
+                                                                        shutter_port=self.machine_config.SHUTTER_PORT,
+                                                                        display_rate=self.machine_config.IMAGE_DISPLAY_RATE)
+        self.aio.start()
+        self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
+                                self.logger.filename.replace('2p', '2p_cam'),
+                                self.machine_config.IR_CAMERA_ROI)
+        self.camera.start()
+        
+    def _close_hardware(self):
+        self.aio.terminate()
+        self.camera.terminate()
     
     def plot(self):
         from pylab import plot, grid, show
@@ -307,60 +265,45 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #        show()
     
 ######### Two Photon ###########
-    
-    def generate_waveform(self):
-        self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing,  self.boundaries=generate_waveform(self.settings['Image Width'],  
-                                                                                            self.settings['Image Height'],  
-                                                                                            self.settings['Resolution'],  
-                                                                                            x_flyback_time=self.settings['X Return Time'],  
-                                                                                            y_flyback_lines=self.machine_config.Y_FLYBACK_LINES, 
-                                                                                            fsample=self.machine_config.AO_SAMPLE_RATE,  
-                                                                                            um2voltage=self.machine_config.UM_TO_VOLTAGE,
-                                                                                            stim_pulse_width=self.settings['Projector Control Pulse Width'])
-        self.fps2p=float(self.machine_config.AO_SAMPLE_RATE)/self.waveform_x.shape[0]
-
-    def init_daq(self):
-        self.res = self.daq_process.start_daq(ai_sample_rate = self.machine_config.AI_SAMPLE_RATE,
-                                                            ao_sample_rate = self.machine_config.AO_SAMPLE_RATE,
-                                                            ao_waveform = self.waveform, 
-                                                            timeout = 30)
-        self.binning_factor=self.machine_config.AI_SAMPLE_RATE/self.machine_config.AO_SAMPLE_RATE
-        self.shutter = PyDAQmx.Task()
-        self.shutter.CreateDOChan(
-            self.machine_config.DAQ_DEV_ID + "/port0/line0",
-            "shutter",
-            PyDAQmx.DAQmx_Val_GroupByChannel)
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(1)], dtype=numpy.uint8),
-            None,
-            None)
-            
-    def stop_daq(self):
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(0)], dtype=numpy.uint8),
-            None,
-            None)
-        self.unread_data = self.daq_process.stop_daq()
-#        self.read_daq()
-#        self.analog_output.WaitUntilTaskDone(self.machine_config.DAQ_TIMEOUT)
-#        self.analog_output.StopTask()
-#        self.analog_input.StopTask()
+    def prepare_2p(self):
+        if self.twop_running:
+            return
+        pulse_width=self.settings['params/Advanced/Projector Control Pulse Width']*1e-6 if self.settings['params/Advanced/Enable Projector'] else 0
+        waveform_x, waveform_y, projector_control, frame_timing, self.boundaries=\
+                    self.waveform_generator.generate(self.settings['params/Scan Height'], \
+                                                                    self.settings['params/Scan Height'],\
+                                                                    self.settings['params/Resolution'],\
+                                                                    self.settings['params/Advanced/X Return Time'],\
+                                                                    self.settings['params/Advanced/Y Return Time'],\
+                                                                    pulse_width,\
+                                                                    self.settings['params/Advanced/Projector Control Phase']*1e-6,)
+        self.waveform=numpy.array([waveform_x,  waveform_y])
+        channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
+        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels})
+        self.twop_running=True
+        self.statusbar.twop_status.setText('2P Live')
+        self.statusbar.twop_status.setStyleSheet('background:red;')
     
     def start_action(self):
-        pass
+        try:
+            self.filename=None
+            self.prepare_2p()
+            self.printc('2p scanning started')
+        except:
+            self.printc(traceback.format_exc())
         
     def snap_action(self):
         pass
         
     def record_action(self):
+        try:
+            params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
+            self.filename=experiment_data.get_recording_path(self.machine_config,params, '2p')
+            self.prepare_2p()
+            self.printc('2p recording started, saving data to {0}'.format(self.filename))
+        except:
+            self.printc(traceback.format_exc())
+        return
         if self.scanning:
             return
         self.generate_waveform()
@@ -527,14 +470,25 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         return masked
     
     def update_image(self):
+        self.ir_frame=self.camera.read()
+        twop_frame=self.aio.read()
+        if twop_frame is not None:
+            self.twop_frame =twop_frame 
+            self.image.set_image(self.twop_frame[:,:,0])
+        return
         if self.frame is not None and self.frame.shape[0]>0:
             self.image.set_image(self.generate_image_to_display())
         self.socket_handler()
     
     def stop_action(self, remote=None):
-        if(not self.scanning):
+        if not self.twop_running:
             return
-            
+        self.aio.stop()
+        self.twop_running=False
+        self.printc('2p scanning stopped')
+        self.statusbar.twop_status.setText('Ready')
+        self.statusbar.twop_status.setStyleSheet('background:gray;')
+        return
         if(self.z_stacking):
             if(remote==False):
                 self.printc("Z stacking is in progress, cannot abort manually.")
@@ -717,7 +671,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def exit_action(self):
         self.stop_action()
         self.save_context()
-        self.daq_process.terminate()
+        self._close_hardware()
         self.close()
 
 class Test(unittest.TestCase):
