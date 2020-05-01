@@ -170,8 +170,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     
     def data2file(self,readout):
         #Scale readout
-        clipped=numpy.where(readout>self.data_range_max,self.data_range_max,readout)
-        clipped=numpy.where(readout<self.data_range_min,self.data_range_min,clipped)
+        clipped=numpy.clip(readout,self.data_range_min,self.data_range_max)
         scaled=numpy.cast['uint16'](clipped/(self.data_range_max-self.data_range_min)*(2**16-1))
         if self.frame_chunk_size>1:
             split_data=numpy.split(scaled, (numpy.arange(self.frame_chunk_size,dtype=numpy.int)*int(readout.shape[1]/self.frame_chunk_size))[1:],axis=1)
@@ -185,7 +184,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 image=chunk_[None,:]
             if hasattr(self,'data_handle'):
                 self.data_handle.append(image[None,:])
-        return image
+        #Scale back to 0..1 range
+        image_display=image*(self.data_range_max-self.data_range_min)/(2**16-1)
+        return image_display
         
     def run(self):
         try:
@@ -245,7 +246,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     frame=self.data2file(data_chunk)
                     if ct%self.kwargs['display_rate']==0:
                         self.queues['data'].put(frame)
-                time.sleep(0.1)
+                time.sleep(0.05)
             #Clean up
             self.digital_output.ClearTask()
         except:

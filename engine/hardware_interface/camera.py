@@ -90,7 +90,7 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
                     frame=self.get_frame()
                     if self.queues['data'].empty() and frame is not None:#Send frame when queue empty (previous frame was taken
                         self.queues['data'].put(frame)
-                time.sleep(10e-3)
+                time.sleep(50e-3)
             except:
                 import traceback
                 self.printl(traceback.format_exc())
