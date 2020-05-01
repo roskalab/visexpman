@@ -152,8 +152,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Infrared-2P overlay', 'type': 'group',  'expanded' : False, 'children': [
                     {'name': 'Offset X', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' pixel'},
                     {'name': 'Offset Y', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' pixel'},
-                    {'name': 'IR scale X', 'type': 'float', 'value': 1.0,},
-                    {'name': 'IR scale Y', 'type': 'float', 'value': 1.0,},
+                    {'name': 'Scale X', 'type': 'float', 'value': 1.0,},
+                    {'name': 'Scale Y', 'type': 'float', 'value': 1.0,},
                     {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
                 ]}, 
                  {'name': 'Z stack', 'type': 'group', 'expanded' : False, 'children': [
@@ -673,17 +673,72 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.save_context()
         self._close_hardware()
         self.close()
-
+        
+def merge_image(ir_image, twop_image, **kwargs):
+    """
+    ir_image: uint16, 2d
+    twop_image: float, 0-1 range, height x width x 2
+    """
+    merged=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 3))
+    #Scale 2p image
+    twop_size=numpy.cast['int'](numpy.array(twop_image.shape[:2])*numpy.array([kwargs['Scale X'],kwargs['Scale Y']]))
+    twop_size=numpy.append(twop_size, 2)
+    twop_resized=numpy.resize(twop_image, twop_size)
+    #Extend to IR image
+    twop_extended=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 2))
+    twop_extended[:twop_resized.shape[0], :twop_resized.shape[1], :]=twop_resized
+    #Shift 2p
+    twop_shifted=numpy.zeros_like(twop_extended)
+    twop_shifted[kwargs['Offset X']:, kwargs['Offset Y']:, :]=twop_extended[:-kwargs['Offset X'],:-kwargs['Offset Y']:, :]
+    #Rotate
+    if kwargs['Rotation']!=0:
+        twop_rotated=scipy.ndimage.rotate(twop_shifted, kwargs['Rotation'], reshape=False)
+    else:
+        twop_rotated=twop_shifted
+    merged[:, :, :2]=twop_rotated*0.5
+    merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)/(2**16-1)*numpy.array([0.5, 0.5, 0.5])
+    return merged
+    
+def filter_image(image, min_, max_, filter):
+    if image.dtype==numpy.uint16:
+        image_=image/(2**16-1)
+    else:
+        image_=image
+    #Scale input image to min_,max_ range
+    scaled=(numpy.clip(image_, min_, max_)-min_)/(max_-min_)
+    if filter=='':
+        filtered=scaled
+    else:
+        raise NotImplementedError('')
+    return filtered
+    
 class Test(unittest.TestCase):
-    def test_waveform_generator(self):
-        #width,height, resolution, xflyback, yflyback, fsample, um2voltage, stim pulse width, expected result
-        test_cases=[[100, 100, 1, 200e-6, 2, 400e3, 0.01, 1e-3,  True], 
-                            [50, 50, 3, 200e-6, 2, 400e3, 0.01, 1e-3,  True], 
-                            [10, 10, 1, 200e-6, 2, 400e3, 0.01, 1e-3,  False], 
-                            [200, 200, 5, 200e-6, 2, 400e3, 0.01, 1e-3,  False], 
-                        ]
-        for ti in test_cases:
-            res=generate_waveform(ti[0],  ti[1],  ti[2],  x_flyback_time=ti[3],  y_flyback_lines=ti[4], fsample=ti[5],  um2voltage=ti[6],  stim_pulse_width=ti[7])
+    def test_image_merge(self):
+        from pylab import plot, imshow, show
+        ir_image=numpy.ones((1004, 1004), dtype=numpy.uint16)*30000
+        ir_image[300:700,100:800]=0
+        twop_image=numpy.ones((200, 200, 2))*0.5
+        twop_image[100:,:,0]=0
+        twop_image[:100,:,1]=0
+        kwargs={
+                'Offset X':100, 
+                'Offset Y':200, 
+                'Scale X':3.5, 
+                'Scale Y':3.5,  
+                'Rotation':3.0*0,  
+                }
+        out=merge_image(ir_image, twop_image, **kwargs) 
+        repeats=100
+        im=[[numpy.random.random((512, 512))*65e3, numpy.random.random((100, 100, 2))] for i in range(repeats)]
+        t0=time.time()
+        for im1, im2 in im:
+            out=merge_image(im1, im2, **kwargs)
+        print((time.time()-t0)/repeats*1e3)
+        
+    def test_filter_image(self):
+        filtered=filter_image(numpy.random.random((100, 100, 2)), 0.5, 0.7, '')
+        self.assertEqual(filtered.min(), 0)
+        self.assertEqual(filtered.max(), 1)
         
 if __name__=='__main__':
     unittest.main()
