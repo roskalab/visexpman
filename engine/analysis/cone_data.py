@@ -14,7 +14,7 @@ import itertools
 try:
     from visexpA.engine.dataprocessors import roi
     from visexpA.engine.dataprocessors import signal as signal2
-except ImportError:
+except:
     print('cell detector not installed')
 
 from visexpman.engine.generic import utils,fileop,signal,geometry,introspect,stringop

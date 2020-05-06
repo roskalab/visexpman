@@ -1,17 +1,21 @@
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
 import scipy,skimage
+try:
+    import PyQt5.Qt as Qt
+    import PyQt5.QtGui as QtGui
+    import PyQt5.QtCore as QtCore
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+    from visexpman.engine.hardware_interface import scanner_control,camera
+    from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
+except:
+    print('Import errors')
+    
 
-import PyQt5.Qt as Qt
-import PyQt5.QtGui as QtGui
-import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop, signal, utils
-from visexpman.engine.hardware_interface import daq,scanner_control,camera
-from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 
-import PyDAQmx
-import PyDAQmx.DAQmxConstants as DAQmxConstants
-import PyDAQmx.DAQmxTypes as DAQmxTypes
 
 class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
@@ -683,30 +687,62 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self._close_hardware()
         self.close()
         
-def merge_image(ir_image, twop_image, **kwargs):
+def merge_image(ir_image, twop_image, kwargs):
     """
-    ir_image: uint16, 2d
+    ir_image: float 0-1 range
     twop_image: float, 0-1 range, height x width x 2
+    kwargs keys:
+    Offset X, Y: in um, offset between 2p and Ir image center
+    Scale X, Y: scale between IR and 2p image
+    2p_scale: two photon image scale in um/pixel
+    2p_reference_scale: resolution which was used when Scale X, Y and Offset X, Y was calibrated
     """
+    if (ir_image==0).all():
+        merged=numpy.zeros((twop_image.shape[0],  twop_image.shape[1], 3))
+        merged[:,:,:2]=twop_image
+        return merged
     merged=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 3))
+    resolution_ratio=kwargs['2p_reference_scale']/kwargs['2p_scale']
+    offset_x=int(kwargs['2p_scale']*kwargs['Offset X']*kwargs['Scale X']*resolution_ratio)
+    offset_y=int(kwargs['2p_scale']*kwargs['Offset Y']*kwargs['Scale Y']*resolution_ratio)
     #Scale 2p image
     twop_size=numpy.cast['int'](numpy.array(twop_image.shape[:2])*numpy.array([kwargs['Scale X'],kwargs['Scale Y']]))
     twop_size=numpy.append(twop_size, 2)
     twop_resized=skimage.transform.resize(twop_image, twop_size)
     #Extend to IR image
     twop_extended=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 2))
-    twop_extended[:twop_resized.shape[0], :twop_resized.shape[1], :]=twop_resized
-    #Shift 2p
-    twop_shifted=numpy.zeros_like(twop_extended)
-    end_x = twop_extended.shape[0] if kwargs['Offset X']==0 else -kwargs['Offset X']
-    end_y = twop_extended.shape[1] if kwargs['Offset Y']==0 else -kwargs['Offset Y']
-    twop_shifted[kwargs['Offset X']:, kwargs['Offset Y']:, :]=twop_extended[:end_x,:end_y:, :]
+    #Put twop_resized to the center of twop_extended
+    default_offset=numpy.array(twop_extended.shape[:2])/2-numpy.array(twop_resized.shape[:2])/2
+    if all(numpy.array(ir_image.shape)>numpy.array(twop_resized.shape[:2])):#2p image is smaller than IR
+        twop_extended[default_offset[0]:default_offset[0]+twop_resized.shape[0], default_offset[1]:default_offset[1]+twop_resized.shape[1], :]=twop_resized
+        cut_2p=False
+    else:#At keast one dimension of 2p is bigger than IR
+        twop_extended=twop_resized  
+        cut_2p=True
     #Rotate
     if kwargs['Rotation']!=0:
-        twop_rotated=scipy.ndimage.rotate(twop_shifted, kwargs['Rotation'], reshape=False)
+        twop_rotated=scipy.ndimage.rotate(twop_extended, kwargs['Rotation'], reshape=False)
     else:
-        twop_rotated=twop_shifted
-    merged[:, :, :2]=twop_rotated*0.5
+        twop_rotated=twop_extended
+    #Shift 2p
+    twop_shifted=numpy.roll(twop_rotated,(offset_x,offset_y),axis=(0,1))
+    #Handle edges
+    if twop_resized.shape[1]/2+offset_y> twop_extended.shape[1]/2:
+        edge=twop_resized.shape[1]/2+offset_y- twop_extended.shape[1]/2
+        twop_shifted[:,:edge,:]=0
+    if twop_resized.shape[1]/2+offset_y<0:
+        edge=abs(twop_resized.shape[1]/2+offset_y)
+        twop_shifted[:,-edge:,:]=0
+    if twop_resized.shape[0]/2+offset_x> twop_extended.shape[0]/2:
+        edge=twop_resized.shape[0]/2+offset_x- twop_extended.shape[0]/2
+        twop_shifted[:edge,:,:]=0
+    if twop_resized.shape[0]/2+offset_x<0:
+        edge=abs(twop_resized.shape[0]/2+offset_x)
+        twop_shifted[-edge:,:,:]=0
+    if cut_2p:
+        merged[:, :, :2]=twop_shifted[-default_offset[0]:merged.shape[0]-default_offset[0],-default_offset[1]:merged.shape[1]-default_offset[1],:]*0.5
+    else:
+        merged[:, :, :2]=twop_shifted*0.5
     merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([0.5, 0.5, 0.5])
     return merged
     
@@ -724,6 +760,7 @@ def filter_image(image, min_, max_, filter):
     return filtered
     
 class Test(unittest.TestCase):
+    @unittest.skip('')
     def test_image_merge(self):
         from pylab import plot, imshow, show
         ir_image=numpy.ones((1004, 1004), dtype=numpy.uint16)
@@ -735,16 +772,89 @@ class Test(unittest.TestCase):
                 'Offset X':200, 
                 'Offset Y':200, 
                 'Scale X':3.0, 
-                'Scale Y':3.0,  
-                'Rotation':3.0*0,  
+                'Scale Y':3.0, 
+                'Rotation':3.0*0,
+                '2p_scale':2,  
+                '2p_reference_scale':2
                 }
-        out=merge_image(ir_image, twop_image, **kwargs) 
+        out=merge_image(ir_image, twop_image, kwargs) 
         repeats=100
         im=[[numpy.random.random((512, 512)), numpy.random.random((100, 100, 2))] for i in range(repeats)]
         t0=time.time()
         for im1, im2 in im:
-            out=merge_image(im1, im2, **kwargs)
+            out=merge_image(im1, im2, kwargs)
         print((time.time()-t0)/repeats*1e3)
+    
+#    @unittest.skip('')    
+    def test_merge_different_2p_resolutions(self):
+        from pylab import imshow,figure,show
+        ir_image=numpy.random.random((512, 512))
+        twop1=numpy.random.random((50, 50, 2))
+        kwargs={
+                'Offset X':55, 
+                'Offset Y':-10, 
+                'Scale X':2.0, 
+                'Scale Y':2.0,  
+                'Rotation':-2.0,
+                '2p_scale':1.5,  
+                '2p_reference_scale':2
+                }
+        out1=merge_image(ir_image, twop1, kwargs) 
+        kwargs['2p_scale']=2
+        twop2=numpy.random.random((100, 100, 2))
+        out2=merge_image(ir_image, twop2, kwargs) 
+        twop3=numpy.random.random((20, 20, 2))
+        out3=merge_image(ir_image, twop3, kwargs) 
+        #figure(1);imshow(out1*0.33+out2*0.33+0.33*out3);show()
+        #Generate constant images
+        images=[]
+        for ox,oy in [[55,0],[-55,0],[0,55],[0,-55],[60,60],[0,0]]:
+            kwargs['Offset X']=ox
+            kwargs['Offset Y']=oy
+            ir_image=numpy.ones((512, 512))
+            twop1=numpy.ones((40, 30, 2))
+            kwargs['2p_scale']=1.5
+            out1=merge_image(ir_image, twop1, kwargs) 
+            kwargs['2p_scale']=2
+            twop2=numpy.ones((90, 40, 2))
+            out2=merge_image(ir_image, twop2, kwargs) 
+            images.extend([out1,out2])
+        imshow(numpy.array(images).sum(axis=0)/10.);show()
+        #figure(1);imshow(out1*0.5+out2*0.5);show()
+        
+    def test_2p_bigger_than_ir(self):
+        from pylab import imshow,figure,show
+        ir_image=numpy.random.random((512, 512))
+        twop1=numpy.random.random((400, 600, 2))
+        kwargs={
+                'Offset X':55, 
+                'Offset Y':-10, 
+                'Scale X':1.5, 
+                'Scale Y':1.5,  
+                'Rotation':-2.0,
+                '2p_scale':1.5,  
+                '2p_reference_scale':2
+                }
+        out1=merge_image(ir_image, twop1, kwargs) 
+        out2=merge_image(ir_image, numpy.random.random((100, 100, 2)), kwargs) 
+        imshow(out1*0.5+out2*0.5);show()
+        
+    def test_ir_disabled(self):
+        ir_image=numpy.zeros((512, 512))
+        twop1=numpy.random.random((600, 600, 2))
+        kwargs={
+                'Offset X':55, 
+                'Offset Y':-10, 
+                'Scale X':1.5, 
+                'Scale Y':1.5,  
+                'Rotation':-2.0,
+                '2p_scale':1.5,  
+                '2p_reference_scale':2
+                }
+        out1=merge_image(ir_image, twop1, kwargs) 
+        self.assertEqual(out1.shape[:2],twop1.shape[:2])
+        self.assertNotEqual(ir_image.shape[:2],twop1.shape[:2])
+        pass
         
     def test_filter_image(self):
         filtered=filter_image(numpy.random.random((100, 100, 2)), 0.5, 0.7, '')
@@ -759,8 +869,11 @@ class Test(unittest.TestCase):
                 'Offset Y':200, 
                 'Scale X':3.5, 
                 'Scale Y':3.5,  
-                'Rotation':3.0*0,  
+                'Rotation':3.0*0,
+                '2p_scale':2,  
                 }
         out=merge_image(ir_image, twop_image, **kwargs) 
+        
+    
 if __name__=='__main__':
     unittest.main()
