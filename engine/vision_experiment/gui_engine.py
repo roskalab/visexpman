@@ -315,7 +315,7 @@ class ExperimentHandler(object):
                 coords=zip(xx,yy)
             if self.guidata.read('Z start')<self.guidata.read('Z end'):
                 raise ValueError('Z start shall be bigger than Z end')
-            elif self.guidata.read('Z step')<0:
+            elif self.guidata.read('Z step')<=0:
                 raise ValueError('Z step shall be greater than 0')
             zs=self.guidata.read('Z start')
             ze=self.guidata.read('Z end')
