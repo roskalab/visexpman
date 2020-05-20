@@ -917,7 +917,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
 
     def _sfi2txt(self):
         #Convert stimulus frame info to pickled text:
-        import cPickle as pickle
+        try:
+            import cPickle as pickle
+        except ImportError:
+            import pickle
         import tables
         h=tables.open_file(self.datafile.filename,'a')
         stimulus_frame_info_text=pickle.dumps(self.stimulus_frame_info)
@@ -925,6 +928,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         ca=h.create_carray(h.root, 'stimulus_frame_info_text', tables.UInt8Atom(), sfi.shape)
         ca[:]=sfi[:]
         h.flush()
+        h.close()
         self.printl('Stimulus frame info saved as pickled')
             
     def _backup(self, filename):#Maybe obsolete?
