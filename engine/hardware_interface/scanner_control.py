@@ -20,7 +20,7 @@ class ScannerWaveform(object):
     #Depends on computer RAM 
     MAX_FRAME_PIXELS=500e3 
     #Depends on scanner model
-    MIN_X_SCANNER_PERIOD=1/3000#TODO: this limitation should depend on scan area width. Lower widths work on higher frequencies
+    MIN_X_SCANNER_PERIOD=1/3500#TODO: this limitation should depend on scan area width. Lower widths work on higher frequencies
     SCANNER_VOLTAGE_RANGE=[0.05, 5.0]
     
     def __init__(self, machine_config=None,  **kwargs):

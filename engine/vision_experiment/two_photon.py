@@ -30,7 +30,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['start',  'snap', 'record', 'stop', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack',  'exit']
+        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack',  'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
@@ -79,7 +79,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.debug.setMaximumHeight(self.machine_config.GUI_HEIGHT * 0.3)
         self.image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
         self.image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
-        self.image.set_image(numpy.random.random((200, 200, 3)))
+        #self.image.set_image(numpy.random.random((200, 200, 3)))
+        self.image.plot.setLabels(bottom='um', left='um')
         
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
@@ -282,7 +283,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     self.settings['params/Advanced/Y Return Time'],\
                                                                     pulse_width,\
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
-        self.waveform=numpy.array([waveform_x,  waveform_y])
+        self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels})
         self.twop_running=True
@@ -298,7 +299,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.printc(traceback.format_exc())
         
     def snap_action(self):
-        pass
+        self.start_action()
+        t0=time.time()
+        while True:
+            twop_frame=self.aio.read()
+            if twop_frame is not None:
+                self.twop_frame=twop_frame
+                break
+            if (time.time()-t0>3):
+                self.printc("No image acquired")
+                break
+            time.sleep(0.5)
+        self.stop_action()
         
     def record_action(self):
         try:
@@ -309,103 +321,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
         return
-    
-    def scan_frame(self):
-        f=self.daq_process.read_ai()
-        if hasattr(f,  'dtype'):
-            self.frame = f
-            if self.settings['Save']:
-                self.file.add(f)
-        return
-        fps_counter_start = time.time()
-        
-        data = numpy.empty((2 * self.sampsperchan,), dtype=numpy.float64) # Because 2 channel present
-        read = PyDAQmx.int32()
-        
-        # TODO: ReadAnalogF64 consumes a lot of time! ( ~0.3s -> 5000 samps per sec 40*40px, 1 px/um -> resulting a maximum of 3 fps ! )
-        # the remaining piece of code finishes in only 0.01s. Optimization is needed, if maximum 18 FPS for a 200x200px image is too low
-        self.analog_input.ReadAnalogF64(
-            self.sampsperchan,
-            60.0, # Timeout
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            data,
-            2 * self.sampsperchan,
-            PyDAQmx.byref(read),
-            None)
-        print (2)
-        # Scaling pixel data
-        data -= min(data)
-        data *= 255.0 / self.machine_config.BRIGHT_PIXEL_VOLTAGE # Instead of dividing by max(data) -> watherver, gui.Image automatically scales colours anyway in set_image function - check out!
-        
-        actual_width = utils.roundint(self.image_width * self.image_resolution)
-        actual_height = utils.roundint(self.image_height * self.image_resolution)
-        
-        '''
-        Optimized frame builder: (just a bit faster than the nested loops below)
-        #TODO: Bug fix needed: in the following 3 lines there must be missing a +-1 >:(
-        
-        begin_of_return = numpy.arange(actual_width, self.sampsperchan, actual_width + self.return_x_samps)
-        end_of_return = numpy.arange(actual_width + self.return_x_samps, self.sampsperchan + 1, actual_width + self.return_x_samps)
-        boundaries = numpy.insert(end_of_return,  numpy.arange(len(begin_of_return)), begin_of_return)
-        
-        red_ch = numpy.array(numpy.split(data, boundaries)[::2][:-1])
-        green_ch = numpy.array(numpy.split(numpy.split(data, [self.sampsperchan])[1], boundaries)[::2][:-1])
-        blue_ch = numpy.zeros((actual_height , actual_width),  dtype=int)
-        
-        self.printc(red_ch.shape)
-        self.printc(green_ch.shape)
-        self.printc(blue_ch.shape)
-        
-        self.frame = numpy.swapaxes(numpy.dstack([red_ch,  green_ch,  blue_ch]), 0, 1)
-        
-        #self.printc(self.frame.shape)
-        '''
-        
-        # Exclude measurements during return x and return y:
-        samples_to_skip = actual_width + self.return_x_samps - 1
-
-        for j in range(0, actual_height):
-            for i in range(0, actual_width):
-                self.frame[i, j, 0] = data[samples_to_skip * j + i] # Test: X feedback - red
-                self.frame[i, j, 1] = data[self.sampsperchan + samples_to_skip * j + i] # Test: Y feedback - green
-                self.frame[i, j, 2] = 0
-        
-        # TODO: Repeats are only needed if IR image resolution is more than 2P resolution.
-        #self.frame = self.frame.repeat(10, 0).repeat(10, 1)
-        
-        self.get_ir_image()
-        
-        scale = numpy.array([[1.0 / self.settings["IR X Scale"], 0], [0, 1.0 / self.settings["IR Y Scale"]]])
-        
-        # In the future, scipy.ndimage.geometric_transform might be the best solution instead of these:
-        self.ir_image = scipy.ndimage.zoom(self.ir_image, (self.settings["IR X Scale"], self.settings["IR Y Scale"]))
-        self.ir_image = scipy.ndimage.rotate(self.ir_image, self.settings["IR Rotation"])
-        
-        # Put IR on frame (with offset here!) moving overlapping pixels from ir into frame
-        # Known issues: bounding box changes size depending on zoom and rotation, image anchor is the lower left corner, not the center of the current view
-        self.frame[max(0, self.settings["IR X Offset"]) : min(self.ir_image.shape[0] + self.settings["IR X Offset"], self.frame.shape[0]),
-            max(0, self.settings["IR Y Offset"]) : min(self.ir_image.shape[1]  + self.settings["IR Y Offset"], self.frame.shape[1]), 2] = \
-            self.ir_image[max(0, -self.settings["IR X Offset"]) : min(self.ir_image.shape[0], self.frame.shape[0] - self.settings["IR X Offset"]),
-            max(0, -self.settings["IR Y Offset"]) : min(self.ir_image.shape[1], self.frame.shape[1] - self.settings["IR Y Offset"])]
-        
-        if(self.z_stacking):
-            self.z_stack.append(numpy.rollaxis(numpy.copy(self.frame), 2)) # Changing axis order to: ch, x, y
-            self.statusbar.recording_status.setText("Recording Z stack, frame number: " + str(len(self.z_stack)))
-        else:
-            self.statusbar.recording_status.setText("Scanning... " + str(round(1.0/(time.time() - fps_counter_start), 2)) + " FPS")
-        print (3)
-        '''
-        TODO: add binning (something like this) - when hardware can handle more then 5000 samps/sec
-        def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
-            binned_pmt_data = binning_data(rawdata, binning_factor)
-            if offset != 0:
-                binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
-            return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
-    
-        def binning_data(data, factor):
-            #data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
-            return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
-        '''
     
     # ZMQ socket handler (mostly adopted from camera.py)
     def socket_handler(self):
@@ -428,33 +343,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.params.params.param(name).items.keys()[0].param.setValue(param_set[name])
             except Exception as e:
                 self.socket_queues['2p']['tosocket'].put({'change_params': str(e)})
-    
-    # Applies channel mask to an image (which has all color channel!) and returns a copy of its modified version
-    def mask_channel(self, source):
-        canvas = numpy.copy(source)
-        if not self.settings["Show RED channel"]:
-            canvas[:, :, 0] = 0
-        if not self.settings["Show GREEN channel"]:
-            canvas[:, :, 1] = 0
-        if not self.settings["Show IR layer"]:
-            canvas[:, :, 2] = 0
-        return canvas
         
-    def generate_image_to_display(self):
-        '''
-        From raw image data generates merged/scaled/etc image
-        '''
-        self.img=raw2frame(self.frame, self.binning_factor, self.boundaries, offset = 0)
-        self.img2display=numpy.zeros((self.img.shape[0], self.img.shape[1], 3))
-        self.img2display[:, :, :2]=self.img
-        masked=self.mask_channel(self.img2display)
-        masked=numpy.where(masked>self.machine_config.MAX_PMT_VOLTAGE, self.machine_config.MAX_PMT_VOLTAGE, masked)
-        masked=numpy.where(masked<0.0, 0.0, masked)
-        masked/=self.machine_config.MAX_PMT_VOLTAGE
-        return masked
-    
-    
-    
     def read_image(self):
         ir_frame=self.camera.read()
         if ir_frame is not None:
@@ -464,34 +353,46 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.twop_frame=twop_frame
     
     def update_image(self):
-        self.ir_filtered=filter_image(self.ir_frame, self.settings['params/Live/IR/Min'], 
-                                                        self.settings['params/Live/IR/Max'],
-                                                        self.settings['params/Live/IR/Image filters'])*\
-                                                        int(self.settings['params/Show IR'])
-                                                        
-        top_filtered=filter_image(self.twop_frame[:,:,0], self.settings['params/Live/Top/Min'], 
-                                                        self.settings['params/Live/Top/Max'],
-                                                        self.settings['params/Live/Top/Image filters'])*\
-                                                        int(self.settings['params/Show Top'])
+        if not hasattr(self, 'twop_frame'):
+            self.merged=self.ir_filtered
+        else:
+            self.ir_filtered=filter_image(self.ir_frame, self.settings['params/Live/IR/Min'], 
+                                                            self.settings['params/Live/IR/Max'],
+                                                            self.settings['params/Live/IR/Image filters'])*\
+                                                            int(self.settings['params/Show IR'])
+                                                            
+            top_filtered=filter_image(self.twop_frame[:,:,0], self.settings['params/Live/Top/Min'], 
+                                                            self.settings['params/Live/Top/Max'],
+                                                            self.settings['params/Live/Top/Image filters'])*\
+                                                            int(self.settings['params/Show Top'])
 
-        side_filtered=filter_image(self.twop_frame[:,:,1], self.settings['params/Live/Side/Min'], 
-                                                        self.settings['params/Live/Side/Max'],
-                                                        self.settings['params/Live/Side/Image filters'])*\
-                                                        int(self.settings['params/Show Side'])
+            side_filtered=filter_image(self.twop_frame[:,:,1], self.settings['params/Live/Side/Min'], 
+                                                            self.settings['params/Live/Side/Max'],
+                                                            self.settings['params/Live/Side/Image filters'])*\
+                                                            int(self.settings['params/Show Side'])
 
-        kwargs={
-                'Offset X':self.settings['params/Infrared-2P overlay/Offset X'], 
-                'Offset Y':self.settings['params/Infrared-2P overlay/Offset Y'], 
-                'Scale X':self.settings['params/Infrared-2P overlay/Scale X'], 
-                'Scale Y':self.settings['params/Infrared-2P overlay/Scale Y'], 
-                'Rotation':self.settings['params/Infrared-2P overlay/Rotation'], 
-                }
-        self.kwargs=kwargs
-        twop_filtered=numpy.zeros_like(self.twop_frame)
-        twop_filtered[:,:,0]=top_filtered
-        twop_filtered[:,:,1]=side_filtered
-        self.merged=merge_image(self.ir_filtered, twop_filtered, **kwargs)
+            kwargs={
+                    'Offset X':self.settings['params/Infrared-2P overlay/Offset X'], 
+                    'Offset Y':self.settings['params/Infrared-2P overlay/Offset Y'], 
+                    'Scale X':self.settings['params/Infrared-2P overlay/Scale X'], 
+                    'Scale Y':self.settings['params/Infrared-2P overlay/Scale Y'], 
+                    'Rotation':self.settings['params/Infrared-2P overlay/Rotation'], 
+                    '2p_scale':self.settings['params/Resolution'],
+                    '2p_reference_scale':self.machine_config.REFERENCE_2P_RESOLUTION
+                    }
+            self.kwargs=kwargs
+            twop_filtered=numpy.zeros_like(self.twop_frame)
+            twop_filtered[:,:,0]=top_filtered
+            twop_filtered[:,:,1]=side_filtered
+            
+            self.twop_filtered=twop_filtered
+            self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
         self.image.set_image(self.merged)
+        if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and not self.settings['params/Show IR']:
+            self.imscale=1/self.settings['params/Resolution']#Only 2p image is shown
+        else:#IR is also shown
+            self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale X'])
+        self.image.set_scale(self.imscale)
     
     def stop_action(self, remote=None):
         if not self.twop_running:
@@ -712,7 +613,7 @@ def merge_image(ir_image, twop_image, kwargs):
     #Extend to IR image
     twop_extended=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 2))
     #Put twop_resized to the center of twop_extended
-    default_offset=numpy.array(twop_extended.shape[:2])/2-numpy.array(twop_resized.shape[:2])/2
+    default_offset=numpy.cast['int'](numpy.array(twop_extended.shape[:2])/2-numpy.array(twop_resized.shape[:2])/2)
     if all(numpy.array(ir_image.shape)>numpy.array(twop_resized.shape[:2])):#2p image is smaller than IR
         twop_extended[default_offset[0]:default_offset[0]+twop_resized.shape[0], default_offset[1]:default_offset[1]+twop_resized.shape[1], :]=twop_resized
         cut_2p=False
@@ -728,13 +629,13 @@ def merge_image(ir_image, twop_image, kwargs):
     twop_shifted=numpy.roll(twop_rotated,(offset_x,offset_y),axis=(0,1))
     #Handle edges
     if twop_resized.shape[1]/2+offset_y> twop_extended.shape[1]/2:
-        edge=twop_resized.shape[1]/2+offset_y- twop_extended.shape[1]/2
+        edge=int(twop_resized.shape[1]/2+offset_y- twop_extended.shape[1]/2)
         twop_shifted[:,:edge,:]=0
     if twop_resized.shape[1]/2+offset_y<0:
-        edge=abs(twop_resized.shape[1]/2+offset_y)
+        edge=int(abs(twop_resized.shape[1]/2+offset_y))
         twop_shifted[:,-edge:,:]=0
     if twop_resized.shape[0]/2+offset_x> twop_extended.shape[0]/2:
-        edge=twop_resized.shape[0]/2+offset_x- twop_extended.shape[0]/2
+        edge=int(twop_resized.shape[0]/2+offset_x- twop_extended.shape[0]/2)
         twop_shifted[:edge,:,:]=0
     if twop_resized.shape[0]/2+offset_x<0:
         edge=abs(twop_resized.shape[0]/2+offset_x)
@@ -861,18 +762,21 @@ class Test(unittest.TestCase):
         self.assertEqual(filtered.min(), 0)
         self.assertEqual(filtered.max(), 1)
         
-    def test_debug_merge(self):
-        ir_image=numpy.ones((1004, 1004), dtype=numpy.uint16)*30000
-        twop_image=numpy.load(r'f:\tmp\2p.npy')
-        kwargs={
-                'Offset X':100, 
-                'Offset Y':200, 
-                'Scale X':3.5, 
-                'Scale Y':3.5,  
-                'Rotation':3.0*0,
-                '2p_scale':2,  
-                }
-        out=merge_image(ir_image, twop_image, **kwargs) 
+    def test_different_resolutions_same_size(self):
+        ir_image=numpy.ones((504, 504), dtype=numpy.float)*0.16
+        twop_image1=numpy.ones((100,100,2), dtype=numpy.float)*0.06
+        kwargs1={'Offset X': 0, 'Offset Y': 0, 'Scale X': 2.0, 'Scale Y': 2.0, 'Rotation': 0.0, '2p_scale': 2.0, '2p_reference_scale': 1}
+        twop_image2=numpy.ones((150,150,2), dtype=numpy.float)*0.06
+        kwargs2={'Offset X': 0, 'Offset Y': 0, 'Scale X': 2.0, 'Scale Y': 2.0, 'Rotation': 0.0, '2p_scale': 3.0, '2p_reference_scale': 1}
+        out1=merge_image(ir_image, twop_image1, kwargs1) 
+        out2=merge_image(ir_image, twop_image2, kwargs2) 
+        from pylab import imshow,show,figure
+        figure(1)
+        imshow(out1)
+        figure(2)
+        imshow(out2)
+        show()
+        pass
         
     
 if __name__=='__main__':
