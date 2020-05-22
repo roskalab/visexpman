@@ -1,7 +1,6 @@
-import numpy
+import numpy, struct
 import re
 import time
-import os
 try:
     import serial
 except:
@@ -350,6 +349,33 @@ class RemoteFocus(object):
             self.serial_port.close()
         except AttributeError:
             pass
+            
+class SutterStage(serial.Serial):
+    """
+    Commands are based on http://neurophysics.ucsd.edu/Manuals/Sutter%20Instruments/MP-285%20Reference%20Manual.pdf
+    """
+    def __init__(self, port, baudrate):
+        serial.Serial.__init__(self,  port, baudrate, timeout=1)
+        self.write('b\r')#Set to relative mode
+        resp=self.read(1)
+        if resp!=ord('\r'):
+            raise IOError('No access to stage')
+        
+    @property
+    def z(self):
+        self.write('c\r')
+        resp=self.read(13)
+        if len(resp)!=13 or resp[-1]!=ord('\r'):
+            raise IOError("Invalid response")
+        return struct.unpack('<iii',resp.encode('utf-8'))[2]
+        
+    @z.setter
+    def z(self, value):
+        cmd=struct.pack('<iii', 0, 0, int(value))
+        self.write(b'm'+cmd+b'\r')
+        resp=self.read(1)
+        if resp!=ord('\r'):
+            raise IOError('No access to stage')
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

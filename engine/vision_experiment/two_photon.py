@@ -1,5 +1,5 @@
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
-import scipy,skimage
+import scipy,skimage, tables
 try:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
@@ -7,7 +7,7 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-    from visexpman.engine.hardware_interface import scanner_control,camera
+    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control
     from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 except:
     print('Import errors')
@@ -109,6 +109,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.read_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         self.read_image_timer.timeout.connect(self.read_image)
         
+        self.background_process_timer=QtCore.QTimer()
+        self.background_process_timer.start(1000)
+        self.background_process_timer.timeout(self.background_process)
+        
         self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
@@ -121,7 +125,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         params=[]
         
         self.scanning = False
-        self.z_stacking = False # We are using scan_frame for both scanning and recording z stack. This variable tells the function, what to do (instead of passing it as a parameter, because more function uses it).
+        self.z_stack_running=False
         
         # 3D numpy arrays, format: (X, Y, CH)
         self.ir_frame = numpy.zeros((500,500))
@@ -165,7 +169,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                  {'name': 'Z stack', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Start', 'type': 'int', 'value': 0,  'step': 1, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'End', 'type': 'int', 'value': 0,  'step' : 1, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
+                    {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}, 
+                    {'name': 'Samples per depth', 'type': 'int', 'value': 1}
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Enable Projector', 'type': 'bool', 'value': False},
@@ -180,12 +185,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.twop_running=False
         self.camera_running=False
     
-    def parameter_changed(self):
-        
-        if(self.z_stacking):
-            self.printc("Cannot change parameters while Z stacking is in proggress.")
+    def parameter_changed(self):        
+        if(self.z_stack_running):
+            self.printc("Cannot change parameters while Z stacking is running.")
             return
-            # Feature (bug): 'Changed' parameter still stays there
         newparams=self.params.get_parameter_tree(return_dict=True)
         
         if hasattr(self, 'settings'):
@@ -246,6 +249,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                 self.logger.filename.replace('2p', '2p_cam'),
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
+        self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
+        self.stage_z=self.stage.z
         
     def _close_hardware(self):
         self.aio.terminate()
@@ -298,19 +303,23 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
         
-    def snap_action(self):
+    def snap_action(self, n):
         self.start_action()
         t0=time.time()
+        frames=[]
         while True:
             twop_frame=self.aio.read()
             if twop_frame is not None:
                 self.twop_frame=twop_frame
+                frames.append(twop_frame)
+            if len(frames)==n:
                 break
             if (time.time()-t0>3):
                 self.printc("No image acquired")
                 break
             time.sleep(0.5)
         self.stop_action()
+        return frames
         
     def record_action(self):
         try:
@@ -395,39 +404,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.image.set_scale(self.imscale)
     
     def stop_action(self, remote=None):
-        if not self.twop_running:
+       
+        if self.z_stack_running:
+            self.finish_zstack()
+        elif not self.twop_running:
             return
-        self.aio.stop()
-        self.twop_running=False
-        self.printc('2p scanning stopped')
+        else:
+            self.aio.stop()
+            self.twop_running=False
+            self.printc('2p scanning stopped')
         self.statusbar.twop_status.setText('Ready')
         self.statusbar.twop_status.setStyleSheet('background:gray;')
-        return
-        if(self.z_stacking):
-            if(remote==False):
-                self.printc("Z stacking is in progress, cannot abort manually.")
-            else:
-                self.socket_queues['2p']['tosocket'].put({'stop_action': "Z stacking is in progress, cannot abort manually."})
-            return
-    
-       
-        self.scan_timer.stop()
-    
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(0)], dtype=numpy.uint8),
-            None,
-            None)
-        self.printc("Close shutter")
-        self.stop_daq()
-        
-        self.scanning = False
-        self.statusbar.recording_status.setText('Idle')
-        self.statusbar.recording_status.setStyleSheet('background:gray;')
-        self.statusbar.info.setText('')
         
     def restart_scan(self):
         self.stop_action()
@@ -439,7 +426,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def open_action(self):
         '''
         Open a recording for display
-        ''', 
+        '''
         
     def save_image_action(self):
         '''
@@ -525,43 +512,54 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 ############## Z-STACK ###################
     
     def z_stack_action(self, remote=None):
-        raise NotImplementedError('reccord_action and stop_action shall be called for every depth')
-        if(self.scanning):
-            self.stop_action()
+        if self.settings['params/Z Stack/Start']<self.settings['params/Z Stack/End']:
+            raise ValueError('Start position must be greater than end position')
+        if self.settings['params/Z Stack/Step']<=0:
+            raise ValueError('Step value shall be a positive number')
+        params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
+        self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, 'zstack')
+        s=self.settings['params/Z Stack/Start']
+        e=self.settings['params/Z Stack/End']
+        st=self.settings['params/Z Stack/Step']
+        self.depths=numpy.linspace(s, e, int((s-e)/st+1))
+        self.printc(f"Z stack in {', '.join(self.depths)},  saving to {self.zstack_filename}")
+        self.depth_index=0
+        self.z_stack_running=True
         
-        self.z_stacking = True
-        self.z_stack = []
+    def z_stack_runner(self):
+        if self.z_stack_running:
+            self.stage.z=self.depths[self.depth_index]
+            self.printc(f"Set position to {self.stage.z}")
+            data=self.snap_action(self.settings['params/Z Stack/Samples per depth'])
+            if self.depth_index==0:
+                self.zstackfile=tables.open_file(self.zstack_filename,'w')
+                datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
+                datatype = tables.UInt16Atom(data.shape)
+                self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
+            else:
+                self.zstack_data_handle.append(data[None,:])
+            self.depth_index+=1
+            if len(self.depths)==self.depth_index:
+                self.finish_zstack()
+                
+    def finish_zstack(self):
+        self.printc(f"Finishing z stack")
+        atom = tables.Atom.from_dtype(self.depths.dtype)
+        depths = self.zstackfile.create_carray(self.zstackfile.root, 'depths', atom, self.depths.shape)
+        depths[:] = self.depths
+        #Save settings
+        self.settings2attr(depths.attr)
+        self.z_stack_running=False
+        self.zstackfile.close()
         
-        self.record_action() # Without statring scan_timer! (self.z_stacking = True) scan_frame is being called 'manually' check out the for loop below!
-        preview = numpy.copy(self.frame) # Preview image (self.frame) available right after record_action()
+    def settings2attr(self, ref):
+        for k, v in self.settings.items():
+            attrn=k.replace('/', '_').replace(' ', '_')
+            setattr(ref, attrn, v)
         
-        for i in range(self.settings["Z Stack Start"],  self.settings["Z Stack End"],  self.settings["Z Stack Step"]):
-            self.set_depth(i)
-            Qt.QApplication.processEvents() # Update gui
-            self.scan_frame()
-        
-        self.z_stacking = False
-        self.stop_action()
-        
-        stack = numpy.stack(self.z_stack, axis=0) # Dimensions : time, ch, x, y
-        
-        if(remote==False):
-            fname = str(QtGui.QFileDialog.getSaveFileName(self, 'Save Recorded Z Stack (' + str(len(self.z_stack)) + ' frames)', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
-        else:
-            fname = remote
-        
-        if (fname==''):
-            return
-        
-        hdf5io.save_item(fname, 'imaging_data', stack, overwrite=True)
-        hdf5io.save_item(fname, 'preview', preview)
-        self.printc("Saving " + fname + " completed")
-        self.statusbar.recording_status.setText("Z Stack Recorded: " + fname)
-        
-    
-    def set_depth(self, depth):
-        #TODO: implement in stage_control device specific protocol
-        pass
+    def background_process(self):
+        self.socket_handler()
+        self.z_stack_runner()
     
     def get_ir_image(self):
         data, addr = self.camera_udp.recvfrom(16009)
