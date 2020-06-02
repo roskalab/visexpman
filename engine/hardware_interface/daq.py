@@ -62,7 +62,84 @@ def set_waveform_finish(analog_output, timeout,wait=True):
         analog_output.WaitUntilTaskDone(timeout+1.0)
         analog_output.StopTask()                            
         analog_output.ClearTask()
-
+        
+class AnalogRead():
+    """
+    Utility for recording finite analog signals in a non-blocking way
+    """
+    def __init__(self, channels, duration, fsample):
+        try:
+            self.n_ai_channels=int(numpy.diff(list(map(float, channels.split('/')[1][2:].split(':'))))[0]+1)
+        except IndexError:
+            raise NotImplementedError('Single channel not parsed')
+        self.nsamples=int(duration*fsample)
+        self.timeout=duration
+        self.ai_data = numpy.zeros(int(self.nsamples*self.n_ai_channels), dtype=numpy.float64)
+            
+        self.analog_input = PyDAQmx.Task()
+        self.analog_input.CreateAIVoltageChan(channels,
+                                            'ai',
+                                            DAQmxConstants.DAQmx_Val_RSE,
+                                            -5, 
+                                            5, 
+                                            DAQmxConstants.DAQmx_Val_Volts,
+                                            None)
+        self.readb = DAQmxTypes.int32()
+        self.analog_input.CfgSampClkTiming("OnboardClock",
+                                            fsample,
+                                            DAQmxConstants.DAQmx_Val_Rising,
+                                            DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                            self.nsamples)
+        self.analog_input.StartTask()
+        
+    def read(self):
+        self.analog_input.ReadAnalogF64(int(self.ai_data.shape[0]/self.n_ai_channels),
+                                        self.timeout,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        self.ai_data,
+                                        self.ai_data.shape[0],
+                                        DAQmxTypes.byref(self.readb),
+                                        None)
+        self.ai_data = self.ai_data[:self.readb.value * self.n_ai_channels]
+        self.ai_data = self.ai_data.flatten('F').reshape((self.n_ai_channels, self.readb.value))
+        self.analog_input.StopTask()
+        return self.ai_data
+        
+def set_digital_line(channel, value):
+    digital_output = PyDAQmx.Task()
+    digital_output.CreateDOChan(channel,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+    digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(value)], dtype=numpy.uint8),
+                                    None,
+                                    None)
+    digital_output.ClearTask()
+    
+def digital_pulse(channel,duration):
+    """
+    Software timed digital pulse
+    """
+    digital_output = PyDAQmx.Task()
+    digital_output.CreateDOChan(channel,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+    digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([1], dtype=numpy.uint8),
+                                    None,
+                                    None)
+    time.sleep(duration)
+    digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([0], dtype=numpy.uint8),
+                                    None,
+                                    None)
+    digital_output.ClearTask()
+            
 class SyncAnalogIO():
     def __init__(self, ai_channels,  ao_channels,  timeout=1):
         self.timeout=timeout
