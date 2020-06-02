@@ -1,5 +1,7 @@
+from pylab import *
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
-import scipy,skimage
+import itertools
+import scipy,skimage, tables
 try:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
@@ -7,7 +9,7 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-    from visexpman.engine.hardware_interface import scanner_control,camera
+    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control
     from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 except:
     print('Import errors')
@@ -109,6 +111,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.read_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         self.read_image_timer.timeout.connect(self.read_image)
         
+        self.background_process_timer=QtCore.QTimer()
+        self.background_process_timer.start(1000)
+        self.background_process_timer.timeout(self.background_process)
+        
         self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
@@ -121,7 +127,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         params=[]
         
         self.scanning = False
-        self.z_stacking = False # We are using scan_frame for both scanning and recording z stack. This variable tells the function, what to do (instead of passing it as a parameter, because more function uses it).
+        self.z_stack_running=False
         
         # 3D numpy arrays, format: (X, Y, CH)
         self.ir_frame = numpy.zeros((500,500))
@@ -158,14 +164,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Infrared-2P overlay', 'type': 'group',  'expanded' : False, 'children': [
                     {'name': 'Offset X', 'type': 'int', 'value': 0,  'siPrefix': False, 'suffix': ' um'},
                     {'name': 'Offset Y', 'type': 'int', 'value': 0,  'siPrefix': False, 'suffix': ' um'},
-                    {'name': 'Scale X', 'type': 'float', 'value': 1.0,},
-                    {'name': 'Scale Y', 'type': 'float', 'value': 1.0,},
+                    {'name': 'Scale', 'type': 'float', 'value': 1.0,},
                     {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
                 ]}, 
                  {'name': 'Z stack', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Start', 'type': 'int', 'value': 0,  'step': 1, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'End', 'type': 'int', 'value': 0,  'step' : 1, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
+                    {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}, 
+                    {'name': 'Samples per depth', 'type': 'int', 'value': 1}
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Enable Projector', 'type': 'bool', 'value': False},
@@ -180,12 +186,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.twop_running=False
         self.camera_running=False
     
-    def parameter_changed(self):
-        
-        if(self.z_stacking):
-            self.printc("Cannot change parameters while Z stacking is in proggress.")
+    def parameter_changed(self):        
+        if(self.z_stack_running):
+            self.printc("Cannot change parameters while Z stacking is running.")
             return
-            # Feature (bug): 'Changed' parameter still stays there
         newparams=self.params.get_parameter_tree(return_dict=True)
         
         if hasattr(self, 'settings'):
@@ -246,6 +250,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                 self.logger.filename.replace('2p', '2p_cam'),
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
+        self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
+        self.stage_z=self.stage.z
         
     def _close_hardware(self):
         self.aio.terminate()
@@ -298,19 +304,23 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
         
-    def snap_action(self):
+    def snap_action(self, n):
         self.start_action()
         t0=time.time()
+        frames=[]
         while True:
             twop_frame=self.aio.read()
             if twop_frame is not None:
                 self.twop_frame=twop_frame
+                frames.append(twop_frame)
+            if len(frames)==n:
                 break
             if (time.time()-t0>3):
                 self.printc("No image acquired")
                 break
             time.sleep(0.5)
         self.stop_action()
+        return frames
         
     def record_action(self):
         try:
@@ -395,39 +405,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.image.set_scale(self.imscale)
     
     def stop_action(self, remote=None):
-        if not self.twop_running:
+       
+        if self.z_stack_running:
+            self.finish_zstack()
+        elif not self.twop_running:
             return
-        self.aio.stop()
-        self.twop_running=False
-        self.printc('2p scanning stopped')
+        else:
+            self.aio.stop()
+            self.twop_running=False
+            self.printc('2p scanning stopped')
         self.statusbar.twop_status.setText('Ready')
         self.statusbar.twop_status.setStyleSheet('background:gray;')
-        return
-        if(self.z_stacking):
-            if(remote==False):
-                self.printc("Z stacking is in progress, cannot abort manually.")
-            else:
-                self.socket_queues['2p']['tosocket'].put({'stop_action': "Z stacking is in progress, cannot abort manually."})
-            return
-    
-       
-        self.scan_timer.stop()
-    
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(0)], dtype=numpy.uint8),
-            None,
-            None)
-        self.printc("Close shutter")
-        self.stop_daq()
-        
-        self.scanning = False
-        self.statusbar.recording_status.setText('Idle')
-        self.statusbar.recording_status.setStyleSheet('background:gray;')
-        self.statusbar.info.setText('')
         
     def restart_scan(self):
         self.stop_action()
@@ -439,7 +427,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def open_action(self):
         '''
         Open a recording for display
-        ''', 
+        '''
         
     def save_image_action(self):
         '''
@@ -525,43 +513,54 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 ############## Z-STACK ###################
     
     def z_stack_action(self, remote=None):
-        raise NotImplementedError('reccord_action and stop_action shall be called for every depth')
-        if(self.scanning):
-            self.stop_action()
+        if self.settings['params/Z Stack/Start']<self.settings['params/Z Stack/End']:
+            raise ValueError('Start position must be greater than end position')
+        if self.settings['params/Z Stack/Step']<=0:
+            raise ValueError('Step value shall be a positive number')
+        params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
+        self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, 'zstack')
+        s=self.settings['params/Z Stack/Start']
+        e=self.settings['params/Z Stack/End']
+        st=self.settings['params/Z Stack/Step']
+        self.depths=numpy.linspace(s, e, int((s-e)/st+1))
+        self.printc(f"Z stack in {', '.join(self.depths)},  saving to {self.zstack_filename}")
+        self.depth_index=0
+        self.z_stack_running=True
         
-        self.z_stacking = True
-        self.z_stack = []
+    def z_stack_runner(self):
+        if self.z_stack_running:
+            self.stage.z=self.depths[self.depth_index]
+            self.printc(f"Set position to {self.stage.z}")
+            data=self.snap_action(self.settings['params/Z Stack/Samples per depth'])
+            if self.depth_index==0:
+                self.zstackfile=tables.open_file(self.zstack_filename,'w')
+                datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
+                datatype = tables.UInt16Atom(data.shape)
+                self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
+            else:
+                self.zstack_data_handle.append(data[None,:])
+            self.depth_index+=1
+            if len(self.depths)==self.depth_index:
+                self.finish_zstack()
+                
+    def finish_zstack(self):
+        self.printc(f"Finishing z stack")
+        atom = tables.Atom.from_dtype(self.depths.dtype)
+        depths = self.zstackfile.create_carray(self.zstackfile.root, 'depths', atom, self.depths.shape)
+        depths[:] = self.depths
+        #Save settings
+        self.settings2attr(depths.attr)
+        self.z_stack_running=False
+        self.zstackfile.close()
         
-        self.record_action() # Without statring scan_timer! (self.z_stacking = True) scan_frame is being called 'manually' check out the for loop below!
-        preview = numpy.copy(self.frame) # Preview image (self.frame) available right after record_action()
+    def settings2attr(self, ref):
+        for k, v in self.settings.items():
+            attrn=k.replace('/', '_').replace(' ', '_')
+            setattr(ref, attrn, v)
         
-        for i in range(self.settings["Z Stack Start"],  self.settings["Z Stack End"],  self.settings["Z Stack Step"]):
-            self.set_depth(i)
-            Qt.QApplication.processEvents() # Update gui
-            self.scan_frame()
-        
-        self.z_stacking = False
-        self.stop_action()
-        
-        stack = numpy.stack(self.z_stack, axis=0) # Dimensions : time, ch, x, y
-        
-        if(remote==False):
-            fname = str(QtGui.QFileDialog.getSaveFileName(self, 'Save Recorded Z Stack (' + str(len(self.z_stack)) + ' frames)', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
-        else:
-            fname = remote
-        
-        if (fname==''):
-            return
-        
-        hdf5io.save_item(fname, 'imaging_data', stack, overwrite=True)
-        hdf5io.save_item(fname, 'preview', preview)
-        self.printc("Saving " + fname + " completed")
-        self.statusbar.recording_status.setText("Z Stack Recorded: " + fname)
-        
-    
-    def set_depth(self, depth):
-        #TODO: implement in stage_control device specific protocol
-        pass
+    def background_process(self):
+        self.socket_handler()
+        self.z_stack_runner()
     
     def get_ir_image(self):
         data, addr = self.camera_udp.recvfrom(16009)
@@ -594,31 +593,40 @@ def merge_image(ir_image, twop_image, kwargs):
     twop_image: float, 0-1 range, height x width x 2
     kwargs keys:
     Offset X, Y: in um, offset between 2p and Ir image center
-    Scale X, Y: scale between IR and 2p image
+    Scale: Ratio between pixel size in um of IR and 2p image at reference resolution
     2p_scale: two photon image scale in um/pixel
-    2p_reference_scale: resolution which was used when Scale X, Y and Offset X, Y was calibrated
+    2p_reference_scale: resolution which was used when Scale and Offset X, Y was calibrated
     """
     if (ir_image==0).all():
         merged=numpy.zeros((twop_image.shape[0],  twop_image.shape[1], 3))
         merged[:,:,:2]=twop_image
         return merged
     merged=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 3))
-    resolution_ratio=kwargs['2p_reference_scale']/kwargs['2p_scale']
-    offset_x=int(kwargs['2p_scale']*kwargs['Offset X']*kwargs['Scale X']*resolution_ratio)
-    offset_y=int(kwargs['2p_scale']*kwargs['Offset Y']*kwargs['Scale Y']*resolution_ratio)
-    #Scale 2p image
-    twop_size=numpy.cast['int'](numpy.array(twop_image.shape[:2])*numpy.array([kwargs['Scale X'],kwargs['Scale Y']]))
+    #Calculate offset in pixels of IR image
+    offset_x=int(kwargs['2p_reference_scale']*kwargs['Offset X']*kwargs['Scale'])
+    offset_y=int(kwargs['2p_reference_scale']*kwargs['Offset Y']*kwargs['Scale'])
+    #Scale 2p image to the resolution of IR image
+    scale=kwargs['2p_reference_scale']*kwargs['Scale']/kwargs['2p_scale']
+    twop_size=numpy.cast['int'](numpy.array(twop_image.shape[:2])*scale)
     twop_size=numpy.append(twop_size, 2)
     twop_resized=skimage.transform.resize(twop_image, twop_size)
     #Extend to IR image
     twop_extended=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 2))
     #Put twop_resized to the center of twop_extended
     default_offset=numpy.cast['int'](numpy.array(twop_extended.shape[:2])/2-numpy.array(twop_resized.shape[:2])/2)
-    if all(numpy.array(ir_image.shape)>numpy.array(twop_resized.shape[:2])):#2p image is smaller than IR
+    ir_size_bigger=numpy.array(ir_image.shape)>numpy.array(twop_resized.shape[:2])
+    if all(ir_size_bigger):#2p image is smaller than IR
         twop_extended[default_offset[0]:default_offset[0]+twop_resized.shape[0], default_offset[1]:default_offset[1]+twop_resized.shape[1], :]=twop_resized
         cut_2p=False
-    else:#At keast one dimension of 2p is bigger than IR
-        twop_extended=twop_resized  
+    elif any(ir_size_bigger) and not all(ir_size_bigger):#Only one dimension of 2p is bigger than IR
+        cut_2p=False
+        if ir_size_bigger[0]:
+            twop_extended[default_offset[0]:-default_offset[0], :, :]=twop_resized[:, -default_offset[1]:default_offset[1], :]
+        elif ir_size_bigger[1]:
+            twop_extended[:, default_offset[1]:-default_offset[1], :]=twop_resized[-default_offset[0]:default_offset[0], :, :]
+    else:
+        #At keast one dimension of 2p is bigger than IR
+        twop_extended=twop_resized
         cut_2p=True
     #Rotate
     if kwargs['Rotation']!=0:
@@ -627,19 +635,29 @@ def merge_image(ir_image, twop_image, kwargs):
         twop_rotated=twop_extended
     #Shift 2p
     twop_shifted=numpy.roll(twop_rotated,(offset_x,offset_y),axis=(0,1))
-    #Handle edges
-    if twop_resized.shape[1]/2+offset_y> twop_extended.shape[1]/2:
-        edge=int(twop_resized.shape[1]/2+offset_y- twop_extended.shape[1]/2)
-        twop_shifted[:,:edge,:]=0
-    if twop_resized.shape[1]/2+offset_y<0:
-        edge=int(abs(twop_resized.shape[1]/2+offset_y))
-        twop_shifted[:,-edge:,:]=0
-    if twop_resized.shape[0]/2+offset_x> twop_extended.shape[0]/2:
-        edge=int(twop_resized.shape[0]/2+offset_x- twop_extended.shape[0]/2)
-        twop_shifted[:edge,:,:]=0
-    if twop_resized.shape[0]/2+offset_x<0:
-        edge=abs(twop_resized.shape[0]/2+offset_x)
-        twop_shifted[-edge:,:,:]=0
+    #Handle edges: rotated image is rolled and returned pixels shall be eliminated
+    if any(ir_size_bigger) and not all(ir_size_bigger):
+        if offset_x>0:
+            twop_shifted[:offset_x, :, :]=0
+        elif offset_x<0:
+            twop_shifted[offset_x:, :, :]=0
+        if offset_y>0:
+            twop_shifted[:, :offset_y, :]=0
+        elif offset_y<0:
+            twop_shifted[:, offset_y:, :]=0
+    else:
+        if twop_resized.shape[1]/2+offset_y> twop_extended.shape[1]/2:
+            edge=int(twop_resized.shape[1]/2+offset_y-twop_extended.shape[1]/2)
+            twop_shifted[:,:edge,:]=0
+        if twop_resized.shape[1]/2+offset_y<0:
+            edge=int(abs(twop_resized.shape[1]/2+offset_y))
+            twop_shifted[:,-edge:,:]=0
+        if twop_resized.shape[0]/2+offset_x> twop_extended.shape[0]/2:
+            edge=int(twop_resized.shape[0]/2+offset_x- twop_extended.shape[0]/2)
+            twop_shifted[:edge,:,:]=0
+        if twop_resized.shape[0]/2+offset_x<0:
+            edge=int(abs(twop_resized.shape[0]/2+offset_x))
+            twop_shifted[-edge:,:,:]=0
     if cut_2p:
         merged[:, :, :2]=twop_shifted[-default_offset[0]:merged.shape[0]-default_offset[0],-default_offset[1]:merged.shape[1]-default_offset[1],:]*0.5
     else:
@@ -672,8 +690,7 @@ class Test(unittest.TestCase):
         kwargs={
                 'Offset X':200, 
                 'Offset Y':200, 
-                'Scale X':3.0, 
-                'Scale Y':3.0, 
+                'Scale':3.0, 
                 'Rotation':3.0*0,
                 '2p_scale':2,  
                 '2p_reference_scale':2
@@ -686,43 +703,7 @@ class Test(unittest.TestCase):
             out=merge_image(im1, im2, kwargs)
         print((time.time()-t0)/repeats*1e3)
     
-#    @unittest.skip('')    
-    def test_merge_different_2p_resolutions(self):
-        from pylab import imshow,figure,show
-        ir_image=numpy.random.random((512, 512))
-        twop1=numpy.random.random((50, 50, 2))
-        kwargs={
-                'Offset X':55, 
-                'Offset Y':-10, 
-                'Scale X':2.0, 
-                'Scale Y':2.0,  
-                'Rotation':-2.0,
-                '2p_scale':1.5,  
-                '2p_reference_scale':2
-                }
-        out1=merge_image(ir_image, twop1, kwargs) 
-        kwargs['2p_scale']=2
-        twop2=numpy.random.random((100, 100, 2))
-        out2=merge_image(ir_image, twop2, kwargs) 
-        twop3=numpy.random.random((20, 20, 2))
-        out3=merge_image(ir_image, twop3, kwargs) 
-        #figure(1);imshow(out1*0.33+out2*0.33+0.33*out3);show()
-        #Generate constant images
-        images=[]
-        for ox,oy in [[55,0],[-55,0],[0,55],[0,-55],[60,60],[0,0]]:
-            kwargs['Offset X']=ox
-            kwargs['Offset Y']=oy
-            ir_image=numpy.ones((512, 512))
-            twop1=numpy.ones((40, 30, 2))
-            kwargs['2p_scale']=1.5
-            out1=merge_image(ir_image, twop1, kwargs) 
-            kwargs['2p_scale']=2
-            twop2=numpy.ones((90, 40, 2))
-            out2=merge_image(ir_image, twop2, kwargs) 
-            images.extend([out1,out2])
-        imshow(numpy.array(images).sum(axis=0)/10.);show()
-        #figure(1);imshow(out1*0.5+out2*0.5);show()
-        
+    @unittest.skip('')    
     def test_2p_bigger_than_ir(self):
         from pylab import imshow,figure,show
         ir_image=numpy.random.random((512, 512))
@@ -730,24 +711,23 @@ class Test(unittest.TestCase):
         kwargs={
                 'Offset X':55, 
                 'Offset Y':-10, 
-                'Scale X':1.5, 
-                'Scale Y':1.5,  
+                'Scale':1.5, 
                 'Rotation':-2.0,
                 '2p_scale':1.5,  
                 '2p_reference_scale':2
                 }
         out1=merge_image(ir_image, twop1, kwargs) 
         out2=merge_image(ir_image, numpy.random.random((100, 100, 2)), kwargs) 
-        imshow(out1*0.5+out2*0.5);show()
-        
+#        imshow(out1*0.5+out2*0.5);show()
+
+    @unittest.skip('')    
     def test_ir_disabled(self):
         ir_image=numpy.zeros((512, 512))
         twop1=numpy.random.random((600, 600, 2))
         kwargs={
                 'Offset X':55, 
                 'Offset Y':-10, 
-                'Scale X':1.5, 
-                'Scale Y':1.5,  
+                'Scale':1.5, 
                 'Rotation':-2.0,
                 '2p_scale':1.5,  
                 '2p_reference_scale':2
@@ -755,29 +735,81 @@ class Test(unittest.TestCase):
         out1=merge_image(ir_image, twop1, kwargs) 
         self.assertEqual(out1.shape[:2],twop1.shape[:2])
         self.assertNotEqual(ir_image.shape[:2],twop1.shape[:2])
-        pass
         
     def test_filter_image(self):
         filtered=filter_image(numpy.random.random((100, 100, 2)), 0.5, 0.7, '')
         self.assertEqual(filtered.min(), 0)
         self.assertEqual(filtered.max(), 1)
         
-    def test_different_resolutions_same_size(self):
-        ir_image=numpy.ones((504, 504), dtype=numpy.float)*0.16
-        twop_image1=numpy.ones((100,100,2), dtype=numpy.float)*0.06
-        kwargs1={'Offset X': 0, 'Offset Y': 0, 'Scale X': 2.0, 'Scale Y': 2.0, 'Rotation': 0.0, '2p_scale': 2.0, '2p_reference_scale': 1}
-        twop_image2=numpy.ones((150,150,2), dtype=numpy.float)*0.06
-        kwargs2={'Offset X': 0, 'Offset Y': 0, 'Scale X': 2.0, 'Scale Y': 2.0, 'Rotation': 0.0, '2p_scale': 3.0, '2p_reference_scale': 1}
-        out1=merge_image(ir_image, twop_image1, kwargs1) 
-        out2=merge_image(ir_image, twop_image2, kwargs2) 
-        from pylab import imshow,show,figure
-        figure(1)
-        imshow(out1)
-        figure(2)
-        imshow(out2)
-        show()
-        pass
-        
-    
+                
+    def test_merge_image_full_parameter_space(self):
+        ir_image_size=numpy.array([504, 504])
+        ir_values=[0, 1]
+        twop_ref_resolution=2
+        twop_resolutions=[0.5, 1, 1.5,2, 2.5]
+        ir2p_scales=[2.5, 0.5,1]
+        rotations=[0, -2,1,2, 10]
+        twop_sizes=[[50, 50],[70, 70],[100, 100],[300, 300],[50, 100],[100, 70],[300, 100],[100, 300],[600, 300],[300, 600]]
+        offsets=[[0,0],[55,0],[-55,0],[0,55],[0,-55],[60,60], [5, 10]]
+        for ir_value, ir2p_scale, twop_size, offset in itertools.product(ir_values, ir2p_scales, twop_sizes, offsets):
+            ir_image=numpy.ones(ir_image_size, dtype=numpy.float)*ir_value
+            ox, oy=offset
+            kwargs={'Offset X': ox, 'Offset Y': oy, 'Scale':ir2p_scale, \
+                                'Rotation':0, '2p_scale': 2.0, '2p_reference_scale': twop_ref_resolution}
+            
+            #Check if offset puts image (partly) off from ir image
+            #Ir image resolution: twop_ref_resolution*ir2p_scale
+            #Ir image size: ir_image_size/(twop_ref_resolution*ir2p_scale)
+            ir_image_size_um=ir_image_size/(twop_ref_resolution*ir2p_scale)
+            twop_off= any(numpy.array(twop_size)/2+abs(numpy.array(offset))>ir_image_size_um/2)            
+            out_rot=[]
+            for rotation in rotations:
+                twop_resolution=1
+                twop_image=0.5*numpy.ones((int(twop_size[0]*twop_resolution),  int(twop_size[1]*twop_resolution),2), dtype=numpy.float)
+                kwargs_rot=copy.deepcopy(kwargs)
+                kwargs_rot['2p_scale']=twop_resolution
+                kwargs_rot['Rotation']=rotation
+                try:
+                    out_rot.append(merge_image(ir_image, twop_image, kwargs_rot))
+                except:
+                    pass
+            if ir_value==0:
+                self.assertTrue(all(out_rot[-1][:,:,:2]==twop_image))
+                continue
+            #compare rotations, check if center of all rotations have the same cente
+            centers=numpy.array([[numpy.where(ii>0.51)[0].mean(), numpy.where(ii>0.51)[1].mean()] for ii in out_rot])
+            if not twop_off:
+                #All centers are the same
+                numpy.testing.assert_almost_equal(numpy.diff(centers,axis=0),0,1)
+            out_res=[]
+            for twop_resolution in twop_resolutions:
+                rotation=0
+                twop_image=0.5*numpy.ones((int(twop_size[0]*twop_resolution),  int(twop_size[1]*twop_resolution),2), dtype=numpy.float)
+                kwargs_res=copy.deepcopy(kwargs)
+                kwargs_res['2p_scale']=twop_resolution
+                kwargs_res['Rotation']=rotation
+                out_res.append(merge_image(ir_image, twop_image, kwargs_res))
+            #Compare resolutions, all images shall be the same
+            for i in range(1,  len(out_res)):
+                numpy.testing.assert_almost_equal(out_res[0], out_res[i])
+            #Check if 2p channels are identical
+            numpy.testing.assert_almost_equal(out_res[0][:,:,0],out_res[0][:,:,0])
+            if not twop_off:
+                #Check image size for out_res[2] where 2p resolution is 1.5 pixel /um
+                x,y=numpy.where(out_res[-1][:,:,0]>0.51)
+                size_pixel=numpy.array([x.max()-x.min(), y.max()-y.min()])
+                expected_size=numpy.array(twop_size)/ir_image_size_um*ir_image_size
+                numpy.testing.assert_almost_equal(size_pixel, expected_size, -0.1)
+            #Check if shifted center has the 2p pixel values
+            offset_pixel=numpy.cast['int']((ir_image_size_um/2+numpy.array(offset))*(twop_ref_resolution*ir2p_scale))
+            max_center=ir_image_size_um/2
+            twop_center=abs(numpy.array(offset))
+            center_off=any(max_center<twop_center)
+            if not center_off:
+                center_pixel=out_res[-1][offset_pixel[0],offset_pixel[1],:]
+                numpy.testing.assert_equal(numpy.array([0.75, 0.75, 0.5 ]), center_pixel)
+
+            
+
 if __name__=='__main__':
     unittest.main()
