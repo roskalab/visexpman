@@ -81,6 +81,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.debug.setMaximumHeight(self.machine_config.GUI_HEIGHT * 0.3)
         self.image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
         self.image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
+        #Shrink image inside widget a bit
         #self.image.set_image(numpy.random.random((200, 200, 3)))
         self.image.plot.setLabels(bottom='um', left='um')
         
@@ -94,10 +95,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             try:
                 context_stream = numpy.load(self.context_filename)
                 self.settings = utils.array2object(context_stream)
-            except:#Context file was probab
+            except:#Context file was probably broken
                 self.parameter_changed()
         else:
             self.parameter_changed()
+        if self.settings['params/Live IR']:
+            self.printc('Autostart IR camera')
+            self.camera.start_()
         self.load_all_parameters()
         self.show()
         self.statusbar.twop_status.setText('Ready')
@@ -113,7 +117,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.background_process_timer=QtCore.QTimer()
         self.background_process_timer.start(1000)
-        self.background_process_timer.timeout(self.background_process)
+        self.background_process_timer.timeout.connect(self.background_process)
         
         self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
@@ -153,7 +157,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
                 {'name': 'Scan Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Live IR', 'type': 'bool', 'value': True},
+                {'name': 'Live IR', 'type': 'bool', 'value': False},
                 {'name': 'IR Exposure', 'type': 'int', 'value': 50, 'limits': (1, 1000), 'step': 1, 'siPrefix': True, 'suffix': 'ms'},
                 {'name': 'IR Gain', 'type': 'int', 'value': 1, 'limits': (0, 1000), 'step': 1},
                 {'name': 'Show Top', 'type': 'bool', 'value': True},
@@ -167,11 +171,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Scale', 'type': 'float', 'value': 1.0,},
                     {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
                 ]}, 
-                 {'name': 'Z stack', 'type': 'group', 'expanded' : False, 'children': [
+                 {'name': 'Z Stack', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Start', 'type': 'int', 'value': 0,  'step': 1, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'End', 'type': 'int', 'value': 0,  'step' : 1, 'siPrefix': True, 'suffix': 'um'},
                     {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}, 
-                    {'name': 'Samples per depth', 'type': 'int', 'value': 1}
+                    {'name': 'Samples per depth', 'type': 'int', 'value': 1},
+                    {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
+                    {'name': 'Name', 'type': 'str', 'value': ''},
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Enable Projector', 'type': 'bool', 'value': False},
@@ -179,19 +185,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': False, 'suffix': ' us'},
                     {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
                     {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
-                    {'name': 'File format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
+                    {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                 ]}, 
             ]
         self.params_config.extend(params)
         self.twop_running=False
         self.camera_running=False
     
-    def parameter_changed(self):        
+    def parameter_changed(self):
         if(self.z_stack_running):
             self.printc("Cannot change parameters while Z stacking is running.")
             return
         newparams=self.params.get_parameter_tree(return_dict=True)
-        
         if hasattr(self, 'settings'):
             if newparams['params/Live IR'] and not self.settings['params/Live IR']:
                 self.camera.start_()
@@ -212,12 +217,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.camera.set(gain=int(newparams['params/IR Gain']))
                 self.printc('Gain set to {0}'.format(newparams['params/IR Gain']))
             
+            #2p image size changed
+            if newparams['params/Scan Width']!=self.settings['params/Scan Width'] or\
+                newparams['params/Scan Height']!=self.settings['params/Scan Height'] or\
+                newparams['params/Resolution']!=self.settings['params/Resolution']:
+                    self.printc("2p img settings changed")
             
-#            if(newparams['Image Width']!=self.settings['Image Width'] or\
-#            newparams['Image Height']!=self.settings['Image Height'] or\
-#            newparams['Resolution']!=self.settings['Resolution'] or\
-#            newparams['X Return Time']!=self.settings['X Return Time'] or\
-#            newparams['Projector Control Pulse Width']!=self.settings['Projector Control Pulse Width']):
+                    
+                    
 #                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
 #                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
 #                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
@@ -235,19 +242,20 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         numpy.save(self.context_filename,context_stream)
 
     def _init_hardware(self):
-        logfile=self.logger.filename.replace('2p', '2p_daq')
+        self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
         self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
         self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
                                                                         self.machine_config.AO_CHANNELS,
-                                                                        logfile,
+                                                                        self.daq_logfile,
                                                                         timeout=1,
                                                                         ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
                                                                         shutter_port=self.machine_config.SHUTTER_PORT,
                                                                         display_rate=self.machine_config.IMAGE_DISPLAY_RATE)
         self.aio.start()
+        self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
         self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
-                                self.logger.filename.replace('2p', '2p_cam'),
+                                self.cam_logfile,
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
         self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
@@ -283,7 +291,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         pulse_width=self.settings['params/Advanced/Projector Control Pulse Width']*1e-6 if self.settings['params/Advanced/Enable Projector'] else 0
         waveform_x, waveform_y, projector_control, frame_timing, self.boundaries=\
                     self.waveform_generator.generate(self.settings['params/Scan Height'], \
-                                                                    self.settings['params/Scan Height'],\
+                                                                    self.settings['params/Scan Width'],\
                                                                     self.settings['params/Resolution'],\
                                                                     self.settings['params/Advanced/X Return Time'],\
                                                                     self.settings['params/Advanced/Y Return Time'],\
@@ -291,9 +299,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
         self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
-        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels})
+        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()})
         self.twop_running=True
-        self.statusbar.twop_status.setText('2P Live')
+        self.statusbar.twop_status.setText('2P')
         self.statusbar.twop_status.setStyleSheet('background:red;')
     
     def start_action(self):
@@ -310,6 +318,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         frames=[]
         while True:
             twop_frame=self.aio.read()
+            QtCore.QCoreApplication.instance().processEvents()
             if twop_frame is not None:
                 self.twop_frame=twop_frame
                 frames.append(twop_frame)
@@ -319,8 +328,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.printc("No image acquired")
                 break
             time.sleep(0.5)
-        self.stop_action()
-        return frames
+        self.stop_action(snapshot=True)
+        return numpy.array(frames)
         
     def record_action(self):
         try:
@@ -355,67 +364,88 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.socket_queues['2p']['tosocket'].put({'change_params': str(e)})
         
     def read_image(self):
-        ir_frame=self.camera.read()
-        if ir_frame is not None:
-            self.ir_frame=ir_frame
-        twop_frame=self.aio.read()
-        if twop_frame is not None:
-            self.twop_frame=twop_frame
+        try:
+            ir_frame=self.camera.read()
+            if ir_frame is not None:
+                self.ir_frame=ir_frame
+            twop_frame=self.aio.read()
+            if twop_frame is not None:
+                self.twop_frame=twop_frame
+        except:
+            if not hasattr(self, 'read_image_error_shown'):
+                self.printc(traceback.format_exc())
+                self.read_image_error_shown=True
     
     def update_image(self):
-        if not hasattr(self, 'twop_frame'):
-            self.merged=self.ir_filtered
-        else:
-            self.ir_filtered=filter_image(self.ir_frame, self.settings['params/Live/IR/Min'], 
-                                                            self.settings['params/Live/IR/Max'],
-                                                            self.settings['params/Live/IR/Image filters'])*\
-                                                            int(self.settings['params/Show IR'])
-                                                            
-            top_filtered=filter_image(self.twop_frame[:,:,0], self.settings['params/Live/Top/Min'], 
-                                                            self.settings['params/Live/Top/Max'],
-                                                            self.settings['params/Live/Top/Image filters'])*\
-                                                            int(self.settings['params/Show Top'])
+        try:
+            if not hasattr(self, 'twop_frame'):
+                self.merged=self.ir_filtered
+            else:
+                self.ir_filtered=filter_image(self.ir_frame, self.settings['params/Live/IR/Min'], 
+                                                                self.settings['params/Live/IR/Max'],
+                                                                self.settings['params/Live/IR/Image filters'])*\
+                                                                int(self.settings['params/Show IR'])
+                                                                
+                top_filtered=filter_image(self.twop_frame[:,:,0], self.settings['params/Live/Top/Min'], 
+                                                                self.settings['params/Live/Top/Max'],
+                                                                self.settings['params/Live/Top/Image filters'])*\
+                                                                int(self.settings['params/Show Top'])
 
-            side_filtered=filter_image(self.twop_frame[:,:,1], self.settings['params/Live/Side/Min'], 
-                                                            self.settings['params/Live/Side/Max'],
-                                                            self.settings['params/Live/Side/Image filters'])*\
-                                                            int(self.settings['params/Show Side'])
+                side_filtered=filter_image(self.twop_frame[:,:,1], self.settings['params/Live/Side/Min'], 
+                                                                self.settings['params/Live/Side/Max'],
+                                                                self.settings['params/Live/Side/Image filters'])*\
+                                                                int(self.settings['params/Show Side'])
 
-            kwargs={
-                    'Offset X':self.settings['params/Infrared-2P overlay/Offset X'], 
-                    'Offset Y':self.settings['params/Infrared-2P overlay/Offset Y'], 
-                    'Scale X':self.settings['params/Infrared-2P overlay/Scale X'], 
-                    'Scale Y':self.settings['params/Infrared-2P overlay/Scale Y'], 
-                    'Rotation':self.settings['params/Infrared-2P overlay/Rotation'], 
-                    '2p_scale':self.settings['params/Resolution'],
-                    '2p_reference_scale':self.machine_config.REFERENCE_2P_RESOLUTION
-                    }
-            self.kwargs=kwargs
-            twop_filtered=numpy.zeros_like(self.twop_frame)
-            twop_filtered[:,:,0]=top_filtered
-            twop_filtered[:,:,1]=side_filtered
-            
-            self.twop_filtered=twop_filtered
-            self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
-        self.image.set_image(self.merged)
-        if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and not self.settings['params/Show IR']:
-            self.imscale=1/self.settings['params/Resolution']#Only 2p image is shown
-        else:#IR is also shown
-            self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale X'])
-        self.image.set_scale(self.imscale)
+                kwargs={
+                        'Offset X':self.settings['params/Infrared-2P overlay/Offset X'], 
+                        'Offset Y':self.settings['params/Infrared-2P overlay/Offset Y'], 
+                        'Scale':self.settings['params/Infrared-2P overlay/Scale'], 
+                        'Rotation':self.settings['params/Infrared-2P overlay/Rotation'], 
+                        '2p_scale':self.settings['params/Resolution'],
+                        '2p_reference_scale':self.machine_config.REFERENCE_2P_RESOLUTION
+                        }
+                self.kwargs=kwargs
+                twop_filtered=numpy.zeros_like(self.twop_frame)
+                twop_filtered[:,:,0]=top_filtered
+                twop_filtered[:,:,1]=side_filtered
+                
+                self.twop_filtered=twop_filtered
+                self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
+            self.image.set_image(self.merged)
+            #Set aspect ratio of image plot
+            ar=self.merged.shape[0]/self.merged.shape[1]
+            if ar>1:
+                w=self.image.width()
+                h=w/ar
+            else:
+                h=self.image.height()
+                w=h*ar
+            self.image.plot.setFixedHeight(h*0.9)
+            self.image.plot.setFixedWidth(w*0.9)
+            if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and not self.settings['params/Show IR']:
+                self.imscale=1/self.settings['params/Resolution']#Only 2p image is shown
+            else:#IR is also shown
+                self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale'])
+            self.image.set_scale(self.imscale)
+        except:
+            if not hasattr(self, 'update_image_error_shown'):
+                self.printc(traceback.format_exc())
+                self.update_image_error_shown=True
     
-    def stop_action(self, remote=None):
-       
-        if self.z_stack_running:
-            self.finish_zstack()
-        elif not self.twop_running:
-            return
-        else:
-            self.aio.stop()
-            self.twop_running=False
-            self.printc('2p scanning stopped')
-        self.statusbar.twop_status.setText('Ready')
-        self.statusbar.twop_status.setStyleSheet('background:gray;')
+    def stop_action(self, remote=None, snapshot=False):
+        try:
+            if self.z_stack_running and not snapshot:
+                self.finish_zstack()
+            elif not self.twop_running:
+                return
+            else:
+                self.aio.stop()
+                self.twop_running=False
+                self.printc('2p scanning stopped')
+            self.statusbar.twop_status.setText('Ready')
+            self.statusbar.twop_status.setStyleSheet('background:gray;')
+        except:
+            self.printc(traceback.format_exc())
         
     def restart_scan(self):
         self.stop_action()
@@ -426,19 +456,21 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
     def open_action(self):
         '''
-        Open a recording for display
+        Open a recording for display or a snapshot. Image is put on secondary image display
         '''
+        raise NotImplementedError('Second image display')
         
     def save_image_action(self):
         '''
         Save current image to reference image widget
         '''
+        raise NotImplementedError('Second image display')
     
     def zoom_in_action(self):
-        pass
+        raise NotImplementedError('Second image display')
         
     def zoom_out_action(self):
-        pass
+        raise NotImplementedError('Second image display')
     
     def open_reference_image_action(self, remote=None):
         
@@ -513,55 +545,97 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 ############## Z-STACK ###################
     
     def z_stack_action(self, remote=None):
-        if self.settings['params/Z Stack/Start']<self.settings['params/Z Stack/End']:
-            raise ValueError('Start position must be greater than end position')
-        if self.settings['params/Z Stack/Step']<=0:
-            raise ValueError('Step value shall be a positive number')
-        params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
-        self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, 'zstack')
-        s=self.settings['params/Z Stack/Start']
-        e=self.settings['params/Z Stack/End']
-        st=self.settings['params/Z Stack/Step']
-        self.depths=numpy.linspace(s, e, int((s-e)/st+1))
-        self.printc(f"Z stack in {', '.join(self.depths)},  saving to {self.zstack_filename}")
-        self.depth_index=0
-        self.z_stack_running=True
+        try:
+            if self.settings['params/Z Stack/Start']<self.settings['params/Z Stack/End']:
+                raise ValueError('Start position must be greater than end position')
+            if self.settings['params/Z Stack/Step']<=0:
+                raise ValueError('Step value shall be a positive number')
+            params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
+            name=self.settings['params/Z Stack/Name']
+            self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, f'zstack_{name}')
+            s=self.settings['params/Z Stack/Start']
+            e=self.settings['params/Z Stack/End']
+            st=self.settings['params/Z Stack/Step']
+            self.depths=numpy.linspace(s, e, int((s-e)/st+1))
+            ext=self.settings['params/Z Stack/File Format']
+            self.printc(f"Z stack in {', '.join(map(str,self.depths))},  saving to {fileop.replace_extension(self.zstack_filename,ext)}")
+            self.depth_index=0
+            self.z_stack_running=True
+        except:
+            self.printc(traceback.format_exc())
         
     def z_stack_runner(self):
         if self.z_stack_running:
             self.stage.z=self.depths[self.depth_index]
-            self.printc(f"Set position to {self.stage.z}")
+            self.printc(f"Set position to {self.stage.z} um")
             data=self.snap_action(self.settings['params/Z Stack/Samples per depth'])
+            data=numpy.where(data>self.machine_config.MAX_PMT_VOLTAGE,self.machine_config.MAX_PMT_VOLTAGE,data)
+            data=numpy.cast['uint16'](data*self.machine_config.SCALE_16BIT)
             if self.depth_index==0:
+                self.printc(f"Open {self.zstack_filename}")
                 self.zstackfile=tables.open_file(self.zstack_filename,'w')
                 datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
                 datatype = tables.UInt16Atom(data.shape)
                 self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
-            else:
-                self.zstack_data_handle.append(data[None,:])
+            self.zstack_data_handle.append(data[None,:])
             self.depth_index+=1
             if len(self.depths)==self.depth_index:
                 self.finish_zstack()
-                
+
     def finish_zstack(self):
-        self.printc(f"Finishing z stack")
         atom = tables.Atom.from_dtype(self.depths.dtype)
         depths = self.zstackfile.create_carray(self.zstackfile.root, 'depths', atom, self.depths.shape)
         depths[:] = self.depths
         #Save settings
-        self.settings2attr(depths.attr)
+        self.settings2attr(self.zstackfile.root.depths.attrs)
         self.z_stack_running=False
         self.zstackfile.close()
+        if self.settings['params/Z Stack/File Format']!='.hdf5':
+            hdf5_convert(self.zstack_filename, self.settings['params/Z Stack/File Format'])
+            os.remove(self.zstack_filename)
+        self.printc("Z stack finished")
+        
+    def format_settings(self):
+        '''
+        Change setting names to a format that can be handled by pytables: replace / and space to _
+        '''
+        settings_out={}
+        for k, v in self.settings.items():
+            settings_out[k.replace('/', '_').replace(' ', '_')]=v
+        return settings_out
         
     def settings2attr(self, ref):
-        for k, v in self.settings.items():
-            attrn=k.replace('/', '_').replace(' ', '_')
-            setattr(ref, attrn, v)
+        for k, v in self.format_settings().items():
+            setattr(ref, k, v)
+            
+    def error_checker(self):
+        if not hasattr(self, 'error_shown'):
+            for f in [self.cam_logfile,self.daq_logfile]:
+                t0=time.time()
+                log=fileop.read_text_file(f)
+                dt=time.time()-t0
+                if dt>0.3:
+                    raise RuntimeError('logfile read takes long')
+                if 'ERROR' in log:
+                    lines=log.split('\n')
+                    index=[i for i in range(len(lines)) if 'ERROR' in lines[i]][0]
+                    message='\n'.join(lines[index:])
+                    self.stop_action()
+                    self.printc(message)
+                    QtGui.QMessageBox.question(self, 'Error', message, QtGui.QMessageBox.Ok)
+                    self.error_shown=True
+                    
         
     def background_process(self):
-        self.socket_handler()
-        self.z_stack_runner()
-    
+        try:
+            self.socket_handler()
+            self.z_stack_runner()   
+            self.error_checker()
+        except:
+            if not hasattr(self, 'background_process_error_shown'):
+                self.printc(traceback.format_exc())
+                self.background_process_error_shown=True
+                
     def get_ir_image(self):
         data, addr = self.camera_udp.recvfrom(16009)
         if 0:
@@ -678,7 +752,43 @@ def filter_image(image, min_, max_, filter):
         raise NotImplementedError('')
     return filtered
     
+def hdf5_convert(fn,format):
+    fh=tables.open_file(fn,'r')
+    import tifffile
+    if 'zstackdata' in dir(fh.root):
+        data=fh.root.zstackdata.read()
+        metadata=f'depths={fh.root.depths.read()}\n'
+        metadata2={'depths':fh.root.depths.read()}
+        for vn in dir(fh.root.depths.attrs):
+            if vn[0].isalpha() and vn[0].islower():
+                value=getattr(fh.root.depths.attrs,vn)
+                metadata+=f"{vn}={value}\n"
+                metadata2[vn]=value
+                
+        #Reshape data
+        if format=='.tiff':
+            dataout=numpy.zeros((data.shape[0]*data.shape[1],data.shape[2],data.shape[3],3),dtype=numpy.uint16)
+            ct=0
+            for d in range(data.shape[0]):
+                for r in range(data.shape[1]):
+                    dataout[ct,:,:,:2]=data[d,r]
+                    ct+=1
+            tifffile.imwrite(fn.replace('.hdf5', '.tiff'),dataout)
+            fileop.write_text_file(fn.replace('.hdf5','.txt'),metadata)
+        elif format=='.mat':
+            dataout={'zstack':data,'metadata': metadata2}
+            import scipy.io
+            scipy.io.savemat(fileop.replace_extension(fn,format), dataout,long_field_names=True)
+    elif 'twopdata' in dir(fh.root):
+        raise NotImplementedError('')
+    fh.close()
+    
 class Test(unittest.TestCase):
+    def test_hdf52tiff(self):
+        files=[r'f:\Data\zstack_202006021643399.hdf5',r'f:\Data\2p_202005211441530.hdf5']
+        for f in files:
+            hdf5_convert(f,'.tiff')
+    
     @unittest.skip('')
     def test_image_merge(self):
         from pylab import plot, imshow, show

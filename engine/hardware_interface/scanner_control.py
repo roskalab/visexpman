@@ -215,6 +215,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 image_height=int(self.data_format['boundaries'].shape[0]/2)
                                 datatype = tables.UInt16Atom((image_height, image_width, len(self.data_format['channels'])))
                             self.data_handle=fh.create_earray(fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
+                            for k, v in self.data_format['metadata'].items():
+                                setattr(fh.root.twopdata.attrs,k,v)
                         else:
                             if hasattr(self, 'data_handle'):
                                 del self.data_handle
@@ -251,7 +253,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.digital_output.ClearTask()
         except:
             import traceback
-            self.printl(traceback.format_exc())
+            self.printl(traceback.format_exc(),loglevel='error')
             
 class Test(unittest.TestCase):
     
