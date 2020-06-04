@@ -312,7 +312,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
         
-    def snap_action(self, n):
+    def snap_action(self, dummy,nframes=1):
         self.start_action()
         t0=time.time()
         frames=[]
@@ -322,7 +322,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if twop_frame is not None:
                 self.twop_frame=twop_frame
                 frames.append(twop_frame)
-            if len(frames)==n:
+            if len(frames)==nframes:
                 break
             if (time.time()-t0>3):
                 self.printc("No image acquired")
@@ -411,7 +411,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 
                 self.twop_filtered=twop_filtered
                 self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
-            self.image.set_image(self.merged)
+            self.image.set_image(self.merged)#Swap x, y axis 
             #Set aspect ratio of image plot
             ar=self.merged.shape[0]/self.merged.shape[1]
             if ar>1:
@@ -546,7 +546,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
     def z_stack_action(self, remote=None):
         try:
-            if self.settings['params/Z Stack/Start']<self.settings['params/Z Stack/End']:
+            if self.settings['params/Z Stack/Start']<=self.settings['params/Z Stack/End']:
                 raise ValueError('Start position must be greater than end position')
             if self.settings['params/Z Stack/Step']<=0:
                 raise ValueError('Step value shall be a positive number')
@@ -568,7 +568,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         if self.z_stack_running:
             self.stage.z=self.depths[self.depth_index]
             self.printc(f"Set position to {self.stage.z} um")
-            data=self.snap_action(self.settings['params/Z Stack/Samples per depth'])
+            data=self.snap_action(False,nframes=self.settings['params/Z Stack/Samples per depth'])
             data=numpy.where(data>self.machine_config.MAX_PMT_VOLTAGE,self.machine_config.MAX_PMT_VOLTAGE,data)
             data=numpy.cast['uint16'](data*self.machine_config.SCALE_16BIT)
             if self.depth_index==0:
@@ -614,7 +614,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 t0=time.time()
                 log=fileop.read_text_file(f)
                 dt=time.time()-t0
-                if dt>0.3:
+                if dt>0.8:
                     raise RuntimeError('logfile read takes long')
                 if 'ERROR' in log:
                     lines=log.split('\n')
@@ -757,6 +757,7 @@ def hdf5_convert(fn,format):
     import tifffile
     if 'zstackdata' in dir(fh.root):
         data=fh.root.zstackdata.read()
+        !!!!
         metadata=f'depths={fh.root.depths.read()}\n'
         metadata2={'depths':fh.root.depths.read()}
         for vn in dir(fh.root.depths.attrs):
