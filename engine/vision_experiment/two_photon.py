@@ -757,7 +757,6 @@ def hdf5_convert(fn,format):
     import tifffile
     if 'zstackdata' in dir(fh.root):
         data=fh.root.zstackdata.read()
-        numpy.rollaxis(data,2,3)
         metadata=f'depths={fh.root.depths.read()}\n'
         metadata2={'depths':fh.root.depths.read()}
         for vn in dir(fh.root.depths.attrs):
@@ -862,7 +861,10 @@ class Test(unittest.TestCase):
         rotations=[0, -2,1,2, 10]
         twop_sizes=[[50, 50],[70, 70],[100, 100],[300, 300],[50, 100],[100, 70],[300, 100],[100, 300],[600, 300],[300, 600]]
         offsets=[[0,0],[55,0],[-55,0],[0,55],[0,-55],[60,60], [5, 10]]
+        ct=0
         for ir_value, ir2p_scale, twop_size, offset in itertools.product(ir_values, ir2p_scales, twop_sizes, offsets):
+            print((ct,numpy.prod(list(map(len, [ir_values, ir2p_scales, twop_sizes, offsets])))))
+            ct+=1
             ir_image=numpy.ones(ir_image_size, dtype=numpy.float)*ir_value
             ox, oy=offset
             kwargs={'Offset X': ox, 'Offset Y': oy, 'Scale':ir2p_scale, \

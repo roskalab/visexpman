@@ -404,11 +404,11 @@ class ExperimentHandler(object):
                     pass#raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if self.machine_config.PLATFORM in ['2p',  'resonant']:
-                if fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<30:
-                    self.notify('Warning', 'Less than 30 GB free space left, experiment does not start')
+                if fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<self.machine_config.FREE_SPACE_ERROR_THRESHOLD:
+                    self.notify('Warning', f'Less than {self.machine_config.FREE_SPACE_ERROR_THRESHOLD} GB free space left, experiment does not start')
                     return
-                elif fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<50:
-                    self.notify('Warning', 'Less than 50 GB free space left')
+                elif fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<self.machine_config.FREE_SPACE_WARNING_THRESHOLD:
+                    self.notify('Warning', f'Less than {self.machine_config.FREE_SPACE_WARNING_THRESHOLD} GB free space left')
                 if self.guidata.read('Stimulus Only') and 'stim' not in self.connected_nodes:
                     self.notify('Warning', 'Stim connection required.')
                     return
