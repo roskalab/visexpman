@@ -757,7 +757,6 @@ def hdf5_convert(fn,format):
     import tifffile
     if 'zstackdata' in dir(fh.root):
         data=fh.root.zstackdata.read()
-        !!!!
         metadata=f'depths={fh.root.depths.read()}\n'
         metadata2={'depths':fh.root.depths.read()}
         for vn in dir(fh.root.depths.attrs):
