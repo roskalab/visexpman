@@ -67,7 +67,7 @@ class AnalogRead():
     """
     Utility for recording finite analog signals in a non-blocking way
     """
-    def __init__(self, channels, duration, fsample):
+    def __init__(self, channels, duration, fsample,limits=[-5,5]):
         try:
             self.n_ai_channels=int(numpy.diff(list(map(float, channels.split('/')[1][2:].split(':'))))[0]+1)
         except IndexError:
@@ -80,8 +80,8 @@ class AnalogRead():
         self.analog_input.CreateAIVoltageChan(channels,
                                             'ai',
                                             DAQmxConstants.DAQmx_Val_RSE,
-                                            -5, 
-                                            5, 
+                                            limits[0], 
+                                            limits[1], 
                                             DAQmxConstants.DAQmx_Val_Volts,
                                             None)
         self.readb = DAQmxTypes.int32()

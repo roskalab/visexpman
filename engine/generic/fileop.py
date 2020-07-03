@@ -310,7 +310,7 @@ def find_latest(path, extension=None):
     fns = [fn for fn in listdir_fullpath(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
-    fns_dates = map(os.path.getmtime, fns)
+    fns_dates = list(map(os.path.getmtime, fns))
     latest_file_index = fns_dates.index(max(fns_dates))
     return fns[latest_file_index]
      
