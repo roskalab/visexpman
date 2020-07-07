@@ -72,7 +72,7 @@ def split_object(im,max_iter=10):
         iterations+=1
         if n>1 or iterations==max_iter or n==0:
             break
-    cp=labels[labels.shape[0]/2,labels.shape[1]/2]
+    cp=labels[int(labels.shape[0]/2),int(labels.shape[1]/2)]
     if cp>0:
         central_object=numpy.where(labels==cp,1,0)
     elif n==2:
