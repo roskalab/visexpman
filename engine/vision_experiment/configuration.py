@@ -281,7 +281,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import hdf5io
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
 
-class TwoPhotonConfig(VisionExperimentConfig):
+class TwoPhotonConfig(VisionExperimentConfig):#Obsolete: this configuration class does not make sense
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = '2p'

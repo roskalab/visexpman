@@ -200,6 +200,8 @@ class ExperimentHandler(object):
             experiment_parameters['region_name']=self.guidata.read('Name')
         experiment_parameters['animal']=self.guidata.read('Animal')
         experiment_parameters['comment']=self.guidata.read('Comment')
+        if experiment_parameters['comment']==None:
+            experiment_parameters['comment']=''
         source_code_type='stimulus_source_code' if len(experiment.parse_stimulation_file(filename)[classname])==0 else 'experiment_config_source_code'
         experiment_parameters[source_code_type]=stimulus_source_code
         experiment_parameters['stimclass']=classname
@@ -315,7 +317,7 @@ class ExperimentHandler(object):
                 coords=zip(xx,yy)
             if self.guidata.read('Z start')<self.guidata.read('Z end'):
                 raise ValueError('Z start shall be bigger than Z end')
-            elif self.guidata.read('Z step')<0:
+            elif self.guidata.read('Z step')<=0:
                 raise ValueError('Z step shall be greater than 0')
             zs=self.guidata.read('Z start')
             ze=self.guidata.read('Z end')
@@ -404,11 +406,11 @@ class ExperimentHandler(object):
                     pass#raise NotImplementedError('MC MEA platform manual experiment start is not yet supported')
         if self.machine_config.PLATFORM in ['2p',  'resonant']:
             if self.machine_config.PLATFORM in ['2p',  'resonant']:
-                if fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<30:
-                    self.notify('Warning', 'Less than 30 GB free space left, experiment does not start')
+                if fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<self.machine_config.FREE_SPACE_ERROR_THRESHOLD:
+                    self.notify('Warning', f'Less than {self.machine_config.FREE_SPACE_ERROR_THRESHOLD} GB free space left, experiment does not start')
                     return
-                elif fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<50:
-                    self.notify('Warning', 'Less than 50 GB free space left')
+                elif fileop.free_space(self.machine_config.EXPERIMENT_DATA_PATH)/1e9<self.machine_config.FREE_SPACE_WARNING_THRESHOLD:
+                    self.notify('Warning', f'Less than {self.machine_config.FREE_SPACE_WARNING_THRESHOLD} GB free space left')
                 if self.guidata.read('Stimulus Only') and 'stim' not in self.connected_nodes:
                     self.notify('Warning', 'Stim connection required.')
                     return

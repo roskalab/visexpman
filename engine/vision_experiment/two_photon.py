@@ -1,105 +1,23 @@
+from pylab import *
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
-import scipy
-
+import itertools
+import scipy,skimage, tables
 try:
-    import PyQt4.Qt as Qt
-    import PyQt4.QtGui as QtGui
-    import PyQt4.QtCore as QtCore
-except ImportError:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control
+    from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
+except:
+    print('Import errors')
+    
+
 
 from visexpman.engine.generic import gui,fileop, signal, utils
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 
-import PyDAQmx
-import PyDAQmx.DAQmxConstants as DAQmxConstants
-import PyDAQmx.DAQmxTypes as DAQmxTypes
-
-def generate_waveform(image_width,  image_height,  resolution,  **kwargs):
-    return_x_samps = utils.roundint(kwargs['x_flyback_time'] * kwargs['fsample'])
-    
-    line_length = utils.roundint(image_width * resolution) + return_x_samps # Number of samples for scanning a line
-    return_y_samps = line_length* kwargs['y_flyback_lines']
-    total_lines = utils.roundint(image_height * resolution)+kwargs['y_flyback_lines']
-    
-    # Calibrating control signal voltages
-    x_min = -kwargs['um2voltage']*image_width + kwargs.get('x_offset', 0)
-    x_max = kwargs['um2voltage']*image_width + kwargs.get('x_offset', 0)
-    
-    y_min = -kwargs['um2voltage']*image_width + kwargs.get('y_offset', 0)
-    y_max = kwargs['um2voltage']*image_width + kwargs.get('y_offset', 0)
-    
-    # X signal
-    ramp_up_x = numpy.linspace(x_min, x_max, num=line_length - return_x_samps)
-    ramp_down_x = numpy.linspace(x_max, x_min, num=return_x_samps + 1)[1:-1] # Exclude extreme values (avoiding duplication during concatenation)
-    waveform_x = numpy.concatenate((ramp_up_x,  ramp_down_x))
-    scan_mask=numpy.concatenate((numpy.ones_like(ramp_up_x), numpy.zeros_like(ramp_down_x)))
-    waveform_x = numpy.tile(waveform_x, total_lines)
-    scan_mask= numpy.tile(scan_mask, total_lines-kwargs['y_flyback_lines'])
-    scan_mask=numpy.pad(scan_mask, (0,waveform_x.shape[0]-scan_mask.shape[0]), 'constant')
-    
-
-    # Linear Y signal
-    ramp_up_y = numpy.linspace(y_min, y_max, num=waveform_x.shape[0] - return_y_samps)
-    ramp_down_y = numpy.linspace(y_max, y_min, num=return_y_samps) # Exclude maximum value
-    waveform_y = numpy.concatenate((ramp_up_y, ramp_down_y))
-    
-    
-    # Projector control
-    phase = utils.roundint(kwargs.get('stim_phase', 0) * kwargs['fsample'])
-    pulse_width = utils.roundint(kwargs.get('stim_pulse_width', 0) * kwargs['fsample'])
-    ttl_voltage=kwargs.get('ttl_voltage', 3.3)
-    projector_control =numpy.tile(numpy.concatenate((numpy.zeros(ramp_up_x.shape[0]+phase), numpy.full(pulse_width,  ttl_voltage),  numpy.zeros(ramp_down_x.shape[0]-phase-pulse_width ))), total_lines)
-    
-    frame_timing=numpy.zeros_like(projector_control)
-    frame_timing[-utils.roundint(1e-3*kwargs['fsample']):]=ttl_voltage
-    
-    #Calculate indexes for extractable parts of pmt signal
-    boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
-    
-    
-    return waveform_x,  waveform_y, projector_control,  frame_timing,  boundaries
-    
-def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
-    binned_pmt_data = binning_data(rawdata, binning_factor)
-    if offset != 0:
-        binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
-    return numpy.array((numpy.split(binned_pmt_data, boundaries)[0::2]))
-
-def binning_data(data, factor):
-    '''
-    data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
-    '''
-    return numpy.reshape(data, (int(data.shape[0]/factor), factor, data.shape[1])).mean(1)
-    
-class TwoPhotonFileSaver(object):
-    def __init__(self, nchannels, filename, datarange):
-        self.dataname='twop'
-        self.datarange=datarange
-        self.scale=(2**16-1)/(datarange[1]-datarange[0])
-        self.offset=-datarange[0]
-        import hdf5io,tables
-        self.hdf5 = hdf5io.Hdf5io(self.filename,filelocking=False)
-        setattr(self.hdf5,'2p_scale', {'range': self.datarange, 'scale':self.scale,'offset':self.offset})
-        self.hdf5.save('2p_scale')
-        datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
-        datatype = tables.UInt16Atom(self.nchannels)
-        setattr(self,self.dataname, self.hdf5.h5f.create_earray(self.hdf5.h5f.root, self.dataname, datatype, (0,),filters=datacompressor))
-        
-    def _scale(self,data):
-        clipped=numpy.where(data<self.datarange[0],self.datarange[0],data)
-        clipped=numpy.where(clipped>self.datarange[1],self.datarange[1],clipped)
-        return numpy.cast['uint16']((clipped+self.offset)*self.scale)
-    
-    def add(self, data):
-        getattr(self, self.dataname).append(self._scale(data))
-        self.hdf5.h5f.flush()
-        
-    def close(self):
-        self.hdf5.close()
 
 class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
@@ -108,27 +26,29 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             qt_app = Qt.QApplication([])
         
         gui.VisexpmanMainWindow.__init__(self, context)
-        self.setWindowIcon(gui.get_icon('behav'))
+        self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
+        self._init_hardware()
         self.resize(self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
+        self.setGeometry(self.machine_config.GUI_POSITION[0], self.machine_config.GUI_POSITION[1], self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['record', 'stop', 'open_reference_image', 'capture_frame', 'record_z_stack', 'save', 'exit']
+        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack',  'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
         self.statusbar=self.statusBar()
         self.statusbar.info=QtGui.QLabel('', self)
         self.statusbar.addPermanentWidget(self.statusbar.info)
-        self.statusbar.recording_status=QtGui.QLabel('', self)
-        self.statusbar.addPermanentWidget(self.statusbar.recording_status)
+        self.statusbar.ircamera_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.ircamera_status)
+        self.statusbar.twop_status=QtGui.QLabel('', self)
+        self.statusbar.addPermanentWidget(self.statusbar.twop_status)
         
         self.debug = gui.Debug(self)
-        self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
-        self.debug.setFixedHeight(self.machine_config.GUI_HEIGHT * 0.4)
+        
         
         self.image = gui.Image(self)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         
         self.main_tab = QtGui.QTabWidget(self)
         self.params = gui.ParameterTable(self, self.params_config)
@@ -136,57 +56,74 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.main_tab.addTab(self.params, 'Settings')
         
         self.video_player = QtGui.QWidget()
-        self.referenceimage = gui.Image(self)
-        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.slider.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.slider.setTickPosition(QtGui.QSlider.TicksBothSides)
-        self.slider.setTickInterval(self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
-        self.slider.setSingleStep(1)
-        self.slider.setPageStep(self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
-        self.slider.setMinimum(0)
-        self.slider.setMaximum(0)
-        self.slider.valueChanged.connect(self.frame_select)
+        self.saved_image = gui.Image(self)
         
-        self.vplayout = QtGui.QVBoxLayout()
-        self.vplayout.addWidget(self.referenceimage)
-        self.vplayout.addWidget(self.slider)
+#        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+#        self.slider.setFocusPolicy(QtCore.Qt.StrongFocus)
+#        self.slider.setTickPosition(QtGui.QSlider.TicksBothSides)
+#        self.slider.setTickInterval(self.machine_config.IMAGE_DISPLAY_RATE)
+#        self.slider.setSingleStep(1)
+#        self.slider.setPageStep(self.machine_config.IMAGE_DISPLAY_RATE)
+#        self.slider.setMinimum(0)
+#        self.slider.setMaximum(0)
+#        self.slider.valueChanged.connect(self.frame_select)
         
-        self.video_player.setLayout(self.vplayout)
-        self.main_tab.addTab(self.video_player, 'Reference Image')
+#        self.vplayout = QtGui.QHBoxLayout()
+#        self.vplayout.addWidget(self.referenceimage)
+#        self.vplayout.addWidget(self.lut)
+        
+#        self.video_player.setLayout(self.vplayout)
+        self.main_tab.addTab(self.saved_image, 'Saved Image')
         
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
+        
+        self.main_tab.setMinimumHeight(self.machine_config.GUI_HEIGHT * 0.5)
+        self.debug.setMaximumHeight(self.machine_config.GUI_HEIGHT * 0.3)
+        self.image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
+        self.image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
+        #Shrink image inside widget a bit
+        #self.image.set_image(numpy.random.random((200, 200, 3)))
+        self.image.plot.setLabels(bottom='um', left='um')
+        
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
+        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+        self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
+        
         
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         if os.path.exists(self.context_filename):
-            context_stream = numpy.load(self.context_filename)
-            self.settings = utils.array2object(context_stream)
+            try:
+                context_stream = numpy.load(self.context_filename)
+                self.settings = utils.array2object(context_stream)
+            except:#Context file was probably broken
+                self.parameter_changed()
         else:
             self.parameter_changed()
+        if self.settings['params/Live IR']:
+            self.printc('Autostart IR camera')
+            self.camera.start_()
         self.load_all_parameters()
-        
         self.show()
-        self.statusbar.recording_status.setText('Ready')
+        self.statusbar.twop_status.setText('Ready')
+        self.statusbar.ircamera_status.setText('Ready')
         
         self.update_image_timer=QtCore.QTimer()
         self.update_image_timer.timeout.connect(self.update_image)
-        self.update_image_timer.start(1000.0 / self.machine_config.IMAGE_EXPECTED_FRAME_RATE)
+        self.update_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         
-        self.scan_timer=QtCore.QTimer()
-        self.scan_timer.timeout.connect(self.scan_frame)
+        self.read_image_timer=QtCore.QTimer()
+        self.read_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
+        self.read_image_timer.timeout.connect(self.read_image)
         
-        self.init_camera_udp()
+        self.background_process_timer=QtCore.QTimer()
+        self.background_process_timer.start(1000)
+        self.background_process_timer.timeout.connect(self.background_process)
         
         self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
         
-        self.daq_process = daq_instrument.AnalogIOProcess('daq', self.queues, self.logger,
-                                ai_channels = self.machine_config.DAQ_DEV_ID + "/ai4:5",
-                                ao_channels= self.machine_config.DAQ_DEV_ID + "/ao0:3",
-                                limits=None)
-        self.daq_process.start()
         
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
@@ -195,74 +132,109 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         params=[]
         
         self.scanning = False
-        self.z_stacking = False # We are using scan_frame for both scanning and recording z stack. This variable tells the function, what to do (instead of passing it as a parameter, because more function uses it).
+        self.z_stack_running=False
         
         # 3D numpy arrays, format: (X, Y, CH)
-        self.frame = None
-        self.ir_image = None
-        self.clipboard = None
+        self.ir_frame = numpy.zeros((500,500))
+        self.twop_frame = numpy.zeros((100,100,2))
         
         # 4D numpy arrays, format: (t, X, Y, CH)
         self.z_stack = None
-        self.reference_video = None
         
         self.shortest_sample = 1.0 / self.machine_config.AO_SAMPLE_RATE
         
+        image_filters=['', 'mean', 'MIP', 'median',  'histogram equalization']
+        file_formats=['.mat',  '.hdf5', '.tiff']
+        
+        minmax_group=[{'name': 'Min', 'type': 'float', 'value': 0.0,},
+                                    {'name': 'Max', 'type': 'float', 'value': 1.0,}, 
+                                    {'name': 'Image filters', 'type': 'list', 'value': '',  'values': image_filters},]
+                                    
+        channels_group=[{'name': 'Top', 'type': 'group', 'expanded' : False, 'children': minmax_group}, 
+                                    {'name': 'Side', 'type': 'group', 'expanded' : False, 'children': minmax_group},
+                                    {'name': 'IR', 'type': 'group', 'expanded' : False, 'children': minmax_group}]
+        
         self.params_config = [
-                {'name': 'Save', 'type': 'bool', 'value': True},
-                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' px/um'},
-                {'name': 'Image Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Image Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'X Return Time', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  0.1), 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': True, 'suffix': 's'},
-                {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'limits': (self.shortest_sample,  None), 'siPrefix': True, 'suffix': 's'}, 
-                #Maximum for Projector Control Pulse Width and limits for Projector Control Phase aren't set yet!
-                
-                {'name': 'Show RED channel', 'type': 'bool', 'value': True},
-                {'name': 'Show GREEN channel', 'type': 'bool', 'value': True},
-                {'name': 'Show IR layer', 'type': 'bool', 'value': True},
-                {'name': 'Record Channel', 'type': 'list', 'value': '',  'values':['top', 'side',  'both']},
-                
-                {'name': 'IR X Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
-                {'name': 'IR Y Offset', 'type': 'int', 'value': 0, 'step': 0.1, 'siPrefix': False},
-                {'name': 'IR X Scale', 'type': 'float', 'value': 1, 'min': 0.01, 'step': 0.01, 'siPrefix': False},
-                {'name': 'IR Y Scale', 'type': 'float', 'value': 1, 'min': 0.01, 'step': 0.01, 'siPrefix': False},
-                {'name': 'IR Rotation', 'type': 'int', 'value': 0, 'limits': (0, 359), 'step': 1, 'siPrefix': False, 'suffix': ' degrees'},
-                
-                {'name': 'Z Stack Start', 'type': 'int', 'value': 150, 'limits': (0, 250), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Z Stack End', 'type': 'int', 'value': 300, 'limits': (250, 500), 'step' : 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Z Stack Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}                
+                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
+                {'name': 'Scan Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Scan Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Live IR', 'type': 'bool', 'value': False},
+                {'name': 'IR Exposure', 'type': 'int', 'value': 50, 'limits': (1, 1000), 'step': 1, 'siPrefix': True, 'suffix': 'ms'},
+                {'name': 'IR Gain', 'type': 'int', 'value': 1, 'limits': (0, 1000), 'step': 1},
+                {'name': 'Show Top', 'type': 'bool', 'value': True},
+                {'name': 'Show Side', 'type': 'bool', 'value': True},
+                {'name': 'Show IR', 'type': 'bool', 'value': True},
+                {'name': 'Live', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
+                {'name': 'Saved', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
+                {'name': 'Infrared-2P overlay', 'type': 'group',  'expanded' : False, 'children': [
+                    {'name': 'Offset X', 'type': 'int', 'value': 0,  'siPrefix': False, 'suffix': ' um'},
+                    {'name': 'Offset Y', 'type': 'int', 'value': 0,  'siPrefix': False, 'suffix': ' um'},
+                    {'name': 'Scale', 'type': 'float', 'value': 1.0,},
+                    {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
+                ]}, 
+                 {'name': 'Z Stack', 'type': 'group', 'expanded' : False, 'children': [
+                    {'name': 'Start', 'type': 'int', 'value': 0,  'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'End', 'type': 'int', 'value': 0,  'step' : 1, 'siPrefix': True, 'suffix': 'um'},
+                    {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}, 
+                    {'name': 'Samples per depth', 'type': 'int', 'value': 1},
+                    {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
+                    {'name': 'Name', 'type': 'str', 'value': ''},
+                ]}, 
+                {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
+                    {'name': 'Enable Projector', 'type': 'bool', 'value': False},
+                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'siPrefix': False, 'suffix': ' us'}, 
+                    {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': False, 'suffix': ' us'},
+                    {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
+                    {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
+                    {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
+                ]}, 
             ]
         self.params_config.extend(params)
+        self.twop_running=False
+        self.camera_running=False
     
     def parameter_changed(self):
-        
-        if(self.z_stacking):
-            self.printc("Cannot change parameters while Z stacking is in proggress.")
+        if(self.z_stack_running):
+            self.printc("Cannot change parameters while Z stacking is running.")
             return
-            # Feature (bug): 'Changed' parameter still stays there
-        
         newparams=self.params.get_parameter_tree(return_dict=True)
-        
-        if hasattr(self, 'parameters'):
-            if(newparams['Image Width']!=self.settings['Image Width'] or\
-            newparams['Image Height']!=self.settings['Image Height'] or\
-            newparams['Resolution']!=self.settings['Resolution'] or\
-            newparams['X Return Time']!=self.settings['X Return Time'] or\
-            newparams['Projector Control Pulse Width']!=self.settings['Projector Control Pulse Width']):
-                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
-                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
-                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
-                self.settings=newparams
-
-                if(self.scanning):
-                    self.restart_scan() # Only if new self.waveform needed for scanning (depending on the changed parameterrs)
-            else:
-                self.settings=newparams
+        if hasattr(self, 'settings'):
+            if newparams['params/Live IR'] and not self.settings['params/Live IR']:
+                self.camera.start_()
+                self.printc('Start IR camera')
+                self.statusbar.ircamera_status.setText('IR Live')
+                self.statusbar.ircamera_status.setStyleSheet('background:orange;')
+                self.camera_running=True
+            elif not newparams['params/Live IR'] and self.settings['params/Live IR']:
+                self.camera.stop()
+                self.printc('Stop IR camera')
+                self.statusbar.ircamera_status.setText('Ready')
+                self.statusbar.ircamera_status.setStyleSheet('background:gray;')
+                self.camera_running=False
+            if newparams['params/IR Exposure'] != self.settings['params/IR Exposure']:
+                self.camera.set(exposure=int(newparams['params/IR Exposure']*1000))
+                self.printc('Exposure set to {0}'.format(newparams['params/IR Exposure']))
+            if newparams['params/IR Gain'] != self.settings['params/IR Gain']:
+                self.camera.set(gain=int(newparams['params/IR Gain']))
+                self.printc('Gain set to {0}'.format(newparams['params/IR Gain']))
             
-            # Apply changed channel mask on loaded reference video - if there's any
-            if(self.reference_video is not None):                
-                self.frame_select(self.slider.value())
+            #2p image size changed
+            if newparams['params/Scan Width']!=self.settings['params/Scan Width'] or\
+                newparams['params/Scan Height']!=self.settings['params/Scan Height'] or\
+                newparams['params/Resolution']!=self.settings['params/Resolution']:
+                    self.printc("2p img settings changed")
+            
+                    
+                    
+#                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
+#                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
+#                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
+#                self.settings=newparams
+#
+#                if(self.scanning):
+#                    self.restart_scan() # Only if new self.waveform needed for scanning (depending on the changed parameterrs)
+#                
+            self.settings=newparams
         else:
             self.settings=self.params.get_parameter_tree(return_dict=True)
     
@@ -270,6 +242,29 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         context_stream=utils.object2array(self.settings)
         numpy.save(self.context_filename,context_stream)
 
+    def _init_hardware(self):
+        self.daq_logfile=self.logger.filename.replace('2p', '2p_daq')
+        self.waveform_generator=scanner_control.ScannerWaveform(machine_config=self.machine_config)
+        self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
+                                                                        self.machine_config.AO_CHANNELS,
+                                                                        self.daq_logfile,
+                                                                        timeout=1,
+                                                                        ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
+                                                                        ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
+                                                                        shutter_port=self.machine_config.SHUTTER_PORT,
+                                                                        display_rate=self.machine_config.IMAGE_DISPLAY_RATE)
+        self.aio.start()
+        self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
+        self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
+                                self.cam_logfile,
+                                self.machine_config.IR_CAMERA_ROI)
+        self.camera.start()
+        self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
+        self.stage_z=self.stage.z
+        
+    def _close_hardware(self):
+        self.aio.terminate()
+        self.camera.terminate()
     
     def plot(self):
         from pylab import plot, grid, show
@@ -291,172 +286,61 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #        show()
     
 ######### Two Photon ###########
-    
-    def generate_waveform(self):
-        self.waveform_x,  self.waveform_y, self.projector_control,  self.frame_timing,  self.boundaries=generate_waveform(self.settings['Image Width'],  
-                                                                                            self.settings['Image Height'],  
-                                                                                            self.settings['Resolution'],  
-                                                                                            x_flyback_time=self.settings['X Return Time'],  
-                                                                                            y_flyback_lines=self.machine_config.Y_FLYBACK_LINES, 
-                                                                                            fsample=self.machine_config.AO_SAMPLE_RATE,  
-                                                                                            um2voltage=self.machine_config.UM_TO_VOLTAGE,
-                                                                                            stim_pulse_width=self.settings['Projector Control Pulse Width'])
-        self.fps2p=float(self.machine_config.AO_SAMPLE_RATE)/self.waveform_x.shape[0]
-
-    def init_daq(self):
-        self.res = self.daq_process.start_daq(ai_sample_rate = self.machine_config.AI_SAMPLE_RATE,
-                                                            ao_sample_rate = self.machine_config.AO_SAMPLE_RATE,
-                                                            ao_waveform = self.waveform, 
-                                                            timeout = 30)
-        self.binning_factor=self.machine_config.AI_SAMPLE_RATE/self.machine_config.AO_SAMPLE_RATE
-        self.shutter = PyDAQmx.Task()
-        self.shutter.CreateDOChan(
-            self.machine_config.DAQ_DEV_ID + "/port0/line0",
-            "shutter",
-            PyDAQmx.DAQmx_Val_GroupByChannel)
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(1)], dtype=numpy.uint8),
-            None,
-            None)
-            
-    def stop_daq(self):
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(0)], dtype=numpy.uint8),
-            None,
-            None)
-        self.unread_data = self.daq_process.stop_daq()
-#        self.read_daq()
-#        self.analog_output.WaitUntilTaskDone(self.machine_config.DAQ_TIMEOUT)
-#        self.analog_output.StopTask()
-#        self.analog_input.StopTask()
-    
-    def record_action(self):
-        if self.scanning:
+    def prepare_2p(self):
+        if self.twop_running:
             return
-        self.generate_waveform()
-        self.waveform=numpy.array([self.waveform_x, self.waveform_y, self.projector_control,  self.frame_timing])
-        
-        if self.settings['Save']:
-            nchannels=2 if self.settings['Record Channel']=='both' else 1
-            fn=self.parameters['2pfilename'] if hasattr(self,  'parameters') else os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, '2p_{0}.hdf5'.format(experiment_data.get_id()))
-            self.file=fileop.DataAcquisitionFile(nchannels,"two_photon", [0, self.machine_config.MAX_PMT_VOLTAGE],filename=fn)
-            
-        
-        
-        
-        self.init_daq()        
-        self.scanning = True
-        sample_time=self.waveform.shape[1]/float(self.machine_config.AI_SAMPLE_RATE)
-        #self.printc("Frame rate {0}".format(1/sample_time))
-        self.scan_timer.start(int(sample_time*1000))
-        self.statusbar.recording_status.setText('Recording')
-        self.statusbar.recording_status.setStyleSheet('background:red;')
-        self.statusbar.info.setText('{0:0.0f} Hz'.format(self.fps2p))
+        pulse_width=self.settings['params/Advanced/Projector Control Pulse Width']*1e-6 if self.settings['params/Advanced/Enable Projector'] else 0
+        waveform_x, waveform_y, projector_control, frame_timing, self.boundaries=\
+                    self.waveform_generator.generate(self.settings['params/Scan Height'], \
+                                                                    self.settings['params/Scan Width'],\
+                                                                    self.settings['params/Resolution'],\
+                                                                    self.settings['params/Advanced/X Return Time'],\
+                                                                    self.settings['params/Advanced/Y Return Time'],\
+                                                                    pulse_width,\
+                                                                    self.settings['params/Advanced/Projector Control Phase']*1e-6,)
+        self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
+        channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
+        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()})
+        self.twop_running=True
+        self.statusbar.twop_status.setText('2P')
+        self.statusbar.twop_status.setStyleSheet('background:red;')
     
-    def scan_frame(self):
-        f=self.daq_process.read_ai()
-        if hasattr(f,  'dtype'):
-            self.frame = f
-            if self.settings['Save']:
-                self.file.add(f)
+    def start_action(self):
+        try:
+            self.filename=None
+            self.prepare_2p()
+            self.printc('2p scanning started')
+        except:
+            self.printc(traceback.format_exc())
+        
+    def snap_action(self, dummy,nframes=1):
+        self.start_action()
+        t0=time.time()
+        frames=[]
+        while True:
+            twop_frame=self.aio.read()
+            QtCore.QCoreApplication.instance().processEvents()
+            if twop_frame is not None:
+                self.twop_frame=twop_frame
+                frames.append(twop_frame)
+            if len(frames)==nframes:
+                break
+            if (time.time()-t0>3):
+                self.printc("No image acquired")
+                break
+            time.sleep(0.5)
+        self.stop_action(snapshot=True)
+        return numpy.array(frames)
+        
+    def record_action(self):
+        try:
+            params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
+            self.filename=experiment_data.get_recording_path(self.machine_config,params, '2p')
+            self.prepare_2p()
+            self.printc('2p recording started, saving data to {0}'.format(self.filename))
+        except:
+            self.printc(traceback.format_exc())
         return
-        fps_counter_start = time.time()
-        
-        data = numpy.empty((2 * self.sampsperchan,), dtype=numpy.float64) # Because 2 channel present
-        read = PyDAQmx.int32()
-        
-        # TODO: ReadAnalogF64 consumes a lot of time! ( ~0.3s -> 5000 samps per sec 40*40px, 1 px/um -> resulting a maximum of 3 fps ! )
-        # the remaining piece of code finishes in only 0.01s. Optimization is needed, if maximum 18 FPS for a 200x200px image is too low
-        self.analog_input.ReadAnalogF64(
-            self.sampsperchan,
-            60.0, # Timeout
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            data,
-            2 * self.sampsperchan,
-            PyDAQmx.byref(read),
-            None)
-        print (2)
-        # Scaling pixel data
-        data -= min(data)
-        data *= 255.0 / self.machine_config.BRIGHT_PIXEL_VOLTAGE # Instead of dividing by max(data) -> watherver, gui.Image automatically scales colours anyway in set_image function - check out!
-        
-        actual_width = utils.roundint(self.image_width * self.image_resolution)
-        actual_height = utils.roundint(self.image_height * self.image_resolution)
-        
-        '''
-        Optimized frame builder: (just a bit faster than the nested loops below)
-        #TODO: Bug fix needed: in the following 3 lines there must be missing a +-1 >:(
-        
-        begin_of_return = numpy.arange(actual_width, self.sampsperchan, actual_width + self.return_x_samps)
-        end_of_return = numpy.arange(actual_width + self.return_x_samps, self.sampsperchan + 1, actual_width + self.return_x_samps)
-        boundaries = numpy.insert(end_of_return,  numpy.arange(len(begin_of_return)), begin_of_return)
-        
-        red_ch = numpy.array(numpy.split(data, boundaries)[::2][:-1])
-        green_ch = numpy.array(numpy.split(numpy.split(data, [self.sampsperchan])[1], boundaries)[::2][:-1])
-        blue_ch = numpy.zeros((actual_height , actual_width),  dtype=int)
-        
-        self.printc(red_ch.shape)
-        self.printc(green_ch.shape)
-        self.printc(blue_ch.shape)
-        
-        self.frame = numpy.swapaxes(numpy.dstack([red_ch,  green_ch,  blue_ch]), 0, 1)
-        
-        #self.printc(self.frame.shape)
-        '''
-        
-        # Exclude measurements during return x and return y:
-        samples_to_skip = actual_width + self.return_x_samps - 1
-
-        for j in range(0, actual_height):
-            for i in range(0, actual_width):
-                self.frame[i, j, 0] = data[samples_to_skip * j + i] # Test: X feedback - red
-                self.frame[i, j, 1] = data[self.sampsperchan + samples_to_skip * j + i] # Test: Y feedback - green
-                self.frame[i, j, 2] = 0
-        
-        # TODO: Repeats are only needed if IR image resolution is more than 2P resolution.
-        #self.frame = self.frame.repeat(10, 0).repeat(10, 1)
-        
-        self.get_ir_image()
-        
-        scale = numpy.array([[1.0 / self.settings["IR X Scale"], 0], [0, 1.0 / self.settings["IR Y Scale"]]])
-        
-        # In the future, scipy.ndimage.geometric_transform might be the best solution instead of these:
-        self.ir_image = scipy.ndimage.zoom(self.ir_image, (self.settings["IR X Scale"], self.settings["IR Y Scale"]))
-        self.ir_image = scipy.ndimage.rotate(self.ir_image, self.settings["IR Rotation"])
-        
-        # Put IR on frame (with offset here!) moving overlapping pixels from ir into frame
-        # Known issues: bounding box changes size depending on zoom and rotation, image anchor is the lower left corner, not the center of the current view
-        self.frame[max(0, self.settings["IR X Offset"]) : min(self.ir_image.shape[0] + self.settings["IR X Offset"], self.frame.shape[0]),
-            max(0, self.settings["IR Y Offset"]) : min(self.ir_image.shape[1]  + self.settings["IR Y Offset"], self.frame.shape[1]), 2] = \
-            self.ir_image[max(0, -self.settings["IR X Offset"]) : min(self.ir_image.shape[0], self.frame.shape[0] - self.settings["IR X Offset"]),
-            max(0, -self.settings["IR Y Offset"]) : min(self.ir_image.shape[1], self.frame.shape[1] - self.settings["IR Y Offset"])]
-        
-        if(self.z_stacking):
-            self.z_stack.append(numpy.rollaxis(numpy.copy(self.frame), 2)) # Changing axis order to: ch, x, y
-            self.statusbar.recording_status.setText("Recording Z stack, frame number: " + str(len(self.z_stack)))
-        else:
-            self.statusbar.recording_status.setText("Scanning... " + str(round(1.0/(time.time() - fps_counter_start), 2)) + " FPS")
-        print (3)
-        '''
-        TODO: add binning (something like this) - when hardware can handle more then 5000 samps/sec
-        def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
-            binned_pmt_data = binning_data(rawdata, binning_factor)
-            if offset != 0:
-                binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
-            return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
-    
-        def binning_data(data, factor):
-            #data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
-            return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
-        '''
     
     # ZMQ socket handler (mostly adopted from camera.py)
     def socket_handler(self):
@@ -479,67 +363,90 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.params.params.param(name).items.keys()[0].param.setValue(param_set[name])
             except Exception as e:
                 self.socket_queues['2p']['tosocket'].put({'change_params': str(e)})
-    
-    # Applies channel mask to an image (which has all color channel!) and returns a copy of its modified version
-    def mask_channel(self, source):
-        canvas = numpy.copy(source)
-        if not self.settings["Show RED channel"]:
-            canvas[:, :, 0] = 0
-        if not self.settings["Show GREEN channel"]:
-            canvas[:, :, 1] = 0
-        if not self.settings["Show IR layer"]:
-            canvas[:, :, 2] = 0
-        return canvas
         
-    def generate_image_to_display(self):
-        '''
-        From raw image data generates merged/scaled/etc image
-        '''
-        self.img=raw2frame(self.frame, self.binning_factor, self.boundaries, offset = 0)
-        self.img2display=numpy.zeros((self.img.shape[0], self.img.shape[1], 3))
-        self.img2display[:, :, :2]=self.img
-        masked=self.mask_channel(self.img2display)
-        masked=numpy.where(masked>self.machine_config.MAX_PMT_VOLTAGE, self.machine_config.MAX_PMT_VOLTAGE, masked)
-        masked=numpy.where(masked<0.0, 0.0, masked)
-        masked/=self.machine_config.MAX_PMT_VOLTAGE
-        return masked
+    def read_image(self):
+        try:
+            ir_frame=self.camera.read()
+            if ir_frame is not None:
+                self.ir_frame=ir_frame
+            twop_frame=self.aio.read()
+            if twop_frame is not None:
+                self.twop_frame=twop_frame
+        except:
+            if not hasattr(self, 'read_image_error_shown'):
+                self.printc(traceback.format_exc())
+                self.read_image_error_shown=True
     
     def update_image(self):
-        if self.frame is not None and self.frame.shape[0]>0:
-            self.image.set_image(self.generate_image_to_display())
-        self.socket_handler()
-    
-    def stop_action(self, remote=None):
-        if self.settings['Save']:
-            self.file.close()
-        if(not self.scanning):
-            return
-            
-        if(self.z_stacking):
-            if(remote==False):
-                self.printc("Z stacking is in progress, cannot abort manually.")
+        try:
+            if not hasattr(self, 'twop_frame'):
+                self.merged=self.ir_filtered
             else:
-                self.socket_queues['2p']['tosocket'].put({'stop_action': "Z stacking is in progress, cannot abort manually."})
-            return
+                self.ir_filtered=filter_image(self.ir_frame, self.settings['params/Live/IR/Min'], 
+                                                                self.settings['params/Live/IR/Max'],
+                                                                self.settings['params/Live/IR/Image filters'])*\
+                                                                int(self.settings['params/Show IR'])
+                                                                
+                top_filtered=filter_image(self.twop_frame[:,:,0], self.settings['params/Live/Top/Min'], 
+                                                                self.settings['params/Live/Top/Max'],
+                                                                self.settings['params/Live/Top/Image filters'])*\
+                                                                int(self.settings['params/Show Top'])
+
+                side_filtered=filter_image(self.twop_frame[:,:,1], self.settings['params/Live/Side/Min'], 
+                                                                self.settings['params/Live/Side/Max'],
+                                                                self.settings['params/Live/Side/Image filters'])*\
+                                                                int(self.settings['params/Show Side'])
+
+                kwargs={
+                        'Offset X':self.settings['params/Infrared-2P overlay/Offset X'], 
+                        'Offset Y':self.settings['params/Infrared-2P overlay/Offset Y'], 
+                        'Scale':self.settings['params/Infrared-2P overlay/Scale'], 
+                        'Rotation':self.settings['params/Infrared-2P overlay/Rotation'], 
+                        '2p_scale':self.settings['params/Resolution'],
+                        '2p_reference_scale':self.machine_config.REFERENCE_2P_RESOLUTION
+                        }
+                self.kwargs=kwargs
+                twop_filtered=numpy.zeros_like(self.twop_frame)
+                twop_filtered[:,:,0]=top_filtered
+                twop_filtered[:,:,1]=side_filtered
+                
+                self.twop_filtered=twop_filtered
+                self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
+            self.image.set_image(self.merged)#Swap x, y axis 
+            #Set aspect ratio of image plot
+            ar=self.merged.shape[0]/self.merged.shape[1]
+            if ar>1:
+                w=self.image.width()
+                h=w/ar
+            else:
+                h=self.image.height()
+                w=h*ar
+            self.image.plot.setFixedHeight(h*0.9)
+            self.image.plot.setFixedWidth(w*0.9)
+            if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and not self.settings['params/Show IR']:
+                self.imscale=1/self.settings['params/Resolution']#Only 2p image is shown
+            else:#IR is also shown
+                self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale'])
+            self.image.set_scale(self.imscale)
+        except:
+            if not hasattr(self, 'update_image_error_shown'):
+                self.printc(traceback.format_exc())
+                self.update_image_error_shown=True
     
-       
-        self.scan_timer.stop()
-    
-        self.shutter.WriteDigitalLines(
-            1,
-            True,
-            1.0,
-            PyDAQmx.DAQmx_Val_GroupByChannel,
-            numpy.array([int(0)], dtype=numpy.uint8),
-            None,
-            None)
-        self.printc("Close shutter")
-        self.stop_daq()
-        
-        self.scanning = False
-        self.statusbar.recording_status.setText('Idle')
-        self.statusbar.recording_status.setStyleSheet('background:gray;')
-        self.statusbar.info.setText('')
+    def stop_action(self, remote=None, snapshot=False):
+        try:
+            if self.z_stack_running and not snapshot:
+                self.finish_zstack()
+            elif not self.twop_running:
+                return
+            else:
+                self.aio.stop()
+                self.twop_running=False
+                self.printc('2p scanning stopped')
+            self.statusbar.twop_status.setText('Ready')
+            self.statusbar.twop_status.setStyleSheet('background:gray;')
+        except:
+            self.printc(traceback.format_exc())
         
     def restart_scan(self):
         self.stop_action()
@@ -547,6 +454,24 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.record_action()
     
 ############## REFERENCE IMAGE ###################
+
+    def open_action(self):
+        '''
+        Open a recording for display or a snapshot. Image is put on secondary image display
+        '''
+        raise NotImplementedError('Second image display')
+        
+    def save_image_action(self):
+        '''
+        Save current image to reference image widget
+        '''
+        raise NotImplementedError('Second image display')
+    
+    def zoom_in_action(self):
+        raise NotImplementedError('Second image display')
+        
+    def zoom_out_action(self):
+        raise NotImplementedError('Second image display')
     
     def open_reference_image_action(self, remote=None):
         
@@ -620,50 +545,98 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 
 ############## Z-STACK ###################
     
-    def record_z_stack_action(self, remote=None):
-        raise NotImplementedError('reccord_action and stop_action shall be called for every depth')
-        if(self.scanning):
-            self.stop_action()
+    def z_stack_action(self, remote=None):
+        try:
+            if self.settings['params/Z Stack/Start']<=self.settings['params/Z Stack/End']:
+                raise ValueError('Start position must be greater than end position')
+            if self.settings['params/Z Stack/Step']<=0:
+                raise ValueError('Step value shall be a positive number')
+            params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
+            name=self.settings['params/Z Stack/Name']
+            self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, f'zstack_{name}')
+            s=self.settings['params/Z Stack/Start']
+            e=self.settings['params/Z Stack/End']
+            st=self.settings['params/Z Stack/Step']
+            self.depths=numpy.linspace(s, e, int((s-e)/st+1))
+            ext=self.settings['params/Z Stack/File Format']
+            self.printc(f"Z stack in {', '.join(map(str,self.depths))},  saving to {fileop.replace_extension(self.zstack_filename,ext)}")
+            self.depth_index=0
+            self.z_stack_running=True
+        except:
+            self.printc(traceback.format_exc())
         
-        self.z_stacking = True
-        self.z_stack = []
+    def z_stack_runner(self):
+        if self.z_stack_running:
+            self.stage.z=self.depths[self.depth_index]
+            self.printc(f"Set position to {self.stage.z} um")
+            data=self.snap_action(False,nframes=self.settings['params/Z Stack/Samples per depth'])
+            data=numpy.where(data>self.machine_config.MAX_PMT_VOLTAGE,self.machine_config.MAX_PMT_VOLTAGE,data)
+            data=numpy.cast['uint16'](data*self.machine_config.SCALE_16BIT)
+            if self.depth_index==0:
+                self.printc(f"Open {self.zstack_filename}")
+                self.zstackfile=tables.open_file(self.zstack_filename,'w')
+                datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
+                datatype = tables.UInt16Atom(data.shape)
+                self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
+            self.zstack_data_handle.append(data[None,:])
+            self.depth_index+=1
+            if len(self.depths)==self.depth_index:
+                self.finish_zstack()
+
+    def finish_zstack(self):
+        atom = tables.Atom.from_dtype(self.depths.dtype)
+        depths = self.zstackfile.create_carray(self.zstackfile.root, 'depths', atom, self.depths.shape)
+        depths[:] = self.depths
+        #Save settings
+        self.settings2attr(self.zstackfile.root.depths.attrs)
+        self.z_stack_running=False
+        self.zstackfile.close()
+        if self.settings['params/Z Stack/File Format']!='.hdf5':
+            hdf5_convert(self.zstack_filename, self.settings['params/Z Stack/File Format'])
+            os.remove(self.zstack_filename)
+        self.printc("Z stack finished")
         
-        self.record_action() # Without statring scan_timer! (self.z_stacking = True) scan_frame is being called 'manually' check out the for loop below!
-        preview = numpy.copy(self.frame) # Preview image (self.frame) available right after record_action()
+    def format_settings(self):
+        '''
+        Change setting names to a format that can be handled by pytables: replace / and space to _
+        '''
+        settings_out={}
+        for k, v in self.settings.items():
+            settings_out[k.replace('/', '_').replace(' ', '_')]=v
+        return settings_out
         
-        for i in range(self.settings["Z Stack Start"],  self.settings["Z Stack End"],  self.settings["Z Stack Step"]):
-            self.set_depth(i)
-            Qt.QApplication.processEvents() # Update gui
-            self.scan_frame()
+    def settings2attr(self, ref):
+        for k, v in self.format_settings().items():
+            setattr(ref, k, v)
+            
+    def error_checker(self):
+        if not hasattr(self, 'error_shown'):
+            for f in [self.cam_logfile,self.daq_logfile]:
+                t0=time.time()
+                log=fileop.read_text_file(f)
+                dt=time.time()-t0
+                if dt>0.8:
+                    raise RuntimeError('logfile read takes long')
+                if 'ERROR' in log:
+                    lines=log.split('\n')
+                    index=[i for i in range(len(lines)) if 'ERROR' in lines[i]][0]
+                    message='\n'.join(lines[index:])
+                    self.stop_action()
+                    self.printc(message)
+                    QtGui.QMessageBox.question(self, 'Error', message, QtGui.QMessageBox.Ok)
+                    self.error_shown=True
+                    
         
-        self.z_stacking = False
-        self.stop_action()
-        
-        stack = numpy.stack(self.z_stack, axis=0) # Dimensions : time, ch, x, y
-        
-        if(remote==False):
-            fname = str(QtGui.QFileDialog.getSaveFileName(self, 'Save Recorded Z Stack (' + str(len(self.z_stack)) + ' frames)', self.machine_config.EXPERIMENT_DATA_PATH, '*.hdf5'))
-        else:
-            fname = remote
-        
-        if (fname==''):
-            return
-        
-        hdf5io.save_item(fname, 'imaging_data', stack, overwrite=True)
-        hdf5io.save_item(fname, 'preview', preview)
-        self.printc("Saving " + fname + " completed")
-        self.statusbar.recording_status.setText("Z Stack Recorded: " + fname)
-        
-    
-    def set_depth(self, depth):
-        #TODO: implement in stage_control device specific protocol
-        pass
-        
-    def init_camera_udp(self):
-        import socket
-        self.camera_udp=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        self.camera_udp.bind(("127.0.0.1", 8880))
-    
+    def background_process(self):
+        try:
+            self.socket_handler()
+            self.z_stack_runner()   
+            self.error_checker()
+        except:
+            if not hasattr(self, 'background_process_error_shown'):
+                self.printc(traceback.format_exc())
+                self.background_process_error_shown=True
+                
     def get_ir_image(self):
         data, addr = self.camera_udp.recvfrom(16009)
         if 0:
@@ -686,12 +659,271 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def exit_action(self):
         self.stop_action()
         self.save_context()
-        self.daq_process.terminate()
+        self._close_hardware()
         self.close()
-
-class Test(unittest.TestCase):
-    def test(self):
-        generate_waveform(10,  10,  1,  x_flyback_time=200e-6,  y_flyback_lines=2, fsample=400000,  um2voltage=1e-2,  stim_pulse_width=100e-6)
         
+def merge_image(ir_image, twop_image, kwargs):
+    """
+    ir_image: float 0-1 range
+    twop_image: float, 0-1 range, height x width x 2
+    kwargs keys:
+    Offset X, Y: in um, offset between 2p and Ir image center
+    Scale: Ratio between pixel size in um of IR and 2p image at reference resolution
+    2p_scale: two photon image scale in um/pixel
+    2p_reference_scale: resolution which was used when Scale and Offset X, Y was calibrated
+    """
+    if (ir_image==0).all():
+        merged=numpy.zeros((twop_image.shape[0],  twop_image.shape[1], 3))
+        merged[:,:,:2]=twop_image
+        return merged
+    merged=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 3))
+    #Calculate offset in pixels of IR image
+    offset_x=int(kwargs['2p_reference_scale']*kwargs['Offset X']*kwargs['Scale'])
+    offset_y=int(kwargs['2p_reference_scale']*kwargs['Offset Y']*kwargs['Scale'])
+    #Scale 2p image to the resolution of IR image
+    scale=kwargs['2p_reference_scale']*kwargs['Scale']/kwargs['2p_scale']
+    twop_size=numpy.cast['int'](numpy.array(twop_image.shape[:2])*scale)
+    twop_size=numpy.append(twop_size, 2)
+    twop_resized=skimage.transform.resize(twop_image, twop_size)
+    #Extend to IR image
+    twop_extended=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 2))
+    #Put twop_resized to the center of twop_extended
+    default_offset=numpy.cast['int'](numpy.array(twop_extended.shape[:2])/2-numpy.array(twop_resized.shape[:2])/2)
+    ir_size_bigger=numpy.array(ir_image.shape)>numpy.array(twop_resized.shape[:2])
+    if all(ir_size_bigger):#2p image is smaller than IR
+        twop_extended[default_offset[0]:default_offset[0]+twop_resized.shape[0], default_offset[1]:default_offset[1]+twop_resized.shape[1], :]=twop_resized
+        cut_2p=False
+    elif any(ir_size_bigger) and not all(ir_size_bigger):#Only one dimension of 2p is bigger than IR
+        cut_2p=False
+        if ir_size_bigger[0]:
+            twop_extended[default_offset[0]:-default_offset[0], :, :]=twop_resized[:, -default_offset[1]:default_offset[1], :]
+        elif ir_size_bigger[1]:
+            twop_extended[:, default_offset[1]:-default_offset[1], :]=twop_resized[-default_offset[0]:default_offset[0], :, :]
+    else:
+        #At keast one dimension of 2p is bigger than IR
+        twop_extended=twop_resized
+        cut_2p=True
+    #Rotate
+    if kwargs['Rotation']!=0:
+        twop_rotated=scipy.ndimage.rotate(twop_extended, kwargs['Rotation'], reshape=False)
+    else:
+        twop_rotated=twop_extended
+    #Shift 2p
+    twop_shifted=numpy.roll(twop_rotated,(offset_x,offset_y),axis=(0,1))
+    #Handle edges: rotated image is rolled and returned pixels shall be eliminated
+    if any(ir_size_bigger) and not all(ir_size_bigger):
+        if offset_x>0:
+            twop_shifted[:offset_x, :, :]=0
+        elif offset_x<0:
+            twop_shifted[offset_x:, :, :]=0
+        if offset_y>0:
+            twop_shifted[:, :offset_y, :]=0
+        elif offset_y<0:
+            twop_shifted[:, offset_y:, :]=0
+    else:
+        if twop_resized.shape[1]/2+offset_y> twop_extended.shape[1]/2:
+            edge=int(twop_resized.shape[1]/2+offset_y-twop_extended.shape[1]/2)
+            twop_shifted[:,:edge,:]=0
+        if twop_resized.shape[1]/2+offset_y<0:
+            edge=int(abs(twop_resized.shape[1]/2+offset_y))
+            twop_shifted[:,-edge:,:]=0
+        if twop_resized.shape[0]/2+offset_x> twop_extended.shape[0]/2:
+            edge=int(twop_resized.shape[0]/2+offset_x- twop_extended.shape[0]/2)
+            twop_shifted[:edge,:,:]=0
+        if twop_resized.shape[0]/2+offset_x<0:
+            edge=int(abs(twop_resized.shape[0]/2+offset_x))
+            twop_shifted[-edge:,:,:]=0
+    if cut_2p:
+        merged[:, :, :2]=twop_shifted[-default_offset[0]:merged.shape[0]-default_offset[0],-default_offset[1]:merged.shape[1]-default_offset[1],:]*0.5
+    else:
+        merged[:, :, :2]=twop_shifted*0.5
+    merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([0.5, 0.5, 0.5])
+    return merged
+    
+def filter_image(image, min_, max_, filter):
+    if image.dtype==numpy.uint16:
+        image_=image/(2**12-1)
+    else:
+        image_=image
+    #Scale input image to min_,max_ range
+    scaled=(numpy.clip(image_, min_, max_)-min_)/(max_-min_)
+    if filter=='':
+        filtered=scaled
+    else:
+        raise NotImplementedError('')
+    return filtered
+    
+def hdf5_convert(fn,format):
+    fh=tables.open_file(fn,'r')
+    import tifffile
+    if 'zstackdata' in dir(fh.root):
+        data=fh.root.zstackdata.read()
+        metadata=f'depths={fh.root.depths.read()}\n'
+        metadata2={'depths':fh.root.depths.read()}
+        for vn in dir(fh.root.depths.attrs):
+            if vn[0].isalpha() and vn[0].islower():
+                value=getattr(fh.root.depths.attrs,vn)
+                metadata+=f"{vn}={value}\n"
+                metadata2[vn]=value
+                
+        #Reshape data
+        if format=='.tiff':
+            dataout=numpy.zeros((data.shape[0]*data.shape[1],data.shape[2],data.shape[3],3),dtype=numpy.uint16)
+            ct=0
+            for d in range(data.shape[0]):
+                for r in range(data.shape[1]):
+                    dataout[ct,:,:,:2]=data[d,r]
+                    ct+=1
+            tifffile.imwrite(fn.replace('.hdf5', '.tiff'),dataout)
+            fileop.write_text_file(fn.replace('.hdf5','.txt'),metadata)
+        elif format=='.mat':
+            dataout={'zstack':data,'metadata': metadata2}
+            import scipy.io
+            scipy.io.savemat(fileop.replace_extension(fn,format), dataout,long_field_names=True)
+    elif 'twopdata' in dir(fh.root):
+        raise NotImplementedError('')
+    fh.close()
+    
+class Test(unittest.TestCase):
+    def test_hdf52tiff(self):
+        files=[r'f:\Data\zstack_202006021643399.hdf5',r'f:\Data\2p_202005211441530.hdf5']
+        for f in files:
+            hdf5_convert(f,'.tiff')
+    
+    @unittest.skip('')
+    def test_image_merge(self):
+        from pylab import plot, imshow, show
+        ir_image=numpy.ones((1004, 1004), dtype=numpy.uint16)
+        ir_image[300:700,100:800]=0
+        twop_image=numpy.ones((200, 200, 2))*0.5
+        twop_image[100:,:,0]=0
+        twop_image[:100,:,1]=0
+        kwargs={
+                'Offset X':200, 
+                'Offset Y':200, 
+                'Scale':3.0, 
+                'Rotation':3.0*0,
+                '2p_scale':2,  
+                '2p_reference_scale':2
+                }
+        out=merge_image(ir_image, twop_image, kwargs) 
+        repeats=100
+        im=[[numpy.random.random((512, 512)), numpy.random.random((100, 100, 2))] for i in range(repeats)]
+        t0=time.time()
+        for im1, im2 in im:
+            out=merge_image(im1, im2, kwargs)
+        print((time.time()-t0)/repeats*1e3)
+    
+    @unittest.skip('')    
+    def test_2p_bigger_than_ir(self):
+        from pylab import imshow,figure,show
+        ir_image=numpy.random.random((512, 512))
+        twop1=numpy.random.random((400, 600, 2))
+        kwargs={
+                'Offset X':55, 
+                'Offset Y':-10, 
+                'Scale':1.5, 
+                'Rotation':-2.0,
+                '2p_scale':1.5,  
+                '2p_reference_scale':2
+                }
+        out1=merge_image(ir_image, twop1, kwargs) 
+        out2=merge_image(ir_image, numpy.random.random((100, 100, 2)), kwargs) 
+#        imshow(out1*0.5+out2*0.5);show()
+
+    @unittest.skip('')    
+    def test_ir_disabled(self):
+        ir_image=numpy.zeros((512, 512))
+        twop1=numpy.random.random((600, 600, 2))
+        kwargs={
+                'Offset X':55, 
+                'Offset Y':-10, 
+                'Scale':1.5, 
+                'Rotation':-2.0,
+                '2p_scale':1.5,  
+                '2p_reference_scale':2
+                }
+        out1=merge_image(ir_image, twop1, kwargs) 
+        self.assertEqual(out1.shape[:2],twop1.shape[:2])
+        self.assertNotEqual(ir_image.shape[:2],twop1.shape[:2])
+        
+    def test_filter_image(self):
+        filtered=filter_image(numpy.random.random((100, 100, 2)), 0.5, 0.7, '')
+        self.assertEqual(filtered.min(), 0)
+        self.assertEqual(filtered.max(), 1)
+        
+                
+    def test_merge_image_full_parameter_space(self):
+        ir_image_size=numpy.array([504, 504])
+        ir_values=[0, 1]
+        twop_ref_resolution=2
+        twop_resolutions=[0.5, 1, 1.5,2, 2.5]
+        ir2p_scales=[2.5, 0.5,1]
+        rotations=[0, -2,1,2, 10]
+        twop_sizes=[[50, 50],[70, 70],[100, 100],[300, 300],[50, 100],[100, 70],[300, 100],[100, 300],[600, 300],[300, 600]]
+        offsets=[[0,0],[55,0],[-55,0],[0,55],[0,-55],[60,60], [5, 10]]
+        ct=0
+        for ir_value, ir2p_scale, twop_size, offset in itertools.product(ir_values, ir2p_scales, twop_sizes, offsets):
+            print((ct,numpy.prod(list(map(len, [ir_values, ir2p_scales, twop_sizes, offsets])))))
+            ct+=1
+            ir_image=numpy.ones(ir_image_size, dtype=numpy.float)*ir_value
+            ox, oy=offset
+            kwargs={'Offset X': ox, 'Offset Y': oy, 'Scale':ir2p_scale, \
+                                'Rotation':0, '2p_scale': 2.0, '2p_reference_scale': twop_ref_resolution}
+            
+            #Check if offset puts image (partly) off from ir image
+            #Ir image resolution: twop_ref_resolution*ir2p_scale
+            #Ir image size: ir_image_size/(twop_ref_resolution*ir2p_scale)
+            ir_image_size_um=ir_image_size/(twop_ref_resolution*ir2p_scale)
+            twop_off= any(numpy.array(twop_size)/2+abs(numpy.array(offset))>ir_image_size_um/2)            
+            out_rot=[]
+            for rotation in rotations:
+                twop_resolution=1
+                twop_image=0.5*numpy.ones((int(twop_size[0]*twop_resolution),  int(twop_size[1]*twop_resolution),2), dtype=numpy.float)
+                kwargs_rot=copy.deepcopy(kwargs)
+                kwargs_rot['2p_scale']=twop_resolution
+                kwargs_rot['Rotation']=rotation
+                try:
+                    out_rot.append(merge_image(ir_image, twop_image, kwargs_rot))
+                except:
+                    pass
+            if ir_value==0:
+                self.assertTrue(all(out_rot[-1][:,:,:2]==twop_image))
+                continue
+            #compare rotations, check if center of all rotations have the same cente
+            centers=numpy.array([[numpy.where(ii>0.51)[0].mean(), numpy.where(ii>0.51)[1].mean()] for ii in out_rot])
+            if not twop_off:
+                #All centers are the same
+                numpy.testing.assert_almost_equal(numpy.diff(centers,axis=0),0,1)
+            out_res=[]
+            for twop_resolution in twop_resolutions:
+                rotation=0
+                twop_image=0.5*numpy.ones((int(twop_size[0]*twop_resolution),  int(twop_size[1]*twop_resolution),2), dtype=numpy.float)
+                kwargs_res=copy.deepcopy(kwargs)
+                kwargs_res['2p_scale']=twop_resolution
+                kwargs_res['Rotation']=rotation
+                out_res.append(merge_image(ir_image, twop_image, kwargs_res))
+            #Compare resolutions, all images shall be the same
+            for i in range(1,  len(out_res)):
+                numpy.testing.assert_almost_equal(out_res[0], out_res[i])
+            #Check if 2p channels are identical
+            numpy.testing.assert_almost_equal(out_res[0][:,:,0],out_res[0][:,:,0])
+            if not twop_off:
+                #Check image size for out_res[2] where 2p resolution is 1.5 pixel /um
+                x,y=numpy.where(out_res[-1][:,:,0]>0.51)
+                size_pixel=numpy.array([x.max()-x.min(), y.max()-y.min()])
+                expected_size=numpy.array(twop_size)/ir_image_size_um*ir_image_size
+                numpy.testing.assert_almost_equal(size_pixel, expected_size, -0.1)
+            #Check if shifted center has the 2p pixel values
+            offset_pixel=numpy.cast['int']((ir_image_size_um/2+numpy.array(offset))*(twop_ref_resolution*ir2p_scale))
+            max_center=ir_image_size_um/2
+            twop_center=abs(numpy.array(offset))
+            center_off=any(max_center<twop_center)
+            if not center_off:
+                center_pixel=out_res[-1][offset_pixel[0],offset_pixel[1],:]
+                numpy.testing.assert_equal(numpy.array([0.75, 0.75, 0.5 ]), center_pixel)
+
+            
+
 if __name__=='__main__':
     unittest.main()

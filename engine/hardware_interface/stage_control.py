@@ -1,7 +1,6 @@
-import numpy
+import numpy, struct
 import re
 import time
-import os
 try:
     import serial
 except:
@@ -350,6 +349,34 @@ class RemoteFocus(object):
             self.serial_port.close()
         except AttributeError:
             pass
+            
+class SutterStage(serial.Serial):
+    """
+    Commands are based on http://neurophysics.ucsd.edu/Manuals/Sutter%20Instruments/MP-285%20Reference%20Manual.pdf
+    """
+    def __init__(self, port, baudrate):
+        serial.Serial.__init__(self,  port, baudrate=9600, timeout=1)
+        time.sleep(2)
+        self.write(b'b\r')#Set to relative mode
+        resp=self.read(1)
+        if resp!=b'\r':
+            raise IOError(f'No access to stage: {resp}')
+        
+    @property
+    def z(self):
+        self.write(b'c\r')
+        resp=self.read(13)
+        if len(resp)!=13 or resp[-1]!=13:
+            raise IOError(f"Invalid response: {resp}, {len(resp)}")
+        return struct.unpack('<iii',resp[:-1])[2]
+        
+    @z.setter
+    def z(self, value):
+        cmd=struct.pack('<iii', 0, 0, int(value))
+        self.write(b'm'+cmd+b'\r')
+        resp=self.read(1)
+        if resp!=b'\r':
+            raise IOError('No access to stage')
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -497,6 +524,25 @@ if test_mode:
                 self.rf.move(p)
                 print(p,self.rf.read_position())
                 self.assertEqual(self.rf.read_position(),p)
+                
+class TestSutter(unittest.TestCase):
+    def test(self):
+        stage = SutterStage("COM10", 9600)
+        print(stage.z)
+        stage.z=3000
+        self.assertEqual(stage.z, 3000)
+        self.assertEqual(stage.z, 3000)
+        print(stage.z)
+        stage.z=-1000
+        self.assertEqual(stage.z, -1000)
+        print(stage.z)
+        stage.z=123456789
+        self.assertEqual(stage.z, 123456789)
+        print(stage.z)
+        print(stage.z)
+        stage.z=-98765432
+        print(stage.z)
+        self.assertEqual(stage.z, -98765432)
         
 if __name__ == "__main__":
     unittest.main()

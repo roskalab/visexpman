@@ -85,6 +85,15 @@ def split_object(im,max_iter=10):
         ii=numpy.array([numpy.where(labels==li)[0].shape[0] for li in label_i]).argmax()
         central_object=numpy.where(labels==label_i[ii],1,0)
     return central_object,iterations
+    
+def find_biggers_object(binary_image):
+    labels, n=scipy.ndimage.label(binary_image)
+    ii=numpy.array([numpy.where(labels==li)[0].shape[0] for li in range(1,n+1)]).argmax()+1
+    biggest_object=numpy.where(labels==ii,True,False)
+    return biggest_object
+    
+        
+    
        
 ############## Waveform generation ##############
 def time_series(duration, fs):
@@ -416,8 +425,17 @@ def digital2binary(data):
         out[biti]=d&(2**biti)
     return out
     
+def im2rgb(im):
+    return numpy.rollaxis(numpy.array([im]*3),0,3)
     
-    
+def label_image(img,label,scale=True):
+    out=numpy.zeros((img.shape[0],img.shape[1],3))
+    out[:,:,0]=label
+    out[:,:,1]=img
+    if scale:
+        return out/out.max()
+    else:
+        return out
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):

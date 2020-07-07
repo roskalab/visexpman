@@ -119,6 +119,8 @@ def free_space(path):
     '''
     Calculates the free space on the provided location. Windows, OSX and Linux platforms are all supported
     '''
+    if not os.path.exists(path):
+        raise IOError('{0} does not exists'.format(path))
     if platform.system() == 'Windows':
         free_bytes = ctypes.c_ulonglong(0)
         ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(path), None, None, ctypes.pointer(free_bytes))
@@ -308,7 +310,7 @@ def find_latest(path, extension=None):
     fns = [fn for fn in listdir_fullpath(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
-    fns_dates = map(os.path.getmtime, fns)
+    fns_dates = list(map(os.path.getmtime, fns))
     latest_file_index = fns_dates.index(max(fns_dates))
     return fns[latest_file_index]
      

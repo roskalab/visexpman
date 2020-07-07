@@ -877,7 +877,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  
                     display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
                     velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0, 0)),  
-                    duty_cycle = 1.0, mask_size=None, mask_color=0.0, flicker=None, phases=[],
+                    duty_cycle = 1.0, mask_size=None, mask_color=0.0, flicker=None, phases=None,
                     part_of_drawing_sequence = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
@@ -1027,7 +1027,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture=numpy.tile(texture,(modulation_pixels,1,1))
             flicker_state=False
             switch_count=int(self.config.SCREEN_EXPECTED_FRAME_RATE/float(flicker['frequency']))
-        if len(phases)>0:
+        if isinstance(phases, list):
             phases_pixel=numpy.array(phases)*self.config.SCREEN_UM_TO_PIXEL_SCALE / float(stimulus_profile.shape[0])
             n_frames=phases_pixel.shape[0]
         else:
