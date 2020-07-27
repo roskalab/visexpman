@@ -436,6 +436,16 @@ def label_image(img,label,scale=True):
         return out/out.max()
     else:
         return out
+        
+def concatenate_images(imgs,  horizontal=True):
+    if horizontal:
+        out=numpy.zeros((imgs[0].shape[0], imgs[0].shape[1]*len(imgs)))
+        for i in range(len(imgs)):
+            out[:, i*imgs[i].shape[1]:(i+1)*imgs[i].shape[1]]=imgs[i]
+    else:
+        raise NotImplementedError()
+    return out
+    
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
