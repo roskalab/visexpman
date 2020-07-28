@@ -446,6 +446,29 @@ def concatenate_images(imgs,  horizontal=True):
         raise NotImplementedError()
     return out
     
+def create_image_grid(images):
+    n_images = len(images)
+    n_horiz = int(numpy.sqrt(n_images))
+    n_vert  = n_horiz
+    if(n_horiz*n_vert < n_images):
+        n_horiz+=1
+        if(n_horiz*n_vert < n_images):
+            n_vert+=1;
+    h_sizes, v_sizes = [0] * n_horiz, [0] * n_vert
+    
+    
+    for i, im in enumerate(images):
+        h, v = i % n_horiz, i // n_horiz
+        h_sizes[h] = max(h_sizes[h], im.shape[1])
+        v_sizes[v] = max(v_sizes[v], im.shape[0])
+    h_sizes, v_sizes = numpy.cumsum([0] + h_sizes), numpy.cumsum([0] + v_sizes)
+    im_grid = numpy.zeros((v_sizes[-1], h_sizes[-1], 3),dtype=numpy.uint8)
+    for i, im in enumerate(images):
+        h_start = h_sizes[i % n_horiz]
+        v_start = v_sizes[i // n_horiz]
+        im_grid[v_start:v_start+im.shape[0], h_start:h_start+im.shape[1]] = im
+    return im_grid
+    
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
