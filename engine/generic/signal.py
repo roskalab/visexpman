@@ -37,6 +37,15 @@ def histogram_shift(data, output_range, min = None, max = None, gamma = 1.0, ban
 def scale(data, output_range_min = 0.0, output_range_max =1.0):
     return (numpy.cast['float'](data) - data.min())/(data.max() - data.min())*(output_range_max - output_range_min)+output_range_min
     
+def scale2pil(image, maxvalue=None):
+    '''
+    Scale and cast the image such that it can be saved to PIL image
+    '''
+    mv=image.max() if maxvalue==None else maxvalue
+    s=image/float(mv)
+    s=numpy.where(s>1, 1, s)
+    return numpy.cast['uint8'](s*255)
+    
 def coo_range(d):
     return d.max(axis=0)-d.min(axis=0)
     
