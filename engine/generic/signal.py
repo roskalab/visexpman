@@ -37,6 +37,15 @@ def histogram_shift(data, output_range, min = None, max = None, gamma = 1.0, ban
 def scale(data, output_range_min = 0.0, output_range_max =1.0):
     return (numpy.cast['float'](data) - data.min())/(data.max() - data.min())*(output_range_max - output_range_min)+output_range_min
     
+def scale2pil(image, maxvalue=None):
+    '''
+    Scale and cast the image such that it can be saved to PIL image
+    '''
+    mv=image.max() if maxvalue==None else maxvalue
+    s=image/float(mv)
+    s=numpy.where(s>1, 1, s)
+    return numpy.cast['uint8'](s*255)
+    
 def coo_range(d):
     return d.max(axis=0)-d.min(axis=0)
     
@@ -442,6 +451,39 @@ def label_image(img,label,scale=True):
         return out/out.max()
     else:
         return out
+        
+def concatenate_images(imgs,  horizontal=True):
+    if horizontal:
+        out=numpy.zeros((imgs[0].shape[0], imgs[0].shape[1]*len(imgs)))
+        for i in range(len(imgs)):
+            out[:, i*imgs[i].shape[1]:(i+1)*imgs[i].shape[1]]=imgs[i]
+    else:
+        raise NotImplementedError()
+    return out
+    
+def create_image_grid(images):
+    n_images = len(images)
+    n_horiz = int(numpy.sqrt(n_images))
+    n_vert  = n_horiz
+    if(n_horiz*n_vert < n_images):
+        n_horiz+=1
+        if(n_horiz*n_vert < n_images):
+            n_vert+=1;
+    h_sizes, v_sizes = [0] * n_horiz, [0] * n_vert
+    
+    
+    for i, im in enumerate(images):
+        h, v = i % n_horiz, i // n_horiz
+        h_sizes[h] = max(h_sizes[h], im.shape[1])
+        v_sizes[v] = max(v_sizes[v], im.shape[0])
+    h_sizes, v_sizes = numpy.cumsum([0] + h_sizes), numpy.cumsum([0] + v_sizes)
+    im_grid = numpy.zeros((v_sizes[-1], h_sizes[-1], 3),dtype=numpy.uint8)
+    for i, im in enumerate(images):
+        h_start = h_sizes[i % n_horiz]
+        v_start = v_sizes[i // n_horiz]
+        im_grid[v_start:v_start+im.shape[0], h_start:h_start+im.shape[1]] = im
+    return im_grid
+    
 
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):

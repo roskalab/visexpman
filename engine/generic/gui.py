@@ -1108,7 +1108,7 @@ class FileInput(Qt.QMainWindow):
             
     def popup(self):
         if self.mode=='file':
-            filename = str(QtGui.QFileDialog.getOpenFileName(self, self.title, self.root, self.filter))
+            filename = str(QtGui.QFileDialog.getOpenFileName(self, self.title, self.root, self.filter)[0])
         elif self.mode=='files':
             filename = map(str,QtGui.QFileDialog.getOpenFileNames(self, self.title, self.root, self.filter))
         elif self.mode=='folder':
