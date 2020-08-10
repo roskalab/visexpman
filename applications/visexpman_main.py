@@ -541,7 +541,10 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     
 def prepare_capture_folder(machine_config):
     machine_config.ENABLE_FRAME_CAPTURE = True
-    machine_config.CAPTURE_PATH = os.path.join(machine_config.root_folder, 'capture')
+    if hasattr(machine_config, 'root_folder'):
+        machine_config.CAPTURE_PATH = os.path.join(machine_config.root_folder, 'capture')
+    else:
+        machine_config.CAPTURE_PATH = os.path.join(machine_config.LOG_PATH, 'capture')
     fileop.mkdir_notexists(machine_config.CAPTURE_PATH, remove_if_exists=True)
     return machine_config.CAPTURE_PATH
 
