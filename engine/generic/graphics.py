@@ -129,7 +129,7 @@ class Screen(object):
             flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
             if self.config.FULLSCREEN:            
                 flags = flags | pygame.FULLSCREEN
-            self.screen = pygame.display.set_mode((self.screen_resolution['col'], self.screen_resolution['row']), flags)
+            self.screen = pygame.display.set_mode((int(self.screen_resolution['col']), int(self.screen_resolution['row'])), flags)
             try:
                 pygame.display.set_caption(utils.get_window_title(self.config))
             except:
@@ -443,11 +443,11 @@ class Screen(object):
         '''
         Saves actual frame in frame buffer to an image file
         '''
-        pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
+        pixels = glReadPixels(0, 0, int(self.config.SCREEN_RESOLUTION['col']), int(self.config.SCREEN_RESOLUTION['row']),  GL_RGB, GL_UNSIGNED_BYTE)
         try:
-            frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+            frame = Image.fromstring('RGB', (int(self.config.SCREEN_RESOLUTION['col']), int(self.config.SCREEN_RESOLUTION['row'])), pixels)
         except:
-            frame = Image.frombytes('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+            frame = Image.frombytes('RGB', (int(self.config.SCREEN_RESOLUTION['col']), int(self.config.SCREEN_RESOLUTION['row'])), pixels)
             
         frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
         frame.save(path)

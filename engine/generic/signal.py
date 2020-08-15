@@ -481,7 +481,10 @@ def create_image_grid(images):
     for i, im in enumerate(images):
         h_start = h_sizes[i % n_horiz]
         v_start = v_sizes[i // n_horiz]
-        im_grid[v_start:v_start+im.shape[0], h_start:h_start+im.shape[1]] = im
+        if len(im.shape)==2:
+            im_grid[v_start:v_start+im.shape[0], h_start:h_start+im.shape[1], 1] = im
+        else:
+            im_grid[v_start:v_start+im.shape[0], h_start:h_start+im.shape[1]] = im
     return im_grid
     
 
