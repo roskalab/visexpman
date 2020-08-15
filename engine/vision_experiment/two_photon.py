@@ -74,6 +74,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
 #        self.video_player.setLayout(self.vplayout)
         self.main_tab.addTab(self.saved_image, 'Saved Image')
+        self.main_tab.setFixedWidth(self.machine_config.GUI_WIDTH*0.4)
+        self.main_tab.setFixedHeight(self.machine_config.GUI_WIDTH*0.4)
         
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
@@ -85,6 +87,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         #Shrink image inside widget a bit
         #self.image.set_image(numpy.random.random((200, 200, 3)))
         self.image.plot.setLabels(bottom='um', left='um')
+        self.saved_image.plot.setLabels(bottom='um', left='um')
+        self.saved_image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
+        self.saved_image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
         
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
@@ -181,8 +186,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Name', 'type': 'str', 'value': ''},
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
-                    {'name': 'Enable Projector', 'type': 'bool', 'value': False},
-                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample*1e6, 'step': self.shortest_sample*1e6, 'siPrefix': False, 'suffix': ' us'}, 
+                    {'name': 'Enable Projector', 'type': 'bool', 'value': True},
+                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': 10*self.shortest_sample*1e6, 'step': self.shortest_sample*1e6, 'siPrefix': False, 'suffix': ' us'}, 
                     {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample*1e6, 'siPrefix': False, 'suffix': ' us'},
                     {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
                     {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
@@ -251,8 +256,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                         timeout=1,
                                                                         ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
-                                                                        shutter_port=self.machine_config.SHUTTER_PORT,
-                                                                        display_rate=self.machine_config.IMAGE_DISPLAY_RATE)
+                                                                        shutter_port=self.machine_config.SHUTTER_PORT)
         self.aio.start()
         self.cam_logfile=self.logger.filename.replace('2p', '2p_cam')
         self.camera=camera.ThorlabsCameraProcess(self.machine_config.THORLABS_CAMERA_DLL,
@@ -306,6 +310,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.twop_status.setStyleSheet('background:red;')
         fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
         self.printc(f'2p frame rate {fps} Hz')
+        self.twop_fps=fps
     
     def start_action(self):
         try:
@@ -327,7 +332,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 frames.append(twop_frame)
             if len(frames)==nframes:
                 break
-            if (time.time()-t0>3):
+            if (time.time()-t0>5):
                 self.printc("No image acquired")
                 break
             time.sleep(0.5)
@@ -368,9 +373,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
     def read_image(self):
         try:
+            now=time.time()
             ir_frame=self.camera.read()
             if ir_frame is not None:
+                if hasattr(self, 'tirlast'):
+                    self.irframerate=1/(now-self.tirlast)
                 self.ir_frame=ir_frame
+                self.tirlast=now
             twop_frame=self.aio.read()
             if twop_frame is not None:
                 self.twop_frame=twop_frame
@@ -415,6 +424,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.twop_filtered=twop_filtered
                 self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
             self.image.set_image(self.merged)#Swap x, y axis 
+            if self.machine_config.SHOW_FRAME_RATE:
+                t='Frame rate: '
+                if hasattr(self,'irframerate'):
+                    t+=f"IR: {int(self.irframerate)} Hz "
+                if hasattr(self, 'twop_fps'):
+                    t+=f"2P {self.twop_fps} Hz"
+                self.image.plot.setTitle(t)
             #Set aspect ratio of image plot
             ar=self.merged.shape[0]/self.merged.shape[1]
             if ar>1:
@@ -467,13 +483,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         '''
         Save current image to reference image widget
         '''
-        raise NotImplementedError('Second image display')
+        self.saved_image.set_scale(self.imscale)
+        self.saved_image.set_image(numpy.copy(self.merged))
     
     def zoom_in_action(self):
-        raise NotImplementedError('Second image display')
+        raise NotImplementedError('')
         
     def zoom_out_action(self):
-        raise NotImplementedError('Second image display')
+        raise NotImplementedError('')
     
     def open_reference_image_action(self, remote=None):
         

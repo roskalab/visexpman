@@ -129,6 +129,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.data_range_max=10
         self.data_range_min=0
         self.acquistion_rate=3
+        self.max_val=2**16-1
+        self.to16bit=1/(self.data_range_max-self.data_range_min)*self.max_val
         
     def start(self):
         instrument.InstrumentProcess.start(self)
@@ -171,7 +173,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def data2file(self,readout):
         #Scale readout
         clipped=numpy.clip(readout,self.data_range_min,self.data_range_max)
-        scaled=numpy.cast['uint16'](clipped/(self.data_range_max-self.data_range_min)*(2**16-1))
+        scaled=numpy.cast['uint16'](clipped*self.to16bit)
         if self.frame_chunk_size>1:
             split_data=numpy.split(scaled, (numpy.arange(self.frame_chunk_size,dtype=numpy.int)*int(readout.shape[1]/self.frame_chunk_size))[1:],axis=1)
         else:
@@ -185,7 +187,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             if hasattr(self,'data_handle'):
                 self.data_handle.append(image[None,:])
         #Scale back to 0..1 range
-        image_display=image*(self.data_range_max-self.data_range_min)/(2**16-1)
+        image_display=image/self.to16bit
         return image_display
         
     def run(self):
@@ -246,7 +248,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 if self.running:
                     data_chunk=daq.SyncAnalogIO.read(self)
                     frame=self.data2file(data_chunk)
-                    if ct%self.kwargs['display_rate']==0:
+                    if self.queues['data'].empty():
                         self.queues['data'].put(frame)
                 time.sleep(0.05)
             #Clean up
@@ -265,7 +267,7 @@ class Test(unittest.TestCase):
         if os.path.exists(logfile):
             os.remove(logfile)
         recorder=SyncAnalogIORecorder('Dev1/ai14:15','Dev1/ao0:1',logfile,timeout=1,ai_sample_rate=800e3,ao_sample_rate=400e3,
-                        shutter_port='Dev1/port0/line0',display_rate=3)
+                        shutter_port='Dev1/port0/line0')
         self.recorder=recorder
         recorder.start()
         filename=os.path.join(tempfile.gettempdir(), '2pdata_{0}.hdf5'.format(time.time()))
