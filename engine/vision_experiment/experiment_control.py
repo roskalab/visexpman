@@ -356,9 +356,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if not self.parameters.get('Stimulus Only', False):
                     self.send({'2p': 'stop'})
             elif self.machine_config.PLATFORM == 'mc_mea':
-                self.printl("Stop MC Mea recording")
-                self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
-                self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,0)
+                if self.parameters.get('stop_trigger',False):
+                    self.printl("Stop MC Mea recording")
+                    self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
+                    self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,0)
             if self.machine_config.PLATFORM in [ 'retinal']:
                 #Make sure that imaging recording finishes before terminating sync recording
                 time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
@@ -377,7 +378,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             else:
                 self.printl('Stimulation stopped')
             if self.machine_config.PLATFORM=='mc_mea':
-                self.trigger_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH,polarity=self.machine_config.ACQUISITION_TRIGGER_POLARITY)
+                self.printl('Warning: why is this pulse generated?')
+                if 0:
+                    self.timing_pulse(self.machine_config.ACQUISITION_TRIGGER_PIN, self.machine_config.START_STOP_TRIGGER_WIDTH,polarity=self.machine_config.ACQUISITION_TRIGGER_POLARITY)
             self.frame_rates = numpy.array(self.frame_rates)
             if len(self.frame_rates)>0 and self.check_frame_rate:
                 fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))

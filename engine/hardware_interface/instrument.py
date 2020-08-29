@@ -299,7 +299,7 @@ def set_filterwheel(filter, port, baudrate):
     config is expected to have port baudrate and filters keys
     '''
     serial_port = serial.Serial(port = port, baudrate = baudrate,timeout=1)
-    serial_port.write('pos='+str(filter) +'\r')
+    serial_port.write(('pos='+str(filter) +'\r').encode('utf-8'))
     time.sleep(1)
     res=serial_port.read(100)
     serial_port.close()
