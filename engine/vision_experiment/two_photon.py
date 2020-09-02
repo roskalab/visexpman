@@ -422,8 +422,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 twop_filtered[:,:,1]=side_filtered
                 
                 self.twop_filtered=twop_filtered
-                self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
-            self.image.set_image(self.merged)#Swap x, y axis 
+                if (self.settings['params/Show Side'] or self.settings['params/Show Top']) and not self.settings['params/Show IR']:
+                    #No merge when no ir channel is selected for display
+                    tp=numpy.zeros((twop_filtered.shape[0],twop_filtered.shape[1],3))
+                    tp[:,:,:2]=twop_filtered
+                    self.merged=tp
+                else:
+                    self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
+            if self.settings['params/Show IR'] or self.settings['params/Show Side'] or self.settings['params/Show Top']:
+                self.image.set_image(self.merged)#Swap x, y axis 
             if self.machine_config.SHOW_FRAME_RATE:
                 t='Frame rate: '
                 if hasattr(self,'irframerate'):
@@ -644,7 +651,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.printc(message)
                     QtGui.QMessageBox.question(self, 'Error', message, QtGui.QMessageBox.Ok)
                     self.error_shown=True
-                    
         
     def background_process(self):
         try:

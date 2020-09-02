@@ -601,7 +601,11 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         ctrl_pressed=int(QtGui.QApplication.keyboardModifiers())&QtCore.Qt.ControlModifier!=0
         if e.double():
             if int(e.buttons()) == 1:
-                self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
+                if hasattr(self, 'queue'):
+                    self.queue.put((p.x(), p.y()))
+                    return
+                else:
+                    self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             elif int(e.buttons()) == 2:
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             else:
@@ -1140,13 +1144,58 @@ def text_input(title='',default=''):
 def message(title,message):
     g=FileInput(title, mode='message', message=message)
 
+class ImageClick(Qt.QMainWindow):
+    def __init__(self, image,title='',npoints=1):
+        if QtCore.QCoreApplication.instance() is None:
+            self.qt_app = Qt.QApplication([])
+        Qt.QMainWindow.__init__(self)
+        self.setWindowTitle(title)
+        self.title=title
+        self.npoints=npoints
+        self.image=Image(self)#Creating the central widget which contains the image, the plot and the control widgets
+        self.image.queue=Queue.Queue()
+        self.image.set_image(image)
+        self.image.setFixedWidth(image.shape[0])
+        self.image.setFixedHeight(image.shape[1])
+        self.setCentralWidget(self.image)
+        self.setGeometry(50,50,image.shape[0]+10,image.shape[1]+10)
+        self.timer=QtCore.QTimer()
+        self.timer.start(500)#ms
+        self.timer.timeout.connect(self.check_exit)
+        self.show()
+        if QtCore.QCoreApplication.instance() is not None:
+            QtCore.QCoreApplication.instance().exec_()
+            
+    def check_exit(self):
+        if self.image.queue.qsize()>=self.npoints:
+            self.close()
+            
+    def closeEvent(self, e):
+        e.accept()
+        print('close event')
+            
+def image_click(image,title='',npoints=1):
+    ic=ImageClick(numpy.random.random((500,500,3)),title=title,npoints=npoints)
+    while ic.isVisible():
+        time.sleep(2)
+        print('Wait for click')
+    points=[]
+    while not ic.image.queue.empty():
+        points.append(ic.image.queue.get())
+    return points
+
 class GuiTest(unittest.TestCase):
+    @unittest.skip('')
     def test_01_ask4filename(self):
         for m in ['files', 'file', 'folder']:
             print(file_input('TEST', mode=m))
             
+    @unittest.skip('')
     def test_02_ask4number(self):
         print(text_input('TEXT'))
+        
+    def test_03_click_image(self):
+        print(image_click(numpy.random.random((100,100,3)),'Title',3))
 
 if __name__=='__main__':
     unittest.main()
