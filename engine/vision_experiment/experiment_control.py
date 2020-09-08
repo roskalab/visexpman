@@ -359,7 +359,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.send({'2p': 'stop'})
             elif self.machine_config.PLATFORM == 'mc_mea':
                 self.digital_io.set_pin(self.machine_config.TRIAL_START_END_PIN,0)
-                if self.parameters.get('stop_trigger',False) or self.parameters['Repeats']==1:
+                if self.parameters.get('stop_trigger',False) or self.parameters['Repeats']==1 or self.abort:
                     self.printl("Stop MC Mea recording")
                     self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
                     self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,0)

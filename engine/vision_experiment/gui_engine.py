@@ -69,6 +69,8 @@ class ExperimentHandler(object):
     def __init__(self):
         self.experiment_finish_time=time.time()
         self.batch_running=False
+        self.batch=[]
+        self.stoptime=time.time()
         if self.machine_config.PLATFORM!='mc_mea' and platform.system()=='Windows':
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
@@ -405,7 +407,8 @@ class ExperimentHandler(object):
                 if self.latest_mcd_file==None:
                     return
                 dt=now-os.path.getmtime(self.latest_mcd_file)
-                if dt<2*self.mcd_check_period:
+                dt2=now-self.stoptime
+                if dt<2*self.mcd_check_period and dt2>3*self.mcd_check_period:
                     if self.guidata.read('Repeats')==1:
                         self.start_experiment(manually_started=False)
                     elif self.guidata.read('Repeats')>1 and not self.batch_running:
@@ -827,13 +830,15 @@ class ExperimentHandler(object):
                 self.printc(l)
 
     def stop_experiment(self):
+        self.stoptime=time.time()
         self.aborted=True
         if self.batch_running:
             self.batch_running=False
             self.batch=[]
-            if self.ask4confirmation('Batch terminated, do you want to keep current recording running?'):
-                self.printc('Batch terminated, current recording is left running')
-                return
+            if self.machine_config.PLATFORM!='mc_mea':#For mc_mea it would be complicated to implement graceful stop because of automatic file triggering.
+                if self.ask4confirmation('Batch terminated, do you want to keep current recording running?'):
+                    self.printc('Batch terminated, current recording is left running')
+                    return
         self.printc('Aborting experiment, please wait...')
         if hasattr(self, 'current_experiment_parameters') and self.current_experiment_parameters.get('Partial Save', False):
             self.printc('Saving partial data')
