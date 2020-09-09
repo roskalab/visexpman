@@ -182,8 +182,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Enable Projector', 'type': 'bool', 'value': False},
-                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample, 'step': self.shortest_sample, 'siPrefix': False, 'suffix': ' us'}, 
-                    {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample, 'siPrefix': False, 'suffix': ' us'},
+                    {'name': 'Projector Control Pulse Width', 'type': 'float', 'value': self.shortest_sample*1e6, 'step': self.shortest_sample*1e6, 'siPrefix': False, 'suffix': ' us'}, 
+                    {'name': 'Projector Control Phase', 'type': 'float', 'value': 0, 'step': self.shortest_sample*1e6, 'siPrefix': False, 'suffix': ' us'},
                     {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
                     {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
                     {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
@@ -304,6 +304,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.twop_running=True
         self.statusbar.twop_status.setText('2P')
         self.statusbar.twop_status.setStyleSheet('background:red;')
+        fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
+        self.printc(f'2p frame rate {fps} Hz')
     
     def start_action(self):
         try:

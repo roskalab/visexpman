@@ -67,6 +67,10 @@ class ExperimentHandler(object):
     Handles stimulus files, initiates recording and stimulation, 
     '''
     def __init__(self):
+        self.experiment_finish_time=time.time()
+        self.batch_running=False
+        self.batch=[]
+        self.stoptime=time.time()
         if self.machine_config.PLATFORM!='mc_mea' and platform.system()=='Windows':
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
@@ -89,8 +93,6 @@ class ExperimentHandler(object):
                 self.sync_recorder.start()
             self.sync_recording_started=False
             self.experiment_running=False
-            self.experiment_finish_time=time.time()
-            self.batch_running=False
         else:
             self.experiment_running=False
             self.sync_recording_started=False
@@ -173,7 +175,7 @@ class ExperimentHandler(object):
                 self.printc(pc.run(new_flow_rate))
                 time.sleep(1)
                 if not pc.is_running():
-                    raise IOErrror('Pump is not running, please press green Run button (bottom right side) to enable run/command mode')
+                    raise IOError('Pump is not running, please press green Run button (bottom right side) to enable run/command mode')
                 
             
     def _get_experiment_parameters(self):
@@ -300,71 +302,87 @@ class ExperimentHandler(object):
                     self.batch.append(par)
             [self.printc('Batch generated: {0}/{1} um' .format(b['id'], b['motor position'])) for b in self.batch]
         elif self.machine_config.ENABLE_BATCH_EXPERIMENT:
-            if self.guidata.read('Enable tile scan'):
-                xstepsize=(self.guidata.read('Tile Width')-self.guidata.read('Tile Overlap'))
-                ystepsize=(self.guidata.read('Tile Height')-self.guidata.read('Tile Overlap'))
-                nxsteps=numpy.ceil((self.guidata.read('X end')-self.guidata.read('X start'))/xstepsize)
-                nysteps=numpy.ceil((self.guidata.read('Y end')-self.guidata.read('Y start'))/ystepsize)
-                if nxsteps==0:
-                    nxsteps=1
-                if nysteps==0:
-                    nysteps=1
-                x_coordinates=numpy.arange(nxsteps)*xstepsize+self.guidata.read('X start')
-                y_coordinates=numpy.arange(nysteps)*ystepsize+self.guidata.read('Y start')
-                xx, yy=numpy.meshgrid(x_coordinates,  y_coordinates)
-                xx=xx.flatten()
-                yy=yy.flatten()
-                coords=zip(xx,yy)
-            if self.guidata.read('Z start')<self.guidata.read('Z end'):
-                raise ValueError('Z start shall be bigger than Z end')
-            elif self.guidata.read('Z step')<=0:
-                raise ValueError('Z step shall be greater than 0')
-            zs=self.guidata.read('Z start')
-            ze=self.guidata.read('Z end')
-            zst=self.guidata.read('Z step')
-            if zst==0:
-                depths=numpy.array([zs])
-            else:
-                depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
-            self.batch=[]
-            self.depths=depths
-            if self.guidata.read('Enable tile scan'):
-                self.coords=coords
-            for d in depths:
+            if self.machine_config.PLATFORM=='mc_mea':
+                self.batch=[]
                 for r in range(self.guidata.read('Repeats')):
                     par=copy.deepcopy(experiment_parameters)
                     time.sleep(0.2)
                     par['id']=experiment_data.get_id()
-                    par['depth']=d
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                    par['stop_trigger']=False
                     self.batch.append(par)
-                    if self.guidata.read('Enable tile scan'):
-                        ref=copy.deepcopy(self.batch[-1])
-                        del self.batch[-1]
-                        for xpos,  ypos in coords:
-                            par=copy.deepcopy(ref)
-                            time.sleep(0.2)
-                            par['xpos']=xpos
-                            par['ypos']=ypos
-                            par['id']=experiment_data.get_id()
-                            par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
-                            par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
-                            self.batch.append(par)
+                self.batch[-1]['stop_trigger']=True
+                self.batch[-1]['ids']=[b['id'] for b in self.batch]
+            elif self.machine_config.PLATFORM=='2p':
+                if self.guidata.read('Enable tile scan'):
+                    xstepsize=(self.guidata.read('Tile Width')-self.guidata.read('Tile Overlap'))
+                    ystepsize=(self.guidata.read('Tile Height')-self.guidata.read('Tile Overlap'))
+                    nxsteps=numpy.ceil((self.guidata.read('X end')-self.guidata.read('X start'))/xstepsize)
+                    nysteps=numpy.ceil((self.guidata.read('Y end')-self.guidata.read('Y start'))/ystepsize)
+                    if nxsteps==0:
+                        nxsteps=1
+                    if nysteps==0:
+                        nysteps=1
+                    x_coordinates=numpy.arange(nxsteps)*xstepsize+self.guidata.read('X start')
+                    y_coordinates=numpy.arange(nysteps)*ystepsize+self.guidata.read('Y start')
+                    xx, yy=numpy.meshgrid(x_coordinates,  y_coordinates)
+                    xx=xx.flatten()
+                    yy=yy.flatten()
+                    coords=zip(xx,yy)
+                if self.guidata.read('Z start')<self.guidata.read('Z end'):
+                    raise ValueError('Z start shall be bigger than Z end')
+                elif self.guidata.read('Z step')<=0:
+                    raise ValueError('Z step shall be greater than 0')
+                zs=self.guidata.read('Z start')
+                ze=self.guidata.read('Z end')
+                zst=self.guidata.read('Z step')
+                if zst==0:
+                    depths=numpy.array([zs])
+                else:
+                    depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
+                self.batch=[]
+                self.depths=depths
+                if self.guidata.read('Enable tile scan'):
+                    self.coords=coords
+                for d in depths:
+                    for r in range(self.guidata.read('Repeats')):
+                        par=copy.deepcopy(experiment_parameters)
+                        time.sleep(0.2)
+                        par['id']=experiment_data.get_id()
+                        par['depth']=d
+                        par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
+                        par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                        self.batch.append(par)
+                        if self.guidata.read('Enable tile scan'):
+                            ref=copy.deepcopy(self.batch[-1])
+                            del self.batch[-1]
+                            for xpos,  ypos in coords:
+                                par=copy.deepcopy(ref)
+                                time.sleep(0.2)
+                                par['xpos']=xpos
+                                par['ypos']=ypos
+                                par['id']=experiment_data.get_id()
+                                par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
+                                par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                                self.batch.append(par)
             if self.guidata.read('Enable tile scan'):
                 self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um, {2} um, {3} um' .format(b['id'], b['depth'],  b['xpos'],  b['ypos']) for b in self.batch]))
+            elif 'depth' not in self.batch[0]:
+                self.printc('Batch generated:'+'\r\n'.join(['{0}' .format(b['id']) for b in self.batch]))
             else:
                 self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um' .format(b['id'], b['depth']) for b in self.batch]))
         elif self.machine_config.PLATFORM == 'rc_cortical':
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
         self.fullbatch=copy.deepcopy(self.batch)
         self.batch_running=True
-        self.microscope.start_batch()
+        if hasattr(self,'microscope'):
+            self.microscope.start_batch()
         
     def check_batch(self):
         if self.batch_running:
             if not self.experiment_running and time.time()-self.experiment_finish_time>self.machine_config.WAIT_BETWEEN_BATCH_JOBS and \
-                 'stim' in self.connected_nodes and (hasattr(self,  'microscope') and self.microscope.name in self.connected_nodes):
+                 'stim' in self.connected_nodes and ((hasattr(self,  'microscope') and self.microscope.name in self.connected_nodes) or self.machine_config.PLATFORM=='mc_mea'):
                 if len(self.batch)==0:
                     self.batch_running=False
                     self.notify('Info', 'Batch finished')
@@ -389,8 +407,12 @@ class ExperimentHandler(object):
                 if self.latest_mcd_file==None:
                     return
                 dt=now-os.path.getmtime(self.latest_mcd_file)
-                if dt<2*self.mcd_check_period:
-                    self.start_experiment(manually_started=False)
+                dt2=now-self.stoptime
+                if dt<2*self.mcd_check_period and dt2>3*self.mcd_check_period:
+                    if self.guidata.read('Repeats')==1:
+                        self.start_experiment(manually_started=False)
+                    elif self.guidata.read('Repeats')>1 and not self.batch_running:
+                        self.start_batch_experiment()
                 
     def connect(self):
         self.microscope_handler('init')
@@ -503,10 +525,13 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='mc_mea':
             #Copy mcd file to outfolder:
             time.sleep(3)
-            if not self.aborted and 'mcd_file' in self.current_experiment_parameters:
+            mcd_finished=self.current_experiment_parameters.get('stop_trigger',False) or ('stop_trigger' not in self.current_experiment_parameters)
+            if not self.aborted and 'mcd_file' in self.current_experiment_parameters and mcd_finished:
                 dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
                 self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
                 shutil.move(self.current_experiment_parameters['mcd_file'], dst)
+                self.printc('MEA recording almost finished, please wait...')
+                time.sleep(2*self.mcd_check_period+1)
             
 #            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
 #                #Find latest mcd file and save experiment metadata to the same folder
@@ -805,13 +830,15 @@ class ExperimentHandler(object):
                 self.printc(l)
 
     def stop_experiment(self):
+        self.stoptime=time.time()
         self.aborted=True
         if self.batch_running:
             self.batch_running=False
             self.batch=[]
-            if self.ask4confirmation('Batch terminated, do you want to keep current recording running?'):
-                self.printc('Batch terminated, current recording is left running')
-                return
+            if self.machine_config.PLATFORM!='mc_mea':#For mc_mea it would be complicated to implement graceful stop because of automatic file triggering.
+                if self.ask4confirmation('Batch terminated, do you want to keep current recording running?'):
+                    self.printc('Batch terminated, current recording is left running')
+                    return
         self.printc('Aborting experiment, please wait...')
         if hasattr(self, 'current_experiment_parameters') and self.current_experiment_parameters.get('Partial Save', False):
             self.printc('Saving partial data')

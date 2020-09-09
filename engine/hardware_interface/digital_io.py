@@ -375,9 +375,9 @@ class DigitalIO(object):
                 raise ValueError('Invalid pin: {0}'.format(pin))
         elif self.type=='arduino':
             if state:
-                self.hwhandler.write('{0}'.format(pin+1))
+                self.hwhandler.write(('{0}'.format(pin+1)).encode('utf-8'))
             else:
-                self.hwhandler.write(chr(ord('a')+pin))
+                self.hwhandler.write((chr(ord('a')+pin)).encode('utf-8'))
             
     def close(self):
         if self.type==None:
