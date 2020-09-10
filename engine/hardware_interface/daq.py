@@ -1,7 +1,10 @@
 import numpy, unittest, copy, time, multiprocessing,queue
-import PyDAQmx
-import PyDAQmx.DAQmxConstants as DAQmxConstants
-import PyDAQmx.DAQmxTypes as DAQmxTypes
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except:
+    print('No pydaqmx')
 
 def check_device(dev):
     """

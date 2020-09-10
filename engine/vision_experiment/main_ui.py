@@ -793,11 +793,11 @@ class MainUI(gui.VisexpmanMainWindow):
     def _init_variables(self):
         if hasattr(self.machine_config,'FILTERWHEEL_FILTERS'):
             if isinstance(self.machine_config.FILTERWHEEL_FILTERS, list):
-                fw1=self.machine_config.FILTERWHEEL_FILTERS[0].keys()
-                fw2=self.machine_config.FILTERWHEEL_FILTERS[1].keys()
+                fw1=list(self.machine_config.FILTERWHEEL_FILTERS[0].keys())
+                fw2=list(self.machine_config.FILTERWHEEL_FILTERS[1].keys())
                 fw2.sort()
             else:
-                fw1=self.machine_config.FILTERWHEEL_FILTERS.keys()
+                fw1=list(self.machine_config.FILTERWHEEL_FILTERS.keys())
                 fw2=[]
             fw1.sort()
         else:
@@ -900,22 +900,31 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Stimulus Only', 'type': 'bool', 'value': False})
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             #Append batch experiment settings
-            self.params_config.append(
-            {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
-                    {'name': 'Repeats', 'type': 'int', 'value': 1},
-                    {'name': 'Z start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Z end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Z step', 'type': 'float', 'value': 10,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Enable tile scan', 'type': 'bool', 'value': False},
-                    {'name': 'X start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'X end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Y start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Y end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Tile overlap', 'type': 'float', 'value': 50,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Tile Width', 'type': 'float', 'value': 300,  'suffix': 'um',  'decimals': 6},
-                    {'name': 'Tile Height', 'type': 'float', 'value': 300,  'suffix': 'um',  'decimals': 6},
+            if self.machine_config.PLATFORM=='2p':
+                self.params_config.append(
+                {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
+                        {'name': 'Repeats', 'type': 'int', 'value': 1},
+                        {'name': 'Z start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Z end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Z step', 'type': 'float', 'value': 10,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Enable tile scan', 'type': 'bool', 'value': False},
+                        {'name': 'X start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'X end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Y start', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Y end', 'type': 'float', 'value': 0,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Tile overlap', 'type': 'float', 'value': 50,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Tile Width', 'type': 'float', 'value': 300,  'suffix': 'um',  'decimals': 6},
+                        {'name': 'Tile Height', 'type': 'float', 'value': 300,  'suffix': 'um',  'decimals': 6},
+                        ]},
+                    )
+            else:
+                self.params_config.append(
+                        {'name': 'Batch Experiment', 'type': 'group', 'expanded' : True, 'children': [#'expanded' : True
+                                {'name': 'Repeats', 'type': 'int', 'value': 1},
+                                {'name': ' ', 'type': 'str', 'value': ''},
                     ]},
-            )
+                    )
+            
         if hasattr(self.machine_config, 'SETUP_SETTINGS'):
             if isinstance(self.machine_config.SETUP_SETTINGS, list):
                 self.params_config.extend(self.machine_config.SETUP_SETTINGS)

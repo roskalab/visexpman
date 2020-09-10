@@ -8,10 +8,12 @@ Classes related to two photon scanning:
 import numpy, unittest, pdb, itertools,multiprocessing,time,os,tables
 from visexpman.engine.generic import utils
 from visexpman.engine.hardware_interface import instrument,daq
-import PyDAQmx
-import PyDAQmx.DAQmxConstants as DAQmxConstants
-import PyDAQmx.DAQmxTypes as DAQmxTypes
-
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except:
+    print('no pydaqmx')
 class ScannerWaveform(object):
     '''
     '''
