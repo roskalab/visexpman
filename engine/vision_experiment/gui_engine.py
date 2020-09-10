@@ -69,6 +69,8 @@ class ExperimentHandler(object):
     def __init__(self):
         self.experiment_finish_time=time.time()
         self.batch_running=False
+        self.batch=[]
+        self.stoptime=time.time()
         if self.machine_config.PLATFORM!='mc_mea' and platform.system()=='Windows':
             self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
@@ -173,7 +175,7 @@ class ExperimentHandler(object):
                 self.printc(pc.run(new_flow_rate))
                 time.sleep(1)
                 if not pc.is_running():
-                    raise IOErrror('Pump is not running, please press green Run button (bottom right side) to enable run/command mode')
+                    raise IOError('Pump is not running, please press green Run button (bottom right side) to enable run/command mode')
                 
             
     def _get_experiment_parameters(self):
@@ -308,6 +310,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                    par['stop_trigger']=False
                     self.batch.append(par)
                 self.batch[-1]['stop_trigger']=True
                 self.batch[-1]['ids']=[b['id'] for b in self.batch]
@@ -381,8 +384,6 @@ class ExperimentHandler(object):
             if not self.experiment_running and time.time()-self.experiment_finish_time>self.machine_config.WAIT_BETWEEN_BATCH_JOBS and \
                  'stim' in self.connected_nodes and ((hasattr(self,  'microscope') and self.microscope.name in self.connected_nodes) or self.machine_config.PLATFORM=='mc_mea'):
                 if len(self.batch)==0:
-                    self.printc('Batch recording almost finished, please wait...')
-                    time.sleep(2*self.mcd_check_period+1)
                     self.batch_running=False
                     self.notify('Info', 'Batch finished')
                     return
@@ -406,7 +407,8 @@ class ExperimentHandler(object):
                 if self.latest_mcd_file==None:
                     return
                 dt=now-os.path.getmtime(self.latest_mcd_file)
-                if dt<2*self.mcd_check_period:
+                dt2=now-self.stoptime
+                if dt<2*self.mcd_check_period and dt2>3*self.mcd_check_period:
                     if self.guidata.read('Repeats')==1:
                         self.start_experiment(manually_started=False)
                     elif self.guidata.read('Repeats')>1 and not self.batch_running:
@@ -523,10 +525,13 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM=='mc_mea':
             #Copy mcd file to outfolder:
             time.sleep(3)
-            if not self.aborted and 'mcd_file' in self.current_experiment_parameters and self.current_experiment_parameters.get('stop_trigger',False):
+            mcd_finished=self.current_experiment_parameters.get('stop_trigger',False) or ('stop_trigger' not in self.current_experiment_parameters)
+            if not self.aborted and 'mcd_file' in self.current_experiment_parameters and mcd_finished:
                 dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
                 self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
                 shutil.move(self.current_experiment_parameters['mcd_file'], dst)
+                self.printc('MEA recording almost finished, please wait...')
+                time.sleep(2*self.mcd_check_period+1)
             
 #            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
 #                #Find latest mcd file and save experiment metadata to the same folder
@@ -825,13 +830,15 @@ class ExperimentHandler(object):
                 self.printc(l)
 
     def stop_experiment(self):
+        self.stoptime=time.time()
         self.aborted=True
         if self.batch_running:
             self.batch_running=False
             self.batch=[]
-            if self.ask4confirmation('Batch terminated, do you want to keep current recording running?'):
-                self.printc('Batch terminated, current recording is left running')
-                return
+            if self.machine_config.PLATFORM!='mc_mea':#For mc_mea it would be complicated to implement graceful stop because of automatic file triggering.
+                if self.ask4confirmation('Batch terminated, do you want to keep current recording running?'):
+                    self.printc('Batch terminated, current recording is left running')
+                    return
         self.printc('Aborting experiment, please wait...')
         if hasattr(self, 'current_experiment_parameters') and self.current_experiment_parameters.get('Partial Save', False):
             self.printc('Saving partial data')

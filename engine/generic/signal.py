@@ -477,7 +477,7 @@ def create_image_grid(images):
         h_sizes[h] = max(h_sizes[h], im.shape[1])
         v_sizes[v] = max(v_sizes[v], im.shape[0])
     h_sizes, v_sizes = numpy.cumsum([0] + h_sizes), numpy.cumsum([0] + v_sizes)
-    im_grid = numpy.zeros((v_sizes[-1], h_sizes[-1], 3),dtype=numpy.uint8)
+    im_grid = numpy.zeros((v_sizes[-1], h_sizes[-1], 3))
     for i, im in enumerate(images):
         h_start = h_sizes[i % n_horiz]
         v_start = v_sizes[i // n_horiz]
