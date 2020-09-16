@@ -12,7 +12,7 @@ import os.path
 import numpy
 import warnings
 import visexpman
-import visexpman.engine
+import visexpman
 from visexpman.generic.command_parser import ServerLoop
 from visexpman.vision_experiment.screen import StimulationScreen
 from visexpman.vision_experiment import experiment_data,experiment

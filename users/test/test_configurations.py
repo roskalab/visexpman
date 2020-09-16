@@ -11,10 +11,10 @@ import os.path
 import serial
 
 import visexpman
-from visexpman.engine.vision_experiment import configuration
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.vision_experiment import experiment
+from visexpman.vision_experiment import configuration
+from visexpman.generic import utils
+from visexpman.generic import fileop
+from visexpman.vision_experiment import experiment
 from visexpman.users.peter import mea_configurations as peter_configurations
 
 from visexpman.users.test import unittest_aggregator

@@ -1,5 +1,5 @@
-from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.generic import utils
+from visexpman.vision_experiment import experiment
+from visexpman.generic import utils
 import time
 import numpy
             

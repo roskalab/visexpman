@@ -12,10 +12,10 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
 import visexpman
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-from visexpman.engine.generic import utils,fileop,introspect
-from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.vision_experiment.configuration import VisionExperimentConfig
+from visexpman.generic import utils,fileop,introspect
+from visexpman.vision_experiment import experiment
+from visexpman.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimuli
 
@@ -336,7 +336,7 @@ class TestGratingConfig(experiment.ExperimentConfig):
 class TestGratingExp(experiment.Experiment):
         
     def run(self):
-        from visexpman.engine.generic import colors
+        from visexpman.generic import colors
         #glEnable (GL_BLEND)
         #glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         display_area_adjusted=numpy.array([40,40])

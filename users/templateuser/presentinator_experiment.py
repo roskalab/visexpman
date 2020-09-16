@@ -1,6 +1,6 @@
 import visexpman
-import visexpman.engine.generic.utils as utils
-import visexpman.engine.visual_stimulation.experiment as experiment
+import visexpman.generic.utils as utils
+import visexpman.visual_stimulation.experiment as experiment
 import time
 import shutil
 import os
