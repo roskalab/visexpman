@@ -11,7 +11,7 @@ except:
 import os,numpy,sys,glob
 import time
 import unittest
-from visexpman.engine.hardware_interface import instrument
+from visexpman.hardware_interface import instrument
 import threading
 try:
     import Queue
@@ -484,7 +484,7 @@ class TestDigitalIO(unittest.TestCase):
         ton = 1.0/frq*duty_cycle
         toff =1.0/frq*(1.0-duty_cycle)
         print(ton, toff,int(duration*frq))
-        from visexpman.engine.generic.introspect import Timer
+        from visexpman.generic.introspect import Timer
         with Timer(''):
             for i in range(int(duration*frq)):
                 s.set_data_bit(1, True)
@@ -522,7 +522,7 @@ class TestDigitalIO(unittest.TestCase):
         io.close()
         
     def test_07_ioboard_id(self):
-        from visexpman.engine.generic import introspect
+        from visexpman.generic import introspect
         port=self.ioboardport
         with introspect.Timer('opening ioboard using port id'):
             io=IOBoard(port)
@@ -536,7 +536,7 @@ class TestDigitalIO(unittest.TestCase):
         io2.close()
         
     def test_08_find_devices(self):
-        from visexpman.engine.generic import introspect
+        from visexpman.generic import introspect
         with introspect.Timer('find serial port devices'):
             print(find_devices())
             
@@ -566,7 +566,7 @@ class TestTriggerDetector(unittest.TestCase):
         '''
         For testing connect AO0 with PFI0
         '''
-        from visexpman.engine.hardware_interface import daq_instrument
+        from visexpman.hardware_interface import daq_instrument
         from pylab import plot,show
         fs=1000
         repeats=3

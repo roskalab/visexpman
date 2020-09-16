@@ -17,7 +17,7 @@ from PIL import Image,ImageDraw
 import matplotlib
 matplotlib.use('Qt4Agg')
 from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
-from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
+from visexpman.generic import utils,fileop,signal,videofile,introspect
 try:
     import hdf5io
     hdf5io_available=True
@@ -388,7 +388,7 @@ class CaImagingData(supcl):
         else:
             raise NotImplementedError('')
         if motion_correction:# and self.findvar('motion_correction')==None:
-            from visexpman.engine.analysis import bouton
+            from visexpman.analysis import bouton
             self.raw_data=bouton.motion_correction(self.raw_data)
 #            self.motion_correction=True
 #            self.save('motion_correction')
@@ -746,7 +746,7 @@ def pack_configs(self):
                 del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
     if not 'experiment_config' in configs and hasattr(self, 'config2dict') :
         configs['experiment_config']=self.config2dict()
-    from visexpman.engine.vision_experiment import experiment
+    from visexpman.vision_experiment import experiment
     if hasattr(self,  'experiment_config') :
         if 'experiment_config_source_code' not in self.parameters:
             sc=None
@@ -1371,7 +1371,7 @@ class TestExperimentData(unittest.TestCase):
     
     @unittest.skip("")
     def test_00_rlvivobackup(self):
-        from visexpman.engine.generic import introspect
+        from visexpman.generic import introspect
         user='default_user'
         animalid='test'
         id=int(time.time())

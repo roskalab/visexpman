@@ -10,8 +10,8 @@ except ImportError:
     print('opengl not installed')
 from contextlib import closing
 import tables
-from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
-from visexpman.engine.vision_experiment import screen,experiment_control
+from visexpman.generic import graphics,utils,colors,fileop, signal,geometry,videofile
+from visexpman.vision_experiment import screen,experiment_control
 try:
     from visexpman.users.test import unittest_aggregator
     test_mode=True
@@ -673,7 +673,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         try:
             import experiment_data
         except ImportError:
-            from visexpman.engine.vision_experiment import experiment_data
+            from visexpman.vision_experiment import experiment_data
         spatial_period=experiment_data.cpd2um(spatial_frequency,self.machine_config.MOUSE_1_VISUAL_DEGREE_ON_RETINA)
         nframes=1 if duration==0 else int(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)
         size_pixel=int(size*self.config.SCREEN_UM_TO_PIXEL_SCALE)
@@ -738,7 +738,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
             else:
                 from scipy.ndimage.filters import gaussian_filter
-                from visexpman.engine.generic import introspect
+                from visexpman.generic import introspect
                 with introspect.Timer(''):
                     texture=gaussian_filter(texture,10)
             texture=signal.scale(texture,color_min,color_max)
@@ -1739,7 +1739,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             
 class StimulationHelpers(Stimulations):
     def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True,enable_texture=True, position=utils.rc((0,0))):
-        from visexpman.engine.generic import geometry
+        from visexpman.generic import geometry
         vertices = geometry.rectangle_vertices(size, orientation = orientation)
         vertices+=numpy.array([position['col'], position['row']])
         if set_vertices:
@@ -1812,7 +1812,7 @@ class StimulationHelpers(Stimulations):
         expected_configs = ['ULED_SERIAL_PORT', 'STIMULUS2MEMORY']
         if all([hasattr(self.machine_config, expected_config) for expected_config in expected_configs]) and self.machine_config.STIMULUS2MEMORY:
             self.config.STIMULUS2MEMORY = False
-            from visexpman.engine.hardware_interface import microled
+            from visexpman.hardware_interface import microled
             self.microledarray = microled.MicroLEDArray(self.machine_config)
             self._merge_identical_frames()
             for frame_i in range(len(self.merged_bitmaps)):
@@ -2393,7 +2393,7 @@ class AdvancedStimulation(StimulationHelpers):
         voltages = numpy.arctan(numpy.array([positions['row'], positions['col']])/mirror_screen_distance)/angle2voltage_factor
         voltages = utils.rc(numpy.concatenate((numpy.zeros((2,1)),voltages,numpy.zeros((2,1))),axis=1))
             
-        from visexpman.engine.hardware_interface import daq_instrument
+        from visexpman.hardware_interface import daq_instrument
         waveform = utils.rc(numpy.zeros((2,0)))
         for pos_i in range(voltages.shape[0]-1):
             chunk = []
@@ -2404,7 +2404,7 @@ class AdvancedStimulation(StimulationHelpers):
             waveform = numpy.append(waveform, utils.rc(numpy.array(chunk)))
         waveform = utils.nd(waveform).T
         if abs(waveform).max()>self.machine_config.LASER_BEAM_CONTROL['MAX_SCANNER_VOLTAGE']:
-            from visexpman.engine.hardware_interface.scanner_control import ScannerError
+            from visexpman.hardware_interface.scanner_control import ScannerError
             raise ScannerError('Position(s) are beyond the scanner\'s operational range')
         daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
 
@@ -2413,12 +2413,12 @@ if test_mode:
         
         @unittest.skip('')
         def test_01_curtain(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
     
         @unittest.skip('')
         def test_02_moving_shape(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             from visexpman.users.test.test_stimulus import TestMovingShapeConfig
             context = stimulation_tester('test', 'GUITestConfig', 'TestMovingShapeConfig', ENABLE_FRAME_CAPTURE = True)
             ec = TestMovingShapeConfig(context['machine_config'])
@@ -2440,9 +2440,9 @@ if test_mode:
     
         @unittest.skip('')
         def test_03_natural_stim_spectrum(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             from PIL import Image
-            from visexpman.engine.generic import fileop
+            from visexpman.generic import fileop
             spd = 800
             duration = 12
             repeats = 1
@@ -2467,7 +2467,7 @@ if test_mode:
         @unittest.skip('')
         def test_04_natural_export(self):
             export = True
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
                     STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
                     EXPORT_INTENSITY_PROFILE = export,
@@ -2476,7 +2476,7 @@ if test_mode:
     #    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
         @unittest.skip('')
         def test_05_export2video(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
             videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
             self.assertTrue(os.path.exists(videofile))
@@ -2485,29 +2485,29 @@ if test_mode:
         
         @unittest.skip('Funtion is not ready')
         def test_06_texture(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
             
         @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
         def test_07_point_laser_beam(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
     
         @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
         def test_08_point_laser_beam_out_of_range(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
             self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
             
         @unittest.skip('')
         def test_09_show_grating_non_texture(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             from visexpman.users.test.test_stimulus import TestMovingShapeConfig
             context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
         
         @unittest.skip('')
         def test_10_block_trigger(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             import hdf5io
             from visexpman.users.test.test_stimulus import TestStimulusBlockParams
             context = stimulation_tester('test', 'GUITestConfig', 'TestStimulusBlockParams')
@@ -2533,21 +2533,21 @@ if test_mode:
         
         @unittest.skip('')    
         def test_11_checkerboard(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestCheckerboardConfig', ENABLE_FRAME_CAPTURE = False)
         
         @unittest.skip('')
         def test_12_movinggrating(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestGratingConfig', ENABLE_FRAME_CAPTURE = False)
         
         @unittest.skip('')
         def test_13_receptive_field(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'ReceptiveFieldExploreNewAngle', ENABLE_FRAME_CAPTURE = False)
             
         def test_14_time_indexing(self):
-            from visexpman.engine.visexp_app import stimulation_tester
+            from visexpman.visexp_app import stimulation_tester
             context = stimulation_tester('test', 'GUITestConfig', 'TestTimeIndexing', ENABLE_TIME_INDEXING = False)
             context = stimulation_tester('test', 'GUITestConfig', 'TestTimeIndexing', ENABLE_TIME_INDEXING = True)
     

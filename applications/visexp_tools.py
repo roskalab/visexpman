@@ -15,11 +15,11 @@ import PyQt4.QtCore as QtCore
 
 import visexpman
 import hdf5io
-from visexpman.engine.generic import utils,log,fileop,signal,introspect
-from visexpman.engine.vision_experiment import configuration,gui
-from visexpman.engine.generic import gui as gui_generic
-from visexpman.engine.vision_experiment import gui_pollers
-from visexpman.engine.hardware_interface import digital_io,flowmeter
+from visexpman.generic import utils,log,fileop,signal,introspect
+from visexpman.vision_experiment import configuration,gui
+from visexpman.generic import gui as gui_generic
+from visexpman.vision_experiment import gui_pollers
+from visexpman.hardware_interface import digital_io,flowmeter
 
 class SmallApp(QtGui.QWidget):
     '''
@@ -30,7 +30,7 @@ class SmallApp(QtGui.QWidget):
             self.config=config_class
             config_class_name = config_class.__class__.__name__
         elif config_class is not None:
-            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
             config_class_name = config_class
         else:
             self.config=None
@@ -272,7 +272,7 @@ class ReceptiveFieldPlotter(SmallApp):
         if 'ReceptiveFieldExploreNew' not in self.filename:
             self.notify_user('Warning', 'This stimulus is not supported')
             return
-        from visexpman.engine.vision_experiment import experiment_data
+        from visexpman.vision_experiment import experiment_data
         import copy
         hh=hdf5io.Hdf5io(self.filename,filelocking=False)
         self.rawdata =copy.deepcopy(hh.findvar('rawdata'))
@@ -797,9 +797,9 @@ def rotate_images(root='.'):
     Input: image folder, output folder
     Output: checksum/hash of all folders
     '''
-    from visexpman.engine.generic.gui import file_input
-    from visexpman.engine.generic.imageop import rotate_folder
-    from visexpman.engine.generic.fileop import folder_signature
+    from visexpman.generic.gui import file_input
+    from visexpman.generic.imageop import rotate_folder
+    from visexpman.generic.fileop import folder_signature
     image_folder=file_input(title='Select image folder',root=root, mode='folder')
     output_folder=file_input(title='Select output folder',root=root, mode='folder')
     if image_folder==output_folder:

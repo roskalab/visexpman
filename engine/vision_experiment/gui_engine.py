@@ -26,10 +26,10 @@ try:
     import hdf5io
 except ImportError:
     pass
-from visexpman.engine.vision_experiment import experiment_data, experiment
-from visexpman.engine.analysis import cone_data,aod,elphys
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument,pump_control
-from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
+from visexpman.vision_experiment import experiment_data, experiment
+from visexpman.analysis import cone_data,aod,elphys
+from visexpman.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument,pump_control
+from visexpman.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
 
 class GUIDataItem(object):
@@ -952,7 +952,7 @@ class ExperimentHandler(object):
                 for u in ['common', self.machine_config.user]:
                     import visexpman
                     microscope_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.machine_config.MICROSCOPE_INTERFACE,  
-                                                    required_ancestors = visexpman.engine.hardware_interface.microscope.TwoPhotonMicroscopeInterface, direct=False)
+                                                    required_ancestors = visexpman.hardware_interface.microscope.TwoPhotonMicroscopeInterface, direct=False)
                     if len(microscope_class) == 1:
                         microscope_class = microscope_class[0][1]
                         break
@@ -968,7 +968,7 @@ class ExperimentHandler(object):
     def mesc_handler(self, command):
         if command=='init':
             if self.machine_config.PLATFORM=='resonant':
-                from visexpman.engine.hardware_interface import mesc_interface
+                from visexpman.hardware_interface import mesc_interface
                 self.mesc=mesc_interface.MescapiInterface()
                 self.microscope=self.mesc
                 self.microscope.name='mesc'
@@ -2235,7 +2235,7 @@ class ElphysEngine():
     
     def read_flowmeter(self):
         if not hasattr(self, 'flowmeter'):
-            from visexpman.engine.hardware_interface.flowmeter import SLI_2000Flowmeter
+            from visexpman.hardware_interface.flowmeter import SLI_2000Flowmeter
             self.flowmeter=SLI_2000Flowmeter(self.machine_config.FLOWMETER_PORT)
             self.flow_rates=[]
             self.flow_rate_times=[]
@@ -2630,7 +2630,7 @@ class TestMainUIEngineIF(unittest.TestCase):
             guidata.add('Sigma 1', 0.5, 'path/sigma')
             hdf5io.save_item(self.cf, 'guidata', utils.object2array(guidata.to_dict()), filelocking=False)
         import visexpman.engine
-        self.appcontext = visexpman.engine.application_init(user = 'test', config = 'GUITestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
+        self.appcontext = visexpman.application_init(user = 'test', config = 'GUITestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
         self.appcontext['logger'].start()
         self.engine = MainUIEngine(self.machine_config, self.appcontext['logger'], self.appcontext['socket_queues'], unittest=True)
         
@@ -2796,7 +2796,7 @@ class TestMainUIEngineIF(unittest.TestCase):
         self.from_gui.put('terminate')
         self.engine.join()
         import visexpman.engine
-        visexpman.engine.stop_application(self.appcontext)
+        visexpman.stop_application(self.appcontext)
         self.assertTrue(os.path.exists(self.cf))
         if hasattr(self, 'working_folder') and os.path.exists(self.working_folder):
             shutil.rmtree(self.working_folder)

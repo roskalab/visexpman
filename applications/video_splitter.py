@@ -1,5 +1,5 @@
 import subprocess,numpy,os
-from visexpman.engine.generic import gui
+from visexpman.generic import gui
 def video_splitter():
     filename=gui.file_input('Select video file', root=os.path.expanduser('~'))
     chunk_duration=gui.text_input('Chunk duration in minutes', default='10')

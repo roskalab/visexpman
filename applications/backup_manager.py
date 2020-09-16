@@ -178,7 +178,7 @@ def sync(src,dst):
     All files are copied from src to dst maintaining directory structure. 
     Files in dst are overwritten if they are different.
     '''
-    from visexpman.engine.generic import fileop
+    from visexpman.generic import fileop
     src_files=fileop.find_files_and_folders(src)[1]
     dst_files=[f.replace(src,dst) for f in src_files]
     for i in range(len(src_files)):
@@ -197,7 +197,7 @@ def clean(src,dst,fileage):
     '''
     Files in src are cleaned up if they exists in dst and older than fileage (in days)
     '''
-    from visexpman.engine.generic import fileop
+    from visexpman.generic import fileop
     src_files=fileop.find_files_and_folders(src)[1]
     dst_files=[f.replace(src,dst) for f in src_files]
     fileage_threshold=time.time()-86400*fileage

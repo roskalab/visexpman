@@ -8,8 +8,8 @@ import time
 import multiprocessing
 import threading
 
-import visexpman.engine.generic.configuration
-from visexpman.engine.generic import utils, fileop, log
+import visexpman.generic.configuration
+from visexpman.generic import utils, fileop, log
 import logging
 import visexpman
 try:
@@ -305,7 +305,7 @@ def set_filterwheel(filter, port, baudrate):
     serial_port.close()
     return res
 
-class testConfig(visexpman.engine.generic.configuration.Config):
+class testConfig(visexpman.generic.configuration.Config):
     def _create_application_parameters(self):        
             
         self.EXPERIMENT_LOG_PATH = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)

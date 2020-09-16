@@ -60,7 +60,7 @@ class Polychrome(instrument.Instrument):
         if os.name == 'nt':
             self.dllref.TILLPolychrome_Close(self.handle)
 
-from visexpman.engine.vision_experiment import configuration
+from visexpman.vision_experiment import configuration
 class PolyTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):     
         COORDINATE_SYSTEM='center'

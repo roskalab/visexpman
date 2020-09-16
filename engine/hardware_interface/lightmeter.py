@@ -6,8 +6,8 @@ import unittest
 try:
     import instrument
 except ImportError:
-    from visexpman.engine.hardware_interface import instrument
-from visexpman.engine.generic.introspect import Timer
+    from visexpman.hardware_interface import instrument
+from visexpman.generic.introspect import Timer
 import time
 
 class LightMeter(instrument.Instrument):

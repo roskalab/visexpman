@@ -7,9 +7,9 @@ except ImportError:
 import os,logging,numpy,copy,pyqtgraph,scipy.signal,scipy.io,time
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
-from visexpman.engine.generic import gui, signal,utils
-from visexpman.engine.analysis import elphys
-from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.generic import gui, signal,utils
+from visexpman.analysis import elphys
+from visexpman.hardware_interface import daq_instrument
 
 class CWidget(QtGui.QWidget):
     def __init__(self,parent):

@@ -5,7 +5,7 @@ import platform
 import traceback
 import unittest
 import sys
-from visexpman.engine.generic import utils,log,introspect
+from visexpman.generic import utils,log,introspect
 
 class QueuedSocketHelpers(object):
     '''
@@ -220,8 +220,8 @@ class TestQueuedSocket(unittest.TestCase):
                 
     def test_01_simple_transfer(self):
         from visexpman.users.test.test_configurations import GUITestConfig
-        from visexpman.engine.generic import log
-        from visexpman.engine.generic import fileop
+        from visexpman.generic import log
+        from visexpman.generic import fileop
         import os.path
         config = GUITestConfig()
         config.user = 'test'
@@ -295,8 +295,8 @@ class TestQueuedSocket(unittest.TestCase):
         QueuedSockets are started from a machine config.
         '''
         from visexpman.users.test.test_configurations import GUITestConfig
-        from visexpman.engine.generic import log
-        from visexpman.engine.generic import fileop
+        from visexpman.generic import log
+        from visexpman.generic import fileop
         import os.path
         config = GUITestConfig()
         config.user = 'test'

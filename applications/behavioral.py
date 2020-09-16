@@ -5,10 +5,10 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import hdf5io,unittest
-from visexpman.engine.generic import gui,utils,fileop,introspect,colors
-from visexpman.engine.analysis import behavioral_data
-from visexpman.engine.hardware_interface import daq_instrument,camera_interface, lick_detector
-from visexpman.engine.vision_experiment import experiment,experiment_data
+from visexpman.generic import gui,utils,fileop,introspect,colors
+from visexpman.analysis import behavioral_data
+from visexpman.hardware_interface import daq_instrument,camera_interface, lick_detector
+from visexpman.vision_experiment import experiment,experiment_data
 DEBUG=False
 NREWARD_VOLUME=100
 SPEED_BUFFER_SIZE=10000

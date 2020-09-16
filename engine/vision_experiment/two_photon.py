@@ -9,14 +9,14 @@ try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
     import PyDAQmx.DAQmxTypes as DAQmxTypes
-    from visexpman.engine.hardware_interface import scanner_control,camera, stage_control
-    from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
+    from visexpman.hardware_interface import scanner_control,camera, stage_control
+    from visexpman.vision_experiment import gui_engine, main_ui,experiment_data
 except:
     print('Import errors')
     
 
 
-from visexpman.engine.generic import gui,fileop, signal, utils
+from visexpman.generic import gui,fileop, signal, utils
 
 
 class TwoPhotonImaging(gui.VisexpmanMainWindow):

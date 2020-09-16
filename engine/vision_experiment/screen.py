@@ -5,7 +5,7 @@ import numpy
 import unittest
 import scipy.ndimage.filters
 
-from visexpman.engine.generic import utils,colors,graphics,fileop,signal
+from visexpman.generic import utils,colors,graphics,fileop,signal
 from PIL import Image
 
 def experiment_choices(experiment_list):

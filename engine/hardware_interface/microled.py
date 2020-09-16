@@ -133,7 +133,7 @@ class Testuled(unittest.TestCase):
         import lightmeter
         from multiprocessing import Queue, Process
         from threading import Thread
-        from visexpman.engine.generic.introspect import Timer
+        from visexpman.generic.introspect import Timer
         enable_measurement=not False
         self.queues = {'command':Queue(), 'data': Queue(), }
         self.process = Thread(target=lightmeter.lightmeter_acquisition_process,  args = (config, self.queues))
@@ -161,8 +161,8 @@ class Testuled(unittest.TestCase):
                 self.data.append(self.queues['data'].get())
             self.data=numpy.array(self.data)
             import hdf5io
-            from visexpman.engine.generic import fileop
-            from visexpman.engine.generic import utils
+            from visexpman.generic import fileop
+            from visexpman.generic import utils
             h=hdf5io.Hdf5io(fileop.generate_filename('v:\\debug\\uled\\timing.hdf5'), filelocking=False)
             self.sent_packets = utils.object2array(s.sent_packets)
             vns=['pause', 'timing', 'repeats', 'blocktimes', 'data', 'sent_packets']

@@ -2,7 +2,7 @@
 This module holds functions that run periodically by servers
 '''
 import unittest,os
-from visexpman.engine.generic import fileop,utils
+from visexpman.generic import fileop,utils
 
 def mdrive_checker(folders, signature_file, emailto):
     drive_folders=[os.path.exists(os.path.sep.join(f.split(os.path.sep)[:3])) for f in folders]

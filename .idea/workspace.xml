@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="eb4905e4-b7d3-49bd-835a-b038b1765cfb" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/applications/arena_tracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/arena_tracker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/applications/backup_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/backup_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/applications/led_stimulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/led_stimulator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/applications/logchecker.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/logchecker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/applications/server.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/server.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/applications/video_splitter.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/video_splitter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/applications/visexp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/visexp_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/applications/visexpman_main.py" beforeDir="false" afterPath="$PROJECT_DIR$/applications/visexpman_main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/hardware_interface/digital_io.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/hardware_interface/digital_io.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/hardware_interface/instrument.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/hardware_interface/instrument.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/hardware_interface/lightmeter.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/hardware_interface/lightmeter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/hardware_interface/microled.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/hardware_interface/microled.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/hardware_interface/network_interface.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/hardware_interface/network_interface.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/hardware_interface/polychrome_interface.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/hardware_interface/polychrome_interface.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/hardware_interface/queued_socket.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/hardware_interface/queued_socket.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/vision_experiment/experiment_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/vision_experiment/experiment_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/vision_experiment/gui_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/vision_experiment/gui_engine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/vision_experiment/screen.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/vision_experiment/screen.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/vision_experiment/stimulation_library.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/vision_experiment/stimulation_library.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/engine/vision_experiment/two_photon.py" beforeDir="false" afterPath="$PROJECT_DIR$/engine/vision_experiment/two_photon.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1hav0IGr8kvijFOlcqT9bJnFrJC" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="eb4905e4-b7d3-49bd-835a-b038b1765cfb" name="Default Changelist" comment="" />
+      <created>1600261793822</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1600261793822</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="667" y="249" width="585" height="582" key="find.popup" timestamp="1600261952496">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="667" y="249" width="585" height="582" key="find.popup/0.0.1920.1080@0.0.1920.1080" timestamp="1600261952496" />
+  </component>
+</project>

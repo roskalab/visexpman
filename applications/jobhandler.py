@@ -1,7 +1,7 @@
 import os,tables,unittest,sys,shutil,time,traceback,logging,getpass,hdf5io,numpy,pdb
-from visexpman.engine.generic import fileop,utils,introspect, videofile
-from visexpman.engine.vision_experiment import experiment_data
-from visexpman.engine.analysis import aod
+from visexpman.generic import fileop,utils,introspect, videofile
+from visexpman.vision_experiment import experiment_data
+from visexpman.analysis import aod
 
 class AoJobhandler(object):
     def __init__(self, experiment_data_path, backup_path, logpath, database_filename):

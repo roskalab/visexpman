@@ -7,7 +7,7 @@ except ImportError:
 import sys
 import time
 import unittest
-import visexpman.engine.generic.configuration
+import visexpman.generic.configuration
 try:
     import PyQt4.QtCore as QtCore
 except ImportError:
@@ -26,13 +26,13 @@ try:
 except ImportError:
     import socketserver as SocketServer
 import random
-from visexpman.engine.generic import utils,log,fileop
+from visexpman.generic import utils,log,fileop
 import traceback
 try:
     from visexpman.users.test import unittest_aggregator
 except:
     pass
-from visexpman.engine.generic.introspect import list_type
+from visexpman.generic.introspect import list_type
 import multiprocessing
 try:
     import psutil
@@ -710,7 +710,7 @@ def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler 
 
 ####################################### Unit tests #################################################xx
 
-class QueuedServerTestConfig(visexpman.engine.generic.configuration.Config):
+class QueuedServerTestConfig(visexpman.generic.configuration.Config):
     def _create_application_parameters(self):
         
         import random
@@ -896,7 +896,7 @@ class NetworkSender1(QtCore.QThread):
         time.sleep(0.1)
 
 
-class NetworkInterfaceTestConfig(visexpman.engine.generic.configuration.Config):
+class NetworkInterfaceTestConfig(visexpman.generic.configuration.Config):
     def _create_application_parameters(self):
         SERVER_IP = 'localhost'
         import random

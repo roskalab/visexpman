@@ -8,10 +8,10 @@ except ImportError:
     import PyQt5.QtCore as QtCore
 qt_app = Qt.QApplication([])
 import logging,numpy,time,pyqtgraph, os, sys,cv2, hdf5io, serial
-from visexpman.engine.generic import gui,introspect,utils, fileop, signal
-from visexpman.engine.hardware_interface import camera_interface, digital_io, daq_instrument
-from visexpman.engine.analysis import behavioral_data
-from visexpman.engine.vision_experiment import experiment_data
+from visexpman.generic import gui,introspect,utils, fileop, signal
+from visexpman.hardware_interface import camera_interface, digital_io, daq_instrument
+from visexpman.analysis import behavioral_data
+from visexpman.vision_experiment import experiment_data
 
 TEST=not True
 

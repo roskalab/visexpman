@@ -1,5 +1,5 @@
 import logging,unittest,os,time,numpy,sys
-from visexpman.engine.generic import utils,fileop,stringop
+from visexpman.generic import utils,fileop,stringop
 ct=1
 
 

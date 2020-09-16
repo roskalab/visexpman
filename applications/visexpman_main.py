@@ -13,10 +13,10 @@ import numpy
 import warnings
 import visexpman
 import visexpman.engine
-from visexpman.engine.generic.command_parser import ServerLoop
-from visexpman.engine.vision_experiment.screen import StimulationScreen
-from visexpman.engine.vision_experiment import experiment_data,experiment
-from visexpman.engine.generic import utils,fileop,introspect
+from visexpman.generic.command_parser import ServerLoop
+from visexpman.vision_experiment.screen import StimulationScreen
+from visexpman.vision_experiment import experiment_data,experiment
+from visexpman.generic import utils,fileop,introspect
 try:
     import hdf5io#TODO: thismoves with StimulationLoop
     context_file_type='hdf5'
@@ -27,8 +27,8 @@ except ImportError:
 class StimulationLoop(ServerLoop, StimulationScreen):
     def __init__(self, machine_config, socket_queues, command, log,context={}):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
-        self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes(visexpman.USER_MODULE+'.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
-        self.experiment_configs.extend([ecn[1].__name__ for ecn in utils.fetch_classes(visexpman.USER_MODULE+ '.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)])
+        self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes(visexpman.USER_MODULE+'.'+self.machine_config.user, required_ancestors = visexpman.vision_experiment.experiment.ExperimentConfig,direct = False)]
+        self.experiment_configs.extend([ecn[1].__name__ for ecn in utils.fetch_classes(visexpman.USER_MODULE+ '.'+self.machine_config.user, required_ancestors = visexpman.vision_experiment.experiment.Stimulus,direct = False)])
         self.experiment_configs.sort()
         if len(self.experiment_configs)>10:
             self.experiment_configs = self.experiment_configs[:10]#TODO: give some warning
@@ -75,7 +75,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         if self.exit:
             return 'terminate'
         #Check keyboard
-        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.generic.graphics import check_keyboard
         keys = check_keyboard()
         if not hasattr(self, 'command_issued') and 0:
             keys.extend(['0', 'e','escape'])#TODO: remove, this is for testing
@@ -166,8 +166,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         self.printl('test OK 2')
 
     def flicker(self):
-        from visexpman.engine.generic import colors
-        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.generic import colors
+        from visexpman.generic.graphics import check_keyboard
         wait_before_flip=not False
         offset=0.5
         contrast=1.0
@@ -227,9 +227,9 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         screen_setup_time=7e-3
         flash_time=5e-3
         comport='COM3'
-        from visexpman.engine.generic import colors
-        from visexpman.engine.generic.graphics import check_keyboard
-        from visexpman.engine.hardware_interface import digital_io, daq_instrument
+        from visexpman.generic import colors
+        from visexpman.generic.graphics import check_keyboard
+        from visexpman.hardware_interface import digital_io, daq_instrument
         import PyDAQmx
         import PyDAQmx.DAQmxConstants as DAQmxConstants
         import PyDAQmx.DAQmxTypes as DAQmxTypes
@@ -297,9 +297,9 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             plot_timing(fn)
             
     def phase_shift_test(self):
-        from visexpman.engine.generic import colors
-        from visexpman.engine.generic.graphics import check_keyboard
-        from visexpman.engine.hardware_interface import daq_instrument
+        from visexpman.generic import colors
+        from visexpman.generic.graphics import check_keyboard
+        from visexpman.hardware_interface import daq_instrument
         ct=0
         fps=50.
         duration=5.0
@@ -329,8 +329,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         
             
     def contrast_steps(self):
-        from visexpman.engine.generic import colors
-        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.generic import colors
+        from visexpman.generic.graphics import check_keyboard
         step_time=20e-3
         step_size=0.1
         intensities=numpy.linspace(0.0,1.0, 1/step_size+1)
@@ -346,8 +346,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                     break
         
     def arbitrary_timing(self):
-        from visexpman.engine.generic import colors
-        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.generic import colors
+        from visexpman.generic.graphics import check_keyboard
         wait_before_flip=not False
         pause=30e-3
         timesteps=[10e-3,  pause]
@@ -368,8 +368,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 break
                 
     def tearing(self):
-        from visexpman.engine.generic import colors
-        from visexpman.engine.generic.graphics import check_keyboard
+        from visexpman.generic import colors
+        from visexpman.generic.graphics import check_keyboard
         for i in range(600):
             self.clear_screen(color = colors.convert_color(0.0, self.config))
             image=numpy.zeros((500, 500))
@@ -383,7 +383,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 break
         
     def measure_frame_rate(self,duration=10.0, background_color=None ):
-        from visexpman.engine.generic import colors
+        from visexpman.generic import colors
         cols = numpy.cos(numpy.arange(0, 2*numpy.pi, 2*numpy.pi/(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)))+0.5
         cols = numpy.array(3*[cols]).T
         if background_color is not None:
@@ -433,7 +433,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
     def check_mes_connection(self):
         if self.machine_config.PLATFORM!='ao_cortical':
             raise NotImplementedError()
-        from visexpman.engine.hardware_interface import mes_interface
+        from visexpman.hardware_interface import mes_interface
         res=mes_interface.check_mes_connection(self.mes_interface['mes_command'], self.mes_interface['mes_response'])
         self.send({'mes_connection_status': res})
         
@@ -460,7 +460,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             #Source code not provided, existing experiment config module is instantiated
             experiment_module = None
             experiment_config_class=[]
-            for ancestor in [visexpman.engine.vision_experiment.experiment.ExperimentConfig,visexpman.engine.vision_experiment.experiment.Stimulus]:
+            for ancestor in [visexpman.vision_experiment.experiment.ExperimentConfig,visexpman.vision_experiment.experiment.Stimulus]:
                 for u in [self.machine_config.user, 'common']:
                     experiment_config_class.extend(utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = parameters['experiment_name'],  
                                                         required_ancestors = ancestor, direct=False))
@@ -468,14 +468,14 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                 from visexpman.engine import ExperimentConfigError
                 raise ExperimentConfigError('{0} user\'s {1} experiment config cannot be fetched or does not exists'
                                             .format(self.machine_config.user, parameters['experiment_name']))
-            if issubclass(experiment_config_class[0][1],visexpman.engine.vision_experiment.experiment.Stimulus):
+            if issubclass(experiment_config_class[0][1],visexpman.vision_experiment.experiment.Stimulus):
                 self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
                                                                                                   parameters, self.log)
             else:
                 self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
         #Prepare experiment, run stimulation and save data
-        self.isstimclass=issubclass(self.experiment_config.__class__,visexpman.engine.vision_experiment.experiment.Stimulus)
+        self.isstimclass=issubclass(self.experiment_config.__class__,visexpman.vision_experiment.experiment.Stimulus)
         runnable=self.experiment_config if self.isstimclass else self.experiment_config.runnable
         if parameters.get('stimulus_only', False):
             runnable.prepare()
@@ -488,7 +488,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
 def run_main_ui(context):
     context['logger'].add_source('engine')
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
-    from visexpman.engine.vision_experiment import main_ui
+    from visexpman.vision_experiment import main_ui
     main_ui.MainUI(context=context)
 
 def run_stim(context, timeout = None):
@@ -499,13 +499,13 @@ def run_stim(context, timeout = None):
 def run_2p(context, timeout = None):
     context['logger'].add_source('daq')
     context['logger'].start()
-    from visexpman.engine.vision_experiment import two_photon
+    from visexpman.vision_experiment import two_photon
     two_photon.TwoPhotonImaging(context=context)
     
 def run_cam(context, timeout=None):
     context['logger'].add_source('engine')
     context['logger'].start()
-    from visexpman.engine.vision_experiment import camera
+    from visexpman.vision_experiment import camera
     camera.Camera(context=context)
     
     
@@ -514,7 +514,7 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''
     Runs the provided experiment config and terminates
     '''
-    context = visexpman.engine.application_init(user = user, config = machine_config, user_interface_name = 'stim',enable_sockets=False)
+    context = visexpman.application_init(user = user, config = machine_config, user_interface_name = 'stim',enable_sockets=False)
     for k,v in kwargs.items():
         setattr(context['machine_config'], k, v)
     if context['machine_config'].ENABLE_FRAME_CAPTURE:
@@ -536,7 +536,7 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     [context['socket_queues']['stim']['fromsocket'].put(c) for c in stim_commands]
     context['logger'].start()
     stim.run()
-    visexpman.engine.stop_application(context)
+    visexpman.stop_application(context)
     return context
     
 def prepare_capture_folder(machine_config):
@@ -552,10 +552,10 @@ def prepare_capture_folder(machine_config):
 def run_application():
     warnings.simplefilter("always")
     with warnings.catch_warnings(record=True) as w:
-        context = visexpman.engine.application_init()
+        context = visexpman.application_init()
         context['warning'] = w
         globals()['run_{0}'.format(context['user_interface_name'])](context)
-        visexpman.engine.stop_application(context)
+        visexpman.stop_application(context)
 
 class TestStim(unittest.TestCase):
     def setUp(self):
@@ -564,16 +564,16 @@ class TestStim(unittest.TestCase):
         else:
             self.configname = 'GUITestConfig'
         #Erase work folder, including context files
-        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.machine_config.user_interface_name='stim'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
         if '_08_' not in self._testMethodName:
-            self.context = visexpman.engine.application_init(user = 'test', config = self.configname, user_interface_name = 'stim')
+            self.context = visexpman.application_init(user = 'test', config = self.configname, user_interface_name = 'stim')
         self.dont_kill_processes = introspect.get_python_processes()
         
     def _send_commands_to_stim(self, commands):
-        from visexpman.engine.hardware_interface import queued_socket
+        from visexpman.hardware_interface import queued_socket
         import multiprocessing
         client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
                                                                                     False, 
@@ -589,7 +589,7 @@ class TestStim(unittest.TestCase):
         
     def tearDown(self):
         if hasattr(self, 'context'):
-            visexpman.engine.stop_application(self.context)
+            visexpman.stop_application(self.context)
         introspect.kill_python_processes(self.dont_kill_processes)
         
     def test_01_start_stim_loop(self):
@@ -604,7 +604,7 @@ class TestStim(unittest.TestCase):
         self.assertNotEqual(os.path.getsize(self.context['logger'].filename), 0)
         
     def test_02_execute_command(self):
-        from visexpman.engine.hardware_interface import queued_socket
+        from visexpman.hardware_interface import queued_socket
         import multiprocessing
         client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
                                                                                     False, 
@@ -620,7 +620,7 @@ class TestStim(unittest.TestCase):
         self.assertEqual(client.recv(), 'test OK 2')
         client.terminate()
         self.assertNotEqual(os.path.getsize(self.context['logger'].filename), 0)
-        from visexpman.engine.generic import fileop
+        from visexpman.generic import fileop
         for tag in ['stim\t', 'sent: ']:
             self.assertIn(tag+'test OK 1', fileop.read_text_file(self.context['logger'].filename))
             self.assertIn(tag+'test OK 2', fileop.read_text_file(self.context['logger'].filename))
@@ -728,10 +728,10 @@ class TestStim(unittest.TestCase):
         self.assertEqual(saved_context1['background_color'], 0.5)
         self.assertEqual(saved_context1['user_background_color'], 0.75)
         self.assertEqual(saved_context1['screen_center'], utils.rc((200,300)))
-        visexpman.engine.stop_application(self.context)
+        visexpman.stop_application(self.context)
         time.sleep(15.0)
         #Start stim again
-        self.context = visexpman.engine.application_init(user = 'test', config =self.configname, user_interface_name = 'stim')
+        self.context = visexpman.application_init(user = 'test', config =self.configname, user_interface_name = 'stim')
         run_stim(self.context,timeout=5)
         saved_context2 = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
         self.assertEqual(saved_context2['background_color'], 0.5)
