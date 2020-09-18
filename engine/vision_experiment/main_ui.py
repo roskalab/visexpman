@@ -538,6 +538,8 @@ class MainUI(gui.VisexpmanMainWindow):
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM =='erg':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
+        elif self.machine_config.PLATFORM =='generic':
+            toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             toolbar_buttons.insert(1,'start_batch_experiment')
             
@@ -894,9 +896,9 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Partial Save', 'type': 'bool', 'value': False})
-        elif self.machine_config.PLATFORM in ['2p']:
+        elif self.machine_config.PLATFORM in ['2p', 'generic']:
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
-        if self.machine_config.PLATFORM in ['2p', 'resonant']:
+        if self.machine_config.PLATFORM in ['2p', 'resonant', 'generic']:
             self.params_config[0]['children'].append({'name': 'Stimulus Only', 'type': 'bool', 'value': False})
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             #Append batch experiment settings

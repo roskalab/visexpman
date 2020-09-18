@@ -235,7 +235,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.prepare()
             #Control/synchronization with platform specific recording devices
             time.sleep(0.1)
-            self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 0)#Reset pin
+            if hasattr(self,  'digital_io'):
+                self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 0)#Reset pin
             try:
                 if self.machine_config.ENABLE_SYNC=='stim':
                     self.sync_recording_duration=self.parameters['duration']
@@ -336,7 +337,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self._stop_frame_capture()
             self.log.resume()
             #Terminate recording devices
-            if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav', '2p', 'elphys']:
+            if self.machine_config.PLATFORM in ['retinal', 'elphys_retinal_ca', 'mc_mea', 'us_cortical', 'ao_cortical', 'resonant', 'behav', '2p', 'elphys', 'generic']:
                 self.printl('Stimulation ended')
                 self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
             if self.machine_config.CAMERA_TRIGGER_ENABLE:
@@ -373,7 +374,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             if not self.abort or self.partial_save:
                 self._save2file()
                 self.printl('Stimulus info saved to {0}'.format(self.datafilename))
-                if self.machine_config.PLATFORM in ['behav','retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea', 'elphys']:
+                if self.machine_config.PLATFORM in ['behav','retinal', 'elphys_retinal_ca', 'us_cortical', 'ao_cortical','resonant', '2p', 'mc_mea', 'elphys', 'generic']:
                     self.send({'trigger':'stim data ready'})
 #                if self.machine_config.PLATFORM in ['retinal', 'ao_cortical',  'resonant']:
 #                    self._backup(self.datafilename)

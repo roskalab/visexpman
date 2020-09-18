@@ -178,6 +178,8 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                     elif 'qtabwidget' in wname:
                         ref.setCurrentIndex(item['value'])
         else:
+            if not hasattr(self,  'settings'):
+                self.settings=self.parameters
             for k, v in self.settings.items():
                 try:
                     r = refs[paths.index([p for p in paths if k in p][0])]

@@ -177,10 +177,14 @@ def id2timestamp(id_str):
     
 
 ############### Preprocess measurement data ####################
-if hasattr(hdf5io, 'Hdf5io'):
-    supcl=hdf5io.Hdf5io
-else:
+try:
+    if hasattr(hdf5io, 'Hdf5io'):
+        supcl=hdf5io.Hdf5io
+    else:
+        supcl=object
+except:
     supcl=object
+    print('No hdf5io')
 
 class CaImagingData(supcl):
     '''

@@ -65,7 +65,7 @@ class Camera(gui.VisexpmanMainWindow):
         else:
             self.parameter_changed()
         self.load_all_parameters()
-        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3, None)
+        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, None)
         self.camerahandler.start()
         self.trigger_detector_enabled=False
 #        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
@@ -95,7 +95,7 @@ class Camera(gui.VisexpmanMainWindow):
         self.recording=False
         self.track=[]
         self.trigger_state='off'
-        if self.machine_config.PLATFORM in ['2p', 'resonant']:
+        if self.machine_config.PLATFORM in ['2p', 'resonant', 'generic']:
             trigger_value = 'network' 
             params=[]
         elif self.machine_config.PLATFORM in ['behav']:
@@ -130,14 +130,14 @@ class Camera(gui.VisexpmanMainWindow):
         if hasattr(self, 'camerahandler'):
             self.printc('Restart camera')
             self.camerahandler.stop()
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  None)
+            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
     
     def start_recording(self,  experiment_parameters=None):
         try:
             if self.recording:
                 return
-            if 1000/self.parameters['Frame Rate']<self.parameters['Exposure time']:
+            if 1000/self.parameters['params/Frame Rate']<self.parameters['params/Exposure time']:
                 msg='Exposure time is too long for this frame rate!'
                 self.printc(msg)
                 QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
@@ -162,7 +162,7 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': experiment_data.get_id()},prefix = self.machine_config.CAMFILENAME_TAG)
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
+            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
             import psutil
             p = psutil.Process(self.camerahandler.pid)
@@ -217,13 +217,13 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.printc('mean: {0} Hz,  std: {1} Hz'.format(1/numpy.mean(numpy.diff(self.ts)), 1/numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['Frame Rate'], self.parameters['Exposure time']*1e-3,  None)
+            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
             self.printc('Save time {0} s'.format(int(time.time()-t0)))
-            if self.fps_values.shape[0]<10:
+            if hasattr(self, 'fps_values') and self.fps_values.shape[0]<10:
                 self.printc('Recording too short, file removed')
                 os.remove(self.fn)
         except:
@@ -235,7 +235,7 @@ class Camera(gui.VisexpmanMainWindow):
     def check_camera_timing_signal(self):
         timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         length=self.sync.shape[0]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-        two_frame_time=self.parameters['Exposure time']*1e-3*2
+        two_frame_time=self.parameters['params/Exposure time']*1e-3*2
         if timestamps[0]<two_frame_time or timestamps[-1]>length-two_frame_time:
             msg='Beginning or end of camra timing signal may not be recorder properly!'
             self.printc(msg)
@@ -261,7 +261,7 @@ class Camera(gui.VisexpmanMainWindow):
         
     def parameter_changed(self):
         newparams=self.params.get_parameter_tree(return_dict=True)
-        if hasattr(self,  'parameters') and (newparams['Frame Rate']!=self.parameters['Frame Rate'] or newparams['Exposure time']!=self.parameters['Exposure time']):
+        if hasattr(self,  'parameters') and (newparams['params/Frame Rate']!=self.parameters['params/Frame Rate'] or newparams['params/Exposure time']!=self.parameters['params/Exposure time']):
             self.restart_camera()
         self.parameters=newparams
         
@@ -351,7 +351,7 @@ class Camera(gui.VisexpmanMainWindow):
             QtCore.QCoreApplication.instance().processEvents()
             for f in frames:
                 try:
-                    result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['ROI size'], threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                    result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['params/ROI size'], threshold=self.parameters['params/Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
                     print((result, position, self.red_angle, red, green, blue))
                     if result:
                         h.head_direction.append(self.red_angle)
@@ -373,14 +373,14 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc(self.camerahandler.log.get())
             if not self.camerahandler.display_frame.empty():
                 frame=self.camerahandler.display_frame.get()
-                if self.parameters['Enable ROI cut']:
+                if self.parameters['params/Enable ROI cut']:
                     frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
                 f=numpy.copy(frame)
                 self.f=f
                 if self.machine_config.PLATFORM=='behav':
-                    if self.recording or self.parameters.get('Show color LEDs', False):
+                    if self.recording or self.parameters.get('params/Show color LEDs', False):
                         try:
-                            result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['ROI size'], threshold=self.parameters['Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                            result, self.position, self.red_angle, self.red, self.green, self.blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['params/ROI size'], threshold=self.parameters['params/Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
                         except:
                             self.printc('Tracking problem')
                             numpy.save('c:\\Data\\log\\{0}.npy'.format(time.time()),  f)
@@ -388,12 +388,12 @@ class Camera(gui.VisexpmanMainWindow):
                             
                         if self.recording:
                             self.track.append(self.position)
-                        if self.parameters.get('Show color LEDs', False):
+                        if self.parameters.get('params/Show color LEDs', False):
                             f[int(self.red[0]), int(self.red[1])]=numpy.array([255, 255,0],dtype=f.dtype)
                             f[int(self.green[0]), int(self.green[1])]=numpy.array([255,255,0],dtype=f.dtype)
                             f[int(self.blue[0]), int(self.blue[1])]=numpy.array([255,255, 0],dtype=f.dtype)
                             #f[int(self.position[0]), int(self.position[1])]=numpy.array([255,255, 255],dtype=f.dtype)
-                    if self.parameters.get('Show track', False):
+                    if self.parameters.get('params/Show track', False):
                         for p in self.track:
                             try:
                                 if numpy.isnan(p[0]):
@@ -438,7 +438,7 @@ class Camera(gui.VisexpmanMainWindow):
         
     def trigger_handler(self):
         if self.trigger_state=='off':
-            if self.parameters['Trigger']=='TTL pulses' and self.parameters['Enable trigger']:
+            if self.parameters['params/Trigger']=='TTL pulses' and self.parameters['params/Enable trigger']:
                 self.enable_trigger()
                 self.trigger_state='waiting'
                 self.printc('New trigger status: '+self.trigger_state)
@@ -447,14 +447,14 @@ class Camera(gui.VisexpmanMainWindow):
             if readout !='none':
                 self.printc(readout)
             if readout=='on':
-                if self.parameters['Enable trigger'] and not self.recording:
+                if self.parameters['params/Enable trigger'] and not self.recording:
                     self.trigger_state='started'
                     self.printc('New trigger status: '+self.trigger_state)
                     self.start_recording()
                 else:
                     self.disable_trigger()
                     self.enable_trigger()
-            elif self.parameters['Trigger']!='TTL pulses' or not self.parameters['Enable trigger'] :
+            elif self.parameters['params/Trigger']!='TTL pulses' or not self.parameters['params/Enable trigger'] :
                 self.disable_trigger()
                 self.trigger_state='off'
         elif self.trigger_state=='started':
