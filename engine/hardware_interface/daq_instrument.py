@@ -399,7 +399,7 @@ def parse_channel_string(channels):
     '''
     Returns channel indexes, device name, channel type
     '''
-    channel_indexes = map(int, channels.split('/')[-1].replace('ao','').replace('ai','').split(':'))
+    channel_indexes = list(map(int, channels.split('/')[-1].replace('ao','').replace('ai','').split(':')))
     device_name = channels.split('/')[0]
     if len(channel_indexes) == 1:
         nchannels = 1

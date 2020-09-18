@@ -1,9 +1,10 @@
-import os,sys,time,threading,Queue,shutil,multiprocessing,copy,logging,datetime
+import os,sys,time,threading,shutil,multiprocessing,copy,logging,datetime,pdb
 import numpy,visexpman, traceback,serial,subprocess,platform
+import queue as Queue
 import cv2
-import PyQt4.Qt as Qt
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
+import PyQt5.Qt as Qt
+import PyQt5.QtGui as QtGui
+import PyQt5.QtCore as QtCore
 import hdf5io,unittest
 from visexpman.engine.generic import gui,utils,fileop,introspect,colors
 from visexpman.engine.analysis import behavioral_data
@@ -67,7 +68,8 @@ class CameraHandler(object):
             self.fps=1.0/(now1-self.last_runtime)
             self.last_runtime=now1
             frame = self.read_frame()
-            self.to_gui.put({'update_main_image' :frame})
+            if hasattr(frame,'shape'):
+                self.to_gui.put({'update_main_image' :frame})
         
     def close_video_recorder(self):
         if hasattr(self.camera,'release'):
@@ -208,20 +210,20 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.to_gui.put({'switch2_animal_weight_plot':[]})
             
     def edit_protocol(self):
-        classes=utils.fetch_classes('visexpman.users.common', classname=self.parameters['Protocol'],required_ancestors = experiment.BehavioralProtocol,direct = False)
+        classes=utils.fetch_classes('visexpman.users.common', classname=self.parameters['params/Experiment/Protocol'],required_ancestors = experiment.BehavioralProtocol,direct = False)
         if len(classes)==0:
-            logging.info((classes, self.parameters['Protocol']))
+            logging.info((classes, self.parameters['params/Experiment/Protocol']))
         fn=classes[0][0].__file__
         if fn[-3:]=='pyc':
             fn=fn[:-1]
         lines=fileop.read_text_file(fn).split('\n')
-        line=[i for i in range(len(lines)) if 'class '+self.parameters['Protocol'] in lines[i]][0]+1
+        line=[i for i in range(len(lines)) if 'class '+self.parameters['params/Experiment/Protocol'] in lines[i]][0]+1
         logging.info('Opening {0} at line {1}'.format(fn,line))
         process = subprocess.Popen(['gedit', fn, '+{0}'.format(line)], shell= platform.system()!= 'Linux')
             
     def reward(self):
         self.set_valve('water',True)
-        time.sleep(self.parameters['Water Open Time'])
+        time.sleep(self.parameters['params/Advanced/Water Open Time'])
         self.set_valve('water',False)
         logging.info('Reward')
         
@@ -249,31 +251,31 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             
     def stimulate(self,waveform=None):
         now=time.time()
-        self.serialport.write('stim,{0},{1}\r\n'.format(self.parameters['Laser Intensity'], self.parameters['Pulse Duration']))
+        self.serialport.write('stim,{0},{1}\r\n'.format(self.parameters['params/Experiment/Laser Intensity'], self.parameters['params/Advanced/Pulse Duration']))
         logging.info(self.serialport.readline())
         
     def convert_folder(self,folder):
-        if not os.path.exists(os.path.join(folder, 'animal_'+os.path.basename(folder)+'.hdf5')) and self.parameters['Conversion Format']=='xls':
+        if not os.path.exists(os.path.join(folder, 'animal_'+os.path.basename(folder)+'.hdf5')) and self.parameters['params/Advanced/Conversion Format']=='xls':
             if self.notify('Make sure that animal folder is selected '):
                 return
         files=fileop.find_files_and_folders(folder)[1]
         hdf5files=[f for f in files if os.path.splitext(f)[1]=='.hdf5' and 'animal' not in os.path.basename(f)]
         hdf5files.sort()
-        if self.parameters['Conversion Format']=='mat':
+        if self.parameters['params/Advanced/Conversion Format']=='mat':
             logging.info('Converting hdf5 files to mat in {0}'.format(folder))
-        elif self.parameters['Conversion Format']=='xls':
+        elif self.parameters['params/Advanced/Conversion Format']=='xls':
             logging.info('Aggregating hdf5 files to xls in {0}'.format(folder))
         self.xls_aggregate={}
         for f in hdf5files:
             try:
-                if self.parameters['Conversion Format']=='mat':
+                if self.parameters['params/Advanced/Conversion Format']=='mat':
                     experiment_data.hdf52mat(f)
-                elif self.parameters['Conversion Format']=='xls':
+                elif self.parameters['params/Advanced/Conversion Format']=='xls':
                     self.aggregate2xls(f)
                 logging.info(f)
             except:
                 logging.info(traceback.format_exc())
-        if self.parameters['Conversion Format']=='xls':
+        if self.parameters['params/Advanced/Conversion Format']=='xls':
             fn=os.path.join(folder, os.path.basename(folder)+'.xls')
             import xlwt
             book = xlwt.Workbook()
@@ -318,7 +320,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         
     def _load_protocol(self):
         logging.info('Loading protocol')
-        if str(self.parameters['Protocol']) == 'Random Selection Hitmiss Lick':
+        if str(self.parameters['params/Experiment/Protocol']) == 'Random Selection Hitmiss Lick':
             if not hasattr(self, 'protocol_history'):
                 self.protocol_history=[]
             last_n=5
@@ -328,7 +330,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if len(self.protocol_history)>=last_n-1 and all([self.protocol_history[i]==self.current_protocol for i in range(-1,-last_n,-1)]):
                 self.current_protocol = 'HitMiss' if self.current_protocol=='Lick' else 'Lick'
             logging.info('Random selection: {0}'.format(self.current_protocol))
-        elif str(self.parameters['Protocol']) == 'Lick and Hitmiss Random Laser':
+        elif str(self.parameters['params/Experiment/Protocol']) == 'Lick and Hitmiss Random Laser':
             if not hasattr(self, 'protocol_history'):
                 self.protocol_history=[]
             last_n=5
@@ -339,10 +341,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 self.current_protocol = 'HitMissRandomLaser' if self.current_protocol=='LickRandomLaser' else 'LickRandomLaser'
             logging.info('Random selection: {0}'.format(self.current_protocol))
         else:
-            self.current_protocol = str(self.parameters['Protocol'])
-        modulename=utils.fetch_classes('visexpman.users.common', classname=self.current_protocol,required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__name__
+            self.current_protocol = str(self.parameters['params/Experiment/Protocol'])
+        modulename=utils.fetch_classes(visexpman.USER_MODULE+'.common', classname=self.current_protocol,required_ancestors = experiment.BehavioralProtocol,direct = False)[0][0].__name__
         __import__(modulename)
-        reload(sys.modules[modulename])
+        import importlib   
+        importlib.reload(sys.modules[modulename])
         self.software_env['protocol_source']=fileop.read_text_file(sys.modules[modulename].__file__.replace('.pyc','.py'))
         self.protocol= getattr(sys.modules[modulename], self.current_protocol)(self)
         
@@ -382,7 +385,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if not os.path.exists(self.recording_folder):
             os.mkdir(self.recording_folder)
         #self.show_day_success_rate(self.recording_folder)
-        analysis_protocol=str(self.parameters['Protocol'])
+        analysis_protocol=str(self.parameters['params/Experiment/Protocol'])
         if analysis_protocol=='Lick':#TODO: protocol name specific!!!
             analysis_protocol='HitMiss'#Always current protocol expect Lick selected
         self.day_analysis=behavioral_data.HitmissAnalysis(self.recording_folder,protocol=analysis_protocol)
@@ -583,11 +586,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             return
         logging.info('Generating success rate and lick histograms, please wait')
         current_animal_folder=os.path.join(self.datafolder, self.current_animal)
-        if self.parameters['Protocol'] in ['HitMissRandomLaser', 'LickRandomLaser']:
-            filter={'voltage':self.parameters['Laser Intensity']}
+        if self.parameters['params/Experiment/Protocol'] in ['HitMissRandomLaser', 'LickRandomLaser']:
+            filter={'voltage':self.parameters['params/Experiment/Laser Intensity']}
         else:
             filter={}
-        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['Histogram bin size'],protocol=self.parameters['Protocol'],filter=filter)
+        self.analysis=behavioral_data.HitmissAnalysis(current_animal_folder,self.parameters['params/Advanced/Histogram bin size'],protocol=self.parameters['params/Experiment/Protocol'],filter=filter)
         logging.info('Done')
         self.to_gui.put({'show_animal_statistics':self.analysis})
         
@@ -595,7 +598,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         if self.session_ongoing:
             return
         logging.info('Generating success rate for all animals in {0}'.format(self.datafolder))
-        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder,protocol=self.parameters['Protocol'])
+        self.global_analysis=behavioral_data.HitmissAnalysis(self.datafolder,protocol=self.parameters['params/Experiment/Protocol'])
         logging.info('Done')
         self.to_gui.put({'show_global_statistics':self.global_analysis})
     
@@ -749,7 +752,7 @@ class Behavioral(gui.SimpleAppWindow):
     '''
     def __init__(self):
         #Figure out machine config
-        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = sys.argv[1], required_ancestors = object,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = sys.argv[1], required_ancestors = object,direct = False)[0][1]()
         self.logfile=fileop.get_log_filename(self.machine_config)
         logging.basicConfig(filename= self.logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',
@@ -827,7 +830,7 @@ class Behavioral(gui.SimpleAppWindow):
         
         self.cq_timer=QtCore.QTimer()
         self.cq_timer.start(20)#ms
-        self.connect(self.cq_timer, QtCore.SIGNAL('timeout()'), self.check_queue)
+        self.cq_timer.timeout.connect(self.check_queue)
         
     def parameter_changed(self):
         self.engine.parameters=self.paramw.get_parameter_tree(return_dict=True)
@@ -1093,17 +1096,18 @@ class LowLevelDebugW(QtGui.QWidget):
         for vn in valve_names:
             self.valves[vn]=gui.LabeledCheckBox(self,'Open {0} Valve'.format(vn.capitalize()))
             self.valves[vn].setToolTip('When checked, the valve is open')
-        self.connect(self.valves['water'].input, QtCore.SIGNAL('stateChanged(int)'),  self.water_valve_clicked)
+        self.valves['water'].input.stateChanged.connect(self.water_valve_clicked)
         self.reward=QtGui.QPushButton('Reward', parent=self)
-        self.connect(self.reward, QtCore.SIGNAL('clicked()'), self.reward_clicked)
+        self.reward.clicked.connect(self.reward_clicked)
         self.stimulate=QtGui.QPushButton('Stimulate', parent=self)
-        self.connect(self.stimulate, QtCore.SIGNAL('clicked()'), self.stimulate_clicked)
+        self.stimulate.clicked.connect(self.stimulate_clicked)
         self.rewardx100=QtGui.QPushButton('100 x Reward', parent=self)
-        self.connect(self.rewardx100, QtCore.SIGNAL('clicked()'), self.rewardx100_clicked)
+        self.rewardx100.clicked.connect(self.rewardx100_clicked)
         self.backup=QtGui.QPushButton('Backup datafiles', parent=self)
-        self.connect(self.backup, QtCore.SIGNAL('clicked()'), self.backup_clicked)
+        self.backup.clicked.connect(self.backup_clicked)
         self.l = QtGui.QGridLayout()
-        [self.l.addWidget(self.valves.values()[i], 0, i, 1, 1) for i in range(len(self.valves.values()))]
+        keys=[k for k in self.valves.keys()]
+        [self.l.addWidget(self.valves[keys[i]], 0, i, 1, 1) for i in range(len(self.valves))]
         self.l.addWidget(self.reward, 1, 0, 1, 1)
         self.l.addWidget(self.stimulate, 2, 0, 1, 1)
         self.l.addWidget(self.rewardx100, 3, 0, 1, 1)

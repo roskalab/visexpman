@@ -687,6 +687,7 @@ def merge_image(ir_image, twop_image, kwargs):
     twop_size=numpy.cast['int'](numpy.array(twop_image.shape[:2])*scale)
     twop_size=numpy.append(twop_size, 2)
     twop_resized=skimage.transform.resize(twop_image, twop_size)
+    
     #Extend to IR image
     twop_extended=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 2))
     #Put twop_resized to the center of twop_extended

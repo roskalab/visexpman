@@ -112,6 +112,7 @@ def select_folder_exists(folders):
     for folder in folders:
         if os.path.exists(folder) and os.path.isdir(folder):
             return folder
+    raise
     
 ################# File system ####################
 
