@@ -1573,7 +1573,7 @@ class Analysis(object):
             self.printc('No backup during recording')
             return
         self.printc('Backing up logfiles')
-        from visexpman.engine import backup_manager
+        from visexpman import backup_manager
         logbuconf=backup_manager.Config()
         logbuconf.last_file_access_timeout=1
         logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
@@ -2629,7 +2629,7 @@ class TestMainUIEngineIF(unittest.TestCase):
             guidata = GUIData()
             guidata.add('Sigma 1', 0.5, 'path/sigma')
             hdf5io.save_item(self.cf, 'guidata', utils.object2array(guidata.to_dict()), filelocking=False)
-        import visexpman.engine
+        import visexpman
         self.appcontext = visexpman.application_init(user = 'test', config = 'GUITestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
         self.appcontext['logger'].start()
         self.engine = MainUIEngine(self.machine_config, self.appcontext['logger'], self.appcontext['socket_queues'], unittest=True)
@@ -2795,7 +2795,7 @@ class TestMainUIEngineIF(unittest.TestCase):
     def tearDown(self):
         self.from_gui.put('terminate')
         self.engine.join()
-        import visexpman.engine
+        import visexpman
         visexpman.stop_application(self.appcontext)
         self.assertTrue(os.path.exists(self.cf))
         if hasattr(self, 'working_folder') and os.path.exists(self.working_folder):

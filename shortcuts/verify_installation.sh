@@ -1,2 +1,2 @@
 #!/bin/bash
-python -c "from visexpman.engine.generic import introspect;introspect.VerifyInstallation()"
+python -c "from visexpman.generic import introspect;introspect.VerifyInstallation()"

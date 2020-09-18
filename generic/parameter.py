@@ -104,7 +104,7 @@ class Parameter(object):
         if range_ != None:
             if len(range_) > 2 and not isinstance(value,  list):                
                 self._type = 'enumerated'
-        
+
         if exceptionType != None:
             raise exceptionType((value,self.name))
         else:

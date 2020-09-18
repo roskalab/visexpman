@@ -27,7 +27,7 @@ from visexpman.generic import gui as gui_generic
 from visexpman.vision_experiment import gui_pollers
 from visexpman.hardware_interface import network_interface
 from visexpman.generic import utils, fileop, stringop, log, introspect
-from visexpman.engine import generic, MachineConfigError
+from visexpman import generic, MachineConfigError
 from visexpman.users.test import unittest_aggregator
 import hdf5io
 
@@ -44,7 +44,7 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
     Main Qt GUI class of vision experiment manager gui.
     '''
     def __init__(self, user, config_class):
-        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.config.user = user
         self.console_text = ''
         self.log = log.Log('gui log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
@@ -1628,11 +1628,11 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(12)
         
-#        from visexpman.engine.visexp_app import run_main_ui
-#        context = visexpman.engine.application_init(user='test', config ='GUITestConfig', user_interface_name='main_ui')
+#        from visexpman.visexp_app import run_main_ui
+#        context = visexpman.application_init(user='test', config ='GUITestConfig', user_interface_name='main_ui')
 #        context['machine_config'].testmode=12
 #        run_main_ui(context)
-#        visexpman.engine.stop_application(context)
+#        visexpman.stop_application(context)
         contexts = []
         context = self._read_context()
         contexts.append(context)

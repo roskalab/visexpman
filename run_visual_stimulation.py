@@ -33,12 +33,12 @@ class VisualStimulation(object):
         '''
         self.state = 'init'
         #== Fetch reference to config class and experiment config class ==
-        self.config=generic.utils.fetch_classes('visexpman.users.'+user, classname=config_class, required_ancestors=visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
+        self.config=generic.utils.fetch_classes('visexpman.users.'+user, classname=config_class, required_ancestors=visexpman.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
         self.config.user=user
         #Lists all folders and python modules residing in the user's folder
         # this way of discovering classes has the drawback that modules searched must not have syntax errors
         classname = self.config.EXPERIMENT_CONFIG #RZ: This might be unnecessary
-        self.experiment_config_list = generic.utils.fetch_classes('visexpman.users.'+self.config.user,  required_ancestors=visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
+        self.experiment_config_list = generic.utils.fetch_classes('visexpman.users.'+self.config.user,  required_ancestors=visexpman.visual_stimulation.experiment.ExperimentConfig)
         if len(self.experiment_config_list) > 10: raise RuntimeError('Maximum 10 different experiment types are allowed')
         self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config) # select and instantiate stimulus as specified in machine config
         #create screen

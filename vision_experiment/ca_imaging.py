@@ -316,8 +316,8 @@ class UdpListener(threading.Thread):
 #            break
             
 if __name__ == '__main__':
-    import visexpman.engine
-    context = visexpman.engine.application_init(user = 'zoltan', config = 'CaImagingTestConfig', user_interface_name = 'ca_imaging', log_sources = ['engine'])
+    import visexpman
+    context = visexpman.application_init(user = 'zoltan', config = 'CaImagingTestConfig', user_interface_name = 'ca_imaging', log_sources = ['engine'])
     context['logger'].start()
     m = CaImaging(context=context)
-    visexpman.engine.stop_application(context)
+    visexpman.stop_application(context)

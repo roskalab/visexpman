@@ -200,7 +200,7 @@ def get_logfilename(config):
     '''
     expected_attributes = ['user', 'user_interface_name', 'LOG_PATH']
     if not all([hasattr(config, expected_attribute) for expected_attribute in expected_attributes]):
-        from visexpman.engine import MachineConfigError
+        from visexpman import MachineConfigError
         raise MachineConfigError('LOG_PATH, user and user_interface_name shall be an attribute in machine config')
     while True:
         filename =  os.path.join(config.LOG_PATH, 'log_{0}_{1}_{2}_{3}.txt'.format(config.__class__.__name__, config.user, config.user_interface_name, utils.datetime_string()))

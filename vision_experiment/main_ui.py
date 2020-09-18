@@ -1069,9 +1069,9 @@ class MainUI(gui.VisexpmanMainWindow):
     
     
 if __name__ == '__main__':
-    import visexpman.engine
-    context = visexpman.engine.application_init(user = 'zoltan', config = 'CaImagingTestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
+    import visexpman
+    context = visexpman.application_init(user = 'zoltan', config = 'CaImagingTestConfig', user_interface_name = 'main_ui', log_sources = ['engine'])
     
     context['logger'].start()
     m = MainUI(context=context)
-    visexpman.engine.stop_application(context)
+    visexpman.stop_application(context)

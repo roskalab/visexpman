@@ -47,7 +47,7 @@ try:
 except IOError:
     pass
 
-class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
+class VisionExperimentConfig(visexpman.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
         By overdefining this function, the application/user etc specific parameters can be definced here:
@@ -64,7 +64,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI_CONFIGURABLE_STIMULATION_DEVICES: generating stimulation on these devices can be done without an existing experiment config. The (timing) parameters are taken from the user interface.
 
         '''        
-        visexpman.engine.generic.configuration.Config._create_application_parameters(self)
+        visexpman.generic.configuration.Config._create_application_parameters(self)
         
 #        self.enable_celery = True
         self.temppath = tempfile.gettempdir()
@@ -215,9 +215,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         if not self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA_p.v:
             self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180/self.VISUAL_ANGLE_TO_UM_SCALE)*self.SCREEN_DISTANCE_FROM_MOUSE_EYE/self.SCREEN_PIXEL_WIDTH #1 um on the retina is this many pixels on the screen
         #== Screen scaling ==
-        self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
+        self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
         screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
-        self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
+        self.SCREEN_SIZE_UM_p = visexpman.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
         ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION,self.UPPER_LEFT_CORNER= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
@@ -227,7 +227,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         elif self.PLATFORM != 'smallapp':
             raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
             
-        self.SCREEN_CENTER_p = visexpman.engine.generic.parameter.Parameter(utils.rc((0,0)))
+        self.SCREEN_CENTER_p = visexpman.generic.parameter.Parameter(utils.rc((0,0)))
         #== Cooridnate system type dependencies ==
         if self.COORDINATE_SYSTEM == 'ulcorner':
             self.SCREEN_CENTER_p.v = utils.rc((0.5 * self.SCREEN_SIZE_UM_p.v['row'], 0.5 * self.SCREEN_SIZE_UM_p.v['col']))
@@ -235,7 +235,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         if hasattr(self, 'SCREEN_WIDTH') and hasattr(self, 'SCREEN_DISTANCE_FROM_MOUSE_EYE'):
             #Assuming that both dimensions are in cm:
             angle=numpy.degrees(2*numpy.arctan(0.5*self.SCREEN_WIDTH/self.SCREEN_DISTANCE_FROM_MOUSE_EYE))
-            self.SCREEN_ANGLE_RANGE_p = visexpman.engine.generic.parameter.Parameter(angle,range_=[-360,360])
+            self.SCREEN_ANGLE_RANGE_p = visexpman.generic.parameter.Parameter(angle,range_=[-360,360])
             
         ########### Projector gamma correction ############
         if hasattr(self, 'GAMMA_CORRECTION'):
@@ -248,7 +248,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             self.GAMMA_CORRECTION = scipy.interpolate.interp1d(y, x, bounds_error  = False, fill_value  = 0.0)
         ########### Context file #########
         if hasattr(self, 'CONTEXT_PATH') and hasattr(self, 'CONTEXT_NAME'):
-            self.CONTEXT_FILE_p = visexpman.engine.generic.parameter.Parameter(os.path.join(self.CONTEXT_PATH, self.CONTEXT_NAME))
+            self.CONTEXT_FILE_p = visexpman.generic.parameter.Parameter(os.path.join(self.CONTEXT_PATH, self.CONTEXT_NAME))
         
         if hasattr(self, 'EXPERIMENT_DATA_PATH'):
             self.cachepath = self.EXPERIMENT_DATA_PATH#To ensure compatibility with analysis config class #TODO: visexpA and visexpman config classes shall be merged into one class
@@ -465,7 +465,7 @@ class AnalysisUIConfig(object):
     '''
     
 
-class TestConfig(visexpman.engine.generic.configuration.Config):
+class TestConfig(visexpman.generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'
         PAR2 = 'par2'
@@ -483,7 +483,7 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''        
-        self.PAR3_p = visexpman.engine.generic.parameter.Parameter(self.PAR1+self.PAR2) 
+        self.PAR3_p = visexpman.generic.parameter.Parameter(self.PAR1+self.PAR2)
         self.PAR3 = self.PAR3_p.v
     
 class RedundantCommandConfig1(VisionExperimentConfig):

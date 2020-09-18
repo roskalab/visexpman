@@ -634,17 +634,17 @@ if test_mode:
             self.configname = 'GUITestConfig'
             #Erase work folder, including context files
             import visexpman.vision_experiment.configuration
-            self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
             self.machine_config.user_interface_name='ca_imaging'
             self.machine_config.user = 'test'
             fileop.cleanup_files(self.machine_config)
-            self.context = visexpman.engine.application_init(user = 'test', config = self.configname, user_interface_name = 'ca_imaging')
+            self.context = visexpman.application_init(user = 'test', config = self.configname, user_interface_name = 'ca_imaging')
             self.dont_kill_processes = introspect.get_python_processes()
             self._scanning_params()
             
         def tearDown(self):
             if hasattr(self, 'context'):
-                visexpman.engine.stop_application(self.context)
+                visexpman.stop_application(self.context)
             introspect.kill_python_processes(self.dont_kill_processes)
             
         def _send_commands_to_stim(self, commands):

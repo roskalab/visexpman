@@ -83,7 +83,7 @@ def application_init(**kwargs):
             from visexpman.users.test import unittest_aggregator
             argparser = unittest_aggregator.argparser
         argparser.add_argument('-u', '--user',
-                               help='User of the application. A subfolder with this name shall exists visexpman.engine.users folder.')
+                               help='User of the application. A subfolder with this name shall exists visexpman.users folder.')
         argparser.add_argument('-c', '--config',
                                help='Machine config that reside in either user\'s folder or in visexpman.users.common')
         argparser.add_argument('-a', '--user_interface_name',
@@ -105,11 +105,11 @@ def application_init(**kwargs):
     import visexpman.vision_experiment.configuration
     import visexpman
     config_class = utils.fetch_classes(visexpman.USER_MODULE + '.common', classname=args['config'],
-                                       required_ancestors=visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,
+                                       required_ancestors=visexpman.vision_experiment.configuration.VisionExperimentConfig,
                                        direct=False)
     if len(config_class) == 0:  # Try user's folder if not found in common folder
         config_class = utils.fetch_classes(visexpman.USER_MODULE + '.' + args['user'], classname=args['config'],
-                                           required_ancestors=visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,
+                                           required_ancestors=visexpman.vision_experiment.configuration.VisionExperimentConfig,
                                            direct=False)
         if len(config_class) == 0:  # Machine config class not found
             raise RuntimeError(
@@ -168,7 +168,7 @@ def application_init(**kwargs):
     context['command'] = multiprocessing.Queue()
     context['warning'] = []
     if machine_config.PLATFORM == 'ao_cortical' and args['user_interface_name'] == 'stim':
-        from visexpman.engine.hardware_interface import network_interface
+        from visexpman.hardware_interface import network_interface
         command_relay_server = network_interface.CommandRelayServer(machine_config)
         mes_command = multiprocessing.Queue()
         mes_response = multiprocessing.Queue()

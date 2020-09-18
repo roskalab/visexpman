@@ -23,7 +23,7 @@ import visexpman
 import hdf5io
 from visexpman.vision_experiment import experiment, experiment_data
 from visexpman.hardware_interface import scanner_control,daq_instrument,instrument
-from visexpman.engine import ExperimentConfigError, AnimalFileError
+from visexpman import ExperimentConfigError, AnimalFileError
 from visexpman.generic import gui,fileop,stringop,introspect,utils,colors,signal
 
 #OBSOLETE

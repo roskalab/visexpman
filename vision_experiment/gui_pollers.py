@@ -28,7 +28,7 @@ import PyQt4.QtCore as QtCore
 
 from visexpman.vision_experiment import experiment_data,gui
 from visexpman.hardware_interface import mes_interface,network_interface,stage_control,scanner_control,flowmeter,daq_instrument
-from visexpman.engine import generic
+from visexpman import generic
 from visexpman.generic import utils,signal,fileop,stringop,introspect
 from visexpman.generic import gui as gui_generic
 if 0:
@@ -334,7 +334,7 @@ class CorticalGUIPoller(Poller):
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(False)
 #                            if self.experiment_parameters['enable_intrinsic']:
 #                                import threading
-#                                from visexpman.engine.hardware_interface import camera_interface
+#                                from visexpman.hardware_interface import camera_interface
 #                                p = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'_intrinsic.hdf5')
 #                                self.printc('camera data will be saved to '+p)
 #                                self.camera_runner = threading.Thread(target =camera_interface.opencv_camera_runner, args = (p, self.measurement_duration+3.0, self.config))

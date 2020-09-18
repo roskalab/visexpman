@@ -396,7 +396,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         frame_rate = (self.config.SCREEN_EXPECTED_FRAME_RATE*duration)/runtime
         self.printl('Runtime: {0:.2f} s, measured frame rate: {1:.2f} Hz, expected frame rate: {2} Hz'.format(runtime, frame_rate, self.config.SCREEN_EXPECTED_FRAME_RATE))
         if abs(frame_rate-self.config.SCREEN_EXPECTED_FRAME_RATE)>self.config.FRAME_RATE_TOLERANCE:
-            from visexpman.engine import HardwareError
+            from visexpman import HardwareError
             raise HardwareError('Measured frame rate ({0:1.2f}) is out of acceptable range. Check projector\'s frame rate or graphics card settings.'.format(frame_rate))
         return frame_rate
         
@@ -465,7 +465,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                     experiment_config_class.extend(utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = parameters['experiment_name'],  
                                                         required_ancestors = ancestor, direct=False))
             if len(experiment_config_class)==0:
-                from visexpman.engine import ExperimentConfigError
+                from visexpman import ExperimentConfigError
                 raise ExperimentConfigError('{0} user\'s {1} experiment config cannot be fetched or does not exists'
                                             .format(self.machine_config.user, parameters['experiment_name']))
             if issubclass(experiment_config_class[0][1],visexpman.vision_experiment.experiment.Stimulus):

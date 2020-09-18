@@ -36,7 +36,7 @@ class ExperimentConfig(Config):
         else: #experiment class is in common or user module
             for u in ['common', machine_config.user]:
                 experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ u, classname = self.runnable,  
-                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)
+                                                    required_ancestors = visexpman.vision_experiment.experiment.Experiment, direct=False)
                 if len(experiment_class) == 1:
                     experiment_class = experiment_class[0][1]
                     break
@@ -275,14 +275,14 @@ def get_experiment_duration(experiment_config_class, config, source=None):
     if not config.CHECK_STIMULUS_DURATION:
         return 0
     if source is None:
-        stimulus_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.Stimulus,direct = False)
+        stimulus_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.vision_experiment.experiment.Stimulus,direct = False)
         if len(stimulus_class)==1:
             experiment_class_object=stimulus_class[0][1]
         else:
             try:
-                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
             except IndexError:
-                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = experiment_config_class, required_ancestors = visexpman.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
             experiment_class_object = experiment_class(config).runnable
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
@@ -295,7 +295,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
             if hasattr(experiment_config_module,experiment_config_class_object.runnable):
                 experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
             else:
-                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
+                experiment_class = utils.fetch_classes(visexpman.USER_MODULE+'.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.vision_experiment.experiment.Experiment,direct = False)[0][1]
                 experiment_class_object = experiment_class(config, experiment_config_class_object)
     if hasattr(experiment_class_object,'calculate_stimulus_duration'):
         ec=experiment_class_object(config)
@@ -309,7 +309,7 @@ def get_experiment_duration(experiment_config_class, config, source=None):
     elif hasattr(ec, 'duration'):
         return ec.duration
     else:
-        from visexpman.engine import ExperimentConfigError
+        from visexpman import ExperimentConfigError
         raise ExperimentConfigError('Stimulus duration is unknown')
         
 def read_stimulus_parameters(stimname, filename,config):

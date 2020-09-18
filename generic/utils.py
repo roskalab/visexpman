@@ -91,7 +91,7 @@ def generate_lut(x, min = 0.0, max = 1.0, gamma = 1.0, brightness = 0.5, contras
     return y
 
 def get_window_title(config):
-    from visexpman.engine import MachineConfigError
+    from visexpman import MachineConfigError
     if not hasattr(config, 'user_interface_name'):
         raise MachineConfigError('user_interface_name is missing from config')
     if not config.user_interface_name in config.USER_INTERFACE_NAMES:

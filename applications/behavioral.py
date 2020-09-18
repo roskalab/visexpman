@@ -652,7 +652,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             if not self.ask4confirmation('Backing up datafiles to {0} might take long. Do you want to continue?'.format(self.machine_config.BACKUP_PATH)):
                 return
         logging.info('Backing up logfiles')
-        from visexpman.engine import backup_manager
+        from visexpman import backup_manager
         logbuconf=backup_manager.Config()
         logbuconf.last_file_access_timeout=1
         logbuconf.COPY= [{'src':os.path.dirname(self.logfile_path), 'dst':[self.machine_config.BACKUP_PATH],'extensions':['.txt']},]
@@ -1273,7 +1273,7 @@ def timestamp2hhmmfp(t):
 class TestBehavEngine(unittest.TestCase):
     
     def setUp(self):
-        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = 'BehavioralSetup', required_ancestors = visexpman.engine.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.common', classname = 'BehavioralSetup', required_ancestors = visexpman.vision_experiment.configuration.BehavioralConfig,direct = False)[0][1]()
         if not hasattr(self, 'log_initialized'):
             self.logfile=fileop.generate_filename('/tmp/behav_engine_test.txt')
             logging.basicConfig(filename= self.logfile,
