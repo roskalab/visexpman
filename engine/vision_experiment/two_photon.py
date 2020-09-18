@@ -417,17 +417,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         '2p_reference_scale':self.machine_config.REFERENCE_2P_RESOLUTION
                         }
                 self.kwargs=kwargs
-                twop_filtered=numpy.zeros_like(self.twop_frame)
-                twop_filtered[:,:,0]=top_filtered
-                twop_filtered[:,:,1]=side_filtered
-                
-                self.twop_filtered=twop_filtered
+                if self.settings['params/Show Side'] or self.settings['params/Show Top']):
+                    twop_filtered=numpy.zeros_like(self.twop_frame)
+                    twop_filtered[:,:,0]=top_filtered
+                    twop_filtered[:,:,1]=side_filtered
+                    self.twop_filtered=twop_filtered
                 if (self.settings['params/Show Side'] or self.settings['params/Show Top']) and not self.settings['params/Show IR']:
                     #No merge when no ir channel is selected for display
                     tp=numpy.zeros((twop_filtered.shape[0],twop_filtered.shape[1],3))
                     tp[:,:,:2]=twop_filtered
                     self.merged=tp
-                elif (not self.settings['params/Show Side'] or not self.settings['params/Show Top']) and self.settings['params/Show IR']:
+                elif (not self.settings['params/Show Side'] and not self.settings['params/Show Top']) and self.settings['params/Show IR']:
                     self.merged=numpy.zeros((self.ir_filtered.shape[0],self.ir_filtered.shape[1],3))
                     self.merged[:,:,0]=self.ir_filtered
                     self.merged[:,:,1]=self.ir_filtered
