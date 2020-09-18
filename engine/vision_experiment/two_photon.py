@@ -427,6 +427,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     tp=numpy.zeros((twop_filtered.shape[0],twop_filtered.shape[1],3))
                     tp[:,:,:2]=twop_filtered
                     self.merged=tp
+                elif (not self.settings['params/Show Side'] or not self.settings['params/Show Top']) and self.settings['params/Show IR']:
+                    self.merged=numpy.zeros((self.ir_filtered.shape[0],self.ir_filtered.shape[1],3))
+                    self.merged[:,:,0]=self.ir_filtered
+                    self.merged[:,:,1]=self.ir_filtered
+                    self.merged[:,:,2]=self.ir_filtered
                 else:
                     self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
             if self.settings['params/Show IR'] or self.settings['params/Show Side'] or self.settings['params/Show Top']:

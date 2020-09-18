@@ -1175,13 +1175,14 @@ class ImageClick(Qt.QMainWindow):
         print('close event')
             
 def image_click(image,title='',npoints=1):
-    ic=ImageClick(numpy.random.random((500,500,3)),title=title,npoints=npoints)
+    ic=ImageClick(numpy.fliplr(numpy.flipud(numpy.rot90(image))),title=title,npoints=npoints)
     while ic.isVisible():
         time.sleep(2)
         print('Wait for click')
     points=[]
     while not ic.image.queue.empty():
         points.append(ic.image.queue.get())
+    points=[(p[0],image.shape[0]-p[1]) for p in points]
     return points
 
 class GuiTest(unittest.TestCase):
@@ -1195,7 +1196,7 @@ class GuiTest(unittest.TestCase):
         print(text_input('TEXT'))
         
     def test_03_click_image(self):
-        print(image_click(numpy.random.random((100,100,3)),'Title',3))
+        print(image_click(numpy.random.random((900,1200,3)),'Title',3))
 
 if __name__=='__main__':
     unittest.main()
