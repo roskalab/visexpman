@@ -360,14 +360,14 @@ class SutterStage(serial.Serial):
         self.write(b'b\r')#Set to relative mode
         resp=self.read(1)
         if resp!=b'\r':
-            raise IOError(f'No access to stage: {resp}')
+            raise IOError('No access to stage: {0}'.format(resp))
         
     @property
     def z(self):
         self.write(b'c\r')
         resp=self.read(13)
         if len(resp)!=13 or resp[-1]!=13:
-            raise IOError(f"Invalid response: {resp}, {len(resp)}")
+            raise IOError("Invalid response: {0}, {1}".format(resp, len(resp)))
         return struct.unpack('<iii',resp[:-1])[2]
         
     @z.setter
