@@ -431,7 +431,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 twop_filtered=numpy.zeros_like(self.twop_frame)
                 twop_filtered[:,:,0]=top_filtered
                 twop_filtered[:,:,1]=side_filtered
-                
                 self.twop_filtered=twop_filtered
                 t2=time.time()
                 if (self.settings['params/Show Side'] or self.settings['params/Show Top']) and not self.settings['params/Show IR']:
@@ -439,7 +438,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     tp=numpy.zeros((twop_filtered.shape[0],twop_filtered.shape[1],3))
                     tp[:,:,:2]=twop_filtered
                     self.merged=tp
-                elif (not self.settings['params/Show Side'] or not self.settings['params/Show Top']) and self.settings['params/Show IR']:
+                elif (not self.settings['params/Show Side'] and not self.settings['params/Show Top']) and self.settings['params/Show IR']:
                     self.merged=numpy.zeros((self.ir_filtered.shape[0],self.ir_filtered.shape[1],3))
                     self.merged[:,:,0]=self.ir_filtered
                     self.merged[:,:,1]=self.ir_filtered
@@ -735,6 +734,7 @@ def merge_image(ir_image, twop_image, kwargs):
     twop_size=numpy.cast['int'](numpy.array(twop_image.shape[:2])*scale)
     twop_size=numpy.append(twop_size, 2)
     twop_resized=skimage.transform.resize(twop_image, twop_size)
+    
     #Extend to IR image
     twop_extended=numpy.zeros((ir_image.shape[0],  ir_image.shape[1], 2))
     #Put twop_resized to the center of twop_extended

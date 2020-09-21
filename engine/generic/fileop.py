@@ -112,7 +112,8 @@ def select_folder_exists(folders):
     for folder in folders:
         if os.path.exists(folder) and os.path.isdir(folder):
             return folder
-    
+    # raise
+    print('folder cannot be found')
 ################# File system ####################
 
 def free_space(path):

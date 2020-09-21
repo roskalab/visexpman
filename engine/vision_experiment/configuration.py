@@ -54,9 +54,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             self.PAR_p =   
             
             parameters that the user need to define: (This is a way to force users to create their configs carefully
-            EXPERIMENT_CONFIG = 'TestExperimentConfig' - OBSOLETE
             LOG_PATH = '/media/Common/visexpman_data'
-            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
             CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
             DELETED_FILES_PATH
@@ -146,7 +144,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MESSAGE_POSITION = utils.cr((-0.48,-0.15))
         NUMBER_OF_MESSAGE_ROWS = [15, [1, 40]]
         MAX_MESSAGE_LENGTH = [180,  [10,  1000]] #length of message displayed on screen
-        SCREEN_CENTER_ADJUST_STEP_SIZE = [1.0, [1.0, 100.0]]#um
+        SCREEN_CENTER_ADJUST_STEP_SIZE = [1.0, [1.0, 100.0]]#um+
 
         ############# External hardware ######################
         DIGITAL_IO_PORT = False#'parallel port, or comport expected
