@@ -85,6 +85,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
         FREE_SPACE_ERROR_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
+        ENABLE_USER_FOLDER=True
         
         ############# Network #####################      
         self.BASE_PORT = 20000

@@ -63,6 +63,7 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
         
     def run(self):
         self.setup_logger()
+        self.printl(f'pid: {os.getpid()}')
         self.running=False
         ThorlabsCamera.__init__(self, dll_path=self.dll_path,nbit=16)
         if self.roi is not None:

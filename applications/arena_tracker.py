@@ -245,11 +245,11 @@ class ArenaTracker(gui.SimpleAppWindow):
         logging.info('Conversion started')
         for f in files:
             if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(os.path.splitext(f)[0]+'.mat'):
-                print f
+                print (f)
                 experiment_data.hdf52mat(f)
                 prog=int((files.index(f)+1)/float(len(files))*100)
                 p.update(prog)
-                print prog
+                print (prog)
                 time.sleep(100e-3)
         logging.info('{0} folder complete'.format(foldername))
         

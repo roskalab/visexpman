@@ -24,7 +24,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     def __init__(self, context):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
-        
         gui.VisexpmanMainWindow.__init__(self, context)
         self.setWindowIcon(gui.get_icon('main_ui'))
         self._init_variables()
@@ -95,7 +94,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         
-        
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
         if os.path.exists(self.context_filename):
             try:
@@ -117,6 +115,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.update_image_timer.timeout.connect(self.update_image)
         self.update_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         
+        self.image_update_in_progress=False
+        
         self.read_image_timer=QtCore.QTimer()
         self.read_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         self.read_image_timer.timeout.connect(self.read_image)
@@ -129,7 +129,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
         
-        
+        self.printc(f'pid: {os.getpid()}')
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
     
@@ -372,6 +372,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.socket_queues['2p']['tosocket'].put({'change_params': str(e)})
         
     def read_image(self):
+        t0=time.time()
         try:
             now=time.time()
             ir_frame=self.camera.read()
@@ -387,9 +388,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if not hasattr(self, 'read_image_error_shown'):
                 self.printc(traceback.format_exc())
                 self.read_image_error_shown=True
+        dt=time.time()-t0
+        if not hasattr(self, 'ridt'):
+            self.ridt=[]
+        self.ridt.append(dt)
+        self.ridt=self.ridt[-10:]
     
     def update_image(self):
+        t0=time.time()
         try:
+            if self.image_update_in_progress:
+                return
+            self.image_update_in_progress=True
             if not hasattr(self, 'twop_frame'):
                 self.merged=self.ir_filtered
             else:
@@ -416,12 +426,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         '2p_scale':self.settings['params/Resolution'],
                         '2p_reference_scale':self.machine_config.REFERENCE_2P_RESOLUTION
                         }
+                t1=time.time()
                 self.kwargs=kwargs
                 twop_filtered=numpy.zeros_like(self.twop_frame)
                 twop_filtered[:,:,0]=top_filtered
                 twop_filtered[:,:,1]=side_filtered
                 
                 self.twop_filtered=twop_filtered
+                t2=time.time()
                 if (self.settings['params/Show Side'] or self.settings['params/Show Top']) and not self.settings['params/Show IR']:
                     #No merge when no ir channel is selected for display
                     tp=numpy.zeros((twop_filtered.shape[0],twop_filtered.shape[1],3))
@@ -434,8 +446,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.merged[:,:,2]=self.ir_filtered
                 else:
                     self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
+            t3=time.time()
             if self.settings['params/Show IR'] or self.settings['params/Show Side'] or self.settings['params/Show Top']:
                 self.image.set_image(self.merged)#Swap x, y axis 
+            t4=time.time()
+            dt=1e3*numpy.array([t4-t3,t3-t2,t2-t1,t1-t0])
+            if not hasattr(self, 'dt'):
+                self.dt=[]
+            self.dt.append(dt)
+            self.dt=self.dt[-10:]
             if self.machine_config.SHOW_FRAME_RATE:
                 t='Frame rate: '
                 if hasattr(self,'irframerate'):
@@ -462,6 +481,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if not hasattr(self, 'update_image_error_shown'):
                 self.printc(traceback.format_exc())
                 self.update_image_error_shown=True
+        self.image_update_in_progress=False
     
     def stop_action(self, remote=None, snapshot=False):
         try:

@@ -557,10 +557,14 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
         while not self.log.empty():
             log.append(self.log.get())
         if self.filename!=None:
-            ts=self.timestamps.get()
+            ts=self.timestamps.get() if not self.timestamps.empty() else []
+            t0=time.time()
             while self.log.empty():
                 time.sleep(1)
-            log.append(self.log.get())
+                if time.time()-t0>5:
+                    break
+            if not self.log.empty():
+                log.append(self.log.get())
         else:
             ts=[]
         self.terminate()
@@ -575,54 +579,63 @@ class SaverProcess(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         
     def run(self):
-        if self.filename[-4:]=='hdf5':
-            self.datafile=tables.open_file(self.filename, 'w')
-            self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 
-                                'Frames', 
-                                filters=tables.Filters(complevel=2, complib='zlib', shuffle = 1), 
-                                )
-        elif self.filename[-3:]=='mp4':
-            fps=30
-            import skvideo.io
-            self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
-            
-        ct=0
-        chunk=[]
-        frames=[]
-        while True:
-            if not self.dataq.empty():
-                frame=self.dataq.get()
-                if not hasattr(frame,  'dtype'):
-                    if len(chunk)>0:
-                        self.datafile.root.frames.append(numpy.array(chunk))
-                    chunk=[]
-                    break
-                else:
-#                    frames.append(frame)
-                    chunk.append(frame)
-                    if len(chunk)==self.chunksize:
-                        if hasattr(self,  'datafile'):
+        try:
+            if self.filename[-4:]=='hdf5':
+                self.datafile=tables.open_file(self.filename, 'w')
+                self.datafile.create_earray(self.datafile.root, 'frames', tables.UInt8Atom((480, 744, 3)), (0, ), 
+                                    'Frames', 
+                                    filters=tables.Filters(complevel=2, complib='zlib', shuffle = 1), 
+                                    )
+            elif self.filename[-3:]=='mp4':
+                fps='30'
+                import skvideo.io
+                self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
+                
+            ct=0
+            chunk=[]
+            frames=[]
+            while True:
+                if not self.dataq.empty():
+                    frame=self.dataq.get()
+                    if not hasattr(frame,  'dtype'):
+                        if len(chunk)>0 and hasattr(self,  'datafile'):
                             self.datafile.root.frames.append(numpy.array(chunk))
-                            self.datafile.root.frames.flush()
-                            chunk=[]
-                        elif hasattr(self,  'video_writer'):
-                            for fr in chunk:
-                                self.video_writer.writeFrame(numpy.rollaxis(numpy.array([fr]*3),0,3))
-                            
+                        chunk=[]
+                        break
                     else:
-                        time.sleep(1e-3)
-                    ct+=1
-#                    if ct%3==1:
-#                        self.datafile.root.frames.flush()
-            else:
-                time.sleep(5e-3)
-#        self.datafile.root.frames.append(numpy.array(frames))
-        if hasattr(self,  'datafile'):
-            self.datafile.root.frames.flush()
-            self.datafile.close()
-        elif hasattr(self,  'video_writer'):
-            self.video_writer.close()
-        self.done.put(True)
+    #                    frames.append(frame)
+                        chunk.append(frame)
+                        if len(chunk)==self.chunksize:
+                            if hasattr(self,  'datafile'):
+                                self.datafile.root.frames.append(numpy.array(chunk))
+                                self.datafile.root.frames.flush()
+                                chunk=[]
+                            elif hasattr(self,  'video_writer'):
+                                for fr in chunk:
+                                    if len(fr.shape)==2:
+                                        self.video_writer.writeFrame(numpy.rollaxis(numpy.array([fr]*3),0,3))
+                                    else:
+#                                        fileop.write_text_file(r'f:\tmp\erro1.txt',str(fr.shape))
+#                                        fileop.write_text_file(r'f:\tmp\erro2.txt',str(fr.dtype))
+                                        self.video_writer.writeFrame(fr)
+                                
+                        else:
+                            time.sleep(1e-3)
+                        ct+=1
+    #                    if ct%3==1:
+    #                        self.datafile.root.frames.flush()
+                else:
+                    time.sleep(5e-3)
+    #        self.datafile.root.frames.append(numpy.array(frames))
+            if hasattr(self,  'datafile'):
+                self.datafile.root.frames.flush()
+                self.datafile.close()
+            elif hasattr(self,  'video_writer'):
+                self.video_writer.close()
+            self.done.put(True)
+        except:
+            import traceback
+            fileop.write_text_file(r'f:\tmp\error.txt',traceback.format_exc())
         
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):

@@ -41,7 +41,10 @@ class Camera(gui.VisexpmanMainWindow):
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)        
         self.image = gui.Image(self)
         self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
-        self.filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user)
+        if hasattr(self.machine_config,'ENABLE_USER_FOLDER') and self.machine_config.ENABLE_USER_FOLDER:
+            self.filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user)
+        else:
+            self.filebrowserroot= self.machine_config.EXPERIMENT_DATA_PATH
         self.params = gui.ParameterTable(self, self.params_config)
         self.params.params.sigTreeStateChanged.connect(self.parameter_changed)
         self.main_tab = QtGui.QTabWidget(self)
@@ -158,10 +161,13 @@ class Camera(gui.VisexpmanMainWindow):
             if hasattr(experiment_parameters, 'keys') and 'eyecamfilename' in experiment_parameters:
                 self.fn=experiment_parameters['eyecamfilename']
             else:
-                outfolder=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
+                if not self.machine_config.ENABLE_USER_FOLDER:
+                    outfolder=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, utils.timestamp2ymd(time.time(), separator=''))
+                else:
+                    outfolder=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
-                self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': experiment_data.get_id()},prefix = self.machine_config.CAMFILENAME_TAG)
+                self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': experiment_data.get_id()},prefix = self.machine_config.CAMFILENAME_TAG,extension='.mp4')
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
             import psutil
@@ -185,16 +191,17 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
-            hdf5io.save_item(self.fn, 'timestamps', self.ts)
+            hdf5_out=self.fn if self.fn[-4]=='hdf5' else fileop.replace_extension(self.fn,'.hdf5')
+            hdf5io.save_item(hdf5_out, 'timestamps', self.ts)
             if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
                 miniscope_datafolder=self.find_miniscope_data()
                 if os.path.exists(miniscope_datafolder):
                     import copy
                     parameters=copy.deepcopy(self.parameters)
                     parameters['miniscope data']=miniscope_datafolder
-                    hdf5io.save_item(self.fn, 'parameters', parameters)
+                    hdf5io.save_item(hdf5_out, 'parameters', parameters)
             else:
-                hdf5io.save_item(self.fn, 'parameters', self.parameters)
+                hdf5io.save_item(hdf5_out, 'parameters', self.parameters)
             self.printc('\n'.join(log))
             if hasattr(self,  'ai'):
                 self.sync=self.ai.finish()

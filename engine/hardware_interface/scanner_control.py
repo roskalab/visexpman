@@ -195,6 +195,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def run(self):
         try:
             self.setup_logger()
+            self.printl(f'pid: {os.getpid()}')
             self.digital_output = PyDAQmx.Task()
             self.digital_output.CreateDOChan(self.kwargs['shutter_port'],'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
             self.create_channels()
