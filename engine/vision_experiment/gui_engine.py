@@ -636,7 +636,7 @@ class ExperimentHandler(object):
             elif self.machine_config.PLATFORM=='ao_cortical':
                 raise RuntimeError("Is it used at all?")
                 fn=experiment_data.get_recording_path(self.machine_config, self.current_experiment_parameters, prefix = 'data')
-            if not (self.machine_config.PLATFORM in ['behav', '2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p','mc_mea']):#On ao_cortical sync signal calculation and check is done by stim
+            if not (self.machine_config.PLATFORM in ['behav', '2p', 'retinal', 'ao_cortical', 'resonant', "elphys", '2p','mc_mea', 'generic']):#On ao_cortical sync signal calculation and check is done by stim
                 raise RuntimeError('On which platform it is really needed?')
                 self.printc(fn)
                 h = experiment_data.CaImagingData(fn)

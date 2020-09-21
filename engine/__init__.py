@@ -72,7 +72,7 @@ def application_init(**kwargs):
     if len(config_class) == 0:#Try user's folder if not found in common folder 
         config_class = utils.fetch_classes(visexpman.USER_MODULE+'.' + args['user'], classname = args['config'], required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)
         if len(config_class) == 0:#Machine config class not found
-            raise RuntimeError('{0} user\'s {1} machine configuration class cannot be found'.format(args['user'], args['config']))
+            raise RuntimeError('{0} user\'s {1} machine configuration class cannot be found.Make sure that there is no syntax or any other error in referenced config file!'.format(args['user'], args['config']))
     machine_config = config_class[0][1]()
     #Add app name and user to machine config
     machine_config.user = args['user']
