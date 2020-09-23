@@ -8,7 +8,7 @@ except ImportError:
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
 
-from visexpman.engine.generic import gui,fileop, signal, utils
+from visexpman.engine.generic import gui,fileop, signal, utils, introspect
 from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io,openephys
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 from visexpman.engine.analysis import behavioral_data
@@ -140,6 +140,9 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if self.recording:
                 return
+            if not introspect.is_process_running('open-ephys') and self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+                QtGui.QMessageBox.question(None,'Warning', 'Open-ephys GUI is not running', QtGui.QMessageBox.Ok)
+                return
             if 1000/self.parameters['params/Frame Rate']<self.parameters['params/Exposure time']:
                 msg='Exposure time is too long for this frame rate!'
                 self.printc(msg)
@@ -169,8 +172,10 @@ class Camera(gui.VisexpmanMainWindow):
                     os.makedirs(outfolder)
                 self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': experiment_data.get_id()},prefix = self.machine_config.CAMFILENAME_TAG,extension='.mp4')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
-                openephys.start_recording()
-                self.printc('Start Openephys')
+                if not openephys.start_recording():
+                    self.printc('Openephyc cannot be triggered, is it started?')
+                else:
+                    self.printc('Start Openephys')
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
