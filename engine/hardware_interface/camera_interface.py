@@ -459,7 +459,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             if self.filename!=None:
                 self.saver=SaverProcess(self.filename,  self.frame, 100)
                 self.saver.start()
-            from visexpur.tis import tisgrabber_import
+            from tis import tisgrabber_import
             lib=tisgrabber_import.TIS_grabber()
             lib.InitLibrary()
             camera_name=lib.Kamera_finden()[0]
