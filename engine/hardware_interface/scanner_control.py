@@ -112,7 +112,7 @@ def rawpmt2image(rawdata, boundaries, binning_factor=1,  offset = 0):
     binned_pmt_data = binning_data(rawdata, binning_factor)
     if offset != 0:
         binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
-    return numpy.array((numpy.split(binned_pmt_data, boundaries)[0::2]))
+    return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
     
 class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     """
@@ -335,7 +335,7 @@ class Test(unittest.TestCase):
                 self.assertTrue((numpy.diff(item[:,:,0],axis=1)>=0).all())
             fh.close()
             
-#    @unittest.skip('')    
+    @unittest.skip('')    
     def test_waveform_generator(self):
         #Input parameter ranges
         from pylab import plot, show
@@ -445,7 +445,7 @@ class Test(unittest.TestCase):
                     if 'X line length is too short' not in traceback.format_exc() and 'Too many pixels to scan:' not in traceback.format_exc() and 'does not fall into' not in traceback.format_exc():
                         raise RuntimeError()
                 pmt=numpy.array([waveform_x,  waveform_y]).T
-                img=rawpmt2image(pmt, boundaries[1:], binning_factor=1,  offset = 0)
+                img=rawpmt2image(pmt, boundaries, binning_factor=1,  offset = 0)
                 self.assertLess(numpy.diff(img[:,:,0].mean(axis=0)).std(), 1e-6)#All lines are same
                 self.assertTrue((numpy.diff(img[:,:,0].mean(axis=0))>0).all())#check uniform gradient
                 self.assertLess(numpy.diff(img[:,:,1].mean(axis=1)).std(), 1e-6)
