@@ -23,12 +23,12 @@ class HitMissProtocolHandler(threading.Thread):
         self.log=multiprocessing.Queue()
         
     def cmd(self, cmd, wait=0):
-        self.s.write(cmd);
+        self.s.write(cmd.encode('utf-8') );
         if wait>0:
             time.sleep(wait)
         resp=self.s.readline()
-        self.log.put(resp)
-        return resp
+        self.log.put(resp.decode())
+        return resp.decode()
         
     def error(self, msg):
         self.log.put(msg)
@@ -36,38 +36,43 @@ class HitMissProtocolHandler(threading.Thread):
         raise RuntimeError(msg)
         
     def run(self):
-        self.log.put('Expected duration: {0}'.format(self.pars[1]+self.pars[2]+self.pars[3]))
-        if not hasattr(self.serial_port, 'write'):
-            self.s=serial.Serial(self.serial_port, 115200, timeout=1)
-        else:
-            self.s=self.serial_port
-        time.sleep(self.init_wait)
-        resp=self.cmd('ping\r\n')
-        if 'pong' not in resp:
-            self.s.close()
-            raise RuntimeError('Lick detector does not respond')
-        resp=self.cmd('reset_protocol\r\n')
-        if 'Protocol state set to idle' not in resp:
-            self.s.close()
-            raise RuntimeError('Resetting lick detector failed')
-        self.pars[2]-=self.init_wait
-        parstr=','.join(map(str, self.pars))
-        cmd='start_protocol,{0}\r\n'.format(parstr)
-        resp=self.cmd(cmd)
-        resppars=map(float,resp.split(' ')[-1].split(',')[:-1])
-        if 'Protocol parameters' not in cmd and self.pars!=resppars:
-            self.s.close()
-            raise RuntimeError('Protocol start failed, response: {0}'.format(resp))
-        time.sleep(self.pars[2])
-        ct=0
-        while True:
-            resp=self.s.readline()
-            ct+=1
-            if len(resp)>0:
-                self.log.put(resp)
-            time.sleep(0.1)
-            if 'End of trial' in resp or ct>1000:
-                break
+        try:
+            self.log.put('Expected duration: {0}'.format(self.pars[1]+self.pars[2]+self.pars[3]))
+            if not hasattr(self.serial_port, 'write'):
+                self.s=serial.Serial(self.serial_port, 115200, timeout=1)
+            else:
+                self.s=self.serial_port
+            time.sleep(self.init_wait)
+            resp=self.cmd('ping\r\n')
+            if 'pong' not in resp:
+                self.s.close()
+                raise RuntimeError('Lick detector does not respond')
+            resp=self.cmd('reset_protocol\r\n')
+            if 'Protocol state set to idle' not in resp:
+                self.s.close()
+                raise RuntimeError('Resetting lick detector failed')
+            self.pars[2]-=self.init_wait
+            parstr=','.join(list(map(str, self.pars)))
+            cmd='start_protocol,{0}\r\n'.format(parstr)
+            self.log.put(cmd)
+            resp=self.cmd(cmd)
+            resppars=list(map(float,resp.split(' ')[-1].split(',')[:-1]))
+            if 'Protocol parameters' not in cmd and self.pars!=resppars:
+                self.s.close()
+                raise RuntimeError('Protocol start failed, response: {0}, {1}, {2}'.format(resp,self.pars,resppars))
+            time.sleep(self.pars[2])
+            ct=0
+            while True:
+                resp=self.s.readline().decode()
+                ct+=1
+                if len(resp)>0:
+                    self.log.put(resp)
+                time.sleep(0.1)
+                if 'End of trial' in resp or ct>1000:
+                    break
+        except:
+            import traceback
+            self.error(traceback.format_exc())
         if not hasattr(self.serial_port, 'write'):
             self.s.close()
         

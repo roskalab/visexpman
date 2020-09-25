@@ -246,12 +246,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             logging.info('Not supported')
         elif channel=='water':
             logging.info('Set {0} valve to {1}'.format(channel, state))
-            self.serialport.write('reward,{0}\r\n'.format(float(state)))
+            self.serialport.write('reward,{0}\r\n'.format(float(state)).encode('utf-8'))
             logging.info(self.serialport.readline())
             
     def stimulate(self,waveform=None):
         now=time.time()
-        self.serialport.write('stim,{0},{1}\r\n'.format(self.parameters['params/Experiment/Laser Intensity'], self.parameters['params/Advanced/Pulse Duration']))
+        self.serialport.write('stim,{0},{1}\r\n'.format(self.parameters['params/Experiment/Laser Intensity'], self.parameters['params/Advanced/Pulse Duration']).encode('utf-8'))
         logging.info(self.serialport.readline())
         
     def convert_folder(self,folder):
@@ -416,7 +416,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.filename+='.hdf5'
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera=camera_interface.ImagingSourceCameraSaver(self.filename)
-        self.start_video_recording(videofilename)
+        if self.machine_config.ENABLE_CAMERA:
+            self.start_video_recording(videofilename)
         if self.protocol.ENABLE_IMAGING_SOURCE_CAMERA:
             self.iscamera.start()
         self.actual_recording_started=time.time()
@@ -442,7 +443,8 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 break
             time.sleep(0.1)
         logging.info('Recorded {0} s'.format(self.sync.shape[0]/float(self.machine_config.AI_SAMPLE_RATE)))
-        self.stop_video_recording()
+        if self.machine_config.ENABLE_CAMERA:
+            self.stop_video_recording()
         if hasattr(self, 'iscamera'):
             self.iscamera.stop()
             self.iscamera.close()
@@ -521,15 +523,17 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             setattr(self.datafile, nn, dict([(vn,getattr(var, vn)) for vn in dir(var) if vn.isupper()] ))
         self.datafile.sync=self.sync
         if hasattr(self,'stat'):
-            self.datafile.stat=copy.deepcopy(self.stat)
-        self.datafile.frame_times=self.frame_times
+            self.datafile.stat=utils.object2array(copy.deepcopy(self.stat))
+        self.datafile.frame_times=self.frame_times if self.machine_config.ENABLE_CAMERA else 1
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value
         self.datafile.parameters=copy.deepcopy(self.parameters)
-        self.datafile.software=self.software_env
+        self.datafile.software=utils.object2array(self.software_env)
         self.datafile.animal=self.current_animal
-        nodes=['stat','frame_times', 'sync', 'animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'parameters', 'software']
-        self.datafile.save(nodes)
+        nodes=['stat','frame_times', 'sync', 'animal', 'machine_config', 'protocol', 'protocol_name', 'machine_config_name', 'parameters','software']
+        for n in nodes:
+            print(n)
+            self.datafile.save(n)
         self.datafile.close()
         del self.datafile
         logging.info('Data saved to {0}'.format(self.filename))
@@ -1029,9 +1033,9 @@ class CWidget(QtGui.QWidget):
         self.imagenames=['main', 'closeup']
         self.images=gui.TabbedImages(self,self.imagenames)
         ar=float(parent.machine_config.CAMERA_FRAME_WIDTH)/parent.machine_config.CAMERA_FRAME_HEIGHT
-        self.images.main.setFixedWidth(280*ar)
+        self.images.main.setFixedWidth(int(280*ar))
         self.images.main.setFixedHeight(280)
-        self.images.closeup.setFixedWidth(280*ar)
+        self.images.closeup.setFixedWidth(int(280*ar))
         self.images.closeup.setFixedHeight(280)
         self.main_tab = self.images.tab
         self.filebrowserw=FileBrowserW(self)

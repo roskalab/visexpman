@@ -446,9 +446,10 @@ def check_hitmiss_files(filename):
             print(f)
         ishitmiss='hitmiss' in os.path.basename(filename).split('_')[1].lower()
         h=hdf5io.Hdf5io(f)
-        map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat'])
+        list(map(h.load, ['sync', 'machine_config',  'parameters', 'protocol', 'stat']))
         recording_duration=h.sync.shape[0]/float(h.machine_config['AI_SAMPLE_RATE'])
         protocol_duration=h.protocol['PRETRIAL_DURATION']
+        h.stat=utils.array2object(h.stat)
         if h.stat['result']:
             protocol_duration+=h.protocol['DRINK_TIME']+h.protocol['REWARD_DELAY']
         else:
