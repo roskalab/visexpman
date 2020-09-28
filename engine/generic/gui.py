@@ -851,7 +851,7 @@ class LabeledComboBox(QtGui.QWidget):
         self.input.blockSignals(True)
         self.input.clear()
         self.input.blockSignals(False)
-        self.input.addItems(QtCore.QStringList(items))
+        self.input.addItems(items)
         
 class LabeledListWidget(QtGui.QWidget):
     '''

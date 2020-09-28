@@ -17,13 +17,14 @@ except:
 class ScannerWaveform(object):
     '''
     '''
-    MIN_SAMPLES_X_FLYBACK=10
-    IMAGING_FRAME_RATE_RANGE=[0.1, 100.0]
+    MIN_SAMPLES_X_FLYBACK=5
+    IMAGING_FRAME_RATE_RANGE=[0.1, 200.0]
     #Depends on computer RAM 
     MAX_FRAME_PIXELS=500e3 
     #Depends on scanner model
-    MIN_X_SCANNER_PERIOD=1/3500#TODO: this limitation should depend on scan area width. Lower widths work on higher frequencies
+    MIN_X_SCANNER_PERIOD=1./8000#TODO: this limitation should depend on scan area width. Lower widths work on higher frequencies
     SCANNER_VOLTAGE_RANGE=[0.05, 5.0]
+    LINE_SCAN_EXTENSION=0.2
     
     def __init__(self, machine_config=None,  **kwargs):
         if hasattr(machine_config, 'AO_SAMPLE_RATE'):
@@ -50,21 +51,23 @@ class ScannerWaveform(object):
         '''
         if yflyback<1:
             raise ValueError('minimum value for y_flyback_lines is 1')
-        line_length = int(utils.roundint(width * resolution)*(1+xflyback*1e-2))  # Number of samples for scanning a line
+        line_length = int(utils.roundint(width * resolution)*(1+xflyback*1e-2+self.LINE_SCAN_EXTENSION))  # Number of samples for scanning a line
         if line_length/self.fsample<self.MIN_X_SCANNER_PERIOD:
-            raise ValueError("X line length is too short, increase resolution or scan area width")
+            raise ValueError(f"X line length is too short: {line_length}, increase resolution or scan area width")
         return_x_samps=int(utils.roundint(width * resolution)*(xflyback*1e-2))
         if return_x_samps<self.MIN_SAMPLES_X_FLYBACK:
             raise ValueError('X flyback time is too short, number of flyback samples is {0}'.format(return_x_samps))
         if pulse_width*self.fsample<1 and pulse_width>0:
             raise ValueError('Projector control pulse width is too short')
+        yflyback=int(yflyback)
         return_y_samps = line_length* yflyback
         n_x_lines= utils.roundint(height * resolution)+yflyback
         # X signal
         ramp_up_x = numpy.linspace(-0.5*width, 0.5*width, num=line_length - return_x_samps)
         ramp_down_x = numpy.linspace(0.5*width, -0.5*width, num=return_x_samps + 2)[1:-1] # Exclude extreme values (avoiding duplication during concatenation)
-        line_scan_x= numpy.concatenate((ramp_up_x,  ramp_down_x))
-        scan_mask=numpy.concatenate((numpy.ones_like(ramp_up_x), numpy.zeros_like(ramp_down_x)))
+        line_scan_x= numpy.concatenate((ramp_up_x,  ramp_down_x))*(1+self.LINE_SCAN_EXTENSION)
+        half_extension=int((ramp_up_x.shape[0]-utils.roundint(width * resolution))/2)
+        scan_mask=numpy.concatenate((numpy.zeros(half_extension),numpy.ones(utils.roundint(width * resolution)), numpy.zeros(half_extension+ramp_down_x.shape[0])))
         waveform_x = numpy.tile(line_scan_x, n_x_lines)
         imaging_period=round(self.fsample/waveform_x.shape[0], 1)
         if imaging_period<self.IMAGING_FRAME_RATE_RANGE[0] or imaging_period>self.IMAGING_FRAME_RATE_RANGE[1]:
@@ -95,12 +98,12 @@ class ScannerWaveform(object):
         frame_timing[-utils.roundint(self.fsample*self.frame_timing_pulse_width):]=self.projector_control_voltage
         #Calculate indexes for extractable parts of pmt signal
         boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
-        boundaries=numpy.insert(boundaries, 0, 0)
+#        boundaries=numpy.insert(boundaries, 0, 0)
         if scan_mask.sum()>self.MAX_FRAME_PIXELS:
             raise ValueError('Too many pixels to scan: {0}, limit {1}'.format(scan_mask.sum(),  self.MAX_FRAME_PIXELS))
         frame_timing[-1]=0
         projector_control[-1]=0
-        return waveform_x,  waveform_y, projector_control,  frame_timing,  boundaries
+        return waveform_x,  waveform_y, projector_control, frame_timing, boundaries
         
 def binning_data(data, factor):
     '''
@@ -183,7 +186,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         for chunk_ in split_data:
             if 'channels' in self.data_format:
                 scaled=chunk_[self.data_format['channels']]
-                image=rawpmt2image(chunk_.T, self.data_format['boundaries'][1:], binning_factor=self.binning_factor,  offset = 0)
+                image=rawpmt2image(chunk_.T, self.data_format['boundaries']+35, binning_factor=self.binning_factor,  offset = self.offset)
             else:
                 image=chunk_[None,:]
             if hasattr(self,'data_handle'):
@@ -229,6 +232,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         frame_rate= self.kwargs['ao_sample_rate']/waveform.shape[1]
                         self.frame_chunk_size=int(numpy.ceil(frame_rate/self.acquistion_rate))
                         waveform=numpy.tile(waveform,self.frame_chunk_size)
+                        self.waveform=waveform
                         daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
                         self.open_shutter()
@@ -262,6 +266,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             
 class Test(unittest.TestCase):
     
+    @unittest.skip('')
     def test_recorder_process(self):
         from visexpman.engine.generic import log,fileop
         import tempfile
@@ -335,7 +340,7 @@ class Test(unittest.TestCase):
                 self.assertTrue((numpy.diff(item[:,:,0],axis=1)>=0).all())
             fh.close()
             
-    @unittest.skip('')    
+    @unittest.skip('')
     def test_waveform_generator(self):
         #Input parameter ranges
         from pylab import plot, show
@@ -418,7 +423,7 @@ class Test(unittest.TestCase):
                 except:
                     pdb.set_trace()
                 
-#    @unittest.skip('')    
+    @unittest.skip('')    
     def test_rawpmt2img(self):
         '''
         Generate valid scanning waveforms and feed them as raw pmt signals
@@ -452,6 +457,20 @@ class Test(unittest.TestCase):
                 self.assertTrue((numpy.diff(img[:,:,1].mean(axis=1))>0).all())
             except:
                 pass
+                
+    def test_waveform_generator_test_bench(self):
+        fsample=400e3
+        scan_voltage_um_factor=3.0/256
+        frame_timing_pulse_width=1e-6
+        height=100
+        width=100
+        resolution=2
+        xflyback=20
+        yflyback=2
+        pulse_width=100e-6
+        pulse_phase=0
+        sw=ScannerWaveform(fsample=fsample, scan_voltage_um_factor=scan_voltage_um_factor, projector_control_voltage=3.3, frame_timing_pulse_width=frame_timing_pulse_width)
+        waveform_x, waveform_y, projector_control, frame_timing, boundaries= sw.generate(height, width, resolution, xflyback, yflyback, pulse_width, pulse_phase)
 
 if __name__ == "__main__":
     unittest.main()
