@@ -8,8 +8,8 @@ except ImportError:
     import PyQt5.QtGui as QtGui
     import PyQt5.QtCore as QtCore
 
-from visexpman.engine.generic import gui,fileop, signal, utils
-from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io
+from visexpman.engine.generic import gui,fileop, signal, utils, introspect
+from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io,openephys
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 from visexpman.engine.analysis import behavioral_data
 
@@ -140,6 +140,9 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if self.recording:
                 return
+            if not introspect.is_process_running('open-ephys') and self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+                QtGui.QMessageBox.question(None,'Warning', 'Open-ephys GUI is not running', QtGui.QMessageBox.Ok)
+                return
             if 1000/self.parameters['params/Frame Rate']<self.parameters['params/Exposure time']:
                 msg='Exposure time is too long for this frame rate!'
                 self.printc(msg)
@@ -168,6 +171,12 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': experiment_data.get_id()},prefix = self.machine_config.CAMFILENAME_TAG,extension='.mp4')
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+                if not openephys.start_recording():
+                    self.printc('Openephyc cannot be triggered, is it started?')
+                else:
+                    self.printc('Start Openephys')
+                time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
             import psutil
@@ -214,15 +223,15 @@ class Camera(gui.VisexpmanMainWindow):
 #                for i in range(self.sync.shape[0]-1):
 #                    concatenated=numpy.concatenate((concatenated,  self.sync[i+1]))
 #                self.sync=concatenated
-                hdf5io.save_item(self.fn, 'sync', self.sync)
-                hdf5io.save_item(self.fn, 'machine_config',  self.machine_config.todict())
+                hdf5io.save_item(hdf5_out, 'sync', self.sync)
+                hdf5io.save_item(hdf5_out, 'machine_config',  self.machine_config.todict())
                 self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TBEHAV_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
-                self.printc('Measured frame rate is {0:.2f} Hz, std: {1:.2f}, recorded {2} frames'.format(fpsmean, fpsstd,  self.fps_values.shape[0]+1))
+                self.printc('Measured frame rate is {0:.2f} Hz, std: {1:.2f} ms, recorded {2} frames'.format(fpsmean, 1000/fpsstd,  self.fps_values.shape[0]+1))
                 self.check_camera_timing_signal()
                 if self.trigger_state=='stopped':#check if nvista camera was also recording
                     self.check_nvista_camera_timing()
             else:
-                self.printc('mean: {0} Hz,  std: {1} Hz'.format(1/numpy.mean(numpy.diff(self.ts)), 1/numpy.std(numpy.diff(self.ts))))
+                self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
@@ -232,7 +241,16 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Save time {0} s'.format(int(time.time()-t0)))
             if hasattr(self, 'fps_values') and self.fps_values.shape[0]<10:
                 self.printc('Recording too short, file removed')
-                os.remove(self.fn)
+                os.remove(hdf5_out)
+            if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':
+                experiment_data.hdf52mat(hdf5_out,  scale_sync=True)
+                os.remove(hdf5_out)
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+                time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
+                self.printc('Stop Openephys')
+                openephys.stop_recording()
+                
+                
         except:
             e=traceback.format_exc()
             self.printc(e)

@@ -459,7 +459,7 @@ class ImagingSourceCameraHandler(multiprocessing.Process):
             if self.filename!=None:
                 self.saver=SaverProcess(self.filename,  self.frame, 100)
                 self.saver.start()
-            from visexpur.tis import tisgrabber_import
+            from tis import tisgrabber_import
             lib=tisgrabber_import.TIS_grabber()
             lib.InitLibrary()
             camera_name=lib.Kamera_finden()[0]
@@ -613,7 +613,8 @@ class SaverProcess(multiprocessing.Process):
                             elif hasattr(self,  'video_writer'):
                                 for fr in chunk:
                                     if len(fr.shape)==2:
-                                        self.video_writer.writeFrame(numpy.rollaxis(numpy.array([fr]*3),0,3))
+                                        frout=numpy.rollaxis(numpy.array([fr]*3),0,3).copy()
+                                        self.video_writer.writeFrame(frout)
                                     else:
 #                                        fileop.write_text_file(r'f:\tmp\erro1.txt',str(fr.shape))
 #                                        fileop.write_text_file(r'f:\tmp\erro2.txt',str(fr.dtype))
@@ -625,7 +626,7 @@ class SaverProcess(multiprocessing.Process):
     #                    if ct%3==1:
     #                        self.datafile.root.frames.flush()
                 else:
-                    time.sleep(5e-3)
+                    time.sleep(10e-3)
     #        self.datafile.root.frames.append(numpy.array(frames))
             if hasattr(self,  'datafile'):
                 self.datafile.root.frames.flush()

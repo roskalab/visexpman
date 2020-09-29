@@ -216,7 +216,7 @@ class SyncAnalogIO():
         ai_data = self.ai_data[:int(self.read_buffer.value * self.n_ai_channels)]
         ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.n_ai_channels, self.read_buffer.value)))
         self.ai_frames += 1
-        return ai_data
+        return ai_data.copy()
         
     def stop(self):
         ai_data=self.read()

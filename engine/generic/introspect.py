@@ -18,6 +18,9 @@ import weakref
 import subprocess, os, signal
 import psutil
 
+def is_process_running(name):
+    return len([proc.name() for proc in psutil.process_iter() if name in proc.name()])>0
+
 def base_classes(obj):
     ref=obj.__class__
     chain=[ref.__name__]
