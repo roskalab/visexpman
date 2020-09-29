@@ -875,7 +875,7 @@ class ExperimentHandler(object):
         elif trigger_name == 'stim done':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca', 'ao_cortical', 'retinal', '2p',  'resonant']:
                 self.enable_check_network_status=True
-            if 'Record Eyecamera' in self.current_experiment_parameters and self.current_experiment_parameters['Record Eyecamera']:
+            if hasattr(self, 'current_experiment_parameters') and 'Record Eyecamera' in self.current_experiment_parameters and self.current_experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'stop_recording','args':[]},'cam')
             self.finish_experiment()
 #        elif trigger_name=='sync recording started':
