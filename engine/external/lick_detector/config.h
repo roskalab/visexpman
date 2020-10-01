@@ -1,7 +1,13 @@
+#define VOR_SETUP 1
 #define LICKPIN A1
 #define LICKDETECTEDPIN 5
-#define REWARDPIN 3
-#define LASERPIN 8
+#if (VOR_SETUP==1)
+  #define REWARDPIN 8
+  #define LASERPIN 3
+#else
+  #define REWARDPIN 3
+  #define LASERPIN 8
+#endif
 #define DEBUGPIN 4
 #define SLAVESELECTPIN 10
 #define ADCREF 1.1
@@ -10,6 +16,9 @@
 #define DETECTOR_RUN_PERIOD_MS 10
 #define LICK_DURATION_MIN 10e-3
 #define LICK_DURATION_MAX 100e-3
-#define LICK_THRESHOLD 0.25
+#if (VOR_SETUP==1)
+  #define LICK_THRESHOLD 0.10
+#else
+  #define LICK_THRESHOLD 0.25
+#endif
 #define DEBUG_PULSE_DURATION_US 200
-

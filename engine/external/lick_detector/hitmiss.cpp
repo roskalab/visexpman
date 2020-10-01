@@ -101,6 +101,12 @@ void HitMiss::run(void)
             digitalWrite(REWARDPIN, LOW);
             Serial.println("Reward OFF");
           }
+          else
+          {
+            digitalWrite(REWARDPIN, HIGH);
+            delay((int)(par[0]));
+            digitalWrite(REWARDPIN, LOW);
+          }
         #endif
         }
         else
