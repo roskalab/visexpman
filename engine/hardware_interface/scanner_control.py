@@ -136,6 +136,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.acquistion_rate=3
         self.max_val=2**16-1
         self.to16bit=1/(self.data_range_max-self.data_range_min)*self.max_val
+        self.offset=kwargs.get('offset',0)
         
     def start(self):
         instrument.InstrumentProcess.start(self)

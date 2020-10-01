@@ -701,6 +701,8 @@ def pack_software_environment(experiment_source_code = None):
         software_environment = {}
         module_names, visexpman_module_paths = utils.imported_modules()
         module_versions, software_environment['module_version'] = utils.module_versions(module_names)
+        if software_environment['module_version']=={}:
+            del software_environment['module_version']
         tostream=False
         if not tostream:
             tmpfn=tempfile.mktemp()+'.zip'

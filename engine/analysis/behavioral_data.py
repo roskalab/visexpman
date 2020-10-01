@@ -321,7 +321,7 @@ def lick_detection_folder(folder,fsample,lick_wait_time,threshold=0.25,max_width
             pass
     ids=[experiment_data.id2timestamp(experiment_data.parse_recording_filename(f)['id']) for f in fns]
     p=multiprocessing.Pool(introspect.get_available_process_cores())
-    res=map(lick_detection_wrapper,pars)
+    res=list(map(lick_detection_wrapper,pars))
     output=[[ids[i], res[i][0],res[i][1], res[i][2]] for i in range(len(res))]
     return output
         
@@ -527,7 +527,7 @@ class HitmissAnalysis(object):
                      continue
                 h=hdf5io.Hdf5io(f)
                 stat=h.findvar('stat')
-                if not stat.has_key('stimulus_t'):
+                if 'stimulus_t' not in stat:
                     h.close()
                     continue
                     sync=h.findvar('sync')
@@ -536,25 +536,25 @@ class HitmissAnalysis(object):
                     stat=lick_detector.detect_events(sync,machine_config['AI_SAMPLE_RATE'])[0]
                     h.stat=stat
                     h.save('stat')
-                if self.filter.has_key('voltage') and h.findvar('protocol')['LASER_INTENSITY'] != self.filter['voltage']:
+                if 'voltage' in self.filter and h.findvar('protocol')['LASER_INTENSITY'] != self.filter['voltage']:
                     h.close()
                     continue
                 self.nflashes+=1
                 h.close()
                 self.nhits+=stat['result']
                 self.nsuccesfullicks+=stat['lick_result']
-                if stat.has_key('lick_latency'):
+                if 'lick_latency' in stat:
                     self.lick_latencies.append(stat['lick_latency']*1000)
-                if stat.has_key('reward_latency'):
+                if 'reward_latency' in stat:
                     self.reward_latencies.append(stat['reward_latency']*1000)
                 self.lick_times.extend((1000*(stat['lick_times']-stat['stimulus_t'][0])).tolist())
             except:
                 import logging, traceback
                 logging.info(f)
                 logging.error(traceback.format_exc())
-        self.lick_latencies=numpy.array(map(int,self.lick_latencies))
-        self.reward_latencies=numpy.array(map(int,self.reward_latencies))
-        self.lick_times=numpy.array(map(int,self.lick_times))
+        self.lick_latencies=numpy.array(list(map(int,self.lick_latencies)))
+        self.reward_latencies=numpy.array(list(map(int,self.reward_latencies)))
+        self.lick_times=numpy.array(list(map(int,self.lick_times)))
         if self.nflashes==0:
             self.success_rate=0
             self.lick_success_rate=0
@@ -564,11 +564,11 @@ class HitmissAnalysis(object):
         return self.lick_times,self.lick_latencies,self.reward_latencies,self.nflashes,self.nhits,self.success_rate,self.lick_success_rate
         
     def add2day_analysis(self,filename):
-        stat=hdf5io.read_item(filename,'stat')
+        stat=utils.array2object(hdf5io.read_item(filename,'stat'))
         self.nhits+=stat['result']
         self.nflashes+=1
         self.success_rate=self.nhits/float(self.nflashes)
-        if stat.has_key('lick_latency'):
+        if 'lick_latency' in stat:
             numpy.append(self.lick_latencies,stat['lick_latency']*1000)
         self.lick_times=numpy.concatenate((self.lick_times,numpy.cast['int'](stat['lick_times']*1000)))
         
