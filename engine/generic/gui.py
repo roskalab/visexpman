@@ -473,7 +473,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
         maximums = []
         if len(plotparams)>0 and any([True for pp in plotparams if 'name' in pp.keys()]):
             if self.plot.legend != None:
-                self.plot.legend.scene().removeItem(self.plot.legend)
+                self.plot.legend.removeItem(self.plot.legend)
             self.plot.addLegend()
             self.plot.legend.setScale(0.7)
         for i in range(ncurves):
