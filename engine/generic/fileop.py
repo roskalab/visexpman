@@ -899,6 +899,15 @@ def merge_hdf5_files(src,dst):
     srch.close()
     dsth.close()
     
+def rename_files(folder, src_pattern, dst_pattern):
+    files, dirnames=find_files_and_folders(folder)
+    for f in files:
+        if src_pattern in os.path.basename(f):
+            print(f)
+            shutil.move(f, os.path.join(os.path.dirname(f), os.path.basename(f).replace(src_pattern, dst_pattern)))
+    
+    
+    
 ################# End of functions ####################  
 
 import unittest
