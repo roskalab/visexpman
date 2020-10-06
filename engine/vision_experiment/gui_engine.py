@@ -108,6 +108,8 @@ class ExperimentHandler(object):
         if hasattr(self.machine_config, 'GUI_ENGINE_COPIER') and self.machine_config.GUI_ENGINE_COPIER:
             self.copier=experiment_data.Copier(self.dataroot, os.path.join(self.machine_config.BACKUP_PATH, self.machine_config.user))
             self.copier.start()
+        if self.machine_config.ENABLE_FILE_TRIGGER:
+            self.file_trigger_handler=fileop.FileTrigger(self.machine_config.FILE_TRIGGER_PATHS, self.machine_config.FILE_CHECK_INTERVAL)
             
     def set_data_folder(self, folder):
         self.dataroot=folder
@@ -257,6 +259,9 @@ class ExperimentHandler(object):
                 experiment_parameters[pn]=v
         experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         #experiment_parameters['eyecamfilename']=fileop.replace_extension(experiment_parameters['eyecamfilename'], '.mp4')
+        if hasattr(self, 'trigger_filename') and self.trigger_filename!=None:
+            experiment_parameters['trigger_filename']=self.trigger_filename
+            experiment_parameters['trigger_timestamp']=os.path.getctime(self.trigger_filename)
         return experiment_parameters
             
     def start_batch_experiment(self):
@@ -413,7 +418,17 @@ class ExperimentHandler(object):
                         self.start_experiment(manually_started=False)
                     elif self.guidata.read('Repeats')>1 and not self.batch_running:
                         self.start_batch_experiment()
-                
+                        
+    def check_file_trigger(self):
+        if hasattr(self,  'file_trigger_handler') and not self.experiment_running:
+            trig, self.trigger_filename=self.file_trigger_handler.check()
+            if self.guidata.read('Enable File Trigger') and trig:
+                repeats=self.guidata.read('Repeats')
+                if repeats in [None, 1]:
+                    self.start_experiment(manually_started=False)
+                elif repeats>1 and not self.batch_running:
+                    self.start_batch_experiment()
+
     def connect(self):
         self.microscope_handler('init')
         
@@ -820,6 +835,7 @@ class ExperimentHandler(object):
         now=time.time()
         self.check_batch()
         self.mc_mea_trigger()
+        self.check_file_trigger()
         if self.sync_recording_started:
             self.read_sync_recorder()
             if self.santiago_setup:
@@ -2070,7 +2086,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         current_hash=introspect.visexpman2hash()
         saved_hash=self.guidata.read('software_hash')
         if not numpy.array_equal(saved_hash, current_hash):
-            self.to_gui.put({'permanent_warning':'Software hashes do not match, make sure that the correct software version is used!'})
+            #self.to_gui.put({'permanent_warning':'Software hashes do not match, make sure that the correct software version is used!'})
             self.printc('Software hashes do not match, make sure that the correct software version is used!')
         if self.machine_config.PLATFORM=='ao_cortical':
             meshash=introspect.mes2hash()

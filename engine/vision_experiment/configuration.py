@@ -84,6 +84,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FREE_SPACE_ERROR_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         ENABLE_USER_FOLDER=True
+        FILE_TRIGGER_PATHS=False
+        ENABLE_FILE_TRIGGER=False
         
         ############# Network #####################      
         self.BASE_PORT = 20000
@@ -112,7 +114,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MEASURE_FRAME_RATE = False
         
         ########  Coordinate system selection ########
-        COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 
+        COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] #OBSOLETE, should be centered by default
         ORIGO = utils.rc((numpy.inf, numpy.inf))
         HORIZONTAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['left', 'right', 'undefined']]
         VERTICAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['up', 'down', 'undefined']]
@@ -168,30 +170,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_OPENEPHYS_TRIGGER=False
         
         ############# Graphical User Interface related ######################
-        GUI = {}
-        GUI['GREEN_LABELING_SUGGESTIONS'] = ['',
-        'scaav 2/1 hsyn gcamp3', 
-        'aav 2/1 ef1a gcamp6s', 'gc6', 
-        'aav 2/1 ef1a mruby 2a gcamp6s', 
-        'scaav-G6', 
-        'rabies-GCaMP6', 
-        'aav 2/1 ef1a gcamp5', 
-        'aav 2/1 ef1a DIO gcamp6s', 
-        'OGB', 
-        'aav 2/9 gcamp3 Penn', 
-        'aav 2/9  hsyn gcamp3', 
-        'aav 2/7 ef1a gcamp6s', 
-        'gcamp6']
-        GUI['GREEN_LABELING_SUGGESTIONS'].sort()
-        GUI['RED_LABELING_SUGGESTIONS'] = ['','no', 'yes']
-        GUI['INJECTION_TARGET_SUGGESTIONS'] = ['', 'V1', 'LGN', 'left retina', 'right retina']
-        GUI['MOUSE_STRAIN_SUGGESTIONS'] = ['', 'chatdtr', 'rd1', 'bl6', 'chat', 'SCN1cre', 'chat tomato', 'c3h', 'grik4']
-        GUI['MOUSE_STRAIN_SUGGESTIONS'].sort()
-        GUI['GUI_REFRESH_PERIOD'] = 2.0
-        GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
-        GUI['INJECTED_SUBSTANCE_SUGGESTIONS'] = ['', 'chlorprothixene', 'isofluorane']
-        GUI['INJECTED_SUBSTANCE_SUGGESTIONS'].extend(GUI['GREEN_LABELING_SUGGESTIONS'])
-        DEFAULT_ROI_SIZE_ON_GUI=[2,[1,100]]
         
         ############# Experiment configuration/ experiment protocol related ######################
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]

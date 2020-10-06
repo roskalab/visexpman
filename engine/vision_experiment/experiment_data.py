@@ -16,7 +16,7 @@ except ImportError:
 from PIL import Image,ImageDraw
 import matplotlib
 matplotlib.use('Qt4Agg')
-from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
+#from pylab import show,plot,imshow,figure,title,subplot,savefig, cla, clf,xlabel,ylabel,gca,Rectangle
 from visexpman.engine.generic import utils,fileop,signal,videofile,introspect
 try:
     import hdf5io
@@ -1696,6 +1696,10 @@ def hdf52mat(filename, scale_sync=False, exclude=[]):
                     for kk, v in mat_data[k].items():
                         if v is None:
                             mat_data[k][kk]='None'
+                        if hasattr(v, 'keys'):
+                            for kki, vvi in v.items():
+                                if vvi is None:
+                                    mat_data[k][kk][kki]='None'
             
     else:
         try:

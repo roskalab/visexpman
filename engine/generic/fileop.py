@@ -907,7 +907,39 @@ def rename_files(folder, src_pattern, dst_pattern):
             shutil.move(f, os.path.join(os.path.dirname(f), os.path.basename(f).replace(src_pattern, dst_pattern)))
     
     
-    
+class FileTrigger(object):
+    def __init__(self, paths, check_interval, extension=None):
+        self.paths=paths
+        self.check_interval=check_interval
+        self.extension=extension
+        self.last_check=time.time()
+        self.files_used_for_trigger=[]
+        
+    def check(self):
+        now=time.time()
+        result=False
+        file=None
+        if now-self.last_check>self.check_interval:
+            self.latest_files=[]
+            for p in self.paths:
+                latest=find_latest(p,self.extension)
+                if latest!=None:
+                    self.latest_files.append(latest)
+#            print(self.latest_files)
+            if len(self.latest_files)>0:
+                #If any of the files  were created since last check
+#                print([os.path.getmtime(p)-self.last_check for p in self.latest_files])
+                file=[p for p in self.latest_files if os.path.getmtime(p)-self.last_check>0]
+                file=file[0] if len(file)>0 else None                    
+                dts=[os.path.getmtime(p)-self.last_check>0 for p in self.latest_files]
+                result=any(dts) and file not in self.files_used_for_trigger
+                if result:
+                    self.files_used_for_trigger.append(file)
+                    print((os.path.getmtime(file),  os.path.getctime(file)))
+            import copy
+            self.last_check=copy.deepcopy(now)
+        return result, file
+
 ################# End of functions ####################  
 
 import unittest

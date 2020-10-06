@@ -157,7 +157,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def block_start(self, block_name = 'stimulus function'):
         if hasattr(self, 'digital_io'):
             self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 1)
-        self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
+        self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name,  'time':time.time()})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 1]})
         if hasattr(self.log, 'info'):
@@ -166,7 +166,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     def block_end(self, block_name = 'stimulus function'):
         if hasattr(self, 'digital_io'):
             self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 0)
-        self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
+        self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name, 'time':time.time()})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 0]})
         if hasattr(self.log, 'info'):

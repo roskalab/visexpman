@@ -808,7 +808,7 @@ class MainUI(gui.VisexpmanMainWindow):
         
         name_name='Name' if not hasattr(self.machine_config,  'NAME_FIELD_NAME') else self.machine_config.NAME_FIELD_NAME
         self.params_config = [
-                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea'], 'children': [#'expanded' : True
+                {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea', 'generic'], 'children': [#'expanded' : True
                     {'name': name_name, 'type': 'str', 'value': ''},
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
@@ -821,8 +821,6 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     ]},
                     ]
-        if self.machine_config.PLATFORM in ['mc_mea']:
-            self.params_config[0]['children'].append({'name': 'MC Rack New File Trigger Enable', 'type': 'bool', 'value': False})
         if len(fw1)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
@@ -896,10 +894,12 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Runwheel attached', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
             self.params_config[0]['children'].append({'name': 'Partial Save', 'type': 'bool', 'value': False})
-        elif self.machine_config.PLATFORM in ['2p', 'generic']:
+        elif self.machine_config.ENABLE_EYE_CAMERA:
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
         if self.machine_config.PLATFORM in ['2p', 'resonant', 'generic']:
             self.params_config[0]['children'].append({'name': 'Stimulus Only', 'type': 'bool', 'value': False})
+        if self.machine_config.ENABLE_FILE_TRIGGER:
+            self.params_config[0]['children'].append({'name': 'Enable File Trigger', 'type': 'bool', 'value': False})
         if self.machine_config.ENABLE_BATCH_EXPERIMENT:
             #Append batch experiment settings
             if self.machine_config.PLATFORM=='2p':

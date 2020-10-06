@@ -479,6 +479,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
 #            self.datafile['software_environment'] = experiment_data.pack_software_environment()
 #            self.datafile['configs'] = experiment_data.pack_configs(self)
 #            self.datafile['frame_times']=self.screen.frame_times
+        if 'trigger_timestamp' in self.parameters:
+            t0=self.parameters['trigger_timestamp']
+            self.datafile.block_timestamps=[sfi['time']-t0 for sfi in self.stimulus_frame_info  if 'block_name' in sfi]
         
     def _save2file(self):
         '''
@@ -490,6 +493,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
         self.datafile = experiment_data.CaImagingData(self.outputfilename)
         self._prepare_data2save()
+        if hasattr(self.datafile, 'block_timestamps'):
+            variables2save.append('block_timestamps')
         [setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v) and v not in ['configs', 'software_environment']]
         for v in variables2save :
             if hasattr(self.datafile, v):
