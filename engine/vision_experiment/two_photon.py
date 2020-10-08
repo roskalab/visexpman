@@ -192,6 +192,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'X Return Time', 'type': 'float', 'value': 20,  'suffix': ' %'},
                     {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
                     {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
+                    {'name': '2p Shift', 'type': 'int', 'value': 35,  'suffix': ' samples'},
                 ]}, 
             ]
         self.params_config.extend(params)
@@ -282,12 +283,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.p.update_curves(x, y,colors=[(255, 128, 0),  (0, 255, 0),  (0, 0, 255),  (255, 0, 0)])
         self.p.show()
         
-#        for s in :
-#            
-#            plot(t, s+i*10)
-#            i+=1
-#        grid(True)
-#        show()
+    def plot_raw(self):
+        if not self.aio.queues['raw'].empty():
+            d=self.aio.queues['raw'].get()
+            t=numpy.arange(d.shape[1])/self.machine_config.AI_SAMPLE_RATE
+            y=[d[0],d[1]]
+            x=[t,t]
+            self.p=gui.Plot(None)
+            self.p.setGeometry(100, 100, 500, 500)
+            self.p.update_curves(x, y,colors=[(255, 128, 0),  (0, 255, 0),  (0, 0, 255),  (255, 0, 0)])
+            self.p.show()
     
 ######### Two Photon ###########
     def prepare_2p(self):
@@ -304,7 +309,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
         self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
-        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()})
+        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},offset=self.settings['params/Advanced/2p Shift'])
         self.twop_running=True
         self.statusbar.twop_status.setText('2P')
         self.statusbar.twop_status.setStyleSheet('background:red;')

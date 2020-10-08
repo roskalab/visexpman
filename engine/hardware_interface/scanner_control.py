@@ -127,7 +127,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     """
     def __init__(self, ai_channels,  ao_channels, logfile, **kwargs):
         self.logfile=logfile
-        self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
+        self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue(),'raw':multiprocessing.Queue()}
         instrument.InstrumentProcess.__init__(self, self.queues, logfile)
         daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'])
         self.kwargs=kwargs
@@ -136,16 +136,15 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         self.acquistion_rate=3
         self.max_val=2**16-1
         self.to16bit=1/(self.data_range_max-self.data_range_min)*self.max_val
-        self.offset=kwargs.get('offset',0)
         
     def start(self):
         instrument.InstrumentProcess.start(self)
         
-    def start_(self, waveform, filename, data_format):
+    def start_(self, waveform, filename, data_format,offset=0):
         """
         data_format: dictionary containing channels to be saved and boundaries
         """
-        self.queues['command'].put(('start', waveform, filename, data_format))
+        self.queues['command'].put(('start', waveform, filename, data_format, offset))
         
     def stop(self):
         self.queues['command'].put(('stop',))
@@ -187,7 +186,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         for chunk_ in split_data:
             if 'channels' in self.data_format:
                 scaled=chunk_[self.data_format['channels']]
-                image=rawpmt2image(chunk_.T, self.data_format['boundaries']+35, binning_factor=self.binning_factor,  offset = self.offset)
+                image=rawpmt2image(chunk_.T, self.data_format['boundaries']+self.offset, binning_factor=self.binning_factor,  offset = 0)
             else:
                 image=chunk_[None,:]
             if hasattr(self,'data_handle'):
@@ -213,6 +212,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         waveform=cmd[1]
                         filename=cmd[2]
                         self.data_format=cmd[3]
+                        self.offset=cmd[4]
                         self.binning_factor=int(self.kwargs['ai_sample_rate']/self.kwargs['ao_sample_rate'])
                         if filename is not None:
                             fh=tables.open_file(filename,'w')
@@ -255,6 +255,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl("Unknown command: {0}".format(cmd))
                 if self.running:
                     data_chunk=daq.SyncAnalogIO.read(self)
+                    if self.queues['raw'].empty():
+                        self.queues['raw'].put(data_chunk)
                     frame=self.data2file(data_chunk)
                     if self.queues['data'].empty():
                         self.queues['data'].put(frame)
