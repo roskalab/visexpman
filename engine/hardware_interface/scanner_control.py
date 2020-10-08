@@ -231,9 +231,12 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             if hasattr(self, 'data_handle'):
                                 del self.data_handle
                         frame_rate= self.kwargs['ao_sample_rate']/waveform.shape[1]
-                        self.frame_chunk_size=int(numpy.ceil(frame_rate/self.acquistion_rate))
+                        self.frame_chunk_size=1#int(numpy.ceil(frame_rate/self.acquistion_rate))
+                        self.printl(f'frame_chunk_size is {self.frame_chunk_size}')
                         waveform=numpy.tile(waveform,self.frame_chunk_size)
                         self.waveform=waveform
+                        bt=waveform.shape[1]/self.kwargs['ao_sample_rate']
+                        self.printl(f'buffer time is {bt}')
                         daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
                         self.open_shutter()
@@ -254,13 +257,18 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     else:
                         self.printl("Unknown command: {0}".format(cmd))
                 if self.running:
-                    data_chunk=daq.SyncAnalogIO.read(self)
+                    try:
+                        data_chunk=daq.SyncAnalogIO.read(self)
+                    except (PyDAQmx.DAQmxFunctions.SamplesNotYetAvailableError,PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError) as e:
+                        self.printl('Read error')
+                        continue
+                        
                     if self.queues['raw'].empty():
                         self.queues['raw'].put(data_chunk)
                     frame=self.data2file(data_chunk)
                     if self.queues['data'].empty():
                         self.queues['data'].put(frame)
-                time.sleep(0.05)
+                time.sleep(0.02)
             #Clean up
             self.digital_output.ClearTask()
         except:
