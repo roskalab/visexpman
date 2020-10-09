@@ -135,10 +135,7 @@ class StimulusTree(pyqtgraph.TreeWidget):
         self.root=root
         pyqtgraph.TreeWidget.__init__(self,parent)
         self.setColumnCount(1)
-        if hasattr(QtCore, 'QStringList'):
-            self.setHeaderLabels(QtCore.QStringList(['']))#, 'Date Modified']))
-        else:
-            self.setHeaderLabels([''])#, 'Date Modified']))
+        self.setHeaderLabels([''])#, 'Date Modified']))
         self.populate()
         self.itemDoubleClicked.connect(self.stimulus_selected_for_open)
         self.itemClicked.connect(self.stimulus_selected)

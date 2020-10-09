@@ -258,19 +258,19 @@ class SimpleAppWindow(Qt.QMainWindow):
             return True
             
     def ask4filename(self,title, directory, filter):
-        filename = str(QtGui.QFileDialog.getOpenFileName(self, title, directory, filter))
+        filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)[0]
         if os.name=='nt':
             filename=filename.replace('/','\\')
         return filename
         
     def ask4filenames(self,title, directory, filter):
-        filenames = map(str,QtGui.QFileDialog.getOpenFileNames(self, title, directory, filter))
+        filenames = QtGui.QFileDialog.getOpenFileNames(self, title, directory, filter)[0]
         if os.name=='nt':
             filenames=[filename.replace('/','\\') for filename in filenames]
         return filenames
         
     def ask4foldername(self,title, directory):
-        foldername = str(QtGui.QFileDialog.getExistingDirectory(self, title, directory))
+        foldername = QtGui.QFileDialog.getExistingDirectory(self, title, directory)[0]
         if os.name=='nt':
             foldername=foldername.replace('/','\\')
         return foldername
@@ -612,7 +612,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             else:
                 self.emit(QtCore.SIGNAL('wheel_double_click'), p.x(), p.y())
-            self.update_roi_info()
+            #self.update_roi_info()
         elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2:
             self.emit(QtCore.SIGNAL('roi_mouse_selected'), p.x(), p.y(),ctrl_pressed)
         
@@ -626,7 +626,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         elif type == 'rect':
             roi = pyqtgraph.RectROI((x-0.5*size[0],y-0.5*size[1]),size=size, movable = movable)
         roi.setPen((self.unselected_color[0],self.unselected_color[1],self.unselected_color[2],255), width=2)
-        roi.sigRegionChanged.connect(self.update_roi_info)
+        #roi.sigRegionChanged.connect(self.update_roi_info)
         self.rois.append(roi)
         self.plot.addItem(self.rois[-1])
         
