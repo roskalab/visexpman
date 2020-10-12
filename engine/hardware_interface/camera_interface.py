@@ -594,12 +594,25 @@ class SaverProcess(multiprocessing.Process):
             ct=0
             chunk=[]
             frames=[]
+            log=''
             while True:
                 if not self.dataq.empty():
                     frame=self.dataq.get()
+                    if hasattr(frame, 'shape'):
+                        log+=str(len(chunk))+' '+str(frame.shape)+' frame\r\n'
                     if not hasattr(frame,  'dtype'):
-                        if len(chunk)>0 and hasattr(self,  'datafile'):
-                            self.datafile.root.frames.append(numpy.array(chunk))
+                        if len(chunk)>0:
+                            if hasattr(self,  'datafile'):
+                                self.datafile.root.frames.append(numpy.array(chunk))
+                            elif hasattr(self,  'video_writer'):
+                                for fr in chunk:
+                                    if len(fr.shape)==2:
+                                        frout=numpy.rollaxis(numpy.array([fr]*3),0,3).copy()
+                                        self.video_writer.writeFrame(frout)
+                                    else:
+#                                        fileop.write_text_file(r'f:\tmp\erro1.txt',str(fr.shape))
+#                                        fileop.write_text_file(r'f:\tmp\erro2.txt',str(fr.dtype))
+                                        self.video_writer.writeFrame(fr.copy())
                         chunk=[]
                         break
                     else:
@@ -618,8 +631,9 @@ class SaverProcess(multiprocessing.Process):
                                     else:
 #                                        fileop.write_text_file(r'f:\tmp\erro1.txt',str(fr.shape))
 #                                        fileop.write_text_file(r'f:\tmp\erro2.txt',str(fr.dtype))
-                                        self.video_writer.writeFrame(fr)
-                                
+                                        self.video_writer.writeFrame(fr.copy())
+                                    log+=str(fr.shape)+'\r\n'
+                            chunk=[]
                         else:
                             time.sleep(1e-3)
                         ct+=1
@@ -636,7 +650,8 @@ class SaverProcess(multiprocessing.Process):
             self.done.put(True)
         except:
             import traceback
-            fileop.write_text_file(r'f:\tmp\error.txt',traceback.format_exc())
+            fileop.write_text_file(r'd:\Data\error.txt',traceback.format_exc())
+#        fileop.write_text_file(r'd:\Data\ct.txt',str(log))
         
 class TestISConfig(configuration.Config):
     def _create_application_parameters(self):

@@ -68,7 +68,8 @@ class Camera(gui.VisexpmanMainWindow):
         else:
             self.parameter_changed()
         self.load_all_parameters()
-        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, None)
+        port= self.machine_config.CAMERA_IO_PORT if hasattr(self.machine_config, 'CAMERA_IO_PORT') else None
+        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, port)
         self.camerahandler.start()
         self.trigger_detector_enabled=False
 #        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
@@ -233,6 +234,9 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
+            import skvideo.io
+            fc=skvideo.io.vread(self.fn).shape[0]
+            self.printc('Recorded {0} frames'.format(fc))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
@@ -398,6 +402,7 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc(self.camerahandler.log.get())
             if not self.camerahandler.display_frame.empty():
                 frame=self.camerahandler.display_frame.get()
+                self.frame=frame
                 if self.parameters['params/Enable ROI cut']:
                     frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
                 f=numpy.copy(frame)
