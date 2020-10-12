@@ -178,6 +178,19 @@ class Camera(gui.VisexpmanMainWindow):
                 else:
                     self.printc('Start Openephys')
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
+                #Check if openephys related file has appeared
+                latest_file=fileop.find_latest(self.machine_config.OPENEPHYS_DATA_PATH)
+                self.openephys_datafolder=os.path.join(self.machine_config.OPENEPHYS_DATA_PATH,latest_file.replace(self.machine_config.OPENEPHYS_DATA_PATH,'').split(os.sep)[1])
+                latest_file_age=fileop.file_age(latest_file)
+                if latest_file_age>self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
+                    openephys.stop_recording()
+                    self.recording=False
+                    msg='Openephys GUI does not save file to {0}, recording terminated'.format(self.machine_config.OPENEPHYS_DATA_PATH)
+                    self.printc(msg)
+                    QtGui.QMessageBox.question(self, "Warning", msg, QtGui.QMessageBox.Ok)
+                    self.statusbar.recording_status.setStyleSheet('background:gray;')
+                    self.statusbar.recording_status.setText('Ready')
+                    
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
             import psutil
@@ -234,9 +247,10 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
-            import skvideo.io
-            fc=skvideo.io.vread(self.fn).shape[0]
-            self.printc('Recorded {0} frames'.format(fc))
+            if os.path.getsize(self.fn)<100e3:
+                import skvideo.io
+                fc=skvideo.io.vread(self.fn).shape[0]
+                self.printc('Recorded {0} frames'.format(fc))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
@@ -253,8 +267,9 @@ class Camera(gui.VisexpmanMainWindow):
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
                 self.printc('Stop Openephys')
                 openephys.stop_recording()
-                
-                
+                zipfile=os.path.join(os.path.dirname(hdf5_out), fileop.replace_extension(os.path.basename(hdf5_out), '.zip'))
+                self.printc('Move openephys data to {0}'.format(zipfile))
+                fileop.move2zip(self.openephys_datafolder,zipfile)
         except:
             e=traceback.format_exc()
             self.printc(e)

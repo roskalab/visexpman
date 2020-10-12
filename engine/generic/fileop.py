@@ -308,7 +308,7 @@ def find_latest(path, extension=None):
     '''
     if not os.path.isdir(path):
         raise RuntimeError('Foldername expected not filename: {0}'.format(path))
-    fns = [fn for fn in listdir_fullpath(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
+    fns = [fn for fn in find_files_and_folders(path)[1] if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
     fns_dates = list(map(os.path.getmtime, fns))
