@@ -2098,7 +2098,8 @@ class AdvancedStimulation(StimulationHelpers):
                     raise RuntimeError('Could not generate non adjacent random order of squares')
                     
             #random.shuffle(positions_and_colors)
-        if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle':
+        if hasattr(self.experiment_config, 'SIZE_DIMENSION') and self.experiment_config.SIZE_DIMENSION=='angle' or \
+                hasattr(self, 'SIZE_DIMENSION') and self.SIZE_DIMENSION=='angle':
             #Calculate field of view and angle range
             if flash_repeat != 1 or sequence_repeat != 1 or shape_colors != [1.0]:
                 raise NotImplementedError("")
