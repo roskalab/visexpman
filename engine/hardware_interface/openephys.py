@@ -49,7 +49,7 @@ def file_quality_check(in_folder):
         
     ch_count = len(json_data['continuous'][0]['channels'])
      
-    data_file_path = os.path.join(in_folder, "continuous\Rhythm_FPGA-100.0\continuous.dat") #fix folder structure?
+    data_file_path = os.path.join(in_folder, "continuous","Rhythm_FPGA-100.0","continuous.dat") #fix folder structure?
     data = numpy.fromfile(data_file_path, dtype='<i2')
     deinterleaved_data = [data[idx::ch_count] for idx in range(ch_count)]
     sync_data = deinterleaved_data[camera_sync_ch_index]
@@ -101,6 +101,7 @@ class Test(unittest.TestCase):
     
     def test_file_quality_check(self):
         in_folder=r'H:\rz_organoid\oe_data\experiment1\recording1'
+        in_folder='/tmp/oe/experiment1/recording1'
         file_quality_check(in_folder)
 
         
