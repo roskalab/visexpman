@@ -247,10 +247,10 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
-            if os.path.getsize(self.fn)<100e3:
-                import skvideo.io
-                fc=skvideo.io.vread(self.fn).shape[0]
-                self.printc('Recorded {0} frames'.format(fc))
+            import skvideo.io
+            videogen = skvideo.io.vreader(self.fn)
+            fc=len([frame.shape for frame in videogen])
+            self.printc('Recorded {0} frames'.format(fc))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
@@ -260,16 +260,32 @@ class Camera(gui.VisexpmanMainWindow):
             if hasattr(self, 'fps_values') and self.fps_values.shape[0]<10:
                 self.printc('Recording too short, file removed')
                 os.remove(hdf5_out)
-            if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':
-                experiment_data.hdf52mat(hdf5_out,  scale_sync=True)
-                os.remove(hdf5_out)
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
                 self.printc('Stop Openephys')
                 openephys.stop_recording()
                 zipfile=os.path.join(os.path.dirname(hdf5_out), fileop.replace_extension(os.path.basename(hdf5_out), '.zip'))
+                self.printc('Check recorded data,please wait...')
+                QtCore.QCoreApplication.instance().processEvents()
+                self.frequency, self.frequency_std, self.video_frame_indexes, self.sync_data=openephys.check_data(self.openephys_datafolder)
+                hdf5io.save_item(hdf5_out, 'video_frame_indexes', self.video_frame_indexes)
                 self.printc('Move openephys data to {0}'.format(zipfile))
                 fileop.move2zip(self.openephys_datafolder,zipfile)
+            if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':
+                experiment_data.hdf52mat(hdf5_out,  scale_sync=True)
+                try:
+                    time.sleep(1)
+                    os.remove(hdf5_out)
+                except:
+                    time.sleep(5)
+                    os.remove(hdf5_out)
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+                self.printc(f"Expected frame rate: {self.parameters['params/Frame Rate']} Hz,  measured: {self.frequency} Hz, std: {self.frequency_std}")
+                if self.video_frame_indexes[0]<10e3*self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
+                    QtGui.QMessageBox.question(None,'Warning', 'Beginning of sync signal is corrupt', QtGui.QMessageBox.Ok)
+                if len(self.video_frame_indexes)!=fc:
+                    raise ValueError(f'Recorded number of frames ({fc}) and timestamps ({len(self.video_frame_indexes)}) do not match')
+                
         except:
             e=traceback.format_exc()
             self.printc(e)

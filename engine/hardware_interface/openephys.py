@@ -1,5 +1,6 @@
 import zmq,unittest,time, psutil, numpy, os, json, pdb
 import matplotlib.pyplot as plt
+from visexpman.engine.generic import signal
 PORT=5556
 IP='127.0.0.1'
 
@@ -32,7 +33,8 @@ def stop_recording():
     except:
         return False
 
-def file_quality_check(in_folder):
+def check_data(in_folder):
+    in_folder=os.path.join(in_folder, 'experiment1', 'recording1')
     json_file = open(os.path.join(in_folder, "structure.oebin"))
     json_data = json.load(json_file)
     json_file.close()
@@ -53,42 +55,40 @@ def file_quality_check(in_folder):
     data = numpy.fromfile(data_file_path, dtype='<i2')
     deinterleaved_data = [data[idx::ch_count] for idx in range(ch_count)]
     sync_data = deinterleaved_data[camera_sync_ch_index]
-    sync_data = sync_data[180000:]  #skip start transiens ??
+    sync_data_raw=numpy.copy(sync_data)
+    #sync_data = sync_data[180000:]  #skip start transiens ??
     
     #calc pulse widths, r_edge
     min_amplitude = 10000;
-    pulse_widths=[]
-    rising_edges=[]
-    found=False;
-    width_cnt=0;
-    for i in range(len(sync_data)):
-        if(sync_data[i] > min_amplitude):
-            if(width_cnt == 0): #rising edge
-                width_cnt = width_cnt +1
-                rising_edges.append(i)
-            else:
-                width_cnt = width_cnt +1
-        else:
-            if(width_cnt > 0): #falling edge
-                pulse_widths.append(width_cnt)
-                width_cnt = 0
-                
-    rising_edges = numpy.array(rising_edges)          
+#    pulse_widths=[]
+#    rising_edges=[]
+#    found=False;
+#    width_cnt=0;
+#    for i in range(len(sync_data)):
+#        if(sync_data[i] > min_amplitude):
+#            if(width_cnt == 0): #rising edge
+#                width_cnt = width_cnt +1
+#                rising_edges.append(i)
+#            else:
+#                width_cnt = width_cnt +1
+#        else:
+#            if(width_cnt > 0): #falling edge
+#                pulse_widths.append(width_cnt)
+#                width_cnt = 0
+#    rising_edges = numpy.array(rising_edges) 
+    rising_edges=signal.detect_edges(sync_data, min_amplitude)[::2]
     periods = rising_edges[1:] - rising_edges[0:-1]  #samples
     periods = periods * (1.0/sample_rate);  #sec 
     period = periods.mean()
     frequency = 1.0/period  #Hz
-    frequency_dev = (1.0/periods).std();
+    frequency_std = (1.0/periods).std();
     
     print("period(mean)",period*1000, "ms") 
     print("Frequency(mean):",frequency,"Hz")
-    print("Frequency deviation:",frequency_dev,"Hz")
+    print("Frequency deviation:",frequency_std,"Hz")
     #plt.plot(sync_data)
     #plt.show()
-    
-    
-    
-    pdb.set_trace()
+    return frequency, frequency_std, rising_edges, sync_data_raw
     
 class Test(unittest.TestCase):
     @unittest.skip('')
@@ -99,10 +99,10 @@ class Test(unittest.TestCase):
         self.assertTrue(res1)
         self.assertTrue(res2)
     
-    def test_file_quality_check(self):
+    def test_check_data(self):
         in_folder=r'H:\rz_organoid\oe_data\experiment1\recording1'
         in_folder='/tmp/oe/experiment1/recording1'
-        file_quality_check(in_folder)
+        check_data(in_folder)
 
         
 
