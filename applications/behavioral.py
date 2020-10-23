@@ -784,6 +784,7 @@ class Behavioral(gui.SimpleAppWindow):
         protocol_names_sorted.insert(0,'Lick and Hitmiss Random Laser')
         protocol_names_sorted.insert(0,'Ultrasound')
         protocol_names_sorted.insert(0,'UltrasoundOpenLoop')
+
         self.params_config=[
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
