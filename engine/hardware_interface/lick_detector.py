@@ -241,7 +241,7 @@ class TestProtocolHandler(unittest.TestCase):
         if hasattr(serialport,  'write'):
             serialport.close()
             
-    @unittest.skip('')         
+#    @unittest.skip('')         
     def test_03_detect_events(self):
         fsample=5e3
         #folder='c:\\Data\\mouse\\data4plotdev\\5\\20170124'
@@ -249,6 +249,7 @@ class TestProtocolHandler(unittest.TestCase):
         #files=[os.path.join(folder,f) for f in  os.listdir(folder) if os.path.splitext(f)[1]=='.hdf5']
         #f=files[0]
         f='C:\\Data\\raicszol\\rtlick\\1\\20170125\\data_HitMiss1secResponseWindow_201701251220300.hdf5'
+        f='/tmp/data_Ultrasound_202010201432396.hdf5'
         d=hdf5io.read_item(f, 'sync')
         detect_events(d, fsample)
         

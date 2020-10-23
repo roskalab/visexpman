@@ -299,7 +299,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t=numpy.arange(self.sync.shape[0])/float(self.machine_config.AI_SAMPLE_RATE)
         x=(self.sync.shape[1])*[t]
         y=[self.sync[:,i] for i in range(self.sync.shape[1])]
-        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug', 'laser']
+        trace_names=['lick raw', 'licks',  'stimulus', 'reward',  'protocol/debug', 'protocol state change']
         if hasattr(self,'protocol_state_change_times') and self.protocol_state_change_times.shape[0]>0:
             x[4]=self.protocol_state_change_times
             y[4]=numpy.ones_like(self.protocol_state_change_times)
@@ -431,7 +431,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         t0=time.time()
         abort_session=False
         while True:
-            self.sync=self.ai.read()
+            self.sync=numpy.copy(self.ai.read())
             logging.info('ai data shape: '+str(self.sync.shape[0]))
             if self.sync.shape[0]>0: 
                 #self.ai.read()
@@ -537,6 +537,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.close()
         del self.datafile
         logging.info('Data saved to {0}'.format(self.filename))
+        experiment_data.hdf52mat(self.filename)
         self.filecounter+=1
         #self.show_day_success_rate(self.filename)
         
@@ -781,6 +782,8 @@ class Behavioral(gui.SimpleAppWindow):
         protocol_names_sorted=[pn for pn in self.machine_config.PROTOCOL_ORDER if pn in protocol_names]
         protocol_names_sorted.insert(0,'Random Selection Hitmiss Lick')
         protocol_names_sorted.insert(0,'Lick and Hitmiss Random Laser')
+        protocol_names_sorted.insert(0,'Ultrasound')
+        protocol_names_sorted.insert(0,'UltrasoundOpenLoop')
         self.params_config=[
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
@@ -881,8 +884,9 @@ class Behavioral(gui.SimpleAppWindow):
                     plotparams.append({'name': tn, 'pen':(255,0,0)})
                 elif tn=='protocol/debug':
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0,0,0,150)})
-                elif tn=='laser':
+                elif tn=='protocol state change':
                     plotparams.append({'name': tn, 'pen':(255,165,0)})
+            self.plots.events.plot.clear()
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
             self.plots.events.plot.setXRange(0,tmax)
@@ -1143,7 +1147,7 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.q=q
         QtGui.QWidget.__init__(self)
         self.move(200,200)
-        date_format = QtCore.QString('yyyy-MM-dd')
+        date_format = 'yyyy-MM-dd'
         self.date = QtGui.QDateTimeEdit(self)
         self.date.setDisplayFormat(date_format)
         now = time.localtime()
@@ -1155,9 +1159,9 @@ class AddAnimalWeightDialog(QtGui.QWidget):
         self.weight_input_l = QtGui.QLabel('Animal weight [g]', self)
         self.weight_input_l.setFixedWidth(120)
         self.ok=QtGui.QPushButton('OK' ,parent=self)
-        self.connect(self.ok, QtCore.SIGNAL('clicked()'), self.ok_clicked)
+        self.ok.clicked.connect(self.ok_clicked)
         self.cancel=QtGui.QPushButton('Cancel' ,parent=self)
-        self.connect(self.cancel, QtCore.SIGNAL('clicked()'), self.cancel_clicked)
+        self.cancel.clicked.connect(self.cancel_clicked)
         
         self.l = QtGui.QGridLayout()
         self.l.addWidget(self.date, 0, 0, 1, 1)

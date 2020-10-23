@@ -1,12 +1,8 @@
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial
-try:
-    import PyQt4.Qt as Qt
-    import PyQt4.QtGui as QtGui
-    import PyQt4.QtCore as QtCore
-except ImportError:
-    import PyQt5.Qt as Qt
-    import PyQt5.QtGui as QtGui
-    import PyQt5.QtCore as QtCore
+
+import PyQt5.Qt as Qt
+import PyQt5.QtGui as QtGui
+import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop, signal, utils, introspect
 from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io,openephys
@@ -106,7 +102,7 @@ class Camera(gui.VisexpmanMainWindow):
             trigger_value='TTL pulses'
             params=[
                 {'name': 'Show track', 'type': 'bool', 'value': True}, 
-                {'name': 'Threshold', 'type': 'int', 'value': 80},
+                {'name': 'Threshold', 'type': 'int', 'value': 140},
                 {'name': 'ROI size', 'type': 'int', 'value': 20},
                 {'name': 'Show color LEDs', 'type': 'bool', 'value': False}, 
                 ]
@@ -248,8 +244,8 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.fn))
             import skvideo.io
-            videogen = skvideo.io.vreader(self.fn)
-            fc=len([frame.shape for frame in videogen])
+            videometadata=skvideo.io.ffprobe(self.fn)
+            fc=int(videometadata['video']['@nb_frames'])
             self.printc('Recorded {0} frames'.format(fc))
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
@@ -351,15 +347,20 @@ class Camera(gui.VisexpmanMainWindow):
                 os.mkdir(dst)
             time.sleep(0.5)
             for f in files:
-                if not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat')):
+                if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+                    condition=not os.path.isdir(f) and os.path.splitext(f)[1]=='.mp4'
+                else:
+                    condition=not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat'))
+                if condition:
                     print(f)
                     try:
                         self.convert_file(f)
-                        #Copy files
-                        import shutil
-                        shutil.copy(f,dst)
-                        shutil.copy(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat'),dst)
-                        self.printc('Copied to {0}'.format(dst))
+                        if not self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+                            #Copy files
+                            import shutil
+                            shutil.copy(f,dst)
+                            shutil.copy(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat'),dst)
+                            self.printc('Copied to {0}'.format(dst))
                     except:
                         self.printc(traceback.format_exc(), popup_error=False)
                     prog=int((files.index(f)+1)/float(len(files))*100)
@@ -374,44 +375,76 @@ class Camera(gui.VisexpmanMainWindow):
     
     
     def convert_file(self, filename):
-        h=hdf5io.Hdf5io(filename)
-        h.load('machine_config')
-        h.load('parameters')
-        h.load('sync')
-        #Make parameters and machine config compatible with matlab's hdf5io
-        p={}
-        for k, v in h.parameters.items():
-            if isinstance(v, bool):
-                v=int(v)
-            p[k.replace(' ', '_').lower()]=v
-        for k, v in h.machine_config.items():
-            if isinstance(v, bool):
-                h.machine_config[k]=int(v)
-        h.parameters=p
-        h.head_direction=[]
-        h.led_positions=[]
-        h.head_position=[]
-        ct=0
-        h.frame_indexes=[]
-        h.tnvista=signal.trigger_indexes(h.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-        h.tbehav=signal.trigger_indexes(h.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-        nframes=h.h5f.root.frames.shape[0]
-        chunksize=1000
-        nchunks=nframes/chunksize
-        if nchunks==0:
-            nchunks=1
-        p=gui.Progressbar(100, 'Processing status',  autoclose=True)
-        p.move(200, 100)
-        p.show()
-        for chunki in range(nchunks):
-            frames=h.h5f.root.frames.read(chunki*chunksize,  (chunki+1)*chunksize)
-            self.printc((frames[0, 0, :2, 0]*numpy.array([256,1])).sum())#Just to see if frames are loaded in the right order
-            prog=100*chunki/nchunks
-            p.update(prog)
-            QtCore.QCoreApplication.instance().processEvents()
-            for f in frames:
+        if os.path.splitext(filename)[1]=='.hdf5':
+            h=hdf5io.Hdf5io(filename)
+            h.load('machine_config')
+            h.load('parameters')
+            h.load('sync')
+            #Make parameters and machine config compatible with matlab's hdf5io
+            p={}
+            for k, v in h.parameters.items():
+                if isinstance(v, bool):
+                    v=int(v)
+                p[k.replace(' ', '_').lower()]=v
+            for k, v in h.machine_config.items():
+                if isinstance(v, bool):
+                    h.machine_config[k]=int(v)
+            h.parameters=p
+            h.head_direction=[]
+            h.led_positions=[]
+            h.head_position=[]
+            ct=0
+            h.frame_indexes=[]
+            h.tnvista=signal.trigger_indexes(h.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            h.tbehav=signal.trigger_indexes(h.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            nframes=h.h5f.root.frames.shape[0]
+            chunksize=1000
+            nchunks=nframes/chunksize
+            if nchunks==0:
+                nchunks=1
+            p=gui.Progressbar(100, 'Processing status',  autoclose=True)
+            p.move(200, 100)
+            p.show()
+            for chunki in range(nchunks):
+                frames=h.h5f.root.frames.read(chunki*chunksize,  (chunki+1)*chunksize)
+                self.printc((frames[0, 0, :2, 0]*numpy.array([256,1])).sum())#Just to see if frames are loaded in the right order
+                prog=100*chunki/nchunks
+                p.update(prog)
+                QtCore.QCoreApplication.instance().processEvents()
+                for f in frames:
+                    try:
+                        result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['params/ROI size'], threshold=self.parameters['params/Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                        print((result, position, self.red_angle, red, green, blue))
+                        if result:
+                            h.head_direction.append(self.red_angle)
+                            h.led_positions.append([red, green, blue])
+                            h.head_position.append(position)
+                            h.frame_indexes.append(ct)
+                        ct+=1
+                    except:
+                        self.printc(traceback.format_exc(), popup_error=False)
+                        ct+=1
+                        continue
+            h.save(['head_direction',  'led_positions',  'head_position',  'frame_indexes',  'tnvista', 'tbehav', 'machine_config',  'parameters'])
+            h.close()
+            experiment_data.hdf52mat(filename,  scale_sync=True, exclude=['frames'])
+        elif os.path.splitext(filename)[1]=='.mp4':
+            import skvideo.io
+            videometadata=skvideo.io.ffprobe(filename)
+            fc=int(videometadata['video']['@nb_frames'])
+            videogen = skvideo.io.vreader(filename)
+            h=hdf5io.Hdf5io(fileop.replace_extension(filename, '.hdf5'))
+            h.head_direction=[]
+            h.led_positions=[]
+            h.head_position=[]
+            ct=0
+            h.frame_indexes=[]
+            p=gui.Progressbar(100, f'{os.path.basename(filename)} processing status',  autoclose=True)
+            p.move(200, 100)
+            p.show()
+            for f in videogen:
                 try:
-                    result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(f, roi_size=self.parameters['params/ROI size'], threshold=self.parameters['params/Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
+                    result, position, self.red_angle, red, green, blue, debug=behavioral_data.mouse_head_direction(numpy.copy(f), roi_size=self.parameters['params/ROI size'], threshold=self.parameters['params/Threshold'],  saturation_threshold=0.6, value_threshold=0.4)
                     print((result, position, self.red_angle, red, green, blue))
                     if result:
                         h.head_direction.append(self.red_angle)
@@ -423,9 +456,22 @@ class Camera(gui.VisexpmanMainWindow):
                     self.printc(traceback.format_exc(), popup_error=False)
                     ct+=1
                     continue
-        h.save(['head_direction',  'led_positions',  'head_position',  'frame_indexes',  'tnvista', 'tbehav', 'machine_config',  'parameters'])
-        h.close()
-        experiment_data.hdf52mat(filename,  scale_sync=True, exclude=['frames'])
+                prog=100*ct/fc
+                p.update(prog)
+                QtCore.QCoreApplication.instance().processEvents()
+#            h.save(['head_direction',  'led_positions',  'head_position',  'frame_indexes' ])
+            for vn in ['head_direction',  'led_positions',  'head_position',  'frame_indexes' ]:
+                try:
+                    print(vn)
+                    print(getattr(h, vn))
+                    if len(getattr(h, vn))>0:
+                        h.save(vn)
+                except:
+                    pass
+
+            h.close()
+            experiment_data.hdf52mat(fileop.replace_extension(filename, '.hdf5'))
+            
     
     def update_image(self):
         try:
