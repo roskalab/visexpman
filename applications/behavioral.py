@@ -783,6 +783,8 @@ class Behavioral(gui.SimpleAppWindow):
         protocol_names_sorted.insert(0,'Random Selection Hitmiss Lick')
         protocol_names_sorted.insert(0,'Lick and Hitmiss Random Laser')
         protocol_names_sorted.insert(0,'Ultrasound')
+        protocol_names_sorted.insert(0,'UltrasoundOpenLoop')
+
         self.params_config=[
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
@@ -885,6 +887,7 @@ class Behavioral(gui.SimpleAppWindow):
                     plotparams.append({'name': tn, 'pen':None, 'symbol':'t', 'symbolSize':8, 'symbolBrush': (0,0,0,150)})
                 elif tn=='protocol state change':
                     plotparams.append({'name': tn, 'pen':(255,165,0)})
+            self.plots.events.plot.clear()
             self.plots.events.update_curves(msg['update_events_plot']['x'], msg['update_events_plot']['y'], plotparams=plotparams)
             tmax=max([x.max() for x in msg['update_events_plot']['x']])
             self.plots.events.plot.setXRange(0,tmax)

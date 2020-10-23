@@ -703,7 +703,7 @@ def array2object(numpy_array):
         return pickle.loads(compressor.decompress(numpy_array.tostring()))
     else:
         try:
-            return pickle.loads(numpy_array.tostring())
+            return pickle.loads(numpy_array.tobytes())
         except:
             return pickle.loads(compressor.decompress(numpy_array.tostring()))
     

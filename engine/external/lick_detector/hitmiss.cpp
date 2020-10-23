@@ -169,7 +169,7 @@ void HitMiss::run(void)
             #elif (PLATFORM==ARDUINO)
                 now=millis();
                 //Check if lick condition has happened
-                if ((lick_detector.get_lick_number()>0)&&(wait4lick==1.0))
+                if ((lick_detector.get_lick_number()>0)&&(wait4lick>0.0))
                 {
                   Serial.println("Lick detected");
                   result=HIT;
@@ -192,7 +192,7 @@ void HitMiss::run(void)
             //check timeout
             if ((now-t_wait_for_response)>(unsigned long)((reponse_window_time-laser_duration)*1000))
             {    
-                if (wait4lick==0.0)
+                if (wait4lick<1.0)
                 {
                   water_dispense_delay_correction=0;
                   set_state(WATERREWARD);
