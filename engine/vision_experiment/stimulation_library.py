@@ -1214,7 +1214,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
            [1] y_pos
            [2] x_size
            [3] y_size
-           [4] color ([R,G,B],float 0-1 or int 0-255)
+           [4] color float 0.0-1.0 or int 0-255
            [5] frame (start from 0)
            
         '''
@@ -1231,7 +1231,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             raise RuntimeError('Unknown shape: {0}'.format(shape))
             ##raise NotImplementedError()
         n_vertices = len(vertices)
-        n_frames = shape_config[:,5].max()+1
+        n_frames = int(shape_config[:,5].max()+1)
         shapes = shape_config.shape[0]
         
         frames_vertices = numpy.zeros((shapes * n_vertices,  2)) 
@@ -1243,7 +1243,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         for shapes_i in range(shapes):
             frames_vertices[index: index + n_vertices] = vertices * shape_config[shapes_i][2:4] + shape_config[shapes_i][0:2]
             index = index + n_vertices
-            color_corrected[shapes_i] = colors.convert_color(shape_config[shapes_i][4], self.config)
+            
+            if isinstance(shape_config[shapes_i][4], float):
+                color_corrected[shapes_i] = [shape_config[shapes_i][4], shape_config[shapes_i][4], shape_config[shapes_i][4]]
+            elif isinstance(shape_config[shapes_i][4], (int, numpy.uint32, numpy.int32)):
+                color_corrected[shapes_i] = [float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0]
+            #color_corrected[shapes_i] = colors.convert_color(shape_config[shapes_i][4], self.config)
+            
             if last_frame_i != shape_config[shapes_i][5]: ##new frame start
                 frame_start_i[frame_start_cnt] = shapes_i
                 last_frame_i = shape_config[shapes_i][5]
