@@ -1073,7 +1073,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if mask_size!=None:
                 glColor3fv(colors.convert_color(mask_color, self.config))
-                for shi in range(vertices.shape[0]/4-1):
+                for shi in range(int(vertices.shape[0]/4-1)):
                     try:
                         glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
                     except:
@@ -1214,7 +1214,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
            [1] y_pos
            [2] x_size
            [3] y_size
-           [4] color float 0.0-1.0 or int 0-255
+           [4] color color ([R,G,B],float 0-1 or int 0-255)
            [5] frame (start from 0)
            
         '''
@@ -1244,11 +1244,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             frames_vertices[index: index + n_vertices] = vertices * shape_config[shapes_i][2:4] + shape_config[shapes_i][0:2]
             index = index + n_vertices
             
-            if isinstance(shape_config[shapes_i][4], float):
-                color_corrected[shapes_i] = [shape_config[shapes_i][4], shape_config[shapes_i][4], shape_config[shapes_i][4]]
-            elif isinstance(shape_config[shapes_i][4], (int, numpy.uint32, numpy.int32)):
-                color_corrected[shapes_i] = [float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0]
-            #color_corrected[shapes_i] = colors.convert_color(shape_config[shapes_i][4], self.config)
+            #if isinstance(shape_config[shapes_i][4], float):
+                #color_corrected[shapes_i] = [shape_config[shapes_i][4], shape_config[shapes_i][4], shape_config[shapes_i][4]]
+            #elif isinstance(shape_config[shapes_i][4], (int, numpy.uint32, numpy.int32)):
+                #color_corrected[shapes_i] = [float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0]
+            color_corrected[shapes_i] = colors.convert_color(shape_config[shapes_i][4], self.config)
             
             if last_frame_i != shape_config[shapes_i][5]: ##new frame start
                 frame_start_i[frame_start_cnt] = shapes_i
