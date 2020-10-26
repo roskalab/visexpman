@@ -1833,7 +1833,37 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
+
+    def get_grid(self, screen_width, screen_height, grid_size_deg, display_center):
+        self.screen_start_angle = -numpy.degrees(numpy.arctan(numpy.array(
+            [self.machine_config.SCREEN_WIDTH / 2 - display_center[0] * -1,
+             self.machine_config.SCREEN_HEIGHT / 2 - display_center[1] * -1]) / (
+                                                                      self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1)))
+        self.screen_end_angle = numpy.degrees(numpy.arctan(numpy.array(
+            [self.machine_config.SCREEN_WIDTH / 2 + display_center[0] * -1,
+             self.machine_config.SCREEN_HEIGHT / 2 + display_center[1] * -1]) / (
+                                                                   self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1)))
+
+        print('start angle', self.screen_start_angle)
+        print('end_angle', self.screen_end_angle)
+        #
+        colum_coords = numpy.arange(self.screen_start_angle[0], self.screen_end_angle[0], grid_size_deg)
+        row_coords = numpy.arange(self.screen_start_angle[1], self.screen_end_angle[1], grid_size_deg)
+        grid = numpy.meshgrid(row_coords, colum_coords)
+        positions = list(zip(*(x.flat for x in grid)))
+        positions = numpy.asarray(positions)
+        positions = numpy.round(positions, decimals=2)
+        for i in range(len(positions)):
+            print(positions[i])
+        return positions
+
+    def angle2pixel(self, xy, displacement_from_screen_center):
+        pixel_cm_scale = self.machine_config.SCREEN_WIDTH / self.machine_config.SCREEN_RESOLUTION['col']
+        displacement_pixel = numpy.array(displacement_from_screen_center * -1) / pixel_cm_scale
+        pixel = numpy.tan(numpy.radians(
+            xy)) / pixel_cm_scale * self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1 - displacement_pixel
+        return pixel
+
 class StimulationHelpers(Stimulations):
     def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True,enable_texture=True, position=utils.rc((0,0))):
         from visexpman.engine.generic import geometry
