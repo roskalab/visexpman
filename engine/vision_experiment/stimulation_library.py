@@ -1834,14 +1834,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
-    def get_grid(self, screen_width, screen_height, grid_size_deg, display_center):
+    def get_grid(self, grid_size_deg):
         self.screen_start_angle = -numpy.degrees(numpy.arctan(numpy.array(
-            [self.machine_config.SCREEN_WIDTH / 2 - display_center[0] * -1,
-             self.machine_config.SCREEN_HEIGHT / 2 - display_center[1] * -1]) / (
+            [self.machine_config.SCREEN_WIDTH / 2 - self.DISPLACEMENT_FROM_SCREEN_CENTER[0] * -1,
+             self.machine_config.SCREEN_HEIGHT / 2 - self.DISPLACEMENT_FROM_SCREEN_CENTER[1] * -1]) / (
                                                                       self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1)))
         self.screen_end_angle = numpy.degrees(numpy.arctan(numpy.array(
-            [self.machine_config.SCREEN_WIDTH / 2 + display_center[0] * -1,
-             self.machine_config.SCREEN_HEIGHT / 2 + display_center[1] * -1]) / (
+            [self.machine_config.SCREEN_WIDTH / 2 + self.DISPLACEMENT_FROM_SCREEN_CENTER[0] * -1,
+             self.machine_config.SCREEN_HEIGHT / 2 + self.DISPLACEMENT_FROM_SCREEN_CENTER[1] * -1]) / (
                                                                    self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1)))
 
         print('start angle', self.screen_start_angle)
@@ -1857,9 +1857,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             print(positions[i])
         return positions
 
-    def angle2pixel(self, xy, displacement_from_screen_center):
+    def angle2pixel(self, xy):
         pixel_cm_scale = self.machine_config.SCREEN_WIDTH / self.machine_config.SCREEN_RESOLUTION['col']
-        displacement_pixel = numpy.array(displacement_from_screen_center * -1) / pixel_cm_scale
+        displacement_pixel = numpy.array(self.DISPLACEMENT_FROM_SCREEN_CENTER * -1) / pixel_cm_scale
         pixel = numpy.tan(numpy.radians(
             xy)) / pixel_cm_scale * self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1 - displacement_pixel
         return pixel
