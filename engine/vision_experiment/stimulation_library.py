@@ -1853,6 +1853,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         positions = list(zip(*(x.flat for x in grid)))
         positions = numpy.asarray(positions)
         positions = numpy.round(positions, decimals=2)
+        positions=numpy.flip(positions, axis=1)
         for i in range(len(positions)):
             print(positions[i])
         return positions
