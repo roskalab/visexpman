@@ -1073,7 +1073,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if mask_size!=None:
                 glColor3fv(colors.convert_color(mask_color, self.config))
-                for shi in range(vertices.shape[0]/4-1):
+                for shi in range(int(vertices.shape[0]/4-1)):
                     try:
                         glDrawArrays(GL_POLYGON, (shi+1)*4, 4)
                     except:
@@ -1101,7 +1101,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         Maintains backward compatibility with old stimulations using show_dots. Use the show_shapes instead
         '''
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, colors_per_shape = False)
-                    
+        
     def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  
                             color = (1.0,  1.0,  1.0), background_color = None,  
                             are_same_shapes_over_frames = False, colors_per_shape = True, save_frame_info = True):
@@ -1205,6 +1205,103 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+                         
+    def show_shapes2(self, shape, shape_config, duration = 0.0,  background_color = None, use_pixel_values = True, save_frame_info = True):
+        '''
+           shape_config format:
+           (nframes*nshapes_per_frame),6 numpy array
+           [0] x_pos
+           [1] y_pos
+           [2] x_size
+           [3] y_size
+           [4] color color ([R,G,B],float 0-1 or int 0-255)
+           [5] frame (start from 0)
+           
+        '''
+        if not use_pixel_values:
+            raise NotImplementedError()
+  
+        #self.log.info('show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')') --format?
+        first_flip = False
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe())
+        if shape == 'rect':
+            vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
+        else:
+            raise RuntimeError('Unknown shape: {0}'.format(shape))
+            ##raise NotImplementedError()
+        n_vertices = len(vertices)
+        n_frames = int(shape_config[:,5].max()+1)
+        shapes = shape_config.shape[0]
+        
+        frames_vertices = numpy.zeros((shapes * n_vertices,  2)) 
+        frame_start_i = numpy.zeros(n_frames+1,dtype=numpy.int32)
+        color_corrected = numpy.zeros((shapes,3))
+        index = 0
+        last_frame_i = -1
+        frame_start_cnt = 0
+        for shapes_i in range(shapes):
+            frames_vertices[index: index + n_vertices] = vertices * shape_config[shapes_i][2:4] + shape_config[shapes_i][0:2]
+            index = index + n_vertices
+            
+            #if isinstance(shape_config[shapes_i][4], float):
+                #color_corrected[shapes_i] = [shape_config[shapes_i][4], shape_config[shapes_i][4], shape_config[shapes_i][4]]
+            #elif isinstance(shape_config[shapes_i][4], (int, numpy.uint32, numpy.int32)):
+                #color_corrected[shapes_i] = [float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0, float(shape_config[shapes_i][4])/255.0]
+            color_corrected[shapes_i] = colors.convert_color(shape_config[shapes_i][4], self.config)
+            
+            if last_frame_i != shape_config[shapes_i][5]: ##new frame start
+                frame_start_i[frame_start_cnt] = shapes_i
+                last_frame_i = shape_config[shapes_i][5]
+                frame_start_cnt += 1
+        frame_start_i[frame_start_cnt] = shapes;
+        
+        #pdb.set_trace()
+        if duration == 0:
+            n_frames_per_pattern = 1
+        else:
+            n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+            
+
+        if background_color != None:
+            background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+            converted_background_color = colors.convert_color(background_color, self.config)
+            glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        else:
+            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        
+        shape_pointer = 0
+        for frame_i in range(n_frames):
+            start_i = frame_start_i[frame_i]
+            end_i = frame_start_i[frame_i+1]
+            glVertexPointerf(frames_vertices[start_i*n_vertices:end_i*n_vertices])
+            for i in range(n_frames_per_pattern):
+                glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                for shape_i in range(end_i - start_i):
+                    glColor3fv(color_corrected[start_i + shape_i])
+                    glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices)
+                    if self.abort:
+                        break
+                #Make sure that at the first flip the parameters of the function call are logged
+                if not first_flip:
+                    first_flip = True
+                self._flip(frame_timing_pulse = True)
+                if self.abort:
+                    break
+            if self.abort:
+                break
+                
+        glDisableClientState(GL_VERTEX_ARRAY)
+        #Restore original background color
+        if background_color != None:            
+            glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
+ 
+        
+        
         
     #TODO: rename show_barcode
     def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, 
@@ -1736,7 +1833,42 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._deinit_texture()
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
+
+    def get_grid(self, grid_size_deg):
+        self.screen_start_angle = -numpy.degrees(numpy.arctan(numpy.array(
+            [self.machine_config.SCREEN_WIDTH / 2 - self.DISPLACEMENT_FROM_SCREEN_CENTER[0] * -1,
+             self.machine_config.SCREEN_HEIGHT / 2 - self.DISPLACEMENT_FROM_SCREEN_CENTER[1] * -1]) / (
+                                                                      self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1)))
+        self.screen_end_angle = numpy.degrees(numpy.arctan(numpy.array(
+            [self.machine_config.SCREEN_WIDTH / 2 + self.DISPLACEMENT_FROM_SCREEN_CENTER[0] * -1,
+             self.machine_config.SCREEN_HEIGHT / 2 + self.DISPLACEMENT_FROM_SCREEN_CENTER[1] * -1]) / (
+                                                                   self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1)))
+
+        print('start angle', self.screen_start_angle)
+        print('end_angle', self.screen_end_angle)
+        #
+        colum_coords = numpy.arange(self.screen_start_angle[0], self.screen_end_angle[0], grid_size_deg)
+        row_coords = numpy.arange(self.screen_start_angle[1], self.screen_end_angle[1], grid_size_deg)
+        grid = numpy.meshgrid(row_coords, colum_coords)
+        positions = list(zip(*(x.flat for x in grid)))
+        positions = numpy.asarray(positions)
+        positions = numpy.round(positions, decimals=2)
+        for i in range(len(positions)):
+            print(positions[i])
+        return positions
+
+    def angle2pixel(self, xy):
+        pixel_cm_scale = self.machine_config.SCREEN_WIDTH / self.machine_config.SCREEN_RESOLUTION['col']
+        displacement_pixel = numpy.array(self.DISPLACEMENT_FROM_SCREEN_CENTER * -1) / pixel_cm_scale
+        pixel = numpy.tan(numpy.radians(
+            xy)) / pixel_cm_scale * self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1 - displacement_pixel
+        return pixel
+        
+    def points_deg_to_distance_pix(self, p1_deg, p2_deg): 
+        p1_pix = self.angle2pixel(p1_deg)
+        p2_pix = self.angle2pixel(p2_deg)
+        return math.hypot(p1_pix[0] - p2_pix[0], p1_pix[1] - p2_pix[1])
+
 class StimulationHelpers(Stimulations):
     def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True,enable_texture=True, position=utils.rc((0,0))):
         from visexpman.engine.generic import geometry
