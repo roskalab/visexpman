@@ -1,5 +1,5 @@
 #define VOR_SETUP 1
-#define LICKPIN A1
+#define LICKPIN A5
 #define LICKDETECTEDPIN 5
 #if (VOR_SETUP==1)
   #define REWARDPIN 8

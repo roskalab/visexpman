@@ -240,6 +240,13 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         waveform[0,-1]=0
         daq_instrument.set_waveform('Dev1/ao1',waveform,sample_rate = 1000)
         logging.info('Airpuff')
+
+    def simulate_lick(self,amp=1):
+        waveform=numpy.ones((1,int(1000*0.05)+2))*amp
+        waveform[0,0]=0
+        waveform[0,-1]=0
+        daq_instrument.set_waveform('Dev1/ao0',waveform,sample_rate = 1000)
+        logging.info('Lick simulation')       
         
     def set_valve(self,channel,state):
         if channel=='air':
