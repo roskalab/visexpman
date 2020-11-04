@@ -1863,6 +1863,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         pixel = numpy.tan(numpy.radians(
             xy)) / pixel_cm_scale * self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1 - displacement_pixel
         return pixel
+        
+    def points_deg_to_distance_pix(self, p1_deg, p2_deg): 
+        p1_pix = self.angle2pixel(p1_deg)
+        p2_pix = self.angle2pixel(p2_deg)
+        return math.hypot(p1_pix[0] - p2_pix[0], p1_pix[1] - p2_pix[1])
 
 class StimulationHelpers(Stimulations):
     def _init_texture(self,size,orientation=0,texture_coordinates=None, set_vertices=True,enable_texture=True, position=utils.rc((0,0))):
