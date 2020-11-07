@@ -358,8 +358,7 @@ class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
             selfw = parent.parent
-        from visexpman.engine.vision_experiment import experiment_data
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os,  'experiment_data':experiment_data}, text = 'self: main gui widget, numpy, utils, fileop, signal, os, experiment_data')
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os}, text = 'self: main gui widget, numpy, utils, fileop, signal, os')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
@@ -553,6 +552,7 @@ class TabbedImages(QtGui.QWidget):
 class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.default_roi_type='rect'
         self.unselected_color = unselected_color
         self.selected_color = selected_color
         self.setBackground(background_color)
@@ -607,7 +607,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                     self.queue.put((p.x(), p.y()))
                     return
                 else:
-                    self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
+                    self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale(),type=self.default_roi_type)
             elif int(e.buttons()) == 2:
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             else:
