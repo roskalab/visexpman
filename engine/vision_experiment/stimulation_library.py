@@ -1843,18 +1843,54 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             [self.machine_config.SCREEN_WIDTH / 2 + self.DISPLACEMENT_FROM_SCREEN_CENTER[0] * -1,
              self.machine_config.SCREEN_HEIGHT / 2 + self.DISPLACEMENT_FROM_SCREEN_CENTER[1] * -1]) / (
                                                                    self.machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE * 0.1)))
-
-        print('start angle', self.screen_start_angle)
-        print('end_angle', self.screen_end_angle)
+        if self.DEBUG_MODE:
+            print('start angle', self.screen_start_angle)
+            print('end_angle', self.screen_end_angle)
         #
-        colum_coords = numpy.arange(self.screen_start_angle[0], self.screen_end_angle[0], grid_size_deg)
-        row_coords = numpy.arange(self.screen_start_angle[1], self.screen_end_angle[1], grid_size_deg)
+        colum_coords = numpy.arange(self.screen_start_angle[1]+(grid_size_deg/2), self.screen_end_angle[1], grid_size_deg)
+        row_coords = numpy.arange(self.screen_start_angle[0]+(grid_size_deg/2), self.screen_end_angle[0], grid_size_deg)
+        if self.DEBUG_MODE:
+            print('row coords', row_coords)
+            print('lenrow',len(row_coords))
+            print('len_col',len(colum_coords))
+            print('colun coords', colum_coords)
         grid = numpy.meshgrid(row_coords, colum_coords)
-        positions = list(zip(*(x.flat for x in grid)))
-        positions = numpy.asarray(positions)
+        # positions = list(zip(*(x.flat for x in grid)))
+        positions = numpy.vstack(map(numpy.ravel, grid)).T
+        if self.DEBUG_MODE:
+            print(positions.shape)
+        # positions = numpy.asarray(positions)
+        # for i in range(len(positions)):
+        #     print(positions[i])
+        # print('')
+        # print('')
+
+        # positions = numpy.delete(positions, numpy.where((positions[:, 0] == positions[0,0])), 0)
+        # positions = numpy.delete(positions, numpy.where((positions[:, 1] == positions[0, 1])), 0)
+        # positions = numpy.delete(positions, numpy.where((positions[:, 0] == positions[-1, 0])), 0)
+        # positions = numpy.delete(positions, numpy.where((positions[:, 1] == positions[-1, 1])), 0)
+        # positions = positions - (grid_size_deg / 2)
+        # for i in range(len(positions)):
+        #     print(positions[i])
+        # print('')
+        # print('')
+        # positions=numpy.delete(positions,
+        #                        numpy.where(positions[:,0]==(self.screen_end_angle[0])),0)
+        # positions = numpy.delete(positions,
+        #                          numpy.where(positions[:, 0] == (self.screen_start_angle[0] )),
+        #                          0)
+        # positions = numpy.delete(positions,
+        #                          numpy.where(positions[:, 1] == (self.screen_end_angle[1] )),
+        #                          0)
+        # positions = numpy.delete(positions,
+        #                          numpy.where(positions[:, 1] == (self.screen_start_angle[1] )),
+        #                          0)
+        # positions=numpy.flip(positions, axis=1)
         positions = numpy.round(positions, decimals=2)
-        for i in range(len(positions)):
-            print(positions[i])
+        if self.DEBUG_MODE:
+            print(positions.shape)
+            for i in range(len(positions)):
+                print(positions[i])
         return positions
 
     def angle2pixel(self, xy):
