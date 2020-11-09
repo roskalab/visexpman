@@ -1345,6 +1345,7 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
     return shuffled,success
     
 def send_udp(ip,port,msg):
+    import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, (ip, port))
     

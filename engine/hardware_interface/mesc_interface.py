@@ -9,9 +9,12 @@ class MescapiInterface(object):
     def __init__(self, mesc_address='localhost', port=11000, command_buffer_size=1024*512, timeout=1.0,debug=False, galvo=False):
         self.galvo=galvo
         self.connected=False
-        self.conn=create_connection("ws://localhost:8888")
-        self.conn.timeout=2
-        self.connected=True
+        try:
+            self.conn=create_connection("ws://localhost:8888")
+            self.conn.timeout=2
+            self.connected=True
+        except:
+            self.connected=False
 
     def request(self,cmd):
         self.conn.send(cmd)
