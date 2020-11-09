@@ -2320,6 +2320,8 @@ class AdvancedStimulation(StimulationHelpers):
                     p=utils.cr((centers_x_um[c],  centers_y_um[r]))
                     s=utils.cr((size_x_um[c],  size_y_um[r]))
                     positions_and_colors.append([0, s, 1.0,  p])
+            if random_order:
+                random.shuffle(positions_and_colors)
 #            pdb.set_trace()
 #            positions_and_colors_angle=positions_and_colors
 #            positions=numpy.array([[position['row'], position['col']] for position in positions])
