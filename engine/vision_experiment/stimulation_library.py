@@ -1849,6 +1849,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #
         colum_coords = numpy.arange(self.screen_start_angle[1]+(grid_size_deg/2), self.screen_end_angle[1], grid_size_deg)
         row_coords = numpy.arange(self.screen_start_angle[0]+(grid_size_deg/2), self.screen_end_angle[0], grid_size_deg)
+        right_grey_strip_width=(self.screen_end_angle[1]-((colum_coords[-1]+(grid_size_deg/2))))
+        upper_grey_strip_height=(self.screen_end_angle[0]-((row_coords[-1]+(grid_size_deg/2))))
+        # print(row_coords)
+        # print(colum_coords)
+        # print('row coords -1',row_coords[-1])
+        # print('col coords-1',colum_coords[-1])
+        # print('rw',right_grey_strip_width)
+        # print('uh',upper_grey_strip_height)
+        colum_coords = numpy.arange(self.screen_start_angle[1] + (grid_size_deg / 2)+(right_grey_strip_width/2), self.screen_end_angle[1],
+                                    grid_size_deg)
+        row_coords = numpy.arange(self.screen_start_angle[0] + (grid_size_deg / 2)+(upper_grey_strip_height/2), self.screen_end_angle[0],
+                                  grid_size_deg)
+
         if self.DEBUG_MODE:
             print('row coords', row_coords)
             print('lenrow',len(row_coords))
