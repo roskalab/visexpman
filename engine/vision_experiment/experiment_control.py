@@ -403,6 +403,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if hasattr(self, 'digital_io') and hasattr(self.digital_io, 'close'):
                 self.digital_io.set_pin(self.config.BLOCK_TIMING_PIN, 0)
                 self.digital_io.set_pin(self.config.FRAME_TIMING_PIN, 0)
+                self.printl('Frame and block timing pins cleared.')
                 self.digital_io.close()
         if hasattr(self, 'camera_trigger'):
             self.camera_trigger.close()
