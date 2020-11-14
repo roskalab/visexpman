@@ -531,6 +531,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         self.datafile.sync=self.sync
         if hasattr(self,'stat'):
             self.datafile.stat=utils.object2array(copy.deepcopy(self.stat))
+            fileop.write_text_file(fileop.replace_extension(self.filename,'.txt'), str(self.stat))
         self.datafile.frame_times=self.frame_times if self.machine_config.ENABLE_CAMERA else 1
         self.datafile.protocol_name=self.protocol.__class__.__name__#This for sure the correct value
         self.datafile.machine_config_name=self.machine_config.__class__.__name__#This for sure the correct value

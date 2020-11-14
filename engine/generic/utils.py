@@ -1373,6 +1373,15 @@ def get_username():
     
 def roundint(value):
     return int(round(value))
+    
+def read_video_frame_number(fn):
+    import skvideo.io
+    videometadata=skvideo.io.ffprobe(fn)
+    if 'video' in videometadata:
+        return int(videometadata['video']['@nb_frames'])
+    else:
+        return -1
+        
             
 if __name__ == "__main__":
     module_names, visexpman_module_paths = imported_modules()

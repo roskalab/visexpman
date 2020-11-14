@@ -245,8 +245,11 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Saved to {0}'.format(self.fn))
             import skvideo.io
             videometadata=skvideo.io.ffprobe(self.fn)
-            fc=int(videometadata['video']['@nb_frames'])
-            self.printc('Recorded {0} frames'.format(fc))
+            if 'video' in videometadata:
+                fc=int(videometadata['video']['@nb_frames'])
+                self.printc('Recorded {0} frames'.format(fc))
+            else:
+                fc=None
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
@@ -279,7 +282,7 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc(f"Expected frame rate: {self.parameters['params/Frame Rate']} Hz,  measured: {self.frequency} Hz, std: {self.frequency_std}")
                 if self.video_frame_indexes[0]<10e3*self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
                     QtGui.QMessageBox.question(None,'Warning', 'Beginning of sync signal is corrupt', QtGui.QMessageBox.Ok)
-                if len(self.video_frame_indexes)!=fc:
+                if fc!=None and len(self.video_frame_indexes)!=fc:
                     raise ValueError(f'Recorded number of frames ({fc}) and timestamps ({len(self.video_frame_indexes)}) do not match')
                 
         except:

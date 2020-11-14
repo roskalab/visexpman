@@ -258,7 +258,7 @@ class ExperimentHandler(object):
             if v!=None:
                 experiment_parameters[pn]=v
         experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
-        #experiment_parameters['eyecamfilename']=fileop.replace_extension(experiment_parameters['eyecamfilename'], '.mp4')
+        experiment_parameters['eyecamfilename']=fileop.replace_extension(experiment_parameters['eyecamfilename'], '.mp4')
         if hasattr(self, 'trigger_filename') and self.trigger_filename!=None:
             experiment_parameters['trigger_filename']=self.trigger_filename
             experiment_parameters['trigger_timestamp']=os.path.getctime(self.trigger_filename)
@@ -272,6 +272,7 @@ class ExperimentHandler(object):
         experiment_parameters=self._get_experiment_parameters()
         if experiment_parameters==None:
             return
+        self.batch=[]
         if self.machine_config.PLATFORM == 'us_cortical':
             if not (experiment_parameters['Number of Trials']>1 or ',' in experiment_parameters['Motor Positions']):
                 self.notify('Warning', 'Batch cannot be generated. Motor Positions shall be configured or Number of Trials shall be greater than 1!')
@@ -308,7 +309,6 @@ class ExperimentHandler(object):
             [self.printc('Batch generated: {0}/{1} um' .format(b['id'], b['motor position'])) for b in self.batch]
         elif self.machine_config.ENABLE_BATCH_EXPERIMENT:
             if self.machine_config.PLATFORM=='mc_mea':
-                self.batch=[]
                 for r in range(self.guidata.read('Repeats')):
                     par=copy.deepcopy(experiment_parameters)
                     time.sleep(0.2)
@@ -346,7 +346,6 @@ class ExperimentHandler(object):
                     depths=numpy.array([zs])
                 else:
                     depths=numpy.linspace(zs,ze,(zs-ze)/zst+1)
-                self.batch=[]
                 self.depths=depths
                 if self.guidata.read('Enable tile scan'):
                     self.coords=coords
@@ -371,6 +370,14 @@ class ExperimentHandler(object):
                                 par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                                 par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
                                 self.batch.append(par)
+            elif self.machine_config.PLATFORM =='resonant':
+                for r in range(self.guidata.read('Repeats')):
+                    par=copy.deepcopy(experiment_parameters)
+                    par['id']=experiment_data.get_id()
+                    par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
+                    par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                    time.sleep(0.2)
+                    self.batch.append(par)
             if self.guidata.read('Enable tile scan'):
                 self.printc('Batch generated:'+'\r\n'.join(['{0}/{1} um, {2} um, {3} um' .format(b['id'], b['depth'],  b['xpos'],  b['ypos']) for b in self.batch]))
             elif 'depth' not in self.batch[0]:
@@ -381,7 +388,7 @@ class ExperimentHandler(object):
             raise NotImplementedError('Batch experiment on rc_cortical platform is not yet available')
         self.fullbatch=copy.deepcopy(self.batch)
         self.batch_running=True
-        if hasattr(self,'microscope'):
+        if hasattr(self,'microscope') and hasattr(self.microscope, 'start_batch'):
             self.microscope.start_batch()
         
     def check_batch(self):

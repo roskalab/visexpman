@@ -81,13 +81,31 @@ class Trigger(object):
                 if self.abort:
                     break
             digital_input.ClearTask()
-        else:
+        elif self.digital_io.type=='ioboard':
             while True:
                 if self.digital_io.read_pin(self.machine_config.STIM_START_TRIGGER_PIN, inverted=self.machine_config.PLATFORM=='epos'):
                     result = True
                     break
                 self.check_abort()
                 if self.abort:
+                    break
+        elif self.digital_io.type=='arduino':
+            #All data in serial port buffer is  flushed.
+            if self.digital_io.hwhandler.inWaiting()>0:
+                print(self.read(100))
+                self.digital_io.hwhandler.flushInput()
+            #Check if trigger is fired too early
+            time.sleep(1.5)
+            if self.digital_io.hwhandler.inWaiting()>0:
+                raise RuntimeError('Trigger missed!')
+            #Trigger is fired when new bytes show up in serial port buffer
+            while True:                
+                self.check_abort()
+                if self.abort:
+                    break
+                if self.digital_io.hwhandler.inWaiting()>0:
+                    result = True
+                    self.digital_io.read()
                     break
         return result
     
@@ -123,7 +141,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             skip_hw_init= hasattr(self, 'kwargs') and 'create_runnable' in self.kwargs and not self.kwargs['create_runnable']
             if skip_hw_init:
                 return
-            self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT)
+            self.digital_io=digital_io.DigitalIO(self.machine_config.DIGITAL_IO_PORT_TYPE,self.machine_config.DIGITAL_IO_PORT, timeout=1e-3)
             Trigger.__init__(self, machine_config, queues, self.digital_io)
             if 0 and self.digital_io!=None:#Digital output is available
                 self.clear_trigger(self.config.BLOCK_TIMING_PIN)
@@ -275,7 +293,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.camera = XimeaCamera(config=self.machine_config)
                     self.camera.start()
                     self.camera.trigger.set()  # starts acquisition
-                elif self.machine_config.PLATFORM in ['standalone','epos']:
+                elif self.machine_config.PLATFORM in ['standalone','epos', 'generic']:
                     self.printl('Waiting for external trigger')
                     if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
                         import threading
@@ -489,8 +507,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Certain variables are saved to hdf5 file
         '''
         self.parameters['partial_data']=self.abort
+        self._read_sync()
         self._blocks2table()
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block', 'experiment_start_timestamp']#['experiment_name', 'experiment_config_name', 'frame_times']
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block', 'experiment_start_timestamp', 'arduino_sync']#['experiment_name', 'experiment_config_name', 'frame_times']
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
         self.datafile = experiment_data.CaImagingData(self.outputfilename)
         self._prepare_data2save()
@@ -579,6 +598,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         h.flush()
         h.close()
         self.printl('Stimulus frame info saved as pickled')
+        
+    def _read_sync(self):
+        print(self.machine_config.READ_VIDEO_TIMING_SIGNALS)
+        if hasattr(self.machine_config, 'READ_VIDEO_TIMING_SIGNALS') and self.machine_config.READ_VIDEO_TIMING_SIGNALS:
+            self.digital_io.read()
+            self.arduino_sync=self.digital_io.read_all()
             
     def _backup(self, filename):#Maybe obsolete?
         bupaths=[self.machine_config.BACKUP_PATH]

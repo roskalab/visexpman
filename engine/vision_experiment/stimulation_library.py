@@ -89,7 +89,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     self.frame_rates.append(frame_rate)
                     self.frame_times.append(self.flip_time)
                 self.flip_time_previous=self.flip_time
-                    
+        if self.machine_config.DIGITAL_IO_PORT_TYPE=='arduino':
+            try:
+                self.digital_io.read()
+            except:
+                pdb.set_trace()
         if self.machine_config.ENABLE_CHECK_ABORT:
             self.check_abort()
         if hasattr(self, 'write2video') and self.write2video:
@@ -729,10 +733,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             for arm in range(narms):
                 start_angle=angles[2*arm]
                 end_angle=angles[2*arm+1]
-                draw.pieslice([0,0,2*size_pixel-1,2*size_pixel-1], int(start_angle), int(end_angle),fill=int(color_max*255))                
+                draw.pieslice([0,0,2*size_pixel-1,2*size_pixel-1], utils.roundint(start_angle), utils.roundint(end_angle),fill=utils.roundint(color_max*255))                
             texture=numpy.asarray(im)/255.
             #At half radius, 15 % of arm size
-            transition=int(size_pixel*numpy.pi/narms*0.15)
+            transition=utils.roundint(size_pixel*numpy.pi/narms*0.15)
             if 0:
                 texture=signal.shape2distance(numpy.where(texture==0,0,1), transition)
                 texture=numpy.sin(texture/float(texture.max())*numpy.pi/2)
@@ -747,12 +751,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if background_color !=None:
                 mask_inv=numpy.where(mask==0,converted_background_color[0],0)
                 texture+=mask_inv
-            texture=texture[size_pixel/2:3*size_pixel/2, size_pixel/2:3*size_pixel/2]
+            texture=texture[utils.roundint(size_pixel/2):utils.roundint(3*size_pixel/2), utils.roundint(size_pixel/2):utils.roundint(3*size_pixel/2)]
         elif name=='hyperbolic':
             texture_orientation=orientation
             #witdh of line is pixels_per_period/2, also spacing is pixels_per_period/2
             texture=numpy.zeros((size_pixel,size_pixel))
-            quadrant=numpy.ones((size_pixel/2,size_pixel/2))
+            quadrant=numpy.ones((utils.roundint(size_pixel/2),utils.roundint(size_pixel/2)))
             L0=0.5
             m=0.5
             x,y=numpy.nonzero(quadrant)
@@ -762,7 +766,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             f=2./pixels_per_period
             L=L0*(1+m*numpy.cos(2*numpy.pi*f*numpy.sqrt(u*v)))
             quadrant[x,y]=L
-            texture[size_pixel/2:,size_pixel/2:]=quadrant
+            texture[utils.roundint(size_pixel/2):,utils.roundint(size_pixel/2):]=quadrant
             #Mirror curves to all the sides
             left=numpy.copy(numpy.fliplr(texture))
             up=numpy.copy(numpy.rot90(texture))
@@ -770,7 +774,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture+=left+up+down
             texture=signal.scale(texture,color_min,color_max)
             #Put a circular mask on texture
-            mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
+            mask=geometry.circle_mask([utils.roundint(size_pixel/2)]*2,utils.roundint(size_pixel/2),2*[size_pixel])
             texture*=mask
             if background_color !=None:
                 mask_inv=numpy.where(mask==0,converted_background_color[0],0)
@@ -780,13 +784,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             texture_orientation=90+orientation
             #Calculate angle range from spatial frequency
             res=3600./2*2
-            nrev=round(nperiods/2)*2/4#Coming from paper
+            nrev=utils.roundint(round(nperiods/2)*2/4)#Coming from paper
             overrun_factor=1.2
             one_degree_size=size_pixel*numpy.pi/360
             #res/=8/one_degree_size
-            angle=numpy.linspace(1/res,numpy.pi*2*nrev*overrun_factor,nrev*overrun_factor*res)
+            angle=numpy.linspace(1/res,numpy.pi*2*nrev*overrun_factor,utils.roundint(nrev*overrun_factor*res))
             a=0.5*size_pixel/(2*numpy.pi*nrev)
-            rev_angle_intervals=numpy.arange(1,(nrev*overrun_factor+1))*numpy.pi*2
+            rev_angle_intervals=numpy.arange(1,utils.roundint(nrev*overrun_factor+1))*numpy.pi*2
             expected_radius=rev_angle_intervals*numpy.pi*2*a
             pixel_angular_size=360/(expected_radius*2*numpy.pi)
             angle=[]
@@ -796,7 +800,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     start=rev_angle_intervals[i-1]
                 end=rev_angle_intervals[i]
-                angle.extend(numpy.linspace(start, end, 10*numpy.ceil((end-start)/pixel_angular_size[i])).tolist())
+                angle.extend(numpy.linspace(start, end, utils.roundint(10*numpy.ceil((end-start)/pixel_angular_size[i]))).tolist())
                 pass
             angle=numpy.array(angle)
             max_angle=numpy.pi/2
@@ -807,7 +811,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     coo=[numpy.where(numpy.logical_and(coo[i]>2*size_pixel, coo[i]<0),0,coo[i]) for i in range(2)]
                     texture[coo[0],coo[1]]=numpy.cos(o/max_angle*numpy.pi)
             texture=signal.scale(texture,color_min,color_max)
-            texture=texture[size_pixel/2:3*size_pixel/2,size_pixel/2:3*size_pixel/2]
+            texture=texture[utils.roundint(size_pixel/2):utils.roundint(3*size_pixel/2),utils.roundint(size_pixel/2):utils.roundint(3*size_pixel/2)]
             mask=geometry.circle_mask([size_pixel/2]*2,size_pixel/2,2*[size_pixel])
             texture*=mask
             #texture-=original*0.5
