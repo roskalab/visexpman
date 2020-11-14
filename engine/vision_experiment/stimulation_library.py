@@ -1839,6 +1839,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def get_grid(self, grid_size_deg):
+        self.DISPLACEMENT_FROM_SCREEN_CENTER=numpy.asarray([self.DISPLAY_CENTER_X_CM, self.DISPLAY_CENTER_Y_CM]) #cm
         self.screen_start_angle = -numpy.degrees(numpy.arctan(numpy.array(
             [self.machine_config.SCREEN_WIDTH / 2 - self.DISPLACEMENT_FROM_SCREEN_CENTER[0] * -1,
              self.machine_config.SCREEN_HEIGHT / 2 - self.DISPLACEMENT_FROM_SCREEN_CENTER[1] * -1]) / (
@@ -1851,14 +1852,27 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             print('start angle', self.screen_start_angle)
             print('end_angle', self.screen_end_angle)
         #
-        colum_coords = numpy.arange(self.screen_start_angle[1]+(grid_size_deg/2), self.screen_end_angle[1], grid_size_deg)
+        column_coords = numpy.arange(self.screen_start_angle[1]+(grid_size_deg/2), self.screen_end_angle[1], grid_size_deg)
         row_coords = numpy.arange(self.screen_start_angle[0]+(grid_size_deg/2), self.screen_end_angle[0], grid_size_deg)
+        right_grey_strip_width=(self.screen_end_angle[1]-((column_coords[-1]+(grid_size_deg/2))))
+        upper_grey_strip_height=(self.screen_end_angle[0]-((row_coords[-1]+(grid_size_deg/2))))
+        # print(row_coords)
+        # print(column_coords)
+        # print('row coords -1',row_coords[-1])
+        # print('col coords-1',column_coords[-1])
+        # print('rw',right_grey_strip_width)
+        # print('uh',upper_grey_strip_height)
+        column_coords = numpy.arange(self.screen_start_angle[1] + (grid_size_deg / 2)+(right_grey_strip_width/2), self.screen_end_angle[1],
+                                    grid_size_deg)
+        row_coords = numpy.arange(self.screen_start_angle[0] + (grid_size_deg / 2)+(upper_grey_strip_height/2), self.screen_end_angle[0],
+                                  grid_size_deg)
+
         if self.DEBUG_MODE:
             print('row coords', row_coords)
             print('lenrow',len(row_coords))
-            print('len_col',len(colum_coords))
-            print('colun coords', colum_coords)
-        grid = numpy.meshgrid(row_coords, colum_coords)
+            print('len_col',len(column_coords))
+            print('colun coords', column_coords)
+        grid = numpy.meshgrid(row_coords, column_coords)
         # positions = list(zip(*(x.flat for x in grid)))
         positions = numpy.vstack(map(numpy.ravel, grid)).T
         if self.DEBUG_MODE:
@@ -1890,7 +1904,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         #                          numpy.where(positions[:, 1] == (self.screen_start_angle[1] )),
         #                          0)
         # positions=numpy.flip(positions, axis=1)
-        positions = numpy.round(positions, decimals=2)
+        #positions = numpy.round(positions, decimals=2)
         if self.DEBUG_MODE:
             print(positions.shape)
             for i in range(len(positions)):
