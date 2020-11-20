@@ -129,7 +129,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                     self.stim_context['screen_center']['col'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
                 elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
                     self.stim_context['screen_center']['col'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
-            elif (self.config.PLATFORM in ['behav', 'epos', 'hi_mea', 'standalone', 'intrinsic']) and key_pressed in self.experiment_select_commands:
+            elif (self.config.PLATFORM in ['behav', 'epos', 'hi_mea', 'standalone', 'intrinsic', 'generic']) and key_pressed in self.experiment_select_commands:
                 self.selected_experiment = self.experiment_configs[int(key_pressed)]
                 self.printl('Experiment selected: {0}'.format(self.selected_experiment))
             elif (self.config.PLATFORM in ['behav', 'epos', 'hi_mea', 'standalone', 'intrinsic']) and key_pressed == self.config.KEYS['start stimulus']:
