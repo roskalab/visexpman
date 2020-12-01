@@ -1,6 +1,6 @@
-import serial, multiprocessing, unittest, time, numpy, threading
+import serial, multiprocessing, unittest, time, numpy, threading,traceback
 from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.generic import introspect, signal
+from visexpman.engine.generic import introspect, signal,utils
 from pylab import *
 
 #class HitMissProtocolHandler(multiprocessing.Process):
@@ -21,13 +21,36 @@ class HitMissProtocolHandler(threading.Thread):
         self.pars=[laser_voltage, laser_duration,  pre_trial_interval, reponse_window_time, water_dispense_delay,\
                 water_dispense_time, drink_time,wait4lick]
         self.log=multiprocessing.Queue()
-        
+        self.logfile = open(r'C:\visexp\log.txt','a')
+
+                
     def cmd(self, cmd, wait=0):
-        self.s.write(cmd.encode('utf-8') );
+        try:
+            self.s.write(cmd.encode('utf-8') );
+            self.log.put('command sent: '+cmd)
+            print('command sent: '+cmd)
+            self.logfile.write(utils.timestamp2ymdhms(time.time())+' command sent: '+cmd+'\r\n')
+            self.logfile.flush()
+        except:
+            e=traceback.format_exc()
+            self.log.put(e)
+            print(e)
+            self.logfile.write(e)
+            self.s=serial.Serial('COM3', 115200, timeout=1)
+            time.sleep(3)
+            self.log.put('serial port reopened')
+            print('serial port reopened')
+            self.logfile.write(utils.timestamp2ymdhms(time.time())+' serial port reopened'+'\r\n')
+            self.s.write(cmd.encode('utf-8') );
+            self.log.put('command resent: '+cmd)
+            print('command resent: '+cmd)
+            self.logfile.write(utils.timestamp2ymdhms(time.time())+' command resent: '+cmd+'\r\n')
+            self.logfile.flush()
         if wait>0:
             time.sleep(wait)
         resp=self.s.readline()
         self.log.put(resp.decode())
+        self.logfile.write(utils.timestamp2ymdhms(time.time())+' response: '+resp.decode()+'\r\n')
         return resp.decode()
         
     def error(self, msg):
@@ -38,10 +61,14 @@ class HitMissProtocolHandler(threading.Thread):
     def run(self):
         try:
             self.log.put('Expected duration: {0}'.format(self.pars[1]+self.pars[2]+self.pars[3]))
-            if not hasattr(self.serial_port, 'write'):
+            try:
+                if not hasattr(self.serial_port, 'write'):
+                    self.s=serial.Serial(self.serial_port, 115200, timeout=1)
+                else:
+                    self.s=self.serial_port
+            except:
+                self.log.put('Restart serial port')
                 self.s=serial.Serial(self.serial_port, 115200, timeout=1)
-            else:
-                self.s=self.serial_port
             time.sleep(self.init_wait)
             resp=self.cmd('ping\r\n')
             if 'pong' not in resp:
@@ -75,6 +102,7 @@ class HitMissProtocolHandler(threading.Thread):
             self.error(traceback.format_exc())
         if not hasattr(self.serial_port, 'write'):
             self.s.close()
+        self.logfile.close()
         
 class LickProtocolRunner(object):
     def __init__(self, serialport, laser_voltage, pre_trial_interval, water_dispense_delay,  aichannels,  fsample):

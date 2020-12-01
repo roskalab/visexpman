@@ -622,7 +622,8 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         if type == 'circle':
             roi = pyqtgraph.CircleROI([x-0.5*size, y-0.5*size], [size, size])
         elif type =='point':
-            roi = pyqtgraph.ROI((x,y),size=[0.3,0.3],movable=False,removable=False)
+            s=[0.3,0.3] if size==None else size
+            roi = pyqtgraph.ROI((x,y),size=s,movable=False,removable=True)
         elif type == 'rect':
             roi = pyqtgraph.RectROI((x-0.5*size[0],y-0.5*size[1]),size=size, movable = movable)
         roi.setPen((self.unselected_color[0],self.unselected_color[1],self.unselected_color[2],255), width=2)
