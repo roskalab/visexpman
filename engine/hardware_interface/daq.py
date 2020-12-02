@@ -229,6 +229,98 @@ class SyncAnalogIO():
         self.analog_output.ClearTask()
         self.analog_input.ClearTask()
         
+        
+class AnalogRecorder(multiprocessing.Process):
+    '''
+	Records analog inputs until stop signal is sent
+	Usage:
+	queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue()}
+        d=daq_instrument.AnalogRecorder('Dev1/ai0:1' ,  1000)
+        d.start()
+        time.sleep(10)
+        data=numpy.empty([0, 2])
+        d.commandq.put('stop')
+        while not d.dataq.empty():
+            data=numpy.concatenate((data, d.dataq.get()))
+        print data.shape
+        d.join()
+
+    '''
+    def __init__(self, channels, sample_rate):
+        self.commandq=multiprocessing.Queue()
+        self.dataq=multiprocessing.Queue()
+        self.responseq=multiprocessing.Queue()
+        multiprocessing.Process.__init__(self)
+        self.channels=channels
+        self.sample_rate=int(sample_rate)
+        self.timeout=3
+        self.buffer_size=int(self.timeout*self.sample_rate*10)
+        self.number_of_ai_channels= int(numpy.diff(list(map(float, channels.split('/')[1][2:].split(':'))))[0]+1)
+        
+    def run(self):
+        self.analog_input = PyDAQmx.Task()
+        self.analog_input.CreateAIVoltageChan(self.channels,
+                                                            'ai',
+                                                            DAQmxConstants.DAQmx_Val_RSE,
+                                                            -10,
+                                                            10,
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+        self.analog_input.CfgSampClkTiming("OnboardClock",
+                                        int(self.sample_rate),
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_ContSamps,
+                                        self.buffer_size)
+                                        
+        self.read = DAQmxTypes.int32()
+        self.analog_input.StartTask()
+        self.number_of_ai_samples = int(self.buffer_size * self.sample_rate * self.number_of_ai_channels)
+        self.responseq.put('started')
+        while True:
+            if not self.commandq.empty():
+                cmd=self.commandq.get()
+                if cmd=='stop':
+                    break
+#            try:
+            if 1:
+                samples_to_read = self.sample_rate
+                self.ai_data = numpy.zeros(self.buffer_size*self.number_of_ai_channels, dtype=numpy.float64)
+                self.analog_input.ReadAnalogF64(-1,
+                                        self.timeout,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        self.ai_data,
+                                        samples_to_read,
+                                        DAQmxTypes.byref(self.read),
+                                        None)
+                ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+                ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
+                self.dataq.put(ai_data)
+        
+#            except PyDAQmx.DAQError:
+#                pass
+            time.sleep(0.15)
+        
+        self.analog_input.ClearTask()
+        self.responseq.put('ready')
+        
+    def read(self):
+        data=numpy.empty([0, self.number_of_ai_channels])
+        while not self.dataq.empty():
+            r=self.dataq.get()
+            data=numpy.concatenate((data, r))
+            time.sleep(0.01)
+        return data
+        
+    def stop(self):
+        if not self.responseq.empty():
+            self.responseq.get()
+        self.commandq.put('stop')
+        time.sleep(self.timeout+1)
+        if not self.responseq.empty():
+            print(self.responseq.get())
+        return self.read()
+            
+        
 class TestDaq(unittest.TestCase):
     def setUp(self):
         set_voltage('Dev1/ao0:1', 0)
@@ -290,6 +382,14 @@ class TestDaq(unittest.TestCase):
         reads.append(s.stop())
         self.assertEqual(len(numpy.array(reads).shape),3)
         s.close()
+        
+    def test_0_variable_length_ai_recording(self):
+        t0=time.time()
+        d=AnalogRecorder('Dev1/ai0:1' , 1000)
+        d.start()
+        time.sleep(10)
+        print(d.stop().shape)
+        print(time.time()-t0)
         
 if __name__ == '__main__':
     unittest.main()
