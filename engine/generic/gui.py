@@ -5,16 +5,10 @@ import os
 import numpy
 import time,unittest
 import copy,logging,tempfile
-try:
-    import Queue
-    import PyQt4.Qt as Qt
-    import PyQt4.QtGui as QtGui
-    import PyQt4.QtCore as QtCore
-except ImportError:
-    import queue as Queue
-    import PyQt5.Qt as Qt
-    import PyQt5.QtGui as QtGui
-    import PyQt5.QtCore as QtCore
+import queue as Queue
+import PyQt5.Qt as Qt
+import PyQt5.QtGui as QtGui
+import PyQt5.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal,introspect

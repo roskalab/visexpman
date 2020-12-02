@@ -43,6 +43,8 @@ class ExperimentConfig(Config):
         if isinstance(experiment_class,list) and len(experiment_class) == 0:
             raise ExperimentConfigError('runnable points to a non existing experiment class')
         #check if class inherits from experiment
+        if isinstance(experiment_class,  list):
+            raise NotImplementedError('Identical experiment class names cannnot be handled')
         if len([True for base in experiment_class.__bases__ if base.__name__ =='Experiment'])==0:
             raise ExperimentConfigError('runnable points to a class that does not inherit from Experiment')
         #Instantiate experiment class

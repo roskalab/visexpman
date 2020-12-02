@@ -1,4 +1,4 @@
-import numpy, unittest, copy, time, multiprocessing,queue
+import numpy, unittest, copy, time, multiprocessing,queue, pdb
 try:
     import PyDAQmx
     import PyDAQmx.DAQmxConstants as DAQmxConstants
