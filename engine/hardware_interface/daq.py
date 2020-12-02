@@ -106,6 +106,7 @@ class AnalogRead():
         self.ai_data = self.ai_data[:self.readb.value * self.n_ai_channels]
         self.ai_data = self.ai_data.flatten('F').reshape((self.n_ai_channels, self.readb.value))
         self.analog_input.StopTask()
+        self.analog_input.ClearTask()
         return self.ai_data
         
 def set_digital_line(channel, value):

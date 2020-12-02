@@ -53,6 +53,8 @@ void HitMiss::run(void)
               Serial.print(",");
             }
             Serial.print("\r\n");
+            Serial.print("Epoch: ");
+            Serial.println(millis());
           #endif
         }
         else if ((strcmp(command,"reset_protocol")==0)&&(nparams==0))
@@ -107,6 +109,17 @@ void HitMiss::run(void)
             delay((int)(par[0]));
             digitalWrite(REWARDPIN, LOW);
           }
+        #endif
+        }
+        else if ((strcmp(command,"reward_pulse")==0)&&(nparams==1))
+        {
+        #if (PLATFORM==ARDUINO)
+            digitalWrite(REWARDPIN, HIGH);
+            delay((int)(par[0]));
+            digitalWrite(REWARDPIN, LOW);
+            Serial.print("Reward pulse on for ");
+            Serial.print(par[0]);
+            Serial.println(" ms");
         #endif
         }
         else

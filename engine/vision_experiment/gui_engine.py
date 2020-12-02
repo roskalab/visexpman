@@ -178,7 +178,21 @@ class ExperimentHandler(object):
                 time.sleep(1)
                 if not pc.is_running():
                     raise IOError('Pump is not running, please press green Run button (bottom right side) to enable run/command mode')
-                
+        elif parameter_name=='Open Valve':
+            new_state=int(self.guidata.read('Open Valve'))
+            self._send_valve_command(f'reward,{new_state}')
+        elif parameter_name=='Trigger Reward':
+            duration=int(self.guidata.read('Valve Open Time'))
+            self._send_valve_command(f'reward_pulse,{duration}')
+            
+            
+    def _send_valve_command(self, cmd):
+        import serial
+        valve_serial_port=serial.Serial(self.machine_config.VALVE_PORT, 115200, timeout=1)
+        time.sleep(2)
+        valve_serial_port.write(f'{cmd}\r\n'.encode('utf-8'))
+        self.printc(valve_serial_port.read(100).decode())
+        valve_serial_port.close()
             
     def _get_experiment_parameters(self):
         '''
@@ -1856,7 +1870,7 @@ class Analysis(object):
         self.printc('Done')
         
     def plot_sync(self,filename):
-        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal',  "elphys", '2p', 'behav'] or self.santiago_setup:
+        if self.machine_config.PLATFORM in ['ao_cortical', 'resonant',  'retinal',  "elphys", '2p', 'behav', 'generic'] or self.santiago_setup:
             if os.path.splitext(filename)[1]!='.hdf5':
                 self.notify('Warning', 'Only hdf5 files can be opened!')
                 return

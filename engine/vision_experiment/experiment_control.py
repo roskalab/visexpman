@@ -294,7 +294,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.camera.start()
                     self.camera.trigger.set()  # starts acquisition
                 elif self.machine_config.PLATFORM in ['standalone','epos', 'generic']:
-                    self.printl('Waiting for external trigger')
+                    if self.machine_config.WAIT4TRIGGER_ENABLED:
+                        self.printl('Waiting for external trigger')
                     if hasattr(self.machine_config,'INJECT_START_TRIGGER'):
                         import threading
                         t=threading.Thread(target=inject_trigger, args=('/dev/ttyACM1',5,2))

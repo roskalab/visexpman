@@ -284,7 +284,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, offset=0, length=0,
-            flip = True):
+            flip = True, mask_size = 0, mask_color=0.5):
         '''        
         Three use cases are handled here:
             - showing individual image files
@@ -328,7 +328,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     index=i
                 fn=fns[index]
-                self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip, mask_size, mask_color)
             self.screen.clear_screen()
             self._flip(frame_timing_pulse = True)
         elif os.path.isfile(path) and os.path.splitext(path)=='.hdf5': # a hdf5 file with stimulus_frames variable having nframes * x * y dimensions
@@ -346,35 +346,65 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         framedata = handler.root.stimulus_frames[f1i].astype(float)/255  # put actual image frames into the list of paths
                     if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
                         framedata = framedata[::-1]  # flip row order = flip image TOP to Bottom
-                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip)
+                    self._show_image(numpy.rollaxis(numpy.tile(framedata,(3,1,1)),0,3), duration, position, stretch, flip, mask_size, mask_color)
                     print(1./(time.time() - mytime))
                     if self.abort:
                         break
                 self.screen.clear_screen()
                 self._flip(frame_timing_pulse=True)
         else:
-            self._show_image(path,duration,position,stretch,flip)
+            self._show_image(path,duration,position,stretch,flip, mask_size, mask_color)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
-    def _show_image(self,path,duration,position,stretch,flip):
+    def _show_image(self,path,duration,position,stretch,flip,mask_size=0,mask_color=0.5):
         if duration == 0.0:
             nframes=1
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
-        for i in range(nframes):
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        if mask_size == 0:
+            for i in range(nframes):
+                glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                if hasattr(path,'shape'):  # show image already loaded
+                    self.screen.render_image(path, position=utils.rc_add(position, self.machine_config.SCREEN_CENTER),
+                                                 stretch=stretch)
+                else:  # load image file given its path as a string
+                    if i==0:
+                        image=self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+                    else:
+                        self.screen.render_image(image, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+                if flip:
+                    self._flip(frame_timing_pulse = True)
+                if self.abort:
+                    break
+        else:  #show_image with mask
+            mask_size_pixel=int(mask_size*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+            if mask_size_pixel%2==1:
+                mask_size_pixel+=1
+            
+            background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+            converted_mask_color = colors.convert_color(mask_color, self.config)
+            glClearColor(converted_mask_color[0], converted_mask_color[1], converted_mask_color[2], 0.0)
+               
             if hasattr(path,'shape'):  # show image already loaded
-                self.screen.render_image(path, position=utils.rc_add(position, self.machine_config.SCREEN_CENTER),
-                                             stretch=stretch)
+                image = path
             else:  # load image file given its path as a string
-                if i==0:
-                    image=self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
-                else:
-                    self.screen.render_image(image, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
-            if flip:
-                self._flip(frame_timing_pulse = True)
-            if self.abort:
-                break
+                image = self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)   
+            mask=geometry.circle_mask([utils.roundint(image.shape[0]/2),utils.roundint(image.shape[1]/2)],utils.roundint(mask_size_pixel/2),image.shape[:2])
+            mask=numpy.rollaxis(numpy.array([mask]*3), 0, 3)
+            mask_inv=numpy.where(mask==0,converted_mask_color[0],0)
+           
+            image*=mask
+            image+=mask_inv    
+                
+            for i in range(nframes):
+                glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+                self.screen.render_image(image, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
+                if flip:
+                    self._flip(frame_timing_pulse = True)
+                if self.abort:
+                    break
+                    
+            glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
                 
     def show_video(self, fn, position = (0, 0),  stretch=1.0,  load_video=True, half_fps=False):
         if 0:
@@ -1912,6 +1942,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         return positions
 
     def angle2pixel(self, xy):
+        if self.machine_config.SCREEN_WIDTH/self.machine_config.SCREEN_HEIGHT!=self.machine_config.SCREEN_RESOLUTION['col']/self.machine_config.SCREEN_RESOLUTION['row']:
+            print(self.machine_config.SCREEN_WIDTH,self.machine_config.SCREEN_HEIGHT,self.machine_config.SCREEN_RESOLUTION['col'],self.machine_config.SCREEN_RESOLUTION['row'])
+            raise ValueError('Screen aspect ratio is not well defined')
         pixel_cm_scale = self.machine_config.SCREEN_WIDTH / self.machine_config.SCREEN_RESOLUTION['col']
         displacement_pixel = numpy.array(self.DISPLACEMENT_FROM_SCREEN_CENTER * -1) / pixel_cm_scale
         pixel = numpy.tan(numpy.radians(

@@ -1,7 +1,7 @@
 import os,sys,time,threading,shutil,multiprocessing,copy,logging,datetime,pdb
 import numpy,visexpman, traceback,serial,subprocess,platform
 import queue as Queue
-import cv2
+import cv2,scipy.io
 import PyQt5.Qt as Qt
 import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
@@ -270,13 +270,24 @@ class BehavioralEngine(threading.Thread,CameraHandler):
         hdf5files.sort()
         if self.parameters['params/Advanced/Conversion Format']=='mat':
             logging.info('Converting hdf5 files to mat in {0}'.format(folder))
+            outdata=[]
         elif self.parameters['params/Advanced/Conversion Format']=='xls':
             logging.info('Aggregating hdf5 files to xls in {0}'.format(folder))
         self.xls_aggregate={}
         for f in hdf5files:
             try:
                 if self.parameters['params/Advanced/Conversion Format']=='mat':
-                    experiment_data.hdf52mat(f)
+                    h=hdf5io.Hdf5io(f)
+                    varnames= ['machine_config', 'parameters', 'protocol', 'software', 'stat', 'sync']
+                    o={}
+                    for vn in varnames:
+                        if vn=='stat':
+                            o[vn]=utils.array2object(h.findvar(vn))
+                        else:
+                            o[vn]=h.findvar(vn)
+                    o['filename']=f
+                    outdata.append(o)
+                    h.close()
                 elif self.parameters['params/Advanced/Conversion Format']=='xls':
                     self.aggregate2xls(f)
                 logging.info(f)
@@ -831,7 +842,7 @@ class Behavioral(gui.SimpleAppWindow):
         self.plotnames=['events', 'animal_weight']
         self.plots=gui.TabbedPlots(self,self.plotnames)
         self.plots.animal_weight.plot.setLabels(left='weight [g]')
-        self.plots.events.plot.setLabels(left='speed [m/s]', bottom='times [s]')
+        self.plots.events.plot.setLabels(left='signal amplitude [V]', bottom='times [s]')
         self.plots.tab.setMinimumWidth(self.machine_config.PLOT_WIDGET_WIDTH)
         self.plots.tab.setFixedHeight(self.machine_config.BOTTOM_WIDGET_HEIGHT)
         for pn in self.plotnames:
