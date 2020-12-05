@@ -17,7 +17,7 @@ try:
     from visexpman.applications.led_stimulator import led_stimulator
 except:
     pass
-try:
-    from visexpman.applications.video_splitter import video_splitter
-except:
-    pass
+#try:
+#    from visexpman.applications.video_splitter import video_splitter
+#except:
+#    pass
