@@ -1,5 +1,17 @@
-import os,unittest,multiprocessing,time,pdb,numpy
-from thorlabs_tsi_sdk.tl_camera import TLCameraSDK
+from visexpman.engine.generic import gui
+import os,unittest,multiprocessing,time,pdb,numpy, cv2
+try:
+    from thorlabs_tsi_sdk.tl_camera import TLCameraSDK
+except:
+    print('No thorlabs camera driver installed')
+
+try:
+    import tisgrabber
+except:
+    print('No Imaging source camera driver installed')
+import PyDAQmx
+import PyDAQmx.DAQmxConstants as DAQmxConstants
+import PyDAQmx.DAQmxTypes as DAQmxTypes
 from visexpman.engine.hardware_interface import instrument
 
 class ThorlabsCamera(object):
@@ -96,7 +108,151 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
                 import traceback
                 self.printl(traceback.format_exc())
                     
+                    
+class ISCamera(instrument.InstrumentProcess):
+    def __init__(self,camera_id,logfile,digital_line, frame_rate=60, exposure=1/65, filename=None):
+        self.filename=filename
+        self.camera_id=camera_id
+        self.frame_rate=frame_rate
+        self.digital_line=digital_line
+        self.exposure=exposure
+        self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
+        instrument.InstrumentProcess.__init__(self,self.queues,logfile)
+        self.control=multiprocessing.Queue()
+        self.data=multiprocessing.Queue()
+        print(self.logfile)
+        
+    def stop(self):
+        self.queues['command'].put('stop')
+        
+    def read(self):
+        if not self.queues['data'].empty():
+            return self.queues['data'].get()
+            
+    def run(self):
+        try:
+            self.setup_logger()
+            self.printl(f'pid: {os.getpid()}')
+            self.running=False
+            Camera = tisgrabber.TIS_CAM()
+            camera_name=[camidi for camidi in Camera.GetDevices() if camidi.decode()==self.camera_id]
+            if len(camera_name)==0:
+                raise ValueError(f'Unkown camera: {camera_name}, {Camera.GetDevices() }')
 
+            Camera.open(camera_name[0].decode())
+            Camera.SetPropertySwitch("Trigger","Enable",0)
+            Camera.SetVideoFormat("Y800 (744x480)")
+        
+            Camera.SetFrameRate(self.frame_rate)
+            Camera.SetPropertyAbsoluteValue("Exposure","Value", self.exposure)   #50fps 640x480
+            Camera.SetContinuousMode(0)
+
+            digital_output = PyDAQmx.Task()
+            digital_output.CreateDOChan(self.digital_line,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            fps='30'
+            import skvideo.io
+            if self.filename!=None:
+                self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
+            frame_prev=None
+            Camera.StartLive(1)
+            while True:
+                frame=Camera.GetImage()[:, :, 0].copy()
+                if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer
+                    continue
+                frame_prev=frame.copy()
+                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
+
+                if hasattr(self, 'video_writer'):
+                    if len(frame.shape)==2:
+                        frame=numpy.rollaxis(numpy.array([frame]*3),0,3).copy()
+                    self.video_writer.writeFrame(frame)
+                #Digital pulse indicates video save time
+                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)
+                if not self.queues['command'].empty():
+                    cmd=self.queues['command'].get()
+                    self.printl(cmd)
+                    if cmd=='stop':
+                        Camera.StopLive()
+                        break
+                        
+                
+                if self.queues['data'].empty() and frame is not None:#Send frame when queue empty (previous frame was taken
+                    self.queues['data'].put(frame)
+                
+                time.sleep(1e-3)
+            if hasattr(self,  'video_writer'):
+                self.video_writer.close()
+            digital_output.ClearTask()
+        except:
+            import traceback
+            self.printl(traceback.format_exc())
+        
+class WebCamera(instrument.InstrumentProcess):
+    def __init__(self,camera_id,logfile,digital_line,filename=None):
+        self.filename=filename
+        self.camera_id=camera_id
+        self.digital_line=digital_line
+        self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
+        instrument.InstrumentProcess.__init__(self,self.queues,logfile)
+        self.control=multiprocessing.Queue()
+        self.data=multiprocessing.Queue()
+        print(self.logfile)
+        
+    def stop(self):
+        self.queues['command'].put('stop')
+        
+    def read(self):
+        if not self.queues['data'].empty():
+            return self.queues['data'].get()
+            
+    def run(self):
+        try:
+            self.setup_logger()
+            self.printl(f'pid: {os.getpid()}')
+            self.running=False
+            digital_output = PyDAQmx.Task()
+            digital_output.CreateDOChan(self.digital_line,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            fps='30'
+            import skvideo.io
+            if self.filename!=None:
+                self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
+            frame_prev=None
+            Camera = cv2.VideoCapture(self.camera_id)
+            self.printl(Camera)
+            while True:
+                r, fr=Camera.read()
+                if fr is None:
+                    continue
+                frame=fr.copy()
+                if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer
+                    continue
+                frame_prev=frame
+                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
+
+                if hasattr(self, 'video_writer'):
+                    if len(frame.shape)==2:
+                        frame=numpy.rollaxis(numpy.array([fr]*3),0,3).copy()
+                    self.video_writer.writeFrame(frame)
+                #Digital pulse indicates video save time
+                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)
+                if not self.queues['command'].empty():
+                    cmd=self.queues['command'].get()
+                    self.printl(cmd)
+                    if cmd=='stop':
+                        Camera.release()
+                        break
+                if self.queues['data'].empty() and frame is not None:#Send frame when queue empty (previous frame was taken
+                    self.queues['data'].put(frame)
+                
+                time.sleep(1e-3)
+            if hasattr(self,  'video_writer'):
+                self.video_writer.close()
+            digital_output.ClearTask()
+        except:
+            import traceback
+            self.printl(traceback.format_exc())
+
+        
 class TestCamera(unittest.TestCase):
     def setUp(self):
         self.folder=r'f:\Scientific Camera Interfaces\SDK\Python Compact Scientific Camera Toolkit\dlls\64_lib'
@@ -161,6 +317,36 @@ class TestCamera(unittest.TestCase):
         numpy.testing.assert_almost_equal(numpy.diff(timestamps),exposure_time,3)
         self.assertTrue(os.path.exists(logfile))
         self.assertGreater(os.path.getsize(logfile),0)
+    
+    @unittest.skip('')      
+    def test_4_imaging_source_camera(self):
+        fn=r'c:\Data\a.mp4'
+        cam=ISCamera('DMK 22BUC03 31710198',r'c:\Data\log\camlog.txt','Dev1/port0/line0', frame_rate=60, exposure=1/65, filename=fn)
+        cam.start()
+        for i in range(60):
+            time.sleep(1.1)
+        cam.stop()
+        time.sleep(1)
+        cam.terminate()
+        
+    
+    def test_5_web_camera(self):
+        cam=WebCamera(3,r'c:\Data\log\camlog.txt','Dev1/port0/line0', filename=None)
+        cam.start()
+        for i in range(60):
+            time.sleep(0.1)
+            fr=cam.read()
+            if fr is not None:
+                frame=fr
+                from pylab import imshow, show
+                imshow(frame)
+                show()
+                break
+        cam.stop()
+        time.sleep(1)
+        cam.terminate()
+        
+            
 
 if __name__ == '__main__':
     unittest.main()

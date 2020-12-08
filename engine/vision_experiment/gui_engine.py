@@ -329,6 +329,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                     par['stop_trigger']=False
                     self.batch.append(par)
                 self.batch[-1]['stop_trigger']=True
@@ -371,6 +372,7 @@ class ExperimentHandler(object):
                         par['depth']=d
                         par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                         par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                        par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                         self.batch.append(par)
                         if self.guidata.read('Enable tile scan'):
                             ref=copy.deepcopy(self.batch[-1])
@@ -383,6 +385,7 @@ class ExperimentHandler(object):
                                 par['id']=experiment_data.get_id()
                                 par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                                 par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                                par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                                 self.batch.append(par)
             elif self.machine_config.PLATFORM =='resonant':
                 for r in range(self.guidata.read('Repeats')):
@@ -390,6 +393,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                     time.sleep(0.2)
                     self.batch.append(par)
             if self.guidata.read('Enable tile scan'):
