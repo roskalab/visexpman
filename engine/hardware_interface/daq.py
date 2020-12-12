@@ -109,6 +109,10 @@ class AnalogRead():
         self.analog_input.ClearTask()
         return self.ai_data
         
+    def abort(self):
+        self.analog_input.StopTask()
+        self.analog_input.ClearTask()
+        
 def set_digital_line(channel, value):
     digital_output = PyDAQmx.Task()
     digital_output.CreateDOChan(channel,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
