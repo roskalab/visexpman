@@ -6,6 +6,20 @@ from visexpman.engine.vision_experiment import experiment_data
 from pylab import *
 from scipy.ndimage.filters import gaussian_filter
 
+def align_videos(video1_fn,video2_fn,sync_fn):
+    h=hdf5io.Hdf5io(sync_fn)
+    fsample=h.findvar('machine_config')['SYNC_RECORDER_SAMPLE_RATE']
+    try:
+        teyeindex= h.findvar('machine_config')['TEYECAM_SYNC_INDEX']
+    except KeyError:
+        teyeindex=3
+    sync=h.findvar('sync')
+    inscopix_timestamps=sync[:,h.findvar('machine_config')['TNVISTA_SYNC_INDEX']]
+    behavioral_timestamps=sync[:,h.findvar('machine_config')['TBEHAV_SYNC_INDEX']]
+    eyecam_timestamps=sync[:,teyeindex]
+    h.close()
+    
+
 def extract_eyeblink(filename, baseline_length=0.5,blink_duration=0.5,threshold=0.01, debug=False, annotation=None):
     '''
     Ceiling light is reflected on mice eyeball which results a significantly bright area. When eyes are
@@ -934,6 +948,12 @@ class TestBehavAnalysis(unittest.TestCase):
         plot(coo[:,1])
         show()
         pass
+        
+    def test_7_align(self):
+        sync_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/behav_202012111657468.hdf5'
+        video1_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/behav_202012111657468.mp4'
+        video2_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/eye_202012111657468.mp4'
+        align_videos(video1_fn,video2_fn,sync_fn)
 
 if __name__ == "__main__":
     unittest.main()
