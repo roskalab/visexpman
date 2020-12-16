@@ -110,8 +110,11 @@ class AnalogRead():
         return self.ai_data
         
     def abort(self):
-        self.analog_input.StopTask()
-        self.analog_input.ClearTask()
+        try:
+            self.analog_input.StopTask()
+            self.analog_input.ClearTask()
+        except:
+            pass
         
 def set_digital_line(channel, value):
     digital_output = PyDAQmx.Task()
