@@ -264,7 +264,7 @@ class SimpleAppWindow(Qt.QMainWindow):
         return filenames
         
     def ask4foldername(self,title, directory):
-        foldername = QtGui.QFileDialog.getExistingDirectory(self, title, directory)[0]
+        foldername = QtGui.QFileDialog.getExistingDirectory(self, title, directory)
         if os.name=='nt':
             foldername=foldername.replace('/','\\')
         return foldername
