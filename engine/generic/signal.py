@@ -95,6 +95,11 @@ def split_object(im,max_iter=10):
         central_object=numpy.where(labels==label_i[ii],1,0)
     return central_object,iterations
     
+def central_object(binary_image):
+    labels, n=scipy.ndimage.label(binary_image)
+    center=labels[int(labels.shape[0]/2),int(labels.shape[1]/2)]
+    return numpy.where(labels==center,1,0)
+    
 def find_biggest_object(binary_image):#Works also for 3d image
     labels, n=scipy.ndimage.label(binary_image)
     ii=numpy.array([numpy.where(labels==li)[0].shape[0] for li in range(1,n+1)]).argmax()+1
