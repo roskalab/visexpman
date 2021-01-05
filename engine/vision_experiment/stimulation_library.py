@@ -1942,6 +1942,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         return positions
 
     def angle2pixel(self, xy):
+        if self.machine_config.SCREEN_WIDTH/self.machine_config.SCREEN_HEIGHT!=self.machine_config.SCREEN_RESOLUTION['col']/self.machine_config.SCREEN_RESOLUTION['row']:
+            print(self.machine_config.SCREEN_WIDTH,self.machine_config.SCREEN_HEIGHT,self.machine_config.SCREEN_RESOLUTION['col'],self.machine_config.SCREEN_RESOLUTION['row'])
+            raise ValueError('Screen aspect ratio is not well defined')
         pixel_cm_scale = self.machine_config.SCREEN_WIDTH / self.machine_config.SCREEN_RESOLUTION['col']
         displacement_pixel = numpy.array(self.DISPLACEMENT_FROM_SCREEN_CENTER * -1) / pixel_cm_scale
         pixel = numpy.tan(numpy.radians(

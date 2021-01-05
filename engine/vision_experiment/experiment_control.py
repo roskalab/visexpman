@@ -104,6 +104,7 @@ class Trigger(object):
                 if self.abort:
                     break
                 if self.digital_io.hwhandler.inWaiting()>0:
+                    self.first_imaging_frame_timepoint=time.time()
                     result = True
                     self.digital_io.read()
                     break
@@ -510,7 +511,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.parameters['partial_data']=self.abort
         self._read_sync()
         self._blocks2table()
-        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block', 'experiment_start_timestamp', 'arduino_sync']#['experiment_name', 'experiment_config_name', 'frame_times']
+        variables2save = ['parameters', 'stimulus_frame_info', 'configs', 'user_data', 'software_environment', 'block', 'experiment_start_timestamp', 'arduino_sync',  'arduino_timestamps']#['experiment_name', 'experiment_config_name', 'frame_times']
 #        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
         self.datafile = experiment_data.CaImagingData(self.outputfilename)
         self._prepare_data2save()
@@ -601,10 +602,15 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.printl('Stimulus frame info saved as pickled')
         
     def _read_sync(self):
-        print(self.machine_config.READ_VIDEO_TIMING_SIGNALS)
         if hasattr(self.machine_config, 'READ_VIDEO_TIMING_SIGNALS') and self.machine_config.READ_VIDEO_TIMING_SIGNALS:
             self.digital_io.read()
             self.arduino_sync=self.digital_io.read_all()
+            self.arduino_timestamps=[self.arduino_sync[0,numpy.nonzero(self.arduino_sync[i])[0]]*1e-3 for i in [1, 2]]
+            self.printl(1/numpy.diff(self.arduino_timestamps[1]).mean())
+            stim_block_timestamps=numpy.array([sfi['time'] for sfi in self.stimulus_frame_info if 'block_name' in sfi])
+            stim_block_timestamps-=self.first_imaging_frame_timepoint
+            video_timestamps=self.arduino_timestamps[1]-self.arduino_timestamps[1][0]
+            self.arduino_timestamps={'t0':self.first_imaging_frame_timepoint, 'video_timestamps':video_timestamps, 'stim_block_timestamps': stim_block_timestamps}
             
     def _backup(self, filename):#Maybe obsolete?
         bupaths=[self.machine_config.BACKUP_PATH]

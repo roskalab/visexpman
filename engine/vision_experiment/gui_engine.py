@@ -178,7 +178,21 @@ class ExperimentHandler(object):
                 time.sleep(1)
                 if not pc.is_running():
                     raise IOError('Pump is not running, please press green Run button (bottom right side) to enable run/command mode')
-                
+        elif parameter_name=='Open Valve':
+            new_state=int(self.guidata.read('Open Valve'))
+            self._send_valve_command(f'reward,{new_state}')
+        elif parameter_name=='Trigger Reward':
+            duration=int(self.guidata.read('Valve Open Time'))
+            self._send_valve_command(f'reward_pulse,{duration}')
+            
+            
+    def _send_valve_command(self, cmd):
+        import serial
+        valve_serial_port=serial.Serial(self.machine_config.VALVE_PORT, 115200, timeout=1)
+        time.sleep(2)
+        valve_serial_port.write(f'{cmd}\r\n'.encode('utf-8'))
+        self.printc(valve_serial_port.read(100).decode())
+        valve_serial_port.close()
             
     def _get_experiment_parameters(self):
         '''
@@ -315,6 +329,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                     par['stop_trigger']=False
                     self.batch.append(par)
                 self.batch[-1]['stop_trigger']=True
@@ -357,6 +372,7 @@ class ExperimentHandler(object):
                         par['depth']=d
                         par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                         par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                        par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                         self.batch.append(par)
                         if self.guidata.read('Enable tile scan'):
                             ref=copy.deepcopy(self.batch[-1])
@@ -369,6 +385,7 @@ class ExperimentHandler(object):
                                 par['id']=experiment_data.get_id()
                                 par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                                 par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                                par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                                 self.batch.append(par)
             elif self.machine_config.PLATFORM =='resonant':
                 for r in range(self.guidata.read('Repeats')):
@@ -376,6 +393,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
+                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
                     time.sleep(0.2)
                     self.batch.append(par)
             if self.guidata.read('Enable tile scan'):

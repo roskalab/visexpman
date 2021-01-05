@@ -5,16 +5,10 @@ import os
 import numpy
 import time,unittest
 import copy,logging,tempfile
-try:
-    import Queue
-    import PyQt4.Qt as Qt
-    import PyQt4.QtGui as QtGui
-    import PyQt4.QtCore as QtCore
-except ImportError:
-    import queue as Queue
-    import PyQt5.Qt as Qt
-    import PyQt5.QtGui as QtGui
-    import PyQt5.QtCore as QtCore
+import queue as Queue
+import PyQt5.Qt as Qt
+import PyQt5.QtGui as QtGui
+import PyQt5.QtCore as QtCore
 import pyqtgraph
 import pyqtgraph.console
 from visexpman.engine.generic import utils,stringop,fileop,signal,introspect
@@ -270,7 +264,7 @@ class SimpleAppWindow(Qt.QMainWindow):
         return filenames
         
     def ask4foldername(self,title, directory):
-        foldername = QtGui.QFileDialog.getExistingDirectory(self, title, directory)[0]
+        foldername = QtGui.QFileDialog.getExistingDirectory(self, title, directory)
         if os.name=='nt':
             foldername=foldername.replace('/','\\')
         return foldername
@@ -622,7 +616,8 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         if type == 'circle':
             roi = pyqtgraph.CircleROI([x-0.5*size, y-0.5*size], [size, size])
         elif type =='point':
-            roi = pyqtgraph.ROI((x,y),size=[0.3,0.3],movable=False,removable=False)
+            s=[0.3,0.3] if size==None else size
+            roi = pyqtgraph.ROI((x,y),size=s,movable=False,removable=True)
         elif type == 'rect':
             roi = pyqtgraph.RectROI((x-0.5*size[0],y-0.5*size[1]),size=size, movable = movable)
         roi.setPen((self.unselected_color[0],self.unselected_color[1],self.unselected_color[2],255), width=2)

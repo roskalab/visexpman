@@ -345,7 +345,8 @@ class DigitalIO(object):
             for i in range(2):
                 self.set_pin(i, 0)
         elif type=='arduino':
-            self.hwhandler=serial.Serial(port, 9600)
+            self.hwhandler=serial.Serial(port, 115200)
+            self.read_buffer=''
         elif type==None:
             pass
         else:
@@ -377,6 +378,17 @@ class DigitalIO(object):
             else:
                 self.hwhandler.write((chr(ord('a')+pin)).encode('utf-8'))
             
+    def read(self):
+        if self.type=='arduino':
+            self.read_buffer+=self.hwhandler.read(self.hwhandler.in_waiting).decode()
+            
+    def read_all(self):
+        if self.type=='arduino':
+            #Assuming two digital inputs
+            return numpy.array([list(map(int,[line.split()[0],line.split()[1][0], line.split()[1][1]])) for line in self.read_buffer.split('\r\n')[:-1]]).T
+        else:
+            raise NotImplementedError()
+    
     def close(self):
         if self.type==None:
             return
@@ -429,7 +441,10 @@ class TestConfig(object):
 class TestDigitalIO(unittest.TestCase):
     
     def setUp(self):
-        self.ioboardport=find_port(None)
+        try:
+            self.ioboardport=find_port(None)
+        except:
+            print('No device found')
     
     @unittest.skip('')
     def test_01_pulse(self):
@@ -558,6 +573,21 @@ class TestDigitalIO(unittest.TestCase):
         print(d.read())
         print(d.read())
         d.close()
+        
+    def test_11_arduino_digital_input(self):
+        do=DigitalIO('arduino', port='COM8', timeout=1e-3)
+        time.sleep(3)
+        t0=time.time()
+        for i in range(int(60*60*0.5)):
+            do.read()
+            time.sleep(15e-3)
+        print(time.time()-t0)
+        do.close()
+        do.read_all()
+        values=numpy.array([list(map(int,line.split())) for line in do.read_buffer.split('\r\n')[:-1]])
+        self.assertFalse(any(numpy.diff(values[:,0])<0))
+        print(1e3/numpy.diff(values[::2,0]).mean(), 'Hz')
+        
         
 class TestTriggerDetector(unittest.TestCase):
     def test(self):

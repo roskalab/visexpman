@@ -137,6 +137,13 @@ def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
     sig[:triangle.shape[0]] = triangle
     return sig+offset
     
+def wf_pulses(npulses, ontime, offtime=None, fsample=1000, duty_cycle=0.5):
+    if offtime==None:
+        offtime=ontime
+    noff_half=utils.roundint(offtime*fsample/2)
+    non=utils.roundint(ontime*fsample)
+    return numpy.tile(numpy.concatenate((numpy.zeros(noff_half), numpy.ones(non), numpy.zeros(noff_half))), npulses)
+
 def generate_random_angles(n, p = 3559, q = 3571, x0 = 17):
     '''
     Generates n angles (-pi...pi range) using Blum Blum Shub pseudorandom generation algorithm:

@@ -53,6 +53,8 @@ void HitMiss::run(void)
               Serial.print(",");
             }
             Serial.print("\r\n");
+            Serial.print("Epoch: ");
+            Serial.println(millis());
           #endif
         }
         else if ((strcmp(command,"reset_protocol")==0)&&(nparams==0))
