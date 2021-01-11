@@ -293,7 +293,11 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 logging.info(f)
             except:
                 logging.info(traceback.format_exc())
-        if self.parameters['params/Advanced/Conversion Format']=='xls':
+        if self.parameters['params/Advanced/Conversion Format']=='mat':
+            fnall=folder+'.mat'
+            scipy.io.savemat(fnall,{'data':outdata},long_field_names=True)
+            logging.info('All data saved to '+fnall)
+        elif self.parameters['params/Advanced/Conversion Format']=='xls':
             fn=os.path.join(folder, os.path.basename(folder)+'.xls')
             import xlwt
             book = xlwt.Workbook()
@@ -461,6 +465,10 @@ class BehavioralEngine(threading.Thread,CameraHandler):
                 break
             time.sleep(0.1)
         logging.info('Recorded {0} s'.format(self.sync.shape[0]/float(self.machine_config.AI_SAMPLE_RATE)))
+        #EXPERIMENTAL
+        self.ai.terminate()
+        import PyDAQmx
+        PyDAQmx.ResetDevice('Dev1')
         if self.machine_config.ENABLE_CAMERA:
             self.stop_video_recording()
         if hasattr(self, 'iscamera'):
@@ -520,7 +528,12 @@ class BehavioralEngine(threading.Thread,CameraHandler):
     def save_during_session(self):
         if self.session_ongoing and not self.protocol.is_alive():
             self.finish_recording()
-            self.start_recording()
+            if self.filecounter>=int(self.parameters['params/Experiment/Number of Trials']):
+                self.session_ongoing=False
+                self.to_gui.put({'set_recording_state': 'idle'})
+                logging.info('Session ended')         
+            else:
+                self.start_recording()
         
     def stop_session(self):
         if not self.session_ongoing:
@@ -555,6 +568,7 @@ class BehavioralEngine(threading.Thread,CameraHandler):
             self.datafile.save(n)
         self.datafile.close()
         del self.datafile
+        logging.info(hdf5io.read_item(self.filename,'stat_text'))
         logging.info('Data saved to {0}'.format(self.filename))
         experiment_data.hdf52mat(self.filename)
         self.filecounter+=1
@@ -808,6 +822,7 @@ class Behavioral(gui.SimpleAppWindow):
                             {'name': 'Experiment', 'type': 'group', 'expanded' : True, 'children': [
                                 {'name': 'Protocol', 'type': 'list', 'values': protocol_names_sorted,'value':''},
                                 {'name': 'Laser Intensity', 'type': 'float', 'value': 1.0,'siPrefix': True, 'suffix': 'V'},
+                                {'name': 'Number of Trials', 'type': 'int', 'value': 100,},
                                 ]},
 #                            {'name': 'Lick Detection', 'type': 'group', 'expanded' : True, 'children': [
 #                                {'name': 'Voltage Threshold', 'type': 'float', 'value': 0.25,'siPrefix': True, 'suffix': 'V'},
@@ -823,7 +838,7 @@ class Behavioral(gui.SimpleAppWindow):
                                 #{'name': 'Enable Air Puff', 'type': 'bool', 'value': False},
                                 {'name': 'Enable Lick Simulation', 'type': 'bool', 'value': False},
                                 {'name': 'Histogram bin size', 'type': 'float', 'value': 50e-3, 'siPrefix': True, 'suffix': 's'},
-                                {'name': 'Conversion Format', 'type': 'list', 'values': ['mat', 'xls'],'value':'xls'},
+                                {'name': 'Conversion Format', 'type': 'list', 'values': ['mat', 'xls'],'value':'mat'},
                                 ]},
                     ]
         if hasattr(self.engine, 'parameters'):

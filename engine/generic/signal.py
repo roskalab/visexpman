@@ -447,7 +447,7 @@ def digital2binary(data):
         out[biti]=d&(2**biti)
     return out
     
-def im2rgb(im):
+def gray2rgb(im):
     return numpy.rollaxis(numpy.array([im]*3),0,3)
     
 def label_image(img,label,scale=True):
