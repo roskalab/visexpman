@@ -5,7 +5,7 @@ import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop, signal, utils, introspect
-from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io,openephys
+from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io,openephys, camera
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 from visexpman.engine.analysis import behavioral_data
 
@@ -48,6 +48,8 @@ class Camera(gui.VisexpmanMainWindow):
             self.datafilebrowser = main_ui.DataFileBrowser(self, self.filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
             self.main_tab.addTab(self.datafilebrowser, 'Data Files')        
         self.main_tab.addTab(self.params, 'Settings')
+        self.eyecameraimage=gui.Image(self)
+        self.main_tab.addTab(self.eyecameraimage, 'Eye camera')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
@@ -67,6 +69,11 @@ class Camera(gui.VisexpmanMainWindow):
         port= self.machine_config.CAMERA_IO_PORT if hasattr(self.machine_config, 'CAMERA_IO_PORT') else None
         self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, port)
         self.camerahandler.start()
+        
+        if self.machine_config.EYE_CAMERA_ENABLE:
+            self.eyecam=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
+            self.eyecam.start()
+        
         self.trigger_detector_enabled=False
 #        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
 #            self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
@@ -150,6 +157,8 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Preparing')
             self.camerahandler.stop()
+            if self.machine_config.EYE_CAMERA_ENABLE:
+                self.eyecam.stop()
             if self.machine_config.ENABLE_SYNC=='camera':
                 self.ai=daq_instrument.SimpleAnalogIn(self.machine_config.SYNC_RECORDER_CHANNELS, self.machine_config.SYNC_RECORDER_SAMPLE_RATE, self.machine_config.MAX_RECORDING_DURATION,  finite=False)
 #                d=self.ai.read_ai()#Empty ai buffer
@@ -167,7 +176,9 @@ class Camera(gui.VisexpmanMainWindow):
                     outfolder=os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, self.machine_config.user, utils.timestamp2ymd(time.time(), separator=''))
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
-                self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': experiment_data.get_id()},prefix = self.machine_config.CAMFILENAME_TAG,extension='.mp4')
+                id=experiment_data.get_id()
+                self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAMFILENAME_TAG,extension='.mp4')
+                self.eyefn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.EYECAMFILENAME_TAG,extension='.mp4')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 if not openephys.start_recording():
                     self.printc('Openephyc cannot be triggered, is it started?')
@@ -189,6 +200,9 @@ class Camera(gui.VisexpmanMainWindow):
                     
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
             self.camerahandler.start()
+            if self.machine_config.EYE_CAMERA_ENABLE:
+                self.eyecam=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
+                self.eyecam.start()
             import psutil
             p = psutil.Process(self.camerahandler.pid)
             p.nice(psutil.HIGH_PRIORITY_CLASS)
@@ -210,6 +224,8 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
             self.ts, log=self.camerahandler.stop()
+            if self.machine_config.EYE_CAMERA_ENABLE:
+                self.eyecam.stop()
             hdf5_out=self.fn if self.fn[-4]=='hdf5' else fileop.replace_extension(self.fn,'.hdf5')
             hdf5io.save_item(hdf5_out, 'timestamps', self.ts)
             if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
@@ -252,6 +268,9 @@ class Camera(gui.VisexpmanMainWindow):
                 fc=None
             self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camerahandler.start()
+            if self.machine_config.EYE_CAMERA_ENABLE:
+                self.eyecam=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
+                self.eyecam.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
@@ -355,9 +374,19 @@ class Camera(gui.VisexpmanMainWindow):
                 else:
                     condition=not os.path.isdir(f) and os.path.splitext(f)[1]=='.hdf5' and not os.path.exists(fileop.replace_extension(experiment_data.add_mat_tag(f), '.mat'))
                 if condition:
+                    if os.path.exists(fileop.replace_extension(f, '.mp4')):
+                        fconvert=fileop.replace_extension(f, '.mp4')
+                    else:
+                        fconvert=f
                     print(f)
                     try:
-                        self.convert_file(f)
+                        self.convert_file(fconvert)
+                        if self.machine_config.ENABLE_VIDEO_RESAMPLING:
+                            print('Resampling video')
+                            vfn1, vfn2=behavioral_data.align_videos_wrapper(f)
+                            import shutil
+                            shutil.copy(vfn1,dst)
+                            shutil.copy(vfn2,dst)
                         if not self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                             #Copy files
                             import shutil
@@ -524,12 +553,18 @@ class Camera(gui.VisexpmanMainWindow):
                 if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
                     self.trigger_handler()
                 self.socket_handler()
+            if self.machine_config.EYE_CAMERA_ENABLE:
+                frame=self.eyecam.read()
+                if frame is not None:
+                    self.eyecameraimage.set_image(numpy.rot90(numpy.flipud(frame)))
         except:
             self.printc(traceback.format_exc())
         
     def exit_action(self):
         self.save_context()
         self.camerahandler.stop()
+        if self.machine_config.EYE_CAMERA_ENABLE:
+            self.eyecam.stop()
 #        if hasattr(self,  'ioboard'):
 #            self.ioboard.close()
 #        if hasattr(self, 'ai'):

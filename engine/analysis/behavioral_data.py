@@ -61,6 +61,7 @@ def align_videos_wrapper(fn):
     vfn1=[f for f in files if fnid in f and 'behav' in os.path.basename(f) and '.mp4' in f][0]
     vfn2=[f for f in files if fnid in f and 'eye' in os.path.basename(f) and '.mp4' in f][0]
     align_videos(vfn1,vfn2,fn)
+    return vfn1, vfn2
 
 def extract_eyeblink(filename, baseline_length=0.5,blink_duration=0.5,threshold=0.01, debug=False, annotation=None):
     '''
