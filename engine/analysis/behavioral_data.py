@@ -5,6 +5,18 @@ from visexpman.engine.generic import introspect,fileop,utils,signal
 from visexpman.engine.vision_experiment import experiment_data
 from pylab import *
 from scipy.ndimage.filters import gaussian_filter
+import skvideo.io
+
+def read_frame(filename,index):
+    ct=0
+    reader= skvideo.io.vreader(filename)
+    for frame in reader:
+        if ct==index:
+            captured=numpy.copy(frame)
+            break
+        ct+=1
+    reader.close()
+    return captured
 
 def align_videos(video1_fn,video2_fn,sync_fn):
     h=hdf5io.Hdf5io(sync_fn)
@@ -14,11 +26,41 @@ def align_videos(video1_fn,video2_fn,sync_fn):
     except KeyError:
         teyeindex=3
     sync=h.findvar('sync')
-    inscopix_timestamps=sync[:,h.findvar('machine_config')['TNVISTA_SYNC_INDEX']]
-    behavioral_timestamps=sync[:,h.findvar('machine_config')['TBEHAV_SYNC_INDEX']]
-    eyecam_timestamps=sync[:,teyeindex]
+    inscopix_timestamps=signal.trigger_indexes(sync[:,h.findvar('machine_config')['TNVISTA_SYNC_INDEX']])[1::2]/fsample
+    behavioral_timestamps=signal.trigger_indexes(sync[:,h.findvar('machine_config')['TBEHAV_SYNC_INDEX']])[1::2]/fsample
+    eyecam_timestamps=signal.trigger_indexes(sync[:,teyeindex])[1::2]/fsample
+    #Align eye camera and behavioral timestamps with inscopix timestamps
+    indexes=[]
+    for i in range(inscopix_timestamps.shape[0]-1):
+        ts=inscopix_timestamps[i]
+        te=inscopix_timestamps[i+1]
+        behav_indexes=[ii for ii in range(behavioral_timestamps.shape[0]) if ts<behavioral_timestamps[ii]<te]
+        eyecam_indexes=[ii for ii in range(eyecam_timestamps.shape[0]) if ts<eyecam_timestamps[ii]<te]
+        indexes.append([behav_indexes,eyecam_indexes])
+        pass
+    #Resample videos:
+    fns=[[video1_fn,video1_fn.replace('.mp4', '_resampled.mp4')], [video2_fn,video2_fn.replace('.mp4', '_resampled.mp4')]]
+    for videoi in [0,1]:
+        if os.path.exists(fns[videoi][1]):
+            os.remove(fns[videoi][1])
+        video_writer= skvideo.io.FFmpegWriter(fns[videoi][1])
+        prev_frame=numpy.zeros(skvideo.io.vread(fns[videoi][0],num_frames=1).shape[1:])
+        for i in indexes:
+            print(videoi,i[videoi])
+            if len(i[videoi])>0:
+                prev_frame=read_frame(fns[videoi][0],i[videoi][0])
+            video_writer.writeFrame(prev_frame)
+        video_writer.close()
+        
+        
     h.close()
-    
+
+def align_videos_wrapper(fn):
+    fnid=fn.split('_')[-1].split('.')[0]
+    files=fileop.listdir(os.path.dirname(fn))
+    vfn1=[f for f in files if fnid in f and 'behav' in os.path.basename(f) and '.mp4' in f][0]
+    vfn2=[f for f in files if fnid in f and 'eye' in os.path.basename(f) and '.mp4' in f][0]
+    align_videos(vfn1,vfn2,fn)
 
 def extract_eyeblink(filename, baseline_length=0.5,blink_duration=0.5,threshold=0.01, debug=False, annotation=None):
     '''
@@ -949,11 +991,12 @@ class TestBehavAnalysis(unittest.TestCase):
         show()
         pass
         
-    def test_7_align(self):
+    def test_08_align(self):
         sync_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/behav_202012111657468.hdf5'
         video1_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/behav_202012111657468.mp4'
         video2_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/eye_202012111657468.mp4'
-        align_videos(video1_fn,video2_fn,sync_fn)
+        #align_videos(video1_fn,video2_fn,sync_fn)
+        align_videos_wrapper(sync_fn)
 
 if __name__ == "__main__":
     unittest.main()
