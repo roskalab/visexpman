@@ -544,8 +544,9 @@ class TabbedImages(QtGui.QWidget):
 
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100)):
+    def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100),enable_manual_points=False):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.enable_manual_points=enable_manual_points
         self.default_roi_type='rect'
         self.unselected_color = unselected_color
         self.selected_color = selected_color
@@ -594,21 +595,40 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
 
     def mouse_clicked(self,e):
         p=self.img.mapFromScene(e.scenePos())
-        ctrl_pressed=int(QtGui.QApplication.keyboardModifiers())&QtCore.Qt.ControlModifier!=0
-        if e.double():
-            if int(e.buttons()) == 1:
-                if hasattr(self, 'queue'):
-                    self.queue.put((p.x(), p.y()))
-                    return
+        if self.enable_manual_points:
+            if e.double():
+                print(int(e.buttons()))
+                print(e.modifiers())
+                if int(e.buttons()) == 1:
+                    if e.modifiers()==QtCore.Qt.ControlModifier:
+                        if len(self.manual_points)>0:
+                            self.plot.removeItem(self.manual_points[-1])
+                            del self.manual_points[-1]
+                    else:
+                        if not hasattr(self, 'manual_points'):
+                            self.manual_points=[]
+                        pl=self.plot.plot(numpy.array([p.x()]),numpy.array([p.y()]),  pen=None, symbol='o',symbolSize=6)
+                        pl.xvalue=p.x()
+                        pl.yvalue=p.y()
+                        self.manual_points.append(pl)
+                elif int(e.buttons()) == 2:
+                    print(self.manual_points)
+        else:
+            ctrl_pressed=int(QtGui.QApplication.keyboardModifiers())&QtCore.Qt.ControlModifier!=0
+            if e.double():
+                if int(e.buttons()) == 1:
+                    if hasattr(self, 'queue'):
+                        self.queue.put((p.x(), p.y()))
+                        return
+                    else:
+                        self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale(),type=self.default_roi_type)
+                elif int(e.buttons()) == 2:
+                    self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
                 else:
-                    self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale(),type=self.default_roi_type)
-            elif int(e.buttons()) == 2:
-                self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
-            else:
-                self.emit(QtCore.SIGNAL('wheel_double_click'), p.x(), p.y())
-            #self.update_roi_info()
-        elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2:
-            self.emit(QtCore.SIGNAL('roi_mouse_selected'), p.x(), p.y(),ctrl_pressed)
+                    self.emit(QtCore.SIGNAL('wheel_double_click'), p.x(), p.y())
+                #self.update_roi_info()
+            elif not e.double() and int(e.buttons()) != 1 and int(e.buttons()) != 2:
+                self.emit(QtCore.SIGNAL('roi_mouse_selected'), p.x(), p.y(),ctrl_pressed)
         
     def add_roi(self,x,y, size=None, type='rect', movable = True):
         if size is None:
@@ -683,6 +703,9 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                     self.rois[i].setPen(self.selected_color)
                 else:
                     self.rois[i].setPen(self.unselected_color)
+                    
+
+
                 
 def index2filename(index):
     filename = str(index.model().filePath(index))
