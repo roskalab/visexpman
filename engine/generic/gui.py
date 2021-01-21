@@ -557,7 +557,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.plot.addItem(self.img)
         self.plot.showGrid(True,True,1.0)
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
-        self.rois = []
+        self.rois = []            
         
         if 0: #Experimental code for adding custom context menu
             #Add LUT min/max slider to context menu

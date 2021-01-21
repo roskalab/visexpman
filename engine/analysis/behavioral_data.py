@@ -6,17 +6,26 @@ from visexpman.engine.vision_experiment import experiment_data
 from pylab import *
 from scipy.ndimage.filters import gaussian_filter
 import skvideo.io
+import cv2
 
 def read_frame(filename,index):
-    ct=0
-    reader= skvideo.io.vreader(filename)
-    for frame in reader:
-        if ct==index:
-            captured=numpy.copy(frame)
-            break
-        ct+=1
-    reader.close()
-    return captured
+    if 0:
+        ct=0
+        reader= skvideo.io.vreader(filename)
+        for frame in reader:
+            if ct==index:
+                captured=numpy.copy(frame)
+                break
+            ct+=1
+        reader.close()
+        return captured
+    else:
+        video=cv2.VideoCapture(filename)
+        video.set(cv2.CAP_PROP_POS_FRAMES,index)
+        ret,frame=video.read()
+        video.release()
+        capt=numpy.copy(frame)
+        return capt
 
 def align_videos(video1_fn,video2_fn,sync_fn):
     h=hdf5io.Hdf5io(sync_fn)
