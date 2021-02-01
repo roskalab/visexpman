@@ -154,7 +154,7 @@ class ISCamera(instrument.InstrumentProcess):
             if self.filename!=None:
                 self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
             frame_prev=None
-            Camera.StartLive(1)
+            Camera.StartLive(0)
             while True:
                 frame=Camera.GetImage()[:, :, 0].copy()
                 if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer

@@ -202,7 +202,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         elif unittest_aggregator.TEST_test:
             #In test mode we do not check for raised exception but test for the existence of certain variables
             pass
-        elif self.PLATFORM != 'smallapp':
+        elif 0 and self.PLATFORM != 'smallapp':
+            #OBSOLETE
             raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
             
         self.SCREEN_CENTER_p = visexpman.engine.generic.parameter.Parameter(utils.rc((0,0)))

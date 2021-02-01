@@ -5,7 +5,7 @@ import PyQt5.QtGui as QtGui
 import PyQt5.QtCore as QtCore
 
 from visexpman.engine.generic import gui,fileop, signal, utils, introspect
-from visexpman.engine.hardware_interface import camera_interface, daq_instrument,digital_io,openephys, camera
+from visexpman.engine.hardware_interface import daq,digital_io,openephys, camera, camera_interface
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 from visexpman.engine.analysis import behavioral_data
 
@@ -36,7 +36,7 @@ class Camera(gui.VisexpmanMainWindow):
         self.debug = gui.Debug(self)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)        
         self.image = gui.Image(self)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+        self._add_dockable_widget('Camera 1', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
         if hasattr(self.machine_config,'ENABLE_USER_FOLDER') and self.machine_config.ENABLE_USER_FOLDER:
             self.filebrowserroot= os.path.join(self.machine_config.EXPERIMENT_DATA_PATH,self.machine_config.user)
         else:
@@ -48,8 +48,8 @@ class Camera(gui.VisexpmanMainWindow):
             self.datafilebrowser = main_ui.DataFileBrowser(self, self.filebrowserroot, ['behav*.hdf5', 'stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat','*.mp4'])
             self.main_tab.addTab(self.datafilebrowser, 'Data Files')        
         self.main_tab.addTab(self.params, 'Settings')
-        self.eyecameraimage=gui.Image(self)
-        self.main_tab.addTab(self.eyecameraimage, 'Eye camera')
+        self.camera2image=gui.Image(self)
+        self.main_tab.addTab(self.camera2image, 'Camera 2')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setTabPosition(self.main_tab.South)
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
@@ -66,13 +66,21 @@ class Camera(gui.VisexpmanMainWindow):
         else:
             self.parameter_changed()
         self.load_all_parameters()
-        port= self.machine_config.CAMERA_IO_PORT if hasattr(self.machine_config, 'CAMERA_IO_PORT') else None
-        self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, port)
-        self.camerahandler.start()
+        self.camera_api=self.machine_config.CAMERA_API if hasattr(self.machine_config, 'CAMERA_API') else ''
+        self.camera1_io_port= self.machine_config.CAMERA1_IO_PORT if hasattr(self.machine_config, 'CAMERA1_IO_PORT') else None
+        self.camera2_io_port= self.machine_config.CAMERA2_IO_PORT if hasattr(self.machine_config, 'CAMERA2_IO_PORT') else None
+        if self.camera_api=='tisgrabber':
+            self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, frame_rate=20, exposure=10e-3)
+        else:
+            self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, self.camera1_io_port)
+        self.camera1handler.start()
         
-        if self.machine_config.EYE_CAMERA_ENABLE:
-            self.eyecam=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
-            self.eyecam.start()
+        if self.machine_config.CAMERA2_ENABLE:
+            if self.camera_api=='tisgrabber':
+                self.camera2handler=camera.ISCamera(self.machine_config.CAMERA2_ID, self.logger.filename, frame_rate=20, exposure=10e-3)
+            else:
+                self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
+            self.camera2handler.start()
         
         self.trigger_detector_enabled=False
 #        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
@@ -117,8 +125,8 @@ class Camera(gui.VisexpmanMainWindow):
             trigger_value='manual'
             params=[]
         self.params_config = [
-                {'name': 'Trigger', 'type': 'list', 'values': ['manual', 'network', 'TTL pulses'], 'value': trigger_value},
-                {'name': 'Enable trigger', 'type': 'bool', 'value': False,   'readonly': self.machine_config.PLATFORM!='behav'}, 
+                {'name': 'Trigger', 'type': 'list', 'values': ['file','manual', 'network', 'TTL pulses'], 'value': trigger_value},
+                {'name': 'Enable trigger', 'type': 'bool', 'value': False,   'readonly': not self.machine_config.ENABLE_TRIGGERING}, 
                 {'name': 'Frame Rate', 'type': 'float', 'value': 25, 'siPrefix': True, 'suffix': 'Hz'},
                 {'name': 'Exposure time', 'type': 'float', 'value': 39, 'siPrefix': True, 'suffix': 'ms'},
                 {'name': 'Enable ROI cut', 'type': 'bool', 'value': False},
@@ -134,17 +142,20 @@ class Camera(gui.VisexpmanMainWindow):
         numpy.save(self.context_filename,context_stream)
         
     def restart_camera(self):
-        if hasattr(self, 'camerahandler'):
+        if hasattr(self, 'camera1handler'):
             self.printc('Restart camera')
-            self.camerahandler.stop()
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
-            self.camerahandler.start()
+            self.camera1handler.stop()
+            if self.camera_api=='tisgrabber':
+                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
+            else:
+                self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
+            self.camera1handler.start()
     
     def start_recording(self,  experiment_parameters=None):
         try:
             if self.recording:
                 return
-            if not introspect.is_process_running('open-ephys') and self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and not introspect.is_process_running('open-ephys'):
                 QtGui.QMessageBox.question(None,'Warning', 'Open-ephys GUI is not running', QtGui.QMessageBox.Ok)
                 return
             if 1000/self.parameters['params/Frame Rate']<self.parameters['params/Exposure time']:
@@ -156,11 +167,12 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Start video recording')
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Preparing')
-            self.camerahandler.stop()
-            if self.machine_config.EYE_CAMERA_ENABLE:
-                self.eyecam.stop()
+            self.camera1handler.stop()
+            if self.machine_config.CAMERA2_ENABLE:
+                self.camera2handler.stop()
             if self.machine_config.ENABLE_SYNC=='camera':
-                self.ai=daq_instrument.SimpleAnalogIn(self.machine_config.SYNC_RECORDER_CHANNELS, self.machine_config.SYNC_RECORDER_SAMPLE_RATE, self.machine_config.MAX_RECORDING_DURATION,  finite=False)
+                self.ai=daq.AnalogRecorder(self.machine_config.SYNC_RECORDER_CHANNELS, self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+                self.ai.start()
 #                d=self.ai.read_ai()#Empty ai buffer
 #                self.ai.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
 #                                ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
@@ -168,6 +180,7 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 msg='Camera recording'
             if hasattr(experiment_parameters, 'keys') and 'eyecamfilename' in experiment_parameters:
+                raise NotImplementedError('Fix this!')
                 self.fn=experiment_parameters['eyecamfilename']
             else:
                 if not self.machine_config.ENABLE_USER_FOLDER:
@@ -177,8 +190,9 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 id=experiment_data.get_id()
-                self.fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAMFILENAME_TAG,extension='.mp4')
-                self.eyefn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.EYECAMFILENAME_TAG,extension='.mp4')
+                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.avi')
+                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.avi')
+                self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 if not openephys.start_recording():
                     self.printc('Openephyc cannot be triggered, is it started?')
@@ -198,13 +212,17 @@ class Camera(gui.VisexpmanMainWindow):
                     self.statusbar.recording_status.setStyleSheet('background:gray;')
                     self.statusbar.recording_status.setText('Ready')
                     
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.fn, watermark=True)
-            self.camerahandler.start()
-            if self.machine_config.EYE_CAMERA_ENABLE:
-                self.eyecam=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
-                self.eyecam.start()
+            if self.camera_api=='tisgrabber':
+                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, filename=self.cam1fn)
+            else:
+                self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.cam1fn, watermark=True)
+            self.camera1handler.start()
+            if self.machine_config.CAMERA2_ENABLE:
+                raise NotImplementedError('')
+                self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
+                self.camera2handler.start()
             import psutil
-            p = psutil.Process(self.camerahandler.pid)
+            p = psutil.Process(self.camera1handler.pid)
             p.nice(psutil.HIGH_PRIORITY_CLASS)
             self.tstart=time.time()
             self.statusbar.recording_status.setStyleSheet('background:red;')
@@ -223,11 +241,9 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
-            self.ts, log=self.camerahandler.stop()
-            if self.machine_config.EYE_CAMERA_ENABLE:
-                self.eyecam.stop()
-            hdf5_out=self.fn if self.fn[-4]=='hdf5' else fileop.replace_extension(self.fn,'.hdf5')
-            hdf5io.save_item(hdf5_out, 'timestamps', self.ts)
+            self.camera1handler.stop()
+            if self.machine_config.CAMERA2_ENABLE:
+                self.camera2handler.stop()
             if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
                 miniscope_datafolder=self.find_miniscope_data()
                 if os.path.exists(miniscope_datafolder):
@@ -236,67 +252,55 @@ class Camera(gui.VisexpmanMainWindow):
                     parameters['miniscope data']=miniscope_datafolder
                     hdf5io.save_item(hdf5_out, 'parameters', parameters)
             else:
-                hdf5io.save_item(hdf5_out, 'parameters', self.parameters)
-            self.printc('\n'.join(log))
+                self.matdata={'parameters': self.parameters}
             if hasattr(self,  'ai'):
-                self.sync=self.ai.finish()
-#                res=self.ai.stop_daq()
-#                try:
-#                    self.sync, n=res
-#                except:
-#                    raise RuntimeError("daq data cannot be read: {0}".format(res))
-#                concatenated=self.sync[0]
-#                for i in range(self.sync.shape[0]-1):
-#                    concatenated=numpy.concatenate((concatenated,  self.sync[i+1]))
-#                self.sync=concatenated
-                hdf5io.save_item(hdf5_out, 'sync', self.sync)
-                hdf5io.save_item(hdf5_out, 'machine_config',  self.machine_config.todict())
-                self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TBEHAV_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
+                self.sync=self.ai.read()
+
+                self.matdata['sync']=self.sync
+                self.matdata['machine_config']=self.machine_config.todict()
+                self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TCAM1_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
                 self.printc('Measured frame rate is {0:.2f} Hz, std: {1:.2f} ms, recorded {2} frames'.format(fpsmean, 1000/fpsstd,  self.fps_values.shape[0]+1))
-                self.check_camera_timing_signal()
+                self.check_timing_signal()
                 if self.trigger_state=='stopped':#check if nvista camera was also recording
                     self.check_nvista_camera_timing()
             else:
                 self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
-            self.printc('Saved to {0}'.format(self.fn))
+            self.printc('Saved to {0}'.format(self.cam1fn))
             import skvideo.io
-            videometadata=skvideo.io.ffprobe(self.fn)
+            videometadata=skvideo.io.ffprobe(self.cam1fn)
             if 'video' in videometadata:
                 fc=int(videometadata['video']['@nb_frames'])
                 self.printc('Recorded {0} frames'.format(fc))
             else:
                 fc=None
-            self.camerahandler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
-            self.camerahandler.start()
-            if self.machine_config.EYE_CAMERA_ENABLE:
-                self.eyecam=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
-                self.eyecam.start()
+            if self.camera_api=='tisgrabber':
+                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
+            else:
+                self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
+            self.camera1handler.start()
+            if self.machine_config.CAMERA2_ENABLE:
+                raise NotImplementedError()
+                self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
+                self.camera2handler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
             self.printc('Save time {0} s'.format(int(time.time()-t0)))
             if hasattr(self, 'fps_values') and self.fps_values.shape[0]<10:
                 self.printc('Recording too short, file removed')
-                os.remove(hdf5_out)
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
                 self.printc('Stop Openephys')
                 openephys.stop_recording()
-                zipfile=os.path.join(os.path.dirname(hdf5_out), fileop.replace_extension(os.path.basename(hdf5_out), '.zip'))
+                zipfile=os.path.join(os.path.dirname(self.metadatafn), fileop.replace_extension(os.path.basename(self.metadatafn), '.zip'))
                 self.printc('Check recorded data,please wait...')
                 QtCore.QCoreApplication.instance().processEvents()
                 self.frequency, self.frequency_std, self.video_frame_indexes, self.sync_data=openephys.check_data(self.openephys_datafolder)
-                hdf5io.save_item(hdf5_out, 'video_frame_indexes', self.video_frame_indexes)
+                self.matdata['video_frame_indexes']= self.video_frame_indexes
                 self.printc('Move openephys data to {0}'.format(zipfile))
                 fileop.move2zip(self.openephys_datafolder,zipfile)
-            if self.machine_config.EXPERIMENT_FILE_FORMAT=='mat':
-                experiment_data.hdf52mat(hdf5_out,  scale_sync=True)
-                try:
-                    time.sleep(1)
-                    os.remove(hdf5_out)
-                except:
-                    time.sleep(5)
-                    os.remove(hdf5_out)
+            import scipy.io
+            scipy.io.savemat(self.metadatafn, self.matdata, long_field_names=True)
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 self.printc(f"Expected frame rate: {self.parameters['params/Frame Rate']} Hz,  measured: {self.frequency} Hz, std: {self.frequency_std}")
                 if self.video_frame_indexes[0]<10e3*self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
@@ -310,8 +314,8 @@ class Camera(gui.VisexpmanMainWindow):
             if hasattr(self,  'send'):
                 self.send({'trigger': 'cam error'})
             
-    def check_camera_timing_signal(self):
-        timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TBEHAV_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+    def check_timing_signal(self):
+        timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TCAM1_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         length=self.sync.shape[0]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         two_frame_time=self.parameters['params/Exposure time']*1e-3*2
         if timestamps[0]<two_frame_time or timestamps[-1]>length-two_frame_time:
@@ -507,10 +511,14 @@ class Camera(gui.VisexpmanMainWindow):
     
     def update_image(self):
         try:
-            if not self.camerahandler.log.empty():
-                self.printc(self.camerahandler.log.get())
-            if not self.camerahandler.display_frame.empty():
-                frame=self.camerahandler.display_frame.get()
+            if hasattr(self.camera1handler, 'log') and not self.camera1handler.log.empty():
+                self.printc(self.camera1handler.log.get())
+            if hasattr(self.camera1handler, 'display_frame'):
+                imgqueue=self.camera1handler.display_frame
+            elif hasattr(self.camera1handler, 'queues'):
+                imgqueue=self.camera1handler.queues['data']
+            if not imgqueue.empty():
+                frame=imgqueue.get()
                 self.frame=frame
                 if self.parameters['params/Enable ROI cut']:
                     frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
@@ -550,21 +558,21 @@ class Camera(gui.VisexpmanMainWindow):
                     if hasattr(self,  'red_angle'):
                         title+='/head direction: {0:0.1f}'.format(self.red_angle)
                     self.image.plot.setTitle(title)
-                if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
-                    self.trigger_handler()
+                
+                self.trigger_handler()
                 self.socket_handler()
-            if self.machine_config.EYE_CAMERA_ENABLE:
-                frame=self.eyecam.read()
+            if self.machine_config.CAMERA2_ENABLE:
+                frame=self.camera2handler.read()
                 if frame is not None:
-                    self.eyecameraimage.set_image(numpy.rot90(numpy.flipud(frame)))
+                    self.camera2image.set_image(numpy.rot90(numpy.flipud(frame)))
         except:
             self.printc(traceback.format_exc())
         
     def exit_action(self):
         self.save_context()
-        self.camerahandler.stop()
-        if self.machine_config.EYE_CAMERA_ENABLE:
-            self.eyecam.stop()
+        self.camera1handler.stop()
+        if self.machine_config.CAMERA2_ENABLE:
+            self.camera2handler.stop()
 #        if hasattr(self,  'ioboard'):
 #            self.ioboard.close()
 #        if hasattr(self, 'ai'):
@@ -582,6 +590,50 @@ class Camera(gui.VisexpmanMainWindow):
                 self.socket_queues['cam']['tosocket'].put({'trigger': 'cam error'})
         
     def trigger_handler(self):
+        now=time.time()
+        if self.trigger_state=='off':
+            if self.parameters['params/Enable trigger']:
+                #Enable trigger
+                if self.parameters['params/Trigger']=='TTL pulses':
+                    raise NotImplementedError()
+                elif self.parameters['params/Trigger']=='network':
+                    raise NotImplementedError()
+                elif self.parameters['params/Trigger']=='file':
+                    self.latest_mcd_file=fileop.find_latest(self.machine_config.EXPERIMENT_DATA_PATH,'.mcd')
+                    self.triggered_files=[]
+                self.trigger_state='waiting'
+        elif self.trigger_state=='waiting':
+            if not self.parameters['params/Enable trigger']:
+                self.trigger_state='off'
+            if self.parameters['params/Trigger']=='file':
+                new_latest_mcd_file=fileop.find_latest(self.machine_config.EXPERIMENT_DATA_PATH,'.mcd')
+#                print(new_latest_mcd_file, self.latest_mcd_file ,self.triggered_files  , now-os.path.getmtime(new_latest_mcd_file))
+#                print(new_latest_mcd_file!=self.latest_mcd_file , new_latest_mcd_file not in self.triggered_files , now-os.path.getmtime(new_latest_mcd_file)>self.machine_config.FILE_TIMEOUT)
+                if new_latest_mcd_file!=self.latest_mcd_file and new_latest_mcd_file not in self.triggered_files and now-os.path.getmtime(new_latest_mcd_file)<self.machine_config.FILE_TIMEOUT:
+                    self.triggered_files.append(self.latest_mcd_file)
+                    self.latest_mcd_file=new_latest_mcd_file
+                    self.triggered_files.append(new_latest_mcd_file)
+                    self.trigger_state='started'
+        elif self.trigger_state=='started':
+            if not self.parameters['params/Enable trigger']:
+                self.trigger_state='off'
+            if self.parameters['params/Trigger']=='file':
+                self.start_recording()
+                self.trigger_state='waiting'
+
+        if self.trigger_state=='off':
+            color='grey'
+        elif self.trigger_state=='waiting':
+            color='yellow'
+        elif self.trigger_state=='started':
+            color='red'
+        elif self.trigger_state=='stopped':
+            color='orange'
+        self.statusbar.trigger_status.setStyleSheet('background:{0};'.format(color))
+        self.statusbar.trigger_status.setText('trigger status: {0}'.format(self.trigger_state))                
+        
+        return
+        #Old implementation
         if self.trigger_state=='off':
             if self.parameters['params/Trigger']=='TTL pulses' and self.parameters['params/Enable trigger']:
                 self.enable_trigger()
@@ -642,6 +694,15 @@ class Camera(gui.VisexpmanMainWindow):
 #            self.printc(self.ioboard.read(100))    
             self.trigger_detector.close()
             self.trigger_detector_enabled=False
+            
+            
+    def send_ptb_trigger(self):
+        '''
+        Send start  trigger to Psychotoolbox stimulus
+        '''
+        utils.send_udp(self.machine_config.STIM_IP,self.machine_config.STIM_TRIGGER_PORT,'start'.encode('utf8'))
+        self.printc('Trigger stimulus')
+        
 
     def find_miniscope_data(self):
         time_struct = time.localtime(time.time())
