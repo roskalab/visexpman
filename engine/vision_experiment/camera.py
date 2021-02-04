@@ -221,6 +221,8 @@ class Camera(gui.VisexpmanMainWindow):
                 raise NotImplementedError('')
                 self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
                 self.camera2handler.start()
+            if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
+                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,'start')
             import psutil
             p = psutil.Process(self.camera1handler.pid)
             p.nice(psutil.HIGH_PRIORITY_CLASS)
@@ -244,6 +246,10 @@ class Camera(gui.VisexpmanMainWindow):
             self.camera1handler.stop()
             if self.machine_config.CAMERA2_ENABLE:
                 self.camera2handler.stop()
+            if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
+                self.printc('Stop MC recording')
+                daq.digital_pulse(self.machine_config.MC_STOP_TRIGGER,1)
+                
             if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
                 miniscope_datafolder=self.find_miniscope_data()
                 if os.path.exists(miniscope_datafolder):
@@ -254,7 +260,7 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.matdata={'parameters': self.parameters}
             if hasattr(self,  'ai'):
-                self.sync=self.ai.read()
+                self.sync=self.ai.stop()
 
                 self.matdata['sync']=self.sync
                 self.matdata['machine_config']=self.machine_config.todict()
@@ -300,7 +306,9 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc('Move openephys data to {0}'.format(zipfile))
                 fileop.move2zip(self.openephys_datafolder,zipfile)
             import scipy.io
+            self.matdata['software']=experiment_data.pack_software_environment()
             scipy.io.savemat(self.metadatafn, self.matdata, long_field_names=True)
+            self.printc(f'Metadata saved to {self.metadatafn}')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 self.printc(f"Expected frame rate: {self.parameters['params/Frame Rate']} Hz,  measured: {self.frequency} Hz, std: {self.frequency_std}")
                 if self.video_frame_indexes[0]<10e3*self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
@@ -315,13 +323,37 @@ class Camera(gui.VisexpmanMainWindow):
                 self.send({'trigger': 'cam error'})
             
     def check_timing_signal(self):
-        timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TCAM1_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-        length=self.sync.shape[0]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        self.camera1_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TCAM1_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        if hasattr(self, 'matdata'):
+            self.matdata['camera1_timestamps']=self.camera1_timestamps
+        self.sync_length=self.sync.shape[0]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         two_frame_time=self.parameters['params/Exposure time']*1e-3*2
-        if timestamps[0]<two_frame_time or timestamps[-1]>length-two_frame_time:
-            msg='Beginning or end of camra timing signal may not be recorder properly!'
+        msg=''
+        if self.camera1_timestamps[0]<two_frame_time or self.camera1_timestamps[-1]>self.sync_length-two_frame_time:
+            msg+='Beginning or end of camra timing signal may not be recorder properly! '
+        if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
+            #Check if MC stop trigger took place
+            self.mc_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TMCSTOP_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            if self.mc_timestamps.shape[0]!=1 and self.mc_timestamps[0]<self.sync_length*0.75:
+                msg+='Multi Channel Stop signal is corrupt!'
+            if hasattr(self, 'matdata'):
+                self.matdata['mc_timestamps']=self.mc_timestamps
+        if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
+            #Check stim timestamps
+            self.stim_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TSTIM_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            if self.stim_timestamps.shape[0]<=1:
+                msg+='Stimulus timing signal was not generated! '
+            if self.stim_timestamps.shape[0]<1:
+                msg+='Beginning of stimulus was not recorded! '
+            if self.sync_length-self.stim_timestamps[-1]<1:
+                msg+='End of stimulus was not recorded! '
+            if hasattr(self, 'matdata'):
+                self.matdata['stim_timestamps']=self.stim_timestamps
+        if len(msg)>0:
             self.printc(msg)
             QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
+        else:
+            self.printc('All timing signals OK')
             
     def check_nvista_camera_timing(self):
         timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TNVISTA_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)

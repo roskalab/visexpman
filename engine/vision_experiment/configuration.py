@@ -161,6 +161,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_SHUTTER = False
         WAIT4TRIGGER_ENABLED=False
         CAMERA_TRIGGER_ENABLE=False
+        ENABLE_STIM_UDP_TRIGGER=False
         DEFAULT_CAMERA_FRAME_RATE=[15, [15,60]]
         ENABLE_TSIM_CHECK=True
         

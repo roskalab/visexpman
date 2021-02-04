@@ -1347,7 +1347,7 @@ def shuffle_positions_avoid_adjacent(positions,shape_distance):
 def send_udp(ip,port,msg):
     import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(msg, (ip, port))
+    sock.sendto(msg.encode('utf-8'), (ip, port))
     
 def sendrecv_udp(lip,  rip,  lport,  rport,  msg, timeout=1.0):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1361,6 +1361,17 @@ def sendrecv_udp(lip,  rip,  lport,  rport,  msg, timeout=1.0):
         return data
     except socket.timeout:
         return ''
+        
+def recv_udp(lip, lport, timeout):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_socket.settimeout(timeout)
+    client_socket.bind((lip, lport))
+    try:
+        data, server = client_socket.recvfrom(1024)
+        return data
+    except socket.timeout:
+        return ''
+    
 
 def get_username():
     import platform
