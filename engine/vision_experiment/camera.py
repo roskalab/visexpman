@@ -173,6 +173,7 @@ class Camera(gui.VisexpmanMainWindow):
             if self.machine_config.ENABLE_SYNC=='camera':
                 self.ai=daq.AnalogRecorder(self.machine_config.SYNC_RECORDER_CHANNELS, self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
                 self.ai.start()
+                self.printc('Recording timing signals started.')
 #                d=self.ai.read_ai()#Empty ai buffer
 #                self.ai.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
 #                                ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
@@ -223,6 +224,7 @@ class Camera(gui.VisexpmanMainWindow):
                 self.camera2handler.start()
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
                 utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,'start')
+                self.printc('Sent trigger to Psychotoolbox')
             import psutil
             p = psutil.Process(self.camera1handler.pid)
             p.nice(psutil.HIGH_PRIORITY_CLASS)
@@ -260,6 +262,7 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.matdata={'parameters': self.parameters}
             if hasattr(self,  'ai'):
+                self.printc('Terminate timing signal recording, please wait...')
                 self.sync=self.ai.stop()
 
                 self.matdata['sync']=self.sync
@@ -620,6 +623,12 @@ class Camera(gui.VisexpmanMainWindow):
                     getattr(self,  command['function'])(*command['args'])
             except:
                 self.socket_queues['cam']['tosocket'].put({'trigger': 'cam error'})
+        if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
+            res=utils.recv_udp(self.machine_config.CAM_COMPUTER_IP, self.machine_config.STIM_TRIGGER_PORT, 0.1)
+            if len(res)>0:
+                self.printc(f'UDP message received: {res}')
+                if 'stop' in res:
+                    self.stop_recording()
         
     def trigger_handler(self):
         now=time.time()
@@ -726,15 +735,6 @@ class Camera(gui.VisexpmanMainWindow):
 #            self.printc(self.ioboard.read(100))    
             self.trigger_detector.close()
             self.trigger_detector_enabled=False
-            
-            
-    def send_ptb_trigger(self):
-        '''
-        Send start  trigger to Psychotoolbox stimulus
-        '''
-        utils.send_udp(self.machine_config.STIM_IP,self.machine_config.STIM_TRIGGER_PORT,'start'.encode('utf8'))
-        self.printc('Trigger stimulus')
-        
 
     def find_miniscope_data(self):
         time_struct = time.localtime(time.time())

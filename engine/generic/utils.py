@@ -1368,7 +1368,7 @@ def recv_udp(lip, lport, timeout):
     client_socket.bind((lip, lport))
     try:
         data, server = client_socket.recvfrom(1024)
-        return data
+        return data.decode('utf-8')
     except socket.timeout:
         return ''
     
