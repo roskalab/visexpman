@@ -341,9 +341,14 @@ class DigitalIO(object):
         elif type=='ioboard':
             self.hwhandler=IOBoard(port,timeout=timeout, id=id)
         elif type=='usb-uart':
-            self.hwhandler=serial.Serial(port)
-            for i in range(2):
-                self.set_pin(i, 0)
+            if isinstance(port, list):
+                self.hwhandler=[serial.Serial(p,timeout=0.01) for p in port]
+                for i in range(2*len(port)):
+                    self.set_pin(i, 0)
+            else:
+                self.hwhandler=serial.Serial(port)
+                for i in range(2):
+                    self.set_pin(i, 0)
         elif type=='arduino':
             self.hwhandler=serial.Serial(port, 115200)
             self.read_buffer=''
@@ -366,12 +371,22 @@ class DigitalIO(object):
         if self.type in ['daq', 'ioboard']:
             self.hwhandler.set_pin(pin, state)
         elif self.type=='usb-uart':
-            if pin==0:
-                self.hwhandler.setBreak(not bool(state))
-            elif pin ==1:
-                self.hwhandler.setRTS(not bool(state))
+            if isinstance(self.hwhandler, list):
+                if pin==0:
+                    pass#self.hwhandler[0].sendBreak(not bool(state))
+                elif pin ==1:
+                    self.hwhandler[0].setRTS(not bool(state))
+                elif pin==2:
+                    pass#self.hwhandler[1].sendBreak(not bool(state))
+                elif pin ==3:
+                    self.hwhandler[1].setRTS(not bool(state))
             else:
-                raise ValueError('Invalid pin: {0}'.format(pin))
+                if pin==0:
+                    self.hwhandler.sendBreak(not bool(state))
+                elif pin ==1:
+                    self.hwhandler.setRTS(not bool(state))
+                else:
+                    raise ValueError('Invalid pin: {0}'.format(pin))
         elif self.type=='arduino':
             if state:
                 self.hwhandler.write(('{0}'.format(pin+1)).encode('utf-8'))
@@ -392,7 +407,11 @@ class DigitalIO(object):
     def close(self):
         if self.type==None:
             return
-        self.hwhandler.close()
+        if isinstance(self.hwhandler, list):
+            for h in self.hwhandler:
+                h.close()
+        else:
+            self.hwhandler.close()
         
 class TriggerDetector():
     '''
