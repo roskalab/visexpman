@@ -302,13 +302,16 @@ def listdir(folder):
     files.sort()
     return list(map(os.path.join, len(files)*[folder],files))
     
-def find_latest(path, extension=None):
+def find_latest(path, extension=None, subfolders=True):
     '''
     Find the latest file in the folder
     '''
     if not os.path.isdir(path):
         raise RuntimeError('Foldername expected not filename: {0}'.format(path))
-    fns = [fn for fn in find_files_and_folders(path)[1] if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
+    if subfolders:
+        fns = [fn for fn in find_files_and_folders(path)[1] if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
+    else:
+        fns = [fn for fn in listdir(path) if os.path.splitext(fn)[1]==extension or extension is None and not os.path.isdir(fn)]
     if len(fns) == 0:
         return
     fns_dates = list(map(os.path.getmtime, fns))

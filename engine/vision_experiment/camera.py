@@ -83,6 +83,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.camera2handler.start()
         
         self.trigger_detector_enabled=False
+        self.triggered_recording=False
 #        if hasattr(self.machine_config,  'TRIGGER_DETECTOR_PORT'):
 #            self.ioboard=serial.Serial(self.machine_config.TRIGGER_DETECTOR_PORT, 1000000, timeout=0.001)
 #            self.trigger_detector_enabled=False
@@ -318,7 +319,22 @@ class Camera(gui.VisexpmanMainWindow):
                     QtGui.QMessageBox.question(None,'Warning', 'Beginning of sync signal is corrupt', QtGui.QMessageBox.Ok)
                 if fc!=None and len(self.video_frame_indexes)!=fc:
                     raise ValueError(f'Recorded number of frames ({fc}) and timestamps ({len(self.video_frame_indexes)}) do not match')
-                
+            
+            if self.triggered_recording:
+                mcd_wait_time=2
+                t0=time.time()
+                time.sleep(2)
+                now=time.time()
+                #If mcd file is at least mcd_wait_time old but not older than beginning of recording. This ensures that the right mcd file is assigned to this recording
+                if now-os.path.getmtime(self.triggered_files[-1])>mcd_wait_time and os.path.getmtime(self.triggered_files[-1])>self.start_trigger_time-mcd_wait_time:
+                    self.printc(time.time()-os.path.getmtime(self.triggered_files[-1]))
+                    self.printc(self.triggered_files[-1])
+                    dst=fileop.replace_extension(self.metadatafn, '.mcd')
+                    import shutil
+                    shutil.copy(self.triggered_files[-1], dst)
+                    self.printc(f'Copied {self.triggered_files[-1]} to {dst}')
+            
+            self.triggered_recording=False
         except:
             e=traceback.format_exc()
             self.printc(e)
@@ -365,7 +381,7 @@ class Camera(gui.VisexpmanMainWindow):
         if fps.mean()>60 or fps.mean()<4:
             self.printc('Invalid nVIsta camera frame rate: {0}'.format(fps.mean()))
             
-    def check_video(self):
+    def check_video(self):#OBSOLETE
         import hdf5io
         self.fframes=hdf5io.read_item(self.fn,  'frames')
         self.ct=[]
@@ -647,7 +663,7 @@ class Camera(gui.VisexpmanMainWindow):
             if not self.parameters['params/Enable trigger']:
                 self.trigger_state='off'
             if self.parameters['params/Trigger']=='file':
-                new_latest_mcd_file=fileop.find_latest(self.machine_config.EXPERIMENT_DATA_PATH,'.mcd')
+                new_latest_mcd_file=fileop.find_latest(self.machine_config.EXPERIMENT_DATA_PATH,extension='.mcd', subfolders=False)
 #                print(new_latest_mcd_file, self.latest_mcd_file ,self.triggered_files  , now-os.path.getmtime(new_latest_mcd_file))
 #                print(new_latest_mcd_file!=self.latest_mcd_file , new_latest_mcd_file not in self.triggered_files , now-os.path.getmtime(new_latest_mcd_file)>self.machine_config.FILE_TIMEOUT)
                 if new_latest_mcd_file!=self.latest_mcd_file and new_latest_mcd_file not in self.triggered_files and now-os.path.getmtime(new_latest_mcd_file)<self.machine_config.FILE_TIMEOUT:
@@ -655,11 +671,14 @@ class Camera(gui.VisexpmanMainWindow):
                     self.latest_mcd_file=new_latest_mcd_file
                     self.triggered_files.append(new_latest_mcd_file)
                     self.trigger_state='started'
+                    self.printc(f'File trigger received: {new_latest_mcd_file}')
         elif self.trigger_state=='started':
             if not self.parameters['params/Enable trigger']:
                 self.trigger_state='off'
             if self.parameters['params/Trigger']=='file':
                 self.start_recording()
+                self.start_trigger_time=time.time()
+                self.triggered_recording=True
                 self.trigger_state='waiting'
 
         if self.trigger_state=='off':
