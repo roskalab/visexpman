@@ -224,7 +224,7 @@ class Camera(gui.VisexpmanMainWindow):
                 self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
                 self.camera2handler.start()
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
-                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,'start')
+                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{id}')
                 self.printc('Sent trigger to Psychotoolbox')
             import psutil
             p = psutil.Process(self.camera1handler.pid)
@@ -262,6 +262,14 @@ class Camera(gui.VisexpmanMainWindow):
                     hdf5io.save_item(hdf5_out, 'parameters', parameters)
             else:
                 self.matdata={'parameters': self.parameters}
+            import skvideo.io
+            videometadata=skvideo.io.ffprobe(self.cam1fn)
+            if 'video' in videometadata:
+                fc=int(videometadata['video']['@nb_frames'])
+                self.nrecorded_frames=fc
+                self.printc('Recorded {0} frames'.format(fc))
+            else:
+                fc=None                
             if hasattr(self,  'ai'):
                 self.printc('Terminate timing signal recording, please wait...')
                 self.sync=self.ai.stop()
@@ -276,13 +284,6 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.cam1fn))
-            import skvideo.io
-            videometadata=skvideo.io.ffprobe(self.cam1fn)
-            if 'video' in videometadata:
-                fc=int(videometadata['video']['@nb_frames'])
-                self.printc('Recorded {0} frames'.format(fc))
-            else:
-                fc=None
             if self.camera_api=='tisgrabber':
                 self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
             else:
@@ -342,12 +343,14 @@ class Camera(gui.VisexpmanMainWindow):
                 self.send({'trigger': 'cam error'})
             
     def check_timing_signal(self):
-        self.camera1_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TCAM1_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        self.camera1_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TCAM1_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         if hasattr(self, 'matdata'):
             self.matdata['camera1_timestamps']=self.camera1_timestamps
         self.sync_length=self.sync.shape[0]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         two_frame_time=self.parameters['params/Exposure time']*1e-3*2
         msg=''
+        if self.nrecorded_frames!=self.camera1_timestamps.shape[0]:
+            msg+f'Number of recorded video frames and camera timing pulses do not match, number of pulses {self.camera1_timestamps.shape[0]} '
         if self.camera1_timestamps[0]<two_frame_time or self.camera1_timestamps[-1]>self.sync_length-two_frame_time:
             msg+='Beginning or end of camra timing signal may not be recorder properly! '
         if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):

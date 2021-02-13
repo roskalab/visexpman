@@ -184,6 +184,23 @@ class VisexpmanMainWindow(Qt.QMainWindow):
                 r.setValue(v)
                 r.setDefault(v)
 #        print('!!!')
+
+    def plotw(self, x, y):
+        '''
+        use cases: 
+        1) x, y list of arrays
+        2) x 2d numpy array, y fsample
+        '''
+        if hasattr(x, 'dtype'):
+            xi=x.shape[1]*[numpy.arange(x.shape[0])/y]#y as fsample
+            yi=[x[:, i]+i*10 for i in range(x.shape[1])]
+            self.pt=Plot(None)
+            self.pt.update_curves(xi, yi)
+            self.pt.show()
+        else:
+            self.pt=Plot(None)
+            self.pt.update_curves(x, y)
+            self.pt.show()
         
     def closeEvent(self, e):
         e.accept()
