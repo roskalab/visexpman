@@ -343,6 +343,11 @@ class Camera(gui.VisexpmanMainWindow):
                 self.send({'trigger': 'cam error'})
             
     def check_timing_signal(self):
+        if self.sync.shape[0]==0:
+            msg='Sync recording failed'
+            self.printc(msg)
+            QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
+            return
         self.camera1_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TCAM1_SYNC_INDEX])[::2]/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         if hasattr(self, 'matdata'):
             self.matdata['camera1_timestamps']=self.camera1_timestamps

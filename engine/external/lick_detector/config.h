@@ -1,4 +1,4 @@
-#define QICHEN_SETUP 1
+#define QICHEN_SETUP 0
 #define LICKPIN A5
 #define LICKDETECTEDPIN 5
 #if (QICHEN_SETUP==1)
