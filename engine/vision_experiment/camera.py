@@ -251,7 +251,8 @@ class Camera(gui.VisexpmanMainWindow):
                 self.camera2handler.stop()
             if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
                 self.printc('Stop MC recording')
-                daq.digital_pulse(self.machine_config.MC_STOP_TRIGGER,1)
+                daq.digital_pulse(self.machine_config.MC_STOP_TRIGGER,10)
+                time.sleep(0.5)
                 
             if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
                 miniscope_datafolder=self.find_miniscope_data()
@@ -336,6 +337,8 @@ class Camera(gui.VisexpmanMainWindow):
                     self.printc(f'Copied {self.triggered_files[-1]} to {dst}')
             
             self.triggered_recording=False
+            #TMP:
+            self.plotw(self.sync, 5e3)
         except:
             e=traceback.format_exc()
             self.printc(e)
@@ -357,7 +360,7 @@ class Camera(gui.VisexpmanMainWindow):
         if self.nrecorded_frames!=self.camera1_timestamps.shape[0]:
             msg+f'Number of recorded video frames and camera timing pulses do not match, number of pulses {self.camera1_timestamps.shape[0]} '
         if self.camera1_timestamps[0]<two_frame_time or self.camera1_timestamps[-1]>self.sync_length-two_frame_time:
-            msg+='Beginning or end of camra timing signal may not be recorder properly! '
+            msg+='Beginning or end of camera timing signal may not be recorder properly! '
         if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
             #Check if MC stop trigger took place
             self.mc_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TMCSTOP_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
