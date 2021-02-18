@@ -421,7 +421,7 @@ class ExperimentHandler(object):
                 self.start_experiment(experiment_parameters=self.batch[0], manually_started=False)
                 self.batch=self.batch[1:]
                 
-    def mc_mea_trigger(self):
+    def mc_mea_trigger(self):#OBSOLETE
         '''
         If a new file (max 5 second age) is found in MC_DATA_FOLDER folder, an experiment is initiated, checked in every 5 second
         '''
@@ -446,6 +446,8 @@ class ExperimentHandler(object):
                         
     def check_file_trigger(self):
         if hasattr(self,  'file_trigger_handler') and not self.experiment_running:
+            self.file_trigger_handler.extension='.mcd'
+            self.file_trigger_handler.subfolders=False
             trig, self.trigger_filename=self.file_trigger_handler.check()
             if self.guidata.read('Enable File Trigger') and trig:
                 repeats=self.guidata.read('Repeats')

@@ -384,8 +384,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     self.digital_io.set_pin(self.machine_config.TRIAL_START_END_PIN,0)
                 if self.parameters.get('stop_trigger',False) or ('Repeats' in self.parameters and self.parameters['Repeats']==1) or self.abort:
                     self.printl("Stop MC Mea recording")
-                    self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
                     self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,0)
+                    self.digital_io.set_pin(self.machine_config.MCMEA_STOP_PIN,1)
             if self.machine_config.PLATFORM in [ 'retinal']:
                 #Make sure that imaging recording finishes before terminating sync recording
                 time.sleep(self.machine_config.CA_IMAGING_START_DELAY)
