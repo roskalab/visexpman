@@ -110,12 +110,13 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
                     
                     
 class ISCamera(instrument.InstrumentProcess):
-    def __init__(self,camera_id,logfile,digital_line, frame_rate=60, exposure=1/65, filename=None):
+    def __init__(self,camera_id,logfile,digital_line, frame_rate=60, exposure=1/65, filename=None, show=False):
         self.filename=filename
         self.camera_id=camera_id
         self.frame_rate=frame_rate
         self.digital_line=digital_line
         self.exposure=exposure
+        self.show=show
         self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
         instrument.InstrumentProcess.__init__(self,self.queues,logfile)
         self.control=multiprocessing.Queue()
@@ -154,7 +155,10 @@ class ISCamera(instrument.InstrumentProcess):
             if self.filename!=None:
                 self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
             frame_prev=None
-            Camera.StartLive(0)
+            if self.show:
+                Camera.StartLive(1)
+            else:
+                Camera.StartLive(0)
             while True:
                 frame=Camera.GetImage()[:, :, 0].copy()
                 if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer
@@ -210,8 +214,9 @@ class WebCamera(instrument.InstrumentProcess):
             self.setup_logger()
             self.printl(f'pid: {os.getpid()}')
             self.running=False
-            digital_output = PyDAQmx.Task()
-            digital_output.CreateDOChan(self.digital_line,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            if self.digital_line is not None:
+                digital_output = PyDAQmx.Task()
+                digital_output.CreateDOChan(self.digital_line,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
             fps='30'
             import skvideo.io
             if self.filename!=None:
@@ -227,14 +232,15 @@ class WebCamera(instrument.InstrumentProcess):
                 if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer
                     continue
                 frame_prev=frame
-                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
-
+                if self.digital_line is not None:
+                    digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
                 if hasattr(self, 'video_writer'):
                     if len(frame.shape)==2:
                         frame=numpy.rollaxis(numpy.array([fr]*3),0,3).copy()
                     self.video_writer.writeFrame(frame)
                 #Digital pulse indicates video save time
-                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)
+                if self.digital_line is not None:
+                    digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)
                 if not self.queues['command'].empty():
                     cmd=self.queues['command'].get()
                     self.printl(cmd)
@@ -247,7 +253,8 @@ class WebCamera(instrument.InstrumentProcess):
                 time.sleep(1e-3)
             if hasattr(self,  'video_writer'):
                 self.video_writer.close()
-            digital_output.ClearTask()
+            if self.digital_line is not None:
+                digital_output.ClearTask()
         except:
             import traceback
             self.printl(traceback.format_exc())

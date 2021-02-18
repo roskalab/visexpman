@@ -245,6 +245,11 @@ class SimpleAppWindow(Qt.QMainWindow):
         if len(newlogtext)!=len(self.logtext):
             self.logtext=newlogtext
             self.logw.update(self.logtext)
+            
+    def set_status(self,state, color):
+        self.statusbar.status_msg.setStyleSheet(f'background:{color};')
+        self.statusbar.status_msg.setText(state)
+        QtCore.QCoreApplication.instance().processEvents()
 
     def log(self, msg, loglevel='info'):
         getattr(logging, loglevel)(str(msg))
@@ -291,6 +296,23 @@ class SimpleAppWindow(Qt.QMainWindow):
         
     def notify(self, title, message):
         QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
+        
+    def plotw(self, x, y):
+        '''
+        use cases: 
+        1) x, y list of arrays
+        2) x 2d numpy array, y fsample
+        '''
+        if hasattr(x, 'dtype'):
+            xi=x.shape[1]*[numpy.arange(x.shape[0])/y]#y as fsample
+            yi=[x[:, i]+i*10 for i in range(x.shape[1])]
+            self.pt=Plot(None)
+            self.pt.update_curves(xi, yi)
+            self.pt.show()
+        else:
+            self.pt=Plot(None)
+            self.pt.update_curves(x, y)
+            self.pt.show()
 
 class Progressbar(QtGui.QWidget):
     def __init__(self, maxtime, name = '', autoclose = False, timer=False):
