@@ -135,6 +135,8 @@ class Camera(gui.VisexpmanMainWindow):
                 {'name': 'ROI y1', 'type': 'int', 'value': 200},
                 {'name': 'ROI x2', 'type': 'int', 'value': 400},
                 {'name': 'ROI y2', 'type': 'int', 'value': 400},
+                {'name': 'Stimulus duration', 'type': 'int', 'value': 60, 'suffix': 's', 'siPrefix': True},
+                {'name': 'fUSI enable', 'type': 'bool', 'value': False},
                     ]
         self.params_config.extend(params)
         
@@ -224,7 +226,8 @@ class Camera(gui.VisexpmanMainWindow):
                 self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
                 self.camera2handler.start()
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
-                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{id}')
+                fusi_enable='fUSI' if  self.parameters['params/fUSI enable'] else ''
+                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{id},{fusi_enable}')
                 self.printc('Sent trigger to Psychotoolbox')
             import psutil
             p = psutil.Process(self.camera1handler.pid)
@@ -651,11 +654,15 @@ class Camera(gui.VisexpmanMainWindow):
             except:
                 self.socket_queues['cam']['tosocket'].put({'trigger': 'cam error'})
         if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
+            if hasattr(self, 'tstart') and self.recording and time.time()-self.tstart>self.parameters['params/Stimulus duration']:
+                self.printc('Stimulus timeout')
+                self.stop_recording()
             res=utils.recv_udp(self.machine_config.CAM_COMPUTER_IP, self.machine_config.STIM_TRIGGER_PORT, 0.1)
             if len(res)>0:
                 self.printc(f'UDP message received: {res}')
                 if 'stop' in res:
                     self.stop_recording()
+                    self.plotw(self.sync, 5e3)
         
     def trigger_handler(self):
         now=time.time()
@@ -691,56 +698,6 @@ class Camera(gui.VisexpmanMainWindow):
                 self.start_trigger_time=time.time()
                 self.triggered_recording=True
                 self.trigger_state='waiting'
-
-        if self.trigger_state=='off':
-            color='grey'
-        elif self.trigger_state=='waiting':
-            color='yellow'
-        elif self.trigger_state=='started':
-            color='red'
-        elif self.trigger_state=='stopped':
-            color='orange'
-        self.statusbar.trigger_status.setStyleSheet('background:{0};'.format(color))
-        self.statusbar.trigger_status.setText('trigger status: {0}'.format(self.trigger_state))                
-        
-        return
-        #Old implementation
-        if self.trigger_state=='off':
-            if self.parameters['params/Trigger']=='TTL pulses' and self.parameters['params/Enable trigger']:
-                self.enable_trigger()
-                self.trigger_state='waiting'
-                self.printc('New trigger status: '+self.trigger_state)
-        elif self.trigger_state=='waiting':
-            readout=self.trigger_detector.detect()
-            if readout !='none':
-                self.printc(readout)
-            if readout=='on':
-                if self.parameters['params/Enable trigger'] and not self.recording:
-                    self.trigger_state='started'
-                    self.printc('New trigger status: '+self.trigger_state)
-                    self.start_recording()
-                else:
-                    self.disable_trigger()
-                    self.enable_trigger()
-            elif self.parameters['params/Trigger']!='TTL pulses' or not self.parameters['params/Enable trigger'] :
-                self.disable_trigger()
-                self.trigger_state='off'
-        elif self.trigger_state=='started':
-            readout=self.trigger_detector.detect()
-            if readout !='none':
-                self.printc(readout)
-            if readout == 'off' and self.recording:
-                self.trigger_state='stopped'
-                self.printc('New trigger status: '+self.trigger_state)
-                self.stop_recording()
-            elif not self.recording:#manually stopped
-                self.trigger_state='stopped'
-                self.printc(self.trigger_state)
-        elif self.trigger_state=='stopped':
-            self.disable_trigger()
-            self.enable_trigger()
-            self.trigger_state='waiting'
-            self.printc('New trigger status: '+self.trigger_state)
         if self.trigger_state=='off':
             color='grey'
         elif self.trigger_state=='waiting':
@@ -752,14 +709,14 @@ class Camera(gui.VisexpmanMainWindow):
         self.statusbar.trigger_status.setStyleSheet('background:{0};'.format(color))
         self.statusbar.trigger_status.setText('trigger status: {0}'.format(self.trigger_state))
     
-    def enable_trigger(self):
+    def enable_trigger(self):#OBSOLETE
         if not self.trigger_detector_enabled:
             self.trigger_detector=digital_io.TriggerDetector(self.machine_config.TRIGGER_DETECTOR_PORT,self.machine_config.TRIGGER_TIMEOUT)
 #            self.ioboard.write('wait_trigger,1\r\n')
 #            self.printc(self.ioboard.read(100))
             self.trigger_detector_enabled=True
         
-    def disable_trigger(self):
+    def disable_trigger(self):#OBSOLETE
         if self.trigger_detector_enabled:
 #            self.ioboard.write('wait_trigger,0\r\n')
 #            self.printc(self.ioboard.read(100))    
