@@ -70,7 +70,7 @@ class AnalogRead():
     """
     Utility for recording finite analog signals in a non-blocking way
     """
-    def __init__(self, channels, duration, fsample,limits=[-5,5]):
+    def __init__(self, channels, duration, fsample,limits=[-5,5], differential=False):
         try:
             self.n_ai_channels=int(numpy.diff(list(map(float, channels.split('/')[1][2:].split(':'))))[0]+1)
         except IndexError:
@@ -80,9 +80,10 @@ class AnalogRead():
         self.ai_data = numpy.zeros(int(self.nsamples*self.n_ai_channels), dtype=numpy.float64)
             
         self.analog_input = PyDAQmx.Task()
+        channelcfg=DAQmxConstants.DAQmx_Val_Diff if differential else DAQmxConstants.DAQmx_Val_RSE
         self.analog_input.CreateAIVoltageChan(channels,
                                             'ai',
-                                            DAQmxConstants.DAQmx_Val_RSE,
+                                            channelcfg,
                                             limits[0], 
                                             limits[1], 
                                             DAQmxConstants.DAQmx_Val_Volts,
@@ -253,22 +254,27 @@ class AnalogRecorder(multiprocessing.Process):
         d.join()
 
     '''
-    def __init__(self, channels, sample_rate):
-        self.commandq=multiprocessing.Queue()
+    def __init__(self, channels, sample_rate, differential=False, save_mode='queue', buffertime=3):
+        self.commandq=multiprocessing.SimpleQueue()
         self.dataq=multiprocessing.Queue()
-        self.responseq=multiprocessing.Queue()
+        self.responseq=multiprocessing.SimpleQueue()
         multiprocessing.Process.__init__(self)
         self.channels=channels
         self.sample_rate=int(sample_rate)
         self.timeout=3
-        self.buffer_size=int(self.timeout*self.sample_rate*10)
+        self.buffertime=buffertime
+        self.buffer_size=int(self.buffertime*self.sample_rate*10)
         self.number_of_ai_channels= int(numpy.diff(list(map(float, channels.split('/')[1][2:].split(':'))))[0]+1)
+        self.channelcfg=DAQmxConstants.DAQmx_Val_Diff if differential else DAQmxConstants.DAQmx_Val_RSE
+        self.save_mode=save_mode
         
     def run(self):
+        if self.save_mode=='array':
+            data=numpy.empty([0, self.number_of_ai_channels])
         self.analog_input = PyDAQmx.Task()
         self.analog_input.CreateAIVoltageChan(self.channels,
                                                             'ai',
-                                                            DAQmxConstants.DAQmx_Val_RSE,
+                                                            self.channelcfg,
                                                             -10,
                                                             10,
                                                             DAQmxConstants.DAQmx_Val_Volts,
@@ -283,6 +289,8 @@ class AnalogRecorder(multiprocessing.Process):
         self.analog_input.StartTask()
         self.number_of_ai_samples = int(self.buffer_size * self.sample_rate * self.number_of_ai_channels)
         self.responseq.put('started')
+        self.nreads=0
+        self.read_sizes=[]
         while True:
             if not self.commandq.empty():
                 cmd=self.commandq.get()
@@ -300,32 +308,52 @@ class AnalogRecorder(multiprocessing.Process):
                                         DAQmxTypes.byref(self.read),
                                         None)
                 ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+                self.read_sizes.append([self.read.value, ai_data.shape])
                 ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
-                self.dataq.put(ai_data)
+                self.nreads+=1
+                if self.save_mode=='array':
+                    data=numpy.concatenate((data, ai_data))
+                elif self.save_mode=='queue':
+                    self.dataq.put(ai_data)
         
 #            except PyDAQmx.DAQError:
 #                pass
             time.sleep(0.15)
         
         self.analog_input.ClearTask()
-        self.responseq.put('ready')
+        if self.save_mode=='array':
+            self.dataq.put(data)
+        self.responseq.put(f'ready {self.nreads}')
+        from visexpman.engine.generic import fileop
+#        fileop.write_text_file('d:\sync_read_sizes.txt', '\n'.join([str(i) for i in self.read_sizes]))
         
     def read(self):
         data=numpy.empty([0, self.number_of_ai_channels])
+        i=0
         while not self.dataq.empty():
             r=self.dataq.get()
             data=numpy.concatenate((data, r))
-            time.sleep(0.01)
+            i+=1
+            time.sleep(0.02)
+#        print(f'number of reads: {i}')
         return data
         
     def stop(self):
         if not self.responseq.empty():
-            self.responseq.get()
+            print(self.responseq.get())
         self.commandq.put('stop')
         time.sleep(self.timeout+1)
         if not self.responseq.empty():
             print(self.responseq.get())
-        return self.read()
+        if self.save_mode=='array':
+            if self.dataq.empty():
+                time.sleep(5)
+            if not self.dataq.empty():
+                return self.dataq.get()
+            else:
+                return numpy.empty([0, self.number_of_ai_channels])
+        elif self.save_mode=='queue':
+            return self.read()
             
         
 class TestDaq(unittest.TestCase):

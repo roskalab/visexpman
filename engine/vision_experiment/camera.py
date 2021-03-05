@@ -70,14 +70,14 @@ class Camera(gui.VisexpmanMainWindow):
         self.camera1_io_port= self.machine_config.CAMERA1_IO_PORT if hasattr(self.machine_config, 'CAMERA1_IO_PORT') else None
         self.camera2_io_port= self.machine_config.CAMERA2_IO_PORT if hasattr(self.machine_config, 'CAMERA2_IO_PORT') else None
         if self.camera_api=='tisgrabber':
-            self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, frame_rate=20, exposure=10e-3)
+            self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename.replace('.txt', '_cam1.txt'), self.camera1_io_port, frame_rate=50, exposure=10e-3)
         else:
             self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, self.camera1_io_port)
         self.camera1handler.start()
         
         if self.machine_config.CAMERA2_ENABLE:
             if self.camera_api=='tisgrabber':
-                self.camera2handler=camera.ISCamera(self.machine_config.CAMERA2_ID, self.logger.filename, frame_rate=20, exposure=10e-3)
+                self.camera2handler=camera.ISCamera(self.machine_config.CAMERA2_ID, self.logger.filename.replace('.txt', '_cam2.txt'), frame_rate=20, exposure=10e-3)
             else:
                 self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
             self.camera2handler.start()
@@ -128,14 +128,14 @@ class Camera(gui.VisexpmanMainWindow):
         self.params_config = [
                 {'name': 'Trigger', 'type': 'list', 'values': ['file','manual', 'network', 'TTL pulses'], 'value': trigger_value},
                 {'name': 'Enable trigger', 'type': 'bool', 'value': False,   'readonly': not self.machine_config.ENABLE_TRIGGERING}, 
-                {'name': 'Frame Rate', 'type': 'float', 'value': 25, 'siPrefix': True, 'suffix': 'Hz'},
+                {'name': 'Frame Rate', 'type': 'float', 'value': 50, 'siPrefix': True, 'suffix': 'Hz'},
                 {'name': 'Exposure time', 'type': 'float', 'value': 39, 'siPrefix': True, 'suffix': 'ms'},
                 {'name': 'Enable ROI cut', 'type': 'bool', 'value': False},
                 {'name': 'ROI x1', 'type': 'int', 'value': 200},
                 {'name': 'ROI y1', 'type': 'int', 'value': 200},
                 {'name': 'ROI x2', 'type': 'int', 'value': 400},
                 {'name': 'ROI y2', 'type': 'int', 'value': 400},
-                {'name': 'Stimulus duration', 'type': 'int', 'value': 60, 'suffix': 's', 'siPrefix': True},
+                {'name': 'Stimulus duration', 'type': 'float', 'value': 60, 'suffix': 's', 'siPrefix': True},
                 {'name': 'fUSI enable', 'type': 'bool', 'value': False},
                     ]
         self.params_config.extend(params)
@@ -149,7 +149,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Restart camera')
             self.camera1handler.stop()
             if self.camera_api=='tisgrabber':
-                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
+                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename.replace('.txt', '_cam1.txt'), self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
             else:
                 self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
             self.camera1handler.start()
@@ -170,12 +170,26 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Start video recording')
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Preparing')
-            self.camera1handler.stop()
-            if self.machine_config.CAMERA2_ENABLE:
-                self.camera2handler.stop()
+#            self.camera1handler.stop()
+#            if self.machine_config.CAMERA2_ENABLE:
+#                self.camera2handler.stop()
             if self.machine_config.ENABLE_SYNC=='camera':
-                self.ai=daq.AnalogRecorder(self.machine_config.SYNC_RECORDER_CHANNELS, self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+                self.ai=daq.AnalogRecorder(self.machine_config.SYNC_RECORDER_CHANNELS, 
+                        self.machine_config.SYNC_RECORDER_SAMPLE_RATE, 
+                        differential=self.machine_config.SYNC_DIFF_ENABLE, 
+                        save_mode='queue', 
+                        buffertime=30)
                 self.ai.start()
+                self.sync=numpy.empty([0, self.ai.number_of_ai_channels])
+                self.t0=time.time()
+                while True:
+                    if not self.ai.responseq.empty():
+                        self.printc(self.ai.responseq.get())
+                        break
+                    if time.time()-self.t0>20:
+                        break
+                    time.sleep(0.5)
+                    QtCore.QCoreApplication.instance().processEvents()
                 self.printc('Recording timing signals started.')
 #                d=self.ai.read_ai()#Empty ai buffer
 #                self.ai.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
@@ -217,10 +231,11 @@ class Camera(gui.VisexpmanMainWindow):
                     self.statusbar.recording_status.setText('Ready')
                     
             if self.camera_api=='tisgrabber':
-                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, filename=self.cam1fn)
+                self.camera1handler.save(self.cam1fn)
+                #self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename.replace('.txt', '_cam1.txt'), self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, filename=self.cam1fn)
             else:
                 self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.cam1fn, watermark=True)
-            self.camera1handler.start()
+            #self.camera1handler.start()
             if self.machine_config.CAMERA2_ENABLE:
                 raise NotImplementedError('')
                 self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
@@ -244,19 +259,34 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if not self.recording:
                 return
+#            self.printc(('sync lenght before stop',self.sync.shape))
             t0=time.time()
             self.printc('Stop video recording, please wait...')
+            self.camera1handler.stop_saving()
+            if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
+                self.printc('Stop MC recording')
+                daq.digital_pulse(self.machine_config.MC_STOP_TRIGGER,1)
+                time.sleep(0.5)
+#            self.printc(f'Recording time: {time.time()-self.t0}')
+#            self.printc(f'Available sync length: {self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE}')
+            wait_time=round(10+time.time()-self.t0-(self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+            self.printc(f'Wait {wait_time} seconds to read sync signal')
+            QtCore.QCoreApplication.instance().processEvents()
+            time.sleep(wait_time)
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
-            self.camera1handler.stop()
-            if self.machine_config.CAMERA2_ENABLE:
-                self.camera2handler.stop()
-            if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
-                self.printc('Stop MC recording')
-                daq.digital_pulse(self.machine_config.MC_STOP_TRIGGER,10)
-                time.sleep(0.5)
-                
+#            self.printc(('queue size', self.ai.dataq.qsize()))
+#            self.printc(('sync lenght after stoping camera',self.sync.shape))
+#            self.camera1handler.stop()
+#            if self.machine_config.CAMERA2_ENABLE:
+#                self.camera2handler.stop()
+#            camera_wait_time=5
+#            self.camera1handler.join(camera_wait_time)
+#            self.camera1handler.terminate()
+#            if self.machine_config.CAMERA2_ENABLE:
+#                self.camera2handler.join(camera_wait_time)
+#                self.camera2handler.terminate()
             if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
                 miniscope_datafolder=self.find_miniscope_data()
                 if os.path.exists(miniscope_datafolder):
@@ -276,8 +306,8 @@ class Camera(gui.VisexpmanMainWindow):
                 fc=None                
             if hasattr(self,  'ai'):
                 self.printc('Terminate timing signal recording, please wait...')
-                self.sync=self.ai.stop()
-
+                self.sync=numpy.concatenate((self.sync, self.ai.stop()))
+#                self.sync=self.ai.stop()
                 self.matdata['sync']=self.sync
                 self.matdata['machine_config']=self.machine_config.todict()
                 self.fps_values, fpsmean,  fpsstd=signal.calculate_frame_rate(self.sync[:, self.machine_config.TCAM1_SYNC_INDEX], self.machine_config.SYNC_RECORDER_SAMPLE_RATE, threshold=2.5)
@@ -288,15 +318,16 @@ class Camera(gui.VisexpmanMainWindow):
             else:
                 self.printc('mean: {0} Hz,  std: {1} ms'.format(1/numpy.mean(numpy.diff(self.ts)), 1000*numpy.std(numpy.diff(self.ts))))
             self.printc('Saved to {0}'.format(self.cam1fn))
-            if self.camera_api=='tisgrabber':
-                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
-            else:
-                self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
-            self.camera1handler.start()
-            if self.machine_config.CAMERA2_ENABLE:
-                raise NotImplementedError()
-                self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
-                self.camera2handler.start()
+#            self.printc(('sync lenght after  camera',self.sync.shape))
+#            if self.camera_api=='tisgrabber':
+#                self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename, self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3)
+#            else:
+#                self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  None)
+#            self.camera1handler.start()
+#            if self.machine_config.CAMERA2_ENABLE:
+#                raise NotImplementedError()
+#                self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),None,filename=None)
+#                self.camera2handler.start()
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
@@ -341,7 +372,7 @@ class Camera(gui.VisexpmanMainWindow):
             
             self.triggered_recording=False
             #TMP:
-            self.plotw(self.sync, 5e3)
+            self.plotw(self.sync, self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         except:
             e=traceback.format_exc()
             self.printc(e)
@@ -364,10 +395,10 @@ class Camera(gui.VisexpmanMainWindow):
             msg+f'Number of recorded video frames and camera timing pulses do not match, number of pulses {self.camera1_timestamps.shape[0]} '
         if self.camera1_timestamps[0]<two_frame_time or self.camera1_timestamps[-1]>self.sync_length-two_frame_time:
             msg+='Beginning or end of camera timing signal may not be recorder properly! '
-        if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
+        if hasattr(self.machine_config, 'MC_STOP_TRIGGER') and self.triggered_recording:
             #Check if MC stop trigger took place
             self.mc_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TMCSTOP_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            if self.mc_timestamps.shape[0]!=1 and self.mc_timestamps[0]<self.sync_length*0.75:
+            if self.mc_timestamps.shape[0]!=1 and self.mc_timestamps[0]<self.sync_length*0.5:
                 msg+='Multi Channel Stop signal is corrupt!'
             if hasattr(self, 'matdata'):
                 self.matdata['mc_timestamps']=self.mc_timestamps
@@ -578,6 +609,11 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if hasattr(self.camera1handler, 'log') and not self.camera1handler.log.empty():
                 self.printc(self.camera1handler.log.get())
+            if hasattr(self, 'ai'):
+                s=self.sync.shape[0]
+                self.sync=numpy.concatenate((self.sync, self.ai.read()))
+#                if s!=self.sync.shape[0]:
+#                    self.printc(self.sync.shape[0])
             if hasattr(self.camera1handler, 'display_frame'):
                 imgqueue=self.camera1handler.display_frame
             elif hasattr(self.camera1handler, 'queues'):
@@ -662,7 +698,6 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc(f'UDP message received: {res}')
                 if 'stop' in res:
                     self.stop_recording()
-                    self.plotw(self.sync, 5e3)
         
     def trigger_handler(self):
         now=time.time()
