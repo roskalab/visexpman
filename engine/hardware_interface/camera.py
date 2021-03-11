@@ -130,6 +130,21 @@ class ISCamera(instrument.InstrumentProcess):
         if not self.queues['data'].empty():
             return self.queues['data'].get()
             
+    def save(self, fn):
+        self.queues['command'].put(['save', fn])
+
+    def stop_saving(self):
+        self.queues['command'].put('stop_saving')
+        t0=time.time()
+        while True:
+            if not self.queues['response'].empty():
+                msg=self.queues['response'].get()
+                if msg=='save done':
+                    break
+                if time.time()-t0>60:
+                    break
+                time.sleep(0.5)
+            
     def run(self):
         try:
             self.setup_logger()
@@ -164,22 +179,29 @@ class ISCamera(instrument.InstrumentProcess):
                 if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer
                     continue
                 frame_prev=frame.copy()
-                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
-
+                if hasattr(self, 'video_writer'):
+                    digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
                 if hasattr(self, 'video_writer'):
                     if len(frame.shape)==2:
                         frame=numpy.rollaxis(numpy.array([frame]*3),0,3).copy()
                     self.video_writer.writeFrame(frame)
                 #Digital pulse indicates video save time
-                digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)
+                if hasattr(self, 'video_writer'):
+                    digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)
                 if not self.queues['command'].empty():
                     cmd=self.queues['command'].get()
                     self.printl(cmd)
                     if cmd=='stop':
                         Camera.StopLive()
+                        self.printl('Stop camera')
                         break
-                        
-                
+                    elif cmd[0]=='save':
+                        self.video_writer=skvideo.io.FFmpegWriter(cmd[1], inputdict={'-r':fps}, outputdict={'-r':fps})
+                    elif cmd=='stop_saving':
+                        self.printl('Close video file')
+                        self.video_writer.close()
+                        del self.video_writer
+                        self.queues['response'].put('save done')
                 if self.queues['data'].empty() and frame is not None:#Send frame when queue empty (previous frame was taken
                     self.queues['data'].put(frame)
                 
@@ -187,6 +209,7 @@ class ISCamera(instrument.InstrumentProcess):
             if hasattr(self,  'video_writer'):
                 self.video_writer.close()
             digital_output.ClearTask()
+            self.printl('Leaving process')
         except:
             import traceback
             self.printl(traceback.format_exc())

@@ -911,10 +911,11 @@ def rename_files(folder, src_pattern, dst_pattern):
     
     
 class FileTrigger(object):
-    def __init__(self, paths, check_interval, extension=None):
+    def __init__(self, paths, check_interval, extension=None,subfolders=True):
         self.paths=paths
         self.check_interval=check_interval
         self.extension=extension
+        self.subfolders=subfolders
         self.last_check=time.time()
         self.files_used_for_trigger=[]
         
@@ -925,7 +926,7 @@ class FileTrigger(object):
         if now-self.last_check>self.check_interval:
             self.latest_files=[]
             for p in self.paths:
-                latest=find_latest(p,self.extension)
+                latest=find_latest(p,self.extension,subfolders=self.subfolders)
                 if latest!=None:
                     self.latest_files.append(latest)
 #            print(self.latest_files)

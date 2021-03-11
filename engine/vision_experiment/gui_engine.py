@@ -420,29 +420,6 @@ class ExperimentHandler(object):
                 self.printc('Starting next batch item, {0} left'.format(len(self.batch)))
                 self.start_experiment(experiment_parameters=self.batch[0], manually_started=False)
                 self.batch=self.batch[1:]
-                
-    def mc_mea_trigger(self):#OBSOLETE
-        '''
-        If a new file (max 5 second age) is found in MC_DATA_FOLDER folder, an experiment is initiated, checked in every 5 second
-        '''
-        if self.guidata.read('MC Rack New File Trigger Enable') and not self.experiment_running:
-            self.mcd_check_period=5
-            now=time.time()
-            if not hasattr(self, 'last_mcd_check'):
-                self.last_mcd_check=now
-            dt=now-self.last_mcd_check
-            if dt>self.mcd_check_period:
-                self.last_mcd_check=now
-                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
-                if self.latest_mcd_file==None:
-                    return
-                dt=now-os.path.getmtime(self.latest_mcd_file)
-                dt2=now-self.stoptime
-                if dt<2*self.mcd_check_period and dt2>3*self.mcd_check_period:
-                    if self.guidata.read('Repeats')==1:
-                        self.start_experiment(manually_started=False)
-                    elif self.guidata.read('Repeats')>1 and not self.batch_running:
-                        self.start_batch_experiment()
                         
     def check_file_trigger(self):
         if hasattr(self,  'file_trigger_handler') and not self.experiment_running:
@@ -450,6 +427,7 @@ class ExperimentHandler(object):
             self.file_trigger_handler.subfolders=False
             trig, self.trigger_filename=self.file_trigger_handler.check()
             if self.guidata.read('Enable File Trigger') and trig:
+                self.latest_mcd_file=self.file_trigger_handler.latest_files[-1]
                 repeats=self.guidata.read('Repeats')
                 if repeats in [None, 1]:
                     self.start_experiment(manually_started=False)
@@ -566,14 +544,18 @@ class ExperimentHandler(object):
         self.printc('Finishing experiment...')
         if self.machine_config.PLATFORM=='mc_mea':
             #Copy mcd file to outfolder:
-            time.sleep(3)
+            time.sleep(10)
             mcd_finished=self.current_experiment_parameters.get('stop_trigger',False) or ('stop_trigger' not in self.current_experiment_parameters)
             if not self.aborted and 'mcd_file' in self.current_experiment_parameters and mcd_finished:
                 dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
                 self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
-                shutil.move(self.current_experiment_parameters['mcd_file'], dst)
+                try:
+                    shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                except:
+                    time.sleep(10)
+                    shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
                 self.printc('MEA recording almost finished, please wait...')
-                time.sleep(2*self.mcd_check_period+1)
+                time.sleep(0.5*self.machine_config.FILE_CHECK_INTERVAL+1)
             
 #            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
 #                #Find latest mcd file and save experiment metadata to the same folder
@@ -861,7 +843,6 @@ class ExperimentHandler(object):
     def run_always_experiment_handler(self):
         now=time.time()
         self.check_batch()
-        self.mc_mea_trigger()
         self.check_file_trigger()
         if self.sync_recording_started:
             self.read_sync_recorder()
