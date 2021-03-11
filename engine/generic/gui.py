@@ -636,8 +636,8 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         p=self.img.mapFromScene(e.scenePos())
         if self.enable_manual_points:
             if e.double():
-                print(int(e.buttons()))
-                print(e.modifiers())
+#                print(int(e.buttons()))
+#                print(e.modifiers())
                 if int(e.buttons()) == 1:
                     if e.modifiers()==QtCore.Qt.ControlModifier:
                         if len(self.manual_points)>0:

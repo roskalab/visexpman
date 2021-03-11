@@ -272,7 +272,7 @@ class ExperimentHandler(object):
             if v!=None:
                 experiment_parameters[pn]=v
         experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
-        experiment_parameters['eyecamfilename']=fileop.replace_extension(experiment_parameters['eyecamfilename'], '.mp4')
+        experiment_parameters['eyecamfilename']=fileop.replace_extension(experiment_parameters['eyecamfilename'], '.avi')
         if hasattr(self, 'trigger_filename') and self.trigger_filename!=None:
             experiment_parameters['trigger_filename']=self.trigger_filename
             experiment_parameters['trigger_timestamp']=os.path.getctime(self.trigger_filename)
@@ -329,7 +329,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
-                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
+                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.avi')
                     par['stop_trigger']=False
                     self.batch.append(par)
                 self.batch[-1]['stop_trigger']=True
@@ -372,7 +372,7 @@ class ExperimentHandler(object):
                         par['depth']=d
                         par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                         par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
-                        par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
+                        par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.avi')
                         self.batch.append(par)
                         if self.guidata.read('Enable tile scan'):
                             ref=copy.deepcopy(self.batch[-1])
@@ -385,7 +385,7 @@ class ExperimentHandler(object):
                                 par['id']=experiment_data.get_id()
                                 par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                                 par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
-                                par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
+                                par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.avi')
                                 self.batch.append(par)
             elif self.machine_config.PLATFORM =='resonant':
                 for r in range(self.guidata.read('Repeats')):
@@ -393,7 +393,7 @@ class ExperimentHandler(object):
                     par['id']=experiment_data.get_id()
                     par['outfilename']=experiment_data.get_recording_path(self.machine_config, par ,prefix = 'data')
                     par['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, par, prefix = 'eyecam')
-                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.mp4')
+                    par['eyecamfilename']=fileop.replace_extension(par['eyecamfilename'], '.avi')
                     time.sleep(0.2)
                     self.batch.append(par)
             if self.guidata.read('Enable tile scan'):
