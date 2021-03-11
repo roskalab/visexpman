@@ -269,7 +269,9 @@ class Camera(gui.VisexpmanMainWindow):
                 time.sleep(0.5)
 #            self.printc(f'Recording time: {time.time()-self.t0}')
 #            self.printc(f'Available sync length: {self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE}')
-            wait_time=round(10+time.time()-self.t0-(self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+            wait_time=round(5+time.time()-self.t0-(self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+            if wait_time>150:
+                wait_time+=100
             self.printc(f'Wait {wait_time} seconds to read sync signal')
             QtCore.QCoreApplication.instance().processEvents()
             time.sleep(wait_time)
@@ -653,7 +655,7 @@ class Camera(gui.VisexpmanMainWindow):
                                 self.logger.info(traceback.format_exc())
                     
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
-                if self.recording:
+                if self.recording and hasattr(self,  'tstart'):
                     dt=time.time()-self.tstart
                     title='{0} s'.format(int(dt))
                     if hasattr(self,  'red_angle'):
