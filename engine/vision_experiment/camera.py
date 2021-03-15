@@ -174,22 +174,29 @@ class Camera(gui.VisexpmanMainWindow):
 #            if self.machine_config.CAMERA2_ENABLE:
 #                self.camera2handler.stop()
             if self.machine_config.ENABLE_SYNC=='camera':
-                self.ai=daq.AnalogRecorder(self.machine_config.SYNC_RECORDER_CHANNELS, 
-                        self.machine_config.SYNC_RECORDER_SAMPLE_RATE, 
-                        differential=self.machine_config.SYNC_DIFF_ENABLE, 
-                        save_mode='queue', 
-                        buffertime=30)
-                self.ai.start()
-                self.sync=numpy.empty([0, self.ai.number_of_ai_channels])
-                self.t0=time.time()
-                while True:
-                    if not self.ai.responseq.empty():
-                        self.printc(self.ai.responseq.get())
-                        break
-                    if time.time()-self.t0>20:
-                        break
-                    time.sleep(0.5)
-                    QtCore.QCoreApplication.instance().processEvents()
+                self.aifix=True
+                if self.aifix:
+                    self.ai=daq.AnalogRead(self.machine_config.SYNC_RECORDER_CHANNELS,
+                                                self.machine_config.SYNC_MAX_RECORDING_TIME, 
+                                                self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+                    time.sleep(1)
+                else:
+                    self.ai=daq.AnalogRecorder(self.machine_config.SYNC_RECORDER_CHANNELS, 
+                            self.machine_config.SYNC_RECORDER_SAMPLE_RATE, 
+                            differential=self.machine_config.SYNC_DIFF_ENABLE, 
+                            save_mode='queue', 
+                            buffertime=30)
+                    self.ai.start()
+                    self.sync=numpy.empty([0, self.ai.number_of_ai_channels])
+                    self.t0=time.time()
+                    while True:
+                        if not self.ai.responseq.empty():
+                            self.printc(self.ai.responseq.get())
+                            break
+                        if time.time()-self.t0>20:
+                            break
+                        time.sleep(0.5)
+                        QtCore.QCoreApplication.instance().processEvents()
                 self.printc('Recording timing signals started.')
 #                d=self.ai.read_ai()#Empty ai buffer
 #                self.ai.start_daq(ai_sample_rate = self.machine_config.SYNC_RECORDER_SAMPLE_RATE,
@@ -269,10 +276,13 @@ class Camera(gui.VisexpmanMainWindow):
                 time.sleep(0.5)
 #            self.printc(f'Recording time: {time.time()-self.t0}')
 #            self.printc(f'Available sync length: {self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE}')
-            wait_time=round(10+time.time()-self.t0-(self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
-            self.printc(f'Wait {wait_time} seconds to read sync signal')
-            QtCore.QCoreApplication.instance().processEvents()
-            time.sleep(wait_time)
+            if not self.aifix:
+                wait_time=round(5+time.time()-self.t0-(self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+                if wait_time>150:
+                    wait_time+=100
+                self.printc(f'Wait {wait_time} seconds to read sync signal')
+                QtCore.QCoreApplication.instance().processEvents()
+                time.sleep(wait_time)
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
@@ -306,7 +316,10 @@ class Camera(gui.VisexpmanMainWindow):
                 fc=None                
             if hasattr(self,  'ai'):
                 self.printc('Terminate timing signal recording, please wait...')
-                self.sync=numpy.concatenate((self.sync, self.ai.stop()))
+                if self.aifix:
+                    self.sync=self.ai.read().T
+                else:
+                    self.sync=numpy.concatenate((self.sync, self.ai.stop()))
 #                self.sync=self.ai.stop()
                 self.matdata['sync']=self.sync
                 self.matdata['machine_config']=self.machine_config.todict()
@@ -609,7 +622,7 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if hasattr(self.camera1handler, 'log') and not self.camera1handler.log.empty():
                 self.printc(self.camera1handler.log.get())
-            if hasattr(self, 'ai'):
+            if hasattr(self, 'ai') and not self.aifix:
                 s=self.sync.shape[0]
                 self.sync=numpy.concatenate((self.sync, self.ai.read()))
 #                if s!=self.sync.shape[0]:
@@ -653,7 +666,7 @@ class Camera(gui.VisexpmanMainWindow):
                                 self.logger.info(traceback.format_exc())
                     
                 self.image.set_image(numpy.rot90(numpy.flipud(f)))
-                if self.recording:
+                if self.recording and hasattr(self,  'tstart'):
                     dt=time.time()-self.tstart
                     title='{0} s'.format(int(dt))
                     if hasattr(self,  'red_angle'):

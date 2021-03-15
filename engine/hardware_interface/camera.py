@@ -206,7 +206,8 @@ class ISCamera(instrument.InstrumentProcess):
                     self.queues['data'].put(frame)
                 
                 time.sleep(1e-3)
-            if hasattr(self,  'video_writer'):
+            if hasattr(self, 'video_writer'):
+                self.printl('Close video file')
                 self.video_writer.close()
             digital_output.ClearTask()
             self.printl('Leaving process')
