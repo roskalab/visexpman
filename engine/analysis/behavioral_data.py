@@ -1,12 +1,13 @@
 #TODO: low volt/high/mid voltage?? volt instead of all voltage values
 #TODO: color assignment
-import hdf5io,unittest,numpy,os,multiprocessing,pdb
-from visexpman.engine.generic import introspect,fileop,utils,signal
-from visexpman.engine.vision_experiment import experiment_data
 from pylab import *
+import hdf5io,unittest,numpy,os,multiprocessing,pdb
+from visexpman.engine.vision_experiment import experiment_data
+from visexpman.engine.generic import introspect,fileop,utils,signal
 from scipy.ndimage.filters import gaussian_filter
-import skvideo.io
-import cv2
+import skvideo.io,skimage.transform
+import scipy.ndimage
+
 
 def read_frame(filename,index):
     if 0:
@@ -20,6 +21,7 @@ def read_frame(filename,index):
         reader.close()
         return captured
     else:
+        import cv2
         video=cv2.VideoCapture(filename)
         video.set(cv2.CAP_PROP_POS_FRAMES,index)
         ret,frame=video.read()
@@ -846,6 +848,59 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         draw.text((0, 0),"{0}".format(int(red_angle)),(255,255,255),font=font)
         out=numpy.asarray(img)
     return result, animal_position, red_angle, red, green, blue, out
+    
+def find_objects(frame,min_size):
+    l,n=scipy.ndimage.label(numpy.where(frame>127,1,0))
+    if n==0:
+        return []
+    else:
+        objects=[]
+        for i in range(1,n+1):
+            coo=numpy.array(numpy.where(l==i))
+            size=coo.shape[1]
+            if size<min_size:
+                continue
+            coo=coo.mean(axis=1)
+            objects.append([coo,size])
+    return objects
+    
+def head_angle_ir(frame,min_size):
+    objects=find_objects(frame,min_size)
+    angle=numpy.nan
+    if len(objects)==2:
+        bigger=objects[numpy.array([ii[1] for ii in objects]).argmax()][0]
+        smaller=objects[numpy.array([ii[1] for ii in objects]).argmin()][0]
+        angle=numpy.degrees(numpy.arctan2(*(bigger-smaller)))
+    return angle
+    
+    
+def track_ir_leds(fn,min_size=50,close_threshold=10):
+    vv=skvideo.io.vread(fn)[:,200:400,100:600,0]
+    videogen = skvideo.io.vreader(fn)
+    objects=[]
+    for frame in videogen:
+        frame=frame[200:400,100:600,0]
+        objects.append(find_objects(frame,min_size))
+#    bigger=[]
+#    smaller=[]
+    angles=[]
+    for i in range(len(objects)):
+        angles.append(numpy.nan)
+        if len(objects[i])>0:
+            if len(objects[i])==1 and len(objects[i-1])==0:
+                continue
+            elif len(objects[i])==2:
+                bigger=objects[i][numpy.array([ii[1] for ii in objects[i]]).argmax()][0]
+                smaller=objects[i][numpy.array([ii[1] for ii in objects[i]]).argmin()][0]
+                angles[-1]=numpy.degrees(numpy.arctan2(*(bigger-smaller)))
+                if abs(angles[-1]-angles[-2])>120:
+                    pass#TODO check these cases with real videos
+            elif len(objects[i-1])==2 and len(objects[i])==1:
+                pass
+            else:
+                print(len(objects))
+    pass
+        
 
 class TestBehavAnalysis(unittest.TestCase):
     @unittest.skip('')
@@ -928,7 +983,8 @@ class TestBehavAnalysis(unittest.TestCase):
         h.add2day_analysis(h.alldatafiles[0])
         #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev/1')
         #HitmissAnalysis('/home/rz/mysoftware/data/data4plotdev')
-        
+    
+    @unittest.skip('')
     def test_07_extract_mouse_position(self):
         folder=r'c:\temp\20190416'
         folder='/data/data/user/Zoltan/20190715_Miao_behav/tracking lost'
@@ -1001,12 +1057,124 @@ class TestBehavAnalysis(unittest.TestCase):
         show()
         pass
         
+    @unittest.skip('')
     def test_08_align(self):
         sync_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/behav_202012111657468.hdf5'
         video1_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/behav_202012111657468.mp4'
         video2_fn='/home/rz/mysoftware/data/vor/eye_tracking_only/all/eye_202012111657468.mp4'
         #align_videos(video1_fn,video2_fn,sync_fn)
         align_videos_wrapper(sync_fn)
+        
+    def test_09_ir_track(self):
+        fn='/tmp/video0002 21-02-18 17-33-54.avi'
+        fn='/home/rz/mysoftware/data/IR LED test'
+        fns=['behav_202103041700174.mp4',#bad, one led is too dim
+                'behav_202103041647489.mp4',#good
+                'behav_202103041643104.mp4',#good
+                'behav_202103041628593.mp4',#OK
+                'behav_202103041510318.mp4',#good
+                'behav_202103041507500.mp4',#good
+                'behav_202103031800241.mp4',
+                'behav_202103031757322.mp4']
+        fn=os.path.join(fn,fns[3])
+        track_ir_leds(fn)
+        videogen = skvideo.io.vreader(fn)
+        if 0:
+            for frame in videogen:
+                shape=frame.shape
+                break
+            a=numpy.zeros(shape)
+            for frame in videogen:
+                a=numpy.array([a,frame]).max(axis=0)
+            a=a/a.max()
+
+            imshow(skimage.transform.rotate(a,20)[200:400,100:600])
+            show()
+        bigger=[]
+        smaller=[]
+        ffprev=None
+        objects=[]
+        for frame in videogen:
+            ff=skimage.transform.rotate(frame,00)[200:400,100:600,0]
+            ffprev=numpy.copy(ff)
+            objects.append(find_objects(ff))
+            
+            l,n=scipy.ndimage.label(numpy.where(ff>0.5,1,0))
+            if n>2:
+                if numpy.where(l>0)[0].shape[0]<10:
+                    bigger.append([-1,-1])
+                    smaller.append([-1,-1])
+                else:
+                    bigger.append([-2,-2])
+                    smaller.append([-2,-2])
+                    print('Check this1')
+            elif n==0:
+                bigger.append([0,0])
+                smaller.append([0,0])
+                continue
+            else:
+                try:
+                    coo1xprev=numpy.copy(coo1x)
+                    coo1yprev=numpy.copy(coo1y)
+                    coo2xprev=numpy.copy(coo2x)
+                    coo2yprev=numpy.copy(coo2y)
+                    prev=True
+                except:
+                    prev=False
+                coo1x,coo1y=numpy.where(l==1)
+                coo2x,coo2y=numpy.where(l==2)
+                #Cases: n=1, n=2
+                if n==2:
+                    if not prev:
+                        if coo1x.shape[0]>coo2x.shape[0]:
+                            bigger.append([coo1x.mean(),coo1y.mean()])
+                            smaller.append([coo2x.mean(),coo2y.mean()])
+                        else:
+                            bigger.append([coo2x.mean(),coo2y.mean()])
+                            smaller.append([coo1x.mean(),coo1y.mean()])
+                    else:
+                        prevxy1=coo1xprev.mean(), coo1yprev.mean()
+                        prevxy2=coo2xprev.mean(), coo2yprev.mean()
+                        xy1=coo1x.mean(), coo1y.mean()
+                        xy2=coo2x.mean(), coo2y.mean()
+                        pass
+                elif n==1:
+                    print('Not implemented')
+                
+                
+                
+                
+                if coo1x.shape[0]==0 or coo2x.shape[0]==0:
+                    print('Check this2')
+                    bigger.append([-3,-3])
+                    smaller.append([-3,-3])
+                    continue
+                if coo1x.shape[0]>coo2x.shape[0]:
+                    if not prev:
+                        bigger.append([coo1x.mean(),coo1y.mean()])
+                        smaller.append([coo2x.mean(),coo2y.mean()])
+                    else:
+                        pass
+                else:
+                    bigger.append([coo2x.mean(),coo2y.mean()])
+                    smaller.append([coo1x.mean(),coo1y.mean()])
+                pass
+        #    if len(bigger)>1000:
+        #        break
+        
+        bigger=numpy.array(bigger)
+        smaller=numpy.array(smaller)
+        figure(1)
+        title('angle')
+        plot(numpy.degrees(numpy.arctan2(bigger[:,0],bigger[:,1])));plot(numpy.degrees(numpy.arctan2(smaller[:,0],smaller[:,1])))
+        legend(['bigger','smaller'])
+        figure(2)
+        title('r')
+        plot(numpy.sqrt(bigger[:,0]**2+bigger[:,1]**2));plot(numpy.sqrt(smaller[:,0]**2+smaller[:,1]**2));
+        legend(['bigger','smaller'])
+        show()
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()
