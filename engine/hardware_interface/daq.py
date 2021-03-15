@@ -70,13 +70,13 @@ class AnalogRead():
     """
     Utility for recording finite analog signals in a non-blocking way
     """
-    def __init__(self, channels, duration, fsample,limits=[-5,5], differential=False):
+    def __init__(self, channels, duration, fsample,limits=[-5,5], differential=False, timeout=3):
         try:
             self.n_ai_channels=int(numpy.diff(list(map(float, channels.split('/')[1][2:].split(':'))))[0]+1)
         except IndexError:
             raise NotImplementedError('Single channel not parsed')
         self.nsamples=int(duration*fsample)
-        self.timeout=duration
+        self.timeout=timeout
         self.ai_data = numpy.zeros(int(self.nsamples*self.n_ai_channels), dtype=numpy.float64)
             
         self.analog_input = PyDAQmx.Task()
@@ -97,13 +97,16 @@ class AnalogRead():
         self.analog_input.StartTask()
         
     def read(self):
-        self.analog_input.ReadAnalogF64(int(self.ai_data.shape[0]/self.n_ai_channels),
-                                        self.timeout,
-                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                        self.ai_data,
-                                        self.ai_data.shape[0],
-                                        DAQmxTypes.byref(self.readb),
-                                        None)
+        try:
+            self.analog_input.ReadAnalogF64(int(self.ai_data.shape[0]/self.n_ai_channels),
+                                            self.timeout,
+                                            DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                            self.ai_data,
+                                            self.ai_data.shape[0],
+                                            DAQmxTypes.byref(self.readb),
+                                            None)
+        except:
+            pass
         self.ai_data = self.ai_data[:self.readb.value * self.n_ai_channels]
         self.ai_data = self.ai_data.flatten('F').reshape((self.n_ai_channels, self.readb.value))
         self.analog_input.StopTask()
