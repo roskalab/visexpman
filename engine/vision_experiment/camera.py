@@ -137,6 +137,8 @@ class Camera(gui.VisexpmanMainWindow):
                 {'name': 'ROI y2', 'type': 'int', 'value': 400},
                 {'name': 'Stimulus duration', 'type': 'float', 'value': 60, 'suffix': 's', 'siPrefix': True},
                 {'name': 'fUSI enable', 'type': 'bool', 'value': False},
+                {'name': 'fUSI sampling rate', 'type': 'float', 'value': 5, 'suffix': 'Hz', 'siPrefix': True},
+                {'name': 'fUSI Nimag', 'type': 'int', 'value': 4000},
                     ]
         self.params_config.extend(params)
         
@@ -180,6 +182,7 @@ class Camera(gui.VisexpmanMainWindow):
                                                 self.machine_config.SYNC_MAX_RECORDING_TIME, 
                                                 self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
                     time.sleep(1)
+                    self.t0=time.time()
                 else:
                     self.ai=daq.AnalogRecorder(self.machine_config.SYNC_RECORDER_CHANNELS, 
                             self.machine_config.SYNC_RECORDER_SAMPLE_RATE, 
@@ -283,6 +286,15 @@ class Camera(gui.VisexpmanMainWindow):
                 self.printc(f'Wait {wait_time} seconds to read sync signal')
                 QtCore.QCoreApplication.instance().processEvents()
                 time.sleep(wait_time)
+            if self.parameters['params/fUSI enable']:
+                fusi_duration=self.parameters['params/fUSI Nimag']/self.parameters['params/fUSI sampling rate']
+                dt=time.time()-self.t0
+                wait_left=utils.roundint(fusi_duration-dt)+self.machine_config.FUSI_RECORDING_OVERHEAD
+                if wait_left>0:
+                    self.printc(f'Wait {wait_left} s until fUSI finishes')
+                    QtCore.QCoreApplication.instance().processEvents()
+                    time.sleep(wait_left)
+
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
@@ -344,7 +356,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setStyleSheet('background:gray;')
             self.statusbar.recording_status.setText('Ready')
             self.recording=False
-            self.printc('Save time {0} s'.format(int(time.time()-t0)))
+            self.printc('Save time {0} s'.format(int(time.time()-t0-wait_left)))
             if hasattr(self, 'fps_values') and self.fps_values.shape[0]<10:
                 self.printc('Recording too short, file removed')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
@@ -385,7 +397,8 @@ class Camera(gui.VisexpmanMainWindow):
             
             self.triggered_recording=False
             #TMP:
-            self.plotw(self.sync, self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            if not self.aifix or 1:
+                self.plotw(self.sync, self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
         except:
             e=traceback.format_exc()
             self.printc(e)
@@ -426,6 +439,21 @@ class Camera(gui.VisexpmanMainWindow):
                 msg+='End of stimulus was not recorded! '
             if hasattr(self, 'matdata'):
                 self.matdata['stim_timestamps']=self.stim_timestamps
+        if self.parameters['params/fUSI enable']:
+            self.fusi_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TFUSI_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            self.matdata['fusi_timestamps']=self.fusi_timestamps
+            if self.fusi_timestamps.shape[0]!=2:
+                msg+='End of fUSI timing is not recorded! '
+                numpy.diff(self.fusi_timestamps)
+            #Emulate fUSI pulses
+            fusi_overhead=4.8
+            duration=numpy.diff(self.fusi_timestamps)[0]-fusi_overhead#Measured ~4.8 second
+            emulated_pulses=numpy.zeros(int(duration*self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+            period=int(duration/self.parameters['params/fUSI Nimag']*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            emulated_pulses[::period]=3.3
+            o=int(self.fusi_timestamps[0]*self.machine_config.SYNC_RECORDER_SAMPLE_RATE+fusi_overhead)
+            self.sync[o:o+emulated_pulses.shape[0], self.machine_config.TFUSI_SYNC_INDEX]+=emulated_pulses
+            self.matdata['sync']=self.sync
         if len(msg)>0:
             self.printc(msg)
             QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
