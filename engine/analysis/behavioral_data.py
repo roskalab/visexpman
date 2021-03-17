@@ -850,7 +850,9 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
     return result, animal_position, red_angle, red, green, blue, out
     
 def find_objects(frame,min_size):
-    l,n=scipy.ndimage.label(numpy.where(frame>127,1,0))
+    if frame.ndim==3:
+        frame=frame[:,:,0]
+    l,n=scipy.ndimage.label(numpy.where(frame>200,1.0,0.0))
     if n==0:
         return []
     else:
@@ -873,17 +875,29 @@ def head_angle_ir(frame,min_size):
         angle=numpy.degrees(numpy.arctan2(*(bigger-smaller)))
     return angle
     
+def ir_angle(bigger, smaller,prev_angle):
+    angle=numpy.degrees(numpy.arctan2(*(bigger-smaller)))
+    dangle=angle-prev_angle
+    dangle=(dangle+180)%360-180
+    if abs(dangle)>120:
+        angle=numpy.degrees(numpy.arctan2(*(smaller-bigger)))
+    return angle
     
 def track_ir_leds(fn,min_size=50,close_threshold=10):
-    vv=skvideo.io.vread(fn)[:,200:400,100:600,0]
-    videogen = skvideo.io.vreader(fn)
-    objects=[]
-    for frame in videogen:
-        frame=frame[200:400,100:600,0]
-        objects.append(find_objects(frame,min_size))
+    vv=skvideo.io.vread(fn)[:,:,:,0]
+    if 1:
+        videogen = skvideo.io.vreader(fn)
+        objects=[]
+        for frame in videogen:
+            #frame=frame[200:400,100:600,0]
+            objects.append(find_objects(frame,min_size))
+        utils.object2npy(objects,'/tmp/o.npy')
+    else:
+        objects=utils.npy2object('/tmp/o.npy')
 #    bigger=[]
 #    smaller=[]
-    angles=[]
+    angles=[numpy.nan]
+    delta_angle=[]
     for i in range(len(objects)):
         angles.append(numpy.nan)
         if len(objects[i])>0:
@@ -892,14 +906,50 @@ def track_ir_leds(fn,min_size=50,close_threshold=10):
             elif len(objects[i])==2:
                 bigger=objects[i][numpy.array([ii[1] for ii in objects[i]]).argmax()][0]
                 smaller=objects[i][numpy.array([ii[1] for ii in objects[i]]).argmin()][0]
-                angles[-1]=numpy.degrees(numpy.arctan2(*(bigger-smaller)))
-                if abs(angles[-1]-angles[-2])>120:
-                    pass#TODO check these cases with real videos
+                if (bigger==smaller).all():
+                    bigger=objects[i][0][0]
+                    smaller=objects[i][1][0]
+                angles[-1]=ir_angle(bigger, smaller,angles[-2])
             elif len(objects[i-1])==2 and len(objects[i])==1:
+                #Use previous values
+                bigger_prev=objects[i-1][numpy.array([ii[1] for ii in objects[i-1]]).argmax()][0]
+                smaller_prev=objects[i-1][numpy.array([ii[1] for ii in objects[i-1]]).argmin()][0]
+                angles[-1]=ir_angle(bigger_prev, smaller_prev,angles[-2])
                 pass
             else:
-                print(len(objects))
-    pass
+                if i>1 and len(objects[i-1])==2:
+                    #Need to match previous 2 objects to actual ones
+                    bigger_prev=objects[i-1][numpy.array([ii[1] for ii in objects[i-1]]).argmax()][0]
+                    smaller_prev=objects[i-1][numpy.array([ii[1] for ii in objects[i-1]]).argmin()][0]
+                    if (bigger_prev==smaller_prev).all():
+                        bigger_prev=objects[i-1][0][0]
+                        smaller_prev=objects[i-1][1][0]
+                    #Find the closest to the previous
+                    bigger_index=numpy.sqrt(((numpy.array([ii[0] for ii in objects[i]])-bigger_prev)**2).sum(axis=1)).argmin()
+                    remaining_objects=[objects[i][ii] for ii in range(len(objects[i])) if ii!=bigger_index]
+                    smaller_index=numpy.sqrt(((numpy.array([ii[0] for ii in remaining_objects])-smaller_prev)**2).sum(axis=1)).argmin()
+                    bigger=objects[i][bigger_index][0]
+                    smaller=remaining_objects[smaller_index][0]
+                    #Eliminate extra objects
+                    objects[i]=[objects[i][bigger_index],remaining_objects[smaller_index]]
+                    angles[-1]=ir_angle(bigger, smaller,angles[-2])
+                elif i>1 and len(objects[i-1])!=2:
+                    pass#Ignore these cases 1 object in previous and actual frame. This case happened because of reflection
+                else:
+                    print(1)
+        else:
+            pass#No LED detected
+        dangle=angles[-1]-angles[-2]
+        if abs(dangle)>160:
+            if numpy.sign(angles[-1]) == 1 and numpy.sign(angles[-2]) == -1:
+                dangle-=360
+            else:
+                dangle+=360
+        if abs(dangle)>50:
+            print(1)
+        delta_angle.append(dangle)
+    print(len([i for i in delta_angle if numpy.isnan(i)]),len(objects))
+    plot(delta_angle);show()
         
 
 class TestBehavAnalysis(unittest.TestCase):
@@ -1077,6 +1127,8 @@ class TestBehavAnalysis(unittest.TestCase):
                 'behav_202103031800241.mp4',
                 'behav_202103031757322.mp4']
         fn=os.path.join(fn,fns[3])
+        fn='/tmp/behav_202103161535481.mp4'
+        fn='/tmp/behav_202103161513176.mp4'
         track_ir_leds(fn)
         videogen = skvideo.io.vreader(fn)
         if 0:
