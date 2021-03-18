@@ -849,10 +849,10 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         out=numpy.asarray(img)
     return result, animal_position, red_angle, red, green, blue, out
     
-def find_objects(frame,min_size):
+def find_objects(frame,min_size,threshold=40):
     if frame.ndim==3:
         frame=frame[:,:,0]
-    l,n=scipy.ndimage.label(numpy.where(frame>200,1.0,0.0))
+    l,n=scipy.ndimage.label(numpy.where(frame>threshold,1.0,0.0))
     if n==0:
         return []
     else:
@@ -866,8 +866,8 @@ def find_objects(frame,min_size):
             objects.append([coo,size])
     return objects
     
-def head_angle_ir(frame,min_size):
-    objects=find_objects(frame,min_size)
+def head_angle_ir(frame,min_size,threshold=40):
+    objects=find_objects(frame,min_size,threshold)
     angle=numpy.nan
     if len(objects)==2:
         bigger=objects[numpy.array([ii[1] for ii in objects]).argmax()][0]
@@ -883,7 +883,53 @@ def ir_angle(bigger, smaller,prev_angle):
         angle=numpy.degrees(numpy.arctan2(*(smaller-bigger)))
     return angle
     
-def track_ir_leds(fn,min_size=50,close_threshold=10):
+def track_led_objects(frame, objects_prev, angle_prev,min_size=20,threshold=40):
+    objects=find_objects(frame,min_size,threshold)
+    angle=numpy.nan
+    if len(objects)>0:
+        if len(objects)==1 and len(objects_prev)==0:
+            pass
+        elif len(objects)==2:
+            bigger=objects[numpy.array([ii[1] for ii in objects]).argmax()][0]
+            smaller=objects[numpy.array([ii[1] for ii in objects]).argmin()][0]
+            if (bigger==smaller).all():
+                bigger=objects[0][0]
+                smaller=objects[1][0]
+            angle=ir_angle(bigger, smaller,angle_prev)
+        elif len(objects_prev)==2 and len(objects)==1:
+            #Use previous values
+            bigger_prev=objects_prev[numpy.array([ii[1] for ii in objects_prev]).argmax()][0]
+            smaller_prev=objects_prev[numpy.array([ii[1] for ii in objects_prev]).argmin()][0]
+            if (bigger_prev==smaller_prev).all():
+                bigger_prev=objects_prev[0][0]
+                smaller_prev=objects_prev[1][0]
+            angle=ir_angle(bigger_prev, smaller_prev,angle_prev)
+        else:
+            if len(objects_prev)==2:
+                #Need to match previous 2 objects to actual ones
+                bigger_prev=objects_prev[numpy.array([ii[1] for ii in objects_prev]).argmax()][0]
+                smaller_prev=objects_prev[numpy.array([ii[1] for ii in objects_prev]).argmin()][0]
+                if (bigger_prev==smaller_prev).all():
+                    bigger_prev=objects_prev[0][0]
+                    smaller_prev=objects_prev[1][0]
+                #Find the closest to the previous
+                bigger_index=numpy.sqrt(((numpy.array([ii[0] for ii in objects])-bigger_prev)**2).sum(axis=1)).argmin()
+                remaining_objects=[objects[ii] for ii in range(len(objects)) if ii!=bigger_index]
+                smaller_index=numpy.sqrt(((numpy.array([ii[0] for ii in remaining_objects])-smaller_prev)**2).sum(axis=1)).argmin()
+                bigger=objects[bigger_index][0]
+                smaller=remaining_objects[smaller_index][0]
+                #Eliminate extra objects
+                objects=[objects[bigger_index],remaining_objects[smaller_index]]
+                angle=ir_angle(bigger, smaller,angle_prev)
+            elif len(objects_prev)!=2:
+                pass
+            else:
+                pass
+    else:
+        pass#No LED detected
+    return angle, objects
+    
+def track_ir_leds(fn,min_size=20,close_threshold=10):
     vv=skvideo.io.vread(fn)[:,:,:,0]
     if 1:
         videogen = skvideo.io.vreader(fn)
@@ -914,8 +960,10 @@ def track_ir_leds(fn,min_size=50,close_threshold=10):
                 #Use previous values
                 bigger_prev=objects[i-1][numpy.array([ii[1] for ii in objects[i-1]]).argmax()][0]
                 smaller_prev=objects[i-1][numpy.array([ii[1] for ii in objects[i-1]]).argmin()][0]
+                if (bigger_prev==smaller_prev).all():
+                    bigger_prev=objects[i-1][0][0]
+                    smaller_prev=objects[i-1][1][0]
                 angles[-1]=ir_angle(bigger_prev, smaller_prev,angles[-2])
-                pass
             else:
                 if i>1 and len(objects[i-1])==2:
                     #Need to match previous 2 objects to actual ones
@@ -934,9 +982,9 @@ def track_ir_leds(fn,min_size=50,close_threshold=10):
                     objects[i]=[objects[i][bigger_index],remaining_objects[smaller_index]]
                     angles[-1]=ir_angle(bigger, smaller,angles[-2])
                 elif i>1 and len(objects[i-1])!=2:
-                    pass#Ignore these cases 1 object in previous and actual frame. This case happened because of reflection
+                    pass
                 else:
-                    print(1)
+                    pass
         else:
             pass#No LED detected
         dangle=angles[-1]-angles[-2]
@@ -946,10 +994,12 @@ def track_ir_leds(fn,min_size=50,close_threshold=10):
             else:
                 dangle+=360
         if abs(dangle)>50:
-            print(1)
+            pass
         delta_angle.append(dangle)
-    print(len([i for i in delta_angle if numpy.isnan(i)]),len(objects))
+    ol=[[i,len(objects[i]),len(objects[i-1])] for i in range(1,len(objects)) if numpy.isnan(angles[i+1])]
+    print(len([i for i in angles if numpy.isnan(i)]),len(objects))
     plot(delta_angle);show()
+    return angles
         
 
 class TestBehavAnalysis(unittest.TestCase):
@@ -1127,9 +1177,22 @@ class TestBehavAnalysis(unittest.TestCase):
                 'behav_202103031800241.mp4',
                 'behav_202103031757322.mp4']
         fn=os.path.join(fn,fns[3])
-        fn='/tmp/behav_202103161535481.mp4'
-        fn='/tmp/behav_202103161513176.mp4'
-        track_ir_leds(fn)
+        fns=['/tmp/behav_202103171741289.mp4',
+                '/tmp/behav_202103171705230.mp4',
+                '/tmp/behav_202103171716063.mp4']
+#        fn='/tmp/behav_202103171741289.mp4'
+        for fn in fns:
+            angles1=track_ir_leds(fn)
+            vv=skvideo.io.vread(fn)[:,:,:,0]
+            o=[]
+            a=numpy.nan
+            angles=[a]
+            for frame in vv:
+                a,o=track_led_objects(frame, o, a,min_size=20,threshold=40)
+                angles.append(a)
+            import pdb
+            pdb.set_trace()
+        return
         videogen = skvideo.io.vreader(fn)
         if 0:
             for frame in videogen:
