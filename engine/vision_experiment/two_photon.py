@@ -164,8 +164,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Scan Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
-                {'name': 'IR Exposure', 'type': 'int', 'value': 50, 'limits': (1, 1000), 'step': 1, 'siPrefix': True, 'suffix': 'ms'},
-                {'name': 'IR Gain', 'type': 'int', 'value': 1, 'limits': (0, 1000), 'step': 1},
+                {'name': 'IR Exposure', 'type': 'float', 'value': 50, 'limits': (1, 1000), 'siPrefix': True, 'suffix': 'ms',  'decimals': 6},
+                {'name': 'IR Gain', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
                 {'name': 'Show Top', 'type': 'bool', 'value': True},
                 {'name': 'Show Side', 'type': 'bool', 'value': True},
                 {'name': 'Show IR', 'type': 'bool', 'value': True},
@@ -264,8 +264,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                 self.cam_logfile,
                                 self.machine_config.IR_CAMERA_ROI)
         self.camera.start()
-        self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
-        self.stage_z=self.stage.z
+        try:
+            self.stage=stage_control.SutterStage(self.machine_config.STAGE_PORT,  self.machine_config.STAGE_BAUDRATE)
+            self.stage_z=self.stage.z
+        except OSError:
+            print('No Stage')
+            
+        
         
     def _close_hardware(self):
         self.aio.terminate()
