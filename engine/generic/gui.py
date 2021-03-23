@@ -391,7 +391,8 @@ class PythonConsole(pyqtgraph.console.ConsoleWidget):
     def __init__(self, parent, selfw = None):
         if selfw == None:
             selfw = parent.parent
-        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os}, text = 'self: main gui widget, numpy, utils, fileop, signal, os')
+        from visexpman.engine.vision_experiment import experiment_data
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':selfw, 'utils':utils, 'fileop': fileop, 'signal':signal, 'numpy': numpy, 'os':os,  'experiment_data':experiment_data}, text = 'self: main gui widget, numpy, utils, fileop, signal, os, experiment_data')
 
 class ParameterTable(ParameterTree):
     def __init__(self, parent, params):
@@ -543,7 +544,7 @@ class Plot(pyqtgraph.GraphicsLayoutWidget):
             for linear_region in self.linear_regions:
                 self.plot.removeItem(linear_region)
         self.linear_regions=[]
-        for i in range(len(boundaries)/2):
+        for i in range(int(len(boundaries)/2)):
             self.linear_regions.append(pyqtgraph.LinearRegionItem(boundaries[2*i:2*(i+1)], movable=False, brush = color))
             self.plot.addItem(self.linear_regions[-1])
             

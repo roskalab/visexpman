@@ -28,7 +28,7 @@ except ImportError:
     pass
 from visexpman.engine.vision_experiment import experiment_data, experiment
 from visexpman.engine.analysis import cone_data,aod,elphys
-from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument,pump_control
+from visexpman.engine.hardware_interface import queued_socket,daq_instrument,scanner_control,camera_interface,digital_io,instrument,pump_control, daq
 from visexpman.engine.generic import fileop, signal,stringop,utils,introspect,videofile,colors
 from visexpman.applications.visexpman_main import stimulation_tester
 
@@ -89,7 +89,8 @@ class ExperimentHandler(object):
                 res=daq_instrument.is_device_present(dev)
                 if not res:
                     raise IOError('{0} device is not present in system. Make sure that it is configured properly.'.format(dev))
-                self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, self.log, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
+                logfn=self.log.filename.replace('main_ui', 'main_ui_daq')
+                self.sync_recorder=daq_instrument.AnalogIOProcess('daq', self.queues, logfn, ai_channels=self.machine_config.SYNC_RECORDER_CHANNELS,limits=limits)
                 self.sync_recorder.start()
             self.sync_recording_started=False
             self.experiment_running=False
@@ -248,9 +249,23 @@ class ExperimentHandler(object):
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         elif self.machine_config.PLATFORM=='elphys':
-            mode=self.guidata.read('Clamp Mode')
-            if 'Electrical' in mode:
-                raise NotImplementedError()
+            if self.guidata.read('Enable'):
+                mode=self.guidata.read('Clamp Mode')
+                if mode!='Current Clamp':
+                    raise NotImplementedError()
+                #Generate waveform
+                fsample=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+                amplitudes=numpy.array(list(map(float,self.guidata.read('Amplitudes').split(','))))
+                amplitudes/=self.guidata.read('Current Command Sensitivity')
+                onsamples=int(fsample*self.guidata.read('On time')*1e-3)
+                offsamples=int(fsample*self.guidata.read('Off time')*1e-3)
+                epochs=[numpy.zeros(offsamples)]
+                for a in amplitudes:
+                    epochs.append(numpy.ones(onsamples)*a)
+                    epochs.append(numpy.zeros(offsamples))
+                experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
+                experiment_parameters['elphys_amplitudes_volt']=amplitudes
+            
 #            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
 #            command=self.guidata.read('Clamp '+mode.split()[0])
 #            experiment_parameters['Command Voltage']=command/sensitivity
@@ -481,7 +496,7 @@ class ExperimentHandler(object):
             if not self.ask4confirmation('Is AO line scan selected on MES user interface?'):
                 return
         if hasattr(self, 'sync_recorder'):
-            nchannels=map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':'))
+            nchannels=list(map(int,self.machine_config.SYNC_RECORDER_CHANNELS.split('ai')[1].split(':')))
             nchannels=nchannels[1]-nchannels[0]+1
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None)
             #Start sync signal recording
@@ -518,8 +533,15 @@ class ExperimentHandler(object):
             if 'Record Eyecamera' in experiment_parameters and experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
-            if self.machine_config.PLATFORM not in ['erg']:
+            if self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
+        if 'elphys_waveform' in experiment_parameters:
+            self.printc('Start elphys pulses')
+            self.ao=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            self.ao_duration=experiment_parameters['elphys_waveform'].shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            experiment_parameters['duration']=self.ao_duration
+            experiment_parameters['stimclass']='Electrical pulses'
+            self.ao_termination_time=time.time()+self.ao_duration+5
         if hasattr(self, 'copier'):
             self.copier.suspend()
             self.printc('Suspend copier')
@@ -595,6 +617,9 @@ class ExperimentHandler(object):
             self.copier.resume()
         self.experiment_finish_time=time.time()
         if self.machine_config.PLATFORM in ['elphys']:
+            if hasattr(self,  'ao'):
+                daq.set_waveform_finish(self.ao, 10,wait=True)
+                self.printc('Waveform generator terminated')
             if self.guidata.read('Block Projector'):
                 self.printc('Block projector lightpath')
                 res=instrument.set_filterwheel(self.machine_config.FILTERWHEEL_FILTERS[1]['block'], self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
@@ -849,6 +874,10 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 if time.time()-self.start_time>self.current_experiment_parameters['duration']+1.5*self.machine_config.CA_IMAGING_START_DELAY:
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
+            if hasattr(self, 'ao_termination_time'):
+                if time.time()>self.ao_termination_time:
+                    self.stop_experiment()
+                
         if hasattr(self, 'copier'):
             for l in self.copier.printl():
                 self.printc(l)
@@ -875,7 +904,7 @@ class ExperimentHandler(object):
         if hasattr(self, 'sync_recorder'):
             self._stop_sync_recorder()
         if self.machine_config.PLATFORM=='elphys':
-            if 'stim' not in self.machine_config.CONNECTIONS:
+            if 'stim' not in self.machine_config.CONNECTIONS or self.guidata.read('Enable'):
                 self.finish_experiment()
             self.experiment_running=False
             self.save_experiment_files(self.aborted)

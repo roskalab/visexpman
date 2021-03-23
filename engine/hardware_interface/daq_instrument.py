@@ -503,7 +503,8 @@ def set_waveform_start(channels,waveform,sample_rate = 100000):
     
 def set_waveform_finish(analog_output, timeout,wait=True):
     if wait:
-        analog_output.WaitUntilTaskDone(timeout+1.0)
+        if hasattr(analog_output, 'WaitUntilTaskDone'):
+            analog_output.WaitUntilTaskDone(timeout+1.0)
         analog_output.StopTask()                            
         analog_output.ClearTask()
     
@@ -538,7 +539,7 @@ class AnalogIoHelpers(object):
                 return 'timeout'
             if not self.queues['response'].empty():
                 response = self.queues['response'].get(timeout = 5)
-                self.printl(response)
+#                self.printl(response)
                 nframes = response[1]
                 data = []
                 for i in range(nframes - self.n_ai_reads):
@@ -650,7 +651,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
     or could continously save it to file. No saving data to file takes place in this process.
     '''
     def __init__(self, instrument_name, queues, logger, ai_channels=None, ao_channels=None, limits = None):
-        instrument.InstrumentProcess.__init__(self, instrument_name, queues, logger)
+        instrument.InstrumentProcess.__init__(self, queues, logger)
         AnalogIoHelpers.__init__(self,queues)
         self.ai_channels = ai_channels
         self.ao_channels = ao_channels
@@ -756,12 +757,12 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         for k in expected_kwargs.keys():
             if getattr(self, 'enable_' + k):
                 for argname in expected_kwargs[k]:
-                    if kwargs.has_key(argname):
+                    if argname in kwargs:
                         setattr(self, argname, kwargs[argname])
                     else:
                         raise DaqInstrumentError('{0} argument is expected but not provided'.format(argname))
         if not self.enable_ao and self.enable_ai:
-            if kwargs.has_key('ai_record_time'):
+            if 'ai_record_time' in kwargs:
                 self.ai_record_time = kwargs['ai_record_time']
             else:
                  raise DaqInstrumentError('ai_record_time argument is expected but not provided')
@@ -795,7 +796,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         '''
         if not self.running:
             self.queues['response'].put(['Not running, cannot be stopped', ])
-        aborted = kwargs.has_key('aborted') and kwargs['aborted']
+        aborted = 'aborted' in kwargs and kwargs['aborted']
         if self.enable_ao and not aborted and self.finite_samples:
             #Timeout is daq timeout + duration of waveform    
             self.analog_output.WaitUntilTaskDone(self.limits['timeout'] + float(self.ao_waveform.shape[1])/self.ao_sample_rate)
@@ -837,6 +838,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         return ai_data
 
     def run(self):
+        self.setup_logger()
         self.printl('aio process started')
         if platform.system() != 'Windows':
             self.printl('{0} platform not supported'.format(platform.system()))

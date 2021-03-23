@@ -592,9 +592,9 @@ class MainUI(gui.VisexpmanMainWindow):
         if self.machine_config.PLATFORM in ['retinal']:
             self.main_tab.addTab(self.cellbrowser, 'Cell Browser')
         self.main_tab.addTab(self.params, 'Settings')
-        if self.machine_config.PLATFORM in ["elphys"]:
-            self.electrical_stimulus=QtGui.QWidget(self)
-            self.main_tab.addTab(self.electrical_stimulus, 'Electrical Stimulus')
+#        if self.machine_config.PLATFORM in ["elphys"]:
+#            self.electrical_stimulus=QtGui.QWidget(self)
+#            self.main_tab.addTab(self.electrical_stimulus, 'Electrical Stimulus')
         if self.machine_config.PLATFORM in ["erg"]:
             self.plot2 = gui.Plot(self)
             self.main_tab.addTab(self.plot2, 'Sensor signals')
@@ -675,7 +675,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 if hasattr(self,  "image"):
                     self.image.highlight_roi(index)
                 if isinstance(timg, list) and isinstance(curve, list):
-                    self.plot.update_curves(timg, curve,plot_average = options['plot_average'] if options.has_key('plot_average') else True, colors = options['colors'] if options.has_key('colors') else [])
+                    self.plot.update_curves(timg, curve,plot_average = options['plot_average'] if 'plot_average' in options else True, colors = options['colors'] if 'colors' in options else [])
                 else:
                     #Update plot
                     self.plot.update_curve(timg, curve)
@@ -853,7 +853,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM in ['elphys']:
                 pars=[
                                 {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
-                                {'name': 'Clamp Mode', 'type': 'list', 'value': '',  'values': ['Voltage Clamp', 'Current Clamp', 'Electrical Stimulus']},
+                                {'name': 'Clamp Mode', 'type': 'list', 'value': 'Current Clamp',  'values': ['Voltage Clamp', 'Current Clamp']},
                                 
 #                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
 #                                {'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' pA'},
@@ -865,6 +865,18 @@ class MainUI(gui.VisexpmanMainWindow):
                                 {'name': 'Y axis autoscale', 'type': 'bool', 'value': True},
                                 {'name': 'Y min', 'type': 'float', 'value': 0},
                                 {'name': 'Y max', 'type': 'float', 'value': 10},
+                                {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
+                                    {'name': 'Enable', 'type': 'bool', 'value': False},
+                                    {'name': 'Amplitudes', 'type': 'str', 'value': ''},
+                                    {'name': 'Amplitude unit', 'type': 'list', 'value': 'pA',  'values': ['pA', 'mV']},
+                                    {'name': 'On time', 'type': 'float', 'value': 500,  'suffix': 'ms'},
+                                    {'name': 'Off time', 'type': 'float', 'value': 500,  'suffix': 'ms'},
+                                    {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
+                                    {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
+                            
+                                ]}
+                                
+                                
                                 ]
                 self.params_config.extend([
                             {'name': 'Electrophysiology', 'type': 'group', 'expanded' : True, 'children': [
