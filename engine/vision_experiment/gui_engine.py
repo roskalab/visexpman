@@ -14,14 +14,9 @@ import numpy
 import shutil
 import itertools
 import tables
-try:
-    import PyQt4.Qt as Qt
-    import PyQt4.QtGui as QtGui
-    import PyQt4.QtCore as QtCore
-except ImportError:
-    import PyQt5.Qt as Qt
-    import PyQt5.QtGui as QtGui
-    import PyQt5.QtCore as QtCore
+import PyQt5.Qt as Qt
+import PyQt5.QtGui as QtGui
+import PyQt5.QtCore as QtCore
 try:
     import hdf5io
 except ImportError:
@@ -537,7 +532,7 @@ class ExperimentHandler(object):
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if 'elphys_waveform' in experiment_parameters:
             self.printc('Start elphys pulses')
-            self.ao=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            self.ao, d=daq.set_waveform_start(self.machine_config.ELPHYS_COMMAND_CHANNEL,experiment_parameters['elphys_waveform'][None],self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             self.ao_duration=experiment_parameters['elphys_waveform'].shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             experiment_parameters['duration']=self.ao_duration
             experiment_parameters['stimclass']='Electrical pulses'
@@ -617,13 +612,18 @@ class ExperimentHandler(object):
             self.copier.resume()
         self.experiment_finish_time=time.time()
         if self.machine_config.PLATFORM in ['elphys']:
+            if hasattr(self, 'sync_recorder'):
+                self._stop_sync_recorder()
             if hasattr(self,  'ao'):
-                daq.set_waveform_finish(self.ao, 10,wait=True)
+                daq.set_waveform_finish(self.ao, 3,wait=True)
                 self.printc('Waveform generator terminated')
+                self.save_experiment_files()
+                self.experiment_running=False
             if self.guidata.read('Block Projector'):
                 self.printc('Block projector lightpath')
                 res=instrument.set_filterwheel(self.machine_config.FILTERWHEEL_FILTERS[1]['block'], self.machine_config.FILTERHWEEL_PORT[1], self.machine_config.FILTERHWEEL_BAUDRATE)
                 self.printc(res)
+        
 
 #            self.printc('Set clamp signal to 0V')
 #            daq_instrument.set_voltage(self.machine_config.ELPHYS_COMMAND_CHANNEL, 0.0)
@@ -641,7 +641,7 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 #Here comes merging datafiles if stim computer is available
-                if 'stim' in self.machine_config.CONNECTIONS:
+                if 'stim' in self.machine_config.CONNECTIONS and not hasattr(self,  'ao'):
                     outfile=self.current_experiment_parameters['outfilename']
                     fileop.merge_hdf5_files(self.daqdatafile.filename, outfile)
                     self.printc('Sync data merged to {0}'.format(outfile))
@@ -650,6 +650,8 @@ class ExperimentHandler(object):
                 else:
                     shutil.copy(self.daqdatafile.filename,fn)
                     self.printc('Sync data saved to {0}'.format(fn))
+                    if hasattr(self,  'ao'):
+                        experiment_data.hdf52mat(fn, scale_sync=True)
                 if self.santiago_setup:
                     #Make a local copy of sync file
                     localfn=os.path.join('c:\\Data\\santiago-setup', os.path.basename(fn))
@@ -700,7 +702,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-            if self.machine_config.PLATFORM=='elphys' and not aborted:
+            if self.machine_config.PLATFORM=='elphys' and not aborted and not hasattr(self, 'ao'):
                 hh=experiment_data.CaImagingData(outfile)
                 hh.load()
                 self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
@@ -836,7 +838,7 @@ class ExperimentHandler(object):
         self.send({'function': 'position','args':[]},'stim')
         
     def read_sync_recorder(self):
-        self.syncreadout=self.sync_recorder.read_ai()
+        self.syncreadout=copy.deepcopy(self.sync_recorder.read_ai())
         if hasattr(self.syncreadout,  "dtype"):
             maxnsamples=int(self.machine_config.SYNC_RECORDER_SAMPLE_RATE*self.machine_config.LIVE_SIGNAL_LENGTH)#max 5 minutes
             if self.live_data.shape[0]>maxnsamples:
@@ -876,7 +878,7 @@ class ExperimentHandler(object):
                     [self.trigger_handler(trigname) for trigname in ['stim done', 'stim data ready']]
             if hasattr(self, 'ao_termination_time'):
                 if time.time()>self.ao_termination_time:
-                    self.stop_experiment()
+                    self.finish_experiment()
                 
         if hasattr(self, 'copier'):
             for l in self.copier.printl():
@@ -1065,9 +1067,12 @@ class ExperimentHandler(object):
             #Stop sync recorder
             self.log.info(self.log.pid)
             self.log.info(os.getpid())
+            print(self.log.pid,os.getpid() )
             self.sync_recorder.queues['command'].put('terminate')
-            self.sync_recorder.join()
+            self.sync_recorder.join(3)
+            self.sync_recorder.terminate()
             self.log.info('Sync recorder terminated')
+            print('Sync recorder terminated')
 
     def init_experiment_handler(self):
         self.microscope_handler('init')
@@ -2326,20 +2331,21 @@ class ElphysEngine():
             mode=self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
-                unit='nA'
+                unit='Not Implemented'
                 scale=self.guidata.read('Current Gain')
                 command_scale=self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
-                unit='mV'
+                unit='mV, command: nA'
                 scale=self.guidata.read('Voltage Gain')
-                command_scale=self.guidata.read("Current Command Sensitivity")
+                command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
             fn= self.filename if hasattr(self, 'filename') else str(self.current_experiment_parameters['stimclass'])
             scale*=1e-3
             if self.guidata.read('Show raw voltage'):
                 scale=1.0
                 command_scale=1.0
+                unit='V'
             unit='Red / Green: '+unit
-            cmd_disp_ena=False#self.guidata.read('Show Command Trace')
+            cmd_disp_ena=hasattr(self, 'ao')#self.guidata.read('Show Command Trace')
             stim_disp_ena=True#self.guidata.read('Show Stimulus Trace')
             n=1+int(cmd_disp_ena)
             x=n*[t]
@@ -2363,6 +2369,7 @@ class ElphysEngine():
                 tsync=numpy.append(tsync,  (sig.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
             tsync+=t[0]
             self.to_gui.put({'plot_title': ''})
+            self.y=y
             self.to_gui.put({'display_roi_curve': [x, y, None, tsync, {'plot_average':False, "colors":cc,  "labels": labels, 'range': self.yrange}]})
 #        elif self.machine_config.AMPLIFIER_TYPE=='differential' :
 #            n=sync.shape[1]

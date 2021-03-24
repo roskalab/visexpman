@@ -575,7 +575,7 @@ class MainUI(gui.VisexpmanMainWindow):
             filebrowserroot=self.engine.dataroot
             if not os.path.exists(filebrowserroot):
                 filebrowserroot=self.machine_config.EXPERIMENT_DATA_PATH
-            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.tiff', '*.avi', '*.mp4', '*.zip', '*.mesc', '*.mcd'])
+            self.datafilebrowser = DataFileBrowser(self.analysis, filebrowserroot, ['stim*.hdf5', 'sync*.hdf5', 'eye*.hdf5',   'data*.hdf5', 'data*.mat', '*.tif', '*.tiff', '*.avi', '*.mp4', '*.zip', '*.mesc', '*.mcd'])
             self.analysis_helper = AnalysisHelper(self.analysis)
             self.analysis.layout = QtGui.QGridLayout()
             self.data_folder_w = QtGui.QLabel('', self)

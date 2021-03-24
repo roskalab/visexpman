@@ -839,7 +839,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
 
     def run(self):
         self.setup_logger()
-        self.printl('aio process started')
+        self.printl(f'aio process started ({os.getpid()})')
         if platform.system() != 'Windows':
             self.printl('{0} platform not supported'.format(platform.system()))
             return
