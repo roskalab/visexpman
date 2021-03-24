@@ -249,17 +249,26 @@ class ExperimentHandler(object):
                 if mode!='Current Clamp':
                     raise NotImplementedError()
                 #Generate waveform
-                fsample=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
-                amplitudes=numpy.array(list(map(float,self.guidata.read('Amplitudes').split(','))))
-                amplitudes/=self.guidata.read('Current Command Sensitivity')
-                onsamples=int(fsample*self.guidata.read('On time')*1e-3)
-                offsamples=int(fsample*self.guidata.read('Off time')*1e-3)
-                epochs=[numpy.zeros(offsamples)]
-                for a in amplitudes:
-                    epochs.append(numpy.ones(onsamples)*a)
-                    epochs.append(numpy.zeros(offsamples))
+                fsample=self.guidata.read('Sample Rate') #self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+                if self.guidata.read('Protocol')=='Pulse train':
+                    amplitudes=numpy.array(list(map(float,self.guidata.read('Amplitudes').split(','))))
+                    amplitudes/=self.guidata.read('Current Command Sensitivity')
+                    onsamples=int(fsample*self.guidata.read('On time')*1e-3)
+                    offsamples=int(fsample*self.guidata.read('Off time')*1e-3)
+                    epochs=[numpy.zeros(offsamples)]
+                    for a in amplitudes:
+                        epochs.append(numpy.ones(onsamples)*a)
+                        epochs.append(numpy.zeros(offsamples))
+                        epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
+                    experiment_parameters['elphys_amplitudes_volt']=amplitudes
+                else:
+                    import scipy.io
+                    pulses=scipy.io.loadmat(os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol')))['objm']
+                    epochs=[]
+                    for i in range(pulses.shape[0]):
+                        epochs.append(pulses[i]/self.guidata.read('Current Command Sensitivity')*1e3)
+                        epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
                 experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
-                experiment_parameters['elphys_amplitudes_volt']=amplitudes
             
 #            sensitivity=self.guidata.read(mode.split()[0]+' Command Sensitivity')
 #            command=self.guidata.read('Clamp '+mode.split()[0])
@@ -495,9 +504,9 @@ class ExperimentHandler(object):
             nchannels=nchannels[1]-nchannels[0]+1
             self.daqdatafile=fileop.DataAcquisitionFile(nchannels,'sync',None)
             #Start sync signal recording
-            sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+            self.sample_rate=self.guidata.read('Sample Rate') if self.guidata.read('Enable') else self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             d=self.sync_recorder.read_ai()#Empty ai buffer
-            self.sync_recorder.start_daq(ai_sample_rate = sample_rate,
+            self.sync_recorder.start_daq(ai_sample_rate = self.sample_rate,
                                 ai_record_time=self.machine_config.SYNC_RECORDING_BUFFER_TIME, timeout = 10) 
             self.sync_recording_started=True
             self.printc('Signal recording started')
@@ -2312,20 +2321,19 @@ class ElphysEngine():
         if self.guidata.read('Enable Filter')==True:
             order=self.guidata.filter_order.v
             frq=float(self.guidata.cut_frequency.v)
-            sample_rate=self.machine_config.SYNC_RECORDER_SAMPLE_RATE
             if self.guidata.filter_type.v=='lowpass':
-                self.filter=scipy.signal.butter(order,frq/sample_rate,'low')
+                self.filter=scipy.signal.butter(order,frq/self.sample_rate,'low')
             else:
-                self.filter=scipy.signal.butter(order,frq/sample_rate,'high')
+                self.filter=scipy.signal.butter(order,frq/self.sample_rate,'high')
             self.filtered=scipy.signal.filtfilt(self.filter[0],self.filter[1], sync[:,self.machine_config.ELPHYS_INDEX]).real
         else:
             self.filtered=sync[:,self.machine_config.ELPHYS_INDEX]
         if self.guidata.read('Displayed signal length')>0 and not full_view:
-            index=-int(self.guidata.read('Displayed signal length')*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+            index=-int(self.guidata.read('Displayed signal length')*self.sample_rate)
         else:
             index=0
         self.iindex=index
-        t=numpy.arange(sync.shape[0])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+        t=numpy.arange(sync.shape[0])/float(self.sample_rate)
         t=t[index:]
         if self.machine_config.PLATFORM=='elphys':
             mode=self.guidata.read('Clamp Mode')

@@ -851,6 +851,8 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[-1]['children'][0]['readonly']=True#Disable baseline lenght and threshold
             self.params_config[-1]['children'][1]['readonly']=True#Disable baseline lenght and threshold
         elif self.machine_config.PLATFORM in ['elphys']:
+                protocols=['Pulse train']
+                protocols.extend([os.path.basename(f) for f in fileop.listdir(self.machine_config.PROTOCOL_PATH) if os.path.splitext(f)[1]=='.mat'])
                 pars=[
                                 {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
                                 {'name': 'Clamp Mode', 'type': 'list', 'value': 'Current Clamp',  'values': ['Voltage Clamp', 'Current Clamp']},
@@ -867,10 +869,13 @@ class MainUI(gui.VisexpmanMainWindow):
                                 {'name': 'Y max', 'type': 'float', 'value': 10},
                                 {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
                                     {'name': 'Enable', 'type': 'bool', 'value': False},
+                                    {'name': 'Protocol', 'type': 'list', 'value': '',  'values': protocols},
                                     {'name': 'Amplitudes', 'type': 'str', 'value': ''},
                                     {'name': 'Amplitude unit', 'type': 'list', 'value': 'pA',  'values': ['pA', 'mV']},
+                                    {'name': 'Wait time', 'type': 'float', 'value': 2000,  'suffix': 'ms', 'decimals':6},
                                     {'name': 'On time', 'type': 'float', 'value': 500,  'suffix': 'ms'},
                                     {'name': 'Off time', 'type': 'float', 'value': 500,  'suffix': 'ms'},
+                                    {'name': 'Sample Rate', 'type': 'float', 'value': 10000,  'suffix': 'Hz', 'decimals':6},
                                     {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
                                     {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
                             
