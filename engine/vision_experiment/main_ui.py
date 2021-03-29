@@ -855,6 +855,7 @@ class MainUI(gui.VisexpmanMainWindow):
                 protocols.extend([os.path.basename(f) for f in fileop.listdir(self.machine_config.PROTOCOL_PATH) if os.path.splitext(f)[1]=='.mat'])
                 pars=[
                                 {'name': 'Displayed signal length', 'type': 'float', 'value': 20.0,  'suffix': 's'},
+                                {'name': 'Sample Rate', 'type': 'float', 'value': 10000,  'suffix': 'Hz', 'decimals':6},
                                 {'name': 'Clamp Mode', 'type': 'list', 'value': 'Current Clamp',  'values': ['Voltage Clamp', 'Current Clamp']},
                                 
 #                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
@@ -875,7 +876,6 @@ class MainUI(gui.VisexpmanMainWindow):
                                     {'name': 'Wait time', 'type': 'float', 'value': 2000,  'suffix': 'ms', 'decimals':6},
                                     {'name': 'On time', 'type': 'float', 'value': 500,  'suffix': 'ms'},
                                     {'name': 'Off time', 'type': 'float', 'value': 500,  'suffix': 'ms'},
-                                    {'name': 'Sample Rate', 'type': 'float', 'value': 10000,  'suffix': 'Hz', 'decimals':6},
                                     {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
                                     {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
                             

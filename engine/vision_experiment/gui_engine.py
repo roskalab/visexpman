@@ -246,13 +246,12 @@ class ExperimentHandler(object):
         elif self.machine_config.PLATFORM=='elphys':
             if self.guidata.read('Enable'):
                 mode=self.guidata.read('Clamp Mode')
-                if mode!='Current Clamp':
-                    raise NotImplementedError()
                 #Generate waveform
                 fsample=self.guidata.read('Sample Rate') #self.machine_config.SYNC_RECORDER_SAMPLE_RATE
+                scale=self.guidata.read('Current Command Sensitivity') if mode=='Current Clamp' else self.guidata.read('Voltage Command Sensitivity')
                 if self.guidata.read('Protocol')=='Pulse train':
                     amplitudes=numpy.array(list(map(float,self.guidata.read('Amplitudes').split(','))))
-                    amplitudes/=self.guidata.read('Current Command Sensitivity')
+                    amplitudes/=scale
                     onsamples=int(fsample*self.guidata.read('On time')*1e-3)
                     offsamples=int(fsample*self.guidata.read('Off time')*1e-3)
                     epochs=[numpy.zeros(offsamples)]
@@ -266,7 +265,7 @@ class ExperimentHandler(object):
                     pulses=scipy.io.loadmat(os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol')))['objm']
                     epochs=[]
                     for i in range(pulses.shape[0]):
-                        epochs.append(pulses[i]/self.guidata.read('Current Command Sensitivity')*1e3)
+                        epochs.append(pulses[i]/scale*1e3)
                         epochs.append(numpy.zeros(int(fsample*self.guidata.read('Wait time')*1e-3)))
                 experiment_parameters['elphys_waveform']=numpy.concatenate(epochs)
             
@@ -660,6 +659,37 @@ class ExperimentHandler(object):
                     shutil.copy(self.daqdatafile.filename,fn)
                     self.printc('Sync data saved to {0}'.format(fn))
                     if hasattr(self,  'ao'):
+                        #Scale primary and command signals
+                        time.sleep(1)
+                        hh=hdf5io.Hdf5io(fn)
+                        hh.load('sync')
+                        hh.primary=hh.sync[:, self.machine_config.ELPHYS_INDEX]
+                        hh.command=hh.sync[:, self.machine_config.ELPHYSCOMMAND_INDEX]
+                        mode=self.guidata.read('Clamp Mode')
+                        #Scale elphys
+                        if 'Voltage' in mode:
+                            hh.unit='pA, command mV'
+                            scale=self.guidata.read('Current Gain')
+                            command_scale=self.guidata.read("Voltage Command Sensitivity")
+                        elif 'Current' in mode:
+                            hh.unit='mV, command: nA'
+                            scale=self.guidata.read('Voltage Gain')
+                            command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
+                        hh.unit=[hh.unit]
+                        scale*=1e-3
+                        hh.primary/=scale
+                        hh.command*=command_scale
+                        hh.parameters=copy.deepcopy(self.current_experiment_parameters)
+                        hh.software_environment=experiment_data.pack_software_environment()
+                        hh.machine_config=self.machine_config.todict()
+                        kdel=[]
+                        for k, v in hh.parameters.items():
+                            if v is None:
+                                kdel.append(k)
+                        for k in kdel:
+                            del hh.parameters[k]
+                        hh.save(['primary', 'command', 'unit', 'software_environment', 'machine_config', 'parameters'])
+                        hh.close()
                         experiment_data.hdf52mat(fn, scale_sync=True)
                 if self.santiago_setup:
                     #Make a local copy of sync file
@@ -2339,7 +2369,7 @@ class ElphysEngine():
             mode=self.guidata.read('Clamp Mode')
             #Scale elphys
             if 'Voltage' in mode:
-                unit='Not Implemented'
+                unit='pA, command mV'
                 scale=self.guidata.read('Current Gain')
                 command_scale=self.guidata.read("Voltage Command Sensitivity")
             elif 'Current' in mode:
