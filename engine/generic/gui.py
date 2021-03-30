@@ -597,7 +597,8 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.plot.addItem(self.img)
         self.plot.showGrid(True,True,1.0)
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
-        self.rois = []            
+        self.rois = []    
+        self.dot_size=6
         
         if 0: #Experimental code for adding custom context menu
             #Add LUT min/max slider to context menu
@@ -642,12 +643,14 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 if int(e.buttons()) == 1:
                     if e.modifiers()==QtCore.Qt.ControlModifier:
                         if len(self.manual_points)>0:
-                            self.plot.removeItem(self.manual_points[-1])
-                            del self.manual_points[-1]
+                            self.point_coos=numpy.array([[self.manual_points[pi].xvalue,self.manual_points[pi].yvalue] for pi in range(len(self.manual_points))])
+                            distance_square_sums=((self.point_coos-numpy.array([[p.x(),p.y()]]))**2).sum(axis=1)                            
+                            self.plot.removeItem(self.manual_points[distance_square_sums.argmin()])
+                            del self.manual_points[distance_square_sums.argmin()]
                     else:
                         if not hasattr(self, 'manual_points'):
                             self.manual_points=[]
-                        pl=self.plot.plot(numpy.array([p.x()]),numpy.array([p.y()]),  pen=None, symbol='o',symbolSize=6)
+                        pl=self.plot.plot(numpy.array([p.x()]),numpy.array([p.y()]),  pen=None, symbol='o',symbolSize=self.dot_size)
                         pl.xvalue=p.x()
                         pl.yvalue=p.y()
                         self.manual_points.append(pl)

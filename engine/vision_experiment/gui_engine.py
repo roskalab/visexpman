@@ -575,12 +575,20 @@ class ExperimentHandler(object):
                 dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
                 self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
                 try:
-                    shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
-                except:
                     time.sleep(10)
                     shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                except:
+                    if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
+                        time.sleep(2)
+                        try:
+                            shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                        except:
+                            time.sleep(10)
+                            shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                    else:
+                        self.printc('MC file not renamed')
                 self.printc('MEA recording almost finished, please wait...')
-                time.sleep(0.5*self.machine_config.FILE_CHECK_INTERVAL+1)
+                time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
             
 #            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
 #                #Find latest mcd file and save experiment metadata to the same folder
