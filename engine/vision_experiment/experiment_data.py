@@ -303,8 +303,8 @@ class CaImagingData(supcl):
             if 'laser' in str(self.parameters['stimclass']).lower() or 'led' in str(self.parameters['stimclass']).lower():
                 pass
             elif len([1 for s in sfi if 'block_name' in s.keys()])>0:
-                bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if sfi[i].has_key('block_start')])
-                bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if sfi[i].has_key('block_end')])
+                bsi=numpy.array([sfi[i]['block_start'] for i in range(len(sfi)) if 'block_start' in sfi[i]])
+                bei=numpy.array([sfi[i]['block_end'] for i in range(len(sfi)) if 'block_end' in sfi[i]])
                 if bsi.shape[0]!=bei.shape[0]:
                     raise RuntimeError('number of block start and block end timestamps do not match ({0}, {1})'.format(bsi,  bei))
                 expected_block_durations =(bei-bsi)/ float(self.configs['machine_config']['SCREEN_EXPECTED_FRAME_RATE'])
