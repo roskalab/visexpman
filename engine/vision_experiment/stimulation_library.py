@@ -1610,7 +1610,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
             ...
         '''               
-        nTimePoints =  stimulus_duration*self.config.SCREEN_EXPECTED_FRAME_RATE
+        nTimePoints =  int(stimulus_duration*self.config.SCREEN_EXPECTED_FRAME_RATE)
         amplitudes = numpy.linspace(contrast_range[0], contrast_range[1], nTimePoints)
         frequencies = numpy.linspace(frequency_range[0], frequency_range[1], nTimePoints)
         time = numpy.linspace(0, stimulus_duration, nTimePoints)
