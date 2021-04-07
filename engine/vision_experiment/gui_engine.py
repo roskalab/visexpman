@@ -573,6 +573,8 @@ class ExperimentHandler(object):
             mcd_finished=self.current_experiment_parameters.get('stop_trigger',False) or ('stop_trigger' not in self.current_experiment_parameters)
             if not self.aborted and 'mcd_file' in self.current_experiment_parameters and mcd_finished:
                 dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
+                tag=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']))[0]
+                dst=os.path.join(os.path.dirname(dst),os.path.basename(dst).replace('data',tag))
                 self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
                 try:
                     time.sleep(10)
@@ -589,6 +591,12 @@ class ExperimentHandler(object):
                         self.printc('MC file not renamed')
                 self.printc('MEA recording almost finished, please wait...')
                 time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
+                import filecmp
+                if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst):
+                    src=self.current_experiment_parameters['mcd_file']
+                    self.printc(f'Delete {src}')
+                    os.remove(src)
+                
             
 #            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
 #                #Find latest mcd file and save experiment metadata to the same folder
