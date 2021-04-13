@@ -101,6 +101,13 @@ class Screen(object):
             self.image_texture_id = glGenTextures(1)
         except:
             print('glGenTextures(1), TODO: opengl calls do not work in graphics')
+        if os.name=='nt':
+            import wmi
+            computer = wmi.WMI()
+            gpu_info = computer.Win32_VideoController()
+            if len([gpu for gpu in gpu_info if 'nvidia' in gpu.Name.lower()])==0:
+                names=[g.Name for g in gpu_info]
+                print(f'No Nvidia card present, {names}')
         self.initialization()
         
     def init_flip_variables(self):

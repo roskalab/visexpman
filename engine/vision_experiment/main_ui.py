@@ -346,6 +346,13 @@ class DataFileBrowser(gui.FileTree):
         
     def file_selected(self,index):
         self.selected_filename = gui.index2filename(index)
+        if os.path.splitext(self.selected_filename )[1]!='.hdf5':#Find corresponding hdf5 file
+            idn=os.path.splitext(os.path.basename(self.selected_filename))[0].split('_')[-1]
+            hdf5fn=[f for f in fileop.listdir(os.path.dirname(self.selected_filename)) if idn in os.path.basename(f) and os.path.splitext(f)[1]=='.hdf5']
+            if len(hdf5fn)==1:
+                self.selected_filename=hdf5fn[0]
+        print(self.selected_filename)
+
         
     def file_open(self,index):
         filename = gui.index2filename(index)
