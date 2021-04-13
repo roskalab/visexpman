@@ -536,7 +536,9 @@ class ExperimentHandler(object):
             if 'Record Eyecamera' in experiment_parameters and experiment_parameters['Record Eyecamera']:
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
-            if self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters:
+            if self.guidata.read('Enable Psychotoolbox'):
+                self.printc('TODO SEND UDP OR ZMQ TRIGGER TO PTB')
+            elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if 'elphys_waveform' in experiment_parameters:
             self.printc('Start elphys pulses')
@@ -980,6 +982,12 @@ class ExperimentHandler(object):
         self.printc('Experiment stopped')
                    
     def trigger_handler(self,trigger_name):
+        if self.guidata.read('Enable Psychotoolbox'):
+            #Receive stop signal from PTB via UDP or ZMQ
+            #utils.recv_udp(self.machine_config.STIM_COMPUTER_IP, self.machine_config.STIM_TRIGGER_PORT, 0.1)
+            pass
+            
+            
         if trigger_name == 'stim started':
             self.printc('WARNING: no stim started trigger timeout implemented')
         elif trigger_name == 'stim done':
@@ -1024,7 +1032,7 @@ class ExperimentHandler(object):
             self.experiment_running=False
             self.to_gui.put({'update_status':'idle'})
             self.experiment_finish_time=time.time()
-            if self.machine_config.PLATFORM in ['elphys']:
+            if self.machine_config.PLATFORM in ['elphys'] and ('grating' in os.path.basename(self.current_experiment_parameters['outfilename']).lower() or 'moving' in os.path.basename(self.current_experiment_parameters['outfilename']).lower()):
                 self.spikes2polar(self.current_experiment_parameters['outfilename'])
         elif trigger_name=='stim error' or trigger_name=='cam error':
             if self.machine_config.PLATFORM in ['mc_mea', 'elphys_retinal_ca',  'retinal']:

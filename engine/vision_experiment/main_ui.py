@@ -817,6 +817,7 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['elphys', 'mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
+                    {'name': 'Enable Psychotoolbox', 'type': 'bool', 'value': False},
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},

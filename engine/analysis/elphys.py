@@ -33,9 +33,9 @@ def spikes2polar(fn,threshold=10):
     clf()
     subplot(111, projection='polar')
     #
-    theta=numpy.radians(numpy.array(spike_count.keys())[numpy.argsort(spike_count.keys())])
+    theta=numpy.radians(numpy.array(list(spike_count.keys()))[numpy.argsort(spike_count.keys())])
     theta=numpy.append(theta,0)
-    r=numpy.array(spike_count.values())[numpy.argsort(spike_count.keys())]
+    r=numpy.array(list(spike_count.values()))[numpy.argsort(spike_count.keys())]
     r=numpy.append(r,r[0])
     plot(theta, r,'o-')
 #    plot(numpy.radians(numpy.arange(0,360,45)), numpy.linspace(10, 20, numpy.arange(0,360,45).shape[0]),'o-')
