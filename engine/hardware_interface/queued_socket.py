@@ -133,8 +133,8 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 try:
                     message = self.socket.recv(flags=zmq.NOBLOCK)
                     message = utils.str2object(message)
-                    if hasattr(message,'has_key') and message.has_key('sync'):
-                        if message['sync'].has_key('t2'):
+                    if 'sync' in message:
+                        if 't2' in message['sync']:
                             message['sync']['t1'] = time.time()
                             self.socket_queues['fromsocket'].put(message)
                         else:

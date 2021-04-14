@@ -1371,7 +1371,19 @@ def recv_udp(lip, lport, timeout):
         return data.decode('utf-8')
     except socket.timeout:
         return ''
-    
+
+def send_zmq(ip,port,msg,wait=1):
+    import zmq
+    context = zmq.Context()
+    socket = context.socket(zmq.REQ)
+    socket.connect (f"tcp://{ip}:{port}")
+    socket.send (msg)
+    time.sleep(wait)
+    try:
+        message = socket.recv(flags=zmq.NOBLOCK)
+    except zmq.ZMQError:
+        message=''
+    return message
 
 def get_username():
     import platform
