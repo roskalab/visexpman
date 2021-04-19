@@ -135,7 +135,7 @@ class Camera(gui.VisexpmanMainWindow):
                 {'name': 'ROI y1', 'type': 'int', 'value': 200},
                 {'name': 'ROI x2', 'type': 'int', 'value': 400},
                 {'name': 'ROI y2', 'type': 'int', 'value': 400},
-                {'name': 'Stimulus duration', 'type': 'float', 'value': 60, 'suffix': 's', 'siPrefix': False},
+                {'name': 'Recording timeout', 'type': 'float', 'value': 60, 'suffix': 's', 'siPrefix': False, 'decimals':6},
                 {'name': 'fUSI enable', 'type': 'bool', 'value': False},
                 {'name': 'fUSI sampling rate', 'type': 'float', 'value': 5, 'suffix': 'Hz', 'siPrefix': True},
                 {'name': 'fUSI Nimag', 'type': 'int', 'value': 4000},
@@ -451,7 +451,7 @@ class Camera(gui.VisexpmanMainWindow):
                 msg+='End of fUSI timing is not recorded! '
                 numpy.diff(self.fusi_timestamps)
             #Emulate fUSI pulses
-            fusi_overhead=4.8
+            fusi_overhead=4.8*0
             duration=numpy.diff(self.fusi_timestamps)[0]-fusi_overhead#Measured ~4.8 second
             if duration<0:
                 duration=0
@@ -742,9 +742,14 @@ class Camera(gui.VisexpmanMainWindow):
             except:
                 self.socket_queues['cam']['tosocket'].put({'trigger': 'cam error'})
         if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
-            if hasattr(self, 'tstart') and self.recording and time.time()-self.tstart>self.parameters['params/Stimulus duration']:
-                self.printc('Stimulus timeout')
-                self.stop_recording(manual=False)
+            #calculate the recording timeout from fusi frame rate and number of images
+            if hasattr(self, 'tstart') and self.recording:
+                dt=time.time()-self.tstart
+                fusitimeout=240+self.parameters['params/fUSI Nimag']/self.parameters['params/fUSI sampling rate']
+                to=fusitimeout if self.parameters['params/fUSI enable'] else self.parameters['params/Recording timeout']
+                if dt>to:
+                    self.printc(f'Stimulus timeout: {to} seconds')
+                    self.stop_recording(manual=False)
             res=utils.recv_udp(self.machine_config.CAM_COMPUTER_IP, self.machine_config.STIM_TRIGGER_PORT, 0.1)
             if len(res)>0:
                 self.printc(f'UDP message received: {res}')
