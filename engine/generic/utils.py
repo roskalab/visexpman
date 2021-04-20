@@ -1377,7 +1377,7 @@ def send_zmq(ip,port,msg,wait=1):
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
     socket.connect (f"tcp://{ip}:{port}")
-    socket.send (msg)
+    socket.send_string (msg)
     time.sleep(wait)
     try:
         message = socket.recv(flags=zmq.NOBLOCK)

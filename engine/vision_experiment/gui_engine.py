@@ -202,7 +202,10 @@ class ExperimentHandler(object):
         filename=os.sep.join(cf.split(os.sep)[:-1])
         stimulus_source_code = fileop.read_text_file(filename)
         #Find out duration
-        experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
+        if self.guidata.read('Enable'):
+            experiment_duration =10#Dummy value bugfix
+        else:
+            experiment_duration = experiment.get_experiment_duration(classname, self.machine_config, source = stimulus_source_code)
         if self.santiago_setup and experiment_duration>240:
             if not self.ask4confirmation('Longer recordings than 240 s may result memory error. Do you want to continue? {0}'.format(experiment_duration)):
                 return
@@ -537,7 +540,8 @@ class ExperimentHandler(object):
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
             if self.guidata.read('Enable Psychotoolbox'):
-                self.printc('TODO SEND UDP OR ZMQ TRIGGER TO PTB')
+                self.printc('Trigger PTB')
+                self.printc(utils.send_zmq(self.machine_config.CONNECTIONS['stim']['ip']['stim'],self.machine_config.PTB_ZMQ_PORT,'start',wait=1))
             elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if 'elphys_waveform' in experiment_parameters:
@@ -982,12 +986,6 @@ class ExperimentHandler(object):
         self.printc('Experiment stopped')
                    
     def trigger_handler(self,trigger_name):
-        if self.guidata.read('Enable Psychotoolbox'):
-            #Receive stop signal from PTB via UDP or ZMQ
-            #utils.recv_udp(self.machine_config.STIM_COMPUTER_IP, self.machine_config.STIM_TRIGGER_PORT, 0.1)
-            pass
-            
-            
         if trigger_name == 'stim started':
             self.printc('WARNING: no stim started trigger timeout implemented')
         elif trigger_name == 'stim done':
@@ -2266,6 +2264,19 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
+        if self.guidata.read('Enable Psychotoolbox'):
+            #Receive stop signal from PTB via UDP or ZMQ
+            #utils.recv_udp(self.machine_config.STIM_COMPUTER_IP, self.machine_config.STIM_TRIGGER_PORT, 0.1)
+            if self.experiment_running:
+                now=time.time()
+                if not hasattr(self,  'last_query'):
+                    self.last_query=now
+                if now-self.last_query>5:
+                    ptb_status=utils.send_zmq(self.machine_config.CONNECTIONS['stim']['ip']['stim'],self.machine_config.PTB_ZMQ_PORT,'get_status',wait=1)
+                    self.last_query=now
+                    if ptb_status=='stopped':
+                        self.printc('PTB stopped')
+                        self.finish_experiment()
         for connname in self.socket_queues.keys():
             msg=self.recv(connname)
             if msg is not None and 'ping' not in msg  and 'pong' not in msg:
