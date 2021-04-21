@@ -247,6 +247,8 @@ class ExperimentHandler(object):
             oh=wt+self.machine_config.MES_RECORD_OVERHEAD
             experiment_parameters['mes_record_time']=int(1000*(experiment_parameters['duration']+oh))
         elif self.machine_config.PLATFORM=='elphys':
+            if self.guidata.read('Enable Psychotoolbox') and self.guidata.read('Enable'):
+                raise NotImplementedError('Psychotoolbox stimulation and elphys waveform generation is not possible at the same time')
             if self.guidata.read('Enable'):
                 mode=self.guidata.read('Clamp Mode')
                 #Generate waveform
@@ -290,7 +292,7 @@ class ExperimentHandler(object):
 #            parameter_names.extend(self.machine_config.GUI_SETTINGS_TO_STIM)
         for pn in parameter_names:
             v=self.guidata.read(pn)
-            if v!=None:
+            if v is not None:
                 experiment_parameters[pn]=v
         experiment_parameters['eyecamfilename']=experiment_data.get_recording_path(self.machine_config, experiment_parameters, prefix = 'eyecam')
         experiment_parameters['eyecamfilename']=fileop.replace_extension(experiment_parameters['eyecamfilename'], '.avi')
@@ -540,8 +542,13 @@ class ExperimentHandler(object):
                 self.send({'function': 'start_recording','args':[experiment_parameters]},'cam')
                 time.sleep(self.machine_config.CAMERA_PRETRIGGER_TIME)
             if self.guidata.read('Enable Psychotoolbox'):
-                self.printc('Trigger PTB')
-                self.printc(utils.send_zmq(self.machine_config.CONNECTIONS['stim']['ip']['stim'],self.machine_config.PTB_ZMQ_PORT,'start',wait=1))
+                self.printc('Trigger PTB, if fails, restart GUI!')
+                self.zmq_resp=utils.send_zmq(self.machine_config.CONNECTIONS['stim']['ip']['stim'],self.machine_config.PTB_ZMQ_PORT,'start',wait=1)
+                self.printc(self.zmq_resp)
+                if 'No response' in self.zmq_resp:
+                    self._stop_sync_recorder()
+                    return
+                
             elif self.machine_config.PLATFORM not in ['erg'] and 'elphys_waveform' not in experiment_parameters:
                 self.send({'function': 'start_stimulus','args':[experiment_parameters]},'stim')
         if 'elphys_waveform' in experiment_parameters:
@@ -644,9 +651,12 @@ class ExperimentHandler(object):
         if self.machine_config.PLATFORM in ['elphys']:
             if hasattr(self, 'sync_recorder'):
                 self._stop_sync_recorder()
-            if hasattr(self,  'ao'):
-                daq.set_waveform_finish(self.ao, 3,wait=True)
-                self.printc('Waveform generator terminated')
+            if self.guidata.read('Enable Psychotoolbox') or hasattr(self,  'ao'):
+                if hasattr(self,  'ao'):
+                    daq.set_waveform_finish(self.ao, 3,wait=True)
+                    self.printc('Waveform generator terminated')
+                    del self.ao
+                    del self.ao_termination_time
                 self.save_experiment_files()
                 self.experiment_running=False
             if self.guidata.read('Block Projector'):
@@ -671,7 +681,42 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 #Here comes merging datafiles if stim computer is available
-                if 'stim' in self.machine_config.CONNECTIONS and not hasattr(self,  'ao'):
+                if self.guidata.read('Enable Psychotoolbox') or hasattr(self,  'ao'):
+                    shutil.copy(self.daqdatafile.filename,fn)
+                    self.printc('Sync data saved to {0}'.format(fn))
+                    #Scale primary and command signals
+                    time.sleep(1)
+                    hh=hdf5io.Hdf5io(fn)
+                    hh.load('sync')
+                    hh.primary=hh.sync[:, self.machine_config.ELPHYS_INDEX]
+                    hh.command=hh.sync[:, self.machine_config.ELPHYSCOMMAND_INDEX]
+                    mode=self.guidata.read('Clamp Mode')
+                    #Scale elphys
+                    if 'Voltage' in mode:
+                        hh.unit='pA, command mV'
+                        scale=self.guidata.read('Current Gain')
+                        command_scale=self.guidata.read("Voltage Command Sensitivity")
+                    elif 'Current' in mode:
+                        hh.unit='mV, command: nA'
+                        scale=self.guidata.read('Voltage Gain')
+                        command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
+                    hh.unit=[hh.unit]
+                    scale*=1e-3
+                    hh.primary/=scale
+                    hh.command*=command_scale
+                    hh.parameters=copy.deepcopy(self.current_experiment_parameters)
+                    hh.software_environment=experiment_data.pack_software_environment()
+                    hh.machine_config=self.machine_config.todict()
+                    kdel=[]
+                    for k, v in hh.parameters.items():
+                        if v is None:
+                            kdel.append(k)
+                    for k in kdel:
+                        del hh.parameters[k]
+                    hh.save(['primary', 'command', 'unit', 'software_environment', 'machine_config', 'parameters'])
+                    hh.close()
+                    experiment_data.hdf52mat(fn, scale_sync=True)
+                elif 'stim' in self.machine_config.CONNECTIONS and not hasattr(self,  'ao'):
                     outfile=self.current_experiment_parameters['outfilename']
                     fileop.merge_hdf5_files(self.daqdatafile.filename, outfile)
                     self.printc('Sync data merged to {0}'.format(outfile))
@@ -680,39 +725,7 @@ class ExperimentHandler(object):
                 else:
                     shutil.copy(self.daqdatafile.filename,fn)
                     self.printc('Sync data saved to {0}'.format(fn))
-                    if hasattr(self,  'ao'):
-                        #Scale primary and command signals
-                        time.sleep(1)
-                        hh=hdf5io.Hdf5io(fn)
-                        hh.load('sync')
-                        hh.primary=hh.sync[:, self.machine_config.ELPHYS_INDEX]
-                        hh.command=hh.sync[:, self.machine_config.ELPHYSCOMMAND_INDEX]
-                        mode=self.guidata.read('Clamp Mode')
-                        #Scale elphys
-                        if 'Voltage' in mode:
-                            hh.unit='pA, command mV'
-                            scale=self.guidata.read('Current Gain')
-                            command_scale=self.guidata.read("Voltage Command Sensitivity")
-                        elif 'Current' in mode:
-                            hh.unit='mV, command: nA'
-                            scale=self.guidata.read('Voltage Gain')
-                            command_scale=self.guidata.read("Current Command Sensitivity")*1e-3
-                        hh.unit=[hh.unit]
-                        scale*=1e-3
-                        hh.primary/=scale
-                        hh.command*=command_scale
-                        hh.parameters=copy.deepcopy(self.current_experiment_parameters)
-                        hh.software_environment=experiment_data.pack_software_environment()
-                        hh.machine_config=self.machine_config.todict()
-                        kdel=[]
-                        for k, v in hh.parameters.items():
-                            if v is None:
-                                kdel.append(k)
-                        for k in kdel:
-                            del hh.parameters[k]
-                        hh.save(['primary', 'command', 'unit', 'software_environment', 'machine_config', 'parameters'])
-                        hh.close()
-                        experiment_data.hdf52mat(fn, scale_sync=True)
+                    
                 if self.santiago_setup:
                     #Make a local copy of sync file
                     localfn=os.path.join('c:\\Data\\santiago-setup', os.path.basename(fn))
@@ -763,7 +776,7 @@ class ExperimentHandler(object):
             if self.santiago_setup:
                 #Export timing to csv file
                 self._timing2csv(filename)
-            if self.machine_config.PLATFORM=='elphys' and not aborted and not hasattr(self, 'ao'):
+            if self.machine_config.PLATFORM=='elphys' and not aborted and not self.guidata.read('Enable') and not self.guidata.read('Enable Psychotoolbox'):
                 hh=experiment_data.CaImagingData(outfile)
                 hh.load()
                 self.to_gui.put({'plot_title': os.path.dirname(outfile)+'<br>'+os.path.basename(outfile)})
@@ -909,6 +922,14 @@ class ExperimentHandler(object):
             if self.live_data.shape[0]>0:
                 self._plot_elphys(self.live_data)
             self.daqdatafile.add(self.syncreadout)
+            if self.guidata.read('Enable Psychotoolbox'):
+                #Check  for stop condition
+                nsamples=self.machine_config.SYNC_RECORDER_SAMPLE_RATE*20#Check last 10 seconds
+                if self.live_data.shape[0]>nsamples:
+                    buffer=self.live_data[-nsamples:, self.machine_config.TFRAME_FLIP_SYNC_INDEX]
+                    self.printc(f'Frame flip max: {round(buffer.max())} V')
+                    if buffer.max()<1.0:#No frame flip signals
+                        self.finish_experiment()
             
     def _stop_sync_recorder(self):
         if self.sync_recording_started:
@@ -2264,19 +2285,6 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
         self.to_gui.put({'update_network_status':'Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes)})
         
     def check_network_messages(self):
-        if self.guidata.read('Enable Psychotoolbox'):
-            #Receive stop signal from PTB via UDP or ZMQ
-            #utils.recv_udp(self.machine_config.STIM_COMPUTER_IP, self.machine_config.STIM_TRIGGER_PORT, 0.1)
-            if self.experiment_running:
-                now=time.time()
-                if not hasattr(self,  'last_query'):
-                    self.last_query=now
-                if now-self.last_query>5:
-                    ptb_status=utils.send_zmq(self.machine_config.CONNECTIONS['stim']['ip']['stim'],self.machine_config.PTB_ZMQ_PORT,'get_status',wait=1)
-                    self.last_query=now
-                    if ptb_status=='stopped':
-                        self.printc('PTB stopped')
-                        self.finish_experiment()
         for connname in self.socket_queues.keys():
             msg=self.recv(connname)
             if msg is not None and 'ping' not in msg  and 'pong' not in msg:

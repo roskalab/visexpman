@@ -1376,13 +1376,19 @@ def send_zmq(ip,port,msg,wait=1):
     import zmq
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
-    socket.connect (f"tcp://{ip}:{port}")
-    socket.send_string (msg)
+    socket.setsockopt(zmq.LINGER, 3)
+    addr=f"tcp://{ip}:{port}"
+    res=socket.connect (addr)
+    res2=socket.send_string (msg)
     time.sleep(wait)
     try:
-        message = socket.recv(flags=zmq.NOBLOCK)
-    except zmq.ZMQError:
-        message=''
+        message = socket.recv(flags=zmq.NOBLOCK).decode('utf-8')
+    except:
+        message='No response'
+    socket.disconnect(addr)
+#    socket.unbind(addr)
+    socket.close()
+    print (message)
     return message
 
 def get_username():
