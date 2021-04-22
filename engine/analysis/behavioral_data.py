@@ -1165,6 +1165,7 @@ class TestBehavAnalysis(unittest.TestCase):
         #align_videos(video1_fn,video2_fn,sync_fn)
         align_videos_wrapper(sync_fn)
         
+    @unittest.skip('')
     def test_09_ir_track(self):
         fn='/tmp/video0002 21-02-18 17-33-54.avi'
         fn='/home/rz/mysoftware/data/IR LED test'
@@ -1289,6 +1290,27 @@ class TestBehavAnalysis(unittest.TestCase):
         legend(['bigger','smaller'])
         show()
         pass
+    
+    def test_screen_ir_videos(self):
+        folder='/home/rz/mysoftware/data/irtracking'
+        for thi in [40,80]:
+            for fn in fileop.listdir(folder):
+                if os.path.splitext(fn)[1]!='.avi': continue
+                videogen = skvideo.io.vreader(fn)
+                o=[]
+                a=numpy.nan
+                angles=[]
+                positions=[]
+                for frame in videogen:
+                    frame=frame[:,:,0]
+                    a,o=track_led_objects(frame, o, a,min_size=20,threshold=40)
+                    result, position, red_angle, red, green, blue, debug=mouse_head_direction(frame.copy(), roi_size=20, threshold=thi,  saturation_threshold=0.6, value_threshold=0.4)
+                    angles.append(a)
+                    positions.append(position)                        
+                poserr=round(100*numpy.isnan(positions).any(axis=1).sum()/numpy.array(positions).shape[0],2)
+                angleerr=round(100*numpy.isnan(angles).sum()/numpy.array(angles).shape[0],2)
+                print(os.path.basename(fn),poserr,angleerr)
+            
 
 
 if __name__ == "__main__":

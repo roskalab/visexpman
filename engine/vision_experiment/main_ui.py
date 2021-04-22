@@ -321,8 +321,11 @@ class Image(gui.Image):
     def __init__(self, parent, roi_diameter=2):
         gui.Image.__init__(self, parent, roi_diameter)
         self.plot.setLabels(left='um', bottom='um')
-        self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
-        self.connect(self, QtCore.SIGNAL('wheel_double_click'), parent.add_roi_action)
+        try:
+            self.connect(self, QtCore.SIGNAL('roi_mouse_selected'), parent.roi_mouse_selected)
+            self.connect(self, QtCore.SIGNAL('wheel_double_click'), parent.add_roi_action)
+        except:
+            print('Cannot connect roi_mouse_selected and add_roi_action')
             
 class DataFileBrowser(gui.FileTree):
     def __init__(self,parent, root, extensions):
@@ -619,10 +622,10 @@ class MainUI(gui.VisexpmanMainWindow):
         self.load_all_parameters()
         self.show()
         if self.machine_config.PLATFORM in ['retinal', 'ao_cortical', '2p']:
-            self.connect(self.analysis_helper.show_rois.input, QtCore.SIGNAL('stateChanged(int)'), self.show_rois_changed)
-            self.connect(self.adjust.high, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
-            self.connect(self.adjust.low, QtCore.SIGNAL('sliderReleased()'),  self.adjust_contrast)
-            self.connect(self.adjust.fit_image, QtCore.SIGNAL('clicked()'),  self.fit_image)
+            self.analysis_helper.show_rois.input.stateChanged.connect(self.show_rois_changed)
+            self.adjust.high.sliderReleased.connect(self.adjust_contrast)
+            self.adjust.low.sliderReleased.connect(self.adjust_contrast)
+            self.adjust.fit_image.clicked.connect(self.fit_image)
         if self.machine_config.PLATFORM == 'retinal' and hasattr(self.analysis_helper, 'show_repetitions'):
             self.connect(self.analysis_helper.show_repetitions.input, QtCore.SIGNAL('stateChanged(int)'), self.show_repetitions_changed)
         self.main_tab.currentChanged.connect(self.tab_changed)

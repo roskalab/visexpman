@@ -367,7 +367,9 @@ class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
         PLATFORM = 'ao_cortical'
         if self.OS=='Windows':
             BACKUP_PATH='u:\\ao'
-        DEFAULT_ROI_SIZE_ON_GUI=20
+            if not os.path.exists(BACKUP_PATH):
+                del BACKUP_PATH
+        self.DEFAULT_ROI_SIZE_ON_GUI=20
         self._create_parameters_from_locals(locals())
         
 class ResonantConfig(VisionExperimentConfig):

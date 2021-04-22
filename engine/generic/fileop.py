@@ -909,6 +909,12 @@ def rename_files(folder, src_pattern, dst_pattern):
             print(f)
             shutil.move(f, os.path.join(os.path.dirname(f), os.path.basename(f).replace(src_pattern, dst_pattern)))
     
+def save_image(arr, fn):
+    '''
+    3d array in float in 0...1 range is expected
+    '''
+    from PIL import Image
+    Image.fromarray(numpy.cast['uint8'](arr*255)).save(fn)
     
 class FileTrigger(object):
     def __init__(self, paths, check_interval, extension=None,subfolders=True):

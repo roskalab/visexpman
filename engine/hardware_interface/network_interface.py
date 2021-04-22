@@ -424,7 +424,7 @@ class CommandRelayServer(object):
         self.command_queue = Queue.Queue()        
         self.queues = {}
         for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
-            endpoints = connection_config.keys()            
+            endpoints = list(connection_config.keys())
             self.queues[connection] = {}
             self.queues[connection][endpoints[0] + '2' + endpoints[1]] = Queue.Queue()
             self.queues[connection][endpoints[1] + '2' + endpoints[0]] = Queue.Queue()
@@ -439,7 +439,7 @@ class CommandRelayServer(object):
         '''
         self.servers = {}
         for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
-            endpoints = connection_config.keys()
+            endpoints = list(connection_config.keys())
             self.servers[connection] = {}
             if self.config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE']:
                 server_ip = self.config.COMMAND_RELAY_SERVER['SERVER_IP'][connection]
@@ -662,7 +662,7 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
     else:
         server_address = config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP']
         local_address = ''
-    if config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].has_key(connection_name):
+    if connection_name in config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']:
         client = QueuedClient(queue_out, queue_in, 
                               server_address,
                               config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'], 
