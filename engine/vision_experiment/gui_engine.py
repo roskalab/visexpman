@@ -267,7 +267,11 @@ class ExperimentHandler(object):
                     experiment_parameters['elphys_amplitudes_volt']=amplitudes
                 else:
                     import scipy.io
-                    pulses=scipy.io.loadmat(os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol')))['objm']
+                    pfn=os.path.join(self.machine_config.PROTOCOL_PATH, self.guidata.read('Protocol'))
+                    wf_file_content=scipy.io.loadmat(pfn)
+                    vn=[k for k in wf_file_content.keys() if k[0]!='_'][0]
+                    self.printc(f'Read {vn} from {pfn}')
+                    pulses=wf_file_content[vn]
                     epochs=[]
                     for i in range(pulses.shape[0]):
                         epochs.append(pulses[i]/scale*1e3)
