@@ -681,7 +681,7 @@ class ExperimentHandler(object):
                 if not os.path.exists(os.path.dirname(fn)):
                     time.sleep(0.1)
                 #Here comes merging datafiles if stim computer is available
-                if self.guidata.read('Enable Psychotoolbox') or hasattr(self,  'ao'):
+                if self.guidata.read('Enable Psychotoolbox') or self.guidata.read('Enable'):
                     shutil.copy(self.daqdatafile.filename,fn)
                     self.printc('Sync data saved to {0}'.format(fn))
                     #Scale primary and command signals
