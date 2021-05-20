@@ -130,6 +130,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                             'data': multiprocessing.Queue()}
         
         self.printc(f'pid: {os.getpid()}')
+        self.update_image_enable=True
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
     
@@ -161,8 +162,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.params_config = [
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
-                {'name': 'Scan Width', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Scan Height', 'type': 'int', 'value': 100, 'limits': (30, 300), 'step': 1, 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 300), 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 300), 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Averaging samples', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
                 {'name': 'IR Exposure', 'type': 'float', 'value': 50, 'limits': (1, 1000), 'siPrefix': True, 'suffix': 'ms',  'decimals': 6},
                 {'name': 'IR Gain', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
@@ -305,8 +307,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             return
         pulse_width=self.settings['params/Advanced/Projector Control Pulse Width']*1e-6 if self.settings['params/Advanced/Enable Projector'] else 0
         waveform_x, waveform_y, projector_control, frame_timing, self.boundaries=\
-                    self.waveform_generator.generate(self.settings['params/Scan Height'], \
-                                                                    self.settings['params/Scan Width'],\
+                    self.waveform_generator.generate(int(self.settings['params/Scan Height']), \
+                                                                    int(self.settings['params/Scan Width']),\
                                                                     self.settings['params/Resolution'],\
                                                                     self.settings['params/Advanced/X Return Time'],\
                                                                     self.settings['params/Advanced/Y Return Time'],\
@@ -320,6 +322,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.statusbar.twop_status.setStyleSheet('background:red;')
         fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
         self.printc(f'2p frame rate {fps} Hz')
+        frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
+        self.printc(f'X scanner frequency: {frq_xscan} Hz')
         self.twop_fps=fps
     
     def start_action(self):
@@ -406,6 +410,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
     def update_image(self):
         t0=time.time()
+        if not self.update_image_enable:
+            return
         try:
             if self.image_update_in_progress:
                 return
@@ -427,7 +433,19 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                 self.settings['params/Live/Side/Max'],
                                                                 self.settings['params/Live/Side/Image filters'])*\
                                                                 int(self.settings['params/Show Side'])
-
+                if self.settings['params/Averaging samples']>1:#TODO: implement this for both channels
+                    if not hasattr(self, 'moving_average_buffer') or self.moving_average_buffer.shape[1:]!=top_filtered.shape or self.navg!=int(self.settings['params/Averaging samples']):
+                        self.printc('Reset averaging buffer')
+#                        self.printc(top_filtered.shape)
+                        self.moving_average_buffer=numpy.zeros((int(self.settings['params/Averaging samples']), top_filtered.shape[0], top_filtered.shape[1]))
+                        self.buffer_index=0
+#                        self.printc(self.moving_average_buffer.shape)
+                        self.navg=int(self.settings['params/Averaging samples'])
+                    self.moving_average_buffer[self.buffer_index%self.navg]=top_filtered
+                    top_filtered=self.moving_average_buffer.mean(axis=0)
+                    self.buffer_index+=1
+                    
+                        
                 kwargs={
                         'Offset X':self.settings['params/Infrared-2P overlay/Offset X'], 
                         'Offset Y':self.settings['params/Infrared-2P overlay/Offset Y'], 
