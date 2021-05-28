@@ -1292,25 +1292,58 @@ class TestBehavAnalysis(unittest.TestCase):
         pass
     
     def test_screen_ir_videos(self):
-        folder='/home/rz/mysoftware/data/irtracking'
-        for thi in [40,80]:
-            for fn in fileop.listdir(folder):
+        folder='/home/rz/mysoftware/data/irtracking/0519'
+        for thi in [80]:
+            for fn in fileop.find_files(folder):
                 if os.path.splitext(fn)[1]!='.avi': continue
+                if 1:
+                    videogen = skvideo.io.vreader(fn)
+                    ct=0
+                    for frame in videogen:
+                        if ct==0:
+                            mip=numpy.zeros_like(frame[:,:,0])
+                        mip=numpy.dstack([mip,frame[:,:,0]]).max(axis=2)
+                        ct+=1
+                    maskx,masky=numpy.where(mip==255)
+                    mask=numpy.zeros_like(frame[:,:,0])
+                    mask[maskx.min():maskx.max(),masky.min():masky.max()]=1
                 videogen = skvideo.io.vreader(fn)
+#                figure(1)
+#                imshow(mask)
+#                figure(2)
+#                imshow(mip)
+#                show()
+                ct=0
                 o=[]
                 a=numpy.nan
                 angles=[]
                 positions=[]
+                ct=0
+                mask=numpy.dstack([mask]*3)
                 for frame in videogen:
+#                    if ct==0:
+#                        mip=numpy.zeros_like(frame[:,:,0])
+#                    mip=numpy.dstack([mip,frame[:,:,0]]).max(axis=2)
+#                    print(ct)
+                    ct+=1
+                    frame=numpy.copy(frame)
+                    framem=frame*mask
+                    result, position, red_angle, red, green, blue, debug=mouse_head_direction(framem.copy(), roi_size=20, threshold=thi,  saturation_threshold=0.6, value_threshold=0.4)
                     frame=frame[:,:,0]
                     a,o=track_led_objects(frame, o, a,min_size=20,threshold=40)
-                    result, position, red_angle, red, green, blue, debug=mouse_head_direction(frame.copy(), roi_size=20, threshold=thi,  saturation_threshold=0.6, value_threshold=0.4)
                     angles.append(a)
-                    positions.append(position)                        
-                poserr=round(100*numpy.isnan(positions).any(axis=1).sum()/numpy.array(positions).shape[0],2)
-                angleerr=round(100*numpy.isnan(angles).sum()/numpy.array(angles).shape[0],2)
-                print(os.path.basename(fn),poserr,angleerr)
-            
+                    positions.append(position)     
+                    if 0 and numpy.isnan(a):
+                        imshow(frame)
+                        show()
+                    poserr=round(100*numpy.isnan(positions).any(axis=1).sum()/numpy.array(positions).shape[0],2)
+                    angleerr=round(100*numpy.isnan(angles).sum()/numpy.array(angles).shape[0],2)
+                    print(ct,os.path.basename(fn),poserr,angleerr)
+#                pdb.set_trace()
+#                    if ct==1000:
+#                        break
+#                imshow(mip)
+#                show()
 
 
 if __name__ == "__main__":
