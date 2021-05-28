@@ -814,13 +814,18 @@ class MainUI(gui.VisexpmanMainWindow):
             fw2=[]
         
         name_name='Name' if not hasattr(self.machine_config,  'NAME_FIELD_NAME') else self.machine_config.NAME_FIELD_NAME
+        
+        if self.machine_config.PLATFORM in ['elphys']:
+            stimulus_types=['visexpman stim', 'Psychotoolbox', 'Electric stimulus', 'Uniblitz']
+        else:
+            stimulus_types=['visexpman stim']
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea', 'generic'], 'children': [#'expanded' : True
                     {'name': name_name, 'type': 'str', 'value': ''},
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['elphys', 'mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
-                    {'name': 'Enable Psychotoolbox', 'type': 'bool', 'value': False},
+                    {'name': 'Stimulus Device', 'type': 'list', 'values': stimulus_types, 'value': ''}, 
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
@@ -829,6 +834,14 @@ class MainUI(gui.VisexpmanMainWindow):
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     ]},
                     ]
+        if self.machine_config.PLATFORM in ['elphys']:
+            uniblitz_parameters=[
+                                        {'name': 'Flash time', 'type': 'float', 'value': 1.0,  'suffix': 's'},
+                                        {'name': 'Flash period', 'type': 'float', 'value': 5.0,  'suffix': 's'},
+                                        {'name': 'N pulses', 'type': 'int', 'value': 10},
+                                        ]
+            
+            self.params_config[1]['children']=self.params_config[1]['children'][:1]+uniblitz_parameters+self.params_config[1]['children'][1:]
         if len(fw1)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
@@ -880,7 +893,6 @@ class MainUI(gui.VisexpmanMainWindow):
                                 {'name': 'Y min', 'type': 'float', 'value': 0},
                                 {'name': 'Y max', 'type': 'float', 'value': 10},
                                 {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
-                                    {'name': 'Enable', 'type': 'bool', 'value': False},
                                     {'name': 'Protocol', 'type': 'list', 'value': '',  'values': protocols},
                                     {'name': 'Amplitudes', 'type': 'str', 'value': ''},
                                     {'name': 'Amplitude unit', 'type': 'list', 'value': 'pA',  'values': ['pA', 'mV']},
