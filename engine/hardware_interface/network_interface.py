@@ -320,7 +320,7 @@ class SockServer(SocketServer.TCPServer):
                 self.last_alive_message = time.time()
                 request.settimeout(0.01)
                 self.printl('Client: ' + str(client_address))
-                request.send('connected')
+                request.send(b'connected')
                 self.connected = True
                 connection_close_request = False
                 while True:
@@ -334,7 +334,7 @@ class SockServer(SocketServer.TCPServer):
                             try:
                                 if self.keepalive:
                                     try:
-                                        request.send(self.alive_message)
+                                        request.send(self.alive_message.encode('utf-8'))
                                     except:
                                         self.printl(traceback.format_exc())
                                     self.last_alive_message = now
@@ -344,7 +344,7 @@ class SockServer(SocketServer.TCPServer):
                                 connection_close_request = True
                         #Receive data
                         try:
-                            data = request.recv(1024)
+                            data = request.recv(1024).decode('utf-8')
                             self.last_receive_time = now
                             if len(data)>0:
                                 if not self.keepalive:
@@ -372,7 +372,7 @@ class SockServer(SocketServer.TCPServer):
                             self.printl('Connection timeout')
                     else:
                         if not connection_close_request:
-                            out = self.queue_out.get()
+                            out = self.queue_out.get().encode('utf-8')
                             try:
                                 request.send(out)
                             except:

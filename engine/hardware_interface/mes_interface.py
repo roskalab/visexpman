@@ -1,6 +1,6 @@
 from visexpman.engine.hardware_interface import network_interface
-import unittest
-import time
+import unittest, logging
+import time, pdb
 try:
     import Queue
 except ImportError:
@@ -647,6 +647,107 @@ class MesInterface(object):
         path = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename))
         path_on_mes = fileop.convert_path_to_remote_machine_path(path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
         return path, path_on_mes
+        
+import socketserver
+import queue, threading
+
+class MESCommandHandler(socketserver.BaseRequestHandler):
+    """
+    The request handler class for our server.
+
+    It is instantiated once per connection to the server, and must
+    override the handle() method to implement communication to the
+    client.
+    """
+    def printl(self, msg):
+        logging.info(msg)
+        #print(msg)
+
+    def handle(self):
+        try:
+            #Empty cmd and response queues
+            utils.empty_queue(self.server.queues['cmd'])
+            utils.empty_queue(self.server.queues['res'])
+            ct=0
+            # self.request is the TCP socket connected to the client
+            self.data = self.request.recv(1024).strip()
+            self.printl("{0} wrote:".format(self.client_address[0]))
+            self.printl(f'Connected: {self.data}')
+            lastecho=time.time()
+            while True:
+                if self.server.queues['cmd'].empty():
+                    now=time.time()
+                    if now-lastecho>15:
+    #                    print(self.server.socket)
+                        try:
+                            self.request.sendall(f'SOCechoEOC{ct}EOP'.encode('utf-8'))
+                            self.printl(self.request.recv(1024))
+                            lastecho=now
+                        except:
+                            self.printl('Terminate')
+                            break
+                        ct+=1
+                else:
+                    try:
+                        msg=self.server.queues['cmd'].get().encode('utf-8')
+                        self.printl(msg)
+                        self.request.sendall(msg)
+                        resp=self.request.recv(1024).decode('utf-8')
+                        self.server.queues['res'].put(resp)
+                        self.printl(resp)
+                    except:
+                        break
+                if not self.server.queues['terminate'].empty():
+                    break
+        except:
+            import traceback
+            self.printl(traceback.format_exc())
+                    
+                
+class MESCommandSocket(threading.Thread):
+    def __init__(self, address, port):
+        self.address=address
+        self.port=port
+        threading.Thread.__init__(self)
+        self.queues={'cmd':queue.Queue(), 'res':queue.Queue(), 'log':queue.Queue(), 'terminate': queue.Queue()}
+        logfile=os.path.join(r'C:\DATA', 'log_mes_comm.txt')
+        logging.basicConfig(filename= logfile,
+                    format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
+
+    def run(self):
+        server=socketserver.TCPServer((self.address, self.port), MESCommandHandler)
+        server.queues=self.queues
+        server.ct=0
+        th=threading.Thread(target=server.serve_forever)
+        th.start()
+        while True:
+            time.sleep(1)
+            if not self.queues['terminate'].empty():
+                server.shutdown()
+                break
+                
+    def stop(self):
+        self.queues['terminate'].put(True)
+        
+    def send_cmd(self, cmd):
+        self.queues['cmd'].put(cmd)
+        for i in range(10):
+            time.sleep(0.1)
+            if not self.queues['res'].empty():
+                break
+        if not self.queues['res'].empty():
+            resp=self.queues['res'].get()
+        else:
+            resp=''
+        return resp
+        
+    def check_connection(self):
+        cmdid=str(int(time.time()))[-4:]
+        cmd=f'SOCechoEOC{cmdid}EOP'
+        resp=self.send_cmd(cmd)
+#        print(resp, cmd)
+        return cmd==resp
+
 
 ############# Unit tests ##########################
 class MesEmulator(QtCore.QThread):    
@@ -813,8 +914,21 @@ if test_mode:
                 if 1000 * expected_scan_time == get_line_scan_time(user_line_scan_file) and 1000 * expected_scan_time == get_line_scan_time(line_scan_path):
                     result = True
             return result
+            
+def test_mes_socket():
+    ao=MESCommandSocket('localhost', 10003)
+    ao.start()
+    time.sleep(3)
+    ao.queues['cmd'].put('SOCstart_recordingEOCTBDEOP')
+#    pdb.set_trace()
+    for i in range(40):
+        print(i)
+        time.sleep(1)
+        print(ao.check_connection())
+    ao.stop()
 
 if __name__ == "__main__":
+    test_mes_socket()
 #    unittest.main()
     #TODO: put it to separate test: read_objective_info('/home/zoltan/visexp/data/test/line_scan_parameters_00000.mat')
     
