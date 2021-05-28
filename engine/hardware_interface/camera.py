@@ -156,15 +156,23 @@ class ISCamera(instrument.InstrumentProcess):
                 raise ValueError(f'Unkown camera: {camera_name}, {Camera.GetDevices() }')
 
             Camera.open(camera_name[0].decode())
+            
+            
+            Camera.SetPropertySwitch("Strobe","Enable",1)
+            Camera.SetPropertySwitch("Strobe","Polarity",1)
+            Camera.SetPropertyMapString("Strobe","Mode","exposure")  # exposure,constant or fixed duration
+            Camera.SetPropertyValue("Strobe","Delay",0)
+            
             Camera.SetPropertySwitch("Trigger","Enable",0)
-            Camera.SetVideoFormat("Y800 (744x480)")
+            Camera.SetVideoFormat("Y800 (320x240)")
         
             Camera.SetFrameRate(self.frame_rate)
             Camera.SetPropertyAbsoluteValue("Exposure","Value", self.exposure)   #50fps 640x480
             Camera.SetContinuousMode(0)
 
-            digital_output = PyDAQmx.Task()
-            digital_output.CreateDOChan(self.digital_line,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+            if self.digital_line is not None:
+                digital_output = PyDAQmx.Task()
+                digital_output.CreateDOChan(self.digital_line,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
             fps='30'
             import skvideo.io
             if self.filename!=None:
@@ -179,14 +187,14 @@ class ISCamera(instrument.InstrumentProcess):
                 if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer
                     continue
                 frame_prev=frame.copy()
-                if hasattr(self, 'video_writer'):
+                if hasattr(self, 'video_writer') and self.digital_line is not None:
                     digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
                 if hasattr(self, 'video_writer'):
                     if len(frame.shape)==2:
                         frame=numpy.rollaxis(numpy.array([frame]*3),0,3).copy()
                     self.video_writer.writeFrame(frame)
                 #Digital pulse indicates video save time
-                if hasattr(self, 'video_writer'):
+                if hasattr(self, 'video_writer') and self.digital_line is not None:
                     digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)
                 if not self.queues['command'].empty():
                     cmd=self.queues['command'].get()
@@ -209,7 +217,8 @@ class ISCamera(instrument.InstrumentProcess):
             if hasattr(self, 'video_writer'):
                 self.printl('Close video file')
                 self.video_writer.close()
-            digital_output.ClearTask()
+            if self.digital_line is not None:
+                digital_output.ClearTask()
             self.printl('Leaving process')
         except:
             import traceback
@@ -288,7 +297,7 @@ class TestCamera(unittest.TestCase):
     def setUp(self):
         self.folder=r'f:\Scientific Camera Interfaces\SDK\Python Compact Scientific Camera Toolkit\dlls\64_lib'
         
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_1_thorlabs_camera(self):        
         tc=ThorlabsCamera(self.folder)
         tc.set(exposure=100000)
@@ -300,7 +309,7 @@ class TestCamera(unittest.TestCase):
         del tc
         self.assertTrue(hasattr(frame, 'dtype'))
         
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_2_adjust_parameters(self):
         tc=ThorlabsCamera(self.folder, nbit=16)
         tc.set(gain=1)
@@ -324,6 +333,7 @@ class TestCamera(unittest.TestCase):
         del tc
         self.assertEqual(frame.shape,(504,504))
       
+    @unittest.skip('')
     def test_3_thorlab_camera_process(self):
         logfile=r'f:\tmp\log_camera_{0}.txt'.format(time.time())
         tp=ThorlabsCameraProcess(self.folder,logfile,roi=(0,0,1004,1004))
@@ -360,7 +370,7 @@ class TestCamera(unittest.TestCase):
         time.sleep(1)
         cam.terminate()
         
-    
+    @unittest.skip('') 
     def test_5_web_camera(self):
         cam=WebCamera(3,r'c:\Data\log\camlog.txt','Dev1/port0/line0', filename=None)
         cam.start()
@@ -377,6 +387,34 @@ class TestCamera(unittest.TestCase):
         time.sleep(1)
         cam.terminate()
         
+    def test_6_strobe(self):
+        fn=r'f:\a.mp4'
+        from visexpman.engine.generic import fileop
+        fileop.remove_if_exists(fn)
+        import daq
+        ai=daq.AnalogRead('Dev2/ai0:1',20,10000)
+        cam=ISCamera('DMK 37BUX287 15120861',r'f:\camlog.txt',None, frame_rate=160, exposure=1/250, filename=fn)
+        cam.start()
+        for i in range(60):
+            time.sleep(1.1)
+        cam.stop()
+        time.sleep(1)
+        cam.terminate()
+        time.sleep(30)
+        data=ai.read()
+        import skvideo.io
+        from visexpman.engine.generic import signal
+        videodata = skvideo.io.vread(fn)
+        print(f'Recorded frames {videodata.shape[0]}, n pulses: {signal.trigger_indexes(data[0]).shape[0]/2}')
+        print(f'D pulse: {signal.trigger_indexes(data[0]).shape[0]/2-videodata.shape[0]}')
+        d=(signal.trigger_indexes(data[0])[-1]-signal.trigger_indexes(data[0])[0])/10e3
+        print(f'Duration: {d},frame rate {videodata.shape[0]/d}')
+        print(f'Pulse rate: {10e3/numpy.diff(signal.trigger_indexes(data[0])[::2]).mean()} Hz')
+        from pylab import plot,show
+        plot(data[0]);show()
+        
+#        import pdb
+#        pdb.set_trace()
             
 
 if __name__ == '__main__':

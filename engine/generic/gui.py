@@ -635,13 +635,14 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.img.setScale(scale)
 
     def mouse_clicked(self,e):
+        print(e)
         p=self.img.mapFromScene(e.scenePos())
         if self.enable_manual_points:
             if e.double():
 #                print(int(e.buttons()))
 #                print(e.modifiers())
                 if int(e.buttons()) == 1:
-                    if e.modifiers()==QtCore.Qt.ControlModifier:
+                    if e.modifiers()==QtCore.Qt.ControlModifier or e.modifiers()==QtCore.Qt.ShiftModifier:
                         if len(self.manual_points)>0:
                             self.point_coos=numpy.array([[self.manual_points[pi].xvalue,self.manual_points[pi].yvalue] for pi in range(len(self.manual_points))])
                             distance_square_sums=((self.point_coos-numpy.array([[p.x(),p.y()]]))**2).sum(axis=1)                            
