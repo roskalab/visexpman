@@ -124,20 +124,40 @@ def application_init(**kwargs):
     context['command'] = multiprocessing.Queue()
     context['warning'] = []
     if machine_config.PLATFORM=='ao_cortical' and args['user_interface_name']=='stim':
-        from visexpman.engine.hardware_interface import network_interface
-        command_relay_server = network_interface.CommandRelayServer(machine_config)
-        mes_command=multiprocessing.Queue()
-        mes_response=multiprocessing.Queue()
-        context['mes_socket'] = network_interface.start_client(machine_config, 'STIM', 'STIM_MES', queue_in=mes_response, queue_out=mes_command)
-        context['command_relay_server'] = command_relay_server
-        context['mes_command']=mes_command
-        context['mes_response']=mes_response
+        if 0:
+            from visexpman.engine.hardware_interface import network_interface
+            command_relay_server = network_interface.CommandRelayServer(machine_config)
+            mes_command=multiprocessing.Queue()
+            mes_response=multiprocessing.Queue()
+            context['mes_socket'] = network_interface.start_client(machine_config, 'STIM', 'STIM_MES', queue_in=mes_response, queue_out=mes_command)
+            context['command_relay_server'] = command_relay_server
+            context['mes_command']=mes_command
+            context['mes_response']=mes_response
+        else:
+            from visexpman.engine.hardware_interface import mes_interface
+            import pdb, time
+#            pdb.set_trace()
+            port= machine_config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX']['STIM_MES']['MES']['PORT']
+            context['mes_socket'] = mes_interface.MESCommandSocket('localhost', port)
+            context['mes_socket'].start()
+            time.sleep(3)
+            context['mes_command']=context['mes_socket'].queues['cmd']
+            context['mes_response']=context['mes_socket'].queues['res']
+            #pdb.set_trace()
+            #context['mes_socket'].send_cmd('SOCechoEOC123EOP')
+
     return context
     
 def stop_application(context):
-    if 'command_relay_server' in context:
-        context['mes_command'].put('stop_client')
-        context['command_relay_server'].shutdown_servers()
+    if 'command_relay_server' in context or 'mes_socket' in context :
+        if 0:
+            context['mes_command'].put('stop_client')
+            for di in context['command_relay_server'].get_debug_info():
+                for l in di:
+                    print(l)
+            context['command_relay_server'].shutdown_servers()
+        else:
+            context['mes_socket'].stop()
     #Terminate sockets
     queued_socket.stop_sockets(context['sockets'])
     #Terminate logger process

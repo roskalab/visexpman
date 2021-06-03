@@ -219,7 +219,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 break
             if not self.mes_interface['mes_response'].empty():
                 msg=self.mes_interface['mes_response'].get()
-                self.printl(msg)
+                self.printl(f'MES messages: {msg}')
                 if 'SOCacquire_line_scanEOCsaveOKEOP' in msg:
                     break
             time.sleep(0.1)
@@ -266,7 +266,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
                     self.start_sync_recording()
-                    self.start_ao()
+                    if not self.parameters.get('Stimulus Only', False):
+                        self.start_ao()
                 elif self.machine_config.PLATFORM=='hi_mea':
                     #send start signal
                     self._send_himea_cmd("start")
@@ -372,7 +373,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.camera.trigger.clear()
                 self.camera.join()
             elif self.machine_config.PLATFORM=='ao_cortical':
-                self.wait4ao()
+                if not self.parameters.get('Stimulus Only', False):
+                    self.wait4ao()
             elif self.machine_config.PLATFORM == 'resonant':
                 if not self.parameters.get('Stimulus Only', False) and not self.mesc_error:
                     self.send({'mesc':'stop'})

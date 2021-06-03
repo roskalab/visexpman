@@ -2237,7 +2237,7 @@ class GUIEngine(threading.Thread, queued_socket.QueuedSocketHelpers):
             saved_hash=self.guidata.read('mes_hash')
             if not numpy.array_equal(saved_hash, meshash):
                 print(saved_hash, meshash)
-                self.to_gui.put({'permanent_warning':'MES has changed, hashes do not match.'})
+                #self.to_gui.put({'permanent_warning':'MES has changed, hashes do not match.'})
                 self.printc('MES has changed, hashes do not match.')
 
     def save_context(self):

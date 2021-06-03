@@ -1,5 +1,5 @@
 from visexpman.engine.hardware_interface import network_interface
-import unittest, logging
+import unittest, logging, multiprocessing
 import time, pdb
 try:
     import Queue
@@ -704,12 +704,12 @@ class MESCommandHandler(socketserver.BaseRequestHandler):
             self.printl(traceback.format_exc())
                     
                 
-class MESCommandSocket(threading.Thread):
+class MESCommandSocket(multiprocessing.Process):
     def __init__(self, address, port):
         self.address=address
         self.port=port
-        threading.Thread.__init__(self)
-        self.queues={'cmd':queue.Queue(), 'res':queue.Queue(), 'log':queue.Queue(), 'terminate': queue.Queue()}
+        multiprocessing.Process.__init__(self)
+        self.queues={'cmd':multiprocessing.Queue(), 'res':multiprocessing.Queue(), 'log':multiprocessing.Queue(), 'terminate': multiprocessing.Queue()}
         logfile=os.path.join(r'C:\DATA', 'log_mes_comm.txt')
         logging.basicConfig(filename= logfile,
                     format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
