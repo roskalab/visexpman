@@ -178,7 +178,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if hasattr(self.machine_config,'TRIGGER_MES') and not self.machine_config.TRIGGER_MES:
             return
         while not self.mes_interface['mes_response'].empty():
-            self.mes_interface['mes_response'].get()#Make sure that response buffer is empty
+            print(self.mes_interface['mes_response'].get())#Make sure that response buffer is empty
         if not mes_interface.check_mes_connection(self.mes_interface['mes_command'], self.mes_interface['mes_response']):
             self.send({'notify':['Error', 'MES not connected to stim']})
             self.send({'trigger': 'stim error'})
@@ -199,8 +199,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.abort=True
                 break
             if not self.mes_interface['mes_response'].empty():
-                if 'SOCstart_recordingEOCstartedEOP' in self.mes_interface['mes_response'].get():
-                    self.printl('MES started')
+                msg=self.mes_interface['mes_response'].get()
+                if 'SOCstart_recordingEOCstartedEOP' in msg:
+                    self.printl(f'MES started, {msg}')
                     break
             time.sleep(1)
         self.ao_expected_finish=time.time()+self.parameters['mes_record_time']/1000
@@ -213,7 +214,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.abort:
             return
         while True:
-            if self.abort or time.time()-self.ao_expected_finish>self.machine_config.SYNC_RECORD_OVERHEAD:
+            if self.abort or time.time()-self.ao_expected_finish>self.machine_config.SYNC_RECORD_OVERHEAD*3:
                 self.printl('Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.')
                 #self.send({'notify':['Info', 'Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.']})
                 break
