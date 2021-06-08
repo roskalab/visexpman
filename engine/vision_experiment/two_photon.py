@@ -441,8 +441,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         self.buffer_index=0
 #                        self.printc(self.moving_average_buffer.shape)
                         self.navg=int(self.settings['params/Averaging samples'])
-                    self.moving_average_buffer[self.buffer_index%self.navg]=top_filtered
-                    top_filtered=self.moving_average_buffer.mean(axis=0)
+                    if self.settings['params/Show Top']:
+                        self.moving_average_buffer[self.buffer_index%self.navg]=top_filtered
+                        top_filtered=self.moving_average_buffer.mean(axis=0)
+                    elif self.settings['params/Show Side']:
+                        self.moving_average_buffer[self.buffer_index%self.navg]=side_filtered
+                        side_filtered=self.moving_average_buffer.mean(axis=0)
+                    
                     self.buffer_index+=1
                     
                         
