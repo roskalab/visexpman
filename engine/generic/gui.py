@@ -584,9 +584,10 @@ class TabbedImages(QtGui.QWidget):
 
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100),enable_manual_points=False):
+    def __init__(self,parent, roi_diameter = 20, background_color = (255,255,255), selected_color = (255,0,0), unselected_color = (150,100,100),enable_manual_points=False,image_clickable=False):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.enable_manual_points=enable_manual_points
+        self.image_clickable=image_clickable
         self.default_roi_type='rect'
         self.unselected_color = unselected_color
         self.selected_color = selected_color
@@ -637,6 +638,10 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
     def mouse_clicked(self,e):
         print(e)
         p=self.img.mapFromScene(e.scenePos())
+        if self.image_clickable:
+            if e.double():
+                if hasattr(self, 'clicked_callback'):
+                    self.clicked_callback(p.x(),p.y())
         if self.enable_manual_points:
             if e.double():
 #                print(int(e.buttons()))
@@ -657,7 +662,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                         self.manual_points.append(pl)
                 elif int(e.buttons()) == 2:
                     print(self.manual_points)
-        else:
+        elif not self.image_clickable:
             ctrl_pressed=int(QtGui.QApplication.keyboardModifiers())&QtCore.Qt.ControlModifier!=0
             if e.double():
                 if int(e.buttons()) == 1:
