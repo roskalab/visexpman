@@ -178,7 +178,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if hasattr(self.machine_config,'TRIGGER_MES') and not self.machine_config.TRIGGER_MES:
             return
         while not self.mes_interface['mes_response'].empty():
-            self.mes_interface['mes_response'].get()#Make sure that response buffer is empty
+            print(self.mes_interface['mes_response'].get())#Make sure that response buffer is empty
         if not mes_interface.check_mes_connection(self.mes_interface['mes_command'], self.mes_interface['mes_response']):
             self.send({'notify':['Error', 'MES not connected to stim']})
             self.send({'trigger': 'stim error'})
@@ -199,8 +199,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.abort=True
                 break
             if not self.mes_interface['mes_response'].empty():
-                if 'SOCstart_recordingEOCstartedEOP' in self.mes_interface['mes_response'].get():
-                    self.printl('MES started')
+                msg=self.mes_interface['mes_response'].get()
+                if 'SOCstart_recordingEOCstartedEOP' in msg:
+                    self.printl(f'MES started, {msg}')
                     break
             time.sleep(1)
         self.ao_expected_finish=time.time()+self.parameters['mes_record_time']/1000
@@ -213,13 +214,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         if self.abort:
             return
         while True:
-            if self.abort or time.time()-self.ao_expected_finish>self.machine_config.SYNC_RECORD_OVERHEAD:
+            if self.abort or time.time()-self.ao_expected_finish>self.machine_config.SYNC_RECORD_OVERHEAD*3:
                 self.printl('Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.')
                 #self.send({'notify':['Info', 'Go to Matlab window and make sure that "RECORDING FINISHED" message has shown up.']})
                 break
             if not self.mes_interface['mes_response'].empty():
                 msg=self.mes_interface['mes_response'].get()
-                self.printl(msg)
+                self.printl(f'MES messages: {msg}')
                 if 'SOCacquire_line_scanEOCsaveOKEOP' in msg:
                     break
             time.sleep(0.1)
@@ -266,7 +267,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
                     self.start_sync_recording()
-                    self.start_ao()
+                    if not self.parameters.get('Stimulus Only', False):
+                        self.start_ao()
                 elif self.machine_config.PLATFORM=='hi_mea':
                     #send start signal
                     self._send_himea_cmd("start")
@@ -372,7 +374,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                 self.camera.trigger.clear()
                 self.camera.join()
             elif self.machine_config.PLATFORM=='ao_cortical':
-                self.wait4ao()
+                if not self.parameters.get('Stimulus Only', False):
+                    self.wait4ao()
             elif self.machine_config.PLATFORM == 'resonant':
                 if not self.parameters.get('Stimulus Only', False) and not self.mesc_error:
                     self.send({'mesc':'stop'})

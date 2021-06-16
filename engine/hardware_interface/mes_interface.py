@@ -1,5 +1,5 @@
 from visexpman.engine.hardware_interface import network_interface
-import unittest, logging
+import unittest, logging, multiprocessing
 import time, pdb
 try:
     import Queue
@@ -665,6 +665,10 @@ class MESCommandHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         try:
+            logfile=os.path.join(r'C:\DATA', 'log_mes_comm.txt')
+            logging.basicConfig(filename= logfile,
+                    format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
+            self.printl('Started')
             #Empty cmd and response queues
             utils.empty_queue(self.server.queues['cmd'])
             utils.empty_queue(self.server.queues['res'])
@@ -674,14 +678,21 @@ class MESCommandHandler(socketserver.BaseRequestHandler):
             self.printl("{0} wrote:".format(self.client_address[0]))
             self.printl(f'Connected: {self.data}')
             lastecho=time.time()
+            self.request.settimeout(0.01)
             while True:
+                try:
+                    resp = self.request.recv(1024).decode('utf-8')
+                    self.printl(f'Remote message: {resp}')
+                    self.server.queues['res'].put(resp)
+                except:
+                    pass
                 if self.server.queues['cmd'].empty():
                     now=time.time()
-                    if now-lastecho>15:
+                    if now-lastecho>10 and 1:
     #                    print(self.server.socket)
                         try:
                             self.request.sendall(f'SOCechoEOC{ct}EOP'.encode('utf-8'))
-                            self.printl(self.request.recv(1024))
+                            #self.printl(f'Received echo: {self.request.recv(1024)}')
                             lastecho=now
                         except:
                             self.printl('Terminate')
@@ -692,9 +703,9 @@ class MESCommandHandler(socketserver.BaseRequestHandler):
                         msg=self.server.queues['cmd'].get().encode('utf-8')
                         self.printl(msg)
                         self.request.sendall(msg)
-                        resp=self.request.recv(1024).decode('utf-8')
-                        self.server.queues['res'].put(resp)
-                        self.printl(resp)
+                        #resp=self.request.recv(1024).decode('utf-8')
+                        #self.server.queues['res'].put(resp)
+                        #self.printl(f'Remote response: {resp}')
                     except:
                         break
                 if not self.server.queues['terminate'].empty():
@@ -704,15 +715,12 @@ class MESCommandHandler(socketserver.BaseRequestHandler):
             self.printl(traceback.format_exc())
                     
                 
-class MESCommandSocket(threading.Thread):
+class MESCommandSocket(multiprocessing.Process):
     def __init__(self, address, port):
         self.address=address
         self.port=port
-        threading.Thread.__init__(self)
-        self.queues={'cmd':queue.Queue(), 'res':queue.Queue(), 'log':queue.Queue(), 'terminate': queue.Queue()}
-        logfile=os.path.join(r'C:\DATA', 'log_mes_comm.txt')
-        logging.basicConfig(filename= logfile,
-                    format='%(asctime)s %(levelname)s\t%(message)s',level=logging.INFO)
+        multiprocessing.Process.__init__(self)
+        self.queues={'cmd':multiprocessing.Queue(), 'res':multiprocessing.Queue(), 'log':multiprocessing.Queue(), 'terminate': multiprocessing.Queue()}
 
     def run(self):
         server=socketserver.TCPServer((self.address, self.port), MESCommandHandler)

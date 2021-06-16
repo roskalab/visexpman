@@ -192,7 +192,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             if hasattr(self,'data_handle'):
                 self.data_handle.append(image[None,:])
         #Scale back to 0..1 range
-        image_display=image/self.to16bit
+        #The 1- is a hack here. TODO: check if raw PMT signal is inverted
+        image_display=1-image/self.to16bit
         return image_display
         
     def run(self):

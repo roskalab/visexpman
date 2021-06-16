@@ -933,7 +933,7 @@ class MainUI(gui.VisexpmanMainWindow):
             self.params_config[0]['children'].append({'name': 'Partial Save', 'type': 'bool', 'value': False})
         elif self.machine_config.ENABLE_EYE_CAMERA:
             self.params_config[0]['children'].append({'name': 'Record Eyecamera', 'type': 'bool', 'value': False})
-        if self.machine_config.PLATFORM in ['2p', 'resonant', 'generic']:
+        if self.machine_config.PLATFORM in ['2p', 'resonant', 'generic',  'ao_cortical']:
             self.params_config[0]['children'].append({'name': 'Stimulus Only', 'type': 'bool', 'value': False})
         if self.machine_config.ENABLE_FILE_TRIGGER:
             self.params_config[0]['children'].append({'name': 'Enable File Trigger', 'type': 'bool', 'value': False})
