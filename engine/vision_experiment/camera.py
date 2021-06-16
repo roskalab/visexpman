@@ -218,8 +218,8 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 id=experiment_data.get_id()
-                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.avi')
-                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.avi')
+                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.mp4')
+                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.mp4')
                 self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 if not openephys.start_recording():
