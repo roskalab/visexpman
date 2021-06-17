@@ -174,8 +174,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Live', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
                 {'name': 'Saved', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
                 {'name': 'Infrared-2P overlay', 'type': 'group',  'expanded' : False, 'children': [
-                    {'name': 'Offset X', 'type': 'int', 'value': 0,  'siPrefix': False, 'suffix': ' um'},
-                    {'name': 'Offset Y', 'type': 'int', 'value': 0,  'siPrefix': False, 'suffix': ' um'},
+                    {'name': 'Offset X', 'type': 'float', 'value': 0,  'siPrefix': False, 'suffix': ' um', 'decimals': 6},
+                    {'name': 'Offset Y', 'type': 'float', 'value': 0,  'siPrefix': False, 'suffix': ' um', 'decimals': 6},
                     {'name': 'Scale', 'type': 'float', 'value': 1.0,},
                     {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
                 ]}, 
@@ -195,6 +195,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Y Return Time', 'type': 'float', 'value': 2,  'suffix': ' lines'},
                     {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
                     {'name': '2p Shift', 'type': 'int', 'value': 35,  'suffix': ' samples'},
+                    {'name': 'Enable scanners', 'type': 'list', 'value': 'both',  'values': ['both', 'X', 'Y', 'None']},
+                    {'name': 'X scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
+                    {'name': 'Y scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
                 ]}, 
             ]
         self.params_config.extend(params)
@@ -314,6 +317,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     self.settings['params/Advanced/Y Return Time'],\
                                                                     pulse_width,\
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
+        if self.settings['params/Advanced/Enable scanners']=='X':
+            waveform_y*=0
+            waveform_y+=self.settings['params/Advanced/Y scanner voltage']
+        elif self.settings['params/Advanced/Enable scanners']=='Y':
+            waveform_x*=0
+            waveform_x+=self.settings['params/Advanced/X scanner voltage']
+        elif self.settings['params/Advanced/Enable scanners']=='None':
+            waveform_x=waveform_x*0+self.settings['params/Advanced/X scanner voltage']
+            waveform_y=waveform_y*0+self.settings['params/Advanced/Y scanner voltage']
+            
         self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},offset=self.settings['params/Advanced/2p Shift'])
@@ -394,6 +407,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 if hasattr(self, 'tirlast'):
                     self.irframerate=1/(now-self.tirlast)
                 self.ir_frame=ir_frame
+                self.ir_frame=numpy.fliplr(self.ir_frame)
                 self.tirlast=now
             twop_frame=self.aio.read()
             if twop_frame is not None:
@@ -416,6 +430,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if self.image_update_in_progress:
                 return
             self.image_update_in_progress=True
+            if self.twop_running and (self.twop_frame.shape[0]!=self.settings['params/Scan Height']*self.settings['params/Resolution'] or self.twop_frame.shape[1]!=self.settings['params/Scan Width']*self.settings['params/Resolution']):
+                #self.stop_action()
+                h=self.settings['params/Scan Height']*self.settings['params/Resolution']
+                w=self.settings['params/Scan Width']*self.settings['params/Resolution']
+                self.printc(f'Incorrect scan window! {self.twop_frame.shape}, {h}, {w}')
+                #QtGui.QMessageBox.question(self, 'Warning', 'Incorrect scan window!', QtGui.QMessageBox.Ok)
+                #return
+                
             if not hasattr(self, 'twop_frame'):
                 self.merged=self.ir_filtered
             else:
@@ -549,6 +571,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         '''
         self.saved_image.set_scale(self.imscale)
         self.saved_image.set_image(numpy.copy(self.merged))
+        self.saved_image_i=numpy.copy(self.merged)
     
     def zoom_in_action(self):
         raise NotImplementedError('')
@@ -817,10 +840,10 @@ def merge_image(ir_image, twop_image, kwargs):
             edge=int(abs(twop_resized.shape[0]/2+offset_x))
             twop_shifted[-edge:,:,:]=0
     if cut_2p:
-        merged[:, :, :2]=twop_shifted[-default_offset[0]:merged.shape[0]-default_offset[0],-default_offset[1]:merged.shape[1]-default_offset[1],:]*0.5
+        merged[:, :, :2]=twop_shifted[-default_offset[0]:merged.shape[0]-default_offset[0],-default_offset[1]:merged.shape[1]-default_offset[1],:]*0.2
     else:
-        merged[:, :, :2]=twop_shifted*0.5
-    merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([0.5, 0.5, 0.5])
+        merged[:, :, :2]=twop_shifted*0.2
+    merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([0.8, 0.8, 0.8])
     return merged
     
 def filter_image(image, min_, max_, filter):
