@@ -186,6 +186,20 @@ class StimulationScreen(graphics.Screen):
                     self.render_image(self.bullseye_image, position = sc, stretch = self.bullseye_stretch_factor*self.bullseye_size)
                 elif self.bullseye_type == 'spot':
                     self.draw_circle(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE, position = sc)
+                elif self.bullseye_type == 'gaussian spot':
+                    radius=int(self.bullseye_size*self.config.SCREEN_UM_TO_PIXEL_SCALE/2)
+                    gaussian_blur_radius=0.7
+                    gaussian_blur_sigma=0.05
+                    mask=numpy.zeros((2*radius,2*radius))
+                    import skimage.draw
+                    coo=skimage.draw.circle(radius, radius, radius*gaussian_blur_radius)
+                    mask[coo[0],coo[1]]=1.0
+                    sigma=mask.shape[0]*gaussian_blur_sigma
+                    mask=scipy.ndimage.filters.gaussian_filter(mask,sigma)
+                    amp=1-self.stim_context['background_color']
+                    mask*=amp
+                    mask+=self.stim_context['background_color']-1/255.
+                    self.render_image(mask, position = sc, stretch = self.bullseye_stretch_factor*self.bullseye_size)
         else:
             if hasattr(self, 'be'):
                 self.be.setAutoDraw(False)

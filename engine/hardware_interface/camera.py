@@ -1,5 +1,5 @@
 from visexpman.engine.generic import gui
-import os,unittest,multiprocessing,time,pdb,numpy, cv2
+import os,unittest,multiprocessing,time,pdb,numpy, cv2, ctypes, queue
 try:
     from thorlabs_tsi_sdk.tl_camera import TLCameraSDK
 except:
@@ -107,8 +107,13 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
             except:
                 import traceback
                 self.printl(traceback.format_exc())
-                    
-                    
+    
+    
+class CameraCallbackUserdata(ctypes.Structure):
+    def __init__(self):
+        self.camera = None # Reference to the camera object
+        self.frame_queue = None
+  
 class ISCamera(instrument.InstrumentProcess):
     def __init__(self,camera_id,logfile,digital_line, frame_rate=60, exposure=1/65, filename=None, show=False):
         self.filename=filename
@@ -122,6 +127,7 @@ class ISCamera(instrument.InstrumentProcess):
         self.control=multiprocessing.Queue()
         self.data=multiprocessing.Queue()
         print(self.logfile)
+        self.Userdata = CameraCallbackUserdata()
         
     def stop(self):
         self.queues['command'].put('stop')
@@ -144,6 +150,21 @@ class ISCamera(instrument.InstrumentProcess):
                 if time.time()-t0>60:
                     break
                 time.sleep(0.5)
+                    
+                
+    def FrameReadyCallback(self, hGrabber, pBuffer, framenumber, pData):
+        BildDaten = pData.camera.GetImageDescription()[:4]
+        lWidth=BildDaten[0]
+        lHeight= BildDaten[1]
+        iBitsPerPixel=BildDaten[2]//8
+
+        buffer_size = lWidth*lHeight*iBitsPerPixel*ctypes.sizeof(ctypes.c_uint8)            
+                
+        Bild = ctypes.cast(pBuffer, ctypes.POINTER(ctypes.c_ubyte * buffer_size))
+        frame = numpy.ndarray(buffer = Bild.contents, dtype = numpy.uint8, shape = (lHeight, lWidth, iBitsPerPixel))
+         
+        frame = frame[:,:,0]
+        pData.frame_queue.put(frame)
             
     def run(self):
         try:
@@ -156,12 +177,11 @@ class ISCamera(instrument.InstrumentProcess):
                 raise ValueError(f'Unkown camera: {camera_name}, {Camera.GetDevices() }')
 
             Camera.open(camera_name[0].decode())
-            
-            
-            Camera.SetPropertySwitch("Strobe","Enable",1)
+            Camera.SetPropertySwitch("Strobe","Enable",0)
             Camera.SetPropertySwitch("Strobe","Polarity",1)
             Camera.SetPropertyMapString("Strobe","Mode","exposure")  # exposure,constant or fixed duration
             Camera.SetPropertyValue("Strobe","Delay",0)
+            
             
             Camera.SetPropertySwitch("Trigger","Enable",0)
             Camera.SetVideoFormat("Y800 (320x240)")
@@ -169,7 +189,7 @@ class ISCamera(instrument.InstrumentProcess):
             Camera.SetFrameRate(self.frame_rate)
             Camera.SetPropertyAbsoluteValue("Exposure","Value", self.exposure)   #50fps 640x480
             Camera.SetContinuousMode(0)
-
+            
             if self.digital_line is not None:
                 digital_output = PyDAQmx.Task()
                 digital_output.CreateDOChan(self.digital_line,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
@@ -177,16 +197,27 @@ class ISCamera(instrument.InstrumentProcess):
             import skvideo.io
             if self.filename!=None:
                 self.video_writer=skvideo.io.FFmpegWriter(self.filename, inputdict={'-r':fps}, outputdict={'-r':fps})
-            frame_prev=None
+            
+            frame_queue = queue.Queue()
+            
+            self.Userdata.camera = Camera
+            self.Userdata.frame_queue = frame_queue
+            Callbackfunc = tisgrabber.TIS_GrabberDLL.FRAMEREADYCALLBACK(self.FrameReadyCallback)
+            Camera.SetFrameReadyCallback(Callbackfunc, self.Userdata)
+            
             if self.show:
                 Camera.StartLive(1)
             else:
                 Camera.StartLive(0)
+                
+            Camera.SetPropertySwitch("Strobe","Enable",1)
+            
             while True:
-                frame=Camera.GetImage()[:, :, 0].copy()
-                if frame_prev is not None and numpy.array_equal(frame_prev, frame):#No new frame in buffer
+                if frame_queue.empty():
+                    time.sleep(1e-4)
                     continue
-                frame_prev=frame.copy()
+                frame = frame_queue.get(timeout = 0.1)
+                
                 if hasattr(self, 'video_writer') and self.digital_line is not None:
                     digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([1], dtype=numpy.uint8),None,None)
                 if hasattr(self, 'video_writer'):
@@ -200,6 +231,7 @@ class ISCamera(instrument.InstrumentProcess):
                     cmd=self.queues['command'].get()
                     self.printl(cmd)
                     if cmd=='stop':
+                        Camera.SetPropertySwitch("Strobe","Enable",0)
                         Camera.StopLive()
                         self.printl('Stop camera')
                         break
@@ -212,8 +244,7 @@ class ISCamera(instrument.InstrumentProcess):
                         self.queues['response'].put('save done')
                 if self.queues['data'].empty() and frame is not None:#Send frame when queue empty (previous frame was taken
                     self.queues['data'].put(frame)
-                
-                time.sleep(1e-3)
+                    
             if hasattr(self, 'video_writer'):
                 self.printl('Close video file')
                 self.video_writer.close()
@@ -387,6 +418,7 @@ class TestCamera(unittest.TestCase):
         time.sleep(1)
         cam.terminate()
         
+    @unittest.skip('')       
     def test_6_strobe(self):
         fn=r'f:\a.mp4'
         from visexpman.engine.generic import fileop
@@ -414,7 +446,36 @@ class TestCamera(unittest.TestCase):
         plot(data[0]);show()
         
 #        import pdb
-#        pdb.set_trace()
+#       
+    
+    def test_7_strobe(self):
+        fn=r'H:\rz_organoid\cam_test\a.mp4'
+        from visexpman.engine.generic import fileop
+        fileop.remove_if_exists(fn)
+        import daq
+        
+        cam=ISCamera('DMK 37BUX287 15120861',r'H:\rz_organoid\cam_test\camlog.txt',None, frame_rate=120, exposure=1/250, filename=fn)
+        cam.start()
+        time.sleep(2.2) #ugy beallitani, hogy a mintavetelezes a hamis impulzusok után induljon
+                        #biztos megoldas lenne a mintavetelezest a Camera.StartLive utan inditani, de hogy?
+        ai=daq.AnalogRead('Dev2/ai0:1',30,10000) 
+        for i in range(25):
+            time.sleep(1.1)
+        cam.stop()
+        time.sleep(1)
+        cam.terminate()
+        time.sleep(2)
+        data=ai.read()
+        import skvideo.io
+        from visexpman.engine.generic import signal
+        videodata = skvideo.io.vread(fn)
+        print(f'Recorded frames {videodata.shape[0]}, n pulses: {signal.trigger_indexes(data[0]).shape[0]/2}')
+        print(f'D pulse: {signal.trigger_indexes(data[0]).shape[0]/2-videodata.shape[0]}')
+        d=(signal.trigger_indexes(data[0])[-1]-signal.trigger_indexes(data[0])[0])/10e3
+        print(f'Duration: {d},frame rate {videodata.shape[0]/d}')
+        print(f'Pulse rate: {10e3/numpy.diff(signal.trigger_indexes(data[0])[::2]).mean()} Hz')
+        from pylab import plot,show
+        plot(data[0]);show()
             
 
 if __name__ == '__main__':
