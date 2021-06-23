@@ -13,6 +13,7 @@ import PyDAQmx
 import PyDAQmx.DAQmxConstants as DAQmxConstants
 import PyDAQmx.DAQmxTypes as DAQmxTypes
 from visexpman.engine.hardware_interface import instrument
+import copy
 
 class ThorlabsCamera(object):
     def __init__(self, dll_path, nbit=8):
@@ -20,6 +21,9 @@ class ThorlabsCamera(object):
         self.sdk=TLCameraSDK()
         self.camera=self.sdk.open_camera(self.sdk.discover_available_cameras()[0])
         self.nbit=nbit
+        self.roi_orig=copy.deepcopy(self.camera.roi)
+        self.exposure_time_us_orig=copy.deepcopy(self.camera.exposure_time_us)
+        self.gain_orig=copy.deepcopy(self.camera.gain)
         
     def set(self, exposure=None, roi=None, gain=None):
         if exposure !=None:
@@ -47,6 +51,10 @@ class ThorlabsCamera(object):
         self.camera.disarm()
         
     def close(self):
+        self.camera.roi=self.roi_orig
+        self.camera.exposure_time_us=self.exposure_time_us_orig
+        self.camera.gain=self.gain_orig
+#        self.camera.roi=(0, 0, 4096, 2160)
         self.camera.dispose()
         self.sdk.dispose()
         print ("sdk dispose")
@@ -79,6 +87,7 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
         self.running=False
         ThorlabsCamera.__init__(self, dll_path=self.dll_path,nbit=16)
         if self.roi is not None:
+            self.printl(self.roi)
             ThorlabsCamera.set(self,roi=self.roi)
         while True:
             try:
@@ -99,9 +108,12 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
                     elif cmd[0]=='set':
                         kwarg={cmd[1]:cmd[2]}
                         ThorlabsCamera.set(self,**kwarg)
+                        self.printl(f'gain: {self.camera.gain}, exp: {self.camera.exposure_time_us}')
                 if self.running:
                     frame=self.get_frame()
                     if self.queues['data'].empty() and frame is not None:#Send frame when queue empty (previous frame was taken
+                        if frame.shape[0]>504:
+                            frame=frame[::4, ::4]
                         self.queues['data'].put(frame)
                 time.sleep(50e-3)
             except:

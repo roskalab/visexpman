@@ -193,7 +193,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 self.data_handle.append(image[None,:])
         #Scale back to 0..1 range
         #The 1- is a hack here. TODO: check if raw PMT signal is inverted
-        image_display=1-image/self.to16bit
+        imgs=image/self.to16bit
+        image_display=(1-imgs)/1
+        #self.printl((self.number_of_ai_samples, image_display.shape, readout.shape, self.data_format))
         return image_display
         
     def run(self):
@@ -261,6 +263,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     try:
                         data_chunk=daq.SyncAnalogIO.read(self)
                     except (PyDAQmx.DAQmxFunctions.SamplesNotYetAvailableError,PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError) as e:
+                        self.printl(self.number_of_ai_samples)
+                        import traceback
+                        self.printl(traceback.format_exc())
                         self.printl('Read error')
                         continue
                         
