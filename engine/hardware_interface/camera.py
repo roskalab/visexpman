@@ -449,17 +449,17 @@ class TestCamera(unittest.TestCase):
 #       
     
     def test_7_strobe(self):
-        fn=r'H:\rz_organoid\cam_test\a.mp4'
+        fn=r'c:\Data\cam_test\a.mp4'
         from visexpman.engine.generic import fileop
         fileop.remove_if_exists(fn)
         import daq
         
-        cam=ISCamera('DMK 37BUX287 15120861',r'H:\rz_organoid\cam_test\camlog.txt',None, frame_rate=120, exposure=1/250, filename=fn)
+        cam=ISCamera('DMK 37BUX287 15120861',r'c:\Data\cam_test\camlog.txt',None, frame_rate=60, exposure=1/250, filename=fn)
         cam.start()
-        time.sleep(2.2) #ugy beallitani, hogy a mintavetelezes a hamis impulzusok után induljon
+        time.sleep(1.52) #ugy beallitani, hogy a mintavetelezes a hamis impulzusok után induljon
                         #biztos megoldas lenne a mintavetelezest a Camera.StartLive utan inditani, de hogy?
-        ai=daq.AnalogRead('Dev2/ai0:1',30,10000) 
-        for i in range(25):
+        ai=daq.AnalogRead('Dev5/ai0:1',30,10000) 
+        for i in range(10):
             time.sleep(1.1)
         cam.stop()
         time.sleep(1)
