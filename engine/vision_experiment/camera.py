@@ -139,8 +139,10 @@ class Camera(gui.VisexpmanMainWindow):
                 {'name': 'fUSI enable', 'type': 'bool', 'value': False},
                 {'name': 'fUSI sampling rate', 'type': 'float', 'value': 5, 'suffix': 'Hz', 'siPrefix': True},
                 {'name': 'fUSI Nimag', 'type': 'int', 'value': 4000},
+                {'name': 'Neuropixel SMA port TRIG', 'type': 'bool', 'value': False},
                     ]
         self.params_config.extend(params)
+        self.openephys_running=False
         
     def save_context(self):
         context_stream=utils.object2array(self.parameters)
@@ -160,7 +162,7 @@ class Camera(gui.VisexpmanMainWindow):
         try:
             if self.recording:
                 return
-            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and not introspect.is_process_running('open-ephys'):
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.machine_config.OPENEPHYS_COMPUTER_IP=='127.0.0.1' and not introspect.is_process_running('open-ephys'):
                 QtGui.QMessageBox.question(None,'Warning', 'Open-ephys GUI is not running', QtGui.QMessageBox.Ok)
                 return
             if 1000/self.parameters['params/Frame Rate']<self.parameters['params/Exposure time']:
@@ -218,38 +220,46 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 id=experiment_data.get_id()
-                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.mp4')
-                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.mp4')
+                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.avi')
+                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.avi')
                 self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat')
             if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
-                if not openephys.start_recording():
-                    self.printc('Openephyc cannot be triggered, is it started?')
+                tag=id
+                if not openephys.start_recording(self.machine_config.OPENEPHYS_COMPUTER_IP, tag=tag):
+                    self.printc('Openephys cannot be triggered, is it started?')
                 else:
                     self.printc('Start Openephys')
+                    self.openephys_running=True
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
-                #Check if openephys related file has appeared
-                latest_file=fileop.find_latest(self.machine_config.OPENEPHYS_DATA_PATH)
-                self.openephys_datafolder=os.path.join(self.machine_config.OPENEPHYS_DATA_PATH,latest_file.replace(self.machine_config.OPENEPHYS_DATA_PATH,'').split(os.sep)[1])
-                latest_file_age=fileop.file_age(latest_file)
-                if latest_file_age>self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
-                    openephys.stop_recording()
-                    self.recording=False
-                    msg='Openephys GUI does not save file to {0}, recording terminated'.format(self.machine_config.OPENEPHYS_DATA_PATH)
-                    self.printc(msg)
-                    QtGui.QMessageBox.question(self, "Warning", msg, QtGui.QMessageBox.Ok)
-                    self.statusbar.recording_status.setStyleSheet('background:gray;')
-                    self.statusbar.recording_status.setText('Ready')
+                if 0 and self.machine_config.OPENEPHYS_DATA_PATH is not None:
+                    #Check if openephys related file has appeared
+                    latest_file=fileop.find_latest(self.machine_config.OPENEPHYS_DATA_PATH)
+                    self.openephys_datafolder=os.path.join(self.machine_config.OPENEPHYS_DATA_PATH,latest_file.replace(self.machine_config.OPENEPHYS_DATA_PATH,'').split(os.sep)[1])
+                    latest_file_age=fileop.file_age(latest_file)
+                    if latest_file_age>self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
+                        openephys.stop_recording()
+                        self.recording=False
+                        msg='Openephys GUI does not save file to {0}, recording terminated'.format(self.machine_config.OPENEPHYS_DATA_PATH)
+                        self.printc(msg)
+                        QtGui.QMessageBox.question(self, "Warning", msg, QtGui.QMessageBox.Ok)
+                        self.statusbar.recording_status.setStyleSheet('background:gray;')
+                        self.statusbar.recording_status.setText('Ready')
                     
             if self.camera_api=='tisgrabber':
                 self.camera1handler.save(self.cam1fn)
                 #self.camera1handler=camera.ISCamera(self.machine_config.CAMERA1_ID, self.logger.filename.replace('.txt', '_cam1.txt'), self.camera1_io_port, self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3, filename=self.cam1fn)
             else:
+                #OBSOLETE
                 self.camera1handler=camera_interface.ImagingSourceCameraHandler(self.parameters['params/Frame Rate'], self.parameters['params/Exposure time']*1e-3,  self.machine_config.CAMERA_IO_PORT,  filename=self.cam1fn, watermark=True)
             #self.camera1handler.start()
             if self.machine_config.CAMERA2_ENABLE:
                 raise NotImplementedError('')
                 self.camera2handler=camera.WebCamera(self.machine_config.EYECAM_ID,os.path.join(self.machine_config.LOG_PATH, 'log_eyecam.txt'),self.machine_config.EYECAMERA_IO_PORT,filename=self.eyefn)
                 self.camera2handler.start()
+            if self.parameters['params/Neuropixel SMA port TRIG']:
+                self.printc('ZMQ trigger to NP/openephys')
+                time.sleep(2)
+                daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,1)
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
                 fusi_enable='fUSI' if  self.parameters['params/fUSI enable'] else ''
                 utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{id},{fusi_enable}')
@@ -273,13 +283,18 @@ class Camera(gui.VisexpmanMainWindow):
             t0=time.time()
             self.printc('Stop video recording, please wait...')
             self.camera1handler.stop_saving()
-            if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
-                self.printc('Stop MC recording')
-                daq.digital_pulse(self.machine_config.MC_STOP_TRIGGER,1)
-                time.sleep(0.5)
+            if self.parameters['params/Neuropixel SMA port TRIG']:
+                self.printc('Stop Neuropixel')
+                daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,0)
+                time.sleep(1)
+            else:
+                if hasattr(self.machine_config, 'MC_STOP_TRIGGER'):
+                    self.printc('Stop MC recording')
+                    daq.digital_pulse(self.machine_config.MC_STOP_TRIGGER,1)
+                    time.sleep(0.5)
 #            self.printc(f'Recording time: {time.time()-self.t0}')
 #            self.printc(f'Available sync length: {self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE}')
-            if not self.aifix:
+            if not self.aifix: #OBSOLETE
                 wait_time=round(5+time.time()-self.t0-(self.sync.shape[0]/self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
                 if wait_time>150:
                     wait_time+=100
@@ -299,18 +314,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Busy')
             QtCore.QCoreApplication.instance().processEvents()
-#            self.printc(('queue size', self.ai.dataq.qsize()))
-#            self.printc(('sync lenght after stoping camera',self.sync.shape))
-#            self.camera1handler.stop()
-#            if self.machine_config.CAMERA2_ENABLE:
-#                self.camera2handler.stop()
-#            camera_wait_time=5
-#            self.camera1handler.join(camera_wait_time)
-#            self.camera1handler.terminate()
-#            if self.machine_config.CAMERA2_ENABLE:
-#                self.camera2handler.join(camera_wait_time)
-#                self.camera2handler.terminate()
-            if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'):
+            if hasattr(self.machine_config, 'MINISCOPE_DATA_PATH'): #OBSOLETE
                 miniscope_datafolder=self.find_miniscope_data()
                 if os.path.exists(miniscope_datafolder):
                     import copy
@@ -364,22 +368,27 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Save time {0} s'.format(int(time.time()-t0-wait_left)))
             if hasattr(self, 'fps_values') and self.fps_values.shape[0]<10:
                 self.printc('Recording too short, file removed')
-            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.openephys_running:
+                self.openephys_running=False
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
                 self.printc('Stop Openephys')
-                openephys.stop_recording()
-                zipfile=os.path.join(os.path.dirname(self.metadatafn), fileop.replace_extension(os.path.basename(self.metadatafn), '.zip'))
-                self.printc('Check recorded data,please wait...')
-                QtCore.QCoreApplication.instance().processEvents()
-                self.frequency, self.frequency_std, self.video_frame_indexes, self.sync_data=openephys.check_data(self.openephys_datafolder)
-                self.matdata['video_frame_indexes']= self.video_frame_indexes
-                self.printc('Move openephys data to {0}'.format(zipfile))
-                fileop.move2zip(self.openephys_datafolder,zipfile)
+                openephys.stop_recording(self.machine_config.OPENEPHYS_COMPUTER_IP)
+                if 0 and self.machine_config.OPENEPHYS_DATA_PATH is not None:
+                    try:
+                        zipfile=os.path.join(os.path.dirname(self.metadatafn), fileop.replace_extension(os.path.basename(self.metadatafn), '.zip'))
+                        self.printc('Check recorded data,please wait...')
+                        QtCore.QCoreApplication.instance().processEvents()
+                        self.frequency, self.frequency_std, self.video_frame_indexes, self.sync_data=openephys.check_data(self.openephys_datafolder)
+                        self.matdata['video_frame_indexes']= self.video_frame_indexes
+                        self.printc('Move openephys data to {0}'.format(zipfile))
+                        fileop.move2zip(self.openephys_datafolder,zipfile)
+                    except:
+                        self.printc(traceback.format_exc())
             import scipy.io
             self.matdata['software']=experiment_data.pack_software_environment()
             scipy.io.savemat(self.metadatafn, self.matdata, long_field_names=True)
             self.printc(f'Metadata saved to {self.metadatafn}')
-            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
+            if 0 and self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
                 self.printc(f"Expected frame rate: {self.parameters['params/Frame Rate']} Hz,  measured: {self.frequency} Hz, std: {self.frequency_std}")
                 if self.video_frame_indexes[0]<10e3*self.machine_config.OPENEPHYS_PRETRIGGER_TIME:
                     QtGui.QMessageBox.question(None,'Warning', 'Beginning of sync signal is corrupt', QtGui.QMessageBox.Ok)
@@ -447,7 +456,7 @@ class Camera(gui.VisexpmanMainWindow):
         if self.parameters['params/fUSI enable']:
             self.fusi_timestamps=signal.trigger_indexes(self.sync[:,self.machine_config.TFUSI_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
             self.matdata['fusi_timestamps']=self.fusi_timestamps
-            if self.fusi_timestamps.shape[0]!=2:
+            if self.fusi_timestamps.shape[0]<2:
                 msg+='End of fUSI timing is not recorded! '
                 numpy.diff(self.fusi_timestamps)
             #Emulate fUSI pulses

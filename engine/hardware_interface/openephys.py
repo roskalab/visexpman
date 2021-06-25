@@ -4,25 +4,37 @@ from visexpman.engine.generic import signal
 PORT=5556
 IP='127.0.0.1'
 
-def start_recording():
+def start_recording(ip=None,  tag=""):
     try:
+        if ip is None:
+            ip=IP
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect("tcp://%s:%s" % (IP, PORT))
+        socket.connect("tcp://%s:%s" % (ip, PORT))
+        time.sleep(0.5)
+        socket.send(b"StartAcquisition")
         time.sleep(1)
-        socket.send(b"StartRecord CreateNewDir=1")
+        socket.recv(flags=zmq.NOBLOCK)
+        if tag == "":
+            socket.send(b"StartRecord CreateNewDir=1")
+        else:
+            socket.send_string(f"StartRecord CreateNewDir=1 AppendText={tag}")
         time.sleep(1)
         socket.recv(flags=zmq.NOBLOCK)
         return True
     except:
+        import traceback
+        print(traceback.format_ext())
         return False
     
     
-def stop_recording():
+def stop_recording(ip=None):
     try:
+        if ip is None:
+            ip=IP
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
-        socket.connect("tcp://%s:%s" % (IP, PORT))
+        socket.connect("tcp://%s:%s" % (ip, PORT))
         socket.send(b"StopRecord")
         time.sleep(1)
         socket.recv(flags=zmq.NOBLOCK)
