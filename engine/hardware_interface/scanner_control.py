@@ -6,7 +6,7 @@ Classes related to two photon scanning:
 '''
 
 import numpy, unittest, pdb, itertools,multiprocessing,time,os,tables
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils, fileop
 from visexpman.engine.hardware_interface import instrument,daq
 try:
     import PyDAQmx
@@ -23,7 +23,7 @@ class ScannerWaveform(object):
     MAX_FRAME_PIXELS=500e3 
     #Depends on scanner model
     MIN_X_SCANNER_PERIOD=1./8000#TODO: this limitation should depend on scan area width. Lower widths work on higher frequencies
-    SCANNER_VOLTAGE_RANGE=[0.05, 5.0]
+    SCANNER_VOLTAGE_RANGE=[0.05, 7.0]
     LINE_SCAN_EXTENSION=0.2
     
     def __init__(self, machine_config=None,  **kwargs):
@@ -193,7 +193,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 self.data_handle.append(image[None,:])
         #Scale back to 0..1 range
         #The 1- is a hack here. TODO: check if raw PMT signal is inverted
-        image_display=1-image/self.to16bit
+        imgs=image/self.to16bit
+        image_display=(1-imgs)/1
+        #self.printl((self.number_of_ai_samples, image_display.shape, readout.shape, self.data_format))
         return image_display
         
     def run(self):
@@ -250,6 +252,12 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             if readout is not None and len(readout.shape)==2:#In some cases the last readut from daq has an extra dimension. Reason unknown
                                 self.data2file(readout)
                             fh.close()
+                                
+                            import hdf5io, tifffile
+                            data=hdf5io.read_item(filename, 'twopdata')
+                            tifffn=fileop.replace_extension(filename,'.tiff')
+                            tifffile.imwrite(tifffn,data)
+                            self.printl(f'Saved to {tifffn}')
                             self.printl('Closing file')
                         self.running=False
                     elif cmd=='terminate':
@@ -261,6 +269,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     try:
                         data_chunk=daq.SyncAnalogIO.read(self)
                     except (PyDAQmx.DAQmxFunctions.SamplesNotYetAvailableError,PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError) as e:
+                        self.printl(self.number_of_ai_samples)
+                        import traceback
+                        self.printl(traceback.format_exc())
                         self.printl('Read error')
                         continue
                         
@@ -269,6 +280,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     frame=self.data2file(data_chunk)
                     if self.queues['data'].empty():
                         self.queues['data'].put(frame)
+                        if data_chunk.min()<0:
+                            self.queues['response'].put(f'Negative voltate is detected: {data_chunk.min()} V on PMT output, please adjust offset')
                 time.sleep(0.02)
             #Clean up
             self.digital_output.ClearTask()

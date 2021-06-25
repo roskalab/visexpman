@@ -171,8 +171,8 @@ class SyncAnalogIO():
         self.analog_output = PyDAQmx.Task()
         self.analog_output.CreateAOVoltageChan(self.ao_channels,
                                                             'ao',
-                                                            -5,
-                                                            5,
+                                                            -7,
+                                                            7,
                                                             DAQmxConstants.DAQmx_Val_Volts,
                                                             None)
         self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(self.ao_channels.split('/')[0]), DAQmxConstants.DAQmx_Val_Rising)

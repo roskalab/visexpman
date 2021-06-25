@@ -1330,7 +1330,7 @@ class TestBehavAnalysis(unittest.TestCase):
                     framem=frame*mask
                     result, position, red_angle, red, green, blue, debug=mouse_head_direction(framem.copy(), roi_size=20, threshold=thi,  saturation_threshold=0.6, value_threshold=0.4)
                     frame=frame[:,:,0]
-                    a,o=track_led_objects(frame, o, a,min_size=20,threshold=40)
+                    a,o=track_led_objects(frame, o, a,min_size=20,threshold=80)
                     angles.append(a)
                     positions.append(position)     
                     if 0 and numpy.isnan(a):

@@ -139,7 +139,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.scanning = False
         self.z_stack_running=False
-        
+        self.frame_counter=0
         # 3D numpy arrays, format: (X, Y, CH)
         self.ir_frame = numpy.zeros((500,500))
         self.twop_frame = numpy.zeros((100,100,2))
@@ -161,9 +161,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                     {'name': 'IR', 'type': 'group', 'expanded' : False, 'children': minmax_group}]
         
         self.params_config = [
-                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 4), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
-                {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 300), 'siPrefix': True, 'suffix': 'um'},
-                {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 300), 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 8), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
+                {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
+                {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Averaging samples', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
                 {'name': 'IR Exposure', 'type': 'float', 'value': 50, 'limits': (1, 1000), 'siPrefix': True, 'suffix': 'ms',  'decimals': 6},
@@ -259,7 +259,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.aio=scanner_control.SyncAnalogIORecorder(self.machine_config.AI_CHANNELS,
                                                                         self.machine_config.AO_CHANNELS,
                                                                         self.daq_logfile,
-                                                                        timeout=1,
+                                                                        timeout=self.machine_config.DAQ_TIMEOUT,
                                                                         ai_sample_rate=self.machine_config.AI_SAMPLE_RATE,
                                                                         ao_sample_rate=self.machine_config.AO_SAMPLE_RATE,
                                                                         shutter_port=self.machine_config.SHUTTER_PORT)
@@ -328,13 +328,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             waveform_y=waveform_y*0+self.settings['params/Advanced/Y scanner voltage']
             
         self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
+        self.dwell_time=(1000/self.machine_config.AI_SAMPLE_RATE)/numpy.diff(self.waveform[0])[0]
+        
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},offset=self.settings['params/Advanced/2p Shift'])
         self.twop_running=True
         self.statusbar.twop_status.setText('2P')
         self.statusbar.twop_status.setStyleSheet('background:red;')
         fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
-        self.printc(f'2p frame rate {fps} Hz')
+        self.printc(f'2p frame rate {fps} Hz,  dwell time: {self.dwell_time} ms/V')
         frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
         self.printc(f'X scanner frequency: {frq_xscan} Hz')
         self.twop_fps=fps
@@ -344,6 +346,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.filename=None
             self.prepare_2p()
             self.printc('2p scanning started')
+            self.frame_counter=0
         except:
             self.printc(traceback.format_exc())
         
@@ -375,6 +378,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
         return
+        
+    def read_last_recording(self):
+        import hdf5io
+        self.rdata=hdf5io.read_item(self.filename, 'twopdata')
+        self.rdata=self.rdata/6553.5
+        self.rdata=self.rdata[:, :, :, 1]
+        
     
     # ZMQ socket handler (mostly adopted from camera.py)
     def socket_handler(self):
@@ -411,6 +421,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.tirlast=now
             twop_frame=self.aio.read()
             if twop_frame is not None:
+#                print(twop_frame.max())
+                twop_frame=numpy.rot90(twop_frame)
                 self.twop_frame=twop_frame
         except:
             if not hasattr(self, 'read_image_error_shown'):
@@ -430,7 +442,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if self.image_update_in_progress:
                 return
             self.image_update_in_progress=True
-            if self.twop_running and (self.twop_frame.shape[0]!=self.settings['params/Scan Height']*self.settings['params/Resolution'] or self.twop_frame.shape[1]!=self.settings['params/Scan Width']*self.settings['params/Resolution']):
+            if self.frame_counter>20 and self.twop_running and (self.twop_frame.shape[0]!=self.settings['params/Scan Height']*self.settings['params/Resolution'] or self.twop_frame.shape[1]!=self.settings['params/Scan Width']*self.settings['params/Resolution']):
                 #self.stop_action()
                 h=self.settings['params/Scan Height']*self.settings['params/Resolution']
                 w=self.settings['params/Scan Width']*self.settings['params/Resolution']
@@ -502,14 +514,23 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
             t3=time.time()
             if self.settings['params/Show IR'] or self.settings['params/Show Side'] or self.settings['params/Show Top']:
-                self.image.set_image(self.merged)#Swap x, y axis 
+                self.image.set_image(self.merged)#Swap x, y axis
+            else:
+                self.image.set_image(numpy.zeros_like(self.merged))
+            self.frame_counter+=1
+            self.image.img.setLevels([0.0,1.0])
+            if self.twop_running:
+                self.image.plot.setTitle(f'{self.twop_fps} fps, {self.dwell_time:.02f} ms/V dwell time')
+            if not self.aio.queues['response'].empty():
+                self.printc(self.aio.queues['response'].get())
+            
             t4=time.time()
             dt=1e3*numpy.array([t4-t3,t3-t2,t2-t1,t1-t0])
             if not hasattr(self, 'dt'):
                 self.dt=[]
             self.dt.append(dt)
             self.dt=self.dt[-10:]
-            if self.machine_config.SHOW_FRAME_RATE:
+            if 0:
                 t='Frame rate: '
                 if hasattr(self,'irframerate'):
                     t+=f"IR: {int(self.irframerate)} Hz "
@@ -719,7 +740,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         if not hasattr(self, 'error_shown'):
             for f in [self.cam_logfile,self.daq_logfile]:
                 t0=time.time()
-                log=fileop.read_text_file(f)
+                if os.path.exists(f):
+                    log=fileop.read_text_file(f)
+                else:
+                    log=''
                 dt=time.time()-t0
                 if dt>0.8:
                     raise RuntimeError('logfile read takes long')
@@ -839,11 +863,13 @@ def merge_image(ir_image, twop_image, kwargs):
         if twop_resized.shape[0]/2+offset_x<0:
             edge=int(abs(twop_resized.shape[0]/2+offset_x))
             twop_shifted[-edge:,:,:]=0
+    two_p_sw_gain=kwargs.get('2p gain', 0.3)
     if cut_2p:
         merged[:, :, :2]=twop_shifted[-default_offset[0]:merged.shape[0]-default_offset[0],-default_offset[1]:merged.shape[1]-default_offset[1],:]*0.2
     else:
-        merged[:, :, :2]=twop_shifted*0.2
-    merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([0.8, 0.8, 0.8])
+        merged[:, :, :2]=twop_shifted*two_p_sw_gain
+    two_p_sw_gain_conj=1-two_p_sw_gain
+    merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([two_p_sw_gain_conj, two_p_sw_gain_conj, two_p_sw_gain_conj])
     return merged
     
 def filter_image(image, min_, max_, filter):
