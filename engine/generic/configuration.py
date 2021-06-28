@@ -176,7 +176,7 @@ class Config(object):
     def todict(self):
         packed2dict = {}
         for parameter_name in [class_variable for class_variable in dir(self) if class_variable.isupper() or 'user' == class_variable]:
-            if hasattr(getattr(self,parameter_name),  'dtype') and getattr(self,parameter_name).dtype.names !=None and  'row' in getattr(self,parameter_name).dtype.names:
+            if hasattr(getattr(self,parameter_name),  'shape') and getattr(self,parameter_name).dtype.names !=None and  'row' in getattr(self,parameter_name).dtype.names:
                 packed2dict[parameter_name] = {'row': getattr(self,parameter_name)['row'],  'col': getattr(self,parameter_name)['col']}
             else:
                 packed2dict[parameter_name] = getattr(self,parameter_name)
