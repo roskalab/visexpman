@@ -107,6 +107,12 @@ class StimulationScreen(graphics.Screen):
     graphics.Screen is amended with vision experiment specific features: menu&message displaying
     '''    
     def __init__(self):
+        if self.config.PLATFORM in ['retinal', 'elphys',  'mc_mea', 'hi_mea', 'resonant']:
+            screen_resolutions=graphics.get_screens_info()
+            if len(screen_resolutions)>1:
+                raise RuntimeError("More than one display is attached")
+            if screen_resolutions[0][0]!=self.config.SCREEN_RESOLUTION['col'] or screen_resolutions[0][1]!=self.config.SCREEN_RESOLUTION['row']:
+                raise RuntimeError(f"Incorrect resolution set, displayed stimulus might be distorted. Expected: {self.config.SCREEN_RESOLUTION} found: {screen_resolutions[0]}]")
         graphics.Screen.__init__(self, self.config, graphics_mode = 'external')
         self.clear_screen()
         #== Initialize displaying text ==

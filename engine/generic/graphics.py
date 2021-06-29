@@ -1,6 +1,7 @@
 import time
 import os.path
 import numpy
+import pdb
 try:
     from OpenGL.GL import *
     from OpenGL.GLU import *
@@ -30,6 +31,16 @@ def get_screen_size():
         window = gtk.Window()
         screen = window.get_screen()
         return utils.cr((screen.get_width(),screen.get_height()))
+        
+def get_screens_info():
+    from screeninfo import get_monitors
+    res_array = []
+    for m in get_monitors():
+        mon_str = str(m)
+        width = int(mon_str.split(', ')[2].split('=')[1])
+        height = int(mon_str.split(', ')[3].split('=')[1])
+        res_array.append((width, height))
+    return res_array
     
 
 class Screen(object):
@@ -633,7 +644,18 @@ def is_valid_frame_rate(fps_requested, fps_machine,threshold=0.1):
     if frac>0.5:
         frac=1-frac
     return frac<threshold
+    
+   
+
+def screen_test():
+    res = get_screen_size()
+    cr_array = get_screens_info()
+    pdb.set_trace()
+    
+  
+        
+        
 
 if __name__ == "__main__": 
-    pass
+    screen_test()
     
