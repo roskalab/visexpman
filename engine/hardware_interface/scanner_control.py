@@ -127,7 +127,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     """
     def __init__(self, ai_channels,  ao_channels, logfile, **kwargs):
         self.logfile=logfile
-        self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue(),'raw':multiprocessing.Queue()}
+        self.queues={'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue(),\
+                        'rawimage':multiprocessing.Queue(), 'raw':multiprocessing.Queue()}
         instrument.InstrumentProcess.__init__(self, self.queues, logfile)
         daq.SyncAnalogIO.__init__(self,  ai_channels,  ao_channels,  kwargs['timeout'])
         self.kwargs=kwargs
@@ -152,6 +153,10 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     def read(self):
         if not self.queues['data'].empty():
             return self.queues['data'].get()
+            
+    def read_rawimage(self):
+        if not self.queues['rawimage'].empty():
+            return self.queues['rawimage'].get()
         
     def open_shutter(self):
         value=1
@@ -194,6 +199,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
         #Scale back to 0..1 range
         #The 1- is a hack here. TODO: check if raw PMT signal is inverted
         imgs=image/self.to16bit
+        self.rawimage=imgs
         image_display=(1-imgs)/1
         #self.printl((self.number_of_ai_samples, image_display.shape, readout.shape, self.data_format))
         return image_display
@@ -280,6 +286,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     frame=self.data2file(data_chunk)
                     if self.queues['data'].empty():
                         self.queues['data'].put(frame)
+                        self.queues['rawimage'].put(self.rawimage)
                         if data_chunk.min()<0:
                             self.queues['response'].put(f'Negative voltate is detected: {data_chunk.min()} V on PMT output, please adjust offset')
                 time.sleep(0.02)

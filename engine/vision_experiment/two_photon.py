@@ -2,6 +2,7 @@ from pylab import *
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
 import itertools
 import scipy,skimage, tables
+import skimage.exposure
 try:
     import PyQt5.Qt as Qt
     import PyQt5.QtGui as QtGui
@@ -56,6 +57,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.video_player = QtGui.QWidget()
         self.saved_image = gui.Image(self)
+        self.plot=gui.Plot(self)
+        self.plot.plot.setLabels(left='PMT Voltage [V]')
         
 #        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
 #        self.slider.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -73,6 +76,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
 #        self.video_player.setLayout(self.vplayout)
         self.main_tab.addTab(self.saved_image, 'Saved Image')
+        self.main_tab.addTab(self.plot, 'Traces')
         self.main_tab.setFixedWidth(self.machine_config.GUI_WIDTH*0.4)
         self.main_tab.setFixedHeight(self.machine_config.GUI_WIDTH*0.4)
         
@@ -149,7 +153,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.shortest_sample = 1.0 / self.machine_config.AO_SAMPLE_RATE
         
-        image_filters=['', 'mean', 'MIP', 'median',  'histogram equalization']
+        image_filters=['', 'autoscale', 'gamma', 'mean', 'MIP', 'median',  'histogram equalization']
         file_formats=['.mat',  '.hdf5', '.tiff']
         
         minmax_group=[{'name': 'Min', 'type': 'float', 'value': 0.0,},
@@ -347,6 +351,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.prepare_2p()
             self.printc('2p scanning started')
             self.frame_counter=0
+            self.intensities=[]
         except:
             self.printc(traceback.format_exc())
         
@@ -420,6 +425,33 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.ir_frame=numpy.fliplr(self.ir_frame)
                 self.tirlast=now
             twop_frame=self.aio.read()
+            rawimage=self.aio.read_rawimage()
+            if rawimage is not None:
+                rawimage=numpy.rot90(rawimage)
+                self.rawimage=rawimage
+                index=[]
+                if self.settings['params/Show Top']:
+                    index.append(0)
+                if self.settings['params/Show Side']:
+                    index.append(1)
+                if len(index)==0 or len(index)==2:
+                    index=[1]
+                index=numpy.array(index)
+                self.rawimage=self.rawimage[:, :, index]
+                if len(self.image.rois)==0:
+                    intensity=self.rawimage.mean()
+                else:
+                    sx=utils.roundint(self.image.rois[0].x()/self.imscale)
+                    sy=utils.roundint(self.image.rois[0].y()/self.imscale)
+                    ex=sx+utils.roundint(self.image.rois[0].size().x()/self.imscale)
+                    ey=sy+utils.roundint(self.image.rois[0].size().y()/self.imscale)
+                    self.co=self.rawimage[sx:ex, sy:ey]
+                    print(self.rawimage[sx:ex, sy:ey].shape)
+                    intensity=self.rawimage[sx:ex, sy:ey].mean()
+                    
+                self.intensities.append(intensity)
+                
+#            print(twop_frame)
             if twop_frame is not None:
 #                print(twop_frame.max())
                 twop_frame=numpy.rot90(twop_frame)
@@ -523,7 +555,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.image.plot.setTitle(f'{self.twop_fps} fps, {self.dwell_time:.02f} ms/V dwell time')
             if not self.aio.queues['response'].empty():
                 self.printc(self.aio.queues['response'].get())
-            
+            if hasattr(self, 'intensities') and len(self.intensities)>0:
+                self.plot.update_curve(numpy.arange(len(self.intensities)),numpy.array(self.intensities))
+                self.plot.plot.setTitle(f'Warning: time scale is based on the rate of displayed images<br>{self.intensities[-1]:0.3f} V')
             t4=time.time()
             dt=1e3*numpy.array([t4-t3,t3-t2,t2-t1,t1-t0])
             if not hasattr(self, 'dt'):
@@ -872,7 +906,7 @@ def merge_image(ir_image, twop_image, kwargs):
     merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([two_p_sw_gain_conj, two_p_sw_gain_conj, two_p_sw_gain_conj])
     return merged
     
-def filter_image(image, min_, max_, filter):
+def filter_image(image, min_, max_, filter, gamma=0.25):
     if image.dtype==numpy.uint16:
         image_=image/(2**12-1)
     else:
@@ -881,6 +915,12 @@ def filter_image(image, min_, max_, filter):
     scaled=(numpy.clip(image_, min_, max_)-min_)/(max_-min_)
     if filter=='':
         filtered=scaled
+    elif filter=='histogram equalization':
+        filtered=skimage.exposure.equalize_hist(scaled)
+    elif filter=='autoscale':
+        filtered=(scaled-scaled.min())/(scaled.max()-scaled.min())
+    elif filter=='gamma':
+        filtered=skimage.exposure.adjust_gamma((scaled-scaled.min())/(scaled.max()-scaled.min()), gamma)
     else:
         raise NotImplementedError('')
     return filtered
