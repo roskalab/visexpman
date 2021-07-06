@@ -664,7 +664,6 @@ class Camera(gui.VisexpmanMainWindow):
 
             h.close()
             experiment_data.hdf52mat(fileop.replace_extension(filename, '.hdf5'))
-            
     
     def update_image(self):
         try:
@@ -683,7 +682,7 @@ class Camera(gui.VisexpmanMainWindow):
                 frame=imgqueue.get()
                 self.frame=frame
                 if self.parameters['params/Enable ROI cut']:
-                    frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
+                    frame=frame[self.parameters['params/ROI x1']:self.parameters['params/ROI x2'],self.parameters['params/ROI y1']:self.parameters['params/ROI y2']]
                 f=numpy.copy(frame)
                 self.f=f
                 if self.machine_config.PLATFORM=='behav':

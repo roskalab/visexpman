@@ -263,6 +263,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
                     if self.sync_recording_duration<0:
                         self.sync_recording_duration=self.machine_config.EXPERIMENT_MAXIMUM_DURATION*60
                     self.start_sync_recording()
+                    if 'Record Eyecamera' in self.parameters and self.parameters['Record Eyecamera']:
+                        self.printl(f'Wait {self.machine_config.CAMERA_START_TIME} seconds until camera starts')
+                        time.sleep(self.machine_config.CAMERA_START_TIME)
 #                    self.send({'trigger':'sync recording started'})
                 if self.machine_config.PLATFORM=='ao_cortical':
                     self.sync_recording_duration=self.parameters['mes_record_time']/1000+1#little overhead making sure that the last sync pulses from MES are recorded
