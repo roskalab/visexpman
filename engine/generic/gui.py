@@ -105,6 +105,7 @@ class VisexpmanMainWindow(Qt.QMainWindow):
         dock.setWidget(widget)
         self.addDockWidget(position, dock)
         dock.setFeatures(dock.DockWidgetMovable | dock.DockWidgetClosable |dock.DockWidgetFloatable)
+        return dock
         
     def _write2statusbar(self,txt):
         self.statusbar.showMessage(txt)

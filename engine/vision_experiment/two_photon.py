@@ -1,4 +1,5 @@
 from pylab import *
+import pyqtgraph
 import os,time, numpy, hdf5io, traceback, multiprocessing, serial, unittest, copy
 import itertools
 import scipy,skimage, tables
@@ -90,12 +91,29 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         #Shrink image inside widget a bit
         #self.image.set_image(numpy.random.random((200, 200, 3)))
         self.image.plot.setLabels(bottom='um', left='um')
+        
+        
+        self.im_container = QtGui.QWidget()
+        l = QtGui.QGridLayout()
+        self.im_container.setLayout(l)
+        l.setSpacing(0)
+        self.histogram=pyqtgraph.HistogramLUTWidget()
+        self.histogram.setImageItem(self.image.img)
+        self.histogram.setMaximumWidth(100)
+        self.histogram.item.setLevels(0, 1)
+        l.addWidget(self.histogram, 0, 1)
+        l.addWidget(self.image, 0, 0)
+        
+
+        
+        
+        
         self.saved_image.plot.setLabels(bottom='um', left='um')
         self.saved_image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
         self.saved_image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
         
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
-        self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.image)
+        self.imgdock=self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.im_container)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
@@ -175,6 +193,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Show Top', 'type': 'bool', 'value': True},
                 {'name': 'Show Side', 'type': 'bool', 'value': True},
                 {'name': 'Show IR', 'type': 'bool', 'value': True},
+                {'name': 'Show Grid', 'type': 'bool', 'value': False},
                 {'name': 'Live', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
                 {'name': 'Saved', 'type': 'group', 'expanded' : False, 'children': channels_group}, 
                 {'name': 'Infrared-2P overlay', 'type': 'group',  'expanded' : False, 'children': [
@@ -207,6 +226,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.params_config.extend(params)
         self.twop_running=False
         self.camera_running=False
+        self.fkwargs={'gamma':1.5}
     
     def parameter_changed(self):
         if(self.z_stack_running):
@@ -487,8 +507,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             else:
                 self.ir_filtered=filter_image(self.ir_frame, self.settings['params/Live/IR/Min'], 
                                                                 self.settings['params/Live/IR/Max'],
-                                                                self.settings['params/Live/IR/Image filters'])*\
-                                                                int(self.settings['params/Show IR'])
+                                                                self.settings['params/Live/IR/Image filters'])*int(self.settings['params/Show IR'])
+                                                                
                                                                 
                 top_filtered=filter_image(self.twop_frame[:,:,0], self.settings['params/Live/Top/Min'], 
                                                                 self.settings['params/Live/Top/Max'],
@@ -545,10 +565,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 else:
                     self.merged=merge_image(self.ir_filtered, twop_filtered, kwargs)
             t3=time.time()
+            histogram_levels=self.histogram.item.getLevels()
+            sg=self.settings['params/Show Grid']
+            self.image.plot.showGrid(sg,sg,10.0)
             if self.settings['params/Show IR'] or self.settings['params/Show Side'] or self.settings['params/Show Top']:
                 self.image.set_image(self.merged)#Swap x, y axis
             else:
                 self.image.set_image(numpy.zeros_like(self.merged))
+            self.histogram.item.setLevels(histogram_levels[0], histogram_levels[1])
             self.frame_counter+=1
             self.image.img.setLevels([0.0,1.0])
             if self.twop_running:
