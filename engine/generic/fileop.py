@@ -263,7 +263,7 @@ def copy(src, dst, update=1):
         dir_util.mkpath(dst)
         return dir_util.copy_tree(src, dst, update=1)
         
-def move2zip(src,dst,delete=False):
+def move2zip(src,dst,delete=False,pwd=None):
     '''
     Zip contents of src and save it to dst. if delete==True, remove src folder
     src can be a list of files
@@ -282,6 +282,8 @@ def move2zip(src,dst,delete=False):
     if os.path.isdir(dst):
         dst=os.path.join(dst,os.path.splitext(os.path.basename(files[0]))[0]+'.zip')
     zf = zipfile.ZipFile(dst, 'w',zipfile.ZIP_DEFLATED)
+    if pwd is not None:
+        zf.setpassword(pwd)
     for f in files:
         zf.write(f, f.replace(root,''))
     zf.close()
