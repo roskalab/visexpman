@@ -9,6 +9,8 @@ from visexpman.engine.hardware_interface import daq,digital_io,openephys, camera
 from visexpman.engine.vision_experiment import gui_engine, main_ui,experiment_data
 from visexpman.engine.analysis import behavioral_data
 
+NEW_FUSI_CONTOL=True
+
 class Camera(gui.VisexpmanMainWindow):
     def __init__(self, context):        
         if QtCore.QCoreApplication.instance() is None:
@@ -137,10 +139,13 @@ class Camera(gui.VisexpmanMainWindow):
                 {'name': 'ROI y2', 'type': 'int', 'value': 400},
                 {'name': 'Recording timeout', 'type': 'float', 'value': 60, 'suffix': 's', 'siPrefix': False, 'decimals':6},
                 {'name': 'fUSI enable', 'type': 'bool', 'value': False},
-                {'name': 'fUSI sampling rate', 'type': 'float', 'value': 5, 'suffix': 'Hz', 'siPrefix': True},
-                {'name': 'fUSI Nimag', 'type': 'int', 'value': 4000},
                 {'name': 'Neuropixel SMA port TRIG', 'type': 'bool', 'value': False},
                     ]
+        if not NEW_FUSI_CONTOL:
+                self.params_config.extend([
+                {'name': 'fUSI sampling rate', 'type': 'float', 'value': 5, 'suffix': 'Hz', 'siPrefix': True},
+                {'name': 'fUSI Nimag', 'type': 'int', 'value': 4000},
+                ])
         self.params_config.extend(params)
         self.openephys_running=False
         
@@ -302,10 +307,13 @@ class Camera(gui.VisexpmanMainWindow):
                 QtCore.QCoreApplication.instance().processEvents()
                 time.sleep(wait_time)
             if self.parameters['params/fUSI enable'] and not manual:
-                fusi_duration=self.parameters['params/fUSI Nimag']/self.parameters['params/fUSI sampling rate']
+                if not NEW_FUSI_CONTOL:
+                    fusi_duration=self.parameters['params/fUSI Nimag']/self.parameters['params/fUSI sampling rate']
+                else:
+                    fusi_duration=0
                 dt=time.time()-self.t0
                 wait_left=utils.roundint(fusi_duration-dt)+self.machine_config.FUSI_RECORDING_OVERHEAD
-                if wait_left>0:
+                if wait_left>0 and not NEW_FUSI_CONTOL:#This should be disabled
                     self.printc(f'Wait {wait_left} s until fUSI finishes')
                     QtCore.QCoreApplication.instance().processEvents()
                     time.sleep(wait_left)
@@ -460,20 +468,21 @@ class Camera(gui.VisexpmanMainWindow):
                 msg+='End of fUSI timing is not recorded! '
                 numpy.diff(self.fusi_timestamps)
             #Emulate fUSI pulses
-            fusi_overhead=4.8*0
-            duration=numpy.diff(self.fusi_timestamps)[0]-fusi_overhead#Measured ~4.8 second
-            if duration<0:
-                duration=0
-            emulated_pulses=numpy.zeros(int(duration*self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
-            period=int(duration/self.parameters['params/fUSI Nimag']*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            if period>1:
-                emulated_pulses[::period]=3.3
-            o=int(self.fusi_timestamps[0]*self.machine_config.SYNC_RECORDER_SAMPLE_RATE+fusi_overhead)
-            self.sync[o:o+emulated_pulses.shape[0], self.machine_config.TFUSI_SYNC_INDEX]+=emulated_pulses
-            self.matdata['sync']=self.sync
-            self.matdata['emulated_fusi_timestamps']=signal.trigger_indexes(self.sync[:,self.machine_config.TFUSI_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
-            self.matdata['emulated_pulses']=emulated_pulses
-            self.matdata['emulated_offset']=o
+            if not NEW_FUSI_CONTOL:
+                fusi_overhead=4.8*0
+                duration=numpy.diff(self.fusi_timestamps)[0]-fusi_overhead#Measured ~4.8 second
+                if duration<0:
+                    duration=0
+                emulated_pulses=numpy.zeros(int(duration*self.machine_config.SYNC_RECORDER_SAMPLE_RATE))
+                period=int(duration/self.parameters['params/fUSI Nimag']*self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+                if period>1:
+                    emulated_pulses[::period]=3.3
+                o=int(self.fusi_timestamps[0]*self.machine_config.SYNC_RECORDER_SAMPLE_RATE+fusi_overhead)
+                self.sync[o:o+emulated_pulses.shape[0], self.machine_config.TFUSI_SYNC_INDEX]+=emulated_pulses
+                self.matdata['sync']=self.sync
+                self.matdata['emulated_fusi_timestamps']=signal.trigger_indexes(self.sync[:,self.machine_config.TFUSI_SYNC_INDEX])/float(self.machine_config.SYNC_RECORDER_SAMPLE_RATE)
+                self.matdata['emulated_pulses']=emulated_pulses
+                self.matdata['emulated_offset']=o
         if len(msg)>0:
             self.printc(msg)
             QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
@@ -682,7 +691,7 @@ class Camera(gui.VisexpmanMainWindow):
                 frame=imgqueue.get()
                 self.frame=frame
                 if self.parameters['params/Enable ROI cut']:
-                    frame=frame[self.parameters['params/ROI x1']:self.parameters['params/ROI x2'],self.parameters['params/ROI y1']:self.parameters['params/ROI y2']]
+                    frame=frame[self.parameters['ROI x1']:self.parameters['ROI x2'],self.parameters['ROI y1']:self.parameters['ROI y2']]
                 f=numpy.copy(frame)
                 self.f=f
                 if self.machine_config.PLATFORM=='behav':
@@ -753,8 +762,11 @@ class Camera(gui.VisexpmanMainWindow):
             #calculate the recording timeout from fusi frame rate and number of images
             if hasattr(self, 'tstart') and self.recording:
                 dt=time.time()-self.tstart
-                fusitimeout=240+self.parameters['params/fUSI Nimag']/self.parameters['params/fUSI sampling rate']
-                to=fusitimeout if self.parameters['params/fUSI enable'] else self.parameters['params/Recording timeout']
+                if not NEW_FUSI_CONTOL:
+                    fusitimeout=240+self.parameters['params/fUSI Nimag']/self.parameters['params/fUSI sampling rate']
+                    to=fusitimeout if self.parameters['params/fUSI enable'] else self.parameters['params/Recording timeout']
+                else:
+                    to=self.parameters['params/Recording timeout']
                 if dt>to:
                     self.printc(f'Stimulus timeout: {to} seconds')
                     self.stop_recording(manual=False)
