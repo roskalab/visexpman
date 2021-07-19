@@ -128,6 +128,7 @@ class Camera(gui.VisexpmanMainWindow):
             trigger_value='manual'
             params=[]
         self.params_config = [
+                {'name': 'Experiment Name', 'type': 'str', 'value': ''},
                 {'name': 'Trigger', 'type': 'list', 'values': ['file','manual', 'network', 'TTL pulses'], 'value': trigger_value},
                 {'name': 'Enable trigger', 'type': 'bool', 'value': False,   'readonly': not self.machine_config.ENABLE_TRIGGERING}, 
                 {'name': 'Frame Rate', 'type': 'float', 'value': 50, 'siPrefix': True, 'suffix': 'Hz'},
@@ -176,6 +177,9 @@ class Camera(gui.VisexpmanMainWindow):
                 QtGui.QMessageBox.question(self, 'Warning', msg, QtGui.QMessageBox.Ok)
                 return
             self.recording=True
+            self.experiment_name_tag=self.parameters['params/Experiment Name']
+            if ',' in self.experiment_name_tag or ':' in self.experiment_name_tag:
+                raise ValueError('Please do not use these characters in experiment name: \',:,;')
             self.printc('Start video recording')
             self.statusbar.recording_status.setStyleSheet('background:yellow;')
             self.statusbar.recording_status.setText('Preparing')
@@ -225,11 +229,11 @@ class Camera(gui.VisexpmanMainWindow):
                 if not os.path.exists(outfolder):
                     os.makedirs(outfolder)
                 id=experiment_data.get_id()
-                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.avi')
-                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.avi')
+                self.cam1fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM1FILENAME_TAG,extension='.avi')
+                self.cam2fn=experiment_data.get_recording_path(self.machine_config, {'outfolder': outfolder,  'id': id, 'tag': self.experiment_name_tag},prefix = self.machine_config.CAM2FILENAME_TAG,extension='.avi')
                 self.metadatafn=fileop.replace_extension(self.cam1fn, '.mat')
-            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER:
-                tag=id
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.parameters['params/Neuropixel SMA port TRIG'] :
+                tag=f'{self.experiment_name_tag}_{id}'
                 if not openephys.start_recording(self.machine_config.OPENEPHYS_COMPUTER_IP, tag=tag):
                     self.printc('Openephys cannot be triggered, is it started?')
                 else:
@@ -267,7 +271,7 @@ class Camera(gui.VisexpmanMainWindow):
                 daq.set_digital_line(self.machine_config.MC_STOP_TRIGGER,1)
             if self.machine_config.ENABLE_STIM_UDP_TRIGGER:
                 fusi_enable='fUSI' if  self.parameters['params/fUSI enable'] else ''
-                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{id},{fusi_enable}')
+                utils.send_udp(self.machine_config.STIM_COMPUTER_IP,self.machine_config.STIM_TRIGGER_PORT,f'start,{self.experiment_name_tag}_{id},{fusi_enable}')
                 self.printc('Sent trigger to Psychotoolbox')
             import psutil
             p = psutil.Process(self.camera1handler.pid)
@@ -376,7 +380,7 @@ class Camera(gui.VisexpmanMainWindow):
             self.printc('Save time {0} s'.format(int(time.time()-t0-wait_left)))
             if hasattr(self, 'fps_values') and self.fps_values.shape[0]<10:
                 self.printc('Recording too short, file removed')
-            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.openephys_running:
+            if self.machine_config.ENABLE_OPENEPHYS_TRIGGER and self.openephys_running and self.parameters['params/Neuropixel SMA port TRIG'] :
                 self.openephys_running=False
                 time.sleep(self.machine_config.OPENEPHYS_PRETRIGGER_TIME)
                 self.printc('Stop Openephys')

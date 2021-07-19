@@ -43,7 +43,7 @@ def add_mat_tag(fn):
 
 def get_recording_name(parameters, separator):
     name = ''
-    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter']:
+    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'stimclass', 'id', 'counter', 'tag']:
         if k in parameters and parameters[k]!='':
             name += str(parameters[k])+separator
     return name[:-1]
