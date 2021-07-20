@@ -49,7 +49,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.debug = gui.Debug(self)
         
         
-        self.image = gui.Image(self)
+        
         
         self.main_tab = QtGui.QTabWidget(self)
         self.params = gui.ParameterTable(self, self.params_config)
@@ -86,34 +86,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
         self.main_tab.setMinimumHeight(self.machine_config.GUI_HEIGHT * 0.5)
         self.debug.setMaximumHeight(self.machine_config.GUI_HEIGHT * 0.3)
-        self.image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
-        self.image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
-        #Shrink image inside widget a bit
-        #self.image.set_image(numpy.random.random((200, 200, 3)))
-        self.image.plot.setLabels(bottom='um', left='um')
         
-        
-        self.im_container = QtGui.QWidget()
-        l = QtGui.QGridLayout()
-        self.im_container.setLayout(l)
-        l.setSpacing(0)
-        self.histogram=pyqtgraph.HistogramLUTWidget()
-        self.histogram.setImageItem(self.image.img)
-        self.histogram.setMaximumWidth(100)
-        self.histogram.item.setLevels(0, 1)
-        l.addWidget(self.histogram, 0, 1)
-        l.addWidget(self.image, 0, 0)
         
 
         
-        
+        self.create_image_widget(dock=True)
         
         self.saved_image.plot.setLabels(bottom='um', left='um')
         self.saved_image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
         self.saved_image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
         
         self._add_dockable_widget('Main', QtCore.Qt.LeftDockWidgetArea, QtCore.Qt.LeftDockWidgetArea, self.main_tab)
-        self.imgdock=self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.im_container)
         self._add_dockable_widget('Debug', QtCore.Qt.BottomDockWidgetArea, QtCore.Qt.BottomDockWidgetArea, self.debug)
         
         self.context_filename = fileop.get_context_filename(self.machine_config,'npy')
@@ -155,6 +138,29 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.update_image_enable=True
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
+            
+    def create_image_widget(self, dock):
+        self.image = gui.Image(self)
+        self.image.setMinimumWidth(self.machine_config.GUI_WIDTH * 0.4)                
+        self.image.setMinimumHeight(self.machine_config.GUI_WIDTH * 0.4)                
+        #Shrink image inside widget a bit
+        #self.image.set_image(numpy.random.random((200, 200, 3)))
+        self.image.plot.setLabels(bottom='um', left='um')
+        
+        
+        self.im_container = QtGui.QWidget()
+        l = QtGui.QGridLayout()
+        self.im_container.setLayout(l)
+        l.setSpacing(0)
+        self.histogram=pyqtgraph.HistogramLUTWidget()
+        self.histogram.setImageItem(self.image.img)
+        self.histogram.setMaximumWidth(100)
+        self.histogram.item.setLevels(0, 1)
+        l.addWidget(self.histogram, 0, 1)
+        l.addWidget(self.image, 0, 0)
+        if dock:
+            self.imgdock=self._add_dockable_widget('Image', QtCore.Qt.RightDockWidgetArea, QtCore.Qt.RightDockWidgetArea, self.im_container)
+        
     
     def _init_variables(self):
         params=[]
@@ -485,8 +491,42 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.ridt=[]
         self.ridt.append(dt)
         self.ridt=self.ridt[-10:]
+        
+    def calculate_actual_zoom(self):
+        fov=self.image.plot.viewRange()
+        self.merged.shape
+        self.imscale
+        actual_zoom=self.imscale*numpy.array(self.merged.shape[:2])/numpy.diff(numpy.array(self.image.plot.viewRange()),axis=1)[:,0]
+#        if actual_zoom[0]!=actual_zoom[1]:
+#            raise NotImplementedError()
+        self.actual_zoom=actual_zoom[0]
+        return actual_zoom[0]
+        
+    def read_2p_zoom_range(self):
+        if len(self.image.rois)>0 and (self.settings['params/Show Top'] or self.settings['params/Show Side']) and not self.settings['params/Show IR']:
+            self.image.rois[0].size()#TODO: how to handle non centered roi?
+            self.image.rois[0].x()
+            self.image.rois[0].y()#All these values are in um
+            
+    def popup_image_widget(self):
+        '''
+        If image widget's postion changes, its size is increased to the main GUI's size
+        '''
+        if not hasattr(self, 'default_img_pos'):
+            self.default_img_pos=[self.imgdock.geometry().x(),  self.imgdock.geometry().y()]
+            self.popup_state=False
+        gref=[self.imgdock.geometry().x(), self.imgdock.geometry().y()]
+        if gref[:2]!=self.default_img_pos and not self.popup_state:
+            g=self.geometry()
+            self.imgdock.setGeometry(g.x(), g.y()+100, g.width(), g.height()-100)
+            self.popup_state=True
+            self.printc('popup image widget')
+        elif gref[:2]==self.default_img_pos and self.popup_state:
+            self.popup_state=False
+            
     
     def update_image(self):
+        self.popup_image_widget()
         t0=time.time()
         if not self.update_image_enable:
             return
@@ -501,7 +541,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.printc(f'Incorrect scan window! {self.twop_frame.shape}, {h}, {w}')
                 #QtGui.QMessageBox.question(self, 'Warning', 'Incorrect scan window!', QtGui.QMessageBox.Ok)
                 #return
-                
             if not hasattr(self, 'twop_frame'):
                 self.merged=self.ir_filtered
             else:
