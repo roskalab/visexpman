@@ -120,8 +120,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.update_image_timer.timeout.connect(self.update_image)
         self.update_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         
-        self.image_update_in_progress=False
-        
         self.read_image_timer=QtCore.QTimer()
         self.read_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         self.read_image_timer.timeout.connect(self.read_image)
@@ -135,7 +133,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                             'data': multiprocessing.Queue()}
         
         self.printc(f'pid: {os.getpid()}')
-        self.update_image_enable=True
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
             
@@ -180,13 +177,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         image_filters=['', 'autoscale', 'gamma', 'mean', 'MIP', 'median',  'histogram equalization']
         file_formats=['.mat',  '.hdf5', '.tiff']
         
-        minmax_group=[{'name': 'Min', 'type': 'float', 'value': 0.0,},
-                                    {'name': 'Max', 'type': 'float', 'value': 1.0,}, 
-                                    {'name': 'Image filters', 'type': 'list', 'value': '',  'values': image_filters},]
+#        minmax_group=[{'name': 'Min', 'type': 'float', 'value': 0.0,},
+#                                    {'name': 'Max', 'type': 'float', 'value': 1.0,}, 
+#                                    {'name': 'Image filters', 'type': 'list', 'value': '',  'values': image_filters},]
                                     
-        channels_group=[{'name': 'Top', 'type': 'group', 'expanded' : False, 'children': minmax_group}, 
-                                    {'name': 'Side', 'type': 'group', 'expanded' : False, 'children': minmax_group},
-                                    {'name': 'IR', 'type': 'group', 'expanded' : False, 'children': minmax_group}]
+        channels_group=[{'name': 'Top Image filters', 'type': 'list', 'value': '',  'values': image_filters}, 
+                                {'name': 'Side Image filters', 'type': 'list', 'value': '',  'values': image_filters}, 
+                                {'name': 'IR Image filters', 'type': 'list', 'value': '',  'values': image_filters}, 
+                                ]
         
         self.params_config = [
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 8), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
@@ -196,6 +194,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Live IR', 'type': 'bool', 'value': False},
                 {'name': 'IR Exposure', 'type': 'float', 'value': 50, 'limits': (1, 1000), 'siPrefix': True, 'suffix': 'ms',  'decimals': 6},
                 {'name': 'IR Gain', 'type': 'float', 'value': 1, 'limits': (0, 1000),  'decimals': 6},
+                {'name': 'IR Zoom', 'type': 'list', 'value': '1x', 'values': ['1x', '2x', '3x','6x']},
                 {'name': 'Show Top', 'type': 'bool', 'value': True},
                 {'name': 'Show Side', 'type': 'bool', 'value': True},
                 {'name': 'Show IR', 'type': 'bool', 'value': True},
@@ -233,6 +232,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.twop_running=False
         self.camera_running=False
         self.fkwargs={'gamma':1.5}
+        self.update_image_enable=True
+        self.image_update_in_progress=False
     
     def parameter_changed(self):
         if(self.z_stack_running):
@@ -266,7 +267,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.printc("2p img settings changed")
             
                     
-                    
+            #IR Zoom
+            if 'params/IR Zoom' in self.settings and self.settings['params/IR Zoom']!=newparams['params/IR Zoom']:
+                if newparams['params/IR Zoom']=='1x':
+                    self.camera.set_fov(6,[0,0,2160,2160])
+                elif newparams['params/IR Zoom']=='2x':
+                    self.camera.set_fov(3,[1080-540,1080-540,1080+540,1080+540]) 
+                elif newparams['params/IR Zoom']=='3x':
+                    self.camera.set_fov(2,[1080-360,1080-360,1080+360,1080+360]) 
+                elif newparams['params/IR Zoom']=='6x':
+                    self.camera.set_fov(1,[1080-180,1080-180,1080+180,1080+180]) 
+#                self.update_image()
+#                self.image.plot.autoRange()
 #                period = newparams['Image Width'] * newparams['Resolution'] / self.machine_config.AO_SAMPLE_RATE - self.shortest_sample
 #                self.params.params.param('Projector Control Phase').items.keys()[0].param.setLimits((-period, period - newparams['Projector Control Pulse Width']))
 #                self.params.params.param('Projector Control Pulse Width').items.keys()[0].param.setLimits((self.shortest_sample, period))
@@ -347,6 +359,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     self.settings['params/Advanced/Y Return Time'],\
                                                                     pulse_width,\
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
+        waveform_x, self.boundaries=self.waveform_generator.generate_smooth(int(self.settings['params/Scan Height']), \
+                                                                                        int(self.settings['params/Scan Width']), \
+                                                                                        self.settings['params/Resolution'],\
+                                                                                        self.settings['params/Advanced/X Return Time'],\
+                                                                                        self.settings['params/Advanced/Y Return Time'])
         if self.settings['params/Advanced/Enable scanners']=='X':
             waveform_y*=0
             waveform_y+=self.settings['params/Advanced/Y scanner voltage']
@@ -370,6 +387,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
         self.printc(f'X scanner frequency: {frq_xscan} Hz')
         self.twop_fps=fps
+        self.intensities=[]
     
     def start_action(self):
         try:
@@ -377,7 +395,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.prepare_2p()
             self.printc('2p scanning started')
             self.frame_counter=0
-            self.intensities=[]
         except:
             self.printc(traceback.format_exc())
         
@@ -544,19 +561,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if not hasattr(self, 'twop_frame'):
                 self.merged=self.ir_filtered
             else:
-                self.ir_filtered=filter_image(self.ir_frame, self.settings['params/Live/IR/Min'], 
-                                                                self.settings['params/Live/IR/Max'],
-                                                                self.settings['params/Live/IR/Image filters'])*int(self.settings['params/Show IR'])
+                self.ir_filtered=filter_image(self.ir_frame,
+                                                                self.settings['params/Live/IR Image filters'])*int(self.settings['params/Show IR'])
                                                                 
                                                                 
-                top_filtered=filter_image(self.twop_frame[:,:,0], self.settings['params/Live/Top/Min'], 
-                                                                self.settings['params/Live/Top/Max'],
-                                                                self.settings['params/Live/Top/Image filters'])*\
+                top_filtered=filter_image(self.twop_frame[:,:,0],
+                                                                self.settings['params/Live/Top Image filters'])*\
                                                                 int(self.settings['params/Show Top'])
 
-                side_filtered=filter_image(self.twop_frame[:,:,1], self.settings['params/Live/Side/Min'], 
-                                                                self.settings['params/Live/Side/Max'],
-                                                                self.settings['params/Live/Side/Image filters'])*\
+                side_filtered=filter_image(self.twop_frame[:,:,1], 
+                                                                self.settings['params/Live/Side Image filters'])*\
                                                                 int(self.settings['params/Show Side'])
                 if self.settings['params/Averaging samples']>1:#TODO: implement this for both channels
                     if not hasattr(self, 'moving_average_buffer') or self.moving_average_buffer.shape[1:]!=top_filtered.shape or self.navg!=int(self.settings['params/Averaging samples']):
@@ -646,8 +660,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.image.plot.setFixedWidth(w*0.9)
             if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and not self.settings['params/Show IR']:
                 self.imscale=1/self.settings['params/Resolution']#Only 2p image is shown
+            elif (not self.settings['params/Show Top'] and not self.settings['params/Show Side']) and self.settings['params/Show IR']:#Only IR is shown
+                self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale']*int(self.settings['params/IR Zoom'][0]))
             else:#IR is also shown
                 self.imscale=1/(self.machine_config.REFERENCE_2P_RESOLUTION*self.settings['params/Infrared-2P overlay/Scale'])
+            if (self.settings['params/Show Top'] or self.settings['params/Show Side']) and self.settings['params/IR Zoom']!='1x':
+                self.printc('Set IR Zoom to 1x or disable showing 2p channels')
             self.image.set_scale(self.imscale)
         except:
             if not hasattr(self, 'update_image_error_shown'):
@@ -969,13 +987,13 @@ def merge_image(ir_image, twop_image, kwargs):
     merged[:, :, :]+=numpy.stack((ir_image,)*3,axis=-1)*numpy.array([two_p_sw_gain_conj, two_p_sw_gain_conj, two_p_sw_gain_conj])
     return merged
     
-def filter_image(image, min_, max_, filter, gamma=0.25):
+def filter_image(image, filter, gamma=0.25):
     if image.dtype==numpy.uint16:
         image_=image/(2**12-1)
     else:
         image_=image
     #Scale input image to min_,max_ range
-    scaled=(numpy.clip(image_, min_, max_)-min_)/(max_-min_)
+    scaled=image_#(numpy.clip(image_, min_, max_)-min_)/(max_-min_)
     if filter=='':
         filtered=scaled
     elif filter=='histogram equalization':

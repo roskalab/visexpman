@@ -67,6 +67,8 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
         instrument.InstrumentProcess.__init__(self,self.queues,logfile)
         self.control=multiprocessing.Queue()
         self.data=multiprocessing.Queue()
+        self.downsample=6
+        self.fov_roi=roi
         
     def start_(self):
         self.queues['command'].put('start')
@@ -76,6 +78,9 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
         
     def set(self, **kwargs):
         self.queues['command'].put(('set',list(kwargs.keys())[0],list(kwargs.values())[0]))
+        
+    def set_fov(self, ds, roi):
+        self.queues['command'].put((['downsample',ds, roi]))
         
     def read(self):
         if not self.queues['data'].empty():
@@ -109,11 +114,14 @@ class ThorlabsCameraProcess(ThorlabsCamera, instrument.InstrumentProcess):
                         kwarg={cmd[1]:cmd[2]}
                         ThorlabsCamera.set(self,**kwarg)
                         self.printl(f'gain: {self.camera.gain}, exp: {self.camera.exposure_time_us}')
+                    elif cmd[0]=='downsample':
+                        self.downsample=cmd[1]
+                        self.fov_roi=cmd[2]
                 if self.running:
                     frame=self.get_frame()
                     if self.queues['data'].empty() and frame is not None:#Send frame when queue empty (previous frame was taken
-                        if frame.shape[0]>504:
-                            frame=frame[::4, ::4]
+                        if frame.shape[0]>504 or 1:
+                            frame=frame[self.fov_roi[0]:self.fov_roi[2], self.fov_roi[1]:self.fov_roi[3]][::self.downsample, ::self.downsample]
                         self.queues['data'].put(frame)
                 time.sleep(50e-3)
             except:
