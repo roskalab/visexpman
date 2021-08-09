@@ -205,6 +205,8 @@ class StimulationScreen(graphics.Screen):
                     amp=1-self.stim_context['background_color']
                     mask*=amp
                     mask+=self.stim_context['background_color']-1/255.
+                    if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
+                        mask=self.machine_config.GAMMA_CORRECTION(mask)
                     self.render_image(mask, position = sc, stretch = self.bullseye_stretch_factor*self.bullseye_size)
         else:
             if hasattr(self, 'be'):
