@@ -727,6 +727,8 @@ class ExperimentHandler(object):
                     hh.parameters=copy.deepcopy(self.current_experiment_parameters)
                     hh.software_environment=experiment_data.pack_software_environment()
                     hh.machine_config=self.machine_config.todict()
+                    if 'GAMMA_CORRECTION' in hh.machine_config:
+                        del hh.machine_config['GAMMA_CORRECTION']
                     kdel=[]
                     for k, v in hh.parameters.items():
                         if v is None:
