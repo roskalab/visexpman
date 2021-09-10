@@ -730,7 +730,7 @@ def extract_mouse_position(im, channel,threshold=100):
     x,y=numpy.nonzero(mask)
     return x.mean(), y.mean()
     
-def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold=0.6, value_threshold=0.4, debug=False):
+def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold=0.6, value_threshold=0.4, debug=False, dim_red=False):
     from skimage.color import rgb2hsv
     result=True
     #Clear watermark which is used for video integrity check
@@ -782,7 +782,10 @@ def mouse_head_direction(image, threshold=80,  roi_size=20, saturation_threshold
         blue=numpy.array([numpy.NaN, numpy.NaN])
         result=False
     try:
-        red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<0.05,  roi[:, :, 0]>0.95), roi[:, :, 1]>saturation_threshold))])
+        if not dim_red:
+            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<0.05,  roi[:, :, 0]>0.95), roi[:, :, 1]>saturation_threshold))])
+        else:#Allow dim red
+            red=numpy.array([int(c.mean()) for c in numpy.where(numpy.logical_and(numpy.logical_or(roi[:, :, 0]<0.05,  roi[:, :, 0]>0.95), roi[:, :, 2]>0.1))])#Detect dim red light
         red+=coo-roi_size
         animal_position+=red
         led_ct+=1

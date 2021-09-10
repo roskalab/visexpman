@@ -460,7 +460,7 @@ class ExperimentHandler(object):
                         
     def check_file_trigger(self):
         if hasattr(self,  'file_trigger_handler') and not self.experiment_running:
-            self.file_trigger_handler.extension='.mcd'
+            self.file_trigger_handler.extension=self.machine_config.FILE_TRIGGER_EXTENSION
             self.file_trigger_handler.subfolders=False
             trig, self.trigger_filename=self.file_trigger_handler.check()
             if self.guidata.read('Enable File Trigger') and trig:
@@ -604,8 +604,9 @@ class ExperimentHandler(object):
             #Copy mcd file to outfolder:
             time.sleep(10)
             mcd_finished=self.current_experiment_parameters.get('stop_trigger',False) or ('stop_trigger' not in self.current_experiment_parameters)
+            self.printc(mcd_finished)
             if not self.aborted and 'mcd_file' in self.current_experiment_parameters and mcd_finished:
-                dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], '.mcd')
+                dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.machine_config.FILE_TRIGGER_EXTENSION)
                 tag=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']))[0]
                 dst=os.path.join(os.path.dirname(dst),os.path.basename(dst).replace('data',tag))
                 self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
