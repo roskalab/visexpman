@@ -321,7 +321,7 @@ class WebCamera(instrument.InstrumentProcess):
                 if hasattr(self, 'video_writer'):
                     if len(frame.shape)==2:
                         frame=numpy.rollaxis(numpy.array([fr]*3),0,3).copy()
-                    self.video_writer.writeFrame(frame)
+                    self.video_writer.writeFrame(numpy.rot90(numpy.rot90(numpy.fliplr(numpy.flipud(frame)))))
                 #Digital pulse indicates video save time
                 if self.digital_line is not None:
                     digital_output.WriteDigitalLines(1,True,1.0,DAQmxConstants.DAQmx_Val_GroupByChannel,numpy.array([0], dtype=numpy.uint8),None,None)

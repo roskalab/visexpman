@@ -608,11 +608,14 @@ class SaverProcess(multiprocessing.Process):
                                 for fr in chunk:
                                     if len(fr.shape)==2:
                                         frout=numpy.rollaxis(numpy.array([fr]*3),0,3).copy()
-                                        self.video_writer.writeFrame(frout)
+                                        self.video_writer.writeFrame(numpy.rot90(numpy.rot90(numpy.flipud(frout))))
                                     else:
+                                        fout=fr.copy()
+                                        fout[:, :, 0]=fr[:, :, 2]
+                                        fout[:, :, 2]=fr[:, :, 0]
 #                                        fileop.write_text_file(r'f:\tmp\erro1.txt',str(fr.shape))
 #                                        fileop.write_text_file(r'f:\tmp\erro2.txt',str(fr.dtype))
-                                        self.video_writer.writeFrame(fr.copy())
+                                        self.video_writer.writeFrame(numpy.rot90(numpy.rot90(numpy.flipud(fr.copy()))))
                         chunk=[]
                         break
                     else:
@@ -627,11 +630,14 @@ class SaverProcess(multiprocessing.Process):
                                 for fr in chunk:
                                     if len(fr.shape)==2:
                                         frout=numpy.rollaxis(numpy.array([fr]*3),0,3).copy()
-                                        self.video_writer.writeFrame(frout)
+                                        self.video_writer.writeFrame(numpy.rot90(numpy.rot90(numpy.flipud(frout))))
                                     else:
 #                                        fileop.write_text_file(r'f:\tmp\erro1.txt',str(fr.shape))
 #                                        fileop.write_text_file(r'f:\tmp\erro2.txt',str(fr.dtype))
-                                        self.video_writer.writeFrame(fr.copy())
+                                        fout=fr.copy()
+                                        fout[:, :, 0]=fr[:, :, 2]
+                                        fout[:, :, 2]=fr[:, :, 0]
+                                        self.video_writer.writeFrame(numpy.rot90(numpy.rot90(numpy.flipud(fout.copy()))))
                                     log+=str(fr.shape)+'\r\n'
                             chunk=[]
                         else:
