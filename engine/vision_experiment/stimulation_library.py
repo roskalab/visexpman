@@ -97,7 +97,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if self.machine_config.ENABLE_CHECK_ABORT:
             self.check_abort()
         if hasattr(self, 'write2video') and self.write2video:
-            self.video_writer.writeFrame(self.screen.get_frame())
+            self.video_writer.writeFrame(graphics.get_frame(self.config))
         
     def _get_frame_index(self):
         if not hasattr(self, 't0'):
