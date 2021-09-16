@@ -42,6 +42,15 @@ def get_screens_info():
         res_array.append((width, height))
     return res_array
     
+def get_frame(config):
+    pixels = glReadPixels(0, 0, config.SCREEN_RESOLUTION['col'], config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
+    try:
+        frame = Image.fromstring('RGB', (config.SCREEN_RESOLUTION['col'], config.SCREEN_RESOLUTION['row']), pixels)
+    except:
+        frame = Image.frombytes('RGB', (config.SCREEN_RESOLUTION['col'], config.SCREEN_RESOLUTION['row']), pixels)
+    frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
+    return numpy.asarray(frame).copy()
+    
 
 class Screen(object):
     """
@@ -480,7 +489,7 @@ class Screen(object):
         except:
             frame = Image.frombytes('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
         frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
-        return numpy.asarray(frame)
+        return get_frame(self.config)
         
     def cuboid_vertices(self, sizes):
         vertices = numpy.array([
