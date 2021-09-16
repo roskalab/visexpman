@@ -105,6 +105,30 @@ class ScannerWaveform(object):
         projector_control[-1]=0
         return waveform_x,  waveform_y, projector_control, frame_timing, boundaries
         
+    def generate_smooth(self, height, width, resolution, xflyback, yflyback):
+        def smooth(x,h):
+            return x - ( smooth_core(x,h)/2+     numpy.floor(x+0.5)-0.5 )
+
+        def smooth_core(x,h):
+            return numpy.tanh((   (x+0.5)-numpy.floor(x+0.5)-0.5)*h   )
+        nxscans=utils.roundint(height * resolution)+int(yflyback)
+        samples_per_xscan=int(utils.roundint(width * resolution)*((100+xflyback)*1e-2+self.LINE_SCAN_EXTENSION))
+        x=numpy.linspace(0,nxscans,nxscans*samples_per_xscan)
+        h=20
+        wf=(smooth(x,h)-0.5)*self.scan_voltage_um_factor*width
+        first_zero_crossing=numpy.nonzero(numpy.diff(numpy.sign(wf)))[0][1]
+        offset=int(first_zero_crossing-0.5*utils.roundint(width * resolution))
+        scan_mask=numpy.zeros(samples_per_xscan)
+        scan_mask[offset:offset+utils.roundint(width * resolution)]=1
+        scan_mask=numpy.tile(scan_mask,nxscans )
+        scan_mask[-2*samples_per_xscan:]=0
+        boundaries = numpy.nonzero(numpy.diff(scan_mask))[0]+1
+#        from pylab import plot, show
+#        plot(wf);plot(scan_mask);show()
+#        pdb.set_trace()
+        
+        return wf, boundaries
+        
 def binning_data(data, factor):
     '''
     data: two dimensional pmt data : 1. dim: pmt signal's time axis, 2. dim: channel
@@ -182,7 +206,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
     
     def data2file(self,readout):
         #Scale readout
-        clipped=numpy.clip(readout,self.data_range_min,self.data_range_max)
+        clipped=numpy.clip(readout[:2],self.data_range_min,self.data_range_max)
         scaled=numpy.cast['uint16'](clipped*self.to16bit)
         if self.frame_chunk_size>1:
             split_data=numpy.split(scaled, (numpy.arange(self.frame_chunk_size,dtype=numpy.int)*int(readout.shape[1]/self.frame_chunk_size))[1:],axis=1)
@@ -503,6 +527,14 @@ class Test(unittest.TestCase):
         pulse_phase=0
         sw=ScannerWaveform(fsample=fsample, scan_voltage_um_factor=scan_voltage_um_factor, projector_control_voltage=3.3, frame_timing_pulse_width=frame_timing_pulse_width)
         waveform_x, waveform_y, projector_control, frame_timing, boundaries= sw.generate(height, width, resolution, xflyback, yflyback, pulse_width, pulse_phase)
+        
+        
+        from pylab import plot, show
+        plot(waveform_x)
+        plot(sw.generate_smooth(height, width, resolution, xflyback, yflyback))
+        plot(projector_control)
+        show()
+#        pdb.set_trace()
 
 if __name__ == "__main__":
     unittest.main()

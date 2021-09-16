@@ -391,6 +391,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
     def start_action(self):
         try:
+            if self.twop_running:
+                self.stop_action()
             self.filename=None
             self.prepare_2p()
             self.printc('2p scanning started')
@@ -419,8 +421,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
     def record_action(self):
         try:
+            if self.twop_running:
+                self.stop_action()
             params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
             self.filename=experiment_data.get_recording_path(self.machine_config,params, '2p')
+            if self.filename is  None:
+                raise ValueError()
             self.prepare_2p()
             self.printc('2p recording started, saving data to {0}'.format(self.filename))
         except:
@@ -683,6 +689,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.aio.stop()
                 self.twop_running=False
                 self.printc('2p scanning stopped')
+                if self.filename is not None:
+                    if not os.path.exists(self.filename):
+                        raise IOError(f'{self.filename} is not saved')
             self.statusbar.twop_status.setText('Ready')
             self.statusbar.twop_status.setStyleSheet('background:gray;')
         except:

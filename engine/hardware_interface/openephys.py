@@ -24,7 +24,7 @@ def start_recording(ip=None,  tag=""):
         return True
     except:
         import traceback
-        print(traceback.format_ext())
+        print(traceback.format_exc())
         return False
     
     

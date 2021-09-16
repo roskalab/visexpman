@@ -815,33 +815,33 @@ class MainUI(gui.VisexpmanMainWindow):
         
         name_name='Name' if not hasattr(self.machine_config,  'NAME_FIELD_NAME') else self.machine_config.NAME_FIELD_NAME
         
-        if self.machine_config.PLATFORM in ['elphys']:
-            stimulus_types=['visexpman stim', 'Psychotoolbox', 'Electric stimulus', 'Uniblitz']
-        else:
-            stimulus_types=['visexpman stim']
+#        stimulus_types=['', 'Psychotoolbox', ]
+        
         self.params_config = [
                 {'name': 'Experiment', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['2p', 'mc_mea', 'generic'], 'children': [#'expanded' : True
                     {'name': name_name, 'type': 'str', 'value': ''},
                     {'name': 'Animal', 'type': 'str', 'value': ''},
                     ]},
                 {'name': 'Stimulus', 'type': 'group', 'expanded' : self.machine_config.PLATFORM in ['elphys', 'mc_mea', 'ao_cortical'], 'children': [#'expanded' : True                    
-                    {'name': 'Stimulus Device', 'type': 'list', 'values': stimulus_types, 'value': ''}, 
+                    {'name': 'Enable Psychotoolbox', 'type': 'bool', 'value': False},
                     {'name': 'Grey Level', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': '%'},
                     {'name': 'Bullseye On', 'type': 'bool', 'value': False},
                     {'name': 'Bullseye Size', 'type': 'float', 'value': 100.0, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square','gaussian spot'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
+                    {'name': 'Bullseye Shape', 'type': 'list', 'values': ['bullseye', 'spot', 'L', 'square'], 'value': 'bullseye', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Stimulus Center X', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     {'name': 'Stimulus Center Y', 'type': 'float', 'value': 0.0, 'siPrefix': True, 'suffix': 'um', 'readonly': self.machine_config.PLATFORM=='mc_mea'},
                     ]},
                     ]
-        if self.machine_config.PLATFORM in ['elphys']:
-            uniblitz_parameters=[
-                                        {'name': 'Flash time', 'type': 'float', 'value': 1.0,  'suffix': 's'},
-                                        {'name': 'Flash period', 'type': 'float', 'value': 5.0,  'suffix': 's'},
-                                        {'name': 'N pulses', 'type': 'int', 'value': 10},
-                                        ]
-            
-            self.params_config[1]['children']=self.params_config[1]['children'][:1]+uniblitz_parameters+self.params_config[1]['children'][1:]
+#        if self.machine_config.PLATFORM in ['elphys']:
+#            self.params_config[1]['children'].append(
+#            
+#            
+#            
+#            
+#            
+#            
+#            
+#                                    )
         if len(fw1)>0:
             self.params_config[1]['children'].append({'name': 'Filterwheel', 'type': 'list', 'values': fw1, 'value': ''})
         if len(fw2)>0:
@@ -884,7 +884,7 @@ class MainUI(gui.VisexpmanMainWindow):
                                 
 #                                {'name': 'Clamp Voltage', 'type': 'float', 'value': 0.0,  'suffix': ' mV'},
 #                                {'name': 'Clamp Current', 'type': 'float', 'value': 0.0,  'suffix': ' pA'},
-                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/pA'},
+                                {'name': 'Current Gain', 'type': 'float', 'value': 0.5,  'suffix': 'V/nA'},
                                 {'name': 'Voltage Gain', 'type': 'float', 'value': 100.0, 'suffix': 'mV/mV'}, 
 #                                {'name': 'Current Command Sensitivity', 'type': 'float', 'value': 400,  'suffix': 'pA/V'},
 #                                {'name': 'Voltage Command Sensitivity', 'type': 'float', 'value': 20.0, 'suffix': 'mV/V'}, 
@@ -893,6 +893,7 @@ class MainUI(gui.VisexpmanMainWindow):
                                 {'name': 'Y min', 'type': 'float', 'value': 0},
                                 {'name': 'Y max', 'type': 'float', 'value': 10},
                                 {'name': 'Stimulus', 'type': 'group', 'expanded' : True, 'children': [
+                                    {'name': 'Enable', 'type': 'bool', 'value': False},
                                     {'name': 'Protocol', 'type': 'list', 'value': '',  'values': protocols},
                                     {'name': 'Amplitudes', 'type': 'str', 'value': ''},
                                     {'name': 'Amplitude unit', 'type': 'list', 'value': 'pA',  'values': ['pA', 'mV']},
