@@ -542,7 +542,7 @@ class MainUI(gui.VisexpmanMainWindow):
         elif self.machine_config.PLATFORM =='behav':
             toolbar_buttons = ['start_experiment', 'stop', 'refresh_stimulus_files', 'exit']
         elif self.machine_config.PLATFORM =='elphys':
-            toolbar_buttons = ['start_experiment', 'stop', 'exit']
+            toolbar_buttons = ['start_experiment', 'stop', 'backup_data', 'exit']
         elif self.machine_config.PLATFORM =='erg':
             toolbar_buttons = ['start_experiment', 'stop', 'exit']
         elif self.machine_config.PLATFORM =='generic':
@@ -1045,6 +1045,9 @@ class MainUI(gui.VisexpmanMainWindow):
             foldername=foldername.replace('/','\\')
         self.to_engine.put({'function': 'set_data_folder', 'args':[foldername]})
         self.to_engine.put({'data': foldername, 'path': 'engine/dataroot', 'name': 'Root Data Folder'})
+        
+    def backup_data_action(self):
+        self.to_engine.put({'function': 'backup', 'args':[]})
         
     def exit_action(self):
         if hasattr(self,  'exit_action_called'):

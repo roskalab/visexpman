@@ -1735,21 +1735,26 @@ class Analysis(object):
         if self.experiment_running:
             self.printc('No backup during recording')
             return
-        self.printc('Backing up logfiles')
-        from visexpman.engine import backup_manager
-        logbuconf=backup_manager.Config()
-        logbuconf.last_file_access_timeout=1
-        logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
-        self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
-        self.logfilebackup.run()
-        self.printc('Backing up data files')
-        for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
-            databuconf=backup_manager.Config()
-            databuconf.last_file_access_timeout=1
-            databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
-            self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
-            self.datafilebackup.run()
-        self.printc('Done')
+        if 0:#Old method to a smb file share
+            self.printc('Backing up logfiles')
+            from visexpman.engine import backup_manager
+            logbuconf=backup_manager.Config()
+            logbuconf.last_file_access_timeout=1
+            logbuconf.COPY= [{'src':self.machine_config.LOG_PATH, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(self.machine_config.LOG_PATH))],'extensions':['.txt']},]
+            self.logfilebackup=backup_manager.BackupManager(logbuconf,simple=True)
+            self.logfilebackup.run()
+            self.printc('Backing up data files')
+            for folder in [self.machine_config.EXPERIMENT_DATA_PATH, os.path.join(os.path.dirname(self.machine_config.EXPERIMENT_DATA_PATH), 'raw')]:
+                databuconf=backup_manager.Config()
+                databuconf.last_file_access_timeout=1
+                databuconf.COPY= [{'src':folder, 'dst':[os.path.join(self.machine_config.BACKUP_PATH, os.path.basename(folder))],'extensions':['.hdf5','.mat', '.zip', '.csv', '.eps', '.tif','.png']},]
+                self.datafilebackup=backup_manager.BackupManager(databuconf,simple=True)
+                self.datafilebackup.run()
+            self.printc('Done')
+        else:
+            if self.ask4confirmation('Backup may take couple minutes. Are you sure?'):
+                import subprocess
+                subprocess.call(self.machine_config.BACKUP_COMMAND,  shell=True)
         
     def run_always_analysis(self):
         t=datetime.datetime.fromtimestamp(self.last_run)
