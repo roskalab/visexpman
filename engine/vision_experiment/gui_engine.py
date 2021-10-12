@@ -604,51 +604,51 @@ class ExperimentHandler(object):
             mcd_finished=self.current_experiment_parameters.get('stop_trigger',False) or ('stop_trigger' not in self.current_experiment_parameters)
             self.printc(mcd_finished)
             if not self.aborted and 'mcd_file' in self.current_experiment_parameters and mcd_finished:
-                dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.machine_config.FILE_TRIGGER_EXTENSION)
-                tag=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']))[0]
-                dst=os.path.join(os.path.dirname(dst),os.path.basename(dst).replace('data',tag))
-                self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
-                try:
-                    time.sleep(10)
-                    shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
-                except:
-                    if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
-                        time.sleep(2)
-                        try:
-                            shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
-                        except:
-                            time.sleep(10)
-                            shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
-                    else:
-                        self.printc('MC file not renamed')
-                self.printc('MEA recording almost finished, please wait...')
-                time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
-                import filecmp
-                if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst):
-                    src=self.current_experiment_parameters['mcd_file']
-                    self.printc(f'Delete {src}')
-                    os.remove(src)
-                
-            
-#            if hasattr(self.machine_config, 'MC_DATA_FOLDER'):
-#                #Find latest mcd file and save experiment metadata to the same folder
-#                self.latest_mcd_file=fileop.find_latest(self.machine_config.MC_DATA_FOLDER,'.mcd')
-#                txt='Experiment name\t{0}\rBandpass filter\t{1}\rND filter\t{2}\rComments\t{3}\r'\
-#                        .format(\
-#                        self.guidata.read('name'),
-#                        self.guidata.read('Bandpass filter'),
-#                        self.guidata.read('ND filter'),
-#                        self.guidata.read('Comment'))
-#                for k,v in self.current_experiment_parameters.items():
-#                    if k !='stimulus_source_code' or k!='status':
-#                        txt+='{0}\t{1}\r'.format(k,v)
-#                txt+=self.current_experiment_parameters['stimulus_source_code']
-#                outfile=self.latest_mcd_file.replace('.mcd','_metadata.txt')
-#                if os.path.exists(outfile):
-#                    if not self.ask4confirmation('Experiment info file already exists.\r\nDo you want to overwrite {0}'.format(outfile)):
-#                        return
-#                fileop.write_text_file(outfile,txt)
-#                self.printc('Experiment info saved to {0}'.format(outfile))
+                if self.machine_config.FILE_TRIGGER_EXTENSION=='.mcd':
+                    dst=fileop.replace_extension(self.current_experiment_parameters['outfilename'], self.machine_config.FILE_TRIGGER_EXTENSION)
+                    tag=os.path.splitext(os.path.basename(self.current_experiment_parameters['mcd_file']))[0]
+                    dst=os.path.join(os.path.dirname(dst),os.path.basename(dst).replace('data',tag))
+                    self.printc('Move {0} to {1}'.format(self.current_experiment_parameters['mcd_file'],dst))
+                    try:
+                        time.sleep(10)
+                        shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                    except:
+                        if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
+                            time.sleep(2)
+                            try:
+                                shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                            except:
+                                time.sleep(10)
+                                shutil.copy(self.current_experiment_parameters['mcd_file'], dst)
+                        else:
+                            self.printc('MC file not renamed')
+                    self.printc('MEA recording almost finished, please wait...')
+                    time.sleep(self.machine_config.FILE_CHECK_INTERVAL/2+1)
+                    import filecmp
+                    if filecmp.cmp(self.current_experiment_parameters['mcd_file'],dst):
+                        src=self.current_experiment_parameters['mcd_file']
+                        self.printc(f'Delete {src}')
+                        os.remove(src)
+                elif self.machine_config.FILE_TRIGGER_EXTENSION=='.msrd':
+                    files=[f for f in fileop.listdir(os.path.dirname(self.current_experiment_parameters['mcd_file'])) if os.path.splitext(self.current_experiment_parameters['mcd_file'])[0] in f]
+                    dstfiles=[os.path.splitext(self.current_experiment_parameters['outfilename'])[0]+os.path.splitext(f)[1] for f in files]
+                    try:
+                        time.sleep(10)
+                        for i in range(len(files)):
+                            shutil.copy(files[i], dstfiles[i])
+                    except:
+                        if self.ask4confirmation('Stop MC recording manually. Press no for skipping renaming mcd file'):
+                            time.sleep(2)
+                            try:
+                                for i in range(len(files)):
+                                    shutil.copy(files[i], dstfiles[i])
+                            except:
+                                time.sleep(10)
+                                for i in range(len(files)):
+                                    shutil.copy(files[i], dstfiles[i])
+                        else:
+                            self.printc('MC file not renamed')
+        
         else:
             if self.santiago_setup:
                 t0=time.time()
