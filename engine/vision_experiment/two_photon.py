@@ -124,9 +124,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.read_image_timer.start(1000.0 / self.machine_config.IMAGE_DISPLAY_RATE)
         self.read_image_timer.timeout.connect(self.read_image)
         
-        self.background_process_timer=QtCore.QTimer()
-        self.background_process_timer.start(1000)
-        self.background_process_timer.timeout.connect(self.background_process)
+#        self.background_process_timer=QtCore.QTimer()
+#        self.background_process_timer.start(1000)
+#        self.background_process_timer.timeout.connect(self.background_process)
         
         self.queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
@@ -227,6 +227,12 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'X scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
                     {'name': 'Y scanner voltage', 'type': 'float', 'value': 0,  'suffix': ' V'},
                 ]}, 
+                {'name': 'Time lapse', 'type': 'group', 'expanded' : True, 'children': [
+                    {'name': 'Enable', 'type': 'bool', 'value': False},
+                    {'name': 'Interval', 'type': 'float', 'value': 300,  'suffix': ' s'},
+                    {'name': 'N frames', 'type': 'float', 'value': 1},
+                    {'name': 'Name', 'type': 'str', 'value': ''},
+                ]}, 
             ]
         self.params_config.extend(params)
         self.twop_running=False
@@ -259,7 +265,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if newparams['params/IR Gain'] != self.settings['params/IR Gain']:
                 self.camera.set(gain=int(newparams['params/IR Gain']))
                 self.printc('Gain set to {0}'.format(newparams['params/IR Gain']))
-            
+            if newparams['params/Time lapse/Enable'] != self.settings['params/Time lapse/Enable']:
+                if newparams['params/Time lapse/Enable']:
+                    self.statusbar.twop_status.setText('2P time lapse')
+                    self.statusbar.twop_status.setStyleSheet('background:red;')
+                else:
+                    self.statusbar.twop_status.setText('Ready')
+                    self.statusbar.twop_status.setStyleSheet('background:gray;')
             #2p image size changed
             if newparams['params/Scan Width']!=self.settings['params/Scan Width'] or\
                 newparams['params/Scan Height']!=self.settings['params/Scan Height'] or\
@@ -292,6 +304,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.settings=self.params.get_parameter_tree(return_dict=True)
     
     def save_context(self):
+        #Clear time lapse enable
+        values, paths, refs=self.params.get_parameter_tree()
+        param_index=[i for i in range(len(paths)) if 'Enable' in paths[i] and 'Time lapse' in paths[i]][0]
+        refs[param_index].setValue(False)
+        
         context_stream=utils.object2array(self.settings)
         numpy.save(self.context_filename,context_stream)
 
@@ -380,14 +397,57 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},offset=self.settings['params/Advanced/2p Shift'])
         self.twop_running=True
-        self.statusbar.twop_status.setText('2P')
-        self.statusbar.twop_status.setStyleSheet('background:red;')
+        
+        if not self.settings['params/Time lapse/Enable']:
+            self.statusbar.twop_status.setText('2P')
+            self.statusbar.twop_status.setStyleSheet('background:red;')
+        t1=time.time()
+        print(1)
         fps=round(self.machine_config.AO_SAMPLE_RATE/self.waveform.shape[1],1)
-        self.printc(f'2p frame rate {fps} Hz,  dwell time: {self.dwell_time} ms/V')
+        if not self.settings['params/Time lapse/Enable']:
+            self.printc(f'2p frame rate {fps} Hz,  dwell time: {self.dwell_time} ms/V')
         frq_xscan=(utils.roundint(self.settings['params/Scan Height'] * self.settings['params/Resolution'])+self.settings['params/Advanced/Y Return Time'])*fps
-        self.printc(f'X scanner frequency: {frq_xscan} Hz')
+        t2=time.time()
+        print(2)
+        if not self.settings['params/Time lapse/Enable']:
+            self.printc(f'X scanner frequency: {frq_xscan} Hz')
         self.twop_fps=fps
         self.intensities=[]
+        self.frame_counter=0
+        t3=time.time()
+        print(3)
+        self.printc(f'Debug: {t3-t2},  {t2-t1},  {t1-t0}')
+        
+    def timelapse_handler(self):
+        try:
+            if self.settings['params/Time lapse/Enable']:
+                now=time.time()
+                if not hasattr(self,  'last_scan'):
+                    self.last_scan=now
+                dt=now-self.last_scan
+                #self.printc(dt)
+                if dt>self.settings['params/Time lapse/Interval'] and not self.twop_running:
+                    import psutil
+                    self.printc(f'Debug: {psutil.virtual_memory().percent}% memory usage')
+                    tr0=time.time()
+                    print(11)
+                    self.record_action(tag2='2p_'+self.settings['params/Time lapse/Name'])
+                    tr1=time.time()
+                    self.printc(f'Debug: Start: {tr1-tr0}')
+                elif self.twop_running and self.frame_counter>self.settings['params/Time lapse/N frames']:
+                    print(12)
+                    ts0=time.time()
+                    self.stop_action()
+                    print(13)
+                    ts1=time.time()
+                    self.printc(f'Debug: stop: {ts1-ts0}')
+                    self.last_scan=now
+        except:
+            self.printc('Error happened during time lapse:', popup_error=False)
+            self.printc(traceback.format_exc(), popup_error=False)
+            #Try to stop imaging
+            self.stop_action()
+                
     
     def start_action(self):
         try:
@@ -396,7 +456,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.filename=None
             self.prepare_2p()
             self.printc('2p scanning started')
-            self.frame_counter=0
+            self.intensities=[]
         except:
             self.printc(traceback.format_exc())
         
@@ -419,12 +479,17 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.stop_action(snapshot=True)
         return numpy.array(frames)
         
-    def record_action(self):
+    def record_action(self, tag2=None):
         try:
+            if tag2 is None or isinstance(tag2, bool):
+                tag='2p'
+            else:
+                tag=tag2
+            #tag2='2p'
             if self.twop_running:
                 self.stop_action()
             params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
-            self.filename=experiment_data.get_recording_path(self.machine_config,params, '2p')
+            self.filename=experiment_data.get_recording_path(self.machine_config,params, prefix=tag)
             if self.filename is  None:
                 raise ValueError()
             self.prepare_2p()
@@ -678,6 +743,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.printc(traceback.format_exc())
                 self.update_image_error_shown=True
         self.image_update_in_progress=False
+        self.background_process()
     
     def stop_action(self, remote=None, snapshot=False):
         try:
@@ -691,11 +757,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.printc('2p scanning stopped')
                 if self.filename is not None:
                     if not os.path.exists(self.filename):
-                        raise IOError(f'{self.filename} is not saved')
-            self.statusbar.twop_status.setText('Ready')
-            self.statusbar.twop_status.setStyleSheet('background:gray;')
+                        time.sleep(5)
+                        if not os.path.exists(self.filename):
+                            raise IOError(f'{self.filename} is not saved')
+            if not self.settings['params/Time lapse/Enable']:
+                self.statusbar.twop_status.setText('Ready')
+                self.statusbar.twop_status.setStyleSheet('background:gray;')
         except:
-            self.printc(traceback.format_exc())
+            self.printc(traceback.format_exc(), popup_error=False)
         
     def restart_scan(self):
         self.stop_action()
@@ -882,9 +951,21 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
     def background_process(self):
         try:
+            now=time.time()
+            if not hasattr(self,  'bgp_tlast'):
+                self.bgp_tlast=now
+            dt=now-self.bgp_tlast
+            if dt>1:
+                self.bgp_tlast=now
+            else:
+                return
+            print('00')
             self.socket_handler()
             self.z_stack_runner()   
+            self.timelapse_handler()
+            print(15)
             self.error_checker()
+            print(16)
         except:
             if not hasattr(self, 'background_process_error_shown'):
                 self.printc(traceback.format_exc())

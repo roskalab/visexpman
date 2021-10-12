@@ -25,6 +25,8 @@ class ScannerWaveform(object):
     MIN_X_SCANNER_PERIOD=1./8000#TODO: this limitation should depend on scan area width. Lower widths work on higher frequencies
     SCANNER_VOLTAGE_RANGE=[0.05, 7.0]
     LINE_SCAN_EXTENSION=0.2
+    SCANNER_VOLTAGE_DEG_SCALE=0.75#V/deg
+    SCANNER_POSITION_VOLTAGE_DEG_SCALE=0.5#V/deg
     
     def __init__(self, machine_config=None,  **kwargs):
         if hasattr(machine_config, 'AO_SAMPLE_RATE'):
@@ -103,7 +105,22 @@ class ScannerWaveform(object):
             raise ValueError('Too many pixels to scan: {0}, limit {1}'.format(scan_mask.sum(),  self.MAX_FRAME_PIXELS))
         frame_timing[-1]=0
         projector_control[-1]=0
-        return waveform_x,  waveform_y, projector_control, frame_timing, boundaries
+        #Generate position-pixel map, assuming that scan is zero centered
+        self.x_scanner_position_start=-0.5*width
+        self.x_scanner_position_end=0.5*width
+        self.y_scanner_position_start=-0.5*height
+        self.y_scanner_position_end=0.5*height
+        nxsamples=int(width*resolution)
+        nysamples=int(height*resolution)
+        #Scale position to voltage: after voltage conversion it is scaled to the feedback position's scale
+        scale=self.scan_voltage_um_factor*self.SCANNER_POSITION_VOLTAGE_DEG_SCALE/self.SCANNER_VOLTAGE_DEG_SCALE
+        self.x_scanner_position_start*=scale
+        self.x_scanner_position_end*=scale
+        self.y_scanner_position_start*=scale
+        self.y_scanner_position_end*=scale
+        import scipy.interpolate
+        self.xinterp=scipy.interpolate.interp1d([self.x_scanner_position_start, self.x_scanner_position_end], [0, nxsamples-1], bounds_error=False, fill_value='extrapolate')
+        self.yinterp=scipy.interpolate.interp1d([self.y_scanner_position_start, self.y_scanner_position_end], [0, nysamples-1], bounds_error=False, fill_value='extrapolate')
         
     def generate_smooth(self, height, width, resolution, xflyback, yflyback):
         def smooth(x,h):
@@ -237,7 +254,12 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.create_channels()
             ct=0
             self.running=False
+            tlast=time.time()
             while True:
+                now=time.time()
+                if now-tlast>10:
+                    self.printl('Alive')
+                    tlast=now
                 if not self.queues['command'].empty():
                     cmd=self.queues['command'].get()
                     self.printl(cmd)
