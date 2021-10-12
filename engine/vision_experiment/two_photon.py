@@ -34,7 +34,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.setGeometry(self.machine_config.GUI_POSITION[0], self.machine_config.GUI_POSITION[1], self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack',  'exit']
+        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'select_data_folder', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack',  'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
@@ -240,6 +240,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.fkwargs={'gamma':1.5}
         self.update_image_enable=True
         self.image_update_in_progress=False
+        self.data_folder=self.machine_config.EXPERIMENT_DATA_PATH
     
     def parameter_changed(self):
         if(self.z_stack_running):
@@ -365,6 +366,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
 ######### Two Photon ###########
     def prepare_2p(self):
+        t0=time.time()
+        print(0)
         if self.twop_running:
             return
         pulse_width=self.settings['params/Advanced/Projector Control Pulse Width']*1e-6 if self.settings['params/Advanced/Enable Projector'] else 0
@@ -376,6 +379,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                                                     self.settings['params/Advanced/Y Return Time'],\
                                                                     pulse_width,\
                                                                     self.settings['params/Advanced/Projector Control Phase']*1e-6,)
+        self.waveform_x_orig=waveform_x.copy()
         waveform_x, self.boundaries=self.waveform_generator.generate_smooth(int(self.settings['params/Scan Height']), \
                                                                                         int(self.settings['params/Scan Width']), \
                                                                                         self.settings['params/Resolution'],\
@@ -392,7 +396,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             waveform_y=waveform_y*0+self.settings['params/Advanced/Y scanner voltage']
             
         self.waveform=numpy.array([waveform_x,  waveform_y, projector_control, frame_timing])
-        self.dwell_time=(1000/self.machine_config.AI_SAMPLE_RATE)/numpy.diff(self.waveform[0])[0]
+        self.dwell_time=(1000/self.machine_config.AI_SAMPLE_RATE)/numpy.diff(self.waveform[0, self.boundaries[0]:self.boundaries[1]]).mean()
         
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},offset=self.settings['params/Advanced/2p Shift'])
@@ -435,6 +439,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     tr1=time.time()
                     self.printc(f'Debug: Start: {tr1-tr0}')
                 elif self.twop_running and self.frame_counter>self.settings['params/Time lapse/N frames']:
+                    self.printc(self.frame_counter)
                     print(12)
                     ts0=time.time()
                     self.stop_action()
@@ -490,6 +495,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.stop_action()
             params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
             self.filename=experiment_data.get_recording_path(self.machine_config,params, prefix=tag)
+            self.filename=os.path.join(self.data_folder, os.path.basename(self.filename))
             if self.filename is  None:
                 raise ValueError()
             self.prepare_2p()
@@ -570,6 +576,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 #                print(twop_frame.max())
                 twop_frame=numpy.rot90(twop_frame)
                 self.twop_frame=twop_frame
+                self.frame_counter+=1
         except:
             if not hasattr(self, 'read_image_error_shown'):
                 self.printc(traceback.format_exc())
@@ -760,6 +767,10 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                         time.sleep(5)
                         if not os.path.exists(self.filename):
                             raise IOError(f'{self.filename} is not saved')
+                    if not os.path.exists(fileop.replace_extension(self.filename,'.tiff')):
+                        time.sleep(5)
+                        if not os.path.exists(fileop.replace_extension(self.filename,'.tiff')):
+                            raise IOError('tiff is not saved')
             if not self.settings['params/Time lapse/Enable']:
                 self.statusbar.twop_status.setText('Ready')
                 self.statusbar.twop_status.setStyleSheet('background:gray;')
@@ -989,7 +1000,14 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 for i in range(20):#Every packet contains 20 lines
                     line_index=frame_count*20+i
                     self.ir_image[:, line_index]=pixels[i*self.ir_image.shape[0]: (i+1)*self.ir_image.shape[0]]
-    
+
+    def select_data_folder_action(self):
+        df= QtGui.QFileDialog.getExistingDirectory(self, 'Select data folder',  self.data_folder).replace('/','\\')
+        if 'g:' in df.lower():
+            raise IOError("Saving directly to Google drive not supported")
+        else:
+            self.data_folder=df
+
     def exit_action(self):
         self.stop_action()
         self.save_context()

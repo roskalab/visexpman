@@ -121,6 +121,7 @@ class ScannerWaveform(object):
         import scipy.interpolate
         self.xinterp=scipy.interpolate.interp1d([self.x_scanner_position_start, self.x_scanner_position_end], [0, nxsamples-1], bounds_error=False, fill_value='extrapolate')
         self.yinterp=scipy.interpolate.interp1d([self.y_scanner_position_start, self.y_scanner_position_end], [0, nysamples-1], bounds_error=False, fill_value='extrapolate')
+        return waveform_x,  waveform_y, projector_control, frame_timing, boundaries
         
     def generate_smooth(self, height, width, resolution, xflyback, yflyback):
         def smooth(x,h):
@@ -255,6 +256,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             ct=0
             self.running=False
             tlast=time.time()
+            frame_counter=0
             while True:
                 now=time.time()
                 if now-tlast>10:
@@ -295,6 +297,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
                         self.open_shutter()
+                        frame_counter=0
                         self.running=True
                     elif cmd[0]=='stop':
                         self.printl("Stop recording")
@@ -311,6 +314,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             tifffile.imwrite(tifffn,data)
                             self.printl(f'Saved to {tifffn}')
                             self.printl('Closing file')
+                        self.printl(f'Recorded {frame_counter} frames')
                         self.running=False
                     elif cmd=='terminate':
                         self.printl('Terminating')
@@ -320,6 +324,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 if self.running:
                     try:
                         data_chunk=daq.SyncAnalogIO.read(self)
+                        #utils.object2npy({'waveform':waveform, 'data':data_chunk, 'data_format':self.data_format}, r'c:\data\2p.npy')
+                        self.scanner_position=data_chunk[2:]
+                        data_chunk=data_chunk[:2]
+                        frame_counter+=1
+                        
                     except (PyDAQmx.DAQmxFunctions.SamplesNotYetAvailableError,PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError) as e:
                         self.printl(self.number_of_ai_samples)
                         import traceback
@@ -336,11 +345,13 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         if data_chunk.min()<0:
                             self.queues['response'].put(f'Negative voltate is detected: {data_chunk.min()} V on PMT output, please adjust offset')
                 time.sleep(0.02)
+            self.printl('Process done')
             #Clean up
             self.digital_output.ClearTask()
         except:
             import traceback
             self.printl(traceback.format_exc(),loglevel='error')
+        self.printl('Exit process')
             
 class Test(unittest.TestCase):
     
