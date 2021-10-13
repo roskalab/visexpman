@@ -439,7 +439,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     tr1=time.time()
                     self.printc(f'Debug: Start: {tr1-tr0}')
                 elif self.twop_running and self.frame_counter>self.settings['params/Time lapse/N frames']:
-                    self.printc(self.frame_counter)
+                    self.printc(f'fc: {self.frame_counter}')
                     print(12)
                     ts0=time.time()
                     self.stop_action()
@@ -465,7 +465,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         except:
             self.printc(traceback.format_exc())
         
-    def snap_action(self, dummy,nframes=1):
+    def snap_action(self, dummy,nframes=scanner_control.NFRAMES_SKIP_AT_SCANNING_START+1):
         self.start_action()
         t0=time.time()
         frames=[]
@@ -703,9 +703,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 self.image.set_image(self.merged)#Swap x, y axis
             else:
                 self.image.set_image(numpy.zeros_like(self.merged))
-            self.histogram.item.setLevels(histogram_levels[0], histogram_levels[1])
-            self.frame_counter+=1
-            self.image.img.setLevels([0.0,1.0])
+            #Disabled for eliminating flashes: self.histogram.item.setLevels(histogram_levels[0], histogram_levels[1])
+            #self.frame_counter+=1
+            #Disabled for eliminating flashes: self.image.img.setLevels([0.0,1.0])
             if self.twop_running:
                 self.image.plot.setTitle(f'{self.twop_fps} fps, {self.dwell_time:.02f} ms/V dwell time')
             if not self.aio.queues['response'].empty():
@@ -950,7 +950,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     log=''
                 dt=time.time()-t0
                 if dt>0.8:
-                    raise RuntimeError('logfile read takes long')
+                    self.printc('!!!! logfile read takes long')
                 if 'ERROR' in log:
                     lines=log.split('\n')
                     index=[i for i in range(len(lines)) if 'ERROR' in lines[i]][0]

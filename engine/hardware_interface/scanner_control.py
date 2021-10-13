@@ -14,6 +14,9 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except:
     print('no pydaqmx')
+    
+NFRAMES_SKIP_AT_SCANNING_START=4
+
 class ScannerWaveform(object):
     '''
     '''
@@ -238,6 +241,8 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                 image=chunk_[None,:]
             if hasattr(self,'data_handle'):
                 self.data_handle.append(image[None,:])
+                self.raw_data_handle.append(readout[None,:])
+                
         #Scale back to 0..1 range
         #The 1- is a hack here. TODO: check if raw PMT signal is inverted
         imgs=image/self.to16bit
@@ -253,7 +258,6 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
             self.digital_output = PyDAQmx.Task()
             self.digital_output.CreateDOChan(self.kwargs['shutter_port'],'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
             self.create_channels()
-            ct=0
             self.running=False
             tlast=time.time()
             frame_counter=0
@@ -280,7 +284,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                                 image_width=int(numpy.diff(self.data_format['boundaries'])[0])
                                 image_height=int(self.data_format['boundaries'].shape[0]/2)
                                 datatype = tables.UInt16Atom((image_height, image_width, len(self.data_format['channels'])))
+                                rawdatatype=tables.Float32Atom((4, int(waveform.shape[1]*self.binning_factor)))
                             self.data_handle=fh.create_earray(fh.root, 'twopdata', datatype, (0,),filters=datacompressor)
+                            self.raw_data_handle=fh.create_earray(fh.root, 'raw', rawdatatype, (0,),filters=datacompressor)
                             if 'metadata' in self.data_format:
                                 for k, v in self.data_format['metadata'].items():
                                     setattr(fh.root.twopdata.attrs,k,v)
@@ -296,9 +302,9 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl(f'buffer time is {bt}')
                         daq.SyncAnalogIO.start(self, self.kwargs['ai_sample_rate'], self.kwargs['ao_sample_rate'],  waveform)
                         self.printl('Started to save to {0}'.format(filename))
-                        self.open_shutter()
                         frame_counter=0
                         self.running=True
+                        ct=0
                     elif cmd[0]=='stop':
                         self.printl("Stop recording")
                         self.close_shutter()
@@ -314,7 +320,7 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                             tifffile.imwrite(tifffn,data)
                             self.printl(f'Saved to {tifffn}')
                             self.printl('Closing file')
-                        self.printl(f'Recorded {frame_counter} frames')
+                        self.printl(f'Recorded {frame_counter} frames,  sent {ct} frames to GUI')
                         self.running=False
                     elif cmd=='terminate':
                         self.printl('Terminating')
@@ -322,11 +328,11 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                     else:
                         self.printl("Unknown command: {0}".format(cmd))
                 if self.running:
+                    if frame_counter==NFRAMES_SKIP_AT_SCANNING_START:
+                        self.open_shutter()
                     try:
                         data_chunk=daq.SyncAnalogIO.read(self)
                         #utils.object2npy({'waveform':waveform, 'data':data_chunk, 'data_format':self.data_format}, r'c:\data\2p.npy')
-                        self.scanner_position=data_chunk[2:]
-                        data_chunk=data_chunk[:2]
                         frame_counter+=1
                         
                     except (PyDAQmx.DAQmxFunctions.SamplesNotYetAvailableError,PyDAQmx.DAQmxFunctions.SamplesNoLongerAvailableError) as e:
@@ -335,15 +341,16 @@ class SyncAnalogIORecorder(daq.SyncAnalogIO, instrument.InstrumentProcess):
                         self.printl(traceback.format_exc())
                         self.printl('Read error')
                         continue
-                        
                     if self.queues['raw'].empty():
                         self.queues['raw'].put(data_chunk)
-                    frame=self.data2file(data_chunk)
-                    if self.queues['data'].empty():
-                        self.queues['data'].put(frame)
-                        self.queues['rawimage'].put(self.rawimage)
-                        if data_chunk.min()<0:
-                            self.queues['response'].put(f'Negative voltate is detected: {data_chunk.min()} V on PMT output, please adjust offset')
+                    if frame_counter>NFRAMES_SKIP_AT_SCANNING_START:
+                        frame=self.data2file(data_chunk)
+                        if self.queues['data'].empty():
+                            self.queues['data'].put(frame)
+                            ct+=1
+                            self.queues['rawimage'].put(self.rawimage)
+                            if data_chunk[:2].min()<0:
+                                self.queues['response'].put(f'Negative voltate is detected: {data_chunk[:2].min()} V on PMT output, please adjust offset')
                 time.sleep(0.02)
             self.printl('Process done')
             #Clean up
