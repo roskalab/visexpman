@@ -187,6 +187,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                                 ]
         
         self.params_config = [
+                {'name': 'Name', 'type': 'str', 'value': ''},
                 {'name': 'Resolution', 'type': 'float', 'value': 1.0, 'limits': (0.5, 8), 'step' : 0.1, 'siPrefix': False, 'suffix': ' pixel/um'},
                 {'name': 'Scan Width', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
                 {'name': 'Scan Height', 'type': 'float', 'value': 100, 'limits': (30, 500), 'siPrefix': True, 'suffix': 'um'},
@@ -208,12 +209,11 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Rotation', 'type': 'float', 'value': 0.0,  'siPrefix': False, 'suffix': ' degrees'},                    
                 ]}, 
                  {'name': 'Z Stack', 'type': 'group', 'expanded' : False, 'children': [
-                    {'name': 'Start', 'type': 'int', 'value': 0,  'step': 1, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'End', 'type': 'int', 'value': 0,  'step' : 1, 'siPrefix': True, 'suffix': 'um'},
-                    {'name': 'Step', 'type': 'int', 'value': 1, 'limits': (1, 10), 'step': 1, 'siPrefix': True, 'suffix': 'um'}, 
+                    {'name': 'Start', 'type': 'float', 'value': 0, 'siPrefix': True, 'suffix': 'usteps'},
+                    {'name': 'End', 'type': 'float', 'value': 0,  'siPrefix': True, 'suffix': 'usteps'},
+                    {'name': 'Step', 'type': 'float', 'value': 1, 'siPrefix': True, 'suffix': 'usteps'}, 
                     {'name': 'Samples per depth', 'type': 'int', 'value': 1},
                     {'name': 'File Format', 'type': 'list', 'value': '.hdf5',  'values': file_formats},
-                    {'name': 'Name', 'type': 'str', 'value': ''},
                 ]}, 
                 {'name': 'Advanced', 'type': 'group', 'expanded' : False, 'children': [
                     {'name': 'Enable Projector', 'type': 'bool', 'value': True},
@@ -231,7 +231,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     {'name': 'Enable', 'type': 'bool', 'value': False},
                     {'name': 'Interval', 'type': 'float', 'value': 300,  'suffix': ' s'},
                     {'name': 'N frames', 'type': 'float', 'value': 1},
-                    {'name': 'Name', 'type': 'str', 'value': ''},
                 ]}, 
             ]
         self.params_config.extend(params)
@@ -241,6 +240,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.update_image_enable=True
         self.image_update_in_progress=False
         self.data_folder=self.machine_config.EXPERIMENT_DATA_PATH
+        self.nframes_recording_running=False
     
     def parameter_changed(self):
         if(self.z_stack_running):
@@ -365,7 +365,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.p.show()
     
 ######### Two Photon ###########
-    def prepare_2p(self):
+    def prepare_2p(self, nframes=None):
         t0=time.time()
         print(0)
         if self.twop_running:
@@ -399,7 +399,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.dwell_time=(1000/self.machine_config.AI_SAMPLE_RATE)/numpy.diff(self.waveform[0, self.boundaries[0]:self.boundaries[1]]).mean()
         
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
-        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},offset=self.settings['params/Advanced/2p Shift'])
+        self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},\
+                        offset=self.settings['params/Advanced/2p Shift'], \
+                        nframes=nframes+scanner_control.NFRAMES_SKIP_AT_SCANNING_START)
         self.twop_running=True
         
         if not self.settings['params/Time lapse/Enable']:
@@ -435,7 +437,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.printc(f'Debug: {psutil.virtual_memory().percent}% memory usage')
                     tr0=time.time()
                     print(11)
-                    self.record_action(tag2='2p_'+self.settings['params/Time lapse/Name'])
+                    self.record_action()
                     tr1=time.time()
                     self.printc(f'Debug: Start: {tr1-tr0}')
                 elif self.twop_running and self.frame_counter>self.settings['params/Time lapse/N frames']:
@@ -454,14 +456,16 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.stop_action()
                 
     
-    def start_action(self):
+    def start_action(self, nframes=None):
         try:
             if self.twop_running:
                 self.stop_action()
             self.filename=None
-            self.prepare_2p()
+            self.prepare_2p(nframes=nframes)
             self.printc('2p scanning started')
             self.intensities=[]
+            if nframes is not None:
+                self.nframes_recording_running=True
         except:
             self.printc(traceback.format_exc())
         
@@ -484,13 +488,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.stop_action(snapshot=True)
         return numpy.array(frames)
         
-    def record_action(self, tag2=None):
+    def record_action(self, nframes=None):
         try:
-            if tag2 is None or isinstance(tag2, bool):
-                tag='2p'
-            else:
-                tag=tag2
-            #tag2='2p'
+            tag='2p_'+self.settings['params/Name']
             if self.twop_running:
                 self.stop_action()
             params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
@@ -498,7 +498,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.filename=os.path.join(self.data_folder, os.path.basename(self.filename))
             if self.filename is  None:
                 raise ValueError()
-            self.prepare_2p()
+            import hdf5io
+            h=hdf5io.Hdf5io(self.filename)    
+            setattr(h, 'software_environment',experiment_data.pack_software_environment())
+            setattr(h, 'machine_config', self.machine_config.todict())
+            h.save(['software_environment', 'machine_config'])
+            h.close()
+            self.prepare_2p(nframes=nframes)
             self.printc('2p recording started, saving data to {0}'.format(self.filename))
         except:
             self.printc(traceback.format_exc())
@@ -709,7 +715,15 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             if self.twop_running:
                 self.image.plot.setTitle(f'{self.twop_fps} fps, {self.dwell_time:.02f} ms/V dwell time')
             if not self.aio.queues['response'].empty():
-                self.printc(self.aio.queues['response'].get())
+                msg=self.aio.queues['response'].get()
+                if msg=='nframes recorded':
+                    self.nframes_recording_running=False
+                    self.last_recording_filename=copy.deepcopy(self.filename)
+                    self.twop_running=False
+                    self.statusbar.twop_status.setText('Ready')
+                    self.statusbar.twop_status.setStyleSheet('background:gray;')
+                else:
+                    self.printc(msg)
             if hasattr(self, 'intensities') and len(self.intensities)>0:
                 self.plot.update_curve(numpy.arange(len(self.intensities)),numpy.array(self.intensities))
                 self.plot.plot.setTitle(f'Warning: time scale is based on the rate of displayed images<br>{self.intensities[-1]:0.3f} V')
@@ -878,19 +892,18 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
     
     def z_stack_action(self, remote=None):
         try:
-            if self.settings['params/Z Stack/Start']<=self.settings['params/Z Stack/End']:
-                raise ValueError('Start position must be greater than end position')
             if self.settings['params/Z Stack/Step']<=0:
                 raise ValueError('Step value shall be a positive number')
             params={'id': experiment_data.get_id(), 'outfolder': self.machine_config.EXPERIMENT_DATA_PATH}
-            name=self.settings['params/Z Stack/Name']
+            name=self.settings['params/Name']
             self.zstack_filename=experiment_data.get_recording_path(self.machine_config,params, f'zstack_{name}')
+            self.zstack_filename=os.path.join(self.data_folder, os.path.basename(self.zstack_filename))
             s=self.settings['params/Z Stack/Start']
             e=self.settings['params/Z Stack/End']
             st=self.settings['params/Z Stack/Step']
-            self.depths=numpy.linspace(s, e, int((s-e)/st+1))
+            self.depths=numpy.linspace(s, e, int(abs(s-e)/st+1))
             ext=self.settings['params/Z Stack/File Format']
-            self.printc(f"Z stack in {', '.join(map(str,self.depths))},  saving to {fileop.replace_extension(self.zstack_filename,ext)}")
+            self.printc(f"Z stack in {', '.join(map(str,self.depths))}, saving to {fileop.replace_extension(self.zstack_filename,ext)}")
             self.depth_index=0
             self.z_stack_running=True
         except:
@@ -898,19 +911,26 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         
     def z_stack_runner(self):
         if self.z_stack_running:
-            self.stage.z=self.depths[self.depth_index]
-            self.printc(f"Set position to {self.stage.z} um")
-            data=self.snap_action(False,nframes=self.settings['params/Z Stack/Samples per depth'])
+            if not self.nframes_recording_running:
+                self.stage.z=self.depths[self.depth_index]
+                self.printc(f"Set position to {self.stage.z} um")
+                time.sleep(2)
+                self.record_action(nframes=self.settings['params/Z Stack/Samples per depth'])
+            else:
+                pass
             data=numpy.where(data>self.machine_config.MAX_PMT_VOLTAGE,self.machine_config.MAX_PMT_VOLTAGE,data)
             data=numpy.cast['uint16'](data*self.machine_config.SCALE_16BIT)
             if self.depth_index==0:
                 self.printc(f"Open {self.zstack_filename}")
                 self.zstackfile=tables.open_file(self.zstack_filename,'w')
                 datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
-                datatype = tables.UInt16Atom(data.shape)
+                h=int(self.settings['params/Resolution']*self.settings['params/Scan Height'])
+                w=int(self.settings['params/Resolution']*self.settings['params/Scan Width'])
+                datatype = tables.UInt16Atom((h, w, 2))
                 self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
-            self.zstack_data_handle.append(data[None,:])
-            self.depth_index+=1
+            if data.shape[0]>0:
+                self.zstack_data_handle.append(data[None,:])
+                self.depth_index+=1
             if len(self.depths)==self.depth_index:
                 self.finish_zstack()
 
