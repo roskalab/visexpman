@@ -34,7 +34,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.setGeometry(self.machine_config.GUI_POSITION[0], self.machine_config.GUI_POSITION[1], self.machine_config.GUI_WIDTH, self.machine_config.GUI_HEIGHT)
         self._set_window_title()
         
-        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'select_data_folder', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack',  'exit']
+        toolbar_buttons = ['start', 'stop', 'record', 'snap', 'select_data_folder', 'zoom_in', 'zoom_out', 'open', 'save_image', 'z_stack', 'read_z', 'set_origin', 'exit']
         self.toolbar = gui.ToolBar(self, toolbar_buttons)
         self.addToolBar(self.toolbar)
         
@@ -230,7 +230,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 {'name': 'Time lapse', 'type': 'group', 'expanded' : True, 'children': [
                     {'name': 'Enable', 'type': 'bool', 'value': False},
                     {'name': 'Interval', 'type': 'float', 'value': 300,  'suffix': ' s'},
-                    {'name': 'N frames', 'type': 'float', 'value': 1},
+                    #{'name': 'N frames', 'type': 'float', 'value': 1},
                 ]}, 
             ]
         self.params_config.extend(params)
@@ -399,9 +399,13 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.dwell_time=(1000/self.machine_config.AI_SAMPLE_RATE)/numpy.diff(self.waveform[0, self.boundaries[0]:self.boundaries[1]]).mean()
         
         channels=list(map(int, [self.settings['params/Show Top'], self.settings['params/Show Side']]))
+        if nframes==0 or nframes is None:
+            nf=0
+        else:
+            nf=nframes+scanner_control.NFRAMES_SKIP_AT_SCANNING_START
         self.aio.start_(self.waveform,self.filename,{'boundaries': self.boundaries, 'channels':channels,'metadata': self.format_settings()},\
                         offset=self.settings['params/Advanced/2p Shift'], \
-                        nframes=nframes+scanner_control.NFRAMES_SKIP_AT_SCANNING_START)
+                        nframes=nf)
         self.twop_running=True
         
         if not self.settings['params/Time lapse/Enable']:
@@ -435,19 +439,7 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 if dt>self.settings['params/Time lapse/Interval'] and not self.twop_running:
                     import psutil
                     self.printc(f'Debug: {psutil.virtual_memory().percent}% memory usage')
-                    tr0=time.time()
-                    print(11)
-                    self.record_action()
-                    tr1=time.time()
-                    self.printc(f'Debug: Start: {tr1-tr0}')
-                elif self.twop_running and self.frame_counter>self.settings['params/Time lapse/N frames']:
-                    self.printc(f'fc: {self.frame_counter}')
-                    print(12)
-                    ts0=time.time()
-                    self.stop_action()
-                    print(13)
-                    ts1=time.time()
-                    self.printc(f'Debug: stop: {ts1-ts0}')
+                    self.z_stack_action()
                     self.last_scan=now
         except:
             self.printc('Error happened during time lapse:', popup_error=False)
@@ -579,7 +571,6 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                 
 #            print(twop_frame)
             if twop_frame is not None:
-#                print(twop_frame.max())
                 twop_frame=numpy.rot90(twop_frame)
                 self.twop_frame=twop_frame
                 self.frame_counter+=1
@@ -720,8 +711,9 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
                     self.nframes_recording_running=False
                     self.last_recording_filename=copy.deepcopy(self.filename)
                     self.twop_running=False
-                    self.statusbar.twop_status.setText('Ready')
-                    self.statusbar.twop_status.setStyleSheet('background:gray;')
+                    if not self.z_stack_running and not self.settings['params/Time lapse/Enable']:
+                        self.statusbar.twop_status.setText('Ready')
+                        self.statusbar.twop_status.setStyleSheet('background:gray;')
                 else:
                     self.printc(msg)
             if hasattr(self, 'intensities') and len(self.intensities)>0:
@@ -891,6 +883,8 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
 ############## Z-STACK ###################
     
     def z_stack_action(self, remote=None):
+        if self.z_stack_running or self.twop_running:
+            return
         try:
             if self.settings['params/Z Stack/Step']<=0:
                 raise ValueError('Step value shall be a positive number')
@@ -906,32 +900,46 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
             self.printc(f"Z stack in {', '.join(map(str,self.depths))}, saving to {fileop.replace_extension(self.zstack_filename,ext)}")
             self.depth_index=0
             self.z_stack_running=True
+            self.z_stack_state='setz'
+            self.printc(f"Open {self.zstack_filename}")
+            self.zstackfile=tables.open_file(self.zstack_filename,'w')
+            datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
+            h=int(self.settings['params/Resolution']*self.settings['params/Scan Height'])
+            w=int(self.settings['params/Resolution']*self.settings['params/Scan Width'])
+            datatype = tables.UInt16Atom((self.settings['params/Z Stack/Samples per depth'], h, w, 2))
+            self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
         except:
             self.printc(traceback.format_exc())
         
     def z_stack_runner(self):
         if self.z_stack_running:
-            if not self.nframes_recording_running:
-                self.stage.z=self.depths[self.depth_index]
-                self.printc(f"Set position to {self.stage.z} um")
-                time.sleep(2)
-                self.record_action(nframes=self.settings['params/Z Stack/Samples per depth'])
-            else:
-                pass
-            data=numpy.where(data>self.machine_config.MAX_PMT_VOLTAGE,self.machine_config.MAX_PMT_VOLTAGE,data)
-            data=numpy.cast['uint16'](data*self.machine_config.SCALE_16BIT)
-            if self.depth_index==0:
-                self.printc(f"Open {self.zstack_filename}")
-                self.zstackfile=tables.open_file(self.zstack_filename,'w')
-                datacompressor = tables.Filters(complevel=5, complib='zlib', shuffle = 1)
-                h=int(self.settings['params/Resolution']*self.settings['params/Scan Height'])
-                w=int(self.settings['params/Resolution']*self.settings['params/Scan Width'])
-                datatype = tables.UInt16Atom((h, w, 2))
-                self.zstack_data_handle=self.zstackfile.create_earray(self.zstackfile.root, 'zstackdata', datatype, (0,),filters=datacompressor)
-            if data.shape[0]>0:
-                self.zstack_data_handle.append(data[None,:])
-                self.depth_index+=1
-            if len(self.depths)==self.depth_index:
+            try:
+                if self.z_stack_state=='setz':
+                    self.stage.z=self.depths[self.depth_index]
+                    time.sleep(2)
+                    self.printc(f"Set position to {self.stage.z} ustep")
+                    self.record_action(nframes=self.settings['params/Z Stack/Samples per depth'])
+                    
+                    self.z_stack_state='wait'
+                elif self.z_stack_state=='wait':
+                    if not self.nframes_recording_running:
+                        #Read frame
+                        time.sleep(15)
+                        fileop.wait4file_ready(self.filename, min_size=0.5e6)
+                        h=tables.open_file(self.filename, 'r')
+                        data=h.root.twopdata.read()[-self.settings['params/Z Stack/Samples per depth']:]
+                        self.printc(data.shape)
+                        self.zstack_data_handle.append(data[None, :])
+                        h.close()
+                        os.remove(self.filename)
+                        import shutil
+                        shutil.move(fileop.replace_extension(self.filename, '.tiff'), fileop.replace_extension(self.filename, f'_{self.depths[self.depth_index]}um.tiff'))
+                        self.z_stack_state='setz'
+                        self.depth_index+=1
+                        if len(self.depths)==self.depth_index:
+                            self.finish_zstack()
+            except:
+                self.printc(traceback.format_exc())
                 self.finish_zstack()
 
     def finish_zstack(self):
@@ -942,10 +950,26 @@ class TwoPhotonImaging(gui.VisexpmanMainWindow):
         self.settings2attr(self.zstackfile.root.depths.attrs)
         self.z_stack_running=False
         self.zstackfile.close()
+        self.stage.z=self.depths[0]
+        self.printc(f'Stage set back to initial position to {self.stage.z} ustep')
         if self.settings['params/Z Stack/File Format']!='.hdf5':
             hdf5_convert(self.zstack_filename, self.settings['params/Z Stack/File Format'])
-            os.remove(self.zstack_filename)
-        self.printc("Z stack finished")
+            #os.remove(self.zstack_filename)
+        self.printc(f"Z stack finished, data saved to {self.zstack_filename}")
+        
+    def read_z_action(self):
+        self.printc(f'z position: {self.stage.z} ustep')
+        
+    def set_origin_action(self):
+        reply = QtGui.QMessageBox.question(self, 'Confirm:', 'Set stage origin?', QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if not reply:
+            return
+        self.stage.write(b'o\r')
+        try:
+            self.stage.check_response()
+        except:
+            self.printc(traceback.format_exc())
+        self.printc(f'z Origin set: {self.stage.z} ustep')
         
     def format_settings(self):
         '''
